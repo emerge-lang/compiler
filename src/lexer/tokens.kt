@@ -1,0 +1,96 @@
+package lexer
+
+enum class TokenType
+{
+    KEYWORD,
+    IDENTIFIER,
+    INTEGER_LITERAL,
+    FLOATING_LITERAL,
+    OPERATOR
+}
+
+enum class Keyword(val text: String)
+{
+    FUNCTION("fun"),
+    LET("let"),
+    VAR("var"),
+    READONLY("readonly"),
+    IMMUTABLE("immutable")
+}
+
+enum class Operator(val text: String)
+{
+    PARANT_OPEN("("),
+    PARANT_CLOSE(")"),
+    CBRACE_OPEN("{"),
+    CBRACE_CLOSE("}"),
+    COMMA(","),
+    SEMICOLON(";"),
+    DOUBLE_COLON(":"),
+    LINEBREAK("\n"),
+    RETURNS("->"),
+    PLUS("+"),
+    MINUS("-"),
+    TIMES("*"),
+    DIVIDE("/"),
+    EQUALS("="),
+    GREATER_THAN_OR_EQUALS(">="),
+    LESS_THAN_OR_EQUALS("<="),
+    GREATER_THAN(">"),
+    LESS_THAN("<"),
+    QUESTION_MARK("?")
+}
+
+abstract class Token
+{
+    abstract val type: TokenType
+    abstract val sourceLocation: SourceLocation
+
+    override fun toString() = type.name + " in " + sourceLocation.fileLineColumnText
+}
+
+class KeywordToken(
+        override val sourceLocation: SourceLocation,
+        val keyword: Keyword
+): Token()
+{
+    override val type = TokenType.KEYWORD
+
+    override fun toString() = type.name + " " + keyword.name + " in " + sourceLocation.fileLineColumnText
+}
+
+class OperatorToken(
+        override val sourceLocation: SourceLocation,
+        val operator: Operator
+) : Token() {
+    override val type = TokenType.OPERATOR
+
+    override fun toString() = type.name + " " + operator.name + " in " + sourceLocation.fileLineColumnText
+}
+
+class IdentifierToken(
+        override val sourceLocation: SourceLocation,
+        val value: String
+) : Token() {
+    override val type = TokenType.IDENTIFIER
+
+    override fun toString() = type.name + " " + value + " in " + sourceLocation.fileLineColumnText
+}
+
+class IntegerLiteralToken(
+        override val sourceLocation: SourceLocation,
+        val stringContent: String
+): Token() {
+    override val type = TokenType.INTEGER_LITERAL
+
+    // TODO: parse stringContent
+}
+
+class FloatingPointLiteralToken(
+        override val sourceLocation: SourceLocation,
+        val stringContent: String
+): Token() {
+    override val type = TokenType.INTEGER_LITERAL
+
+    // TODO: parse stringContent
+}
