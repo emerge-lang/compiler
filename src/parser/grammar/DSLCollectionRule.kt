@@ -68,4 +68,11 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
 
         subRules.add(rule)
     }
+
+    /**
+     * Adds the given rule to the list of subrules
+     */
+    fun ref(otherRule: Rule<*>): Unit {
+        subRules.add(otherRule)
+    }
 }
