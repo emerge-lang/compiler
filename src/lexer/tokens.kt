@@ -11,6 +11,7 @@ enum class TokenType
 
 enum class Keyword(val text: String)
 {
+    IMPORT("import"),
     FUNCTION("fun"),
     LET("let"),
     VAR("var"),
@@ -24,6 +25,8 @@ enum class Operator(val text: String)
     PARANT_CLOSE(")"),
     CBRACE_OPEN("{"),
     CBRACE_CLOSE("}"),
+    DOT("."),
+    ASTERISK("*"),
     COMMA(","),
     SEMICOLON(";"),
     DOUBLE_COLON(":"),

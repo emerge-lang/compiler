@@ -66,13 +66,11 @@ abstract class TransactionalSequence<out ItemType, FallbackPointType : Position>
     /**
      * Marks the current position with [mark]. Then runs the code in the given function. If that code returns
      * gracefully, passes on the return value to the caller. If it throws an exception, rolls back the state to the
-     * state marked before. If the thrown exception is of type [RollbackTransactionException], returns null. Otherwise,
-     * passes on the exception.
+     * state marked before and rethrows the exception.
      * Transactions can be nested.
-     * @return The result of the given function or `null` if the function throws a [RollbackTransactionException]
-     *         (see [TransactionalSequence.TransactionReceiver.rollback]).
+     * @return The result of the given function
      */
-    fun <T> transact(txCode: TransactionReceiver.() -> T): T?
+    fun <T> transact(txCode: TransactionReceiver.() -> T): T
     {
         mark()
         try
@@ -84,25 +82,13 @@ abstract class TransactionalSequence<out ItemType, FallbackPointType : Position>
         catch (ex: Throwable)
         {
             rollback()
-            if (ex is RollbackTransactionException)
-            {
-                return null
-            }
-            else
-            {
-                throw ex
-            }
+            throw ex
         }
     }
 
     inner class TransactionReceiver {
         fun next(): ItemType? = this@TransactionalSequence.next()
-        fun rollback(): Nothing = throw RollbackTransactionException()
         fun <T> transact(txCode: TransactionReceiver.() -> T): T? = this@TransactionReceiver.transact(txCode)
     }
     private val txReceiver = TransactionReceiver()
-
-    companion object {
-        class RollbackTransactionException : RuntimeException()
-    }
 }
