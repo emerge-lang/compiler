@@ -2,49 +2,87 @@ package parser.rule
 
 import lexer.*
 import matching.Matcher
-import matching.PredicateMatcher
+import matching.ResultCertainty
+import parser.MissingTokenReporting
 import parser.Reporting
-import parser.ReportingException
-import parser.ReportingType
+import parser.TokenMismatchReporting
 import parser.TokenSequence
 
 interface Rule<T> : Matcher<TokenSequence,T,Reporting> {
     companion object {
-        fun singleton(predicate: PredicateMatcher<Token, Reporting>) = object: Rule<Sequence<Token>> {
-            override val descriptionOfAMatchingThing = predicate.descriptionOfAMatchingThing
+        fun singleton(equalTo: Token): Rule<Token> = object : Rule<Token> {
+            override val descriptionOfAMatchingThing: String
+                get() = equalTo.toString()
 
-            override fun tryMatch(input: TokenSequence): MatchingResult<Sequence<Token>> {
-                try
-                {
-                    return successfulMatch(sequenceOf(
-                            input.transact
-                            {
-                                val token = input.next()!!
-                                if (predicate(token)) {
-                                    return@transact token
-                                } else {
-                                    throw predicate.describeMismatchOf(token).toException()
-                                }
-                            }
-                    ))
+            override fun tryMatch(input: TokenSequence): MatchingResult<Token> {
+                if (!input.hasNext()) {
+                    return MatchingResult(
+                            ResultCertainty.DEFINITIVE,
+                            null,
+                            setOf(
+                                    MissingTokenReporting(equalTo, input.currentSourceLocation)
+                            )
+                    )
                 }
-                catch (ex: ReportingException)
-                {
-                    return ex.toErrorResult()
+
+                input.mark()
+
+                val token = input.next()!!
+                if (token == equalTo) {
+                    input.commit()
+                    return MatchingResult(
+                            ResultCertainty.DEFINITIVE,
+                            token,
+                            emptySet()
+                    )
+                }
+                else {
+                    input.rollback()
+                    return MatchingResult(
+                            ResultCertainty.DEFINITIVE,
+                            null,
+                            setOf(
+                                    TokenMismatchReporting(equalTo, token)
+                            )
+                    )
                 }
             }
+        }
 
-            override fun describeMismatchOf(seq: TokenSequence): Reporting {
-                if (seq.hasNext())
-                {
-                    return predicate.describeMismatchOf(seq.next()!!)
+        fun singletonOfType(type: TokenType): Rule<Token> = object : Rule<Token> {
+            override val descriptionOfAMatchingThing: String
+                get() = type.name
+
+            override fun tryMatch(input: TokenSequence): MatchingResult<Token> {
+                if (!input.hasNext()) {
+                    return MatchingResult(
+                            ResultCertainty.DEFINITIVE,
+                            null,
+                            setOf(
+                                    Reporting.error("Expected token of type $type, found nothing", input.currentSourceLocation)
+                            )
+                    )
                 }
-                else
-                {
-                    return Reporting.error(
-                            ReportingType.MISSING_TOKEN,
-                            "Expected ${predicate.descriptionOfAMatchingThing} but input had no more tokens",
-                            seq.currentSourceLocation
+
+                input.mark()
+
+                val token = input.next()!!
+                if (token.type == type) {
+                    input.commit()
+                    return MatchingResult(
+                            ResultCertainty.OPTIMISTIC,
+                            token,
+                            emptySet()
+                    )
+                }
+                else {
+                    input.rollback()
+                    return MatchingResult(
+                            ResultCertainty.DEFINITIVE,
+                            null,
+                            setOf(
+                                    Reporting.error("Expected token of type $type, found $token", token)
+                            )
                     )
                 }
             }
@@ -52,7 +90,7 @@ interface Rule<T> : Matcher<TokenSequence,T,Reporting> {
     }
 
     override fun describeMismatchOf(seq: TokenSequence): Reporting {
-        val result = tryMatch(seq) as MatchingResult<T>
+        val result = tryMatch(seq)
         if (result.isSuccess) {
             throw IllegalArgumentException("The given sequence is actually a match - cannot describe mismatch!")
         }

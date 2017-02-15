@@ -2,14 +2,12 @@ package parser
 
 import lexer.SourceLocation
 import lexer.Token
-import lexer.TokenType
 import parser.rule.MatchingResult
 import matching.ResultCertainty
 import parser.rule.SimpleMatchingResult
 
-data class Reporting(
+open class Reporting(
     val level: Level,
-    val type: ReportingType,
     val message: String,
     val sourceLocation: SourceLocation
 ) : Comparable<Reporting>
@@ -30,26 +28,16 @@ data class Reporting(
     }
 
     companion object {
-        fun error(type: ReportingType, message: String, sourceLocation: SourceLocation)
-            = Reporting(Level.ERROR, type, message, sourceLocation)
+        fun error(message: String, sourceLocation: SourceLocation)
+            = Reporting(Level.ERROR, message, sourceLocation)
 
-        fun error(type: ReportingType, message: String, erroneousToken: Token)
-                = error(type, message, erroneousToken.sourceLocation)
+        fun error(message: String, erroneousToken: Token)
+                = error(message, erroneousToken.sourceLocation!!)
 
-        fun tokenMismatch(expectation: String, certainty: ResultCertainty = ResultCertainty.DEFINITIVE): (Token) -> Reporting
+        fun tokenMismatch(expectation: Token): (Token) -> Reporting
         {
-            return { erroneousToken ->
-                Reporting(
-                    Reporting.Level.ERROR,
-                    ReportingType.TOKEN_MISMATCH,
-                    "expected $expectation but found $erroneousToken",
-                    erroneousToken.sourceLocation
-                )
-            }
+            return { erroneousToken -> TokenMismatchReporting(expectation, erroneousToken) }
         }
-
-        fun tokenMismatch(expectedType: TokenType, certainty: ResultCertainty = ResultCertainty.DEFINITIVE): (Token) -> Reporting
-            = tokenMismatch(expectedType.name, certainty)
     }
 }
 
@@ -59,7 +47,12 @@ class ReportingException(val reporting: Reporting) : Exception(reporting.message
             = reporting.toErrorResult(certainty)
 }
 
-enum class ReportingType {
-    TOKEN_MISMATCH,
-    MISSING_TOKEN
-}
+class TokenMismatchReporting(
+        val expected: Token,
+        val actual: Token
+) : Reporting(Level.ERROR, "Expected $expected but found $actual", actual.sourceLocation!!)
+
+class MissingTokenReporting(
+        val expected: Token,
+        sourceLocation: SourceLocation
+) : Reporting(Level.ERROR, "Expected $expected but found nothing", sourceLocation)

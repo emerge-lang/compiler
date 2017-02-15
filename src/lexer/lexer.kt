@@ -21,15 +21,15 @@ class Lexer(code: String, private val sourceDescriptor: SourceDescriptor)
         // try to match an operator
         for (operator in Operator.values())
         {
-            val opToken = transact {
-                val nextText = nextChars(operator.text.length) ?: rollback()
-                if (nextText == operator.text) {
-                    return@transact OperatorToken(currentSL, operator)
-                }
-                rollback()
+            sourceTxSequence.mark()
+
+            val nextText = nextChars(operator.text.length)
+            if (nextText != null && nextText == operator.text) {
+                sourceTxSequence.commit()
+                return OperatorToken(operator, currentSL)
             }
 
-            if (opToken != null) return opToken
+            sourceTxSequence.rollback()
         }
 
         if (!hasNext) return null
@@ -41,7 +41,7 @@ class Lexer(code: String, private val sourceDescriptor: SourceDescriptor)
         val keyword = Keyword.values()
                 .firstOrNull { it.text.equals(text, true) }
 
-        if (keyword != null) return KeywordToken(currentSL, keyword)
+        if (keyword != null) return KeywordToken(keyword, currentSL)
 
         if (IsIntegerLiteral(text))
         {
@@ -53,7 +53,7 @@ class Lexer(code: String, private val sourceDescriptor: SourceDescriptor)
         }
         else
         {
-            return IdentifierToken(currentSL, text)
+            return IdentifierToken(text, currentSL)
         }
     }
 

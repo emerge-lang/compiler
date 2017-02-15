@@ -9,5 +9,5 @@ enum class ResultCertainty(val level: Int) {
     /**
      * The result is definitive, no more rules should be matched
      */
-    DEFINITIVE(10)
+    DEFINITIVE(20)
 }

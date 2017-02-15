@@ -23,14 +23,14 @@ class DSLFixedSequenceRule(
         {
             val lastStep = certaintySteps.last()
             val currentIndex = subRules.lastIndex
-            if (lastStep.first == currentIndex)
-            {
-                throw MisconfigurationException("Two certainty levels for the same index - insert rules in between")
-            }
-
             if (c.level <= lastStep.second.level)
             {
                 throw MisconfigurationException("Certainty steps have to increase; last was " + lastStep.second + ", new one is " + c)
+            }
+
+            if (lastStep.first == currentIndex)
+            {
+                certaintySteps.removeAt(certaintySteps.lastIndex)
             }
 
             certaintySteps.add(currentIndex to c)
@@ -42,9 +42,5 @@ class DSLFixedSequenceRule(
     fun __definitive(): Unit
     {
         __certainty = ResultCertainty.DEFINITIVE
-    }
-
-    override fun tryMatch(input: TokenSequence): MatchingResult<List<MatchingResult<*>>> {
-        throw UnsupportedOperationException("not implemented") // TODO: implement
     }
 }

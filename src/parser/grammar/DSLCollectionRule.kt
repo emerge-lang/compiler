@@ -18,22 +18,14 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
      * Matches exactly one [KeywordToken] with the given [lexer.Keyword]
      */
     fun keyword(kw: Keyword): Unit {
-        subRules.add(Rule.singleton(PredicateMatcher(
-                { it is KeywordToken && it.keyword == kw },
-                TokenType.KEYWORD.name + " " + kw,
-                Reporting.tokenMismatch(TokenType.KEYWORD.name + " " + kw)
-        )))
+        subRules.add(Rule.singleton(KeywordToken(kw)))
     }
 
     /**
      * Matches exactly one [OperatorToken] with the given [Operator]
      */
     fun operator(op: Operator): Unit {
-        subRules.add(Rule.singleton(PredicateMatcher(
-                { it is OperatorToken && it.operator == op},
-                TokenType.OPERATOR.name + " " + op,
-                Reporting.tokenMismatch(TokenType.OPERATOR.name + " " + op)
-        )))
+        subRules.add(Rule.singleton(OperatorToken(op)))
     }
 
     /**
@@ -41,11 +33,7 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
      */
     fun identifier(): Unit
     {
-        subRules.add(Rule.singleton(PredicateMatcher(
-                { it is IdentifierToken },
-                TokenType.IDENTIFIER.name,
-                Reporting.tokenMismatch(TokenType.IDENTIFIER)
-        )))
+        subRules.add(Rule.singletonOfType(TokenType.IDENTIFIER))
     }
 
     fun optional(initFn: DSLFixedSequenceRule.() -> Any?): Unit
@@ -70,7 +58,7 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
     /**
      * Matches the first of any of the sub-rules
      */
-    fun firstOf(initFn: DSLEitherOfRule.() -> Any?): Unit
+    fun eitherOf(initFn: DSLEitherOfRule.() -> Any?): Unit
     {
         val rule = DSLEitherOfRule()
         rule.initFn()

@@ -2,7 +2,6 @@ package parser.rule
 
 import matching.ResultCertainty
 import parser.Reporting
-import parser.ReportingType
 import textutils.indentByFromSecondLine
 import parser.TokenSequence
 
@@ -44,8 +43,7 @@ open class EitherOfRule(
                 ResultCertainty.DEFINITIVE,
                 null,
                 setOf(Reporting.error(
-                        ReportingType.MISSING_TOKEN,
-                        "Expected $descriptionOfAMatchingThing but failed to match",
+                        "Expected $descriptionOfAMatchingThing but failed to match.",
                         input.currentSourceLocation
                 ))
         )

@@ -1,13 +1,7 @@
 import lexer.*
+import parser.toTransactional
 
-val testCode = """
-
-fun someFun(param: Type) -> ReturnType {
-    let a = 3
-    let b = a + 5
-}
-
-let a = (param: Type) -> ReturnType = 13f
+val testCode = """import package
 
 """
 
@@ -20,4 +14,10 @@ fun main(args: Array<String>) {
     val tokens = lex(testCode, source)
 
     tokens.forEach(::println)
+
+    println("------------")
+
+    val matched = Import.tryMatch(tokens.toTransactional())
+
+    println(matched)
 }

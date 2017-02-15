@@ -2,7 +2,6 @@ package parser.rule
 
 import matching.ResultCertainty
 import parser.Reporting
-import parser.ReportingType
 import parser.TokenSequence
 import java.util.*
 
@@ -53,7 +52,7 @@ class VariableTimesRule<T>(
             }
 
             input.commit()
-            matchResults.add(result as MatchingResult<T>)
+            matchResults.add(result)
         }
 
         if (matchResults.size >= times.start) {
@@ -71,7 +70,6 @@ class VariableTimesRule<T>(
                 ResultCertainty.OPTIMISTIC,
                 null,
                 setOf(Reporting.error(
-                        ReportingType.MISSING_TOKEN,
                         "Exopected $descriptionOfAMatchingThing but found ${matchResults.size.wordifyActualEN}",
                         input.currentSourceLocation
                 ))

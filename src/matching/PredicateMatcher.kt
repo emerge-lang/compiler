@@ -6,15 +6,15 @@ open class PredicateMatcher<SubjectType,ErrorType>(
         private val mismatchDescription: (SubjectType) -> ErrorType
 ) : Matcher<SubjectType, SubjectType, ErrorType>
 {
-    override fun tryMatch(thing: SubjectType): AbstractMatchingResult<SubjectType, ErrorType>
+    override fun tryMatch(input: SubjectType): AbstractMatchingResult<SubjectType, ErrorType>
     {
-        if (predicate(thing))
+        if (predicate(input))
         {
-            return AbstractMatchingResult.ofResult(thing)
+            return AbstractMatchingResult.ofResult(input)
         }
         else
         {
-            return AbstractMatchingResult.ofError(describeMismatchOf(thing))
+            return AbstractMatchingResult.ofError(describeMismatchOf(input))
         }
     }
 

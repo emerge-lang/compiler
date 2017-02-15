@@ -37,6 +37,38 @@ open class FixedSequenceRule(
 
     override fun tryMatch(input: TokenSequence): MatchingResult<List<MatchingResult<*>>>
     {
-        throw UnsupportedOperationException() // TODO: implement
+        val results: MutableList<MatchingResult<Any?>> = mutableListOf()
+        var certainty: ResultCertainty = ResultCertainty.OPTIMISTIC
+
+        input.mark()
+
+        subRules.forEachIndexed { index, rule ->
+            val result = rule.tryMatch(input)
+            if (result.isError) {
+                input.rollback()
+
+                return@tryMatch MatchingResult(
+                        certainty,
+                        null,
+                        result.errors
+                )
+            }
+
+            results.add(result)
+
+            // determine new certainty
+            val newCertainty = certaintySteps.find { it.first == index }?.second
+            if (newCertainty != null) {
+                certainty = newCertainty
+            }
+        }
+
+        input.commit()
+
+        return MatchingResult(
+                certainty,
+                results,
+                emptySet()
+        )
     }
 }

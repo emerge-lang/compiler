@@ -30,7 +30,7 @@ enum class Operator(val text: String)
     COMMA(","),
     SEMICOLON(";"),
     COLON(":"),
-    LINEBREAK("\n"),
+    NEWLINE("\n"),
     RETURNS("->"),
     PLUS("+"),
     MINUS("-"),
@@ -47,37 +47,120 @@ enum class Operator(val text: String)
 abstract class Token
 {
     abstract val type: TokenType
-    abstract val sourceLocation: SourceLocation
+    abstract val sourceLocation: SourceLocation?
 
-    override fun toString() = type.name + " in " + sourceLocation.fileLineColumnText
+    override fun toString(): String {
+        if (sourceLocation == null)
+            return type.name
+        else
+            return type.name + " in " + sourceLocation
+    }
 }
 
 class KeywordToken(
-        override val sourceLocation: SourceLocation,
-        val keyword: Keyword
+        val keyword: Keyword,
+        override val sourceLocation: SourceLocation? = null
 ): Token()
 {
     override val type = TokenType.KEYWORD
 
-    override fun toString() = type.name + " " + keyword.name + " in " + sourceLocation.fileLineColumnText
+    override fun toString(): String {
+        var out = type.name + " " + keyword.name
+
+        if (sourceLocation != null) {
+            out += " in " + sourceLocation.fileLineColumnText
+        }
+
+        return out
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other?.javaClass != javaClass) return false
+
+        other as KeywordToken
+
+        if (keyword != other.keyword) return false
+        if (type != other.type) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = keyword.hashCode()
+        result = 31 * result + type.hashCode()
+        return result
+    }
 }
 
 class OperatorToken(
-        override val sourceLocation: SourceLocation,
-        val operator: Operator
+        val operator: Operator,
+        override val sourceLocation: SourceLocation? = null
 ) : Token() {
     override val type = TokenType.OPERATOR
 
-    override fun toString() = type.name + " " + operator.name + " in " + sourceLocation.fileLineColumnText
+    override fun toString(): String {
+        var out = type.name + " " + operator.name
+
+        if (sourceLocation != null) {
+            out += " in " + sourceLocation.fileLineColumnText
+        }
+
+        return out
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other?.javaClass != javaClass) return false
+
+        other as OperatorToken
+
+        if (operator != other.operator) return false
+        if (type != other.type) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = operator.hashCode()
+        result = 31 * result + type.hashCode()
+        return result
+    }
 }
 
 class IdentifierToken(
-        override val sourceLocation: SourceLocation,
-        val value: String
+        val value: String,
+        override val sourceLocation: SourceLocation? = null
 ) : Token() {
     override val type = TokenType.IDENTIFIER
 
-    override fun toString() = type.name + " " + value + " in " + sourceLocation.fileLineColumnText
+    override fun toString(): String {
+        var out = type.name + " " + value
+
+        if (sourceLocation != null) {
+            out += " in " + sourceLocation.fileLineColumnText
+        }
+
+        return out
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other?.javaClass != javaClass) return false
+
+        other as IdentifierToken
+
+        if (value != other.value) return false
+        if (type != other.type) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = value.hashCode()
+        result = 31 * result + type.hashCode()
+        return result
+    }
 }
 
 class IntegerLiteralToken(
