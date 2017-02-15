@@ -19,7 +19,7 @@ val Import = rule {
     }
     operator(NEWLINE)
 }
-.postprocess(ImportPostprocessor)
+.postprocess(::ImportPostprocessor)
 
 val Type = rule {
     identifier()

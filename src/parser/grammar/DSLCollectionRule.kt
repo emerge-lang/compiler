@@ -31,7 +31,7 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
     /**
      * Matches exactly one [IdentifierToken]
      */
-    fun identifier(): Unit
+    fun identifier(acceptedOperators: Collection<Operator> = emptyList(), acceptedKeywords: Collection<Keyword> = emptyList()): Unit
     {
         subRules.add(Rule.singletonOfType(TokenType.IDENTIFIER))
     }

@@ -32,5 +32,7 @@ fun main(args: Array<String>) {
 
     println()
 
-    println(matched)
+    if (matched.isSuccess) {
+        println(matched.result)
+    }
 }
