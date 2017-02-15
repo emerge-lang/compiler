@@ -4,6 +4,7 @@ import lexer.*
 import matching.PredicateMatcher
 import parser.Reporting
 import parser.rule.FixedSequenceRule
+import parser.rule.OptionalRule
 import parser.rule.Rule
 
 /**
@@ -47,6 +48,14 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
         )))
     }
 
+    fun optional(initFn: DSLFixedSequenceRule.() -> Any?): Unit
+    {
+        val subRule = DSLFixedSequenceRule()
+        subRule.initFn()
+
+        subRules.add(OptionalRule(subRule))
+    }
+
     /**
      * Matches at least `times` occurences of the given rule
      */
@@ -61,9 +70,9 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
     /**
      * Matches the first of any of the sub-rules
      */
-    fun firstOf(initFn: DSLFirstOfRule.() -> Any?): Unit
+    fun firstOf(initFn: DSLEitherOfRule.() -> Any?): Unit
     {
-        val rule = DSLFirstOfRule()
+        val rule = DSLEitherOfRule()
         rule.initFn()
 
         subRules.add(rule)

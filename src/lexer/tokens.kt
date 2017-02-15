@@ -29,7 +29,7 @@ enum class Operator(val text: String)
     ASTERISK("*"),
     COMMA(","),
     SEMICOLON(";"),
-    DOUBLE_COLON(":"),
+    COLON(":"),
     LINEBREAK("\n"),
     RETURNS("->"),
     PLUS("+"),

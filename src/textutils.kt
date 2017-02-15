@@ -1,3 +1,5 @@
+package textutils;
+
 fun String.indentByFromSecondLine(n: Int, what: String = " "): String {
     val lines = lines()
 

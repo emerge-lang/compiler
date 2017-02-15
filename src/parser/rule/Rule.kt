@@ -59,4 +59,6 @@ interface Rule<T> : Matcher<TokenSequence,T,Reporting> {
 
         return result.errors.first()
     }
+
+    override fun tryMatch(input: TokenSequence): MatchingResult<T>
 }

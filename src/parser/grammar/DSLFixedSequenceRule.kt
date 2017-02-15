@@ -1,6 +1,5 @@
 package parser.grammar
 
-import indentByFromSecondLine
 import matching.ResultCertainty
 import parser.TokenSequence
 import parser.rule.FixedSequenceRule

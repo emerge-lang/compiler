@@ -1,9 +1,11 @@
 package matching
 
-interface AbstractMatchingResult<ResultType,ErrorType> {
+interface AbstractMatchingResult<out ResultType,ErrorType> {
     val certainty: ResultCertainty
     val result: ResultType?
     val errors: Set<ErrorType>
+
+    val isError: Boolean
 
     companion object {
         fun <ResultType, ErrorType> ofResult(result: ResultType, certainty: ResultCertainty = ResultCertainty.DEFINITIVE): AbstractMatchingResult<ResultType, ErrorType> {
@@ -11,6 +13,7 @@ interface AbstractMatchingResult<ResultType,ErrorType> {
                 override val certainty = certainty
                 override val result = result
                 override val errors = emptySet<ErrorType>()
+                override val isError = false
             }
         }
 
@@ -19,6 +22,7 @@ interface AbstractMatchingResult<ResultType,ErrorType> {
                 override val certainty = certainty
                 override val result = null
                 override val errors = setOf(error)
+                override val isError = true
             }
         }
 

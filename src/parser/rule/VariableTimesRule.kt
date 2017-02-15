@@ -47,7 +47,7 @@ class VariableTimesRule<T>(
             input.mark()
 
             val result = rule.tryMatch(input)
-            if (result.result == null) {
+            if (result.isError) {
                 input.rollback()
                 break
             }

@@ -1,8 +1,8 @@
 package parser.grammar
 
-import parser.rule.FirstOfRule
+import parser.rule.EitherOfRule
 import parser.rule.Rule
 
-class DSLFirstOfRule(
+class DSLEitherOfRule(
         override val subRules: MutableList<Rule<*>> = mutableListOf()
-) : DSLCollectionRule<Any>, FirstOfRule(subRules)
+) : DSLCollectionRule<Any?>, EitherOfRule(subRules)

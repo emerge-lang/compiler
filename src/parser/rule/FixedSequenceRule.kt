@@ -1,6 +1,6 @@
 package parser.rule
 
-import indentByFromSecondLine
+import textutils.indentByFromSecondLine
 import matching.ResultCertainty
 import parser.TokenSequence
 
