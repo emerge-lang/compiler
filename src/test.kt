@@ -1,5 +1,5 @@
-import lexer.*
-import parser.toTransactional
+import compiler.lexer.*
+import compiler.parser.toTransactional
 
 val testCode = """import package.*
 
