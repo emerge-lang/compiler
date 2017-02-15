@@ -1,6 +1,8 @@
 import lexer.Keyword
 import lexer.Operator.*
+import parser.grammar.postprocess
 import parser.grammar.rule
+import parser.postproc.ImportPostprocessor
 
 val Import = rule {
     keyword(Keyword.IMPORT)
@@ -17,6 +19,7 @@ val Import = rule {
     }
     operator(NEWLINE)
 }
+.postprocess(ImportPostprocessor)
 
 val Type = rule {
     identifier()

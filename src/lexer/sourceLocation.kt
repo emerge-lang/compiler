@@ -89,7 +89,6 @@ open class SourceContentAwareSourceLocation(
         }
 
         out.append("-".repeat(50))
-        out.append('\n')
 
         return out.toString()
     }

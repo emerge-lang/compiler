@@ -21,6 +21,8 @@ open class Reporting(
     fun <T> toErrorResult(certainty: ResultCertainty = ResultCertainty.DEFINITIVE): MatchingResult<T>
             = SimpleMatchingResult(certainty, null, this)
 
+    open override fun toString() = "($level) $message\n  in $sourceLocation"
+
     enum class Level(val level: Int) {
         INFO(10),
         WARNING(20),
@@ -50,9 +52,9 @@ class ReportingException(val reporting: Reporting) : Exception(reporting.message
 class TokenMismatchReporting(
         val expected: Token,
         val actual: Token
-) : Reporting(Level.ERROR, "Expected $expected but found $actual", actual.sourceLocation!!)
+) : Reporting(Level.ERROR, "Unexpected ${actual.toStringWithoutLocation()}, expected $expected", actual.sourceLocation!!)
 
 class MissingTokenReporting(
         val expected: Token,
         sourceLocation: SourceLocation
-) : Reporting(Level.ERROR, "Expected $expected but found nothing", sourceLocation)
+) : Reporting(Level.ERROR, "Unexpected EOI, expecting ${expected.toStringWithoutLocation()}", sourceLocation)

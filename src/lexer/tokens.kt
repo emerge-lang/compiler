@@ -51,10 +51,12 @@ abstract class Token
 
     override fun toString(): String {
         if (sourceLocation == null)
-            return type.name
+            return toStringWithoutLocation()
         else
-            return type.name + " in " + sourceLocation
+            return toStringWithoutLocation() + " in " + sourceLocation!!.fileLineColumnText
     }
+
+    open fun toStringWithoutLocation(): String = type.name
 }
 
 class KeywordToken(
@@ -64,15 +66,7 @@ class KeywordToken(
 {
     override val type = TokenType.KEYWORD
 
-    override fun toString(): String {
-        var out = type.name + " " + keyword.name
-
-        if (sourceLocation != null) {
-            out += " in " + sourceLocation.fileLineColumnText
-        }
-
-        return out
-    }
+    override fun toStringWithoutLocation() = type.name + " " + keyword.name
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -99,15 +93,7 @@ class OperatorToken(
 ) : Token() {
     override val type = TokenType.OPERATOR
 
-    override fun toString(): String {
-        var out = type.name + " " + operator.name
-
-        if (sourceLocation != null) {
-            out += " in " + sourceLocation.fileLineColumnText
-        }
-
-        return out
-    }
+    override fun toStringWithoutLocation() = type.name + " " + operator.name
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -134,15 +120,7 @@ class IdentifierToken(
 ) : Token() {
     override val type = TokenType.IDENTIFIER
 
-    override fun toString(): String {
-        var out = type.name + " " + value
-
-        if (sourceLocation != null) {
-            out += " in " + sourceLocation.fileLineColumnText
-        }
-
-        return out
-    }
+    override fun toStringWithoutLocation() = type.name + " " + value
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
