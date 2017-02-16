@@ -74,6 +74,9 @@ fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
                     collectFrom(subResult)
                 }
             }
+            else if (item is TransactionalSequence<*, *>) {
+                itemBucket.addAll(item.remainingToList().filterNotNull())
+            }
             else if (item is Reporting) {
                 reportingsBucket.add(item)
             }

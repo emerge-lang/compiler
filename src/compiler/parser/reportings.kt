@@ -34,7 +34,10 @@ open class Reporting(
             = Reporting(Level.ERROR, message, sourceLocation)
 
         fun error(message: String, erroneousToken: Token)
-                = error(message, erroneousToken.sourceLocation!!)
+            = error(message, erroneousToken.sourceLocation!!)
+
+        fun unexpectedEOI(expected: String, erroneousLocation: SourceLocation)
+            = error("Unexpected EOI, expected $expected", erroneousLocation)
 
         fun tokenMismatch(expectation: Token): (Token) -> Reporting
         {

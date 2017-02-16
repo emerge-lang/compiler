@@ -6,6 +6,7 @@ import compiler.parser.Reporting
 import compiler.parser.rule.FixedSequenceRule
 import compiler.parser.rule.OptionalRule
 import compiler.parser.rule.Rule
+import compiler.parser.rule.TolerantIdentifierMatchingRule
 
 /**
  * A mutable subclass of [FixedSequenceRule] with DSL supporting methods
@@ -33,7 +34,11 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
      */
     fun identifier(acceptedOperators: Collection<Operator> = emptyList(), acceptedKeywords: Collection<Keyword> = emptyList()): Unit
     {
-        subRules.add(Rule.singletonOfType(TokenType.IDENTIFIER))
+        if (acceptedOperators.isEmpty() && acceptedKeywords.isEmpty()) {
+            subRules.add(Rule.singletonOfType(TokenType.IDENTIFIER))
+        } else {
+            subRules.add(TolerantIdentifierMatchingRule(acceptedOperators, acceptedKeywords))
+        }
     }
 
     fun optional(initFn: DSLFixedSequenceRule.() -> Any?): Unit

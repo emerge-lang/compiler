@@ -13,10 +13,7 @@ val Import = rule {
         identifier()
         operator(DOT)
     }
-    eitherOf {
-        operator(ASTERISK)
-        identifier()
-    }
+    identifier(acceptedOperators = listOf(ASTERISK))
     operator(NEWLINE)
 }
 .postprocess(::ImportPostprocessor)

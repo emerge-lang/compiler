@@ -61,6 +61,8 @@ abstract class Token
 
 class KeywordToken(
         val keyword: Keyword,
+        /** The actual CharSequence as it appears in the source code */
+        val sourceText: String = keyword.text,
         override val sourceLocation: SourceLocation? = null
 ): Token()
 {

@@ -41,7 +41,7 @@ class Lexer(code: String, private val sourceDescriptor: SourceDescriptor)
         val keyword = Keyword.values()
                 .firstOrNull { it.text.equals(text, true) }
 
-        if (keyword != null) return KeywordToken(keyword, currentSL)
+        if (keyword != null) return KeywordToken(keyword, text, currentSL)
 
         if (IsIntegerLiteral(text))
         {
