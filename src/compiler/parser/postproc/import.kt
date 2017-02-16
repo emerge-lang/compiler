@@ -8,6 +8,7 @@ import compiler.ast.ImportDeclaration
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
+import compiler.lexer.Token
 import compiler.parser.Reporting
 import compiler.parser.TokenMismatchReporting
 import compiler.parser.rule.MatchingResult
@@ -36,24 +37,15 @@ private fun toAST(tokens: TransactionalSequence<Any, Position>): ImportDeclarati
     // discard the import keyword
     tokens.next()
 
-    val identifiers = ArrayList<String>()
+    val identifiers = ArrayList<IdentifierToken>()
 
     while (tokens.hasNext()) {
         // collect the identifier
-        val identifierToken = tokens.next()!!
-
-        if (identifierToken is IdentifierToken) {
-            identifiers.add(identifierToken.value)
-        }
-        else if (identifierToken is OperatorToken) {
-            // can only be *
-            identifiers.add(identifierToken.operator.text)
-        }
-        else throw InternalCompilerError("Unexpected object type in lexer verified sequence - lexer bug? parser bug?")
+        identifiers.add(tokens.next()!! as IdentifierToken)
 
         // skip the dot, if there
         tokens.next()
     }
 
-    return ImportDeclaration(*identifiers.toTypedArray())
+    return ImportDeclaration(identifiers)
 }
