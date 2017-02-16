@@ -1,7 +1,7 @@
 package compiler.lexer
 
-import transact.transact.SourceFileReader
-import transact.transact.TransactionalSequence
+import compiler.transact.SourceFileReader
+import compiler.transact.TransactionalSequence
 import java.util.*
 
 class Lexer(code: String, private val sourceDescriptor: SourceDescriptor)

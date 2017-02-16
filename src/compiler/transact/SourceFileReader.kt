@@ -1,11 +1,12 @@
-package transact.transact
+package compiler.transact
 
 /**
  * A [TransactionalSequence] on a String that tracks line and column numbers.
  */
 class SourceFileReader(code: String) : TransactionalSequence<Char, SourceFileReader.SourceLocation>(code.toList())
 {
-    override var currentPosition: SourceLocation = SourceLocation(0, 1, 1)
+    override public var currentPosition: SourceLocation = SourceLocation(0, 1, 1)
+        protected set
 
     override fun copyOfPosition(position: SourceLocation): SourceLocation
     {

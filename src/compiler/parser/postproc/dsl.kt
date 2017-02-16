@@ -7,6 +7,9 @@ import compiler.parser.Reporting
 import compiler.parser.TokenSequence
 import compiler.parser.rule.MatchingResult
 import compiler.parser.rule.Rule
+import compiler.transact.Position
+import compiler.transact.TransactionalSequence
+import compiler.transact.SimpleTransactionalSequence
 import java.util.*
 
 /**
@@ -51,20 +54,18 @@ fun <B,A> Rule<B>.mapResult(mapper: (B) -> A): Rule<A> = map {
 }
 
 /**
- * Assumes that the Rule never returns anything but [Token]s and collections of [Token]s. Flattens all these tokens
- * into a single [TokenSequence] and returns that as the compiler.matching result.
+ * Flattens all response objects into a single [TransactionalSequence]. Collections and sub-results will be traversed.
  * Also, collects all the reportings into one flat structure
  */
-fun Rule<*>.collectTokens(): Rule<TokenSequence> {
+fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
     return map { base ->
-        val tokenBucket: MutableList<Token> = LinkedList()
+        val itemBucket: MutableList<Any> = LinkedList()
         val reportingsBucket: MutableSet<Reporting> = HashSet()
 
         fun collectFrom(item: Any?) {
-            if (item is Token) {
-                tokenBucket.add(item)
-            }
-            else if (item is MatchingResult<*>) {
+            if (item == null) return
+
+            if (item is MatchingResult<*>) {
                 collectFrom(item.result)
                 collectFrom(item.errors)
             }
@@ -77,7 +78,7 @@ fun Rule<*>.collectTokens(): Rule<TokenSequence> {
                 reportingsBucket.add(item)
             }
             else {
-                throw IllegalArgumentException("Unexpected return value in nested structure $item; expected only Token, Collection<Token>, MatchingResult<recursive>")
+                itemBucket.add(item)
             }
         }
 
@@ -85,14 +86,14 @@ fun Rule<*>.collectTokens(): Rule<TokenSequence> {
 
         return@map MatchingResult(
             base.certainty,
-            TokenSequence(tokenBucket),
+            SimpleTransactionalSequence(itemBucket),
             reportingsBucket
         )
     }
 }
 
-fun Rule<TokenSequence>.trimWhitespace(front: Boolean = true, back: Boolean = true): Rule<TokenSequence> {
-    val isWhitespace: (Token) -> Boolean = { OperatorToken(compiler.lexer.Operator.NEWLINE) == it }
+fun <T> Rule<TransactionalSequence<T, Position>>.trimWhitespaceTokens(front: Boolean = true, back: Boolean = true): Rule<TransactionalSequence<T, Position>> {
+    val isWhitespace: (T) -> Boolean = { it is Token && OperatorToken(compiler.lexer.Operator.NEWLINE) == it }
 
     return this.mapResult { tokens ->
         val tokenList = tokens.remainingToList()
@@ -100,7 +101,7 @@ fun Rule<TokenSequence>.trimWhitespace(front: Boolean = true, back: Boolean = tr
         if (front) tokenList.dropWhile(isWhitespace)
         if (back) tokenList.dropLastWhile(isWhitespace)
 
-        return@mapResult TokenSequence(tokenList)
+        return@mapResult compiler.transact.SimpleTransactionalSequence(tokenList)
     }
 }
 

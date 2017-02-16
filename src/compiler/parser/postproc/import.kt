@@ -3,15 +3,17 @@
  */
 package compiler.parser.postproc
 
+import compiler.InternalCompilerError
 import compiler.ast.ImportDeclaration
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.parser.Reporting
 import compiler.parser.TokenMismatchReporting
-import compiler.parser.TokenSequence
 import compiler.parser.rule.MatchingResult
 import compiler.parser.rule.Rule
+import compiler.transact.Position
+import compiler.transact.TransactionalSequence
 import java.util.*
 
 fun ImportPostprocessor(rule: Rule<List<MatchingResult<*>>>): Rule<ImportDeclaration> {
@@ -25,12 +27,12 @@ fun ImportPostprocessor(rule: Rule<List<MatchingResult<*>>>): Rule<ImportDeclara
             Reporting.Companion.error("${it.message}; To import all exports of the module write module.*", it.actual)
         }
     )
-    .collectTokens()
-    .trimWhitespace()
+    .flatten()
+    .trimWhitespaceTokens()
     .mapResult(::toAST)
 }
 
-private fun toAST(tokens: TokenSequence): ImportDeclaration {
+private fun toAST(tokens: TransactionalSequence<Any, Position>): ImportDeclaration {
     // discard the import keyword
     tokens.next()
 
@@ -47,7 +49,7 @@ private fun toAST(tokens: TokenSequence): ImportDeclaration {
             // can only be *
             identifiers.add(identifierToken.operator.text)
         }
-        else throw IllegalStateException() // propagate the compiler bug
+        else throw InternalCompilerError("Unexpected object type in lexer verified sequence - lexer bug? parser bug?")
 
         // skip the dot, if there
         tokens.next()

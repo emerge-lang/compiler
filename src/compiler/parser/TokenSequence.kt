@@ -2,9 +2,8 @@ package compiler.parser
 
 import compiler.lexer.SourceLocation
 import compiler.lexer.Token
-import transact.transact.Position
-import transact.transact.TransactionalSequence
-import java.util.*
+import compiler.transact.Position
+import compiler.transact.TransactionalSequence
 
 class TokenSequence(val tokens: List<Token>) : TransactionalSequence<Token, Position>(tokens)
 {
@@ -14,11 +13,6 @@ class TokenSequence(val tokens: List<Token>) : TransactionalSequence<Token, Posi
         get() = tokens.getOrNull(currentPosition.sourceIndex)?.sourceLocation ?: throw IllegalStateException("Empty input: cannot read current token")
 
     override fun copyOfPosition(position: Position): Position = Position(position.sourceIndex)
-
-    /** Returns the remaining tokens in a list */
-    fun remainingToList(): List<Token> {
-        return tokens.subList(currentPosition.sourceIndex, tokens.lastIndex)
-    }
 }
 
 fun Sequence<Token>.toTransactional(): TokenSequence = TokenSequence(toList())

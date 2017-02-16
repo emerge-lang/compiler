@@ -1,5 +1,6 @@
-package transact.transact
+package compiler.transact
 
+import compiler.lexer.Token
 import java.util.*
 
 /**
@@ -17,9 +18,9 @@ abstract class TransactionalSequence<out ItemType, FallbackPointType : Position>
     // here follows the transaction management code
     private var markedPositions: Stack<FallbackPointType> = Stack()
 
-    abstract var currentPosition: FallbackPointType
+    protected abstract var currentPosition: FallbackPointType
 
-    abstract fun copyOfPosition(position: FallbackPointType): FallbackPointType
+    protected abstract fun copyOfPosition(position: FallbackPointType): FallbackPointType
 
     /**
      * Returns the nextToken item from the source and advances the input pointer.
@@ -86,9 +87,19 @@ abstract class TransactionalSequence<out ItemType, FallbackPointType : Position>
         }
     }
 
+    /** Returns the remaining tokens in a list */
+    open fun remainingToList(): List<ItemType> = items.subList(currentPosition.sourceIndex, items.lastIndex)
+
     inner class TransactionReceiver {
         fun next(): ItemType? = this@TransactionalSequence.next()
         fun <T> transact(txCode: TransactionReceiver.() -> T): T? = this@TransactionReceiver.transact(txCode)
     }
     private val txReceiver = TransactionReceiver()
+}
+
+class SimpleTransactionalSequence<T>(items: List<T>) : TransactionalSequence<T, Position>(items)
+{
+    override var currentPosition = Position(0)
+
+    override fun copyOfPosition(position: Position) = Position(currentPosition.sourceIndex)
 }
