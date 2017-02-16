@@ -42,7 +42,7 @@ class VariableTimesRule<T>(
 
         input.mark()
 
-        while (matchResults.size < times.start) {
+        while (matchResults.size < times.endInclusive) {
             input.mark()
 
             val result = rule.tryMatch(input)
