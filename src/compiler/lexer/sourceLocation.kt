@@ -80,10 +80,10 @@ open class SourceContentAwareSourceLocation(
             out.append(line)
             out.append('\n')
 
-            if (index == targetLineIndexInExcerpt)
+            if (index + 1 == targetLineIndexInExcerpt)
             {
-                out.append("--")
-                out.append("-".repeat(Math.max(0, sourceColumn - 1)))
+                out.append("  ")
+                out.append(" ".repeat(Math.max(0, sourceColumn - 1)))
                 out.append("^\n")
             }
         }
