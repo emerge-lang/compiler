@@ -1,12 +1,7 @@
 package compiler.parser.grammar
 
 import compiler.lexer.*
-import compiler.matching.PredicateMatcher
-import compiler.parser.Reporting
-import compiler.parser.rule.FixedSequenceRule
-import compiler.parser.rule.OptionalRule
-import compiler.parser.rule.Rule
-import compiler.parser.rule.TolerantIdentifierMatchingRule
+import compiler.parser.rule.*
 
 /**
  * A mutable subclass of [FixedSequenceRule] with DSL supporting methods
@@ -57,7 +52,7 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
         val rule = DSLFixedSequenceRule()
         rule.initFn()
 
-        subRules.add(rule)
+        subRules.add(VariableTimesRule(rule, IntRange(times, Int.MAX_VALUE)))
     }
 
     /**
