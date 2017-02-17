@@ -29,7 +29,7 @@ One statement per line. `;` only used to separate multiple statements on one lin
 * immutable
 * with braces as in dlang: `alias string = immutable(Char)[]`
 
-Those are transitive as in D (as opposed to the non-transitive val in Kotlin / final modifier in Java)
+Those are transitive as in D; see below for variable declaration and aissgnments to variables.
 
 Values of modified Types can be converterted to an other type according to this table. The letfomst column shows the source type, the headings show the target type.
 
@@ -37,7 +37,7 @@ Values of modified Types can be converterted to an other type according to this 
 |-----------|-|----------|-----------|
 |T          |Y|Y         |N          |
 |readonly T |N|Y         |N          |
-|immutable T|N|Y         |Y
+|immutable T|N|Y         |Y          |
 
 #### Nullability (from Kotlin)
 
@@ -62,19 +62,19 @@ As in Kotlin, Variables are introduced with `val` and `val`. `var` Variables can
 	var b = "Foo"
     b = "Hello" // OK
 
-Type modifiers can be written before the `var` and `val` keyword. That is syntax sugar that assures the modifier on the variable type. That means tha `var` variables cannot hold `readonly` and `immutable` types. Thus, `readonly` and `immutable` modifiers imply `val`. 
+Type modifiers can be written before the `var` and `val` keyword. That is syntax sugar that assures the modifier on the variable type. Note that, however, a `var` of type `immutable X` can be assigned new values, as long as
+those are `immutable`, too.
 
+    readonly var a = 3 // is equal to
+    var a: readonly Int = 3
 
-	readonly a = 3 // is equal to
-    val a: readonly Int = 3
+    reaonly var foo: Int = 3 // is equal to
+    var foo: readonly Int = 3
 
-	reaonly var foo = 3 // Error
-	var foo: readonly Int = 3 // Error
-
-    readonly a = 5
+    readonly var a = 5
     var b = a
     b = 3 // OK
-    a = 3 // error, a is readonly
+    a = b // error, cannot convert Int to readonly(Int)
 
     immutable a = 5
     b = a
