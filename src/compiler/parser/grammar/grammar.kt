@@ -3,9 +3,7 @@ import compiler.lexer.Operator.*
 import compiler.parser.grammar.describeAs
 import compiler.parser.grammar.postprocess
 import compiler.parser.grammar.rule
-import compiler.parser.postproc.FunctionPostprocessor
-import compiler.parser.postproc.ImportPostprocessor
-import compiler.parser.postproc.TypePostprocessor
+import compiler.parser.postproc.*
 
 val ImportDeclaration = rule {
     keyword(Keyword.IMPORT)
@@ -31,32 +29,38 @@ val Type = rule {
     .describeAs("type")
     .postprocess(::TypePostprocessor)
 
-val CommaSeparatedTypedParameters = rule {
+val Parameter = rule {
     identifier()
-    operator(COLON)
-    __definitive()
-    ref(Type)
-    
-    atLeast(0) {
-        operator(COMMA)
-        identifier()
+
+    optional {
         operator(COLON)
         __definitive()
         ref(Type)
     }
 }
+    .postprocess(::ParameterPostprocessor)
 
-val TypedParameterList = rule {
+val ParameterList = rule {
     operator(PARANT_OPEN)
-    
+
+    optionalWhitespace()
+
     optional {
-        ref(CommaSeparatedTypedParameters)
+        ref(Parameter)
+
+        atLeast(0) {
+            optionalWhitespace()
+            operator(COLON)
+            optionalWhitespace()
+            ref(Parameter)
+        }
     }
-    
+
+    optionalWhitespace()
     operator(PARANT_CLOSE)
-    __definitive()
 }
-    .describeAs("typed parameter list")
+    .describeAs("parenthesised paramete rlist")
+    .postprocess(::ParameterListPostprocessor)
 
 val FunctionDeclaration = rule {
     keyword(Keyword.FUNCTION)
@@ -65,14 +69,8 @@ val FunctionDeclaration = rule {
 
     optionalWhitespace()
     identifier()
-    /*ref(TypedParameterList)
-    optional {
-        operator(RETURNS)
-        identifier()
-    }*/
     optionalWhitespace()
-    operator(PARANT_OPEN)
-    operator(PARANT_CLOSE)
+    ref(ParameterList)
     optionalWhitespace()
 
     optional {
