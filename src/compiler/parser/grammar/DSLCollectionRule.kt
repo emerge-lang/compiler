@@ -45,6 +45,14 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
     }
 
     /**
+     * Skips whitespace (newlines); Always matches successfully with [ResultCertainty.OPTIMISTIC]
+     */
+    fun optionalWhitespace(): Unit
+    {
+        subRules.add(WhitespaceEaterRule.instance)
+    }
+
+    /**
      * Matches at least `times` occurences of the given rule
      */
     fun atLeast(times: Int, initFn: DSLFixedSequenceRule.() -> Any?): Unit

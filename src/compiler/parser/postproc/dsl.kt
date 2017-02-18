@@ -5,6 +5,7 @@ import compiler.lexer.OperatorToken
 import compiler.lexer.Token
 import compiler.parser.Reporting
 import compiler.parser.TokenSequence
+import compiler.parser.isWhitespace
 import compiler.parser.rule.MatchingResult
 import compiler.parser.rule.Rule
 import compiler.transact.Position
@@ -96,7 +97,8 @@ fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
 }
 
 fun <T> Rule<TransactionalSequence<T, Position>>.trimWhitespaceTokens(front: Boolean = true, back: Boolean = true): Rule<TransactionalSequence<T, Position>> {
-    val isWhitespace: (T) -> Boolean = { it is Token && OperatorToken(compiler.lexer.Operator.NEWLINE) == it }
+
+    val isWhitespace: (T) -> Boolean = { compiler.parser.isWhitespace(it as Any) }
 
     return this.mapResult { tokens ->
         val tokenList = tokens.remainingToList()

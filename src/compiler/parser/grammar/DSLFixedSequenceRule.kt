@@ -37,7 +37,7 @@ class DSLFixedSequenceRule(
         }
 
     /**
-     * Sets certainty at this compiler.matching stage to [ResultCertainty.DEFINITIVE]
+     * Sets certainty at this matching stage to [ResultCertainty.DEFINITIVE]
      */
     fun __definitive(): Unit
     {

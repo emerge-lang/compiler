@@ -1,7 +1,9 @@
 import compiler.lexer.*
 import compiler.parser.toTransactional
 
-val testCode = """import package.*
+val testCode = """
+
+fun main() {}
 
 """
 
@@ -17,7 +19,7 @@ fun main(args: Array<String>) {
 
     println("------------")
 
-    val matched = Import.tryMatch(tokens.toTransactional())
+    val matched = FunctionDeclaration.tryMatch(tokens.toTransactional())
 
     println("certainty = ${matched.certainty}")
     println("result = ${matched.result}")

@@ -41,18 +41,19 @@ class VariableTimesRule<T>(
         var matchResults: MutableList<MatchingResult<T>> = ArrayList(times.start)
 
         input.mark()
+        var lastResult: MatchingResult<T>? = null
 
         while (matchResults.size < times.endInclusive) {
             input.mark()
 
-            val result = rule.tryMatch(input)
-            if (result.isError) {
+            lastResult = rule.tryMatch(input)
+            if (lastResult.isError) {
                 input.rollback()
                 break
             }
 
             input.commit()
-            matchResults.add(result)
+            matchResults.add(lastResult)
         }
 
         if (matchResults.size >= times.start) {
@@ -66,13 +67,21 @@ class VariableTimesRule<T>(
         else
         {
             input.rollback()
+
+            var errors = if (lastResult?.errors != null && lastResult!!.errors.isNotEmpty()) {
+                lastResult.errors
+            }
+            else {
+                setOf(Reporting.error(
+                    "Exopected $descriptionOfAMatchingThing but found ${matchResults.size.wordifyActualEN}",
+                    input.currentSourceLocation
+                ))
+            }
+
             return MatchingResult(
                 ResultCertainty.OPTIMISTIC,
                 null,
-                setOf(Reporting.error(
-                        "Exopected $descriptionOfAMatchingThing but found ${matchResults.size.wordifyActualEN}",
-                        input.currentSourceLocation
-                ))
+                errors
             )
         }
     }

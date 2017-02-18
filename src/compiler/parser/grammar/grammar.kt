@@ -1,10 +1,13 @@
 import compiler.lexer.Keyword
 import compiler.lexer.Operator.*
+import compiler.parser.grammar.describeAs
 import compiler.parser.grammar.postprocess
 import compiler.parser.grammar.rule
+import compiler.parser.postproc.FunctionPostprocessor
 import compiler.parser.postproc.ImportPostprocessor
+import compiler.parser.postproc.TypePostprocessor
 
-val Import = rule {
+val ImportDeclaration = rule {
     keyword(Keyword.IMPORT)
 
     __definitive()
@@ -16,7 +19,8 @@ val Import = rule {
     identifier(acceptedOperators = listOf(ASTERISK))
     operator(NEWLINE)
 }
-.postprocess(::ImportPostprocessor)
+    .describeAs("import declaration")
+    .postprocess(::ImportPostprocessor)
 
 val Type = rule {
     identifier()
@@ -24,6 +28,8 @@ val Type = rule {
         operator(QUESTION_MARK)
     }
 }
+    .describeAs("type")
+    .postprocess(::TypePostprocessor)
 
 val CommaSeparatedTypedParameters = rule {
     identifier()
@@ -50,19 +56,35 @@ val TypedParameterList = rule {
     operator(PARANT_CLOSE)
     __definitive()
 }
+    .describeAs("typed parameter list")
 
 val FunctionDeclaration = rule {
     keyword(Keyword.FUNCTION)
 
     __definitive()
 
+    optionalWhitespace()
     identifier()
-    ref(TypedParameterList)
+    /*ref(TypedParameterList)
     optional {
         operator(RETURNS)
         identifier()
+    }*/
+    optionalWhitespace()
+    operator(PARANT_OPEN)
+    operator(PARANT_CLOSE)
+    optionalWhitespace()
+
+    optional {
+        operator(RETURNS)
+        optionalWhitespace()
+        ref(Type)
+        optionalWhitespace()
     }
 
     operator(CBRACE_OPEN)
+    optionalWhitespace()
     operator(CBRACE_CLOSE)
 }
+    .describeAs("function declaration")
+    .postprocess(::FunctionPostprocessor)

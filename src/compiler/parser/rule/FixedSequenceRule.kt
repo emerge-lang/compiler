@@ -25,7 +25,7 @@ open class FixedSequenceRule(
     override val descriptionOfAMatchingThing: String
         get() {
             val buf = StringBuilder()
-            buf.append("Tokens compiler.matching these rules in sequence:\n")
+            buf.append("Tokens matching these rules in sequence:\n")
             for (rule in subRules) {
                 buf.append("- ")
                 buf.append(rule.descriptionOfAMatchingThing.indentByFromSecondLine(2))

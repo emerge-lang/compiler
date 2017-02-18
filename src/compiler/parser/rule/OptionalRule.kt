@@ -12,10 +12,20 @@ class OptionalRule<T>(
 
     override fun tryMatch(input: TokenSequence): MatchingResult<T?> {
         val subResult = subRule.tryMatch(input)
-        return MatchingResult(
+
+        if (subResult.certainty == ResultCertainty.DEFINITIVE || subResult.isSuccess) {
+            return MatchingResult(
                 ResultCertainty.OPTIMISTIC,
                 subResult.result,
                 subResult.errors
-        )
+            )
+        }
+        else  {
+            return MatchingResult(
+                ResultCertainty.OPTIMISTIC,
+                null,
+                emptySet()
+            )
+        }
     }
 }
