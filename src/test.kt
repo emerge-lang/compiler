@@ -3,7 +3,7 @@ import compiler.parser.toTransactional
 
 val testCode = """
 
-fun main(param: Type?) -> ReturnType? {}
+fun main(param: Type?, param2: Type2) -> ReturnType? {}
 
 """
 

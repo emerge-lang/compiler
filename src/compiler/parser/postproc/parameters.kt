@@ -57,14 +57,14 @@ fun toAST_ParameterList(tokens: TransactionalSequence<Any, Position>): Parameter
 
         next = tokens.next()!!
         if (next == OperatorToken(Operator.PARANT_CLOSE)) {
+            tokens.commit()
             return ParameterList(parameters)
         }
 
         if (next == OperatorToken(Operator.COMMA)) {
             tokens.commit()
         }
-
-        if (next !is Parameter) {
+        else if (next !is Parameter) {
             tokens.rollback()
             throw InternalCompilerError("Unexpected $next in parameter list, expecting OPERATOR PARANT_CLOSE or OPERATOR COMMA")
         }

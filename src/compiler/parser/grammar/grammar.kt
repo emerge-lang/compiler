@@ -46,14 +46,17 @@ val ParameterList = rule {
     optionalWhitespace()
 
     optional {
-        ref(Parameter)
-
-        atLeast(0) {
-            optionalWhitespace()
-            operator(COLON)
-            optionalWhitespace()
+        ref(rule {
             ref(Parameter)
-        }
+
+            optionalWhitespace()
+
+            atLeast(0) {
+                operator(COMMA)
+                optionalWhitespace()
+                ref(Parameter)
+            }
+        })
     }
 
     optionalWhitespace()
