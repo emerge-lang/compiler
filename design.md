@@ -39,7 +39,34 @@ Values of modified Types can be converterted to an other type according to this 
 |readonly T |N|Y         |N          |
 |immutable T|N|Y         |Y          |
 
-#### Nullability (from Kotlin)
+##### Syntax
+
+Type modifiers can be prefixed to variable declarations to apply the
+modifier to the inferred type (see below).
+
+When declaring types elsewhere, these rules apply:
+
+Prefixing a type with a modifier modifies the type:
+
+    readonly Any
+    
+In case of generics, a modifier applies to the parameterised type as 
+well as to all of the type paremeters:
+
+    readonly Array<Any>
+    // is equal to
+    readonly Array<readonly Any>
+    
+If Type parameters need to have different type modifiers, those can 
+be specified. They act the same
+
+    readonly Array<mutable Any>
+    
+    readonly Array<mutable Set<Any>> // Any is mutable Any
+    
+    readonly Array<mutable Set<readonly Any>>
+
+#### Void-Safety (from Kotlin)
 
 Types are non-nullable by default. Postfix `?` denotes a nullable type. Postfix `!!` converts a nullable
 expression to a non-nullable one, throwing a `NullValueException` if the value is null.
