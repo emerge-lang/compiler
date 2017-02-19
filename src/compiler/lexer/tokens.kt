@@ -13,8 +13,9 @@ enum class Keyword(val text: String)
 {
     IMPORT("import"),
     FUNCTION("fun"),
-    LET("let"),
+    VAL("val"),
     VAR("var"),
+    MUTABLE("mutable"),
     READONLY("readonly"),
     IMMUTABLE("immutable")
 }

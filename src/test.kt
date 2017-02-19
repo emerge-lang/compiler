@@ -3,7 +3,7 @@ import compiler.parser.toTransactional
 
 val testCode = """
 
-fun main(param: Type?, param2: Type2) -> ReturnType? {}
+readonly val a: Type = 3
 
 """
 
@@ -19,7 +19,7 @@ fun main(args: Array<String>) {
 
     println("------------")
 
-    val matched = FunctionDeclaration.tryMatch(tokens.toTransactional())
+    val matched = VariableDeclaration.tryMatch(tokens.toTransactional())
 
     println("certainty = ${matched.certainty}")
     println("result = ${matched.result}")

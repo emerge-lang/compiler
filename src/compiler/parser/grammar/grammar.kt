@@ -1,12 +1,14 @@
-import compiler.lexer.Keyword
+import compiler.lexer.Keyword.*
 import compiler.lexer.Operator.*
+import compiler.lexer.TokenType
 import compiler.parser.grammar.describeAs
 import compiler.parser.grammar.postprocess
 import compiler.parser.grammar.rule
 import compiler.parser.postproc.*
+import compiler.parser.rule.Rule
 
 val ImportDeclaration = rule {
-    keyword(Keyword.IMPORT)
+    keyword(IMPORT)
 
     __definitive()
 
@@ -28,6 +30,53 @@ val Type = rule {
 }
     .describeAs("type")
     .postprocess(::TypePostprocessor)
+
+val TypeModifier = rule {
+    optional {
+        eitherOf {
+            keyword(MUTABLE)
+            keyword(READONLY)
+            keyword(IMMUTABLE)
+        }
+    }
+}
+    .describeAs("type modifier")
+    .postprocess(::TypeModifierPostProcessor)
+
+val VariableDeclaration = rule {
+
+    optional {
+        ref(TypeModifier)
+    }
+
+    optionalWhitespace()
+
+    eitherOf {
+        keyword(VAR)
+        keyword(VAL)
+    }
+    __definitive()
+
+    optionalWhitespace()
+
+    identifier()
+
+    optional {
+        operator(COLON)
+        ref(Type)
+    }
+
+    optionalWhitespace()
+
+    operator(EQUALS)
+
+    // expression()
+    ref(Rule.singletonOfType(TokenType.INTEGER_LITERAL))
+
+    operator(NEWLINE)
+}
+    .describeAs("variable declaration")
+    .postprocess(::VariableDeclarationPostProcessor)
 
 val Parameter = rule {
     identifier()
@@ -66,7 +115,7 @@ val ParameterList = rule {
     .postprocess(::ParameterListPostprocessor)
 
 val FunctionDeclaration = rule {
-    keyword(Keyword.FUNCTION)
+    keyword(FUNCTION)
 
     __definitive()
 

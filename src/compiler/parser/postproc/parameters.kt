@@ -19,7 +19,7 @@ fun ParameterPostprocessor(rule: Rule<List<MatchingResult<*>>>): Rule<Parameter>
         .mapResult(::toAST_Parameter)
 }
 
-fun toAST_Parameter(tokens: TransactionalSequence<Any,Position>): Parameter {
+private fun toAST_Parameter(tokens: TransactionalSequence<Any,Position>): Parameter {
     val name = tokens.next()!! as IdentifierToken
 
     val type: TypeReference? = if (tokens.hasNext()) {
@@ -39,7 +39,7 @@ fun ParameterListPostprocessor(rule: Rule<List<MatchingResult<*>>>): Rule<Parame
         .mapResult(::toAST_ParameterList)
 }
 
-fun toAST_ParameterList(tokens: TransactionalSequence<Any, Position>): ParameterList {
+private fun toAST_ParameterList(tokens: TransactionalSequence<Any, Position>): ParameterList {
     // skip PARANT_OPEN
     tokens.next()!!
 
