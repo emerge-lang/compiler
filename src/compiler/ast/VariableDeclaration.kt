@@ -1,6 +1,7 @@
 package compiler.ast
 
 import compiler.ast.types.TypeModifier
+import compiler.ast.types.TypeReference
 import compiler.lexer.IdentifierToken
 
 class VariableDeclaration(

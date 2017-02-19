@@ -1,4 +1,4 @@
-package compiler.ast
+package compiler.ast.types
 
 import compiler.ast.types.TypeModifier
 import compiler.lexer.IdentifierToken

@@ -2,7 +2,7 @@ package compiler.parser.postproc
 
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ParameterList
-import compiler.ast.TypeReference
+import compiler.ast.types.TypeReference
 import compiler.lexer.*
 import compiler.parser.rule.MatchingResult
 import compiler.parser.rule.Rule

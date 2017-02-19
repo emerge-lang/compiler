@@ -1,5 +1,6 @@
 package compiler.ast
 
+import compiler.ast.types.TypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 

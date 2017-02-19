@@ -4,7 +4,7 @@
 package compiler.parser.postproc
 
 import compiler.InternalCompilerError
-import compiler.ast.TypeReference
+import compiler.ast.types.TypeReference
 import compiler.ast.types.TypeModifier
 import compiler.lexer.*
 import compiler.parser.rule.MatchingResult

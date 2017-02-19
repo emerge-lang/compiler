@@ -3,7 +3,7 @@ package compiler.parser.postproc
 import compiler.InternalCompilerError
 import compiler.ast.Parameter
 import compiler.ast.ParameterList
-import compiler.ast.TypeReference
+import compiler.ast.types.TypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
