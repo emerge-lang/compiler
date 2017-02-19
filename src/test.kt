@@ -3,7 +3,7 @@ import compiler.parser.toTransactional
 
 val testCode = """
 
-readonly val a: Type = 3
+mutable val a: readonly Type = 3
 
 """
 

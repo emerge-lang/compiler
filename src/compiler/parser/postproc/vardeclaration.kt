@@ -17,32 +17,40 @@ fun VariableDeclarationPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<
 }
 
 private fun toAST(input: TransactionalSequence<Any, Position>): VariableDeclaration {
-    val typeModifier = input.next()!! as TypeModifier
+    var modifierOrKeyword = input.next()!!
 
-    val declarationKeyword = (input.next()!! as KeywordToken).keyword
+    val typeModifier: TypeModifier?
+    val declarationKeyword: Keyword
+
+    if (modifierOrKeyword is TypeModifier) {
+        typeModifier = modifierOrKeyword
+        declarationKeyword = (input.next()!! as KeywordToken).keyword
+    }
+    else {
+        typeModifier = null
+        declarationKeyword = (modifierOrKeyword as KeywordToken).keyword
+    }
 
     val name = input.next()!! as IdentifierToken
 
     var type: TypeReference? = null
 
-    var next = input.next()
+    var colonOrEqualsOrNewline = input.next()
 
-    if (next == OperatorToken(Operator.COLON)) {
+    if (colonOrEqualsOrNewline == OperatorToken(Operator.COLON)) {
         type = input.next()!! as TypeReference
-
-        input.next()
     }
 
     var assignExpression: Any? = null
 
-    if (input.hasNext()) {
+    if (colonOrEqualsOrNewline == OperatorToken(Operator.EQUALS)) {
         // skip equals sign
         input.next()
 
         // assign expression, still todo
-        next = input.next() ?: throw InternalCompilerError("Variable declaration with OPERATOR EQUALS but no assignment expression - this should have been a lexer error.")
+        colonOrEqualsOrNewline = input.next() ?: throw InternalCompilerError("Variable declaration with OPERATOR EQUALS but no assignment expression - this should have been a lexer error.")
 
-        assignExpression = next
+        assignExpression = colonOrEqualsOrNewline
 
         if (type == null) {
             // type = InferredType(assignExpression)
@@ -51,8 +59,9 @@ private fun toAST(input: TransactionalSequence<Any, Position>): VariableDeclarat
     }
 
     return VariableDeclaration(
+        typeModifier,
         name,
-        type?.modifiedWith(typeModifier),
+        type,
         declarationKeyword == Keyword.VAR,
         assignExpression
     )

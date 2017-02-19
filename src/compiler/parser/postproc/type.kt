@@ -19,11 +19,23 @@ fun TypePostprocessor(rule: Rule<List<MatchingResult<*>>>): Rule<TypeReference> 
 }
 
 private fun toAST(tokens: TransactionalSequence<Any, Position>): TypeReference {
-    val nameToken = tokens.next()!! as IdentifierToken
+    val nameOrModifier = tokens.next()!!
+
+    val typeModifier: TypeModifier
+    val nameToken: IdentifierToken
+
+    if (nameOrModifier is TypeModifier) {
+        typeModifier = nameOrModifier
+        nameToken = tokens.next()!! as IdentifierToken
+    }
+    else {
+        typeModifier = TypeModifier.MUTABLE
+        nameToken = nameOrModifier as IdentifierToken
+    }
 
     val isNullable = tokens.hasNext() && tokens.next()!! == OperatorToken(Operator.QUESTION_MARK)
 
-    return TypeReference(nameToken, isNullable)
+    return TypeReference(nameToken, isNullable, typeModifier)
 }
 
 
@@ -36,8 +48,7 @@ fun TypeModifierPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<TypeMod
                 Keyword.MUTABLE   -> TypeModifier.MUTABLE
                 Keyword.READONLY  -> TypeModifier.READONLY
                 Keyword.IMMUTABLE -> TypeModifier.IMMUTABLE
-                null -> TypeModifier.MUTABLE
-                else -> throw InternalCompilerError("Keyword ${keyword.text} is not a type modifier")
+                else -> throw InternalCompilerError("$keyword is not a type modifier")
             }
         }
 }

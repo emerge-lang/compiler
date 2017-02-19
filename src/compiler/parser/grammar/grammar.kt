@@ -22,7 +22,21 @@ val ImportDeclaration = rule {
     .describeAs("import declaration")
     .postprocess(::ImportPostprocessor)
 
+val TypeModifier = rule {
+    eitherOf {
+        keyword(MUTABLE)
+        keyword(READONLY)
+        keyword(IMMUTABLE)
+    }
+}
+    .describeAs("type modifier")
+    .postprocess(::TypeModifierPostProcessor)
+
 val Type = rule {
+    optional {
+        ref(TypeModifier)
+    }
+
     identifier()
     optional {
         operator(QUESTION_MARK)
@@ -30,18 +44,6 @@ val Type = rule {
 }
     .describeAs("type")
     .postprocess(::TypePostprocessor)
-
-val TypeModifier = rule {
-    optional {
-        eitherOf {
-            keyword(MUTABLE)
-            keyword(READONLY)
-            keyword(IMMUTABLE)
-        }
-    }
-}
-    .describeAs("type modifier")
-    .postprocess(::TypeModifierPostProcessor)
 
 val VariableDeclaration = rule {
 
