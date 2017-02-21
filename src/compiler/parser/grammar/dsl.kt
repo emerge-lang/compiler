@@ -73,6 +73,7 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
 
     /**
      * Skips whitespace (newlines); Always matches successfully with [ResultCertainty.OPTIMISTIC]
+     * TODO: horrible name, possibly horrible mechanic... refactor this whenever things become more clear
      */
     fun optionalWhitespace(): Unit
     {
@@ -106,6 +107,13 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
      */
     fun ref(otherRule: Rule<*>): Unit {
         subRules.add(otherRule)
+    }
+
+    /**
+     * Matches a single token of the given type, see [Rule.Companion.singletonOfType]
+     */
+    fun tokenOfType(type: TokenType): Unit {
+        subRules.add(Rule.singletonOfType(type))
     }
 }
 
