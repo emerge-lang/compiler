@@ -1,6 +1,6 @@
 package compiler.ast
 
-import compiler.ast.types.TypeReference
+import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
 
 class ParameterList (

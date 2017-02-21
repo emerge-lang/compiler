@@ -1,9 +1,9 @@
 package compiler.parser.postproc
 
 import compiler.InternalCompilerError
-import compiler.ast.types.TypeReference
+import compiler.ast.type.TypeReference
 import compiler.ast.VariableDeclaration
-import compiler.ast.types.TypeModifier
+import compiler.ast.type.TypeModifier
 import compiler.lexer.*
 import compiler.parser.rule.MatchingResult
 import compiler.parser.rule.Rule

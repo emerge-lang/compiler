@@ -1,4 +1,4 @@
-package compiler.ast.types
+package compiler.ast.type
 
 enum class TypeModifier {
     MUTABLE,
