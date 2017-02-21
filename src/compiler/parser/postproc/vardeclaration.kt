@@ -1,8 +1,8 @@
 package compiler.parser.postproc
 
-import compiler.InternalCompilerError
 import compiler.ast.type.TypeReference
 import compiler.ast.VariableDeclaration
+import compiler.ast.expression.Expression
 import compiler.ast.type.TypeModifier
 import compiler.lexer.*
 import compiler.parser.rule.MatchingResult
@@ -39,22 +39,18 @@ private fun toAST(input: TransactionalSequence<Any, Position>): VariableDeclarat
 
     if (colonOrEqualsOrNewline == OperatorToken(Operator.COLON)) {
         type = input.next()!! as TypeReference
+        colonOrEqualsOrNewline = input.next()!!
     }
 
-    var assignExpression: Any? = null
+    var assignExpression: Expression? = null
 
-    if (colonOrEqualsOrNewline == OperatorToken(Operator.EQUALS)) {
-        // skip equals sign
-        input.next()
+    val equalsOrNewline = colonOrEqualsOrNewline
 
-        // assign expression, still todo
-        colonOrEqualsOrNewline = input.next() ?: throw InternalCompilerError("Variable declaration with OPERATOR EQUALS but no assignment expression - this should have been a lexer error.")
-
-        assignExpression = colonOrEqualsOrNewline
+    if (equalsOrNewline == OperatorToken(Operator.EQUALS)) {
+        assignExpression = input.next()!! as Expression
 
         if (type == null) {
-            // type = InferredType(assignExpression)
-            type = TypeReference(IdentifierToken("Inferred"), false)
+            type = assignExpression.type.asInferred()
         }
     }
 
