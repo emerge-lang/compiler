@@ -33,7 +33,7 @@ Those are transitive as in D; see below for variable declaration and aissgnments
 
 Values of modified Types can be converterted to an other type according to this table. The letfomst column shows the source type, the headings show the target type.
 
-| -           | T | readonly T | immutable T |
+| \-          | T | readonly T | immutable T |
 | ----------- | - | ---------- | ----------- |
 | T           | Y | Y          | N           |
 | readonly T  | N | Y          | N           |
