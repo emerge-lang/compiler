@@ -1,16 +1,13 @@
 package compiler.parser.postproc
 
 import compiler.InternalCompilerError
-import compiler.lexer.OperatorToken
-import compiler.lexer.Token
 import compiler.parser.Reporting
 import compiler.parser.TokenSequence
-import compiler.parser.isWhitespace
 import compiler.parser.rule.MatchingResult
 import compiler.parser.rule.Rule
 import compiler.transact.Position
-import compiler.transact.TransactionalSequence
 import compiler.transact.SimpleTransactionalSequence
+import compiler.transact.TransactionalSequence
 import java.util.*
 
 /**
@@ -32,7 +29,8 @@ fun <B,A> Rule<B>.map(mapper: (MatchingResult<B>) -> MatchingResult<A>): Rule<A>
             }
             else {
                 if (baseResult.result == null) {
-                    // we can cast, null has any type you make it be
+                    // we can cast, null can haz any type you want it to
+                    @Suppress("UNCHECKED_CAST")
                     return baseResult as MatchingResult<A>
                 }
                 else {
