@@ -16,6 +16,4 @@ val IsWhitespace: (Char) -> Boolean = { c -> c == ' ' || c == '\t' }
 
 val IsOperatorChar: (Char) -> Boolean = { c-> Operator.values().any { o -> o.text.startsWith(c) } }
 
-val IsIntegerLiteral: (String) -> Boolean = { str -> str.matches(Regex("^(\\d+(\\.\\d+)?|0x[a-fA-F0-9]+|0b[0|1]+|[0-7]+oct)$/")) }
-
-val IsFloatingPointLiteral: (String) -> Boolean = { str -> str.matches(Regex("^\\d+(.\\d+)?(e-?\\d+)?(f|d)?$")) }
+val IsNumericLiteral: (String) -> Boolean = { it[0].isDigit() || it.startsWith("0x") || it.startsWith("0b") }
