@@ -1,11 +1,10 @@
 import compiler.lexer.Keyword.*
 import compiler.lexer.Operator.*
-import compiler.lexer.TokenType
+import compiler.lexer.TokenType.*
 import compiler.parser.grammar.describeAs
 import compiler.parser.grammar.postprocess
 import compiler.parser.grammar.rule
 import compiler.parser.postproc.*
-import compiler.parser.rule.Rule
 
 val ImportDeclaration = rule {
     keyword(IMPORT)
@@ -45,6 +44,19 @@ val Type = rule {
     .describeAs("type")
     .postprocess(::TypePostprocessor)
 
+val NumericLiteral = rule {
+    tokenOfType(NUMERIC_LITERAL)
+}
+    .postprocess(::NumericLiteralPostProcessor)
+
+val Expression = rule {
+    eitherOf {
+        ref(NumericLiteral)
+        identifier()
+    }
+}
+    .postprocess(::ExpressionPostProcessor)
+
 val VariableDeclaration = rule {
 
     optional {
@@ -72,9 +84,7 @@ val VariableDeclaration = rule {
 
     operator(EQUALS)
 
-    // expression()
-    ref(Rule.singletonOfType(TokenType.INTEGER_LITERAL))
-
+    ref(Expression)
     operator(NEWLINE)
 }
     .describeAs("variable declaration")

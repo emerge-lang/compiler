@@ -4,8 +4,7 @@ enum class TokenType
 {
     KEYWORD,
     IDENTIFIER,
-    INTEGER_LITERAL,
-    FLOATING_LITERAL,
+    NUMERIC_LITERAL,
     OPERATOR
 }
 
@@ -144,20 +143,9 @@ class IdentifierToken(
     }
 }
 
-class IntegerLiteralToken(
+class NumericLiteralToken(
         override val sourceLocation: SourceLocation,
         val stringContent: String
 ): Token() {
-    override val type = TokenType.INTEGER_LITERAL
-
-    // TODO: parse stringContent
-}
-
-class FloatingPointLiteralToken(
-        override val sourceLocation: SourceLocation,
-        val stringContent: String
-): Token() {
-    override val type = TokenType.INTEGER_LITERAL
-
-    // TODO: parse stringContent
+    override val type = TokenType.NUMERIC_LITERAL
 }
