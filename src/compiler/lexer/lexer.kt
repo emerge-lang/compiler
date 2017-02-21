@@ -43,13 +43,9 @@ class Lexer(code: String, private val sourceDescriptor: SourceDescriptor)
 
         if (keyword != null) return KeywordToken(keyword, text, currentSL)
 
-        if (IsIntegerLiteral(text))
+        if (IsNumericLiteral(text))
         {
-            return IntegerLiteralToken(currentSL, text)
-        }
-        else if (IsFloatingPointLiteral(text))
-        {
-            return FloatingPointLiteralToken(currentSL, text)
+            return NumericLiteralToken(currentSL, text)
         }
         else
         {
