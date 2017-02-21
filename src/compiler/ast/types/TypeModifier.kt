@@ -5,8 +5,11 @@ enum class TypeModifier {
     READONLY,
     IMMUTABLE;
 
-    fun isCompatibleWith(other: TypeModifier): Boolean = when(this) {
-        MUTABLE, IMMUTABLE -> other == this
-        READONLY -> true
-    }
+    fun isAssignableTo(targetModifier: TypeModifier): Boolean =
+        this == targetModifier
+            ||
+        when (this) {
+            MUTABLE, IMMUTABLE -> targetModifier == READONLY
+            READONLY -> false
+        }
 }
