@@ -5,6 +5,7 @@ import compiler.lexer.Token
 import compiler.parser.rule.MatchingResult
 import compiler.matching.ResultCertainty
 import compiler.parser.rule.SimpleMatchingResult
+import textutils.indentByFromSecondLine
 
 open class Reporting(
     val level: Level,
@@ -21,7 +22,7 @@ open class Reporting(
     fun <T> toErrorResult(certainty: ResultCertainty = ResultCertainty.DEFINITIVE): MatchingResult<T>
             = SimpleMatchingResult(certainty, null, this)
 
-    open override fun toString() = "($level) $message\n  in $sourceLocation"
+    open override fun toString() = "($level) $message".indentByFromSecondLine(2) + "\nin $sourceLocation"
 
     enum class Level(val level: Int) {
         INFO(10),

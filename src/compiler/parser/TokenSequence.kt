@@ -16,8 +16,8 @@ class TokenSequence(val tokens: List<Token>) : TransactionalSequence<Token, Posi
 
     /** same as [next], but does not alter the state of the sequence */
     fun peek(): Token? {
-        if (tokens.lastIndex > currentPosition.sourceIndex) {
-            return tokens[currentPosition.sourceIndex + 1]
+        if (tokens.lastIndex >= currentPosition.sourceIndex) {
+            return tokens[currentPosition.sourceIndex]
         }
         else {
             return null

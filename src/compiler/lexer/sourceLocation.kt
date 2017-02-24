@@ -55,6 +55,16 @@ open class SourceContentAwareSourceLocation(
 ): SourceLocation(sD, sourceLine, sourceColumn)
 {
     override fun illustrate(): String {
+        val line = sD.sourceLines[sourceLine - 1]
+
+        return super.illustrate() + "\n" +
+            "-".repeat(50) + "\n\n" +
+            "  " + line + "\n" +
+            "  " + " ".repeat(sourceColumn - 1) + "^\n" +
+            "-".repeat(50)
+    }
+
+    fun illustrateWithExcerpt(): String {
         val lines = sD.sourceLines
 
         val startLine = if(sourceLine < 3) 1 else sourceLine - 2
