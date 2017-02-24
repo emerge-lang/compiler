@@ -48,10 +48,6 @@ private fun toAST(input: TransactionalSequence<Any, Position>): VariableDeclarat
 
     if (equalsOrNewline == OperatorToken(Operator.EQUALS)) {
         assignExpression = input.next()!! as Expression
-
-        if (type == null) {
-            type = assignExpression.type.asInferred()
-        }
     }
 
     return VariableDeclaration(

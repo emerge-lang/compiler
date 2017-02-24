@@ -1,7 +1,6 @@
 package compiler.parser.postproc
 
 import compiler.ast.expression.NumericLiteralExpression
-import compiler.ast.type.Number
 import compiler.lexer.NumericLiteralToken
 import compiler.matching.ResultCertainty
 import compiler.parser.rule.MatchingResult
@@ -22,7 +21,7 @@ private fun toAST(matchingResult: MatchingResult<TransactionalSequence<Any, Posi
 
     return MatchingResult(
         ResultCertainty.DEFINITIVE,
-        NumericLiteralExpression(numericToken, Number),
+        NumericLiteralExpression(numericToken),
         emptySet()
     )
 }

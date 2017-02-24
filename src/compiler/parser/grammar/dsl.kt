@@ -37,6 +37,10 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
 {
     val subRules: MutableList<Rule<*>>
 
+    fun sequence(initFn: DSLFixedSequenceRule.() -> Any?): Unit {
+        subRules.add(rule(initFn))
+    }
+
     /**
      * Matches exactly one [KeywordToken] with the given [lexer.Keyword]
      */
@@ -109,6 +113,10 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
         subRules.add(otherRule)
     }
 
+    fun ref(supplier: () -> Rule<*> ): Unit {
+        subRules.add(LazyRule(supplier))
+    }
+
     /**
      * Matches a single token of the given type, see [Rule.Companion.singletonOfType]
      */
@@ -157,4 +165,11 @@ class DSLFixedSequenceRule(
     {
         __certainty = ResultCertainty.DEFINITIVE
     }
+}
+
+class LazyRule(val supplier: () -> Rule<*>) : Rule<Any> {
+    override val descriptionOfAMatchingThing: String
+        get() = supplier().descriptionOfAMatchingThing
+
+    override fun tryMatch(input: TokenSequence) = supplier().tryMatch(input) as MatchingResult<Any>
 }

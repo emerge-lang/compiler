@@ -21,27 +21,29 @@ enum class Keyword(val text: String)
 
 enum class Operator(val text: String)
 {
-    PARANT_OPEN("("),
-    PARANT_CLOSE(")"),
-    CBRACE_OPEN("{"),
-    CBRACE_CLOSE("}"),
-    DOT("."),
-    ASTERISK("*"),
-    COMMA(","),
-    SEMICOLON(";"),
-    COLON(":"),
-    NEWLINE("\n"),
-    RETURNS("->"),
-    PLUS("+"),
-    MINUS("-"),
-    TIMES("*"),
-    DIVIDE("/"),
-    EQUALS("="),
+    PARANT_OPEN  ("("),
+    PARANT_CLOSE (")"),
+    CBRACE_OPEN  ("{"),
+    CBRACE_CLOSE ("}"),
+    DOT          ("."),
+    ASTERISK     ("*"),
+    COMMA        (","),
+    SEMICOLON    (";"),
+    COLON        (":"),
+    NEWLINE      ("\n"),
+    RETURNS      ("->"),
+    PLUS         ("+"),
+    MINUS        ("-"),
+    TIMES        ("*"), // TODO: remove, duplicate of ASTERISK
+    DIVIDE       ("/"),
+    EQUALS       ("="), // TODO: rename to assignment, EQUALS is ==
     GREATER_THAN_OR_EQUALS(">="),
     LESS_THAN_OR_EQUALS("<="),
-    GREATER_THAN(">"),
-    LESS_THAN("<"),
-    QUESTION_MARK("?")
+    GREATER_THAN (">"),
+    LESS_THAN    ("<"),
+    QUESTION_MARK("?"),
+    NOTNULL      ("!!"), // find a better name for this...
+    NEGATE       ("!")
 }
 
 abstract class Token

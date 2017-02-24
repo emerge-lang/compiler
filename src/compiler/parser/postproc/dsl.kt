@@ -47,7 +47,7 @@ fun <B,A> Rule<B>.map(mapper: (MatchingResult<B>) -> MatchingResult<A>): Rule<A>
 fun <B,A> Rule<B>.mapResult(mapper: (B) -> A): Rule<A> = map {
     MatchingResult(
         it.certainty,
-        mapper(it.result!!),
+        if (it.result == null) null else mapper(it.result!!),
         it.errors
     )
 }
