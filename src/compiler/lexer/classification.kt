@@ -14,5 +14,3 @@ infix fun <T> ((T) -> Boolean).or(pred2: (T) -> Boolean): (T) -> Boolean = Or(th
 val IsIdentifierChar: (Char) -> Boolean = Char::isLetter
 
 val IsWhitespace: (Char) -> Boolean = { c -> c == ' ' || c == '\t' }
-
-val IsNumericLiteral: (String) -> Boolean = { it[0].isDigit() || it.startsWith("0x") || it.startsWith("0b") }

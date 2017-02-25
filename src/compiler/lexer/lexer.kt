@@ -24,21 +24,28 @@ class Lexer(code: String, private val sourceDescriptor: SourceDescriptor)
 
         if (!hasNext) return null
 
-        // remaining possibilities: NUMERIC_LITERAL, KEYWORD, IDENTIFIER
-        val text = collectUntilOperatorOrWhitespace()
-
-        // check against keywords
-        val keyword = Keyword.values()
-                .firstOrNull { it.text.equals(text, true) }
-
-        if (keyword != null) return KeywordToken(keyword, text, currentSL)
-
-        if (IsNumericLiteral(text))
-        {
-            return NumericLiteralToken(currentSL, text)
+        if (sourceTxSequence.peek()!!.isDigit()) {
+            // NUMERIC_LITERAL
+            val part1 = collectUntilOperatorOrWhitespace()
+            if (sourceTxSequence.peek() == '.') {
+                sourceTxSequence.next()
+                // floating point literal
+                val part2 = collectUntilOperatorOrWhitespace()
+                return NumericLiteralToken(currentSL, part1 + '.' + part2)
+            }
+            else {
+                return NumericLiteralToken(currentSL, part1)
+            }
         }
-        else
-        {
+        else {
+            // IDENTIFIER or KEYWORD
+            val text = collectUntilOperatorOrWhitespace()
+
+            // check against keywords
+            val keyword = Keyword.values().firstOrNull { it.text.equals(text, true) }
+
+            if (keyword != null) return KeywordToken(keyword, text, currentSL)
+
             return IdentifierToken(text, currentSL)
         }
     }
