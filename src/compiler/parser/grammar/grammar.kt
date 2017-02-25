@@ -92,13 +92,24 @@ val UnaryExpression = rule {
     .describeAs("unary expression")
     .postprocess(::UnaryExpressionPostProcessor)
 
+val aryOperators = arrayOf(
+    // Object access
+    DOT, SAFEDOT,
+    // Arithmetic
+    PLUS, MINUS, TIMES, DIVIDE,
+    // Comparison
+    EQUALS, GREATER_THAN, LESS_THAN, GREATER_THAN_OR_EQUALS, LESS_THAN_OR_EQUALS,
+    IDENTITY_EQ, IDENTITY_NEQ,
+    // MISC
+    CAST, TRYCAST, ELVIS
+)
 val AryExpression: Rule<Expression> = rule {
     eitherOf {
         ref(UnaryExpression)
         ref(ValueExpression)
         ref(ParanthesisedExpression)
     }
-    eitherOf(DOT, PLUS, MINUS, TIMES, DIVIDE) // TODO: more ary ops, arbitrary infix ops
+    eitherOf(*aryOperators) // TODO: more ary ops, arbitrary infix ops
     __definitive()
     ref(ExpressionRule.INSTANCE)
 }
