@@ -72,7 +72,7 @@ val ValueExpression = rule {
 
 val ParanthesisedExpression: Rule<Expression> = rule {
     operator(PARANT_OPEN)
-    ref(ExpressionRule.INSTANCE)
+    expression()
     __definitive()
     operator(PARANT_CLOSE)
 }
@@ -111,7 +111,7 @@ val AryExpression: Rule<Expression> = rule {
     }
     eitherOf(*aryOperators) // TODO: more ary ops, arbitrary infix ops
     __definitive()
-    ref(ExpressionRule.INSTANCE)
+    expression()
 }
     .describeAs("ary operator expression")
     .postprocess(::AryExpressionPostProcessor)
@@ -142,8 +142,7 @@ val VariableDeclaration = rule {
     optionalWhitespace()
 
     operator(ASSIGNMENT)
-
-    ref(ExpressionRule.INSTANCE)
+    expression()
     operator(NEWLINE)
 }
     .describeAs("variable declaration")

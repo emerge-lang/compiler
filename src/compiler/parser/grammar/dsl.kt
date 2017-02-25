@@ -132,6 +132,13 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
     }
 
     /**
+     * Adds [ExpressionRule.INSTANCE] to the list of subrules
+     */
+    fun expression(): Unit {
+        subRules.add(ExpressionRule.INSTANCE)
+    }
+
+    /**
      * Matches a single token of the given type, see [Rule.Companion.singletonOfType]
      */
     fun tokenOfType(type: TokenType): Unit {
