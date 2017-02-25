@@ -42,7 +42,7 @@ class SourceFileReader(code: String) : TransactionalSequence<Char, SourceFileRea
 
     fun next(nChars: Int) : String?
     {
-        if (currentPosition.columnNumber + nChars - 1 > items.lastIndex)
+        if (currentPosition.sourceIndex + nChars - 1 > items.lastIndex)
         {
             return null
         }
