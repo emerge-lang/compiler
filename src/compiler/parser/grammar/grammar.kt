@@ -2,7 +2,6 @@ import compiler.ast.expression.Expression
 import compiler.lexer.Keyword.*
 import compiler.lexer.Operator.*
 import compiler.lexer.TokenType
-import compiler.lexer.TokenType.*
 import compiler.parser.grammar.*
 import compiler.parser.postproc.*
 import compiler.parser.rule.Rule
@@ -16,7 +15,7 @@ val ImportDeclaration = rule {
         identifier()
         operator(DOT)
     }
-    identifier(acceptedOperators = listOf(ASTERISK))
+    identifier(acceptedOperators = listOf(TIMES))
     operator(NEWLINE)
 }
     .describeAs("import declaration")
@@ -99,7 +98,7 @@ val AryExpression: Rule<Expression> = rule {
         ref(ValueExpression)
         ref(ParanthesisedExpression)
     }
-    eitherOf(DOT, PLUS, MINUS, ASTERISK, DIVIDE) // TODO: more ary ops, arbitrary infix ops
+    eitherOf(DOT, PLUS, MINUS, TIMES, DIVIDE) // TODO: more ary ops, arbitrary infix ops
     __definitive()
     ref(ExpressionRule.INSTANCE)
 }

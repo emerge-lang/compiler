@@ -29,7 +29,7 @@ enum class Operator(val text: String)
     CBRACE_OPEN  ("{"),
     CBRACE_CLOSE ("}"),
     DOT          ("."),
-    ASTERISK     ("*"),
+    TIMES        ("*"),
     COMMA        (","),
     SEMICOLON    (";"),
     COLON        (":"),
@@ -37,7 +37,6 @@ enum class Operator(val text: String)
     RETURNS      ("->"),
     PLUS         ("+"),
     MINUS        ("-"),
-    TIMES        ("*"), // TODO: remove, duplicate of ASTERISK
     DIVIDE       ("/"),
     EQUALS       ("="), // TODO: rename to assignment, EQUALS is ==
     GREATER_THAN_OR_EQUALS(">="),
