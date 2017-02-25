@@ -29,6 +29,7 @@ enum class Operator(val text: String)
     CBRACE_OPEN  ("{"),
     CBRACE_CLOSE ("}"),
     DOT          ("."),
+    SAFEDOT      ("?."),
     TIMES        ("*"),
     COMMA        (","),
     SEMICOLON    (";"),
