@@ -1,6 +1,7 @@
 package compiler.parser.postproc
 
 import compiler.ast.FunctionDeclaration
+import compiler.ast.FunctionSignature
 import compiler.ast.ParameterList
 import compiler.ast.type.TypeReference
 import compiler.lexer.*

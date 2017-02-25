@@ -9,4 +9,6 @@ class FunctionDeclaration(
     val name: IdentifierToken,
     val parameters: ParameterList,
     val returnType: TypeReference
-)
+) {
+    val signature = FunctionSignature(parameters.types, returnType)
+}
