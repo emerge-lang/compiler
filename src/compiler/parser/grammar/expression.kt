@@ -2,7 +2,6 @@ package compiler.parser.grammar
 
 import AryExpression
 import ParanthesisedExpression
-import PostfixExpression
 import UnaryExpression
 import ValueExpression
 import compiler.ast.expression.Expression
@@ -25,8 +24,7 @@ class ExpressionRule : Rule<Expression> {
                 ref(AryExpression)
                 ref(UnaryExpression)
                 ref(ValueExpression)
-                //ref(ParanthesisedExpression)
-                //ref(PostfixExpression)
+                ref(ParanthesisedExpression)
             }
         }
             .flatten()

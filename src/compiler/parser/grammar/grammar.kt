@@ -50,6 +50,10 @@ val LiteralExpression = rule {
         tokenOfType(TokenType.NUMERIC_LITERAL)
         // TODO: string literal, function literal, and so forth
     }
+    __definitive()
+    optional {
+        operator(NOTNULL)
+    }
 }
     .describeAs("literal")
     .postprocess(::LiteralExpressionPostProcessor)
@@ -59,6 +63,10 @@ val ValueExpression = rule {
         ref(LiteralExpression)
         identifier()
     }
+    optional {
+        operator(NOTNULL)
+    }
+    __definitive()
 }
     .describeAs("value expression")
     .postprocess(::ValueExpressionPostProcessor)
@@ -72,20 +80,12 @@ val ParanthesisedExpression: Rule<Expression> = rule {
     .describeAs("paranthesised expression")
     .postprocess(::ParanthesisedExpressionPostProcessor)
 
-val PostfixExpression = rule {
-    ref(ExpressionRule.INSTANCE)
-    eitherOf(NOTNULL) // TODO: what else?
-}
-    .describeAs("postfix expression")
-    .postprocess(::PostfixExpressionPostProcessor)
-
 val UnaryExpression = rule {
     eitherOf(PLUS, MINUS, NEGATE)
     // TODO: tilde, ... what else?
 
     eitherOf {
         ref(ValueExpression)
-        ref(PostfixExpression)
         ref(ParanthesisedExpression)
     }
     __definitive()
@@ -97,7 +97,6 @@ val AryExpression: Rule<Expression> = rule {
     eitherOf {
         ref(UnaryExpression)
         ref(ValueExpression)
-        ref(PostfixExpression)
         ref(ParanthesisedExpression)
     }
     eitherOf(DOT, PLUS, MINUS, ASTERISK, DIVIDE) // TODO: more ary ops, arbitrary infix ops

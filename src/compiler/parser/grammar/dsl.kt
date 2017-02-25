@@ -22,7 +22,7 @@ fun <T> Rule<T>.describeAs(description: String): Rule<T> {
         override val descriptionOfAMatchingThing = description
 
         override fun tryMatch(input: TokenSequence): MatchingResult<T> {
-            return base.tryMatch(input);
+            return base.tryMatch(input)
         }
     }
 }
