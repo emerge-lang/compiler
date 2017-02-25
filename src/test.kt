@@ -1,9 +1,10 @@
+import compiler.ast.expression.NumericLiteralExpression
 import compiler.lexer.*
 import compiler.parser.toTransactional
 
 val testCode = """
 
-mutable val a: readonly Type = -3!! + 4
+mutable val a: readonly Type = 321e
 
 """
 
@@ -28,13 +29,8 @@ fun main(args: Array<String>) {
     println("Reportings:")
     println()
 
-    for (error in matched.errors) {
-        println(error)
-    }
+    matched.errors.forEach(::println)
 
-    println()
-
-    if (matched.isSuccess) {
-        println(matched.result)
-    }
+    val litExp = matched.result!!.assignExpression as NumericLiteralExpression
+    litExp.validate().forEach(::println)
 }
