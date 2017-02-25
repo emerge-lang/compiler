@@ -1,6 +1,9 @@
 package compiler.parser.grammar
 
+import AryExpression
 import ParanthesisedExpression
+import PostfixExpression
+import UnaryExpression
 import ValueExpression
 import compiler.ast.expression.Expression
 import compiler.parser.TokenSequence
@@ -19,8 +22,11 @@ class ExpressionRule : Rule<Expression> {
     private val rule by lazy {
         rule {
             eitherOf {
-                ref{ParanthesisedExpression}
+                ref(AryExpression)
+                ref(UnaryExpression)
                 ref(ValueExpression)
+                //ref(ParanthesisedExpression)
+                //ref(PostfixExpression)
             }
         }
             .flatten()

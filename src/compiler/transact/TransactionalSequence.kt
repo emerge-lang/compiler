@@ -35,6 +35,16 @@ abstract class TransactionalSequence<out ItemType, FallbackPointType : Position>
         return items[currentPosition.sourceIndex++]
     }
 
+    /** same as [next], but does not alter the state of the sequence */
+    open fun peek(): ItemType? {
+        if (items.lastIndex >= currentPosition.sourceIndex) {
+            return items[currentPosition.sourceIndex]
+        }
+        else {
+            return null
+        }
+    }
+
     open fun hasNext(): Boolean = items.lastIndex >= currentPosition.sourceIndex
 
     /**

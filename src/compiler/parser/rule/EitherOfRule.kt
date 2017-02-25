@@ -15,11 +15,10 @@ open class EitherOfRule(
     override val descriptionOfAMatchingThing: String
         get() {
             val buf = StringBuilder()
-            buf.append("One of:\n")
+            buf.append("one of:\n")
             for (rule in subRules) {
                 buf.append("- ")
                 buf.append(rule.descriptionOfAMatchingThing.indentByFromSecondLine(2))
-                buf.append("\n")
             }
 
             return buf.toString()
@@ -43,7 +42,7 @@ open class EitherOfRule(
                 ResultCertainty.DEFINITIVE,
                 null,
                 setOf(Reporting.error(
-                        "Expected $descriptionOfAMatchingThing but failed to match.",
+                        "Unexpected ${input.peek()!!.toStringWithoutLocation()}. Expected $descriptionOfAMatchingThing",
                         input.currentSourceLocation
                 ))
         )

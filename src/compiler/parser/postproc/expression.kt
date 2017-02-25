@@ -1,11 +1,10 @@
 package compiler.parser.postproc
 
 import compiler.InternalCompilerError
-import compiler.ast.expression.Expression
-import compiler.ast.expression.IdentifierExpression
-import compiler.ast.expression.NumericLiteralExpression
+import compiler.ast.expression.*
 import compiler.lexer.IdentifierToken
 import compiler.lexer.NumericLiteralToken
+import compiler.lexer.OperatorToken
 import compiler.parser.rule.MatchingResult
 import compiler.parser.rule.Rule
 
@@ -52,3 +51,37 @@ fun ParanthesisedExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): R
             input.next()!! as Expression
         }
 }
+
+fun PostfixExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Expression> {
+    return rule
+        .flatten()
+        .mapResult { input ->
+            val expression = input.next()!! as Expression
+            val postfixOp = input.next()!! as OperatorToken
+
+            PostfixExpression(expression, postfixOp)
+        }
+}
+
+fun AryExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Expression> {
+    return rule
+        .flatten()
+        .mapResult { input ->
+            val expressionOne = input.next()!! as Expression
+            val operator = (input.next()!! as OperatorToken)
+            val expressionTwo = input.next()!! as Expression
+
+            AryExpression(expressionOne, operator, expressionTwo)
+        }
+}
+
+fun UnaryExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Expression> {
+    return rule
+        .flatten()
+        .mapResult { input ->
+            val operator = (input.next()!! as OperatorToken).operator
+            val expression = input.next()!! as Expression
+            UnaryExpression(operator, expression)
+        }
+}
+

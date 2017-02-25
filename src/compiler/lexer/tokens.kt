@@ -21,6 +21,9 @@ enum class Keyword(val text: String)
 
 enum class Operator(val text: String)
 {
+    // ORDER IS VERY IMPORTANT
+    // e.g. if + was before +=, += would never get recognized as such (but rather as separate + and =)
+
     PARANT_OPEN  ("("),
     PARANT_CLOSE (")"),
     CBRACE_OPEN  ("{"),
@@ -41,6 +44,9 @@ enum class Operator(val text: String)
     LESS_THAN_OR_EQUALS("<="),
     GREATER_THAN (">"),
     LESS_THAN    ("<"),
+    TRYCAST      ("as?"),
+    CAST         ("as"),
+    ELVIS        ("?:"),
     QUESTION_MARK("?"),
     NOTNULL      ("!!"), // find a better name for this...
     NEGATE       ("!")

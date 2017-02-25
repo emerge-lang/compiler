@@ -48,11 +48,29 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
         subRules.add(Rule.singleton(KeywordToken(kw)))
     }
 
+    fun operator(op: Operator?): Unit {
+        if (op == null) {
+            subRules.add(Rule.singletonOfType(TokenType.OPERATOR))
+        }
+        else {
+            subRules.add(Rule.singleton(OperatorToken(op)))
+        }
+    }
+
     /**
      * Matches exactly one [OperatorToken] with the given [Operator]
      */
-    fun operator(op: Operator): Unit {
-        subRules.add(Rule.singleton(OperatorToken(op)))
+    fun eitherOf(vararg op: Operator): Unit {
+        if (op.size == 0) return
+        if (op.size == 1) {
+            subRules.add(Rule.singleton(OperatorToken(op[0])))
+        }
+
+        subRules.add(
+            EitherOfRule(
+                op.map { it -> Rule.singleton(OperatorToken(it))}
+            )
+        )
     }
 
     /**
@@ -113,10 +131,6 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
         subRules.add(otherRule)
     }
 
-    fun ref(supplier: () -> Rule<*> ): Unit {
-        subRules.add(LazyRule(supplier))
-    }
-
     /**
      * Matches a single token of the given type, see [Rule.Companion.singletonOfType]
      */
@@ -165,11 +179,4 @@ class DSLFixedSequenceRule(
     {
         __certainty = ResultCertainty.DEFINITIVE
     }
-}
-
-class LazyRule(val supplier: () -> Rule<*>) : Rule<Any> {
-    override val descriptionOfAMatchingThing: String
-        get() = supplier().descriptionOfAMatchingThing
-
-    override fun tryMatch(input: TokenSequence) = supplier().tryMatch(input) as MatchingResult<Any>
 }

@@ -69,18 +69,43 @@ val ParanthesisedExpression: Rule<Expression> = rule {
     __definitive()
     operator(PARANT_CLOSE)
 }
+    .describeAs("paranthesised expression")
     .postprocess(::ParanthesisedExpressionPostProcessor)
 
-val UnaryExpression = rule {
-    eitherOf {
-        operator(PLUS)
-        operator(MINUS)
-        operator(NEGATE)
-        // TODO: tilde, ... what else?
-    }
+val PostfixExpression = rule {
     ref(ExpressionRule.INSTANCE)
+    eitherOf(NOTNULL) // TODO: what else?
+}
+    .describeAs("postfix expression")
+    .postprocess(::PostfixExpressionPostProcessor)
+
+val UnaryExpression = rule {
+    eitherOf(PLUS, MINUS, NEGATE)
+    // TODO: tilde, ... what else?
+
+    eitherOf {
+        ref(ValueExpression)
+        ref(PostfixExpression)
+        ref(ParanthesisedExpression)
+    }
     __definitive()
 }
+    .describeAs("unary expression")
+    .postprocess(::UnaryExpressionPostProcessor)
+
+val AryExpression: Rule<Expression> = rule {
+    eitherOf {
+        ref(UnaryExpression)
+        ref(ValueExpression)
+        ref(PostfixExpression)
+        ref(ParanthesisedExpression)
+    }
+    eitherOf(DOT, PLUS, MINUS, ASTERISK, DIVIDE) // TODO: more ary ops, arbitrary infix ops
+    __definitive()
+    ref(ExpressionRule.INSTANCE)
+}
+    .describeAs("ary operator expression")
+    .postprocess(::AryExpressionPostProcessor)
 
 val VariableDeclaration = rule {
 

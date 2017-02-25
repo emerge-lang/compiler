@@ -19,23 +19,13 @@ class Lexer(code: String, private val sourceDescriptor: SourceDescriptor)
         if (!hasNext) return null
 
         // try to match an operator
-        for (operator in Operator.values())
-        {
-            sourceTxSequence.mark()
-
-            val nextText = nextChars(operator.text.length)
-            if (nextText != null && nextText == operator.text) {
-                sourceTxSequence.commit()
-                return OperatorToken(operator, currentSL)
-            }
-
-            sourceTxSequence.rollback()
-        }
+        val operator = tryMatchOperator()
+        if (operator != null) return operator
 
         if (!hasNext) return null
 
         // remaining possibilities: NUMERIC_LITERAL, KEYWORD, IDENTIFIER
-        val text = collectWhile(Not(IsOperatorChar or IsWhitespace))!!
+        val text = collectUntilOperatorOrWhitespace()
 
         // check against keywords
         val keyword = Keyword.values()
@@ -87,6 +77,37 @@ class Lexer(code: String, private val sourceDescriptor: SourceDescriptor)
         }
 
         return buf.toString()
+    }
+
+    private fun collectUntilOperatorOrWhitespace(): String {
+        var buf = StringBuilder()
+
+        while (sourceTxSequence.hasNext()) {
+            val operator = tryMatchOperator(false)
+            if (operator != null) break
+
+            if (IsWhitespace(sourceTxSequence.peek()!!)) break
+            buf.append(sourceTxSequence.next()!!)
+        }
+
+        return buf.toString()
+    }
+
+    private fun tryMatchOperator(doCommit: Boolean = true): OperatorToken? {
+        for (operator in Operator.values())
+        {
+            sourceTxSequence.mark()
+
+            val nextText = nextChars(operator.text.length)
+            if (nextText != null && nextText == operator.text) {
+                if (doCommit) sourceTxSequence.commit() else sourceTxSequence.rollback()
+                return OperatorToken(operator, currentSL)
+            }
+
+            sourceTxSequence.rollback()
+        }
+
+        return null
     }
 
     /** Skips whitespace according to [IsWhitespace]. Equals `collectWhile(IsWhitespace)` */
