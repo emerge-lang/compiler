@@ -38,7 +38,8 @@ enum class Operator(val text: String)
     PLUS         ("+"),
     MINUS        ("-"),
     DIVIDE       ("/"),
-    EQUALS       ("="), // TODO: rename to assignment, EQUALS is ==
+    EQUALS       ("=="),
+    ASSIGNMENT   ("="),
     GREATER_THAN_OR_EQUALS(">="),
     LESS_THAN_OR_EQUALS("<="),
     GREATER_THAN (">"),

@@ -130,7 +130,7 @@ val VariableDeclaration = rule {
 
     optionalWhitespace()
 
-    operator(EQUALS)
+    operator(ASSIGNMENT)
 
     ref(ExpressionRule.INSTANCE)
     operator(NEWLINE)

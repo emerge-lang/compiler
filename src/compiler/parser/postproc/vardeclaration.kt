@@ -46,7 +46,7 @@ private fun toAST(input: TransactionalSequence<Any, Position>): VariableDeclarat
 
     val equalsOrNewline = colonOrEqualsOrNewline
 
-    if (equalsOrNewline == OperatorToken(Operator.EQUALS)) {
+    if (equalsOrNewline == OperatorToken(Operator.ASSIGNMENT)) {
         assignExpression = input.next()!! as Expression
     }
 
