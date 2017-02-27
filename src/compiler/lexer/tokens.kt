@@ -56,6 +56,8 @@ enum class Operator(val text: String)
     NEGATE       ("!")
 }
 
+val DECIMAL_SEPARATOR: Char = '.'
+
 abstract class Token
 {
     abstract val type: TokenType

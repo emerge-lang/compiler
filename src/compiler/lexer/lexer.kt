@@ -26,16 +26,30 @@ class Lexer(code: String, private val sourceDescriptor: SourceDescriptor)
 
         if (sourceTxSequence.peek()!!.isDigit()) {
             // NUMERIC_LITERAL
-            val part1 = collectUntilOperatorOrWhitespace()
-            if (sourceTxSequence.peek() == '.') {
+            var numericStr = collectUntilOperatorOrWhitespace()
+            sourceTxSequence.mark()
+            if (sourceTxSequence.peek() == DECIMAL_SEPARATOR) {
+                // skip the dot
                 sourceTxSequence.next()
-                // floating point literal
-                val part2 = collectUntilOperatorOrWhitespace()
-                return NumericLiteralToken(currentSL, part1 + '.' + part2)
+
+                if (sourceTxSequence.peek()?.isDigit() ?: true) {
+                    // <DIGIT, ...> <DOT> <DIGIT, ...> => Floating point literal
+                    sourceTxSequence.commit()
+                    // floating point literal
+                    numericStr += DECIMAL_SEPARATOR + collectUntilOperatorOrWhitespace()
+
+                    // return numericStr later
+                }
+                else {
+                    // <DIGIT, ...> <DOT> <!DIGIT, ...> => member access on numeric literal
+                    // rollback before the ., so that the next invocation yields an OperatorToken
+                    sourceTxSequence.rollback()
+
+                    // return numericStr later
+                }
             }
-            else {
-                return NumericLiteralToken(currentSL, part1)
-            }
+
+            return NumericLiteralToken(currentSL.minusChars(numericStr.length), numericStr)
         }
         else {
             // IDENTIFIER or KEYWORD
@@ -44,9 +58,9 @@ class Lexer(code: String, private val sourceDescriptor: SourceDescriptor)
             // check against keywords
             val keyword = Keyword.values().firstOrNull { it.text.equals(text, true) }
 
-            if (keyword != null) return KeywordToken(keyword, text, currentSL)
+            if (keyword != null) return KeywordToken(keyword, text, currentSL.minusChars(text.length))
 
-            return IdentifierToken(text, currentSL)
+            return IdentifierToken(text, currentSL.minusChars(text.length))
         }
     }
 
@@ -108,7 +122,7 @@ class Lexer(code: String, private val sourceDescriptor: SourceDescriptor)
             val nextText = nextChars(operator.text.length)
             if (nextText != null && nextText == operator.text) {
                 if (doCommit) sourceTxSequence.commit() else sourceTxSequence.rollback()
-                return OperatorToken(operator, currentSL)
+                return OperatorToken(operator, currentSL.minusChars(nextText.length))
             }
 
             sourceTxSequence.rollback()

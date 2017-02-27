@@ -42,6 +42,11 @@ open class SourceLocation(
     /** @return a nice text representation of the source location */
     open fun illustrate() = fileLineColumnText
 
+    /**
+     * Returns a copy of this [SourceLocation] with the sourceColumn reduced by `n - 1`
+     */
+    open fun minusChars(n: Int): SourceLocation = SourceLocation(sD, sourceLine, sourceColumn - n + 1)
+
     override fun toString() = illustrate()
 }
 
@@ -54,6 +59,8 @@ open class SourceContentAwareSourceLocation(
         sourceColumn: Int
 ): SourceLocation(sD, sourceLine, sourceColumn)
 {
+    override fun minusChars(n: Int): SourceLocation = SourceContentAwareSourceLocation(sD, sourceLine, sourceColumn - n + 1)
+
     override fun illustrate(): String {
         val line = sD.sourceLines[sourceLine - 1]
 
