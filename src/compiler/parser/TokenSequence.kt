@@ -16,7 +16,7 @@ class TokenSequence(val tokens: List<Token>) : TransactionalSequence<Token, Posi
                 index = tokens.lastIndex
             }
 
-            return tokens.getOrNull(index)!!.sourceLocation!!
+            return tokens.getOrNull(index)!!.sourceLocation
         }
 
     /** Returns the next token in the seuqence (see [peek]), or the last if the end of the sequence has been reached. */

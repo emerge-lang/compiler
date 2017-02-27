@@ -43,7 +43,7 @@ private fun toAST_import(tokens: TransactionalSequence<Any, Position>): ImportDe
         tokens.next()
     }
 
-    return ImportDeclaration(keyword.sourceLocation ?: SourceLocation.UNKNOWN, identifiers)
+    return ImportDeclaration(keyword.sourceLocation, identifiers)
 }
 
 fun ModuleDeclarationPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<ModuleDeclaration> {
@@ -66,5 +66,5 @@ private fun toAST_moduleDeclaration(tokens: TransactionalSequence<Any, Position>
         tokens.next()
     }
 
-    return ModuleDeclaration(keyword.sourceLocation ?: SourceLocation.UNKNOWN, identifiers.toTypedArray())
+    return ModuleDeclaration(keyword.sourceLocation, identifiers.toTypedArray())
 }

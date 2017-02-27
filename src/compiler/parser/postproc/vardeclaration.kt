@@ -51,7 +51,7 @@ private fun toAST(input: TransactionalSequence<Any, Position>): VariableDeclarat
     }
 
     return VariableDeclaration(
-        declarationKeyword.sourceLocation ?: SourceLocation.UNKNOWN,
+        declarationKeyword.sourceLocation,
         typeModifier,
         name,
         type,

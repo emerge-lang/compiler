@@ -35,7 +35,7 @@ open class Reporting(
             = Reporting(Level.ERROR, message, sourceLocation)
 
         fun error(message: String, erroneousToken: Token)
-            = error(message, erroneousToken.sourceLocation!!)
+            = error(message, erroneousToken.sourceLocation)
 
         fun unexpectedEOI(expected: String, erroneousLocation: SourceLocation)
             = error("Unexpected EOI, expected $expected", erroneousLocation)
@@ -56,7 +56,7 @@ class ReportingException(val reporting: Reporting) : Exception(reporting.message
 class TokenMismatchReporting(
         val expected: Token,
         val actual: Token
-) : Reporting(Level.ERROR, "Unexpected ${actual.toStringWithoutLocation()}, expected $expected", actual.sourceLocation!!)
+) : Reporting(Level.ERROR, "Unexpected ${actual.toStringWithoutLocation()}, expected $expected", actual.sourceLocation)
 
 class MissingTokenReporting(
         val expected: Token,

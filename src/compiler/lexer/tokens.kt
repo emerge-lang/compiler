@@ -62,13 +62,13 @@ val DECIMAL_SEPARATOR: Char = '.'
 abstract class Token
 {
     abstract val type: TokenType
-    abstract val sourceLocation: SourceLocation?
+    abstract val sourceLocation: SourceLocation
 
     override fun toString(): String {
-        if (sourceLocation == null)
+        if (sourceLocation === SourceLocation.UNKNOWN)
             return toStringWithoutLocation()
         else
-            return toStringWithoutLocation() + " in " + sourceLocation!!.fileLineColumnText
+            return toStringWithoutLocation() + " in " + sourceLocation.fileLineColumnText
     }
 
     open fun toStringWithoutLocation(): String = type.name
@@ -78,7 +78,7 @@ class KeywordToken(
         val keyword: Keyword,
         /** The actual CharSequence as it appears in the source code */
         val sourceText: String = keyword.text,
-        override val sourceLocation: SourceLocation? = null
+        override val sourceLocation: SourceLocation = SourceLocation.UNKNOWN
 ): Token()
 {
     override val type = TokenType.KEYWORD
@@ -106,7 +106,7 @@ class KeywordToken(
 
 class OperatorToken(
         val operator: Operator,
-        override val sourceLocation: SourceLocation? = null
+        override val sourceLocation: SourceLocation = SourceLocation.UNKNOWN
 ) : Token() {
     override val type = TokenType.OPERATOR
 
@@ -133,7 +133,7 @@ class OperatorToken(
 
 class IdentifierToken(
         val value: String,
-        override val sourceLocation: SourceLocation? = null
+        override val sourceLocation: SourceLocation = SourceLocation.UNKNOWN
 ) : Token() {
     override val type = TokenType.IDENTIFIER
 
