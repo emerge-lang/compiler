@@ -30,5 +30,5 @@ private fun toAST(tokens: TransactionalSequence<Any, Position>): FunctionDeclara
         type = tokens.next()!! as TypeReference
     }
 
-    return FunctionDeclaration(declarationKeyword, name, parameterList, type)
+    return FunctionDeclaration(declarationKeyword.sourceLocation ?: SourceLocation.UNKNOWN, name, parameterList, type)
 }

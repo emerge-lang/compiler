@@ -97,6 +97,15 @@ abstract class TransactionalSequence<out ItemType, FallbackPointType : Position>
         }
     }
 
+    /**
+     * Invokes the given consumer on all items left in the sequence.
+     */
+    open fun forEachRemaining(consumer: (ItemType) -> Any?): Unit {
+        while (hasNext()) {
+            consumer(next()!!)
+        }
+    }
+
     /** Returns the remaining tokens in a list */
     open fun remainingToList(): List<ItemType> = items.subList(currentPosition.sourceIndex, items.lastIndex)
 

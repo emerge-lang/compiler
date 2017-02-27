@@ -1,3 +1,5 @@
+import compiler.ast.ModuleDeclaration
+import compiler.ast.context.Module
 import compiler.ast.expression.Expression
 import compiler.lexer.Keyword.*
 import compiler.lexer.Operator.*
@@ -223,3 +225,22 @@ val FunctionDeclaration = rule {
 }
     .describeAs("function declaration")
     .postprocess(::FunctionPostprocessor)
+
+val ModuleMatcher: (ModuleDeclaration) -> Rule<Module> = {
+    defaultDeclaration ->
+    ModulePostProcessor(
+        rule {
+            atLeast(0) {
+                optionalWhitespace()
+                eitherOf {
+                    ref(ModuleDeclaration)
+                    ref(ImportDeclaration)
+                    ref(VariableDeclaration)
+                    ref(FunctionDeclaration)
+                }
+                optionalWhitespace()
+            }
+        }
+        .describeAs("module")
+    )(defaultDeclaration)
+}

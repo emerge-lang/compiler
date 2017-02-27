@@ -20,15 +20,15 @@ private fun toAST(input: TransactionalSequence<Any, Position>): VariableDeclarat
     var modifierOrKeyword = input.next()!!
 
     val typeModifier: TypeModifier?
-    val declarationKeyword: Keyword
+    val declarationKeyword: KeywordToken
 
     if (modifierOrKeyword is TypeModifier) {
         typeModifier = modifierOrKeyword
-        declarationKeyword = (input.next()!! as KeywordToken).keyword
+        declarationKeyword = input.next()!! as KeywordToken
     }
     else {
         typeModifier = null
-        declarationKeyword = (modifierOrKeyword as KeywordToken).keyword
+        declarationKeyword = modifierOrKeyword as KeywordToken
     }
 
     val name = input.next()!! as IdentifierToken
@@ -51,10 +51,11 @@ private fun toAST(input: TransactionalSequence<Any, Position>): VariableDeclarat
     }
 
     return VariableDeclaration(
+        declarationKeyword.sourceLocation ?: SourceLocation.UNKNOWN,
         typeModifier,
         name,
         type,
-        declarationKeyword == Keyword.VAR,
+        declarationKeyword.keyword == Keyword.VAR,
         assignExpression
     )
 }

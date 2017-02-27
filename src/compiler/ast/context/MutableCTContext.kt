@@ -7,7 +7,7 @@ import java.util.*
 /**
  * Mutable compile-time context; for explanation, see the doc of [CTContext].
  */
-class MutableCTContext : CTContext {
+open class MutableCTContext : CTContext {
     private val variables: MutableMap<String,Variable> = HashMap()
 
     /**

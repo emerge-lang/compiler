@@ -48,6 +48,19 @@ open class SourceLocation(
     open fun minusChars(n: Int): SourceLocation = SourceLocation(sD, sourceLine, sourceColumn - n + 1)
 
     override fun toString() = illustrate()
+
+    companion object {
+        val UNKNOWN: SourceLocation = object : SourceLocation(
+            object : SourceDescriptor {
+                override val sourceLocation = "UNKNOWN FILE"
+            },
+            -1,
+            -1
+        ) {
+            override val fileLineColumnText = "UNKNOWN FILE"
+            override fun minusChars(n: Int): SourceLocation = this
+        }
+    }
 }
 
 /**

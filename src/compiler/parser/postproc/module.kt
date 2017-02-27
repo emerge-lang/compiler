@@ -1,73 +1,77 @@
-/**
- *
- */
 package compiler.parser.postproc
 
-import compiler.ast.ImportDeclaration
-import compiler.ast.ModuleDeclaration
-import compiler.lexer.IdentifierToken
-import compiler.lexer.Operator
-import compiler.lexer.OperatorToken
+import compiler.InternalCompilerError
+import compiler.ast.*
+import compiler.ast.context.Module
+import compiler.ast.context.MutableCTContext
+import compiler.matching.ResultCertainty
 import compiler.parser.Reporting
-import compiler.parser.TokenMismatchReporting
 import compiler.parser.rule.MatchingResult
 import compiler.parser.rule.Rule
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 import java.util.*
 
-fun ImportPostprocessor(rule: Rule<List<MatchingResult<*>>>): Rule<ImportDeclaration> {
-    return rule
+fun ModulePostProcessor(rule: Rule<List<MatchingResult<*>>>): (ModuleDeclaration) -> Rule<Module> {
+    return { defaultDeclaration ->
+        val converter = ModuleASTConverter(defaultDeclaration)
 
-    // enhance error for "import xyz"
-    .enhanceErrors(
-        { it is TokenMismatchReporting && it.expected == OperatorToken(Operator.DOT) && it.actual == OperatorToken(Operator.NEWLINE) },
-        { _it ->
-            val it = _it as TokenMismatchReporting
-            Reporting.Companion.error("${it.message}; To import all exports of the module write module.*", it.actual)
+        rule
+            .flatten()
+            .map({ converter(it) })
+    }
+}
+
+private class ModuleASTConverter(val defaultDeclaration: ModuleDeclaration) {
+    operator fun invoke(inResult: MatchingResult<TransactionalSequence<Any, Position>>): MatchingResult<Module>
+    {
+        val input = inResult.result ?: return inResult as MatchingResult<Module> // null can haz any type that i want :)
+
+        val context = MutableCTContext()
+        val reportings: MutableSet<Reporting> = HashSet()
+        var moduleDeclaration: ModuleDeclaration? = null
+
+        input.forEachRemaining { declaration ->
+            declaration as? Declaration ?: throw InternalCompilerError("What tha heck went wrong here?!")
+
+            if (declaration is ModuleDeclaration) {
+                if (moduleDeclaration == null) {
+                    moduleDeclaration = declaration
+                }
+                else {
+                    reportings.add(Reporting.error(
+                        "Duplicate module declaration",
+                        declaration.declaredAt
+                    ))
+                }
+            }
+            else if (declaration is ImportDeclaration) {
+                reportings.add(Reporting.error(
+                    "Import declarations are not supported yet.",
+                    declaration.declaredAt
+                ))
+            }
+            else if (declaration is VariableDeclaration) {
+                context.addVariable(declaration)
+            }
+            else if (declaration is FunctionDeclaration) {
+                reportings.add(Reporting.error(
+                    "Function declarations are not suppored yet.",
+                    declaration.declaredAt
+                ))
+            }
+            else {
+                reportings.add(Reporting.error(
+                    "Unsupported declaration $declaration",
+                    declaration.declaredAt
+                ))
+            }
         }
-    )
-    .flatten()
-    .trimWhitespaceTokens()
-    .mapResult(::toAST_import)
-}
 
-private fun toAST_import(tokens: TransactionalSequence<Any, Position>): ImportDeclaration {
-    // discard the import keyword
-    tokens.next()
-
-    val identifiers = ArrayList<IdentifierToken>()
-
-    while (tokens.hasNext()) {
-        // collect the identifier
-        identifiers.add(tokens.next()!! as IdentifierToken)
-
-        // skip the dot, if there
-        tokens.next()
+        return MatchingResult(
+            certainty = ResultCertainty.DEFINITIVE,
+            result = Module(moduleDeclaration ?: defaultDeclaration, context),
+            errors = inResult.errors.plus(reportings)
+        )
     }
-
-    return ImportDeclaration(identifiers)
-}
-
-fun ModuleDeclarationPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<ModuleDeclaration> {
-    return rule
-        .flatten()
-        .trimWhitespaceTokens()
-        .mapResult(::toAST_module)
-}
-
-private fun toAST_module(tokens: TransactionalSequence<Any, Position>): ModuleDeclaration {
-    // discard the module keyword
-
-    val identifiers = ArrayList<IdentifierToken>()
-
-    while (tokens.hasNext()) {
-        // collect the identifier
-        identifiers.add(tokens.next()!! as IdentifierToken)
-
-        // skip the dot, if there
-        tokens.next()
-    }
-
-    return ModuleDeclaration(identifiers)
 }

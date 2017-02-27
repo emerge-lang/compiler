@@ -1,4 +1,3 @@
-import compiler.ast.expression.NumericLiteralExpression
 import compiler.lexer.*
 import compiler.parser.toTransactional
 
@@ -20,7 +19,11 @@ fun main(args: Array<String>) {
 
     println("------------")
 
-    val matched = VariableDeclaration.tryMatch(tokens.toTransactional())
+    val moduleDeclaration = compiler.ast.ModuleDeclaration(
+        source.toLocation(1, 1),
+        arrayOf("testcode")
+    )
+    val matched = ModuleMatcher(moduleDeclaration).tryMatch(tokens.toTransactional())
 
     println("certainty = ${matched.certainty}")
     println("result = ${matched.result}")
@@ -30,7 +33,4 @@ fun main(args: Array<String>) {
     println()
 
     matched.errors.forEach(::println)
-
-    val litExp = matched.result!!.assignExpression as NumericLiteralExpression
-    litExp.validate().forEach(::println)
 }
