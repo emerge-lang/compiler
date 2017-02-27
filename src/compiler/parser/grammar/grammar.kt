@@ -6,6 +6,21 @@ import compiler.parser.grammar.*
 import compiler.parser.postproc.*
 import compiler.parser.rule.Rule
 
+val ModuleDeclaration = rule {
+    keyword(MODULE)
+
+    __definitive()
+
+    identifier()
+
+    atLeast(0) {
+        operator(DOT)
+        identifier()
+    }
+}
+    .describeAs("module declaration")
+    .postprocess(::ModuleDeclarationPostProcessor)
+
 val ImportDeclaration = rule {
     keyword(IMPORT)
 

@@ -3,12 +3,11 @@
  */
 package compiler.parser.postproc
 
-import compiler.InternalCompilerError
 import compiler.ast.ImportDeclaration
+import compiler.ast.ModuleDeclaration
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
-import compiler.lexer.Token
 import compiler.parser.Reporting
 import compiler.parser.TokenMismatchReporting
 import compiler.parser.rule.MatchingResult
@@ -30,10 +29,10 @@ fun ImportPostprocessor(rule: Rule<List<MatchingResult<*>>>): Rule<ImportDeclara
     )
     .flatten()
     .trimWhitespaceTokens()
-    .mapResult(::toAST)
+    .mapResult(::toAST_import)
 }
 
-private fun toAST(tokens: TransactionalSequence<Any, Position>): ImportDeclaration {
+private fun toAST_import(tokens: TransactionalSequence<Any, Position>): ImportDeclaration {
     // discard the import keyword
     tokens.next()
 
@@ -48,4 +47,27 @@ private fun toAST(tokens: TransactionalSequence<Any, Position>): ImportDeclarati
     }
 
     return ImportDeclaration(identifiers)
+}
+
+fun ModuleDeclarationPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<ModuleDeclaration> {
+    return rule
+        .flatten()
+        .trimWhitespaceTokens()
+        .mapResult(::toAST_module)
+}
+
+private fun toAST_module(tokens: TransactionalSequence<Any, Position>): ModuleDeclaration {
+    // discard the module keyword
+
+    val identifiers = ArrayList<IdentifierToken>()
+
+    while (tokens.hasNext()) {
+        // collect the identifier
+        identifiers.add(tokens.next()!! as IdentifierToken)
+
+        // skip the dot, if there
+        tokens.next()
+    }
+
+    return ModuleDeclaration(identifiers)
 }
