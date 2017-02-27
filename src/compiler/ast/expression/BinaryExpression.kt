@@ -2,7 +2,7 @@ package compiler.ast.expression
 
 import compiler.lexer.OperatorToken
 
-class AryExpression(
+class BinaryExpression(
     val first: Expression,
     val op: OperatorToken,
     val second: Expression

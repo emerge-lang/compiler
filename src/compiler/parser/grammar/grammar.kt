@@ -110,7 +110,7 @@ val UnaryExpression = rule {
     .describeAs("unary expression")
     .postprocess(::UnaryExpressionPostProcessor)
 
-val aryOperators = arrayOf(
+val binaryOperators = arrayOf(
     // Object access
     DOT, SAFEDOT,
     // Arithmetic
@@ -121,18 +121,18 @@ val aryOperators = arrayOf(
     // MISC
     CAST, TRYCAST, ELVIS
 )
-val AryExpression: Rule<Expression> = rule {
+val BinaryExpression: Rule<Expression> = rule {
     eitherOf {
         ref(UnaryExpression)
         ref(ValueExpression)
         ref(ParanthesisedExpression)
     }
-    eitherOf(*aryOperators) // TODO: more ary ops, arbitrary infix ops
+    eitherOf(*binaryOperators) // TODO: more ary ops, arbitrary infix ops
     __definitive()
     expression()
 }
     .describeAs("ary operator expression")
-    .postprocess(::AryExpressionPostProcessor)
+    .postprocess(::BinaryExpressionPostProcessor)
 
 val VariableDeclaration = rule {
 

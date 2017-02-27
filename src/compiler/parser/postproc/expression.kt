@@ -66,7 +66,7 @@ fun PostfixExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Ex
         })
 }
 
-fun AryExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Expression> {
+fun BinaryExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Expression> {
     return rule
         .flatten()
         .mapResult { input ->
@@ -74,7 +74,7 @@ fun AryExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Expres
             val operator = (input.next()!! as OperatorToken)
             val expressionTwo = input.next()!! as Expression
 
-            AryExpression(expressionOne, operator, expressionTwo)
+            BinaryExpression(expressionOne, operator, expressionTwo)
         }
 }
 

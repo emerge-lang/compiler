@@ -1,6 +1,6 @@
 package compiler.parser.grammar
 
-import AryExpression
+import BinaryExpression
 import ParanthesisedExpression
 import UnaryExpression
 import ValueExpression
@@ -21,7 +21,7 @@ class ExpressionRule : Rule<Expression> {
     private val rule by lazy {
         rule {
             eitherOf {
-                ref(AryExpression)
+                ref(BinaryExpression)
                 ref(UnaryExpression)
                 ref(ValueExpression)
                 ref(ParanthesisedExpression)
