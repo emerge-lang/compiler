@@ -10,6 +10,7 @@ enum class TokenType
 
 enum class Keyword(val text: String)
 {
+    MODULE("module"),
     IMPORT("import"),
     FUNCTION("fun"),
     VAL("val"),
