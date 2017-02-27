@@ -31,11 +31,18 @@ private class ModuleASTConverter(val defaultDeclaration: ModuleDeclaration) {
         val reportings: MutableSet<Reporting> = HashSet()
         var moduleDeclaration: ModuleDeclaration? = null
 
-        input.forEachRemaining { declaration ->
+        input.forEachRemainingIndexed { index, declaration ->
             declaration as? Declaration ?: throw InternalCompilerError("What tha heck went wrong here?!")
 
             if (declaration is ModuleDeclaration) {
                 if (moduleDeclaration == null) {
+                    if (index != 0) {
+                        reportings.add(Reporting.error(
+                            "The module declaration must be the first declaration in the source file",
+                            declaration.declaredAt
+                        ))
+                    }
+
                     moduleDeclaration = declaration
                 }
                 else {

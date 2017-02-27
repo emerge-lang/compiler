@@ -2,8 +2,20 @@ import compiler.lexer.*
 import compiler.parser.toTransactional
 
 val testCode = """
+module blub
+
+import foo.bar
+import bar.blub
 
 mutable val a: readonly Type = 321e
+
+val x = 3
+val y = 4
+
+
+
+
+val z = x + y
 
 """
 
@@ -32,5 +44,5 @@ fun main(args: Array<String>) {
     println("Reportings:")
     println()
 
-    matched.errors.forEach(::println)
+    matched.errors.forEach { println(it); println(); println() }
 }

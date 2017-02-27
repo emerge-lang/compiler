@@ -19,6 +19,7 @@ val ModuleDeclaration = rule {
         operator(DOT)
         identifier()
     }
+    operator(NEWLINE)
 }
     .describeAs("module declaration")
     .postprocess(::ModuleDeclarationPostProcessor)
