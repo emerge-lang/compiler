@@ -1,5 +1,7 @@
 package compiler.ast.type
 
+import compiler.ast.FunctionDeclaration
+
 /**
  * Base type are classes, interfaces, enums, built-in type
  */
@@ -19,4 +21,7 @@ interface BaseType {
 
     val superTypes: Set<BaseType>
         get() = emptySet()
+
+    /** @return The member function overloads for the given name or an empty collection if no such member function is defined. */
+    fun resolveMemberFunction(name: String): Collection<FunctionDeclaration>
 }
