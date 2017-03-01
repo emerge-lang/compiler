@@ -1,6 +1,7 @@
 package compiler.ast.context
 
 import compiler.ast.VariableDeclaration
+import compiler.ast.type.BaseType
 import compiler.ast.type.TypeReference
 
 /**
@@ -36,7 +37,13 @@ import compiler.ast.type.TypeReference
  */
 interface CTContext {
     /**
-     * Creates a copy of this {@link CTContext}, adds the given declaration to it and returns that context. If the
+     * @return A copy of this [CTContext] with the given context added to it; The given context will shadow colliding
+     * symbols.
+     */
+    fun including(context: CTContext): CTContext
+
+    /**
+     * Creates a copy of this [CTContext], adds the given declaration to it and returns that context. If the
      * given variable is already defined in this context, overwrites that.
      */
     fun withVariable(declaration: VariableDeclaration, overrideType: TypeReference? = null): CTContext
@@ -45,4 +52,11 @@ interface CTContext {
      * @return The variable accessible under the given name, shadowing included.
      */
     fun resolveVariable(name: String): Variable?
+
+    /**
+     * @return The [BaseType] in this context identified by the given reference or null if no such [BaseType] is defined
+     * in the context.
+     * TODO: maybe return multiple types in case of ambiguity?
+     */
+    fun resolveBaseType(ref: TypeReference): BaseType?
 }
