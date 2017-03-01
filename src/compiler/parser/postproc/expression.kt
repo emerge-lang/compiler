@@ -55,17 +55,6 @@ fun ParanthesisedExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): R
         })
 }
 
-fun PostfixExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Expression> {
-    return rule
-        .flatten()
-        .mapResult(allowPostfixNotnull { input ->
-            val expression = input.next()!! as Expression
-            val postfixOp = input.next()!! as OperatorToken
-
-            PostfixExpression(expression, postfixOp)
-        })
-}
-
 fun BinaryExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Expression> {
     return rule
         .flatten()
