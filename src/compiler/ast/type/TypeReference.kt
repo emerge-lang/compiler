@@ -17,5 +17,7 @@ class TypeReference(
         return TypeReference(declaredName, isNullable, modifier)
     }
 
+    fun nonNull(): TypeReference = TypeReference(declaredName, false, modifier, isInferred, declaringNameToken)
+
     fun asInferred(): TypeReference = TypeReference(declaredName, isNullable, modifier, true, declaringNameToken)
 }
