@@ -1,3 +1,5 @@
+import compiler.ast.context.SoftwareContext
+import compiler.ast.type.BuiltinType
 import compiler.lexer.*
 import compiler.parser.toTransactional
 
@@ -20,6 +22,10 @@ val z = x + y
 """
 
 fun main(args: Array<String>) {
+    // setup context
+    val swCtx = SoftwareContext()
+    swCtx.module("lang").context.include(BuiltinType.Context)
+
     var source = object : SourceContentAwareSourceDescriptor() {
         override val sourceLocation = "testcode"
         override val sourceLines = testCode.split("\n")
@@ -31,11 +37,8 @@ fun main(args: Array<String>) {
 
     println("------------")
 
-    val moduleDeclaration = compiler.ast.ModuleDeclaration(
-        source.toLocation(1, 1),
-        arrayOf("testcode")
-    )
-    val matched = ModuleMatcher(moduleDeclaration).tryMatch(tokens.toTransactional())
+    val matched = ModuleMatcher(arrayOf("testcode")).tryMatch(tokens.toTransactional())
+    val parsedModule = matched.result
 
     println("certainty = ${matched.certainty}")
     println("result = ${matched.result}")
@@ -45,4 +48,11 @@ fun main(args: Array<String>) {
     println()
 
     matched.errors.forEach { println(it); println(); println() }
+
+    // --
+    if (parsedModule != null) {
+        parsedModule.attachTo(swCtx)
+
+        // TODO: validate context
+    }
 }

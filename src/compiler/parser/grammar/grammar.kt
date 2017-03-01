@@ -227,8 +227,8 @@ val FunctionDeclaration = rule {
     .describeAs("function declaration")
     .postprocess(::FunctionPostprocessor)
 
-val ModuleMatcher: (ModuleDeclaration) -> Rule<Module> = {
-    defaultDeclaration ->
+val ModuleMatcher: (Array<String>) -> Rule<ModuleDefiner> = {
+    defaultName ->
     ModulePostProcessor(
         rule {
             atLeast(0) {
@@ -243,5 +243,5 @@ val ModuleMatcher: (ModuleDeclaration) -> Rule<Module> = {
             }
         }
         .describeAs("module")
-    )(defaultDeclaration)
+    )(defaultName)
 }

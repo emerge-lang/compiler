@@ -2,8 +2,10 @@ package compiler.parser.postproc
 
 import compiler.InternalCompilerError
 import compiler.ast.*
+import compiler.ast.context.CTContext
 import compiler.ast.context.Module
 import compiler.ast.context.MutableCTContext
+import compiler.ast.context.SoftwareContext
 import compiler.matching.ResultCertainty
 import compiler.parser.Reporting
 import compiler.parser.rule.MatchingResult
@@ -12,9 +14,9 @@ import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 import java.util.*
 
-fun ModulePostProcessor(rule: Rule<List<MatchingResult<*>>>): (ModuleDeclaration) -> Rule<Module> {
-    return { defaultDeclaration ->
-        val converter = ModuleASTConverter(defaultDeclaration)
+fun ModulePostProcessor(rule: Rule<List<MatchingResult<*>>>): (Array<String>) -> Rule<ModuleDefiner> {
+    return { defaultName ->
+        val converter = ModuleASTConverter(defaultName)
 
         rule
             .flatten()
@@ -22,10 +24,19 @@ fun ModulePostProcessor(rule: Rule<List<MatchingResult<*>>>): (ModuleDeclaration
     }
 }
 
-private class ModuleASTConverter(val defaultDeclaration: ModuleDeclaration) {
-    operator fun invoke(inResult: MatchingResult<TransactionalSequence<Any, Position>>): MatchingResult<Module>
+/**
+ * Holds references to parsed elements; can add these elements to any given [CTContext]
+ */
+public class ModuleDefiner(val moduleName: Array<String>, val parsedContext: CTContext) {
+    fun attachTo(swContext: SoftwareContext) {
+        swContext.module(*moduleName).context.include(parsedContext)
+    }
+}
+
+private class ModuleASTConverter(val defaultName: Array<String>) {
+    operator fun invoke(inResult: MatchingResult<TransactionalSequence<Any, Position>>): MatchingResult<ModuleDefiner>
     {
-        val input = inResult.result ?: return inResult as MatchingResult<Module> // null can haz any type that i want :)
+        val input = inResult.result ?: return inResult as MatchingResult<ModuleDefiner> // null can haz any type that i want :)
 
         val context = MutableCTContext()
         val reportings: MutableSet<Reporting> = HashSet()
@@ -77,7 +88,10 @@ private class ModuleASTConverter(val defaultDeclaration: ModuleDeclaration) {
 
         return MatchingResult(
             certainty = ResultCertainty.DEFINITIVE,
-            result = Module(moduleDeclaration ?: defaultDeclaration, context),
+            result = ModuleDefiner(
+                moduleDeclaration?.name ?: defaultName,
+                context
+            ),
             errors = inResult.errors.plus(reportings)
         )
     }
