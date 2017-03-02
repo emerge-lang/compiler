@@ -1,1 +1,1 @@
-external operator fun Int.opAdd(other: Int) -> Int
+external operator fun Int.unaryMinus() -> Int

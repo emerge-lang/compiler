@@ -2,6 +2,7 @@ package compiler.ast.context
 
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
+import compiler.ast.type.Any
 import compiler.ast.type.BaseType
 import compiler.ast.type.TypeReference
 import java.util.*
@@ -85,6 +86,22 @@ open class MutableCTContext : CTContext
         types.find { it.fullyQualifiedName == ref.declaredName } ?:
         parentContexts.firstNotNull { it.resolveBaseType(ref) }
 
+    override fun resolveFunctions(name: String, receiverType: TypeReference?): List<FunctionDeclaration> {
+        val withName = functions.filter { it.name.value == name }
+
+        if (receiverType == null ) {
+            return withName.filter { it.receiverType == null }
+        }
+
+        val receiverBaseType = resolveBaseType(receiverType) ?: Any
+        return functions
+            .filter { it.receiverType != null }
+            .attachMapNotNull { resolveBaseType(it.receiverType!!) }
+            .filter { receiverBaseType isSubtypeOf it.second!! }
+            .sortedBy { receiverBaseType.hierarchicalDistanceTo(it.second!!) }
+            .map { it.first }
+    }
+
     /** @return An unmodified copy of this context */
     fun mutableCopy(): MutableCTContext {
         val copy = MutableCTContext()
@@ -99,3 +116,5 @@ open class MutableCTContext : CTContext
 }
 
 private fun <T, R> Iterable<T>.firstNotNull(transform: (T) -> R?): R? = map(transform).filterNot{ it == null }.first()
+
+private fun <T, R> Iterable<T>.attachMapNotNull(transform: (T) -> R): Iterable<Pair<T, R>> = map{ it to transform(it) }.filter { it.second != null }

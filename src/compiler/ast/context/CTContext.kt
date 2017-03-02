@@ -66,4 +66,11 @@ interface CTContext {
      * TODO: maybe return multiple types in case of ambiguity?
      */
     fun resolveBaseType(ref: TypeReference): BaseType?
+
+    /**
+     * Returns all known functions overloads with the given name, sorted by proximity to the given type (closer => earlier)
+     * @see BaseType.hierarchicalDistanceTo
+     * @param receiverType Limits the returned functions to those with a receiver of the given type. Null => no receiver
+     */
+    fun resolveFunctions(name: String, receiverType: TypeReference? = null): List<FunctionDeclaration>
 }
