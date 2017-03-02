@@ -17,7 +17,11 @@ enum class Keyword(val text: String)
     VAR("var"),
     MUTABLE("mutable"),
     READONLY("readonly"),
-    IMMUTABLE("immutable")
+    IMMUTABLE("immutable"),
+    NOTHROW("nothrow"),
+    PURE("PURE"),
+    OPERATOR("operator"),
+    EXTERNAL("external")
 }
 
 enum class Operator(val text: String)
