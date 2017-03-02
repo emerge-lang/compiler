@@ -19,7 +19,7 @@ enum class Keyword(val text: String)
     READONLY("readonly"),
     IMMUTABLE("immutable"),
     NOTHROW("nothrow"),
-    PURE("PURE"),
+    PURE("pure"),
     OPERATOR("operator"),
     EXTERNAL("external")
 }

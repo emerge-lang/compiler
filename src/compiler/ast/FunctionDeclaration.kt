@@ -7,6 +7,7 @@ import compiler.lexer.SourceLocation
 
 class FunctionDeclaration(
     override val declaredAt: SourceLocation,
+    val receiverType: TypeReference?,
     val name: IdentifierToken,
     val parameters: ParameterList,
     val returnType: TypeReference

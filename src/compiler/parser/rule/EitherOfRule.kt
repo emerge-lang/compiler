@@ -42,7 +42,7 @@ open class EitherOfRule(
                 ResultCertainty.DEFINITIVE,
                 null,
                 setOf(Reporting.error(
-                        "Unexpected ${input.peekOrLast()!!.toStringWithoutLocation()}. Expected $descriptionOfAMatchingThing",
+                        "Unexpected ${input.peekOrLast().toStringWithoutLocation()}. Expected $descriptionOfAMatchingThing",
                         input.currentSourceLocation
                 ))
         )

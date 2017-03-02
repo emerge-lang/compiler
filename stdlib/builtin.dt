@@ -1,0 +1,1 @@
+external operator fun Int.opAdd(other: Int) -> Int

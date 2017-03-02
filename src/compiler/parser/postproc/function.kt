@@ -10,7 +10,7 @@ import compiler.parser.rule.Rule
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 
-fun FunctionPostprocessor(rule: Rule<List<MatchingResult<*>>>): Rule<FunctionDeclaration> {
+fun StandaloneFunctionPostprocessor(rule: Rule<List<MatchingResult<*>>>): Rule<FunctionDeclaration> {
     return rule
         .flatten()
         .mapResult(::toAST)
@@ -19,10 +19,23 @@ fun FunctionPostprocessor(rule: Rule<List<MatchingResult<*>>>): Rule<FunctionDec
 private fun toAST(tokens: TransactionalSequence<Any, Position>): FunctionDeclaration {
     val declarationKeyword = tokens.next()!! as KeywordToken
 
-    val name = tokens.next()!! as IdentifierToken
+    val receiverType: TypeReference?
+    var next = tokens.next()!!
+    if (next is TypeReference) {
+        receiverType = next
+        // skip DOT
+        tokens.next()
+
+        next = tokens.next()!!
+    }
+    else {
+        receiverType = null
+    }
+
+    val name = next as IdentifierToken
     val parameterList = tokens.next()!! as ParameterList
 
-    var next = tokens.next()!!
+    next = tokens.next()!!
 
     var type = compiler.ast.type.Unit.defaultReference
 
@@ -30,5 +43,5 @@ private fun toAST(tokens: TransactionalSequence<Any, Position>): FunctionDeclara
         type = tokens.next()!! as TypeReference
     }
 
-    return FunctionDeclaration(declarationKeyword.sourceLocation, name, parameterList, type)
+    return FunctionDeclaration(declarationKeyword.sourceLocation, receiverType, name, parameterList, type)
 }

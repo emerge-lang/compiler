@@ -202,10 +202,29 @@ val ParameterList = rule {
     .describeAs("parenthesised paramete rlist")
     .postprocess(::ParameterListPostprocessor)
 
-val FunctionDeclaration = rule {
+val FunctionModifier = rule {
+    eitherOf {
+        keyword(READONLY)
+        keyword(NOTHROW)
+        keyword(PURE)
+        keyword(EXTERNAL)
+    }
+}
+    .postprocess(::FunctionModifierPostProcessor)
+
+val StandaloneFunctionDeclaration = rule {
+    atLeast(0) {
+        ref(FunctionModifier)
+    }
+
     keyword(FUNCTION)
 
     __definitive()
+
+    optional {
+        ref(Type)
+        operator(DOT)
+    }
 
     optionalWhitespace()
     identifier()
@@ -217,17 +236,22 @@ val FunctionDeclaration = rule {
         operator(RETURNS)
         optionalWhitespace()
         ref(Type)
-        optionalWhitespace()
     }
 
-    operator(CBRACE_OPEN)
-    optionalWhitespace()
-    operator(CBRACE_CLOSE)
+    eitherOf {
+        operator(NEWLINE)
+        sequence {
+            optionalWhitespace()
+            operator(CBRACE_OPEN)
+            optionalWhitespace()
+            operator(CBRACE_CLOSE)
+        }
+    }
 }
     .describeAs("function declaration")
-    .postprocess(::FunctionPostprocessor)
+    .postprocess(::StandaloneFunctionPostprocessor)
 
-val ModuleMatcher: (Array<String>) -> Rule<ModuleDefiner> = {
+val ModuleMatcher: (Array<out String>) -> Rule<ModuleDefiner> = {
     defaultName ->
     ModulePostProcessor(
         rule {
@@ -237,7 +261,7 @@ val ModuleMatcher: (Array<String>) -> Rule<ModuleDefiner> = {
                     ref(ModuleDeclaration)
                     ref(ImportDeclaration)
                     ref(VariableDeclaration)
-                    ref(FunctionDeclaration)
+                    ref(StandaloneFunctionDeclaration)
                 }
                 optionalWhitespace()
             }

@@ -4,20 +4,8 @@ import compiler.lexer.*
 import compiler.parser.toTransactional
 
 val testCode = """
-module blub
 
-import foo.bar
-import bar.blub
-
-mutable val a: readonly Type = 321e
-
-val x = 3
-val y = 4
-
-
-
-
-val z = x + y
+external operator fun Int.opAdd(other: Int) -> Int
 
 """
 

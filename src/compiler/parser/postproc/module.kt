@@ -14,7 +14,7 @@ import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 import java.util.*
 
-fun ModulePostProcessor(rule: Rule<List<MatchingResult<*>>>): (Array<String>) -> Rule<ModuleDefiner> {
+fun ModulePostProcessor(rule: Rule<List<MatchingResult<*>>>): (Array<out String>) -> Rule<ModuleDefiner> {
     return { defaultName ->
         val converter = ModuleASTConverter(defaultName)
 
@@ -29,11 +29,15 @@ fun ModulePostProcessor(rule: Rule<List<MatchingResult<*>>>): (Array<String>) ->
  */
 public class ModuleDefiner(val moduleName: Array<String>, val parsedContext: CTContext) {
     fun attachTo(swContext: SoftwareContext) {
-        swContext.module(*moduleName).context.include(parsedContext)
+        includeInto(swContext.module(*moduleName).context)
+    }
+
+    fun includeInto(existingContext: MutableCTContext) {
+        existingContext.include(parsedContext)
     }
 }
 
-private class ModuleASTConverter(val defaultName: Array<String>) {
+private class ModuleASTConverter(val defaultName: Array<out String>) {
     operator fun invoke(inResult: MatchingResult<TransactionalSequence<Any, Position>>): MatchingResult<ModuleDefiner>
     {
         val input = inResult.result ?: return inResult as MatchingResult<ModuleDefiner> // null can haz any type that i want :)
@@ -89,7 +93,7 @@ private class ModuleASTConverter(val defaultName: Array<String>) {
         return MatchingResult(
             certainty = ResultCertainty.DEFINITIVE,
             result = ModuleDefiner(
-                moduleDeclaration?.name ?: defaultName,
+                moduleDeclaration?.name ?: defaultName.asList().toTypedArray(),
                 context
             ),
             errors = inResult.errors.plus(reportings)
