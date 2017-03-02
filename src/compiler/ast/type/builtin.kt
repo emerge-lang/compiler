@@ -35,7 +35,7 @@ abstract class BuiltinType(override val simpleName: String, vararg superTypes: B
 
     override final val superTypes: Set<BaseType> = superTypes.toSet()
 
-    override final val defaultReference = TypeReference(fullyQualifiedName, false, impliedModifier)
+    override final val reference = TypeReference(fullyQualifiedName, false, impliedModifier)
 
     /**
      * BaseTypes do not define anything themselves. All of that is defined in source language in the

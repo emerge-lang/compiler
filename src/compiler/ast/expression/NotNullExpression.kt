@@ -1,6 +1,7 @@
 package compiler.ast.expression
 
 import compiler.ast.context.CTContext
+import compiler.ast.type.BaseTypeReference
 import compiler.ast.type.TypeReference
 import compiler.lexer.OperatorToken
 
@@ -10,7 +11,7 @@ class NotNullExpression(
     val notNullOperator: OperatorToken
 ) : Expression
 {
-    override fun determinedType(context: CTContext): TypeReference {
+    override fun determinedType(context: CTContext): BaseTypeReference {
         return nullableExpression.determinedType(context).nonNull()
     }
 }

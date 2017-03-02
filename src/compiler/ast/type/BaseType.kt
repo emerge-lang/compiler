@@ -1,6 +1,7 @@
 package compiler.ast.type
 
 import compiler.ast.FunctionDeclaration
+import compiler.ast.context.CTContext
 
 /**
  * Base type are classes, interfaces, enums, built-in type
@@ -16,8 +17,11 @@ interface BaseType {
     val fullyQualifiedName: String
         get() = simpleName
 
-    val defaultReference: TypeReference
+    val reference: TypeReference
         get() = TypeReference(fullyQualifiedName, false, impliedModifier)
+
+    val baseReference: (CTContext) -> BaseTypeReference
+        get() = { ctx -> BaseTypeReference(reference, ctx, this) }
 
     val superTypes: Set<BaseType>
         get() = emptySet()

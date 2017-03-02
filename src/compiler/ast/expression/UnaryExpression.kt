@@ -2,14 +2,16 @@ package compiler.ast.expression
 
 import compiler.ast.FunctionDeclaration
 import compiler.ast.context.CTContext
+import compiler.ast.type.BaseTypeReference
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeReference
 import compiler.lexer.Operator
 
 class UnaryExpression(val operator: Operator, val valueExpression: Expression): Expression
 {
-    override fun determinedType(context: CTContext): TypeReference {
-        return getOperatorFunction(context)?.returnType ?: compiler.ast.type.Any.defaultReference
+    override fun determinedType(context: CTContext): BaseTypeReference {
+        return (getOperatorFunction(context)?.returnType?.let(context::resolveBaseType) ?: compiler.ast.type.Any)
+            .baseReference(context)
     }
 
     /**
