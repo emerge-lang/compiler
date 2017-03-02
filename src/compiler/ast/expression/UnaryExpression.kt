@@ -9,7 +9,7 @@ import compiler.lexer.Operator
 
 class UnaryExpression(val operator: Operator, val valueExpression: Expression): Expression
 {
-    override fun determinedType(context: CTContext): BaseTypeReference {
+    override fun determineType(context: CTContext): BaseTypeReference {
         return (getOperatorFunction(context)?.returnType?.let(context::resolveBaseType) ?: compiler.ast.type.Any)
             .baseReference(context)
     }
@@ -21,7 +21,7 @@ class UnaryExpression(val operator: Operator, val valueExpression: Expression): 
      *         a suitable function.
      */
     private fun getOperatorFunction(context: CTContext): FunctionDeclaration? {
-        val valueType = valueExpression.determinedType(context)
+        val valueType = valueExpression.determineType(context)
 
         val opFunName = "unary" + operator.name[0].toUpperCase() + operator.name.substring(1).toLowerCase()
 

@@ -20,7 +20,7 @@ class VariableDeclaration(
      * be determined due to semantic errors, the closest guess is returned, even Any if there is absolutely no clue.
      */
     fun determineType(context: CTContext): TypeReference {
-        val baseType: TypeReference = type ?: assignExpression?.determinedType(context) ?: compiler.ast.type.Any.reference
+        val baseType: TypeReference = type ?: assignExpression?.determineType(context) ?: compiler.ast.type.Any.reference
 
         return if (typeModifier == null) baseType else baseType.modifiedWith(typeModifier)
     }
