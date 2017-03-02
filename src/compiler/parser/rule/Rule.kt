@@ -10,17 +10,17 @@ import compiler.parser.TokenSequence
 
 interface Rule<T> : Matcher<TokenSequence,T,Reporting> {
     companion object {
-        fun singleton(equalTo: Token): Rule<Token> = object : Rule<Token> {
+        fun singleton(equalTo: Token, mismatchCertainty: ResultCertainty = ResultCertainty.OPTIMISTIC): Rule<Token> = object : Rule<Token> {
             override val descriptionOfAMatchingThing: String
                 get() = equalTo.toString()
 
             override fun tryMatch(input: TokenSequence): MatchingResult<Token> {
                 if (!input.hasNext()) {
                     return MatchingResult(
-                            ResultCertainty.DEFINITIVE,
+                            mismatchCertainty,
                             null,
                             setOf(
-                                    MissingTokenReporting(equalTo, input.currentSourceLocation)
+                                MissingTokenReporting(equalTo, input.currentSourceLocation)
                             )
                     )
                 }
@@ -31,19 +31,19 @@ interface Rule<T> : Matcher<TokenSequence,T,Reporting> {
                 if (token == equalTo) {
                     input.commit()
                     return MatchingResult(
-                            ResultCertainty.DEFINITIVE,
-                            token,
-                            emptySet()
+                        ResultCertainty.DEFINITIVE,
+                        token,
+                        emptySet()
                     )
                 }
                 else {
                     input.rollback()
                     return MatchingResult(
-                            ResultCertainty.DEFINITIVE,
-                            null,
-                            setOf(
-                                    TokenMismatchReporting(equalTo, token)
-                            )
+                        mismatchCertainty,
+                        null,
+                        setOf(
+                            TokenMismatchReporting(equalTo, token)
+                        )
                     )
                 }
             }
@@ -56,11 +56,11 @@ interface Rule<T> : Matcher<TokenSequence,T,Reporting> {
             override fun tryMatch(input: TokenSequence): MatchingResult<Token> {
                 if (!input.hasNext()) {
                     return MatchingResult(
-                            ResultCertainty.DEFINITIVE,
-                            null,
-                            setOf(
-                                    Reporting.error("Expected token of type $type, found nothing", input.currentSourceLocation)
-                            )
+                        ResultCertainty.DEFINITIVE,
+                        null,
+                        setOf(
+                            Reporting.error("Expected token of type $type, found nothing", input.currentSourceLocation)
+                        )
                     )
                 }
 

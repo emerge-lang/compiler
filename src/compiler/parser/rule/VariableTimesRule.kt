@@ -48,6 +48,14 @@ class VariableTimesRule<T>(
 
             lastResult = rule.tryMatch(input)
             if (lastResult.isError) {
+                if (lastResult.certainty == ResultCertainty.DEFINITIVE) {
+                    return MatchingResult(
+                        ResultCertainty.DEFINITIVE,
+                        lastResult as? List<MatchingResult<T>>,
+                        lastResult.errors
+                    )
+                }
+
                 input.rollback()
                 break
             }

@@ -1,5 +1,6 @@
 package compiler.ast.context
 
+import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
 import compiler.ast.type.BaseType
 import compiler.ast.type.TypeReference
@@ -18,6 +19,9 @@ open class MutableCTContext : CTContext
 
     /** Maps variable names to their metadata; holds only variables defined in this context */
     private val variables: MutableMap<String,Variable> = HashMap()
+
+    /** Holds all the toplevel functions defined in this context */
+    private val functions: MutableSet<FunctionDeclaration> = HashSet()
 
     /** Holds all the base types defined in this context */
     private val types: MutableSet<BaseType> = HashSet()
@@ -47,6 +51,20 @@ open class MutableCTContext : CTContext
     override fun withVariable(declaration: VariableDeclaration, overrideType: TypeReference?): CTContext {
         val copy = this.mutableCopy()
         copy.addVariable(declaration, overrideType)
+
+        return copy
+    }
+
+    /**
+     * Adds the given [FunctionDeclaration] to this context, possibly overriding
+     */
+    open fun addFunction(declaration: FunctionDeclaration) {
+        functions.add(declaration)
+    }
+
+    override fun withFunction(declaration: FunctionDeclaration): CTContext {
+        val copy = mutableCopy()
+        copy.addFunction(declaration)
 
         return copy
     }

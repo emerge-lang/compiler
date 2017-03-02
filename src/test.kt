@@ -1,3 +1,4 @@
+
 import compiler.ast.context.SoftwareContext
 import compiler.ast.type.BuiltinType
 import compiler.lexer.*
@@ -26,7 +27,8 @@ fun main(args: Array<String>) {
     println("------------")
 
     val matched = ModuleMatcher(arrayOf("testcode")).tryMatch(tokens.toTransactional())
-    val parsedModule = matched.result
+    // val matched = StandaloneFunctionDeclaration.tryMatch(tokens.toTransactional())
+    // val parsedModule = matched.result
 
     println("certainty = ${matched.certainty}")
     println("result = ${matched.result}")
@@ -36,11 +38,4 @@ fun main(args: Array<String>) {
     println()
 
     matched.errors.forEach { println(it); println(); println() }
-
-    // --
-    if (parsedModule != null) {
-        parsedModule.attachTo(swCtx)
-
-        // TODO: validate context
-    }
 }

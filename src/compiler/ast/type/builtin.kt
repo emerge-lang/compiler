@@ -1,16 +1,10 @@
 package compiler.ast.type
 
-import ModuleMatcher
-import compiler.InternalCompilerError
 import compiler.ast.FunctionDeclaration
 import compiler.ast.context.CTContext
 import compiler.ast.context.MutableCTContext
 import compiler.ast.context.Module
-import compiler.lexer.SourceContentAwareSourceDescriptor
-import compiler.lexer.SourceContentAwareSourceLocation
-import compiler.lexer.SourceDescriptor
-import compiler.lexer.lex
-import compiler.parser.TokenSequence
+import compiler.parseFromClasspath
 
 /*
  * This file contains raw definitions of the builtin types.
@@ -58,25 +52,11 @@ abstract class BuiltinType(override val simpleName: String, vararg superTypes: B
 
         init {
             // parse builtin type operator definitions
-
+            parseFromClasspath("builtin.dt").includeInto(Context as MutableCTContext)
         }
     }
 
     init {
         (Context as MutableCTContext).addBaseType(this)
     }
-}
-
-private fun parseFromClasspath(path: String, module: Module) {
-    val sourceode = BuiltinType.javaClass.getResource(path).readText().lines()
-
-    val sourceDescriptor = object : SourceContentAwareSourceDescriptor() {
-        override val sourceLocation = "classpath://" + path
-        override val sourceLines = sourceode
-    }
-    val matchResult = ModuleMatcher(module.name).tryMatch(TokenSequence(lex(sourceDescriptor).toList()))
-    if (matchResult.result == null) {
-        throw InternalCompilerError("Failed to parse compiler internal source")
-    }
-    return matchResult.result!!.includeInto(module.context)
 }

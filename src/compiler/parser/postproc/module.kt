@@ -77,10 +77,7 @@ private class ModuleASTConverter(val defaultName: Array<out String>) {
                 context.addVariable(declaration)
             }
             else if (declaration is FunctionDeclaration) {
-                reportings.add(Reporting.error(
-                    "Function declarations are not suppored yet.",
-                    declaration.declaredAt
-                ))
+                context.addFunction(declaration)
             }
             else {
                 reportings.add(Reporting.error(

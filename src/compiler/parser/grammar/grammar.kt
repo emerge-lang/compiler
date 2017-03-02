@@ -207,6 +207,7 @@ val FunctionModifier = rule {
         keyword(READONLY)
         keyword(NOTHROW)
         keyword(PURE)
+        keyword(OPERATOR)
         keyword(EXTERNAL)
     }
 }
@@ -239,7 +240,10 @@ val StandaloneFunctionDeclaration = rule {
     }
 
     eitherOf {
-        operator(NEWLINE)
+        eitherOf {
+            operator(NEWLINE)
+            endOfInput()
+        }
         sequence {
             optionalWhitespace()
             operator(CBRACE_OPEN)
@@ -256,6 +260,7 @@ val ModuleMatcher: (Array<out String>) -> Rule<ModuleDefiner> = {
     ModulePostProcessor(
         rule {
             atLeast(0) {
+                __definitive()
                 optionalWhitespace()
                 eitherOf {
                     ref(ModuleDeclaration)

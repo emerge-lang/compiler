@@ -30,6 +30,10 @@ open class EitherOfRule(
             val result = rule.tryMatch(input)
 
             if (result.isError) {
+                if (result.certainty == ResultCertainty.DEFINITIVE) {
+                    return result
+                }
+
                 input.rollback()
             }
             else {

@@ -1,5 +1,6 @@
 package compiler.ast.context
 
+import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
 import compiler.ast.type.BaseType
 import compiler.ast.type.TypeReference
@@ -43,10 +44,16 @@ interface CTContext {
     fun including(context: CTContext): CTContext
 
     /**
-     * Creates a copy of this [CTContext], adds the given declaration to it and returns that context. If the
+     * Creates a copy of this [CTContext], adds the given declaration to it and returns that copy. If the
      * given variable is already defined in this context, overwrites that.
      */
     fun withVariable(declaration: VariableDeclaration, overrideType: TypeReference? = null): CTContext
+
+    /**
+     * Creates a copy of this [CTContext], adds the given declaration to it and returns that copy. If the
+     * given function is already defined in this context, overwrites that.
+     */
+    fun withFunction(declaration: FunctionDeclaration): CTContext
 
     /**
      * @return The variable accessible under the given name, shadowing included.

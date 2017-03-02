@@ -44,8 +44,8 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
     /**
      * Matches exactly one [KeywordToken] with the given [lexer.Keyword]
      */
-    fun keyword(kw: Keyword): Unit {
-        subRules.add(Rule.singleton(KeywordToken(kw)))
+    fun keyword(kw: Keyword, mismatchCertainty: ResultCertainty = ResultCertainty.OPTIMISTIC): Unit {
+        subRules.add(Rule.singleton(KeywordToken(kw), mismatchCertainty))
     }
 
     fun operator(op: Operator?): Unit {
@@ -143,6 +143,13 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
      */
     fun tokenOfType(type: TokenType): Unit {
         subRules.add(Rule.singletonOfType(type))
+    }
+
+    /**
+     * Matches the end of the givne token sequence.
+     */
+    fun endOfInput() {
+        subRules.add(EOIRule.INSTANCE)
     }
 }
 
