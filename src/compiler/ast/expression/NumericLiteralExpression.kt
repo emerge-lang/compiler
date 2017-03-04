@@ -1,5 +1,7 @@
 package compiler.ast.expression
 
+import compiler.ast.context.CTContext
+import compiler.ast.type.BaseTypeReference
 import compiler.lexer.NumericLiteralToken
 import compiler.parser.Reporting
 import java.math.BigDecimal
@@ -13,8 +15,12 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
     /** floating point value of this expression, if floating */
     private var floatingValue: BigDecimal? = null
 
+    private var validationResult: Collection<Reporting>? = null
+
     /** Validates this expression */
     fun validate(): Collection<Reporting> {
+        if (validationResult != null) return validationResult!!
+
         var str = literalToken.stringContent
 
         if (str.contains('.') || str.endsWith('f') || str.contains('e')) {
@@ -126,6 +132,20 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
 
             integerValue = BigInteger(str, base)
             return emptySet()
+        }
+    }
+
+    override fun determineType(context: CTContext): BaseTypeReference {
+        validate()
+
+        if (integerValue != null) {
+            return compiler.ast.type.Int.baseReference(context)
+        }
+        else if (floatingValue != null) {
+            return compiler.ast.type.Float.baseReference(context)
+        }
+        else {
+            return compiler.ast.type.Number.baseReference(context)
         }
     }
 }

@@ -2,7 +2,9 @@ package compiler.ast.context
 
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
+import compiler.ast.type.Any
 import compiler.ast.type.BaseType
+import compiler.ast.type.BaseTypeReference
 import compiler.ast.type.TypeReference
 
 /**
@@ -36,41 +38,55 @@ import compiler.ast.type.TypeReference
  * to convey that the context must not be modified to assure correct compilation, CTFE or interpretation. Much like
  * the `immutable` keyword in the language this program compiles.
  */
-interface CTContext {
-    /**
-     * @return A copy of this [CTContext] with the given context added to it; The given context will shadow colliding
-     * symbols.
-     */
-    fun including(context: CTContext): CTContext
-
+interface CTContext
+{
     /**
      * Creates a copy of this [CTContext], adds the given declaration to it and returns that copy. If the
      * given variable is already defined in this context, overwrites that.
      */
-    fun withVariable(declaration: VariableDeclaration, overrideType: TypeReference? = null): CTContext
+    //fun withVariable(declaration: VariableDeclaration, overrideType: TypeReference? = null): CTContext
 
     /**
      * Creates a copy of this [CTContext], adds the given declaration to it and returns that copy. If the
      * given function is already defined in this context, overwrites that.
      */
-    fun withFunction(declaration: FunctionDeclaration): CTContext
+    //fun withFunction(declaration: FunctionDeclaration): CTContext
 
     /**
+     * @param onlyOwn If true, does not attempt to resolve variables through imports.
      * @return The variable accessible under the given name, shadowing included.
      */
-    fun resolveVariable(name: String): Variable?
+    fun resolveVariable(name: String, onlyOwn: Boolean = false): Variable?
 
     /**
-     * @return The [BaseType] in this context identified by the given reference or null if no such [BaseType] is defined
-     * in the context.
+     * Returns the [BaseType] with the given simple name defined in this context or null if a [BaseType] with the
+     * given simple name has been defined within this context (see [addBaseType])
+     */
+    fun resolveOwnType(simpleName: String): BaseType?
+
+    /**
+     * Attempts to resolve the reference within this context considering imports and FQN references.
+     * @param ref the reference to resolve
+     * @param withImported Whether to include imported types. When evaluating types inside this context, use true;
+     *                     otherwise false.
      * TODO: maybe return multiple types in case of ambiguity?
      */
-    fun resolveBaseType(ref: TypeReference): BaseType?
+    fun resolveAnyType(ref: TypeReference): BaseType?
+
+    /**
+     * Resolves the given [TypeReference] using [resolveOwnType] and then forwards to [resolveFunctions].
+     */
+    /*fun resolveFunctions(name: String, receiverType: TypeReference? = null): List<FunctionDeclaration> {
+        return resolveFunctions(
+            name,
+            (receiverType?.let(this::resolveOwnType) ?: Any).baseReference(this)
+        )
+    }*/
 
     /**
      * Returns all known functions overloads with the given name, sorted by proximity to the given type (closer => earlier)
      * @see BaseType.hierarchicalDistanceTo
      * @param receiverType Limits the returned functions to those with a receiver of the given type. Null => no receiver
      */
-    fun resolveFunctions(name: String, receiverType: TypeReference? = null): List<FunctionDeclaration>
+    //fun resolveFunctions(name: String, receiverType: BaseTypeReference? = null): List<FunctionDeclaration>
 }

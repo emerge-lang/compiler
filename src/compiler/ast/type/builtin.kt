@@ -3,7 +3,6 @@ package compiler.ast.type
 import compiler.ast.FunctionDeclaration
 import compiler.ast.context.CTContext
 import compiler.ast.context.MutableCTContext
-import compiler.ast.context.Module
 import compiler.parseFromClasspath
 
 /*
@@ -18,24 +17,29 @@ val Any = object : BuiltinType("Any") {}
 
 val Unit = object : BuiltinType("Unit", Any) {}
 
-val Number = object : BuiltinType("Number", Any) {}
+val Number = object : BuiltinType("Number", Any) {
+    override val impliedModifier = TypeModifier.IMMUTABLE
+}
 
-val Decimal = object : BuiltinType("Float", Number) {}
+val Float = object : BuiltinType("Float", Number) {
+    override val impliedModifier = TypeModifier.IMMUTABLE
+}
 
-val Integer = object : BuiltinType("Int", Number) {}
+val Int = object : BuiltinType("Int", Number) {
+    override val impliedModifier = TypeModifier.IMMUTABLE
+}
 
 
 /**
- * A BuiltinType is defined in the ROOT package. All instances created of this object
- * are automagically available in the root package (take a look at the source of [Module]
- * to see how that is achieved)
+ * A BuiltinType is defined in the ROOT package.
  */
 abstract class BuiltinType(override val simpleName: String, vararg superTypes: BaseType) : BaseType {
     override final val fullyQualifiedName = simpleName
 
     override final val superTypes: Set<BaseType> = superTypes.toSet()
 
-    override final val reference = TypeReference(fullyQualifiedName, false, impliedModifier)
+    override final val reference
+        get() = TypeReference(fullyQualifiedName, false, impliedModifier)
 
     /**
      * BaseTypes do not define anything themselves. All of that is defined in source language in the
@@ -51,12 +55,16 @@ abstract class BuiltinType(override val simpleName: String, vararg superTypes: B
         val Context: CTContext = MutableCTContext()
 
         init {
-            // parse builtin type operator definitions
-            parseFromClasspath("builtin.dt").includeInto(Context as MutableCTContext)
-        }
-    }
+            (Context as MutableCTContext).let {
+                it.addBaseType(Any)
+                it.addBaseType(Unit)
+                it.addBaseType(Number)
+                it.addBaseType(Float)
+                it.addBaseType(Int)
+            }
 
-    init {
-        (Context as MutableCTContext).addBaseType(this)
+            // parse builtin type operator definitions
+            // parseFromClasspath("builtin.dt").includeInto(Context as MutableCTContext)
+        }
     }
 }

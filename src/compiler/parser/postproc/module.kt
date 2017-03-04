@@ -3,9 +3,7 @@ package compiler.parser.postproc
 import compiler.InternalCompilerError
 import compiler.ast.*
 import compiler.ast.context.CTContext
-import compiler.ast.context.Module
 import compiler.ast.context.MutableCTContext
-import compiler.ast.context.SoftwareContext
 import compiler.matching.ResultCertainty
 import compiler.parser.Reporting
 import compiler.parser.rule.MatchingResult
@@ -15,8 +13,8 @@ import compiler.transact.TransactionalSequence
 import java.util.*
 
 fun ModulePostProcessor(rule: Rule<List<MatchingResult<*>>>): (Array<out String>) -> Rule<ModuleDefiner> {
-    return { defaultName ->
-        val converter = ModuleASTConverter(defaultName)
+    return { name ->
+        val converter = ModuleASTConverter(name)
 
         rule
             .flatten()
@@ -27,17 +25,12 @@ fun ModulePostProcessor(rule: Rule<List<MatchingResult<*>>>): (Array<out String>
 /**
  * Holds references to parsed elements; can add these elements to any given [CTContext]
  */
-public class ModuleDefiner(val moduleName: Array<String>, val parsedContext: CTContext) {
-    fun attachTo(swContext: SoftwareContext) {
-        includeInto(swContext.module(*moduleName).context)
-    }
+public class ModuleDefiner(val moduleName: Array<String>, val parsedContext: CTContext)
+{
 
-    fun includeInto(existingContext: MutableCTContext) {
-        existingContext.include(parsedContext)
-    }
 }
 
-private class ModuleASTConverter(val defaultName: Array<out String>) {
+private class ModuleASTConverter(val name: Array<out String>) {
     operator fun invoke(inResult: MatchingResult<TransactionalSequence<Any, Position>>): MatchingResult<ModuleDefiner>
     {
         val input = inResult.result ?: return inResult as MatchingResult<ModuleDefiner> // null can haz any type that i want :)
@@ -68,16 +61,13 @@ private class ModuleASTConverter(val defaultName: Array<out String>) {
                 }
             }
             else if (declaration is ImportDeclaration) {
-                reportings.add(Reporting.error(
-                    "Import declarations are not supported yet.",
-                    declaration.declaredAt
-                ))
+                context.addImport(declaration)
             }
             else if (declaration is VariableDeclaration) {
                 context.addVariable(declaration)
             }
             else if (declaration is FunctionDeclaration) {
-                context.addFunction(declaration)
+                // context.addFunction(declaration)
             }
             else {
                 reportings.add(Reporting.error(
@@ -87,10 +77,19 @@ private class ModuleASTConverter(val defaultName: Array<out String>) {
             }
         }
 
+        if (moduleDeclaration == null) {
+            reportings.add(Reporting.error("No module declaration found.", (input.items[0] as Declaration).declaredAt))
+        }
+        else {
+            if (!Arrays.equals(moduleDeclaration!!.name, name)) {
+                reportings.add(Reporting.error("Module declaration does not match the target name ${name.joinToString(".")}", moduleDeclaration!!.declaredAt))
+            }
+        }
+
         return MatchingResult(
             certainty = ResultCertainty.DEFINITIVE,
             result = ModuleDefiner(
-                moduleDeclaration?.name ?: defaultName.asList().toTypedArray(),
+                name.asList().toTypedArray(),
                 context
             ),
             errors = inResult.errors.plus(reportings)

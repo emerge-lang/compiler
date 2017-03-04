@@ -1,19 +1,23 @@
 
+import compiler.ast.context.MutableCTContext
 import compiler.ast.context.SoftwareContext
 import compiler.ast.type.BuiltinType
 import compiler.lexer.*
 import compiler.parser.toTransactional
 
 val testCode = """
+module testcode
 
-external operator fun Int.opAdd(other: Int) -> Int
+import dotlin.lang.*
+
+val x: Int = 3
 
 """
 
 fun main(args: Array<String>) {
     // setup context
     val swCtx = SoftwareContext()
-    swCtx.module("lang").context.include(BuiltinType.Context)
+    swCtx.defineModule(BuiltinType.Context, "dotlin", "lang")
 
     var source = object : SourceContentAwareSourceDescriptor() {
         override val sourceLocation = "testcode"
@@ -38,4 +42,10 @@ fun main(args: Array<String>) {
     println()
 
     matched.errors.forEach { println(it); println(); println() }
+
+    val ctx = matched.result!!.parsedContext
+    (ctx as MutableCTContext).swCtx = swCtx
+    println(
+        ctx.resolveAnyType(ctx.resolveVariable("x")!!.type)
+    )
 }

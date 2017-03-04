@@ -9,10 +9,10 @@ import compiler.lexer.Operator
 
 class UnaryExpression(val operator: Operator, val valueExpression: Expression): Expression
 {
-    override fun determineType(context: CTContext): BaseTypeReference {
-        return (getOperatorFunction(context)?.returnType?.let(context::resolveBaseType) ?: compiler.ast.type.Any)
+    /*override fun determineType(context: CTContext): BaseTypeReference {
+        return (getOperatorFunction(context)?.returnType?.let(context::resolveOwnType) ?: compiler.ast.type.Any)
             .baseReference(context)
-    }
+    }*/
 
     /**
      * Attempts to resolve the operator function in the given context.
@@ -20,7 +20,7 @@ class UnaryExpression(val operator: Operator, val valueExpression: Expression): 
      * @return The operator function to use to evaluate this expression or null the given context does not contain
      *         a suitable function.
      */
-    private fun getOperatorFunction(context: CTContext): FunctionDeclaration? {
+    /*private fun getOperatorFunction(context: CTContext): FunctionDeclaration? {
         val valueType = valueExpression.determineType(context)
 
         val opFunName = "unary" + operator.name[0].toUpperCase() + operator.name.substring(1).toLowerCase()
@@ -31,5 +31,5 @@ class UnaryExpression(val operator: Operator, val valueExpression: Expression): 
             .filter { it.parameters.parameters.isEmpty() }
 
         return receiverOperatorFuns.firstOrNull()
-    }
+    }*/
 }

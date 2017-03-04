@@ -1,10 +1,12 @@
 package compiler.ast.context
 
+import compiler.InternalCompilerError
 import compiler.ast.FunctionDeclaration
+import compiler.ast.ImportDeclaration
 import compiler.ast.VariableDeclaration
-import compiler.ast.type.Any
 import compiler.ast.type.BaseType
 import compiler.ast.type.TypeReference
+import compiler.lexer.IdentifierToken
 import java.util.*
 
 /**
@@ -12,11 +14,10 @@ import java.util.*
  */
 open class MutableCTContext : CTContext
 {
-    /**
-     * All the contexts that are included in this one (through imports, derivation, ...)
-     * in the order of shadowing (earlier in the list shadows later in the list)
-     */
-    private val parentContexts: MutableList<CTContext> = LinkedList()
+    private val imports: MutableSet<ImportDeclaration> = HashSet()
+
+    /** The [SoftwareContext] the [imports] are resolved from */
+    var swCtx: SoftwareContext? = null
 
     /** Maps variable names to their metadata; holds only variables defined in this context */
     private val variables: MutableMap<String,Variable> = HashMap()
@@ -27,47 +28,8 @@ open class MutableCTContext : CTContext
     /** Holds all the base types defined in this context */
     private val types: MutableSet<BaseType> = HashSet()
 
-    /**
-     * Includes the given [CTContext] in this one. If the given context contains duplicate
-     * definitions symbols the ones that existed in this context previously will be shadowed.
-     */
-    open fun include(context: CTContext) {
-        parentContexts.add(0, context)
-    }
-
-    override fun including(context: CTContext): CTContext {
-        val copy = this.mutableCopy()
-        copy.include(context)
-
-        return copy
-    }
-
-    /**
-     * Adds the given variable to this context; possibly overriding its type with the given type.
-     */
-    open fun addVariable(declaration: VariableDeclaration, overrideType: TypeReference? = null) {
-        variables[declaration.name.value] = Variable(this, declaration, overrideType)
-    }
-
-    override fun withVariable(declaration: VariableDeclaration, overrideType: TypeReference?): CTContext {
-        val copy = this.mutableCopy()
-        copy.addVariable(declaration, overrideType)
-
-        return copy
-    }
-
-    /**
-     * Adds the given [FunctionDeclaration] to this context, possibly overriding
-     */
-    open fun addFunction(declaration: FunctionDeclaration) {
-        functions.add(declaration)
-    }
-
-    override fun withFunction(declaration: FunctionDeclaration): CTContext {
-        val copy = mutableCopy()
-        copy.addFunction(declaration)
-
-        return copy
+    fun addImport(decl: ImportDeclaration) {
+        this.imports.add(decl)
     }
 
     /**
@@ -77,44 +39,77 @@ open class MutableCTContext : CTContext
         types.add(type)
     }
 
-    override fun resolveVariable(name: String): Variable? =
-        variables[name] ?:
-        parentContexts.firstNotNull { it.resolveVariable(name) }
+    override fun resolveOwnType(simpleName: String): BaseType? = types.find { it.simpleName == simpleName }
 
-    override fun resolveBaseType(ref: TypeReference): BaseType? =
-        types.find { it.simpleName == ref.declaredName } ?:
-        types.find { it.fullyQualifiedName == ref.declaredName } ?:
-        parentContexts.firstNotNull { it.resolveBaseType(ref) }
+    override fun resolveAnyType(ref: TypeReference): BaseType? {
+        if (ref.declaredName.contains('.')) {
+            val swCtx = this.swCtx ?: throw InternalCompilerError("Cannot resolve FQN when no software context is set.")
 
-    override fun resolveFunctions(name: String, receiverType: TypeReference?): List<FunctionDeclaration> {
-        val withName = functions.filter { it.name.value == name }
-
-        if (receiverType == null ) {
-            return withName.filter { it.receiverType == null }
+            // FQN specified
+            val fqnName = ref.declaredName.split('.')
+            val simpleName = fqnName.last()
+            val moduleNameOfType = fqnName.dropLast(1)
+            val foreignModuleCtx = swCtx.module(moduleNameOfType)
+            return foreignModuleCtx?.resolveOwnType(simpleName)
         }
+        else {
+            // try to resolve from this context
+            val selfDefined = resolveOwnType(ref.declaredName)
+            if (selfDefined != null) return selfDefined
 
-        val receiverBaseType = resolveBaseType(receiverType) ?: Any
-        return functions
-            .filter { it.receiverType != null }
-            .attachMapNotNull { resolveBaseType(it.receiverType!!) }
-            .filter { receiverBaseType isSubtypeOf it.second!! }
-            .sortedBy { receiverBaseType.hierarchicalDistanceTo(it.second!!) }
-            .map { it.first }
+            // look through the imports
+            val importedTypes = importsForSimpleName(ref.declaredName)
+                .map { it.resolveOwnType(ref.declaredName) }
+                .filterNotNull()
+
+            // TODO: if importedTypes.size is > 1 the reference is ambigous; how to handle that?
+            return importedTypes.firstOrNull()
+        }
     }
 
-    /** @return An unmodified copy of this context */
-    fun mutableCopy(): MutableCTContext {
-        val copy = MutableCTContext()
-
-        copy.variables.putAll(this.variables)
-
-        return copy
+    /**
+     * Adds the given variable to this context; possibly overriding its type with the given type.
+     */
+    open fun addVariable(declaration: VariableDeclaration, overrideType: TypeReference? = null) {
+        variables[declaration.name.value] = Variable(this, declaration, overrideType)
     }
 
-    /** @return An unmodified copy of this context */
-    fun copy(): CTContext = mutableCopy()
+    override fun resolveVariable(name: String, onlyOwn: Boolean): Variable? {
+        val ownVar = variables[name]
+        if (onlyOwn || ownVar != null) return ownVar
+
+        val importedVars = importsForSimpleName(name)
+            .map { it.resolveVariable(name, true) }
+            .filterNotNull()
+
+        // TODO: if importedVars.size is > 1 the name is ambigous; how to handle that?
+        return importedVars.firstOrNull()
+    }
+
+    /**
+     * @return All the imported contexts that could contain the given simple name.
+     */
+    private fun importsForSimpleName(simpleName: String): Iterable<CTContext> {
+        val swCtx = this.swCtx ?: throw InternalCompilerError("Cannot resolve symbol $simpleName including imports when no software context is set.")
+
+        return imports.map { import ->
+            val importRange = import.identifiers.map(IdentifierToken::value)
+            val moduleName = importRange.dropLast(1)
+            val importSimpleName = importRange.last()
+
+            if (importSimpleName != "*" && importSimpleName != simpleName) {
+                return@map null
+            }
+
+            return@map swCtx.module(moduleName)
+        }
+            .filterNotNull()
+    }
+
+    // the removed code is not lost of course, thanks to vcs
+    // the stuff will be revived from vcs history when the project is actually ready for it
 }
 
-private fun <T, R> Iterable<T>.firstNotNull(transform: (T) -> R?): R? = map(transform).filterNot{ it == null }.first()
+private fun <T, R> Iterable<T>.firstNotNull(transform: (T) -> R?): R? = map(transform).filterNot{ it == null }.firstOrNull()
 
 private fun <T, R> Iterable<T>.attachMapNotNull(transform: (T) -> R): Iterable<Pair<T, R>> = map{ it to transform(it) }.filter { it.second != null }

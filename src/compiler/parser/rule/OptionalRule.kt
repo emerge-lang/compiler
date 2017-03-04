@@ -15,7 +15,7 @@ class OptionalRule<T>(
 
         if (subResult.certainty == ResultCertainty.DEFINITIVE || subResult.isSuccess) {
             return MatchingResult(
-                ResultCertainty.OPTIMISTIC,
+                ResultCertainty.DEFINITIVE,
                 subResult.result,
                 subResult.errors
             )

@@ -1,5 +1,4 @@
 import compiler.ast.ModuleDeclaration
-import compiler.ast.context.Module
 import compiler.ast.expression.Expression
 import compiler.lexer.Keyword.*
 import compiler.lexer.Operator.*
@@ -159,8 +158,11 @@ val VariableDeclaration = rule {
 
     optionalWhitespace()
 
-    operator(ASSIGNMENT)
-    expression()
+    optional {
+        operator(ASSIGNMENT)
+        expression()
+    }
+
     operator(NEWLINE)
 }
     .describeAs("variable declaration")
@@ -256,7 +258,7 @@ val StandaloneFunctionDeclaration = rule {
     .postprocess(::StandaloneFunctionPostprocessor)
 
 val ModuleMatcher: (Array<out String>) -> Rule<ModuleDefiner> = {
-    defaultName ->
+    name ->
     ModulePostProcessor(
         rule {
             atLeast(0) {
@@ -272,5 +274,5 @@ val ModuleMatcher: (Array<out String>) -> Rule<ModuleDefiner> = {
             }
         }
         .describeAs("module")
-    )(defaultName)
+    )(name)
 }
