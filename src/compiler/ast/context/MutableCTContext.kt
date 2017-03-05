@@ -50,7 +50,7 @@ open class MutableCTContext : CTContext
             val simpleName = fqnName.last()
             val moduleNameOfType = fqnName.dropLast(1)
             val foreignModuleCtx = swCtx.module(moduleNameOfType)
-            return foreignModuleCtx?.resolveOwnType(simpleName)
+            return foreignModuleCtx?.context?.resolveOwnType(simpleName)
         }
         else {
             // try to resolve from this context
@@ -101,7 +101,7 @@ open class MutableCTContext : CTContext
                 return@map null
             }
 
-            return@map swCtx.module(moduleName)
+            return@map swCtx.module(moduleName)?.context
         }
             .filterNotNull()
     }

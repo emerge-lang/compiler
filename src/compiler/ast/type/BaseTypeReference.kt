@@ -24,4 +24,6 @@ class BaseTypeReference(
     override fun nonNull(): BaseTypeReference = BaseTypeReference(original.nonNull(), context, baseType)
 
     override fun asInferred(): BaseTypeReference = BaseTypeReference(original.asInferred(), context, baseType)
+
+    override fun toString() = "BaseType Ref[" + original.modifier + " " + baseType.fullyQualifiedName + "]"
 }

@@ -2,6 +2,7 @@ package compiler.ast.type
 
 import compiler.ast.FunctionDeclaration
 import compiler.ast.context.CTContext
+import compiler.ast.context.Module
 import compiler.ast.context.MutableCTContext
 import compiler.parseFromClasspath
 
@@ -52,19 +53,18 @@ abstract class BuiltinType(override val simpleName: String, vararg superTypes: B
          * A [Context] that holds all instances of [BuiltinType]; updates dynamically whenever an instance of
          * [BuiltinType] is created.
          */
-        val Context: CTContext = MutableCTContext()
+        val Module: Module
 
         init {
-            (Context as MutableCTContext).let {
-                it.addBaseType(Any)
-                it.addBaseType(Unit)
-                it.addBaseType(Number)
-                it.addBaseType(Float)
-                it.addBaseType(Int)
-            }
+            // TODO: use a dotlin.lang PACKAGE in the classpath and public import the "synthetic" stuff from modules defined in the compiler (like dotlin.lang.builtin)
+            val builtinTypeDeclarations = parseFromClasspath("builtin.dt")
 
-            // parse builtin type operator definitions
-            // parseFromClasspath("builtin.dt").includeInto(Context as MutableCTContext)
+            builtinTypeDeclarations.context.addBaseType(Any)
+            builtinTypeDeclarations.context.addBaseType(Unit)
+            builtinTypeDeclarations.context.addBaseType(Number)
+            builtinTypeDeclarations.context.addBaseType(Float)
+            builtinTypeDeclarations.context.addBaseType(Int)
+            Module = builtinTypeDeclarations
         }
     }
 }

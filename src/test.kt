@@ -8,16 +8,14 @@ import compiler.parser.toTransactional
 val testCode = """
 module testcode
 
-import dotlin.lang.*
-
-val x: Int = 3
+val x: Int = -3
 
 """
 
 fun main(args: Array<String>) {
     // setup context
     val swCtx = SoftwareContext()
-    swCtx.defineModule(BuiltinType.Context, "dotlin", "lang")
+    swCtx.addModule(BuiltinType.Module)
 
     var source = object : SourceContentAwareSourceDescriptor() {
         override val sourceLocation = "testcode"
@@ -30,7 +28,7 @@ fun main(args: Array<String>) {
 
     println("------------")
 
-    val matched = ModuleMatcher(arrayOf("testcode")).tryMatch(tokens.toTransactional())
+    val matched = Module.tryMatch(tokens.toTransactional())
     // val matched = StandaloneFunctionDeclaration.tryMatch(tokens.toTransactional())
     // val parsedModule = matched.result
 
@@ -43,9 +41,9 @@ fun main(args: Array<String>) {
 
     matched.errors.forEach { println(it); println(); println() }
 
-    val ctx = matched.result!!.parsedContext
-    (ctx as MutableCTContext).swCtx = swCtx
+    val ctx = matched.result!!.context
+    ctx.swCtx = swCtx
     println(
-        ctx.resolveAnyType(ctx.resolveVariable("x")!!.type)
+        ctx.resolveVariable("x")!!.declaration.assignExpression!!.determineType(ctx)
     )
 }

@@ -1,4 +1,7 @@
 import compiler.ast.ModuleDeclaration
+import compiler.ast.context.CTContext
+import compiler.ast.context.Module
+import compiler.ast.context.MutableCTContext
 import compiler.ast.expression.Expression
 import compiler.lexer.Keyword.*
 import compiler.lexer.Operator.*
@@ -257,22 +260,18 @@ val StandaloneFunctionDeclaration = rule {
     .describeAs("function declaration")
     .postprocess(::StandaloneFunctionPostprocessor)
 
-val ModuleMatcher: (Array<out String>) -> Rule<ModuleDefiner> = {
-    name ->
-    ModulePostProcessor(
-        rule {
-            atLeast(0) {
-                __definitive()
-                optionalWhitespace()
-                eitherOf {
-                    ref(ModuleDeclaration)
-                    ref(ImportDeclaration)
-                    ref(VariableDeclaration)
-                    ref(StandaloneFunctionDeclaration)
-                }
-                optionalWhitespace()
-            }
+val Module = rule {
+    atLeast(0) {
+        __definitive()
+        optionalWhitespace()
+        eitherOf {
+            ref(ModuleDeclaration)
+            ref(ImportDeclaration)
+            ref(VariableDeclaration)
+            ref(StandaloneFunctionDeclaration)
         }
-        .describeAs("module")
-    )(name)
+        optionalWhitespace()
+    }
 }
+    .describeAs("module")
+    .postprocess(::ModulePostProcessor)
