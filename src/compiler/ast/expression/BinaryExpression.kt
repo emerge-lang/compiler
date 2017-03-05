@@ -2,6 +2,7 @@ package compiler.ast.expression
 
 import compiler.ast.context.CTContext
 import compiler.ast.context.Function
+import compiler.ast.context.filterAndSortByMatchForInvocationTypes
 import compiler.ast.type.BaseTypeReference
 import compiler.ast.type.FunctionModifier
 import compiler.lexer.OperatorToken
@@ -27,20 +28,10 @@ class BinaryExpression(
 
         val opFunName = "op" + op.operator.name[0].toUpperCase() + op.operator.name.substring(1).toLowerCase()
 
-        // functions with receiver
-        val receiverOperatorFuns = context.resolveAnyFunctions(opFunName, typeFirst.baseType)
-            .filter { FunctionModifier.OPERATOR in it.declaration.modifiers }
-            .filter { it.declaration.parameters.parameters.size == 1 }
-            .attachMapNotNull {
-                val firstParam = it.declaration.parameters.parameters[0]
-
-                firstParam.type?.resolveWithin(context)
-            }
-            .filter { typeSecond.baseType.isSubtypeOf(it.second!!.baseType) }
-            .sortedBy {
-                typeSecond.baseType.hierarchicalDistanceTo(it.second!!.baseType)
-            }
-            .map { it.first }
+        val receiverOperatorFuns =
+            context.resolveAnyFunctions(opFunName)
+            .filterAndSortByMatchForInvocationTypes(typeFirst, listOf(typeSecond))
+            .filter { FunctionModifier.OPERATOR in it.declaration.modifiers}
 
         return receiverOperatorFuns.firstOrNull()
     }

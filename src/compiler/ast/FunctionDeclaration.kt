@@ -14,6 +14,3 @@ class FunctionDeclaration(
     val parameters: ParameterList,
     val returnType: TypeReference
 ) : Declaration
-{
-    val signature = FunctionSignature(parameters.types, returnType)
-}

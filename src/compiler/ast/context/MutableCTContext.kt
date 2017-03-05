@@ -91,20 +91,9 @@ open class MutableCTContext : CTContext
         functions.add(Function(this, declaration))
     }
 
-    override fun resolveDefinedFunctions(name: String, receiverType: BaseType?): Collection<Function> {
-        val withEqName = functions.filter { it.declaration.name.value == name }
+    override fun resolveDefinedFunctions(name: String): Collection<Function> = functions.filter { it.declaration.name.value == name }
 
-        if (receiverType == null) return withEqName
-
-        return withEqName
-            .filter { it.declaration.receiverType != null}
-            .filter {
-                val fnReceiverBaseType = it.context.resolveAnyType(it.declaration.receiverType!!) ?: Any
-                fnReceiverBaseType isSubtypeOf receiverType
-            }
-    }
-
-    override fun resolveAnyFunctions(name: String, receiverType: BaseType?): Collection<Function> {
+    override fun resolveAnyFunctions(name: String): Collection<Function> {
         if (name.contains('.')) {
             val swCtx = this.swCtx ?: throw InternalCompilerError("Cannot resolve FQN when no software context is set.")
 
@@ -113,18 +102,18 @@ open class MutableCTContext : CTContext
             val simpleName = fqnName.last()
             val moduleNameOfType = fqnName.dropLast(1)
             val foreignModuleCtx = swCtx.module(moduleNameOfType)
-            return foreignModuleCtx?.context?.resolveDefinedFunctions(simpleName, receiverType) ?: emptySet()
+            return foreignModuleCtx?.context?.resolveDefinedFunctions(simpleName) ?: emptySet()
         }
         else {
             // try to resolve from this context
-            val selfDefined = resolveDefinedFunctions(name, receiverType)
+            val selfDefined = resolveDefinedFunctions(name)
 
             // look through the imports
             val importedTypes = importsForSimpleName(name)
-                .map { it.resolveDefinedFunctions(name, receiverType) }
+                .map { it.resolveDefinedFunctions(name) }
                 .filterNotNull()
 
-            // TODO: if importedTypes.size is > 1 the reference is ambigous; how to handle that?
+            // TODO: if importedTypes.size is > 1 the reference is ambiguous; how to handle that?
             return selfDefined + (importedTypes.firstOrNull() ?: emptySet())
         }
     }

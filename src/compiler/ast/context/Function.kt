@@ -1,9 +1,11 @@
 package compiler.ast.context
 
+import compiler.InternalCompilerError
 import compiler.ast.FunctionDeclaration
 import compiler.ast.type.Any
 import compiler.ast.type.BaseType
 import compiler.ast.type.BaseTypeReference
+import compiler.retryUntilNotNull
 
 /**
  * Describes the presence/avaiability of a (class member) function in a context.
@@ -11,6 +13,62 @@ import compiler.ast.type.BaseTypeReference
  * so that [BaseType]s for receiver, parameters and return type can be resolved.
  */
 class Function(val context: CTContext, val declaration: FunctionDeclaration) {
-    val returnType: BaseTypeReference
-        get() = declaration.returnType.resolveWithin(context) ?: Any.baseReference(context)
+    val receiverType: BaseTypeReference? by retryUntilNotNull {
+        declaration.receiverType?.resolveWithin(context)
+    }
+
+    val returnType: BaseTypeReference by retryUntilNotNull(Any.baseReference(context)) {
+        declaration.returnType.resolveWithin(context)
+    }
+
+    val parameterTypes: List<BaseTypeReference?>
+        get() = declaration.parameters.types.map { it?.resolveWithin(context) }
 }
+
+/**
+ * Given the invocation types `receiverType` and `parameterTypes` of an invocation site
+ * returns the functions matching the types sorted by matching quality to the given
+ * types (see [BaseTypeReference.isAssignableTo] and [BaseTypeReference.assignMatchQuality])
+ *
+ * In essence, this function is the static function dispatching algorithm of the language.
+ */
+fun Iterable<out Function>.filterAndSortByMatchForInvocationTypes(receiverType: BaseTypeReference?, parameterTypes: Iterable<out BaseTypeReference>): List<Function> =
+    this
+        // filter out the ones with incompatible receiver type
+        .filter {
+            // both null -> don't bother about the receiverType for now
+            if (receiverType == null && it.receiverType == null) {
+                return@filter true
+            }
+            // both must be non-null
+            if (receiverType == null || it.receiverType == null) {
+                return@filter false
+            }
+
+            return@filter receiverType.isAssignableTo(it.receiverType!!)
+        }
+        // filter by incompatible number of parameters
+        .filter { it.declaration.parameters.parameters.size == parameterTypes.count() }
+        // now we can sort
+        // by receiverType ASC, parameter... ASC
+        .sortedWith(
+            compareBy(
+                // receiver type
+                {
+                    // no receiver => ignore
+                    if (receiverType == null) 0
+
+                    receiverType!!.assignMatchQuality(it.receiverType!!) ?: 0
+                },
+                // parameters
+                { candidateFn ->
+                    var value: Int = 0
+                    parameterTypes.forEachIndexed { paramIndex, paramType ->
+                        value = paramType.assignMatchQuality(candidateFn.parameterTypes[paramIndex] ?: Any.baseReference(candidateFn.context)) ?: 0
+                        if (value != 0) return@forEachIndexed
+                    }
+
+                    value
+                }
+            )
+        )

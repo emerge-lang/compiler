@@ -5,7 +5,7 @@ enum class TypeModifier {
     READONLY,
     IMMUTABLE;
 
-    fun isAssignableTo(targetModifier: TypeModifier): Boolean =
+    infix fun isAssignableTo(targetModifier: TypeModifier): Boolean =
         this == targetModifier
             ||
         when (this) {

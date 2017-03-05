@@ -64,12 +64,12 @@ interface CTContext
     /**
      * Returns the function overloads with the given simple name defined in this context.
      */
-    fun resolveDefinedFunctions(name: String, receiverType: BaseType?): Collection<Function>
+    fun resolveDefinedFunctions(name: String): Collection<Function>
 
     /**
      * Attempts to resolve all functions with the simple name or FQN and receiver type; also includes imported
      * functions.
      * @return The resolved functions
      */
-    fun resolveAnyFunctions(name: String, receiverType: BaseType?): Collection<Function>
+    fun resolveAnyFunctions(name: String): Collection<Function>
 }

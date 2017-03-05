@@ -2,6 +2,7 @@ package compiler.ast.expression
 
 import compiler.ast.context.CTContext
 import compiler.ast.context.Function
+import compiler.ast.context.filterAndSortByMatchForInvocationTypes
 import compiler.ast.type.BaseTypeReference
 import compiler.ast.type.FunctionModifier
 import compiler.lexer.Operator
@@ -24,9 +25,10 @@ class UnaryExpression(val operator: Operator, val valueExpression: Expression): 
         val opFunName = "unary" + operator.name[0].toUpperCase() + operator.name.substring(1).toLowerCase()
 
         // functions with receiver
-        val receiverOperatorFuns = context.resolveAnyFunctions(opFunName, valueType.baseType)
+        val receiverOperatorFuns =
+            context.resolveAnyFunctions(opFunName)
+            .filterAndSortByMatchForInvocationTypes(valueType, emptyList())
             .filter { FunctionModifier.OPERATOR in it.declaration.modifiers }
-            .filter { it.declaration.parameters.parameters.isEmpty() }
 
         return receiverOperatorFuns.firstOrNull()
     }
