@@ -1,15 +1,16 @@
 package compiler.ast.type
 
+import compiler.ast.context.CTContext
 import compiler.lexer.IdentifierToken
 
 open class TypeReference(
     val declaredName: String,
     val isNullable: Boolean,
-    val modifier: TypeModifier = TypeModifier.MUTABLE,
+    open val modifier: TypeModifier? = null,
     val isInferred: Boolean = false,
     val declaringNameToken: IdentifierToken? = null
 ) {
-    constructor(declaringNameToken: IdentifierToken, isNullable: Boolean, modifier: TypeModifier = TypeModifier.MUTABLE, isInferred: Boolean = false)
+    constructor(declaringNameToken: IdentifierToken, isNullable: Boolean, modifier: TypeModifier? = null, isInferred: Boolean = false)
         : this(declaringNameToken.value, isNullable, modifier, isInferred, declaringNameToken)
 
     open fun modifiedWith(modifier: TypeModifier): TypeReference {
@@ -20,4 +21,9 @@ open class TypeReference(
     open fun nonNull(): TypeReference = TypeReference(declaredName, false, modifier, isInferred, declaringNameToken)
 
     open fun asInferred(): TypeReference = TypeReference(declaredName, isNullable, modifier, true, declaringNameToken)
+
+    open fun resolveWithin(context: CTContext): BaseTypeReference? =
+        context.resolveAnyType(this)
+            .takeIf { it != null }
+            .let { BaseTypeReference(this, context, it!!) }
 }

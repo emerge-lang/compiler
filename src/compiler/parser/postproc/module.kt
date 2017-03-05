@@ -55,7 +55,7 @@ private fun toAST_Module(inResult: MatchingResult<TransactionalSequence<Any, Pos
             context.addVariable(declaration)
         }
         else if (declaration is FunctionDeclaration) {
-            // context.addFunction(declaration)
+            context.addFunction(declaration)
         }
         else {
             reportings.add(Reporting.error(

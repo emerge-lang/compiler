@@ -7,8 +7,8 @@ import compiler.ast.context.CTContext
  * Base type are classes, interfaces, enums, built-in type
  */
 interface BaseType {
-    val impliedModifier: TypeModifier
-        get() = TypeModifier.MUTABLE
+    val impliedModifier: TypeModifier?
+        get() = null
 
     val simpleName: String
         get() = javaClass.simpleName

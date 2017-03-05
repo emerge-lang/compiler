@@ -4,6 +4,7 @@ import compiler.InternalCompilerError
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
 import compiler.ast.VariableDeclaration
+import compiler.ast.type.Any
 import compiler.ast.type.BaseType
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
@@ -23,7 +24,7 @@ open class MutableCTContext : CTContext
     private val variables: MutableMap<String,Variable> = HashMap()
 
     /** Holds all the toplevel functions defined in this context */
-    private val functions: MutableSet<FunctionDeclaration> = HashSet()
+    private val functions: MutableSet<Function> = HashSet()
 
     /** Holds all the base types defined in this context */
     private val types: MutableSet<BaseType> = HashSet()
@@ -39,7 +40,7 @@ open class MutableCTContext : CTContext
         types.add(type)
     }
 
-    override fun resolveOwnType(simpleName: String): BaseType? = types.find { it.simpleName == simpleName }
+    override fun resolveDefinedType(simpleName: String): BaseType? = types.find { it.simpleName == simpleName }
 
     override fun resolveAnyType(ref: TypeReference): BaseType? {
         if (ref.declaredName.contains('.')) {
@@ -50,16 +51,16 @@ open class MutableCTContext : CTContext
             val simpleName = fqnName.last()
             val moduleNameOfType = fqnName.dropLast(1)
             val foreignModuleCtx = swCtx.module(moduleNameOfType)
-            return foreignModuleCtx?.context?.resolveOwnType(simpleName)
+            return foreignModuleCtx?.context?.resolveDefinedType(simpleName)
         }
         else {
             // try to resolve from this context
-            val selfDefined = resolveOwnType(ref.declaredName)
+            val selfDefined = resolveDefinedType(ref.declaredName)
             if (selfDefined != null) return selfDefined
 
             // look through the imports
             val importedTypes = importsForSimpleName(ref.declaredName)
-                .map { it.resolveOwnType(ref.declaredName) }
+                .map { it.resolveDefinedType(ref.declaredName) }
                 .filterNotNull()
 
             // TODO: if importedTypes.size is > 1 the reference is ambigous; how to handle that?
@@ -84,6 +85,48 @@ open class MutableCTContext : CTContext
 
         // TODO: if importedVars.size is > 1 the name is ambigous; how to handle that?
         return importedVars.firstOrNull()
+    }
+
+    open fun addFunction(declaration: FunctionDeclaration) {
+        functions.add(Function(this, declaration))
+    }
+
+    override fun resolveDefinedFunctions(name: String, receiverType: BaseType?): Collection<Function> {
+        val withEqName = functions.filter { it.declaration.name.value == name }
+
+        if (receiverType == null) return withEqName
+
+        return withEqName
+            .filter { it.declaration.receiverType != null}
+            .filter {
+                val fnReceiverBaseType = it.context.resolveAnyType(it.declaration.receiverType!!) ?: Any
+                fnReceiverBaseType isSubtypeOf receiverType
+            }
+    }
+
+    override fun resolveAnyFunctions(name: String, receiverType: BaseType?): Collection<Function> {
+        if (name.contains('.')) {
+            val swCtx = this.swCtx ?: throw InternalCompilerError("Cannot resolve FQN when no software context is set.")
+
+            // FQN specified
+            val fqnName = name.split('.')
+            val simpleName = fqnName.last()
+            val moduleNameOfType = fqnName.dropLast(1)
+            val foreignModuleCtx = swCtx.module(moduleNameOfType)
+            return foreignModuleCtx?.context?.resolveDefinedFunctions(simpleName, receiverType) ?: emptySet()
+        }
+        else {
+            // try to resolve from this context
+            val selfDefined = resolveDefinedFunctions(name, receiverType)
+
+            // look through the imports
+            val importedTypes = importsForSimpleName(name)
+                .map { it.resolveDefinedFunctions(name, receiverType) }
+                .filterNotNull()
+
+            // TODO: if importedTypes.size is > 1 the reference is ambigous; how to handle that?
+            return selfDefined + (importedTypes.firstOrNull() ?: emptySet())
+        }
     }
 
     /**

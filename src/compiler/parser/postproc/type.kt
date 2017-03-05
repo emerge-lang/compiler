@@ -21,7 +21,7 @@ fun TypePostprocessor(rule: Rule<List<MatchingResult<*>>>): Rule<TypeReference> 
 private fun toAST(tokens: TransactionalSequence<Any, Position>): TypeReference {
     val nameOrModifier = tokens.next()!!
 
-    val typeModifier: TypeModifier
+    val typeModifier: TypeModifier?
     val nameToken: IdentifierToken
 
     if (nameOrModifier is TypeModifier) {
@@ -29,7 +29,7 @@ private fun toAST(tokens: TransactionalSequence<Any, Position>): TypeReference {
         nameToken = tokens.next()!! as IdentifierToken
     }
     else {
-        typeModifier = TypeModifier.MUTABLE
+        typeModifier = null
         nameToken = nameOrModifier as IdentifierToken
     }
 

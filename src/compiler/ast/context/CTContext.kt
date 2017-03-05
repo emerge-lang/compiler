@@ -41,18 +41,6 @@ import compiler.ast.type.TypeReference
 interface CTContext
 {
     /**
-     * Creates a copy of this [CTContext], adds the given declaration to it and returns that copy. If the
-     * given variable is already defined in this context, overwrites that.
-     */
-    //fun withVariable(declaration: VariableDeclaration, overrideType: TypeReference? = null): CTContext
-
-    /**
-     * Creates a copy of this [CTContext], adds the given declaration to it and returns that copy. If the
-     * given function is already defined in this context, overwrites that.
-     */
-    //fun withFunction(declaration: FunctionDeclaration): CTContext
-
-    /**
      * @param onlyOwn If true, does not attempt to resolve variables through imports.
      * @return The variable accessible under the given name, shadowing included.
      */
@@ -62,7 +50,7 @@ interface CTContext
      * Returns the [BaseType] with the given simple name defined in this context or null if a [BaseType] with the
      * given simple name has been defined within this context (see [addBaseType])
      */
-    fun resolveOwnType(simpleName: String): BaseType?
+    fun resolveDefinedType(simpleName: String): BaseType?
 
     /**
      * Attempts to resolve the reference within this context considering imports and FQN references.
@@ -74,19 +62,14 @@ interface CTContext
     fun resolveAnyType(ref: TypeReference): BaseType?
 
     /**
-     * Resolves the given [TypeReference] using [resolveOwnType] and then forwards to [resolveFunctions].
+     * Returns the function overloads with the given simple name defined in this context.
      */
-    /*fun resolveFunctions(name: String, receiverType: TypeReference? = null): List<FunctionDeclaration> {
-        return resolveFunctions(
-            name,
-            (receiverType?.let(this::resolveOwnType) ?: Any).baseReference(this)
-        )
-    }*/
+    fun resolveDefinedFunctions(name: String, receiverType: BaseType?): Collection<Function>
 
     /**
-     * Returns all known functions overloads with the given name, sorted by proximity to the given type (closer => earlier)
-     * @see BaseType.hierarchicalDistanceTo
-     * @param receiverType Limits the returned functions to those with a receiver of the given type. Null => no receiver
+     * Attempts to resolve all functions with the simple name or FQN and receiver type; also includes imported
+     * functions.
+     * @return The resolved functions
      */
-    //fun resolveFunctions(name: String, receiverType: BaseTypeReference? = null): List<FunctionDeclaration>
+    fun resolveAnyFunctions(name: String, receiverType: BaseType?): Collection<Function>
 }

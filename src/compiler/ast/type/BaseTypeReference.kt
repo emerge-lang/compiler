@@ -16,6 +16,14 @@ class BaseTypeReference(
     original.isInferred,
     original.declaringNameToken
 ) {
+    override val modifier: TypeModifier?
+        get() {
+            return if (baseType.impliedModifier == null) original.modifier
+            else if (original.modifier == null) baseType.impliedModifier
+            else null
+        }
+
+
     override fun modifiedWith(modifier: TypeModifier): BaseTypeReference {
         // TODO: implement type modifiers
         return BaseTypeReference(original.modifiedWith(modifier), context, baseType)
@@ -25,5 +33,5 @@ class BaseTypeReference(
 
     override fun asInferred(): BaseTypeReference = BaseTypeReference(original.asInferred(), context, baseType)
 
-    override fun toString() = "BaseType Ref[" + original.modifier + " " + baseType.fullyQualifiedName + "]"
+    override fun toString() = "BaseType Ref[$modifier ${baseType.fullyQualifiedName}]"
 }
