@@ -8,7 +8,7 @@ import compiler.parser.toTransactional
 val testCode = """
 module testcode
 
-val x: Int = -3
+val x: Int = 3 + 5
 
 """
 
