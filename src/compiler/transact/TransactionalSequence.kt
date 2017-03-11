@@ -98,6 +98,13 @@ abstract class TransactionalSequence<out ItemType, FallbackPointType : Position>
     }
 
     /**
+     * Invokes the given consumer on all items left in the sequence.
+     */
+    open fun forEachRemaining(consumer: (ItemType) -> Any?): Unit {
+        while (hasNext()) consumer(next()!!)
+    }
+
+    /**
      * Invokes the given consumer on all items left in the sequence. The index always starts at 0.
      */
     open fun forEachRemainingIndexed(consumer: (Int, ItemType) -> Any?): Unit {

@@ -21,7 +21,9 @@ enum class Keyword(val text: String)
     NOTHROW("nothrow"),
     PURE("pure"),
     OPERATOR("operator"),
-    EXTERNAL("external")
+    EXTERNAL("external"),
+
+    RETURN("return")
 }
 
 enum class Operator(val text: String)

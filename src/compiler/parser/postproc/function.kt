@@ -1,5 +1,6 @@
 package compiler.parser.postproc
 
+import compiler.ast.CodeChunk
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ParameterList
 import compiler.ast.type.FunctionModifier
@@ -51,5 +52,15 @@ private fun toAST(tokens: TransactionalSequence<Any, Position>): FunctionDeclara
         type = tokens.next()!! as TypeReference
     }
 
-    return FunctionDeclaration(declarationKeyword.sourceLocation, modifiers, receiverType, name, parameterList, type)
+    val code: CodeChunk?
+
+    if (tokens.hasNext() && tokens.peek() != OperatorToken(Operator.NEWLINE)) {
+        // skip CBRACE_OPEN
+        tokens.next()
+        code = tokens.next()!! as CodeChunk
+        // ignore trailing CBRACE_CLOSE
+    }
+    else code = null
+
+    return FunctionDeclaration(declarationKeyword.sourceLocation, modifiers, receiverType, name, parameterList, type, code)
 }

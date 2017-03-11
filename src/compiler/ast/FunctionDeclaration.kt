@@ -12,5 +12,6 @@ class FunctionDeclaration(
     val receiverType: TypeReference?,
     val name: IdentifierToken,
     val parameters: ParameterList,
-    val returnType: TypeReference
+    val returnType: TypeReference,
+    val code: CodeChunk?
 ) : Declaration

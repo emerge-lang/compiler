@@ -245,15 +245,16 @@ val StandaloneFunctionDeclaration = rule {
     }
 
     eitherOf {
-        eitherOf {
-            operator(NEWLINE)
-            endOfInput()
-        }
         sequence {
             optionalWhitespace()
             operator(CBRACE_OPEN)
-            optionalWhitespace()
+            __definitive()
+            codeChunk()
             operator(CBRACE_CLOSE)
+        }
+        eitherOf {
+            operator(NEWLINE)
+            endOfInput()
         }
     }
 }
@@ -275,3 +276,11 @@ val Module = rule {
 }
     .describeAs("module")
     .postprocess(::ModulePostProcessor)
+
+val ReturnStatement = rule {
+    keyword(RETURN)
+    __definitive()
+    expression()
+}
+    .describeAs("return statement")
+    .postprocess(::ReturnStatementPostProcessor)

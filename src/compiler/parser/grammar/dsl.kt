@@ -139,6 +139,13 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
     }
 
     /**
+     * Adds [CodeChunkRule.INSTANCE] tp the list of subrules
+     */
+    fun codeChunk(): Unit {
+        subRules.add(CodeChunkRule.INSTANCE)
+    }
+
+    /**
      * Matches a single token of the given type, see [Rule.Companion.singletonOfType]
      */
     fun tokenOfType(type: TokenType): Unit {

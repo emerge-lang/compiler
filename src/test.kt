@@ -6,10 +6,10 @@ import compiler.lexer.*
 import compiler.parser.toTransactional
 
 val testCode = """
-module testcode
-
-val x: Int = 3 + 4
-
+pure fun fib(n: Int) -> Int
+{
+    return 1
+}
 """
 
 fun main(args: Array<String>) {
@@ -28,7 +28,7 @@ fun main(args: Array<String>) {
 
     println("------------")
 
-    val matched = Module.tryMatch(tokens.toTransactional())
+    val matched = StandaloneFunctionDeclaration.tryMatch(tokens.toTransactional())
     // val matched = StandaloneFunctionDeclaration.tryMatch(tokens.toTransactional())
     // val parsedModule = matched.result
 
@@ -40,10 +40,4 @@ fun main(args: Array<String>) {
     println()
 
     matched.errors.forEach { println(it); println(); println() }
-
-    val ctx = matched.result!!.context
-    ctx.swCtx = swCtx
-    println(
-        ctx.resolveVariable("x")!!.declaration.assignExpression!!.determineType(ctx)
-    )
 }
