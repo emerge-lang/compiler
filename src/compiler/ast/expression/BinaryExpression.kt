@@ -5,6 +5,7 @@ import compiler.ast.context.Function
 import compiler.ast.context.filterAndSortByMatchForInvocationTypes
 import compiler.ast.type.BaseTypeReference
 import compiler.ast.type.FunctionModifier
+import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 
 class BinaryExpression(
@@ -26,7 +27,7 @@ class BinaryExpression(
         val typeFirst = first.determineType(context)
         val typeSecond = second.determineType(context)
 
-        val opFunName = "op" + op.operator.name[0].toUpperCase() + op.operator.name.substring(1).toLowerCase()
+        val opFunName = operatorFunctionName(op.operator)
 
         val receiverOperatorFuns =
             context.resolveAnyFunctions(opFunName)
@@ -38,3 +39,7 @@ class BinaryExpression(
 }
 
 private fun <T, R> Iterable<T>.attachMapNotNull(transform: (T) -> R): Iterable<Pair<T, R>> = map{ it to transform(it) }.filter { it.second != null }
+
+private fun operatorFunctionName(op: Operator): String = when(op) {
+    else -> "op" + op.name[0].toUpperCase() + op.name.substring(1).toLowerCase()
+}
