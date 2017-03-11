@@ -55,10 +55,7 @@ fun Iterable<out Function>.filterAndSortByMatchForInvocationTypes(receiverType: 
             compareBy(
                 // receiver type
                 {
-                    // no receiver => ignore
-                    if (receiverType == null) 0
-
-                    receiverType!!.assignMatchQuality(it.receiverType!!) ?: 0
+                    receiverType?.assignMatchQuality(it.receiverType!!) ?: 0
                 },
                 // parameters
                 { candidateFn ->

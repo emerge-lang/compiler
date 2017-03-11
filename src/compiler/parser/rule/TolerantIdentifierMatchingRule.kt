@@ -67,7 +67,7 @@ class TolerantIdentifierMatchingRule(
         return MatchingResult(
             ResultCertainty.DEFINITIVE,
             null,
-            setOf(Reporting.error("Unexpected $token, expecting $descriptionOfAMatchingThing", token))
+            setOf(Reporting.error("Unexpected ${token.toStringWithoutLocation()}, expecting $descriptionOfAMatchingThing", token))
         )
     }
 }

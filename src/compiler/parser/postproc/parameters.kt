@@ -7,6 +7,7 @@ import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
+import compiler.lexer.Token
 import compiler.parser.rule.MatchingResult
 import compiler.parser.rule.Rule
 import compiler.transact.Position
@@ -66,7 +67,8 @@ private fun toAST_ParameterList(tokens: TransactionalSequence<Any, Position>): P
         }
         else if (next !is Parameter) {
             tokens.rollback()
-            throw InternalCompilerError("Unexpected $next in parameter list, expecting OPERATOR PARANT_CLOSE or OPERATOR COMMA")
+            next as Token
+            throw InternalCompilerError("Unexpected ${next.toStringWithoutLocation()} in parameter list, expecting OPERATOR PARANT_CLOSE or OPERATOR COMMA")
         }
     }
 

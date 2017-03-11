@@ -14,7 +14,7 @@ class EOIRule private constructor() : Rule<TokenSequence> {
             return MatchingResult(
                 ResultCertainty.DEFINITIVE,
                 null,
-                setOf(Reporting.error("Unexpected ${input.peek()}, expecting $descriptionOfAMatchingThing", input.peek()!!))
+                setOf(Reporting.error("Unexpected ${input.peek()!!.toStringWithoutLocation()}, expecting $descriptionOfAMatchingThing", input.peek()!!))
             )
         }
         else {
