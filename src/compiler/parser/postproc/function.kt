@@ -20,7 +20,7 @@ fun StandaloneFunctionPostprocessor(rule: Rule<List<MatchingResult<*>>>): Rule<F
 
 private fun toAST(tokens: TransactionalSequence<Any, Position>): FunctionDeclaration {
     val modifiers: MutableSet<FunctionModifier> = HashSet()
-    var next = tokens.next()!!
+    var next: Any? = tokens.next()!!
     while (next is FunctionModifier) {
         modifiers.add(next)
         next = tokens.next()!!
@@ -50,13 +50,12 @@ private fun toAST(tokens: TransactionalSequence<Any, Position>): FunctionDeclara
 
     if (next == OperatorToken(Operator.RETURNS)) {
         type = tokens.next()!! as TypeReference
+        next = tokens.next()
     }
 
     val code: CodeChunk?
 
-    if (tokens.hasNext() && tokens.peek() != OperatorToken(Operator.NEWLINE)) {
-        // skip CBRACE_OPEN
-        tokens.next()
+    if (next == OperatorToken(Operator.CBRACE_OPEN)) {
         code = tokens.next()!! as CodeChunk
         // ignore trailing CBRACE_CLOSE
     }

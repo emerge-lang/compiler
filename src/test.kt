@@ -1,14 +1,14 @@
-
-import compiler.ast.context.MutableCTContext
 import compiler.ast.context.SoftwareContext
 import compiler.ast.type.BuiltinType
 import compiler.lexer.*
 import compiler.parser.toTransactional
 
 val testCode = """
-pure fun fib(n: Int) -> Int
-{
-    return 1
+module testcode
+
+pure fun x() {
+    val a: Any = 3
+    return 3
 }
 """
 
@@ -28,9 +28,9 @@ fun main(args: Array<String>) {
 
     println("------------")
 
-    val matched = StandaloneFunctionDeclaration.tryMatch(tokens.toTransactional())
-    // val matched = StandaloneFunctionDeclaration.tryMatch(tokens.toTransactional())
-    // val parsedModule = matched.result
+    val matched = Module.tryMatch(tokens.toTransactional())
+    val parsedModule = matched.result
+    parsedModule?.context?.swCtx = swCtx
 
     println("certainty = ${matched.certainty}")
     println("result = ${matched.result}")
@@ -40,4 +40,7 @@ fun main(args: Array<String>) {
     println()
 
     matched.errors.forEach { println(it); println(); println() }
+
+    parsedModule!!.context.resolveDefinedFunctions("x").first().declaration.code!!.validate(parsedModule.context)
+        .forEach { println(it); println(); println() }
 }

@@ -11,7 +11,7 @@ class NotNullExpression(
     val notNullOperator: OperatorToken
 ) : Expression
 {
-    override fun determineType(context: CTContext): BaseTypeReference {
-        return nullableExpression.determineType(context).nonNull()
+    override fun determineType(context: CTContext): BaseTypeReference? {
+        return nullableExpression.determineType(context)?.nonNull()
     }
 }

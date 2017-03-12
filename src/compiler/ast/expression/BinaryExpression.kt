@@ -24,8 +24,8 @@ class BinaryExpression(
      *         a suitable function.
      */
     private fun getOperatorFunction(context: CTContext): Function? {
-        val typeFirst = first.determineType(context)
-        val typeSecond = second.determineType(context)
+        val typeFirst = first.determineType(context) ?: return null
+        val typeSecond: BaseTypeReference = second.determineType(context) ?: compiler.ast.type.Any.baseReference(context)
 
         val opFunName = operatorFunctionName(op.operator)
 

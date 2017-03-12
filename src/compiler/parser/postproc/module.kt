@@ -21,6 +21,7 @@ fun ModulePostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Module> {
 }
 
 private fun toAST_Module(inResult: MatchingResult<TransactionalSequence<Any, Position>>): MatchingResult<Module> {
+    @Suppress("UNCHECKED_CAST")
     val input = inResult.result ?: return inResult as MatchingResult<Module> // null can haz any type that i want :)
 
     val context = MutableCTContext()

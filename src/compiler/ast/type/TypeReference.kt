@@ -22,8 +22,8 @@ open class TypeReference(
 
     open fun asInferred(): TypeReference = TypeReference(declaredName, isNullable, modifier, true, declaringNameToken)
 
-    open fun resolveWithin(context: CTContext): BaseTypeReference? =
-        context.resolveAnyType(this)
-            .takeIf { it != null }
-            .let { BaseTypeReference(this, context, it!!) }
+    open fun resolveWithin(context: CTContext): BaseTypeReference? {
+        val baseType = context.resolveAnyType(this)
+        return if (baseType != null) BaseTypeReference(this, context, baseType) else null
+    }
 }

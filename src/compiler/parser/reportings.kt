@@ -1,5 +1,6 @@
 package compiler.parser
 
+import compiler.ast.type.TypeReference
 import compiler.lexer.SourceLocation
 import compiler.lexer.Token
 import compiler.parser.rule.MatchingResult
@@ -44,6 +45,14 @@ open class Reporting(
         {
             return { erroneousToken -> TokenMismatchReporting(expectation, erroneousToken) }
         }
+
+        fun unknownType(erroneousRef: TypeReference) =
+            if (erroneousRef.declaringNameToken != null) {
+                error("Cannot resolve type ${erroneousRef.declaredName}", erroneousRef.declaringNameToken)
+            }
+            else {
+                error("Cannot resolve type ${erroneousRef.declaredName}", SourceLocation.UNKNOWN)
+            }
     }
 }
 
