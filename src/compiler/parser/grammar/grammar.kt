@@ -159,14 +159,16 @@ val VariableDeclaration = rule {
         ref(Type)
     }
 
-    optionalWhitespace()
-
     optional {
+        optionalWhitespace()
         operator(ASSIGNMENT)
         expression()
     }
 
-    operator(NEWLINE)
+    eitherOf {
+        operator(NEWLINE)
+        endOfInput()
+    }
 }
     .describeAs("variable declaration")
     .postprocess(::VariableDeclarationPostProcessor)
