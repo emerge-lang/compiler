@@ -3,6 +3,7 @@ package compiler.ast.expression
 import compiler.ast.context.CTContext
 import compiler.ast.type.BaseTypeReference
 import compiler.lexer.NumericLiteralToken
+import compiler.lexer.SourceLocation
 import compiler.parser.Reporting
 import java.math.BigDecimal
 import java.math.BigInteger
@@ -16,6 +17,8 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
     private var floatingValue: BigDecimal? = null
 
     private var validationResult: Collection<Reporting>? = null
+
+    override val sourceLocation = literalToken.sourceLocation
 
     /** Validates this expression */
     fun validate(): Collection<Reporting> {

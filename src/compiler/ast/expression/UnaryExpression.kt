@@ -6,9 +6,12 @@ import compiler.ast.context.filterAndSortByMatchForInvocationTypes
 import compiler.ast.type.BaseTypeReference
 import compiler.ast.type.FunctionModifier
 import compiler.lexer.Operator
+import compiler.lexer.SourceLocation
 
 class UnaryExpression(val operator: Operator, val valueExpression: Expression): Expression
 {
+    override val sourceLocation = valueExpression.sourceLocation
+
     override fun determineType(context: CTContext): BaseTypeReference {
         return getOperatorFunction(context)?.returnType ?: compiler.ast.type.Any.baseReference(context)
     }

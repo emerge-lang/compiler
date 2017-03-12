@@ -66,6 +66,11 @@ class BaseTypeReference(
         else null
 
     override fun toString(): String {
-        return "BaseType Ref[" + (modifier ?: "?") + " " + baseType.fullyQualifiedName + "]"
+        var str = ""
+        if (modifier != null) {
+            str += modifier.name.toLowerCase() + " "
+        }
+
+        return str + baseType.fullyQualifiedName
     }
 }

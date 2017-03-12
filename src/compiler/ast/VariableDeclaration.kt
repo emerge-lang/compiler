@@ -66,8 +66,7 @@ class VariableDeclaration(
                 // discrepancy between assign expression and declared type
                 if (initializerType != null) {
                     if (!(initializerType isAssignableTo declaredType)) {
-                        reportings.add(Reporting.error("Cannot assign value of type $initializerType to a reference of type $declaredType", declaredAt))
-                        // TODO improve the error message: point out issues with inheritance and modifier incompatibility separately
+                        reportings.add(Reporting.typeMismatch(declaredType, initializerType, assignExpression.sourceLocation))
                     }
                 }
             }

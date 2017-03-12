@@ -1,5 +1,8 @@
 package compiler.parser
 
+import compiler.InternalCompilerError
+import compiler.ast.type.BaseTypeReference
+import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
 import compiler.lexer.SourceLocation
 import compiler.lexer.Token
@@ -53,6 +56,27 @@ open class Reporting(
             else {
                 error("Cannot resolve type ${erroneousRef.declaredName}", SourceLocation.UNKNOWN)
             }
+
+        fun typeMismatch(targetType: BaseTypeReference, validatedType: BaseTypeReference, sL: SourceLocation): Reporting {
+            if (validatedType isAssignableTo targetType) throw InternalCompilerError("wtf?!")
+
+            var message = "Cannot assign a value of type $validatedType to a reference of type $targetType"
+
+            if (!(validatedType.baseType isSubtypeOf targetType.baseType)) {
+                message += "; ${validatedType.baseType.simpleName} is not a subtype of ${targetType.baseType.simpleName}"
+            }
+
+            val targetModifier = targetType.modifier ?: TypeModifier.MUTABLE
+            val validatedModifier = validatedType.modifier ?: TypeModifier.MUTABLE
+            if (!(validatedModifier isAssignableTo targetModifier)) {
+                message += "; cannot assign ${validatedModifier.name.toLowerCase()} to ${targetModifier.name.toLowerCase()}"
+            }
+
+            return error(message, sL)
+        }
+
+        fun typeMismatch(targetType: BaseTypeReference, validatedType: BaseTypeReference)
+            = typeMismatch(targetType, validatedType, validatedType.original.declaringNameToken?.sourceLocation ?: SourceLocation.UNKNOWN)
     }
 }
 

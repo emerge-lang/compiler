@@ -4,9 +4,12 @@ import compiler.ast.context.CTContext
 import compiler.ast.type.Any
 import compiler.ast.type.BaseTypeReference
 import compiler.ast.type.TypeReference
+import compiler.lexer.SourceLocation
 import compiler.parser.Reporting
 
 interface Expression {
+
+    val sourceLocation: SourceLocation
 
     /**
      * Determines and returns the type of this expression when evaluated in the given context. If the type cannot

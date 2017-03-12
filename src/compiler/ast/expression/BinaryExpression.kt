@@ -13,6 +13,8 @@ class BinaryExpression(
     val op: OperatorToken,
     val second: Expression
 ) : Expression {
+    override val sourceLocation = first.sourceLocation
+
     override fun determineType(context: CTContext): BaseTypeReference {
         return getOperatorFunction(context)?.returnType ?: compiler.ast.type.Any.baseReference(context)
     }

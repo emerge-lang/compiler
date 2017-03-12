@@ -7,7 +7,7 @@ val testCode = """
 module testcode
 
 pure fun x() {
-    val a: Any = 3
+    val a: mutable Float = 3
     return 3
 }
 """
