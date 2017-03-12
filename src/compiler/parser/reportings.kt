@@ -62,14 +62,21 @@ open class Reporting(
 
             var message = "Cannot assign a value of type $validatedType to a reference of type $targetType"
 
+            // type inheritance
             if (!(validatedType.baseType isSubtypeOf targetType.baseType)) {
                 message += "; ${validatedType.baseType.simpleName} is not a subtype of ${targetType.baseType.simpleName}"
             }
 
+            // mutability
             val targetModifier = targetType.modifier ?: TypeModifier.MUTABLE
             val validatedModifier = validatedType.modifier ?: TypeModifier.MUTABLE
             if (!(validatedModifier isAssignableTo targetModifier)) {
                 message += "; cannot assign ${validatedModifier.name.toLowerCase()} to ${targetModifier.name.toLowerCase()}"
+            }
+
+            // void-safety
+            if (validatedType.isNullable && !targetType.isNullable) {
+                message += "; cannot assign nullable value to non-null reference"
             }
 
             return error(message, sL)
