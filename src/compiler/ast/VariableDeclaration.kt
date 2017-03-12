@@ -53,6 +53,9 @@ class VariableDeclaration(
         if (type != null && declaredType == null) {
             reportings.add(Reporting.unknownType(type))
         }
+        if (declaredType != null) {
+            reportings.addAll(declaredType.validate())
+        }
 
         if (assignExpression != null) {
             reportings.addAll(assignExpression.validate(context))

@@ -1,6 +1,8 @@
 package compiler.ast.type
 
 import compiler.ast.context.CTContext
+import compiler.lexer.SourceLocation
+import compiler.parser.Reporting
 
 /**
  * A [TypeReference] with resolved [BaseType]
@@ -26,6 +28,31 @@ class BaseTypeReference(
     override fun nonNull(): BaseTypeReference = BaseTypeReference(original.nonNull(), context, baseType)
 
     override fun asInferred(): BaseTypeReference = BaseTypeReference(original.asInferred(), context, baseType)
+
+    /**
+     * Validates the type reference.
+     *
+     * @return Any reportings on the validated code
+     */
+    fun validate(): Collection<Reporting> {
+        val reportings = mutableListOf<Reporting>()
+
+        // verify whether the modifier on the reference is compatible with the modifier on the type
+        if (original.modifier != null && baseType.impliedModifier != null) {
+            if (!(original.modifier!! isAssignableTo baseType.impliedModifier!!)) {
+                val origMod = original.modifier?.toString()?.toLowerCase()
+                val baseMod = baseType.impliedModifier?.toString()?.toLowerCase()
+
+                reportings.add(Reporting.error(
+                    "Cannot reference ${baseType.fullyQualifiedName} as $origMod; " +
+                    "modifier $origMod is not assignable to the implied modifier $baseMod of ${baseType.simpleName}",
+                    original.declaringNameToken?.sourceLocation ?: SourceLocation.UNKNOWN
+                ))
+            }
+        }
+
+        return reportings
+    }
 
     /** @return Whether a value of this type can safely be referenced from a refence of the given type. */
     infix fun isAssignableTo(other: BaseTypeReference): Boolean {
