@@ -1,7 +1,9 @@
 package compiler.ast
 
 import compiler.ast.context.CTContext
+import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
+import compiler.lexer.IdentifierToken
 import compiler.parser.Reporting
 import java.util.*
 
@@ -25,7 +27,7 @@ class ParameterList (
             }
 
             // etc.
-            reportings.addAll(param.validate(context, "parameter"))
+            reportings.addAll(param.validate(context))
 
             if (!allowUntyped && param.type == null) {
                 reportings.add(Reporting.error("The type of parameter ${param.name.value} must be explicitly declared.", param.declaredAt))
@@ -34,4 +36,20 @@ class ParameterList (
 
         return reportings
     }
+}
+
+class Parameter(
+    typeModifier: TypeModifier?,
+    name: IdentifierToken,
+    type: TypeReference?,
+    isAssignable: Boolean
+) : VariableDeclaration(
+    name.sourceLocation,
+    typeModifier,
+    name,
+    type,
+    isAssignable,
+    null
+) {
+    override fun validate(context: CTContext): Collection<Reporting> = validate(context, "parameter")
 }

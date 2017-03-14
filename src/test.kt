@@ -6,8 +6,8 @@ import compiler.parser.toTransactional
 val testCode = """
 module testcode
 
-pure fun x() {
-    return n + 3
+pure fun x(n: Number) {
+    return 3 + n
 }
 """
 

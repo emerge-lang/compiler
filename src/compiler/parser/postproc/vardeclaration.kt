@@ -13,10 +13,10 @@ import compiler.transact.TransactionalSequence
 fun VariableDeclarationPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<VariableDeclaration> {
     return rule
         .flatten()
-        .mapResult(::toAST)
+        .mapResult(::toAST_VariableDeclaration)
 }
 
-private fun toAST(input: TransactionalSequence<Any, Position>): VariableDeclaration {
+private fun toAST_VariableDeclaration(input: TransactionalSequence<Any, Position>): VariableDeclaration {
     var modifierOrKeyword = input.next()!!
 
     val typeModifier: TypeModifier?

@@ -39,7 +39,7 @@ open class VariableDeclaration(
      * @param context The context in which to validate
      * @param selfType What type to report this at; should be either `variable` or `parameter`
      */
-    fun validate(context: CTContext, selfType: String): Collection<Reporting> {
+    protected fun validate(context: CTContext, selfType: String): Collection<Reporting> {
         val reportings = mutableListOf<Reporting>()
 
         // double declaration
