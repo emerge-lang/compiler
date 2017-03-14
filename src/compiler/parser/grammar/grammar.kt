@@ -173,16 +173,7 @@ val VariableDeclaration = rule {
     .describeAs("variable declaration")
     .postprocess(::VariableDeclarationPostProcessor)
 
-val Parameter = rule {
-    identifier()
-
-    optional {
-        operator(COLON)
-        __definitive()
-        ref(Type)
-    }
-}
-    .postprocess(::ParameterPostprocessor)
+val Parameter = VariableDeclaration
 
 val ParameterList = rule {
     operator(PARANT_OPEN)

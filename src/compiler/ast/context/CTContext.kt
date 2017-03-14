@@ -72,4 +72,21 @@ interface CTContext
      * @return The resolved functions
      */
     fun resolveAnyFunctions(name: String): Collection<Function>
+
+    companion object {
+        /**
+         * A [CTContext] that does not resolve anything. This is used as the aboslute root context for all toplevel code.
+         */
+        val EMPTY = object : CTContext {
+            override fun resolveVariable(name: String, onlyOwn: Boolean): Variable? = null
+
+            override fun resolveDefinedType(simpleName: String): BaseType? = null
+
+            override fun resolveAnyType(ref: TypeReference): BaseType? = null
+
+            override fun resolveDefinedFunctions(name: String): Collection<Function> = emptySet()
+
+            override fun resolveAnyFunctions(name: String): Collection<Function> = emptySet()
+        }
+    }
 }

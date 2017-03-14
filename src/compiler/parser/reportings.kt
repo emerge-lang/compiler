@@ -35,6 +35,12 @@ open class Reporting(
     }
 
     companion object {
+        fun info(message: String, sourceLocation: SourceLocation)
+            = Reporting(Level.INFO, message, sourceLocation)
+
+        fun info(message: String, subjectToken: Token)
+            = info(message, subjectToken.sourceLocation)
+
         fun error(message: String, sourceLocation: SourceLocation)
             = Reporting(Level.ERROR, message, sourceLocation)
 

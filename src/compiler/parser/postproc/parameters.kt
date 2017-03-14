@@ -14,26 +14,6 @@ import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 import java.util.*
 
-fun ParameterPostprocessor(rule: Rule<List<MatchingResult<*>>>): Rule<Parameter> {
-    return rule
-        .flatten()
-        .mapResult(::toAST_Parameter)
-}
-
-private fun toAST_Parameter(tokens: TransactionalSequence<Any,Position>): Parameter {
-    val name = tokens.next()!! as IdentifierToken
-
-    val type: TypeReference? = if (tokens.hasNext()) {
-        // skip COLON
-        tokens.next()
-
-        tokens.next()!! as TypeReference
-    }
-    else null
-
-    return Parameter(name, type)
-}
-
 fun ParameterListPostprocessor(rule: Rule<List<MatchingResult<*>>>): Rule<ParameterList> {
     return rule
         .flatten()

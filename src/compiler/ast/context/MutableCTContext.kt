@@ -13,7 +13,12 @@ import java.util.*
 /**
  * Mutable compile-time context; for explanation, see the doc of [CTContext].
  */
-open class MutableCTContext : CTContext
+open class MutableCTContext(
+    /**
+     * The context this one is derived off of
+     */
+    private val parentContext: CTContext = CTContext.EMPTY
+) : CTContext
 {
     private val imports: MutableSet<ImportDeclaration> = HashSet()
 
@@ -64,7 +69,7 @@ open class MutableCTContext : CTContext
                 .filterNotNull()
 
             // TODO: if importedTypes.size is > 1 the reference is ambigous; how to handle that?
-            return importedTypes.firstOrNull()
+            return importedTypes.firstOrNull() ?: parentContext.resolveAnyType(ref)
         }
     }
 
@@ -84,7 +89,7 @@ open class MutableCTContext : CTContext
             .filterNotNull()
 
         // TODO: if importedVars.size is > 1 the name is ambigous; how to handle that?
-        return importedVars.firstOrNull()
+        return importedVars.firstOrNull() ?: parentContext.resolveVariable(name, onlyOwn)
     }
 
     open fun addFunction(declaration: FunctionDeclaration) {
@@ -114,7 +119,7 @@ open class MutableCTContext : CTContext
                 .filterNotNull()
 
             // TODO: if importedTypes.size is > 1 the reference is ambiguous; how to handle that?
-            return selfDefined + (importedTypes.firstOrNull() ?: emptySet())
+            return selfDefined + (importedTypes.firstOrNull() ?: emptySet()) + parentContext.resolveAnyFunctions(name)
         }
     }
 

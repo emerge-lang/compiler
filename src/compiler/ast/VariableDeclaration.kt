@@ -9,7 +9,7 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.parser.Reporting
 
-class VariableDeclaration(
+open class VariableDeclaration(
     override val declaredAt: SourceLocation,
     val typeModifier: TypeModifier?,
     val name: IdentifierToken,
@@ -33,19 +33,25 @@ class VariableDeclaration(
         return typeRef.resolveWithin(context)
     }
 
-    override fun validate(context: CTContext): Collection<Reporting> {
+    override fun validate(context: CTContext): Collection<Reporting> = validate(context, "variable")
+
+    /**
+     * @param context The context in which to validate
+     * @param selfType What type to report this at; should be either `variable` or `parameter`
+     */
+    fun validate(context: CTContext, selfType: String): Collection<Reporting> {
         val reportings = mutableListOf<Reporting>()
 
         // double declaration
         val existingVariable = context.resolveVariable(name = name.value, onlyOwn = true)
         if (existingVariable != null) {
-            reportings.add(Reporting.error("Variable ${name.value} has already been defined in ${existingVariable.declaration.declaredAt.fileLineColumnText}", declaredAt))
+            reportings.add(Reporting.error("$selfType ${name.value} has already been defined in ${existingVariable.declaration.declaredAt.fileLineColumnText}", declaredAt))
         }
 
         // type-related stuff
         // unknown type
         if (assignExpression == null && type == null) {
-            reportings.add(Reporting.error("Cannot determine type for variable ${name.value}; neither type nor initializer is specified.", declaredAt))
+            reportings.add(Reporting.error("Cannot determine type for $selfType ${name.value}; neither type nor initializer is specified.", declaredAt))
         }
 
         // cannot resolve declared type
