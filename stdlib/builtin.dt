@@ -2,8 +2,6 @@ module dotlin.lang
 
 external operator fun Int.unaryMinus() -> Int
 
-external operator fun Number.opPlus(summand: Number) -> Number
-
 external operator fun Int.opPlus(summand: Int) -> Int
 
 external operator fun Int.opMinus(operand: Int) -> Int
