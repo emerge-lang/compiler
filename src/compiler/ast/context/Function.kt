@@ -49,6 +49,17 @@ fun Iterable<out Function>.filterAndSortByMatchForInvocationTypes(receiverType: 
         }
         // filter by incompatible number of parameters
         .filter { it.declaration.parameters.parameters.size == parameterTypes.count() }
+        // filter by incompatible parameters
+        .filter { candidateFn ->
+            parameterTypes.forEachIndexed { paramIndex, paramType ->
+                val candidateParamType = candidateFn.parameterTypes[paramIndex] ?: Any.baseReference(candidateFn.context)
+                if (!(paramType isAssignableTo candidateParamType)) {
+                    return@filter false
+                }
+            }
+
+            return@filter true
+        }
         // now we can sort
         // by receiverType ASC, parameter... ASC
         .sortedWith(
