@@ -7,9 +7,9 @@ import compiler.parser.Reporting
 /**
  * A [TypeReference] with resolved [BaseType]
  */
-class BaseTypeReference(
+open class BaseTypeReference(
     val original: TypeReference,
-    val context: CTContext,
+    open val context: CTContext,
     val baseType: BaseType
 ) : TypeReference(
     original.declaredName,
@@ -95,7 +95,7 @@ class BaseTypeReference(
     override fun toString(): String {
         var str = ""
         if (modifier != null) {
-            str += modifier.name.toLowerCase() + " "
+            str += modifier!!.name.toLowerCase() + " "
         }
 
         return str + baseType.fullyQualifiedName

@@ -1,6 +1,7 @@
 package compiler.ast.type
 
 import compiler.ast.FunctionDeclaration
+import compiler.ast.context.CTContext
 import compiler.ast.context.Module
 import compiler.parseFromClasspath
 
@@ -33,12 +34,11 @@ val Int = object : BuiltinType("Int", Number) {
  * A BuiltinType is defined in the ROOT package.
  */
 abstract class BuiltinType(override val simpleName: String, vararg superTypes: BaseType) : BaseType {
-    override final val fullyQualifiedName = simpleName
+    override final val fullyQualifiedName = "dotlin.lang.$simpleName"
 
     override final val superTypes: Set<BaseType> = superTypes.toSet()
 
-    override final val reference
-        get() = TypeReference(fullyQualifiedName, false, impliedModifier)
+    override final val reference = TypeReference(fullyQualifiedName, false, impliedModifier)
 
     /**
      * BaseTypes do not define anything themselves. All of that is defined in source language in the

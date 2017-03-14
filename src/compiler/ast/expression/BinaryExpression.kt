@@ -7,6 +7,7 @@ import compiler.ast.type.BaseTypeReference
 import compiler.ast.type.FunctionModifier
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
+import compiler.parser.Reporting
 
 class BinaryExpression(
     val first: Expression,
@@ -15,8 +16,25 @@ class BinaryExpression(
 ) : Expression {
     override val sourceLocation = first.sourceLocation
 
-    override fun determineType(context: CTContext): BaseTypeReference {
-        return getOperatorFunction(context)?.returnType ?: compiler.ast.type.Any.baseReference(context)
+    override fun determineType(context: CTContext): BaseTypeReference? {
+        return getOperatorFunction(context)?.returnType
+    }
+
+    override fun validate(context: CTContext): Collection<Reporting> {
+        val reportings = mutableListOf<Reporting>()
+
+        reportings.addAll(first.validate(context))
+        reportings.addAll(second.validate(context))
+
+        val typeFirst = first.determineType(context)
+        val typeSecond = second.determineType(context)
+
+        val opFn = getOperatorFunction(context)
+        if (opFn == null && typeFirst != null && typeSecond != null) {
+            reportings.add(Reporting.error("Operator ${operatorFunctionName(op.operator)}($typeSecond) is not defined on type $typeFirst", op))
+        }
+
+        return reportings
     }
 
     /**

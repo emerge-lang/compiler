@@ -7,8 +7,7 @@ val testCode = """
 module testcode
 
 pure fun x() {
-    val a: mutable Float = 3
-    return 3
+    return n + 3
 }
 """
 
@@ -41,6 +40,8 @@ fun main(args: Array<String>) {
 
     matched.errors.forEach { println(it); println(); println() }
 
-    parsedModule!!.context.resolveDefinedFunctions("x").first().declaration.code!!.validate(parsedModule.context)
-        .forEach { println(it); println(); println() }
+    val funX = parsedModule!!.context.resolveDefinedFunctions("x").first()
+
+    funX.declaration.validate(parsedModule.context)
+        .forEach { println(it); println(); println(); }
 }

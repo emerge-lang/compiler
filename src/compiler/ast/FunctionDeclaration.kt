@@ -52,6 +52,8 @@ class FunctionDeclaration(
 
         // construct the code context from all the parameters
         val codeContext = MutableCTContext(context)
+        codeContext.swCtx = context.swCtx
+
         parameters.parameters.forEach { param ->
             codeContext.addVariable(param)
         }

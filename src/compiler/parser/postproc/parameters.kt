@@ -1,10 +1,8 @@
 package compiler.parser.postproc
 
 import compiler.InternalCompilerError
-import compiler.ast.Parameter
 import compiler.ast.ParameterList
-import compiler.ast.type.TypeReference
-import compiler.lexer.IdentifierToken
+import compiler.ast.VariableDeclaration
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.Token
@@ -24,7 +22,7 @@ private fun toAST_ParameterList(tokens: TransactionalSequence<Any, Position>): P
     // skip PARANT_OPEN
     tokens.next()!!
 
-    val parameters: MutableList<Parameter> = LinkedList()
+    val parameters: MutableList<VariableDeclaration> = LinkedList()
 
     while (tokens.hasNext()) {
         var next = tokens.next()!!
@@ -32,7 +30,7 @@ private fun toAST_ParameterList(tokens: TransactionalSequence<Any, Position>): P
             return ParameterList(parameters)
         }
 
-        parameters.add(next as Parameter)
+        parameters.add(next as VariableDeclaration)
 
         tokens.mark()
 
@@ -45,7 +43,7 @@ private fun toAST_ParameterList(tokens: TransactionalSequence<Any, Position>): P
         if (next == OperatorToken(Operator.COMMA)) {
             tokens.commit()
         }
-        else if (next !is Parameter) {
+        else if (next !is VariableDeclaration) {
             tokens.rollback()
             next as Token
             throw InternalCompilerError("Unexpected ${next.toStringWithoutLocation()} in parameter list, expecting OPERATOR PARANT_CLOSE or OPERATOR COMMA")

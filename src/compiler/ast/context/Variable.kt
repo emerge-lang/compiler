@@ -1,6 +1,7 @@
 package compiler.ast.context
 
 import compiler.ast.VariableDeclaration
+import compiler.ast.type.BaseTypeReference
 import compiler.ast.type.TypeReference
 
 /**
@@ -9,7 +10,9 @@ import compiler.ast.type.TypeReference
  */
 class Variable(val context: CTContext, val declaration: VariableDeclaration, type: TypeReference? = null)
 {
-    val type: TypeReference = type ?: declaration.determineType(context)
+    val type: BaseTypeReference? by lazy {
+        type?.resolveWithin(context) ?: declaration.determineType(context)
+    }
 
     val isAssignable: Boolean = declaration.isAssignable
 }

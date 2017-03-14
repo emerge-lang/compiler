@@ -6,6 +6,7 @@ import compiler.ast.ImportDeclaration
 import compiler.ast.VariableDeclaration
 import compiler.ast.type.Any
 import compiler.ast.type.BaseType
+import compiler.ast.type.BaseTypeReference
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
 import java.util.*
@@ -22,8 +23,7 @@ open class MutableCTContext(
 {
     private val imports: MutableSet<ImportDeclaration> = HashSet()
 
-    /** The [SoftwareContext] the [imports] are resolved from */
-    var swCtx: SoftwareContext? = null
+    override var swCtx: SoftwareContext? = null
 
     /** Maps variable names to their metadata; holds only variables defined in this context */
     private val variables: MutableMap<String,Variable> = HashMap()
@@ -48,6 +48,8 @@ open class MutableCTContext(
     override fun resolveDefinedType(simpleName: String): BaseType? = types.find { it.simpleName == simpleName }
 
     override fun resolveAnyType(ref: TypeReference): BaseType? {
+        if (ref is BaseTypeReference) return ref.baseType
+
         if (ref.declaredName.contains('.')) {
             val swCtx = this.swCtx ?: throw InternalCompilerError("Cannot resolve FQN when no software context is set.")
 

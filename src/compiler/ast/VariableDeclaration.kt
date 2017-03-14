@@ -21,10 +21,10 @@ open class VariableDeclaration(
      * Determines and returns the type of the variable when initialized in the given context. If the type cannot
      * be determined due to semantic errors, the closest guess is returned, even Any if there is absolutely no clue.
      */
-    fun determineType(context: CTContext): TypeReference {
-        val baseType: TypeReference = type ?: assignExpression?.determineType(context) ?: compiler.ast.type.Any.reference
+    fun determineType(context: CTContext): BaseTypeReference? {
+        val baseType = declaredType(context) ?: assignExpression?.determineType(context)
 
-        return if (typeModifier == null) baseType else baseType.modifiedWith(typeModifier)
+        return if (typeModifier == null) baseType else baseType?.modifiedWith(typeModifier)
     }
 
     fun declaredType(context: CTContext): BaseTypeReference? {

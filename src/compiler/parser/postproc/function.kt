@@ -46,7 +46,7 @@ private fun toAST(tokens: TransactionalSequence<Any, Position>): FunctionDeclara
 
     next = tokens.next()!!
 
-    var type = compiler.ast.type.Unit.reference
+    var type: TypeReference = compiler.ast.type.Unit.reference
 
     if (next == OperatorToken(Operator.RETURNS)) {
         type = tokens.next()!! as TypeReference

@@ -2,7 +2,6 @@ package compiler.ast
 
 import compiler.ast.context.CTContext
 import compiler.ast.type.TypeReference
-import compiler.lexer.IdentifierToken
 import compiler.parser.Reporting
 import java.util.*
 
@@ -27,6 +26,10 @@ class ParameterList (
 
             // etc.
             reportings.addAll(param.validate(context, "parameter"))
+
+            if (!allowUntyped && param.type == null) {
+                reportings.add(Reporting.error("The type of parameter ${param.name.value} must be explicitly declared.", param.declaredAt))
+            }
         }
 
         return reportings

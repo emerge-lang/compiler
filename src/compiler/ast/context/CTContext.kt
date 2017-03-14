@@ -40,6 +40,10 @@ import compiler.ast.type.TypeReference
  */
 interface CTContext
 {
+    /** The [SoftwareContext] the imports are resolved from */
+    val swCtx: SoftwareContext?
+        get() = null
+
     /**
      * @param onlyOwn If true, does not attempt to resolve variables through imports.
      * @return The variable accessible under the given name, shadowing included.
@@ -75,7 +79,7 @@ interface CTContext
 
     companion object {
         /**
-         * A [CTContext] that does not resolve anything. This is used as the aboslute root context for all toplevel code.
+         * A [CTContext] that does not resolve anything. This is used as the absolute root context for all toplevel code.
          */
         val EMPTY = object : CTContext {
             override fun resolveVariable(name: String, onlyOwn: Boolean): Variable? = null
