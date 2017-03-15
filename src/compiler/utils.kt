@@ -19,7 +19,7 @@ public fun parseFromClasspath(path: Path): Module {
         override val sourceLocation = "classpath:" + path
         override val sourceLines = sourceode
     }
-    val matchResult = Module.tryMatch(TokenSequence(lex(sourceDescriptor).toList()))
+    val matchResult = Module.tryMatch(TokenSequence(lex(sourceDescriptor).toList(), sourceDescriptor.toLocation(1, 1)))
 
     matchResult.errors.forEach(::println)
 

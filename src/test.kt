@@ -4,12 +4,11 @@ import compiler.ast.type.BuiltinType
 import compiler.lexer.*
 import compiler.parser.toTransactional
 
-val testCode = """
-module testcode
+val testCode = """module testcode
 
-pure fun x(n: Int) {
-    val i = 5
-    return i + n
+pure fun x(x: Int) {
+    val y =
+    return x + y
 }
 """
 
@@ -29,7 +28,7 @@ fun main(args: Array<String>) {
 
     println("------------")
 
-    val matched = Module.tryMatch(tokens.toTransactional())
+    val matched = Module.tryMatch(tokens.toTransactional(source.toLocation(1, 1)))
     val parsedModule = matched.result
     parsedModule?.context?.swCtx = swCtx
 
@@ -41,9 +40,4 @@ fun main(args: Array<String>) {
     println()
 
     matched.errors.forEach { println(it); println(); println() }
-
-    val funX = parsedModule!!.context.resolveDefinedFunctions("x").first()
-
-    funX.declaration.validate(parsedModule.context)
-        .forEach { println(it); println(); println(); }
 }

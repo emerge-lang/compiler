@@ -49,6 +49,7 @@ class VariableTimesRule<T>(
             lastResult = rule.tryMatch(input)
             if (lastResult.isError) {
                 if (lastResult.certainty == ResultCertainty.DEFINITIVE) {
+                    @Suppress("UNCHECKED_CAST")
                     return MatchingResult(
                         ResultCertainty.DEFINITIVE,
                         lastResult as? List<MatchingResult<T>>,
@@ -76,7 +77,7 @@ class VariableTimesRule<T>(
         {
             input.rollback()
 
-            var errors = if (lastResult?.errors != null && lastResult!!.errors.isNotEmpty()) {
+            var errors = if (lastResult?.errors != null && lastResult.errors.isNotEmpty()) {
                 lastResult.errors
             }
             else {

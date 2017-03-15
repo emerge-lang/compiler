@@ -20,6 +20,7 @@ class ExpressionRule : Rule<Expression> {
 
     private val rule by lazy {
         rule {
+            __definitive()
             eitherOf {
                 ref(BinaryExpression)
                 ref(UnaryExpression)

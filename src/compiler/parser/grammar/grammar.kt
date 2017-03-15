@@ -162,6 +162,7 @@ val VariableDeclaration = rule {
     optional {
         optionalWhitespace()
         operator(ASSIGNMENT)
+        __definitive()
         expression()
     }
 
