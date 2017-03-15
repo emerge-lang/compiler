@@ -1,6 +1,7 @@
 package compiler.ast
 
 import compiler.ast.context.CTContext
+import compiler.ast.context.MutableCTContext
 import compiler.ast.expression.Expression
 import compiler.ast.type.BaseTypeReference
 import compiler.ast.type.TypeModifier
@@ -82,5 +83,18 @@ open class VariableDeclaration(
         }
 
         return reportings
+    }
+
+    override fun modified(context: CTContext): CTContext {
+        val existingVar = context.resolveVariable(name = name.value, onlyOwn = true)
+        if (existingVar != null) {
+            // this is a double declaration => do not change anything
+            return context
+        }
+
+        val type = determineType(context) ?: compiler.ast.type.Any.baseReference
+        val newContext = MutableCTContext.deriveFrom(context)
+        newContext.addVariable(this)
+        return newContext
     }
 }

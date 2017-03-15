@@ -145,8 +145,19 @@ open class MutableCTContext(
             .filterNotNull()
     }
 
-    // the removed code is not lost of course, thanks to vcs
-    // the stuff will be revived from vcs history when the project is actually ready for it
+    companion object {
+        /**
+         * Derives a new [MutableCTContext] from the given one, runs `initFn` on it and returns it.
+         */
+        fun deriveFrom(context: CTContext, initFn: MutableCTContext.() -> Any? = {}): MutableCTContext {
+            val newContext = MutableCTContext(context)
+            newContext.swCtx = context.swCtx
+
+            newContext.initFn()
+
+            return newContext
+        }
+    }
 }
 
 private fun <T, R> Iterable<T>.firstNotNull(transform: (T) -> R?): R? = map(transform).filterNot{ it == null }.firstOrNull()

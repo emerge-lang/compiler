@@ -15,4 +15,11 @@ interface Executable
      * @return Any reportings about the code validated.
      */
     fun validate(context: CTContext): Collection<Reporting> = emptySet() // TODO: remove dummy implementation when possible
+
+    /**
+     * Communicates changes the [Executable] applies any changes to its enclosing scope (e.g. a variable declaration declares a new
+     * variable)
+     * @return A [CTContext] derived from the given one, with all the necessary changes applied.
+     */
+    fun modified(context: CTContext): CTContext = context
 }

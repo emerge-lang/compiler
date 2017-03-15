@@ -10,10 +10,16 @@ class CodeChunk(
     val statements: List<Executable>
 ) : Executable {
     override fun validate(context: CTContext): Collection<Reporting> {
+        /** gets reassigned for every executable that modifies the context */
+        var _context = context
+
         val reportings = mutableListOf<Reporting>()
-        statements.forEach {
-            reportings.addAll(it.validate(context))
+
+        statements.forEach { stmt ->
+            reportings.addAll(stmt.validate(_context))
+            _context = stmt.modified(_context)
         }
+
         return reportings
     }
 }

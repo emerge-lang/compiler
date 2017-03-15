@@ -1,3 +1,4 @@
+
 import compiler.ast.context.SoftwareContext
 import compiler.ast.type.BuiltinType
 import compiler.lexer.*
@@ -6,8 +7,9 @@ import compiler.parser.toTransactional
 val testCode = """
 module testcode
 
-pure fun x(n: Number) {
-    return 3 + n
+pure fun x(n: Int) {
+    val i = 5
+    return i + n
 }
 """
 
