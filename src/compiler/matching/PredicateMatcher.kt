@@ -10,11 +10,11 @@ open class PredicateMatcher<SubjectType,ErrorType>(
     {
         if (predicate(input))
         {
-            return AbstractMatchingResult.ofResult(input)
+            return SimpleMatchingResult(ResultCertainty.DEFINITIVE, input)
         }
         else
         {
-            return AbstractMatchingResult.ofError(describeMismatchOf(input))
+            return SimpleMatchingResult(ResultCertainty.DEFINITIVE, null, describeMismatchOf(input))
         }
     }
 

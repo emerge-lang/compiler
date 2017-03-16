@@ -8,7 +8,7 @@ import compiler.lexer.SourceLocation
 import compiler.lexer.Token
 import compiler.parser.rule.MatchingResult
 import compiler.matching.ResultCertainty
-import compiler.parser.rule.SimpleMatchingResult
+import compiler.matching.SimpleMatchingResult
 import textutils.indentByFromSecondLine
 
 open class Reporting(

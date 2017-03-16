@@ -12,13 +12,13 @@ package compiler.matching
  * Along with the [result] of the match, an [AbstractMatchingResult] can provide the caller with additional reportings
  * about the matched input. If the input did not match the expectations of the [Matcher] that could be details on what
  * expectations were not met.
+ *
+ * The [result] may only be null if the given input did not contain enough information to construct a meaningful result.
  */
 interface AbstractMatchingResult<out ResultType,ReportingType> {
     val certainty: ResultCertainty
     val result: ResultType?
     val reportings: Set<ReportingType>
-
-    val isError: Boolean
 
     companion object {
         fun <ResultType, ReportingType> ofResult(result: ResultType, certainty: ResultCertainty = ResultCertainty.DEFINITIVE): AbstractMatchingResult<ResultType, ReportingType> {
@@ -26,7 +26,6 @@ interface AbstractMatchingResult<out ResultType,ReportingType> {
                 override val certainty = certainty
                 override val result = result
                 override val reportings = emptySet<ReportingType>()
-                override val isError = false
             }
         }
 
@@ -35,7 +34,6 @@ interface AbstractMatchingResult<out ResultType,ReportingType> {
                 override val certainty = certainty
                 override val result = null
                 override val reportings = setOf(error)
-                override val isError = true
             }
         }
 
