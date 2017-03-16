@@ -53,7 +53,7 @@ class VariableTimesRule<T>(
                     return MatchingResult(
                         ResultCertainty.DEFINITIVE,
                         lastResult as? List<MatchingResult<T>>,
-                        lastResult.errors
+                        lastResult.reportings
                     )
                 }
 
@@ -77,8 +77,8 @@ class VariableTimesRule<T>(
         {
             input.rollback()
 
-            var errors = if (lastResult?.errors != null && lastResult.errors.isNotEmpty()) {
-                lastResult.errors
+            var errors = if (lastResult?.reportings != null && lastResult.reportings.isNotEmpty()) {
+                lastResult.reportings
             }
             else {
                 setOf(Reporting.error(

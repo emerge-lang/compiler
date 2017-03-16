@@ -39,5 +39,5 @@ fun main(args: Array<String>) {
     println("Reportings:")
     println()
 
-    matched.errors.forEach { println(it); println(); println() }
+    matched.reportings.forEach { println(it); println(); println() }
 }

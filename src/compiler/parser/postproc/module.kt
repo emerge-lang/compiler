@@ -80,6 +80,6 @@ private fun toAST_Module(inResult: MatchingResult<TransactionalSequence<Any, Pos
     return MatchingResult(
         certainty = ResultCertainty.DEFINITIVE,
         result = Module(moduleDeclaration?.name ?: emptyArray<String>(), context),
-        errors = inResult.errors.plus(reportings)
+        reportings = inResult.reportings.plus(reportings)
     )
 }

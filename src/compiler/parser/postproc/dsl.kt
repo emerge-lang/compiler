@@ -48,7 +48,7 @@ fun <B,A> Rule<B>.mapResult(mapper: (B) -> A): Rule<A> = map {
     MatchingResult(
         it.certainty,
         if (it.result == null) null else mapper(it.result!!),
-        it.errors
+        it.reportings
     )
 }
 
@@ -66,7 +66,7 @@ fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
 
             if (item is MatchingResult<*>) {
                 collectFrom(item.result)
-                collectFrom(item.errors)
+                collectFrom(item.reportings)
             }
             else if (item is Collection<*>) {
                 for (subResult in item) {
@@ -129,14 +129,14 @@ fun <T> Rule<T>.enhanceErrors(predicate: (Reporting) -> Boolean, enhance: (Repor
         override fun tryMatch(input: TokenSequence): MatchingResult<T> {
             val baseResult = base.tryMatch(input)
 
-            if (baseResult.errors.isEmpty()) {
+            if (baseResult.reportings.isEmpty()) {
                 return baseResult
             }
             else {
                 return MatchingResult(
                         baseResult.certainty,
                         baseResult.result,
-                        baseResult.errors.map(enhancerMapper).toSet()
+                        baseResult.reportings.map(enhancerMapper).toSet()
                 )
             }
         }

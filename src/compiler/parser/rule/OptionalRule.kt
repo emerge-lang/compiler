@@ -17,7 +17,7 @@ class OptionalRule<T>(
             return MatchingResult(
                 ResultCertainty.DEFINITIVE,
                 subResult.result,
-                subResult.errors
+                subResult.reportings
             )
         }
         else  {

@@ -95,7 +95,7 @@ interface Rule<T> : Matcher<TokenSequence,T,Reporting> {
             throw IllegalArgumentException("The given sequence is actually a match - cannot describe mismatch!")
         }
 
-        return result.errors.first()
+        return result.reportings.first()
     }
 
     override fun tryMatch(input: TokenSequence): MatchingResult<T>

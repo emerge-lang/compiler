@@ -13,7 +13,7 @@ interface Expression {
 
     /**
      * Determines and returns the type of this expression when evaluated in the given context. If the type cannot
-     * be determined due to semantic errors, a guess may be returned if it is sufficiently close to the actual type.
+     * be determined due to semantic reportings, a guess may be returned if it is sufficiently close to the actual type.
      * Otherwise, null should be returned.
      */
     fun determineType(context: CTContext): BaseTypeReference? = null // TODO: remove workaround when possible

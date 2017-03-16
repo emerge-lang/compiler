@@ -20,7 +20,7 @@ open class VariableDeclaration(
 ) : Declaration, Executable {
     /**
      * Determines and returns the type of the variable when initialized in the given context. If the type cannot
-     * be determined due to semantic errors, the closest guess is returned, even Any if there is absolutely no clue.
+     * be determined due to semantic reportings, the closest guess is returned, even Any if there is absolutely no clue.
      */
     fun determineType(context: CTContext): BaseTypeReference? {
         val baseType = declaredType(context) ?: assignExpression?.determineType(context)

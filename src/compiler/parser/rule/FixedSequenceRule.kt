@@ -50,7 +50,7 @@ open class FixedSequenceRule(
                 return@tryMatch MatchingResult(
                         certainty,
                         null,
-                        result.errors
+                        result.reportings
                 )
             }
 

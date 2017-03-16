@@ -21,7 +21,7 @@ public fun parseFromClasspath(path: Path): Module {
     }
     val matchResult = Module.tryMatch(TokenSequence(lex(sourceDescriptor).toList(), sourceDescriptor.toLocation(1, 1)))
 
-    matchResult.errors.forEach(::println)
+    matchResult.reportings.forEach(::println)
 
     return matchResult.result ?: throw InternalCompilerError("Failed to parse from classpath $path")
 }
