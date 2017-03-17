@@ -7,10 +7,10 @@ import compiler.parser.isWhitespace
 /**
  * Skips whitespace in the input stream
  */
-class WhitespaceEaterRule() : Rule<Nothing> {
+class WhitespaceEaterRule : Rule<Unit> {
     override val descriptionOfAMatchingThing = "whitespace"
 
-    override fun tryMatch(input: TokenSequence): MatchingResult<Nothing> {
+    override fun tryMatch(input: TokenSequence): MatchingResult<Unit> {
         while (input.hasNext()) {
             input.mark()
             val token = input.next()!!
@@ -22,14 +22,11 @@ class WhitespaceEaterRule() : Rule<Nothing> {
             input.commit()
         }
 
-        return object : MatchingResult<Nothing>(
+        return RuleMatchingResult(
             ResultCertainty.OPTIMISTIC,
-            null,
+            Unit,
             emptySet()
-        ) {
-            override val isError = false
-            override val isSuccess = true
-        }
+        )
     }
 
     companion object {

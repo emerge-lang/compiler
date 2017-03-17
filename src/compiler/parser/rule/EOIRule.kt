@@ -11,14 +11,14 @@ class EOIRule private constructor() : Rule<TokenSequence> {
     override val descriptionOfAMatchingThing = "end of input"
     override fun tryMatch(input: TokenSequence): MatchingResult<TokenSequence> {
         if (input.hasNext()) {
-            return MatchingResult(
+            return RuleMatchingResult(
                 ResultCertainty.DEFINITIVE,
                 null,
                 setOf(Reporting.error("Unexpected ${input.peek()!!.toStringWithoutLocation()}, expecting $descriptionOfAMatchingThing", input.peek()!!))
             )
         }
         else {
-            return MatchingResult(
+            return RuleMatchingResult(
                 ResultCertainty.DEFINITIVE,
                 null,
                 emptySet()

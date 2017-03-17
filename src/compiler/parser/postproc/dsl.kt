@@ -1,10 +1,13 @@
 package compiler.parser.postproc
 
 import compiler.InternalCompilerError
+import compiler.matching.AbstractMatchingResult
+import compiler.matching.SimpleMatchingResult
 import compiler.parser.Reporting
 import compiler.parser.TokenSequence
 import compiler.parser.rule.MatchingResult
 import compiler.parser.rule.Rule
+import compiler.parser.rule.RuleMatchingResult
 import compiler.transact.Position
 import compiler.transact.SimpleTransactionalSequence
 import compiler.transact.TransactionalSequence
@@ -24,18 +27,12 @@ fun <B,A> Rule<B>.map(mapper: (MatchingResult<B>) -> MatchingResult<A>): Rule<A>
         override fun tryMatch(input: TokenSequence): MatchingResult<A> {
             val baseResult = base.tryMatch(input)
 
-            if (baseResult.isSuccess) {
-                return mapper(baseResult)
+            if (baseResult.item == null) {
+                @Suppress("UNCHECKED_CAST")
+                return baseResult as MatchingResult<A>
             }
             else {
-                if (baseResult.result == null) {
-                    // we can cast, null can haz any type you want it to
-                    @Suppress("UNCHECKED_CAST")
-                    return baseResult as MatchingResult<A>
-                }
-                else {
-                    throw InternalCompilerError("Encountered non-success compiler.matching result with non-null result; cannot map type-safely.");
-                }
+                return mapper(baseResult)
             }
         }
     }
@@ -45,9 +42,9 @@ fun <B,A> Rule<B>.map(mapper: (MatchingResult<B>) -> MatchingResult<A>): Rule<A>
  * Like map, but requires the mapper to act on the results only
  */
 fun <B,A> Rule<B>.mapResult(mapper: (B) -> A): Rule<A> = map {
-    MatchingResult(
+    RuleMatchingResult(
         it.certainty,
-        if (it.result == null) null else mapper(it.result!!),
+        if (it.item == null) null else mapper(it.item!!),
         it.reportings
     )
 }
@@ -62,10 +59,10 @@ fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
         val reportingsBucket: MutableSet<Reporting> = HashSet()
 
         fun collectFrom(item: Any?) {
-            if (item == null) return
+            if (item == null || item == Unit) return
 
-            if (item is MatchingResult<*>) {
-                collectFrom(item.result)
+            if (item is AbstractMatchingResult<*, *>) {
+                collectFrom(item.item)
                 collectFrom(item.reportings)
             }
             else if (item is Collection<*>) {
@@ -86,7 +83,7 @@ fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
 
         collectFrom(base)
 
-        return@map MatchingResult(
+        return@map RuleMatchingResult(
             base.certainty,
             SimpleTransactionalSequence(itemBucket),
             reportingsBucket
@@ -133,10 +130,10 @@ fun <T> Rule<T>.enhanceErrors(predicate: (Reporting) -> Boolean, enhance: (Repor
                 return baseResult
             }
             else {
-                return MatchingResult(
-                        baseResult.certainty,
-                        baseResult.result,
-                        baseResult.reportings.map(enhancerMapper).toSet()
+                return RuleMatchingResult(
+                    baseResult.certainty,
+                    baseResult.item,
+                    baseResult.reportings.map(enhancerMapper).toSet()
                 )
             }
         }

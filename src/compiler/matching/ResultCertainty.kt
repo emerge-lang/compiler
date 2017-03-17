@@ -2,7 +2,7 @@ package compiler.matching
 
 enum class ResultCertainty(val level: Int) {
     /**
-     * Least certainty, alias Nice-To-Have
+     * Least certainty
      */
     OPTIMISTIC(10),
 

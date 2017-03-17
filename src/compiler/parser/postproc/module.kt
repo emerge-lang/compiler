@@ -10,6 +10,7 @@ import compiler.matching.ResultCertainty
 import compiler.parser.Reporting
 import compiler.parser.rule.MatchingResult
 import compiler.parser.rule.Rule
+import compiler.parser.rule.RuleMatchingResult
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 import java.util.*
@@ -22,7 +23,7 @@ fun ModulePostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Module> {
 
 private fun toAST_Module(inResult: MatchingResult<TransactionalSequence<Any, Position>>): MatchingResult<Module> {
     @Suppress("UNCHECKED_CAST")
-    val input = inResult.result ?: return inResult as MatchingResult<Module> // null can haz any type that i want :)
+    val input = inResult.item ?: return inResult as MatchingResult<Module> // null can haz any type that i want :)
 
     val context = MutableCTContext()
     val reportings: MutableSet<Reporting> = HashSet()
@@ -77,9 +78,9 @@ private fun toAST_Module(inResult: MatchingResult<TransactionalSequence<Any, Pos
         IdentifierToken("*")
     )))
 
-    return MatchingResult(
+    return RuleMatchingResult(
         certainty = ResultCertainty.DEFINITIVE,
-        result = Module(moduleDeclaration?.name ?: emptyArray<String>(), context),
+        item = Module(moduleDeclaration?.name ?: emptyArray<String>(), context),
         reportings = inResult.reportings.plus(reportings)
     )
 }

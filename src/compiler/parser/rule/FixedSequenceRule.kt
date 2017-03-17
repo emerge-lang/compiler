@@ -44,13 +44,13 @@ open class FixedSequenceRule(
 
         subRules.forEachIndexed { index, rule ->
             val result = rule.tryMatch(input)
-            if (result.isError) {
+            if (result.item == null) {
                 input.rollback()
 
-                return@tryMatch MatchingResult(
-                        certainty,
-                        null,
-                        result.reportings
+                return@tryMatch RuleMatchingResult(
+                    certainty,
+                    null,
+                    result.reportings
                 )
             }
 
@@ -65,10 +65,10 @@ open class FixedSequenceRule(
 
         input.commit()
 
-        return MatchingResult(
-                certainty,
-                results,
-                emptySet()
+        return RuleMatchingResult(
+            certainty,
+            results,
+            emptySet()
         )
     }
 }

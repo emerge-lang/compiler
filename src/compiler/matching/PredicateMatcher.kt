@@ -14,11 +14,9 @@ open class PredicateMatcher<SubjectType,ErrorType>(
         }
         else
         {
-            return SimpleMatchingResult(ResultCertainty.DEFINITIVE, null, describeMismatchOf(input))
+            return SimpleMatchingResult(ResultCertainty.DEFINITIVE, null, mismatchDescription(input))
         }
     }
 
     open operator fun invoke(thing: SubjectType): Boolean = predicate(thing)
-
-    override fun describeMismatchOf(seq: SubjectType): ErrorType = mismatchDescription(seq)
 }

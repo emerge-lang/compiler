@@ -24,7 +24,7 @@ open class Reporting(
     fun toException(): ReportingException = ReportingException(this)
 
     fun <T> toErrorResult(certainty: ResultCertainty = ResultCertainty.DEFINITIVE): MatchingResult<T>
-            = SimpleMatchingResult(certainty, null, this)
+            = SimpleMatchingResult<T,Reporting>(certainty, null, this)
 
     open override fun toString() = "($level) $message".indentByFromSecondLine(2) + "\nin $sourceLocation"
 

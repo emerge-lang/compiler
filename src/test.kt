@@ -29,11 +29,11 @@ fun main(args: Array<String>) {
     println("------------")
 
     val matched = Module.tryMatch(tokens.toTransactional(source.toLocation(1, 1)))
-    val parsedModule = matched.result
+    val parsedModule = matched.item
     parsedModule?.context?.swCtx = swCtx
 
     println("certainty = ${matched.certainty}")
-    println("result = ${matched.result}")
+    println("item = ${matched.item}")
 
     println()
     println("Reportings:")

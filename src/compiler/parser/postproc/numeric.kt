@@ -5,6 +5,7 @@ import compiler.lexer.NumericLiteralToken
 import compiler.matching.ResultCertainty
 import compiler.parser.rule.MatchingResult
 import compiler.parser.rule.Rule
+import compiler.parser.rule.RuleMatchingResult
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 
@@ -15,11 +16,9 @@ fun NumericLiteralPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Numer
 }
 
 private fun toAST(matchingResult: MatchingResult<TransactionalSequence<Any, Position>>): MatchingResult<NumericLiteralExpression> {
-    val numericToken = matchingResult.result?.next()!! as NumericLiteralToken
+    val numericToken = matchingResult.item?.next()!! as NumericLiteralToken
 
-    // TODO: actually parse the token content
-
-    return MatchingResult(
+    return RuleMatchingResult(
         ResultCertainty.DEFINITIVE,
         NumericLiteralExpression(numericToken),
         emptySet()

@@ -31,7 +31,7 @@ class TolerantIdentifierMatchingRule(
 
     override fun tryMatch(input: TokenSequence): MatchingResult<IdentifierToken> {
         if (!input.hasNext()) {
-            return MatchingResult(
+            return RuleMatchingResult(
                 ResultCertainty.DEFINITIVE,
                 null,
                 setOf(Reporting.unexpectedEOI(descriptionOfAMatchingThing, input.currentSourceLocation))
@@ -43,20 +43,19 @@ class TolerantIdentifierMatchingRule(
         val token = input.next()!!
 
         if (token is IdentifierToken) {
-            // awww, nice :))
-            return MatchingResult(
+            return RuleMatchingResult(
                 ResultCertainty.DEFINITIVE,
                 token,
                 emptySet()
             )
         } else if (token is OperatorToken && token.operator in acceptedOperators) {
-            return MatchingResult(
+            return RuleMatchingResult(
                 ResultCertainty.DEFINITIVE,
                 IdentifierToken(token.operator.text, token.sourceLocation),
                 emptySet()
             )
         } else if (token is KeywordToken && token.keyword in acceptedKeywords) {
-            return MatchingResult(
+            return RuleMatchingResult(
                 ResultCertainty.DEFINITIVE,
                 IdentifierToken(token.sourceText, token.sourceLocation),
                 emptySet()
@@ -64,7 +63,7 @@ class TolerantIdentifierMatchingRule(
         }
 
         // none matched => error
-        return MatchingResult(
+        return RuleMatchingResult(
             ResultCertainty.DEFINITIVE,
             null,
             setOf(Reporting.error("Unexpected ${token.toStringWithoutLocation()}, expecting $descriptionOfAMatchingThing", token))

@@ -23,7 +23,7 @@ public fun parseFromClasspath(path: Path): Module {
 
     matchResult.reportings.forEach(::println)
 
-    return matchResult.result ?: throw InternalCompilerError("Failed to parse from classpath $path")
+    return matchResult.item ?: throw InternalCompilerError("Failed to parse from classpath $path")
 }
 
 /**

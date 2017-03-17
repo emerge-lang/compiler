@@ -9,22 +9,22 @@ package compiler.matching
  * [ResultCertainty.DEFINITIVE]; if the given input is ambigous (e.g. does not have properties unique to the
  * [Matcher]), the [certainty] should be [ResultCertainty.OPTIMISTIC].
  *
- * Along with the [result] of the match, an [AbstractMatchingResult] can provide the caller with additional reportings
+ * Along with the [item] of the match, an [AbstractMatchingResult] can provide the caller with additional reportings
  * about the matched input. If the input did not match the expectations of the [Matcher] that could be details on what
  * expectations were not met.
  *
- * The [result] may only be null if the given input did not contain enough information to construct a meaningful result.
+ * The [item] may only be null if the given input did not contain enough information to construct a meaningful item.
  */
 interface AbstractMatchingResult<out ResultType,ReportingType> {
     val certainty: ResultCertainty
-    val result: ResultType?
-    val reportings: Set<ReportingType>
+    val item: ResultType?
+    val reportings: Collection<ReportingType>
 
     companion object {
         fun <ResultType, ReportingType> ofResult(result: ResultType, certainty: ResultCertainty = ResultCertainty.DEFINITIVE): AbstractMatchingResult<ResultType, ReportingType> {
             return object : AbstractMatchingResult<ResultType, ReportingType> {
                 override val certainty = certainty
-                override val result = result
+                override val item = result
                 override val reportings = emptySet<ReportingType>()
             }
         }
@@ -32,7 +32,7 @@ interface AbstractMatchingResult<out ResultType,ReportingType> {
         fun <ResultType, ReportingType> ofError(error: ReportingType, certainty: ResultCertainty = ResultCertainty.DEFINITIVE): AbstractMatchingResult<ResultType, ReportingType> {
             return object : AbstractMatchingResult<ResultType, ReportingType> {
                 override val certainty = certainty
-                override val result = null
+                override val item = null
                 override val reportings = setOf(error)
             }
         }
@@ -40,7 +40,7 @@ interface AbstractMatchingResult<out ResultType,ReportingType> {
         inline fun <T, reified ResultType, reified ReportingType> of(thing: T, certainty: ResultCertainty = ResultCertainty.DEFINITIVE): AbstractMatchingResult<ResultType, ReportingType> {
             if (thing is ResultType) return ofResult(thing, certainty)
             if (thing is ReportingType) return ofError(thing, certainty)
-            throw IllegalArgumentException("Given object is neither of result type nor of error type")
+            throw IllegalArgumentException("Given object is neither of item type nor of error type")
         }
     }
 }

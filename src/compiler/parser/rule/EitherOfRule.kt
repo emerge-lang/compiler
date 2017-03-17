@@ -29,26 +29,22 @@ open class EitherOfRule(
             input.mark()
             val result = rule.tryMatch(input)
 
-            if (result.isError) {
-                if (result.certainty == ResultCertainty.DEFINITIVE) {
-                    return result
-                }
-
-                input.rollback()
-            }
-            else {
+            if (result.certainty == ResultCertainty.DEFINITIVE) {
                 input.commit()
                 return result
             }
+            else {
+                input.rollback()
+            }
         }
 
-        return MatchingResult(
-                ResultCertainty.DEFINITIVE,
-                null,
-                setOf(Reporting.error(
-                        "Unexpected ${input.peek()?.toStringWithoutLocation() ?: "end of input"}. Expected $descriptionOfAMatchingThing",
-                        input.currentSourceLocation
-                ))
+        return RuleMatchingResult(
+            ResultCertainty.DEFINITIVE,
+            null,
+            setOf(Reporting.error(
+                    "Unexpected ${input.peek()?.toStringWithoutLocation() ?: "end of input"}. Expected $descriptionOfAMatchingThing",
+                    input.currentSourceLocation
+            ))
         )
     }
 }
