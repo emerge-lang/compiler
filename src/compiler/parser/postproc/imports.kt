@@ -8,13 +8,13 @@ import compiler.ast.ModuleDeclaration
 import compiler.lexer.*
 import compiler.parser.Reporting
 import compiler.parser.TokenMismatchReporting
-import compiler.parser.rule.MatchingResult
+import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 import java.util.*
 
-fun ImportPostprocessor(rule: Rule<List<MatchingResult<*>>>): Rule<ImportDeclaration> {
+fun ImportPostprocessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<ImportDeclaration> {
     return rule
 
     // enhance error for "import xyz"
@@ -46,7 +46,7 @@ private fun toAST_import(tokens: TransactionalSequence<Any, Position>): ImportDe
     return ImportDeclaration(keyword.sourceLocation, identifiers)
 }
 
-fun ModuleDeclarationPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<ModuleDeclaration> {
+fun ModuleDeclarationPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<ModuleDeclaration> {
     return rule
         .flatten()
         .trimWhitespaceTokens()

@@ -5,12 +5,12 @@ import compiler.ast.Executable
 import compiler.ast.ReturnStatement
 import compiler.ast.expression.Expression
 import compiler.lexer.KeywordToken
-import compiler.parser.rule.MatchingResult
+import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 
-fun ReturnStatementPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<ReturnStatement> {
+fun ReturnStatementPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<ReturnStatement> {
     return rule
         .flatten()
         .mapResult(::toAST_ReturnStatement)
@@ -25,7 +25,7 @@ private fun toAST_ReturnStatement(input: TransactionalSequence<Any, Position>): 
 
 // ------
 
-fun CodeChunkPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<CodeChunk> {
+fun CodeChunkPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<CodeChunk> {
     return rule
         .flatten()
         .mapResult(::toAST_codeChunk)

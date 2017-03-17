@@ -8,14 +8,14 @@ import compiler.ast.expression.Expression
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
 import compiler.lexer.*
-import compiler.parser.rule.MatchingResult
+import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 import java.lang.reflect.Type
 import java.util.*
 
-fun ParameterDeclarationPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Parameter> {
+fun ParameterDeclarationPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Parameter> {
     return rule
         .flatten()
         .mapResult(::toAST_ParameterDeclaration)
@@ -54,7 +54,7 @@ private fun toAST_ParameterDeclaration(input: TransactionalSequence<Any, Positio
     )
 }
 
-fun ParameterListPostprocessor(rule: Rule<List<MatchingResult<*>>>): Rule<ParameterList> {
+fun ParameterListPostprocessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<ParameterList> {
     return rule
         .flatten()
         .mapResult(::toAST_ParameterList)

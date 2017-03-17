@@ -13,7 +13,7 @@ open class FixedSequenceRule(
          * rules will then be matched against the same sequence of compiler.lexer tokens.
          */
         private var certaintySteps: List<Pair<Int, ResultCertainty>>
-) : Rule<List<MatchingResult<*>>>
+) : Rule<List<RuleMatchingResult<*>>>
 {
     init {
         if (certaintySteps.isEmpty()) {
@@ -35,9 +35,9 @@ open class FixedSequenceRule(
             return buf.toString()
         }
 
-    override fun tryMatch(input: TokenSequence): MatchingResult<List<MatchingResult<*>>>
+    override fun tryMatch(input: TokenSequence): RuleMatchingResult<List<RuleMatchingResult<*>>>
     {
-        val results: MutableList<MatchingResult<Any?>> = mutableListOf()
+        val results: MutableList<RuleMatchingResult<Any?>> = mutableListOf()
         var certainty: ResultCertainty = ResultCertainty.OPTIMISTIC
 
         input.mark()
@@ -47,7 +47,7 @@ open class FixedSequenceRule(
             if (result.item == null) {
                 input.rollback()
 
-                return@tryMatch RuleMatchingResult(
+                return@tryMatch RuleMatchingResultImpl(
                     certainty,
                     null,
                     result.reportings
@@ -65,7 +65,7 @@ open class FixedSequenceRule(
 
         input.commit()
 
-        return RuleMatchingResult(
+        return RuleMatchingResultImpl(
             certainty,
             results,
             emptySet()

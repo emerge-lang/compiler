@@ -3,10 +3,10 @@ package compiler.parser.grammar
 import compiler.lexer.*
 import compiler.matching.ResultCertainty
 import compiler.parser.TokenSequence
-import compiler.parser.rule.MatchingResult
+import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.*
 
-fun rule(initFn: DSLFixedSequenceRule.() -> Any?): Rule<List<MatchingResult<*>>> {
+fun rule(initFn: DSLFixedSequenceRule.() -> Any?): Rule<List<RuleMatchingResult<*>>> {
     val rule = DSLFixedSequenceRule()
     // any rule can be preceeded by whitespace
     rule.optionalWhitespace()
@@ -21,7 +21,7 @@ fun <T> Rule<T>.describeAs(description: String): Rule<T> {
     return object : Rule<T> {
         override val descriptionOfAMatchingThing = description
 
-        override fun tryMatch(input: TokenSequence): MatchingResult<T> {
+        override fun tryMatch(input: TokenSequence): RuleMatchingResult<T> {
             return base.tryMatch(input)
         }
     }
@@ -167,7 +167,7 @@ class DSLEitherOfRule(
 class DSLFixedSequenceRule(
     override val subRules: MutableList<Rule<*>> = mutableListOf(),
     private val certaintySteps: MutableList<Pair<Int, ResultCertainty>> = mutableListOf(0 to ResultCertainty.OPTIMISTIC)
-) : FixedSequenceRule(subRules, certaintySteps), DSLCollectionRule<List<MatchingResult<*>>>
+) : FixedSequenceRule(subRules, certaintySteps), DSLCollectionRule<List<RuleMatchingResult<*>>>
 {
     /**
      * Reading from this property: returns the level of certainty the rule has at the current point of configuration

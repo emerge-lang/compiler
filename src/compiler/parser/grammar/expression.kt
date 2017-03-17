@@ -8,13 +8,13 @@ import compiler.ast.expression.Expression
 import compiler.parser.TokenSequence
 import compiler.parser.postproc.flatten
 import compiler.parser.postproc.mapResult
-import compiler.parser.rule.MatchingResult
+import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
 
 class ExpressionRule : Rule<Expression> {
     override val descriptionOfAMatchingThing = "expression"
 
-    override fun tryMatch(input: TokenSequence): MatchingResult<Expression> {
+    override fun tryMatch(input: TokenSequence): RuleMatchingResult<Expression> {
         return rule.tryMatch(input)
     }
 

@@ -5,13 +5,13 @@ import VariableDeclaration
 import compiler.ast.CodeChunk
 import compiler.parser.TokenSequence
 import compiler.parser.postproc.CodeChunkPostProcessor
-import compiler.parser.rule.MatchingResult
+import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
 
 class CodeChunkRule : Rule<CodeChunk> {
     override val descriptionOfAMatchingThing = "code"
 
-    override fun tryMatch(input: TokenSequence): MatchingResult<CodeChunk> {
+    override fun tryMatch(input: TokenSequence): RuleMatchingResult<CodeChunk> {
         return rule.tryMatch(input)
     }
 

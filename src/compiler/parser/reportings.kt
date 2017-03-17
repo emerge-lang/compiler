@@ -6,7 +6,7 @@ import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
 import compiler.lexer.SourceLocation
 import compiler.lexer.Token
-import compiler.parser.rule.MatchingResult
+import compiler.parser.rule.RuleMatchingResult
 import compiler.matching.ResultCertainty
 import compiler.matching.SimpleMatchingResult
 import textutils.indentByFromSecondLine
@@ -23,7 +23,7 @@ open class Reporting(
 
     fun toException(): ReportingException = ReportingException(this)
 
-    fun <T> toErrorResult(certainty: ResultCertainty = ResultCertainty.DEFINITIVE): MatchingResult<T>
+    fun <T> toErrorResult(certainty: ResultCertainty = ResultCertainty.DEFINITIVE): RuleMatchingResult<T>
             = SimpleMatchingResult<T,Reporting>(certainty, null, this)
 
     open override fun toString() = "($level) $message".indentByFromSecondLine(2) + "\nin $sourceLocation"
@@ -95,7 +95,7 @@ open class Reporting(
 
 class ReportingException(val reporting: Reporting) : Exception(reporting.message)
 {
-    fun <T> toErrorResult(certainty: ResultCertainty = ResultCertainty.DEFINITIVE): MatchingResult<T>
+    fun <T> toErrorResult(certainty: ResultCertainty = ResultCertainty.DEFINITIVE): RuleMatchingResult<T>
             = reporting.toErrorResult(certainty)
 }
 

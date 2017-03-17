@@ -14,9 +14,9 @@ interface Rule<T> : Matcher<TokenSequence,T,Reporting> {
             override val descriptionOfAMatchingThing: String
                 get() = equalTo.toString()
 
-            override fun tryMatch(input: TokenSequence): MatchingResult<Token> {
+            override fun tryMatch(input: TokenSequence): RuleMatchingResult<Token> {
                 if (!input.hasNext()) {
-                    return RuleMatchingResult(
+                    return RuleMatchingResultImpl(
                         mismatchCertainty,
                         null,
                         setOf(
@@ -30,7 +30,7 @@ interface Rule<T> : Matcher<TokenSequence,T,Reporting> {
                 val token = input.next()!!
                 if (token == equalTo) {
                     input.commit()
-                    return RuleMatchingResult(
+                    return RuleMatchingResultImpl(
                         ResultCertainty.DEFINITIVE,
                         token,
                         emptySet()
@@ -38,7 +38,7 @@ interface Rule<T> : Matcher<TokenSequence,T,Reporting> {
                 }
                 else {
                     input.rollback()
-                    return RuleMatchingResult(
+                    return RuleMatchingResultImpl(
                         mismatchCertainty,
                         null,
                         setOf(
@@ -53,9 +53,9 @@ interface Rule<T> : Matcher<TokenSequence,T,Reporting> {
             override val descriptionOfAMatchingThing: String
                 get() = type.name
 
-            override fun tryMatch(input: TokenSequence): MatchingResult<Token> {
+            override fun tryMatch(input: TokenSequence): RuleMatchingResult<Token> {
                 if (!input.hasNext()) {
-                    return RuleMatchingResult(
+                    return RuleMatchingResultImpl(
                         ResultCertainty.DEFINITIVE,
                         null,
                         setOf(
@@ -69,7 +69,7 @@ interface Rule<T> : Matcher<TokenSequence,T,Reporting> {
                 val token = input.next()!!
                 if (token.type == type) {
                     input.commit()
-                    return RuleMatchingResult(
+                    return RuleMatchingResultImpl(
                         ResultCertainty.OPTIMISTIC,
                         token,
                         emptySet()
@@ -77,7 +77,7 @@ interface Rule<T> : Matcher<TokenSequence,T,Reporting> {
                 }
                 else {
                     input.rollback()
-                    return RuleMatchingResult(
+                    return RuleMatchingResultImpl(
                         ResultCertainty.DEFINITIVE,
                         null,
                         setOf(
@@ -89,5 +89,5 @@ interface Rule<T> : Matcher<TokenSequence,T,Reporting> {
         }
     }
 
-    override fun tryMatch(input: TokenSequence): MatchingResult<T>
+    override fun tryMatch(input: TokenSequence): RuleMatchingResult<T>
 }

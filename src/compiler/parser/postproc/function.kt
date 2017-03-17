@@ -6,13 +6,13 @@ import compiler.ast.ParameterList
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeReference
 import compiler.lexer.*
-import compiler.parser.rule.MatchingResult
+import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 import java.util.*
 
-fun StandaloneFunctionPostprocessor(rule: Rule<List<MatchingResult<*>>>): Rule<FunctionDeclaration> {
+fun StandaloneFunctionPostprocessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<FunctionDeclaration> {
     return rule
         .flatten()
         .mapResult(::toAST)

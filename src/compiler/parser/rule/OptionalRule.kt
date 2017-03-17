@@ -10,18 +10,18 @@ class OptionalRule<T>(
     override val descriptionOfAMatchingThing: String
         get() = "optional " + subRule.descriptionOfAMatchingThing
 
-    override fun tryMatch(input: TokenSequence): MatchingResult<T?> {
+    override fun tryMatch(input: TokenSequence): RuleMatchingResult<T?> {
         val subResult = subRule.tryMatch(input)
 
         if (subResult.certainty == ResultCertainty.DEFINITIVE) { // TODO: add || subResult.item == null to condition?
-            return RuleMatchingResult(
+            return RuleMatchingResultImpl(
                 ResultCertainty.DEFINITIVE,
                 subResult.item,
                 subResult.reportings
             )
         }
         else  {
-            return RuleMatchingResult(
+            return RuleMatchingResultImpl(
                 ResultCertainty.OPTIMISTIC,
                 null,
                 emptySet()

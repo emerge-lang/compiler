@@ -6,12 +6,12 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.NumericLiteralToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
-import compiler.parser.rule.MatchingResult
+import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 
-fun LiteralExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Expression> {
+fun LiteralExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Expression> {
     return rule
         .flatten()
         .mapResult(allowPostfixNotnull { tokens ->
@@ -26,7 +26,7 @@ fun LiteralExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Ex
         })
 }
 
-fun ValueExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Expression> {
+fun ValueExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Expression> {
     return rule
         .flatten()
         .mapResult(allowPostfixNotnull {  things ->
@@ -44,7 +44,7 @@ fun ValueExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Expr
         })
 }
 
-fun ParanthesisedExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Expression> {
+fun ParanthesisedExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Expression> {
     return rule
         .flatten()
         .mapResult(allowPostfixNotnull { input ->
@@ -55,7 +55,7 @@ fun ParanthesisedExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): R
         })
 }
 
-fun BinaryExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Expression> {
+fun BinaryExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Expression> {
     return rule
         .flatten()
         .mapResult { input ->
@@ -67,7 +67,7 @@ fun BinaryExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Exp
         }
 }
 
-fun UnaryExpressionPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Expression> {
+fun UnaryExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Expression> {
     return rule
         .flatten()
         .mapResult(allowPostfixNotnull { input ->

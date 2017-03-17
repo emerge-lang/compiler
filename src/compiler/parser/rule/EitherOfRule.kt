@@ -24,7 +24,7 @@ open class EitherOfRule(
             return buf.toString()
         }
 
-    override fun tryMatch(input: TokenSequence): MatchingResult<Any?> {
+    override fun tryMatch(input: TokenSequence): RuleMatchingResult<Any?> {
         for (rule in subRules) {
             input.mark()
             val result = rule.tryMatch(input)
@@ -38,7 +38,7 @@ open class EitherOfRule(
             }
         }
 
-        return RuleMatchingResult(
+        return RuleMatchingResultImpl(
             ResultCertainty.DEFINITIVE,
             null,
             setOf(Reporting.error(

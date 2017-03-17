@@ -11,7 +11,7 @@ import java.util.*
 class VariableTimesRule<T>(
         val rule: Rule<T>,
         val times: IntRange
-): Rule<List<MatchingResult<T>>>
+): Rule<List<RuleMatchingResult<T>>>
 {
     override val descriptionOfAMatchingThing: String
 
@@ -37,11 +37,11 @@ class VariableTimesRule<T>(
         }
     }
 
-    override fun tryMatch(input: TokenSequence): MatchingResult<List<MatchingResult<T>>> {
-        var matchResults: MutableList<MatchingResult<T>> = ArrayList(times.start)
+    override fun tryMatch(input: TokenSequence): RuleMatchingResult<List<RuleMatchingResult<T>>> {
+        var matchResults: MutableList<RuleMatchingResult<T>> = ArrayList(times.start)
 
         input.mark()
-        var lastResult: MatchingResult<T>? = null
+        var lastResult: RuleMatchingResult<T>? = null
 
         while (matchResults.size < times.endInclusive) {
             input.mark()
@@ -50,7 +50,7 @@ class VariableTimesRule<T>(
             if (lastResult.item == null) {
                 if (lastResult.certainty == ResultCertainty.DEFINITIVE) {
                     @Suppress("UNCHECKED_CAST")
-                    return RuleMatchingResult(
+                    return RuleMatchingResultImpl(
                         ResultCertainty.DEFINITIVE,
                         matchResults,
                         lastResult.reportings
@@ -67,7 +67,7 @@ class VariableTimesRule<T>(
 
         if (matchResults.size >= times.start) {
             input.commit()
-            return RuleMatchingResult(
+            return RuleMatchingResultImpl(
                 matchResults.map { it.certainty }.min() ?: ResultCertainty.OPTIMISTIC,
                 matchResults,
                 setOf()
@@ -87,7 +87,7 @@ class VariableTimesRule<T>(
                 ))
             }
 
-            return RuleMatchingResult(
+            return RuleMatchingResultImpl(
                 ResultCertainty.OPTIMISTIC,
                 null,
                 errors

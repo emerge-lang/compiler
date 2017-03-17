@@ -7,12 +7,12 @@ import compiler.InternalCompilerError
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeModifier
 import compiler.lexer.*
-import compiler.parser.rule.MatchingResult
+import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 
-fun TypePostprocessor(rule: Rule<List<MatchingResult<*>>>): Rule<TypeReference> {
+fun TypePostprocessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<TypeReference> {
     return rule
         .flatten()
         .mapResult(::toAST)
@@ -39,7 +39,7 @@ private fun toAST(tokens: TransactionalSequence<Any, Position>): TypeReference {
 }
 
 
-fun TypeModifierPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<TypeModifier> {
+fun TypeModifierPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<TypeModifier> {
     return rule
         .flatten()
         .mapResult { tokens ->

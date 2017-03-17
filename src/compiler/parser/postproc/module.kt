@@ -8,22 +8,22 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.matching.ResultCertainty
 import compiler.parser.Reporting
-import compiler.parser.rule.MatchingResult
-import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
+import compiler.parser.rule.Rule
+import compiler.parser.rule.RuleMatchingResultImpl
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 import java.util.*
 
-fun ModulePostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<Module> {
+fun ModulePostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Module> {
     return rule
         .flatten()
         .map(::toAST_Module)
 }
 
-private fun toAST_Module(inResult: MatchingResult<TransactionalSequence<Any, Position>>): MatchingResult<Module> {
+private fun toAST_Module(inResult: RuleMatchingResult<TransactionalSequence<Any, Position>>): RuleMatchingResult<Module> {
     @Suppress("UNCHECKED_CAST")
-    val input = inResult.item ?: return inResult as MatchingResult<Module> // null can haz any type that i want :)
+    val input = inResult.item ?: return inResult as RuleMatchingResult<Module> // null can haz any type that i want :)
 
     val context = MutableCTContext()
     val reportings: MutableSet<Reporting> = HashSet()
@@ -78,7 +78,7 @@ private fun toAST_Module(inResult: MatchingResult<TransactionalSequence<Any, Pos
         IdentifierToken("*")
     )))
 
-    return RuleMatchingResult(
+    return RuleMatchingResultImpl(
         certainty = ResultCertainty.DEFINITIVE,
         item = Module(moduleDeclaration?.name ?: emptyArray<String>(), context),
         reportings = inResult.reportings.plus(reportings)

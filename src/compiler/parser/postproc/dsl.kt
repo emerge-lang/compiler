@@ -5,31 +5,31 @@ import compiler.matching.AbstractMatchingResult
 import compiler.matching.SimpleMatchingResult
 import compiler.parser.Reporting
 import compiler.parser.TokenSequence
-import compiler.parser.rule.MatchingResult
-import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
+import compiler.parser.rule.Rule
+import compiler.parser.rule.RuleMatchingResultImpl
 import compiler.transact.Position
 import compiler.transact.SimpleTransactionalSequence
 import compiler.transact.TransactionalSequence
 import java.util.*
 
 /**
- * Maps all the emitted [MatchingResult]s of the receiver [Rule] that are SUCCESSes using the given `mapper`; passes
+ * Maps all the emitted [RuleMatchingResult]s of the receiver [Rule] that are SUCCESSes using the given `mapper`; passes
  * on error results with null results
  */
-fun <B,A> Rule<B>.map(mapper: (MatchingResult<B>) -> MatchingResult<A>): Rule<A> {
+fun <B,A> Rule<B>.map(mapper: (RuleMatchingResult<B>) -> RuleMatchingResult<A>): Rule<A> {
 
     val base = this
 
     return object: Rule<A> {
         override val descriptionOfAMatchingThing: String = base.descriptionOfAMatchingThing
 
-        override fun tryMatch(input: TokenSequence): MatchingResult<A> {
+        override fun tryMatch(input: TokenSequence): RuleMatchingResult<A> {
             val baseResult = base.tryMatch(input)
 
             if (baseResult.item == null) {
                 @Suppress("UNCHECKED_CAST")
-                return baseResult as MatchingResult<A>
+                return baseResult as RuleMatchingResult<A>
             }
             else {
                 return mapper(baseResult)
@@ -42,7 +42,7 @@ fun <B,A> Rule<B>.map(mapper: (MatchingResult<B>) -> MatchingResult<A>): Rule<A>
  * Like map, but requires the mapper to act on the results only
  */
 fun <B,A> Rule<B>.mapResult(mapper: (B) -> A): Rule<A> = map {
-    RuleMatchingResult(
+    RuleMatchingResultImpl(
         it.certainty,
         if (it.item == null) null else mapper(it.item!!),
         it.reportings
@@ -83,7 +83,7 @@ fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
 
         collectFrom(base)
 
-        return@map RuleMatchingResult(
+        return@map RuleMatchingResultImpl(
             base.certainty,
             SimpleTransactionalSequence(itemBucket),
             reportingsBucket
@@ -106,7 +106,7 @@ fun <T> Rule<TransactionalSequence<T, Position>>.trimWhitespaceTokens(front: Boo
 }
 
 /**
- * Operates on all [MatchingResult]s emitted by the receiver rule.
+ * Operates on all [RuleMatchingResult]s emitted by the receiver rule.
  * Runs all [Reporting]s of the receiver that have a level of [Reporting.Level.ERROR] or higher and are matched by the
  * given `predicate` through the `enhance` function; the [Reporting]s passed into `enhance` are not returned.
  */
@@ -123,14 +123,14 @@ fun <T> Rule<T>.enhanceErrors(predicate: (Reporting) -> Boolean, enhance: (Repor
     return object: Rule<T> {
         override val descriptionOfAMatchingThing: String = base.descriptionOfAMatchingThing
 
-        override fun tryMatch(input: TokenSequence): MatchingResult<T> {
+        override fun tryMatch(input: TokenSequence): RuleMatchingResult<T> {
             val baseResult = base.tryMatch(input)
 
             if (baseResult.reportings.isEmpty()) {
                 return baseResult
             }
             else {
-                return RuleMatchingResult(
+                return RuleMatchingResultImpl(
                     baseResult.certainty,
                     baseResult.item,
                     baseResult.reportings.map(enhancerMapper).toSet()

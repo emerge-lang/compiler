@@ -9,16 +9,16 @@ import compiler.parser.TokenSequence
  */
 class EOIRule private constructor() : Rule<TokenSequence> {
     override val descriptionOfAMatchingThing = "end of input"
-    override fun tryMatch(input: TokenSequence): MatchingResult<TokenSequence> {
+    override fun tryMatch(input: TokenSequence): RuleMatchingResult<TokenSequence> {
         if (input.hasNext()) {
-            return RuleMatchingResult(
+            return RuleMatchingResultImpl(
                 ResultCertainty.DEFINITIVE,
                 null,
                 setOf(Reporting.error("Unexpected ${input.peek()!!.toStringWithoutLocation()}, expecting $descriptionOfAMatchingThing", input.peek()!!))
             )
         }
         else {
-            return RuleMatchingResult(
+            return RuleMatchingResultImpl(
                 ResultCertainty.DEFINITIVE,
                 null,
                 emptySet()

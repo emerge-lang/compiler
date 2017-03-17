@@ -4,10 +4,10 @@ import compiler.InternalCompilerError
 import compiler.ast.type.FunctionModifier
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
-import compiler.parser.rule.MatchingResult
+import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
 
-fun FunctionModifierPostProcessor(rule: Rule<List<MatchingResult<*>>>): Rule<FunctionModifier> {
+fun FunctionModifierPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<FunctionModifier> {
     return rule
         .flatten()
         .mapResult { tokens -> when((tokens.next()!! as KeywordToken).keyword) {
