@@ -13,9 +13,11 @@ import compiler.parser.rule.Rule
 val ModuleDeclaration = rule {
     keyword(MODULE)
 
-    __definitive()
+    __matched()
 
     identifier()
+
+    __optimistic()
 
     atLeast(0) {
         operator(DOT)
@@ -29,12 +31,13 @@ val ModuleDeclaration = rule {
 val ImportDeclaration = rule {
     keyword(IMPORT)
 
-    __definitive()
+    __matched()
 
     atLeast(1) {
         identifier()
         operator(DOT)
     }
+    __optimistic()
     identifier(acceptedOperators = listOf(TIMES))
     operator(NEWLINE)
 }
@@ -47,6 +50,7 @@ val TypeModifier = rule {
         keyword(READONLY)
         keyword(IMMUTABLE)
     }
+    __definitive()
 }
     .describeAs("type modifier")
     .postprocess(::TypeModifierPostProcessor)
@@ -69,10 +73,11 @@ val LiteralExpression = rule {
         tokenOfType(TokenType.NUMERIC_LITERAL)
         // TODO: string literal, function literal, and so forth
     }
-    __definitive()
+    __matched()
     optional {
         operator(NOTNULL)
     }
+    __definitive()
 }
     .describeAs("literal")
     .postprocess(::LiteralExpressionPostProcessor)
@@ -93,8 +98,9 @@ val ValueExpression = rule {
 val ParanthesisedExpression: Rule<Expression> = rule {
     operator(PARANT_OPEN)
     expression()
-    __definitive()
+    __matched()
     operator(PARANT_CLOSE)
+    __definitive()
 }
     .describeAs("paranthesised expression")
     .postprocess(::ParanthesisedExpressionPostProcessor)
@@ -130,8 +136,9 @@ val BinaryExpression: Rule<Expression> = rule {
         ref(ParanthesisedExpression)
     }
     eitherOf(*binaryOperators) // TODO: more ary ops, arbitrary infix ops
-    __definitive()
+    __matched()
     expression()
+    __definitive()
 }
     .describeAs("ary operator expression")
     .postprocess(::BinaryExpressionPostProcessor)
@@ -148,11 +155,12 @@ val VariableDeclaration = rule {
         keyword(VAR)
         keyword(VAL)
     }
-    __definitive()
+    __matched()
 
     optionalWhitespace()
 
     identifier()
+    __optimistic()
 
     optional {
         operator(COLON)
@@ -170,6 +178,7 @@ val VariableDeclaration = rule {
         operator(NEWLINE)
         endOfInput()
     }
+    __definitive()
 }
     .describeAs("variable declaration")
     .postprocess(::VariableDeclarationPostProcessor)
@@ -185,7 +194,6 @@ val Parameter = rule {
             keyword(VAR)
             keyword(VAL)
         }
-        __definitive()
     }
 
     identifier()
@@ -231,6 +239,7 @@ val FunctionModifier = rule {
         keyword(OPERATOR)
         keyword(EXTERNAL)
     }
+    __definitive()
 }
     .postprocess(::FunctionModifierPostProcessor)
 
@@ -241,7 +250,7 @@ val StandaloneFunctionDeclaration = rule {
 
     keyword(FUNCTION)
 
-    __definitive()
+    __matched()
 
     optional {
         ref(Type)
@@ -260,6 +269,8 @@ val StandaloneFunctionDeclaration = rule {
         ref(Type)
     }
 
+    __optimistic()
+
     eitherOf {
         sequence {
             optionalWhitespace()
@@ -273,6 +284,8 @@ val StandaloneFunctionDeclaration = rule {
             endOfInput()
         }
     }
+
+    __definitive()
 }
     .describeAs("function declaration")
     .postprocess(::StandaloneFunctionPostprocessor)
@@ -295,8 +308,9 @@ val Module = rule {
 
 val ReturnStatement = rule {
     keyword(RETURN)
-    __definitive()
+    __matched()
     expression()
+    __definitive()
 }
     .describeAs("return statement")
     .postprocess(::ReturnStatementPostProcessor)

@@ -7,7 +7,7 @@ package compiler.matching
  *
  * If there was no doubt about the input is of the structure the matcher expects the [certainty] must be
  * [ResultCertainty.DEFINITIVE]; if the given input is ambigous (e.g. does not have properties unique to the
- * [Matcher]), the [certainty] should be [ResultCertainty.OPTIMISTIC].
+ * [Matcher]), the [certainty] should be [ResultCertainty.NOT_RECOGNIZED].
  *
  * Along with the [item] of the match, an [AbstractMatchingResult] can provide the caller with additional reportings
  * about the matched input. If the input did not match the expectations of the [Matcher] that could be details on what

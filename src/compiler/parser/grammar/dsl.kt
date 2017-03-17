@@ -44,7 +44,7 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
     /**
      * Matches exactly one [KeywordToken] with the given [lexer.Keyword]
      */
-    fun keyword(kw: Keyword, mismatchCertainty: ResultCertainty = ResultCertainty.OPTIMISTIC): Unit {
+    fun keyword(kw: Keyword, mismatchCertainty: ResultCertainty = ResultCertainty.NOT_RECOGNIZED): Unit {
         subRules.add(Rule.singleton(KeywordToken(kw), mismatchCertainty))
     }
 
@@ -94,7 +94,7 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
     }
 
     /**
-     * Skips whitespace (newlines); Always matches successfully with [ResultCertainty.OPTIMISTIC]
+     * Skips whitespace (newlines); Always matches successfully with [ResultCertainty.NOT_RECOGNIZED]
      * TODO: horrible name, possibly horrible mechanic... refactor this whenever things become more clear
      */
     fun optionalWhitespace(): Unit
@@ -166,7 +166,7 @@ class DSLEitherOfRule(
 
 class DSLFixedSequenceRule(
     override val subRules: MutableList<Rule<*>> = mutableListOf(),
-    private val certaintySteps: MutableList<Pair<Int, ResultCertainty>> = mutableListOf(0 to ResultCertainty.OPTIMISTIC)
+    private val certaintySteps: MutableList<Pair<Int, ResultCertainty>> = mutableListOf(0 to ResultCertainty.NOT_RECOGNIZED)
 ) : FixedSequenceRule(subRules, certaintySteps), DSLCollectionRule<List<RuleMatchingResult<*>>>
 {
     /**
@@ -192,6 +192,22 @@ class DSLFixedSequenceRule(
 
             certaintySteps.add(currentIndex to c)
         }
+
+    /**
+     * Sets certainty at this matching stage to [ResultCertainty.MATCHED]
+     */
+    fun __matched(): Unit
+    {
+        __certainty = ResultCertainty.MATCHED
+    }
+
+    /**
+     * Sets certainty at this matching stage to [ResultCertainty.OPTIMISTIC]
+     */
+    fun __optimistic(): Unit
+    {
+        __certainty = ResultCertainty.OPTIMISTIC
+    }
 
     /**
      * Sets certainty at this matching stage to [ResultCertainty.DEFINITIVE]

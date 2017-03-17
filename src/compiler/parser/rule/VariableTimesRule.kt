@@ -68,7 +68,7 @@ class VariableTimesRule<T>(
         if (matchResults.size >= times.start) {
             input.commit()
             return RuleMatchingResultImpl(
-                matchResults.map { it.certainty }.min() ?: ResultCertainty.OPTIMISTIC,
+                matchResults.map { it.certainty }.min() ?: ResultCertainty.NOT_RECOGNIZED,
                 matchResults,
                 setOf()
             )
@@ -88,7 +88,7 @@ class VariableTimesRule<T>(
             }
 
             return RuleMatchingResultImpl(
-                ResultCertainty.OPTIMISTIC,
+                ResultCertainty.NOT_RECOGNIZED,
                 null,
                 errors
             )

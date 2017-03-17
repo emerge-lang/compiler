@@ -13,19 +13,16 @@ class OptionalRule<T>(
     override fun tryMatch(input: TokenSequence): RuleMatchingResult<T?> {
         val subResult = subRule.tryMatch(input)
 
-        if (subResult.certainty == ResultCertainty.DEFINITIVE) { // TODO: add || subResult.item == null to condition?
-            return RuleMatchingResultImpl(
-                ResultCertainty.DEFINITIVE,
-                subResult.item,
-                subResult.reportings
-            )
+        if (subResult.item == null) {
+            if (subResult.certainty == ResultCertainty.DEFINITIVE) {
+                return RuleMatchingResultImpl(
+                    ResultCertainty.NOT_RECOGNIZED,
+                    subResult.item,
+                    subResult.reportings
+                )
+            }
         }
-        else  {
-            return RuleMatchingResultImpl(
-                ResultCertainty.OPTIMISTIC,
-                null,
-                emptySet()
-            )
-        }
+
+        return subResult
     }
 }

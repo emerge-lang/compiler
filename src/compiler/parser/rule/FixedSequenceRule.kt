@@ -17,7 +17,7 @@ open class FixedSequenceRule(
 {
     init {
         if (certaintySteps.isEmpty()) {
-            certaintySteps = listOf(0 to ResultCertainty.OPTIMISTIC)
+            certaintySteps = listOf(0 to ResultCertainty.NOT_RECOGNIZED)
         }
     }
 
@@ -38,7 +38,7 @@ open class FixedSequenceRule(
     override fun tryMatch(input: TokenSequence): RuleMatchingResult<List<RuleMatchingResult<*>>>
     {
         val results: MutableList<RuleMatchingResult<Any?>> = mutableListOf()
-        var certainty: ResultCertainty = ResultCertainty.OPTIMISTIC
+        var certainty: ResultCertainty = ResultCertainty.NOT_RECOGNIZED
 
         input.mark()
 
@@ -50,7 +50,7 @@ open class FixedSequenceRule(
                 return@tryMatch RuleMatchingResultImpl(
                     certainty,
                     null,
-                    result.reportings
+                    results.flatMap { it.reportings } + result.reportings
                 )
             }
 

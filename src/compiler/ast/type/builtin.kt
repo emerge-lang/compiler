@@ -3,6 +3,7 @@ package compiler.ast.type
 import compiler.ast.FunctionDeclaration
 import compiler.ast.context.CTContext
 import compiler.ast.context.Module
+import compiler.ast.context.MutableCTContext
 import compiler.parseFromClasspath
 
 /*
@@ -55,7 +56,7 @@ abstract class BuiltinType(override val simpleName: String, vararg superTypes: B
 
         init {
             // TODO: use a dotlin.lang PACKAGE in the classpath and public import the "synthetic" stuff from modules defined in the compiler (like dotlin.lang.builtin)
-            val builtinTypeDeclarations = parseFromClasspath("builtin.dt")
+            val builtinTypeDeclarations = /*parseFromClasspath("builtin.dt")*/ Module(arrayOf("dotlin", "lang"), MutableCTContext())
 
             builtinTypeDeclarations.context.addBaseType(Any)
             builtinTypeDeclarations.context.addBaseType(Unit)

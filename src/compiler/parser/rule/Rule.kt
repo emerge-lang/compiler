@@ -10,7 +10,7 @@ import compiler.parser.TokenSequence
 
 interface Rule<T> : Matcher<TokenSequence,T,Reporting> {
     companion object {
-        fun singleton(equalTo: Token, mismatchCertainty: ResultCertainty = ResultCertainty.OPTIMISTIC): Rule<Token> = object : Rule<Token> {
+        fun singleton(equalTo: Token, mismatchCertainty: ResultCertainty = ResultCertainty.NOT_RECOGNIZED): Rule<Token> = object : Rule<Token> {
             override val descriptionOfAMatchingThing: String
                 get() = equalTo.toString()
 
@@ -70,7 +70,7 @@ interface Rule<T> : Matcher<TokenSequence,T,Reporting> {
                 if (token.type == type) {
                     input.commit()
                     return RuleMatchingResultImpl(
-                        ResultCertainty.OPTIMISTIC,
+                        ResultCertainty.NOT_RECOGNIZED,
                         token,
                         emptySet()
                     )
