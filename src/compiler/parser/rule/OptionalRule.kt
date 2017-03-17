@@ -14,11 +14,18 @@ class OptionalRule<T>(
         val subResult = subRule.tryMatch(input)
 
         if (subResult.item == null) {
-            if (subResult.certainty == ResultCertainty.DEFINITIVE) {
+            if (subResult.certainty >= ResultCertainty.MATCHED) {
                 return RuleMatchingResultImpl(
                     ResultCertainty.NOT_RECOGNIZED,
                     subResult.item,
                     subResult.reportings
+                )
+            }
+            else {
+                return RuleMatchingResultImpl(
+                    ResultCertainty.NOT_RECOGNIZED,
+                    null,
+                    emptySet()
                 )
             }
         }

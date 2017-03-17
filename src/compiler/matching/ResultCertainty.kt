@@ -1,23 +1,26 @@
 package compiler.matching
 
-enum class ResultCertainty(val level: Int) {
+/**
+ * Matching certainty. **The order of declaration is important!**
+ */
+enum class ResultCertainty : Comparable<ResultCertainty> {
     /**
      * The input did not match at least one unique part of the pattern.
      */
-    NOT_RECOGNIZED(10),
+    NOT_RECOGNIZED,
 
     /**
      * At least one unique property of the pattern was fulfilled by the input
      */
-    MATCHED(15),
+    MATCHED,
 
     /**
      * All unique properties of the pattern were fulfilled by the input; however, errors were still encountered.
      */
-    OPTIMISTIC(20),
+    OPTIMISTIC,
 
     /**
      * The input did fulfill all requirements.
      */
-    DEFINITIVE(25)
+    DEFINITIVE
 }

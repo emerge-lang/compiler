@@ -44,7 +44,7 @@ open class FixedSequenceRule(
 
         subRules.forEachIndexed { index, rule ->
             val result = rule.tryMatch(input)
-            if (result.item == null) {
+            if (result.hasErrors && result.item == null) {
                 input.rollback()
 
                 return@tryMatch RuleMatchingResultImpl(

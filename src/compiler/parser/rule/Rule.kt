@@ -56,7 +56,7 @@ interface Rule<T> : Matcher<TokenSequence,T,Reporting> {
             override fun tryMatch(input: TokenSequence): RuleMatchingResult<Token> {
                 if (!input.hasNext()) {
                     return RuleMatchingResultImpl(
-                        ResultCertainty.DEFINITIVE,
+                        ResultCertainty.NOT_RECOGNIZED,
                         null,
                         setOf(
                             Reporting.error("Expected token of type $type, found nothing", input.currentSourceLocation)
@@ -70,7 +70,7 @@ interface Rule<T> : Matcher<TokenSequence,T,Reporting> {
                 if (token.type == type) {
                     input.commit()
                     return RuleMatchingResultImpl(
-                        ResultCertainty.NOT_RECOGNIZED,
+                        ResultCertainty.OPTIMISTIC,
                         token,
                         emptySet()
                     )
@@ -78,7 +78,7 @@ interface Rule<T> : Matcher<TokenSequence,T,Reporting> {
                 else {
                     input.rollback()
                     return RuleMatchingResultImpl(
-                        ResultCertainty.DEFINITIVE,
+                        ResultCertainty.NOT_RECOGNIZED,
                         null,
                         setOf(
                                 Reporting.error("Expected token of type $type, found $token", token)

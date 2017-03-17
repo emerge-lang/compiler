@@ -29,7 +29,7 @@ open class EitherOfRule(
             input.mark()
             val result = rule.tryMatch(input)
 
-            if (result.certainty == ResultCertainty.DEFINITIVE) {
+            if (result.certainty >= ResultCertainty.MATCHED) {
                 input.commit()
                 return result
             }
@@ -39,7 +39,7 @@ open class EitherOfRule(
         }
 
         return RuleMatchingResultImpl(
-            ResultCertainty.DEFINITIVE,
+            ResultCertainty.NOT_RECOGNIZED,
             null,
             setOf(Reporting.error(
                     "Unexpected ${input.peek()?.toStringWithoutLocation() ?: "end of input"}. Expected $descriptionOfAMatchingThing",

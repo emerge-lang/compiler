@@ -58,8 +58,6 @@ class BinaryExpression(
     }
 }
 
-private fun <T, R> Iterable<T>.attachMapNotNull(transform: (T) -> R): Iterable<Pair<T, R>> = map{ it to transform(it) }.filter { it.second != null }
-
 private fun operatorFunctionName(op: Operator): String = when(op) {
     else -> "op" + op.name[0].toUpperCase() + op.name.substring(1).toLowerCase()
 }

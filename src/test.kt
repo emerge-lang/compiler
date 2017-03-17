@@ -1,11 +1,16 @@
-
 import compiler.ast.context.SoftwareContext
 import compiler.ast.type.BuiltinType
 import compiler.lexer.*
-import compiler.parser.grammar.CodeChunkRule
 import compiler.parser.toTransactional
 
-val testCode = """val y = 3"""
+val testCode = """
+module testcode
+
+pure fun x(x: Int) {
+    val y = 3
+    return x + y
+}
+"""
 
 fun main(args: Array<String>) {
     // setup context
@@ -23,9 +28,9 @@ fun main(args: Array<String>) {
 
     println("------------")
 
-    val matched = VariableDeclaration.tryMatch(tokens.toTransactional(source.toLocation(1, 1)))
-    //val parsedModule = matched.item
-    // parsedModule?.context?.swCtx = swCtx
+    val matched = Module.tryMatch(tokens.toTransactional(source.toLocation(1, 1)))
+    val parsedModule = matched.item
+    parsedModule?.context?.swCtx = swCtx
 
     println("certainty = ${matched.certainty}")
     println("item = ${matched.item}")
