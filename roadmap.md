@@ -11,6 +11,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 6. control structures
 7. object model
    1. class definition
+   2. struct definition
 8. extend InvocationExeption
    1. handle constructors
    2. handle the ambigous case `objRef.method()` where method can be one of:
@@ -23,14 +24,16 @@ This file describes the Items that are next on the TODO list. **This list is NOT
    3. try+catch+finally
 10. Generics / Templates
     * \*sigh\* this is gonna be a huuuge thing... no idea how to go about this, yet
-11. Function types
+11. Decision on compile target architecture (native/vm with pointers VS JVM)
+12. Array type
+13. Strings + String literals
+14. Function types
     1. `operator fun invoke`
     2. Syntax-Sugar for function type literals:
        * `(T1, T2) -> R` to `Function<Unit, R, T1, T2>`
     3. what about function types with receiver? needed for builders :/ :/
-12. CTFE 
-13. ...
-14. smart casts
-15. deferred statements
+15. CTFE 
+17. smart casts
+18. deferred statements
     * `scope(exit) {stmt}`, `scope(success) {stmt}` and `scope(fail) {stmt}`
-16. ...
+19. ...
