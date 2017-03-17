@@ -26,6 +26,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * \*sigh\* this is gonna be a huuuge thing... no idea how to go about this, yet
 11. Decision on compile target architecture (native/vm with pointers VS JVM)
 12. Array type
+13. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
 13. Strings + String literals
 14. Function types
     1. `operator fun invoke`
