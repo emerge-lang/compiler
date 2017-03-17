@@ -5,13 +5,13 @@ import compiler.matching.ResultCertainty
 import compiler.matching.SimpleMatchingResult
 import compiler.parser.Reporting
 
-typealias RuleMatchingResult<ResultType> = AbstractMatchingResult<ResultType, Reporting>
+typealias RuleMatchingResult<ItemType> = AbstractMatchingResult<ItemType, Reporting>
 
-class RuleMatchingResultImpl<ResultType>(
+class RuleMatchingResultImpl<ItemType>(
         certainty: ResultCertainty,
-        item: ResultType?,
+        item: ItemType?,
         reportings: Collection<Reporting>
-) : SimpleMatchingResult<ResultType, Reporting>(
+) : SimpleMatchingResult<ItemType, Reporting>(
         certainty,
         item,
         reportings

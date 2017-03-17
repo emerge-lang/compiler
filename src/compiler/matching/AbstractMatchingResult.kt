@@ -15,30 +15,30 @@ package compiler.matching
  *
  * The [item] may only be null if the given input did not contain enough information to construct a meaningful item.
  */
-interface AbstractMatchingResult<out ResultType,ReportingType> {
+interface AbstractMatchingResult<out ItemType,ReportingType> {
     val certainty: ResultCertainty
-    val item: ResultType?
+    val item: ItemType?
     val reportings: Collection<ReportingType>
 
     companion object {
-        fun <ResultType, ReportingType> ofResult(result: ResultType, certainty: ResultCertainty = ResultCertainty.DEFINITIVE): AbstractMatchingResult<ResultType, ReportingType> {
-            return object : AbstractMatchingResult<ResultType, ReportingType> {
+        fun <ItemType, ReportingType> ofResult(result: ItemType, certainty: ResultCertainty = ResultCertainty.DEFINITIVE): AbstractMatchingResult<ItemType, ReportingType> {
+            return object : AbstractMatchingResult<ItemType, ReportingType> {
                 override val certainty = certainty
                 override val item = result
                 override val reportings = emptySet<ReportingType>()
             }
         }
 
-        fun <ResultType, ReportingType> ofError(error: ReportingType, certainty: ResultCertainty = ResultCertainty.DEFINITIVE): AbstractMatchingResult<ResultType, ReportingType> {
-            return object : AbstractMatchingResult<ResultType, ReportingType> {
+        fun <ItemType, ReportingType> ofError(error: ReportingType, certainty: ResultCertainty = ResultCertainty.DEFINITIVE): AbstractMatchingResult<ItemType, ReportingType> {
+            return object : AbstractMatchingResult<ItemType, ReportingType> {
                 override val certainty = certainty
                 override val item = null
                 override val reportings = setOf(error)
             }
         }
 
-        inline fun <T, reified ResultType, reified ReportingType> of(thing: T, certainty: ResultCertainty = ResultCertainty.DEFINITIVE): AbstractMatchingResult<ResultType, ReportingType> {
-            if (thing is ResultType) return ofResult(thing, certainty)
+        inline fun <T, reified ItemType, reified ReportingType> of(thing: T, certainty: ResultCertainty = ResultCertainty.DEFINITIVE): AbstractMatchingResult<ItemType, ReportingType> {
+            if (thing is ItemType) return ofResult(thing, certainty)
             if (thing is ReportingType) return ofError(thing, certainty)
             throw IllegalArgumentException("Given object is neither of item type nor of error type")
         }
