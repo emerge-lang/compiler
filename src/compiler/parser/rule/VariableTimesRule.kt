@@ -38,7 +38,6 @@ class VariableTimesRule<T>(
     }
 
     override fun tryMatch(input: TokenSequence): MatchingResult<List<MatchingResult<T>>> {
-        // TODO: refactor: collect all reportings; double-check fail conditions
         var matchResults: MutableList<MatchingResult<T>> = ArrayList(times.start)
 
         input.mark()
@@ -53,7 +52,7 @@ class VariableTimesRule<T>(
                     @Suppress("UNCHECKED_CAST")
                     return RuleMatchingResult(
                         ResultCertainty.DEFINITIVE,
-                        lastResult as? List<MatchingResult<T>>,
+                        matchResults,
                         lastResult.reportings
                     )
                 }
