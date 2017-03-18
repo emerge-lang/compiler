@@ -333,7 +333,7 @@ To access the outer scope, the variables need to be explicitly listed:
        // do sth.
     }
 
-This is so that the syntax supports the matruring of a piece of code from being somewhere inlined in a function to possibly becoming a public API, as Jonathan Blow points out in one of his videos regarding his language Jai.
+This is so that the syntax supports the maturing of a piece of code from being somewhere inlined in a function to possibly becoming a public API, as Jonathan Blow points out in one of his videos regarding his language Jai.
 
 	fun outerScope() {
 		// some code
@@ -354,22 +354,32 @@ This is so that the syntax supports the matruring of a piece of code from being 
 
 
     fun outerScope() {
-    	nestedFun = (a: Int, b: Int) -> Int {
+    	fun nestedFun(a: Int, b: Int) -> Int {
 			// some code
     	}
 
 		c = nestedFun(a, b)
 	}
 
-
-	toplevelFun = (a: Int, b: Int) -> Int {
-		// some code
-    }
-
-
 	fun toplevelFun(a: Int, b: Int) -> Int {
 		// some code
     }
+    
+### Operator Precedence
+
+This section defines operator precedence. All operators on one line have an equal precedence
+and are evaluated left to right.  
+The operators are listed with descending precedence.
+
+```
+. ?.
+!! []
+* /
++ -
+== > < >= <= === !==
+as as?
+?:
+```
 
 ## Function modifiers
 
