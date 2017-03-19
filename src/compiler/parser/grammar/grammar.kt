@@ -3,8 +3,10 @@ import compiler.ast.context.CTContext
 import compiler.ast.context.Module
 import compiler.ast.context.MutableCTContext
 import compiler.ast.expression.Expression
+import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword.*
 import compiler.lexer.Operator.*
+import compiler.lexer.OperatorToken
 import compiler.lexer.TokenType
 import compiler.parser.grammar.*
 import compiler.parser.postproc.*
@@ -71,13 +73,9 @@ val Type = rule {
 val LiteralExpression = rule {
     eitherOf {
         tokenOfType(TokenType.NUMERIC_LITERAL)
-        // TODO: string literal, function literal, and so forth
+        // TODO: string literal, function literal
     }
     __matched()
-    optional {
-        operator(NOTNULL)
-    }
-    __definitive()
 }
     .describeAs("literal")
     .postprocess(::LiteralExpressionPostProcessor)
@@ -86,9 +84,6 @@ val ValueExpression = rule {
     eitherOf {
         ref(LiteralExpression)
         identifier()
-    }
-    optional {
-        operator(NOTNULL)
     }
     __definitive()
 }
@@ -109,7 +104,7 @@ val UnaryExpression = rule {
     eitherOf(PLUS, MINUS, NEGATE)
     // TODO: tilde, ... what else?
 
-    eitherOf {
+    eitherOf { // TODO: reorder these to comply to the defined operator precedence (e.g. DOT before MINUS)
         ref(ValueExpression)
         ref(ParanthesisedExpression)
     }
@@ -119,8 +114,6 @@ val UnaryExpression = rule {
     .postprocess(::UnaryExpressionPostProcessor)
 
 val binaryOperators = arrayOf(
-    // Object access
-    DOT, SAFEDOT,
     // Arithmetic
     PLUS, MINUS, TIMES, DIVIDE,
     // Comparison
@@ -129,19 +122,74 @@ val binaryOperators = arrayOf(
     // MISC
     CAST, TRYCAST, ELVIS
 )
-val BinaryExpression: Rule<Expression> = rule {
+val BinaryExpression = rule {
     eitherOf {
         ref(UnaryExpression)
         ref(ValueExpression)
         ref(ParanthesisedExpression)
     }
-    eitherOf(*binaryOperators) // TODO: more ary ops, arbitrary infix ops
+    eitherOf(*binaryOperators) // TODO: arbitrary infix ops
     __matched()
     expression()
     __definitive()
 }
     .describeAs("ary operator expression")
     .postprocess(::BinaryExpressionPostProcessor)
+
+val ExpressionPostfixNotNull = rule {
+    operator(NOTNULL)
+    __definitive()
+}
+    .describeAs(OperatorToken(NOTNULL).toStringWithoutLocation())
+    .flatten()
+    .mapResult { NotNullExpressionPostfixModifier(it.next()!! as OperatorToken) }
+
+val ExpressionPostfixInvocation = rule {
+    operator(PARANT_OPEN)
+    optionalWhitespace()
+
+    optional {
+        expression()
+        optionalWhitespace()
+
+        atLeast(0) {
+            operator(COMMA)
+            optionalWhitespace()
+            expression()
+        }
+    }
+
+    optionalWhitespace()
+    operator(PARANT_CLOSE)
+    __matched()
+}
+    .describeAs("function invocation")
+    .flatten()
+    .mapResult(InvocationExpressionPostfixModifier.Companion::fromMatchedTokens)
+
+val ExpressionPostfixMemberAccess = rule {
+    eitherOf(DOT, SAFEDOT)
+    __matched()
+    identifier()
+    __optimistic()
+}
+    .describeAs("member access")
+    .flatten()
+    .mapResult {
+        it.next()
+        MemberAccessExpressionPostfixModifier(it.next()!! as IdentifierToken)
+    }
+
+val ExpressionPostfix = rule {
+    eitherOf {
+        ref(ExpressionPostfixNotNull)
+        ref(ExpressionPostfixInvocation)
+        ref(ExpressionPostfixMemberAccess)
+    }
+    __optimistic()
+}
+    .flatten()
+    .mapResult { it.next()!! as ExpressionPostfixModifier<Expression> }
 
 val VariableDeclaration = rule {
 
@@ -212,7 +260,7 @@ val ParameterList = rule {
     optionalWhitespace()
 
     optional {
-        ref(rule {
+        ref(rule { // TODO: remove the ref(rule { ??
             ref(Parameter)
 
             optionalWhitespace()

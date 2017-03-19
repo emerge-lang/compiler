@@ -6,6 +6,7 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.NumericLiteralToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
+import compiler.parser.TokenSequence
 import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
 import compiler.transact.Position
@@ -14,7 +15,7 @@ import compiler.transact.TransactionalSequence
 fun LiteralExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Expression> {
     return rule
         .flatten()
-        .mapResult(allowPostfixNotnull { tokens ->
+        .mapResult({ tokens ->
             val valueToken = tokens.next()!!
 
             if (valueToken is NumericLiteralToken) {
@@ -29,7 +30,7 @@ fun LiteralExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rul
 fun ValueExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Expression> {
     return rule
         .flatten()
-        .mapResult(allowPostfixNotnull {  things ->
+        .mapResult({  things ->
             val valueThing = things.next()!!
 
             if (valueThing is Expression) {
@@ -47,7 +48,7 @@ fun ValueExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<
 fun ParanthesisedExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Expression> {
     return rule
         .flatten()
-        .mapResult(allowPostfixNotnull { input ->
+        .mapResult({ input ->
             // skip PARANT_OPEN
             input.next()!!
 
@@ -70,21 +71,57 @@ fun BinaryExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule
 fun UnaryExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Expression> {
     return rule
         .flatten()
-        .mapResult(allowPostfixNotnull { input ->
+        .mapResult({ input ->
             val operator = (input.next()!! as OperatorToken).operator
             val expression = input.next()!! as Expression
             UnaryExpression(operator, expression)
         })
 }
 
-private fun allowPostfixNotnull(mapper: (TransactionalSequence<Any, Position>) -> Expression): (TransactionalSequence<Any, Position>) -> Expression {
-    return { input ->
-        val expression = mapper(input)
-        if (input.peek() == OperatorToken(Operator.NOTNULL)) {
-            NotNullExpression(expression, input.next()!! as OperatorToken)
-        }
-        else {
-            expression
+/**
+ * A postfix modifier resembles an expression postfix. Given the expression itself, it returns a new
+ * expression that contains the information about the postfix. E.g. matching the !! postfix results in a
+ * [NotNullExpressionPostfixModifier] which in turn will wrap any given [Expression] in a [NotNullExpression].
+ */
+interface ExpressionPostfixModifier<out OutExprType: Expression> {
+    fun modify(expr: Expression): OutExprType
+}
+
+class NotNullExpressionPostfixModifier(
+    /** The notnull operator for reference; whether the operator is actually [Operator.NOTNULL] is never checked.*/
+    val notNullOperator: OperatorToken
+) : ExpressionPostfixModifier<NotNullExpression> {
+    override fun modify(expr: Expression) = NotNullExpression(expr, notNullOperator)
+}
+
+class InvocationExpressionPostfixModifier(
+    val parameterExpressions: List<Expression>
+) : ExpressionPostfixModifier<InvocationExpression> {
+    override fun modify(expr: Expression) = InvocationExpression(expr, parameterExpressions)
+
+    companion object {
+        fun fromMatchedTokens(input: TransactionalSequence<Any, Position>): InvocationExpressionPostfixModifier {
+            // skip PARANT_OPEN
+            input.next()!! as OperatorToken
+
+            val paramExpressions = mutableListOf<Expression>()
+            while (input.peek() is Expression) {
+                paramExpressions.add(input.next()!! as Expression)
+
+                // skip COMMA or PARANT_CLOSE
+                input.next()!! as OperatorToken
+            }
+
+            // skip
+            input.next()!! as OperatorToken
+
+            return InvocationExpressionPostfixModifier(paramExpressions)
         }
     }
+}
+
+class MemberAccessExpressionPostfixModifier(
+    val memberName: IdentifierToken
+) : ExpressionPostfixModifier<MemberAccessExpression> {
+    override fun modify(expr: Expression) = MemberAccessExpression(expr, memberName)
 }
