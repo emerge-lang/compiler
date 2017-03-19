@@ -1,10 +1,13 @@
 package compiler.parser.postproc
 
+import compiler.InternalCompilerError
 import compiler.ast.CodeChunk
 import compiler.ast.Executable
 import compiler.ast.ReturnStatement
 import compiler.ast.expression.Expression
+import compiler.ast.expression.StandaloneExpression
 import compiler.lexer.KeywordToken
+import compiler.lexer.OperatorToken
 import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
 import compiler.transact.Position
@@ -33,9 +36,17 @@ fun CodeChunkPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<CodeCh
 
 private fun toAST_codeChunk(input: TransactionalSequence<Any, Position>): CodeChunk {
     val executables = mutableListOf<Executable>()
-    input.forEachRemaining {
-        executables.add(it as Executable)
-    }
+    input.remainingToList()
+        .filter { it !is OperatorToken }
+        .forEach {
+            if (it is Executable) {
+                executables.add(it)
+            }
+            else if (it is Expression) {
+                executables.add(StandaloneExpression(it))
+            }
+            else throw InternalCompilerError("How did this thing get into here?!")
+        }
 
     return CodeChunk(executables)
 }
