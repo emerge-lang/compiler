@@ -115,7 +115,7 @@ abstract class TransactionalSequence<out ItemType, FallbackPointType : Position>
     }
 
     /** Returns the remaining tokens in a list */
-    open fun remainingToList(): List<ItemType> = items.subList(currentPosition.sourceIndex, items.lastIndex)
+    open fun remainingToList(): List<ItemType> = items.subList(currentPosition.sourceIndex, items.lastIndex + 1)
 
     inner class TransactionReceiver {
         fun next(): ItemType? = this@TransactionalSequence.next()
