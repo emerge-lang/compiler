@@ -29,12 +29,16 @@ open class Reporting(
     open override fun toString() = "($level) $message".indentByFromSecondLine(2) + "\nin $sourceLocation"
 
     enum class Level(val level: Int) {
+        CONSECUTIVE(0),
         INFO(10),
         WARNING(20),
         ERROR(30);
     }
 
     companion object {
+        fun consecutive(message: String, sourceLocation: SourceLocation = SourceLocation.UNKNOWN)
+            = ConsecutiveFaultReporting(message, sourceLocation)
+
         fun info(message: String, sourceLocation: SourceLocation)
             = Reporting(Level.INFO, message, sourceLocation)
 
@@ -108,3 +112,12 @@ class MissingTokenReporting(
         val expected: Token,
         sourceLocation: SourceLocation
 ) : Reporting(Level.ERROR, "Unexpected EOI, expecting ${expected.toStringWithoutLocation()}", sourceLocation)
+
+/**
+ * An error that results from another one. These should not be shown to an end-user because - assuming the compiler
+ * acts as designed - there is another reporting with [Level.ERROR] that describes the root cause.
+ */
+class ConsecutiveFaultReporting(
+        message: String,
+        sourceLocation: SourceLocation = SourceLocation.UNKNOWN
+) : Reporting(Level.CONSECUTIVE, message, sourceLocation)
