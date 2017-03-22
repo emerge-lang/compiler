@@ -1,5 +1,10 @@
 This file describes the Items that are next on the TODO list. **This list is NOT EXHAUSTIVE!**
 
+1. Refactor typechecking process  
+   Instead of calling `validate(context)` all the time (which is not only insufficient
+   but also horribly slow), create a type `BoundExpression` that is bound to a compile
+   time context. It keeps all the information derived thereof; things then become easier
+   with `expression.boundTo(contex).type` instead of `expression.determineType(context)`.
 1. InvocationExpression
 2. Scope modifier PURE  
    nothrow will be implemented analogous later on; this is just to figure out the API
