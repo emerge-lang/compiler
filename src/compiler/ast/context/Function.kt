@@ -32,7 +32,7 @@ class Function(val context: CTContext, val declaration: FunctionDeclaration) {
  *
  * In essence, this function is the static function dispatching algorithm of the language.
  */
-fun Iterable<out Function>.filterAndSortByMatchForInvocationTypes(receiverType: BaseTypeReference?, parameterTypes: Iterable<out BaseTypeReference>): List<Function> =
+fun Iterable<out Function>.filterAndSortByMatchForInvocationTypes(receiverType: BaseTypeReference?, parameterTypes: Iterable<out BaseTypeReference?>): List<Function> =
     this
         // filter out the ones with incompatible receiver type
         .filter {
@@ -53,7 +53,7 @@ fun Iterable<out Function>.filterAndSortByMatchForInvocationTypes(receiverType: 
         .filter { candidateFn ->
             parameterTypes.forEachIndexed { paramIndex, paramType ->
                 val candidateParamType = candidateFn.parameterTypes[paramIndex] ?: Any.baseReference(candidateFn.context)
-                if (!(paramType isAssignableTo candidateParamType)) {
+                if (paramType != null && !(paramType isAssignableTo candidateParamType)) {
                     return@filter false
                 }
             }
@@ -72,7 +72,7 @@ fun Iterable<out Function>.filterAndSortByMatchForInvocationTypes(receiverType: 
                 { candidateFn ->
                     var value: Int = 0
                     parameterTypes.forEachIndexed { paramIndex, paramType ->
-                        value = paramType.assignMatchQuality(candidateFn.parameterTypes[paramIndex] ?: Any.baseReference(candidateFn.context)) ?: 0
+                        value = paramType?.assignMatchQuality(candidateFn.parameterTypes[paramIndex] ?: Any.baseReference(candidateFn.context)) ?: 0
                         if (value != 0) return@forEachIndexed
                     }
 
