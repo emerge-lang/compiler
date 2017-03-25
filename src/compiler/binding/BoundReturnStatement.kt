@@ -1,4 +1,4 @@
-package compiler.binding.expression
+package compiler.binding
 
 import compiler.ast.ReturnStatement
 import compiler.binding.BoundExecutable

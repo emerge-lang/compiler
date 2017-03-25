@@ -3,7 +3,7 @@ package compiler.ast
 import compiler.binding.context.CTContext
 import compiler.ast.expression.Expression
 import compiler.binding.BindingResult
-import compiler.binding.expression.BoundReturnStatement
+import compiler.binding.BoundReturnStatement
 import compiler.lexer.KeywordToken
 import compiler.lexer.SourceLocation
 import compiler.parser.Reporting
