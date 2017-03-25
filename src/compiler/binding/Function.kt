@@ -1,7 +1,7 @@
-package compiler.binding.context
+package compiler.binding
 
-import compiler.InternalCompilerError
 import compiler.ast.FunctionDeclaration
+import compiler.binding.context.CTContext
 import compiler.binding.type.Any
 import compiler.binding.type.BaseType
 import compiler.binding.type.BaseTypeReference
@@ -30,7 +30,7 @@ class Function(val context: CTContext, val declaration: FunctionDeclaration) {
  * returns the functions matching the types sorted by matching quality to the given
  * types (see [BaseTypeReference.isAssignableTo] and [BaseTypeReference.assignMatchQuality])
  *
- * In essence, this function is the static function dispatching algorithm of the language.
+ * In essence, this function is the function dispatching algorithm of the language.
  */
 fun Iterable<out Function>.filterAndSortByMatchForInvocationTypes(receiverType: BaseTypeReference?, parameterTypes: Iterable<out BaseTypeReference?>): List<Function> =
     this

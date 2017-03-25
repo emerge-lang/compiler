@@ -8,6 +8,8 @@ import compiler.binding.type.Any
 import compiler.binding.type.BaseType
 import compiler.binding.type.BaseTypeReference
 import compiler.ast.type.TypeReference
+import compiler.binding.Function
+import compiler.binding.Variable
 import compiler.lexer.IdentifierToken
 import java.util.*
 
@@ -26,7 +28,7 @@ open class MutableCTContext(
     override var swCtx: SoftwareContext? = null
 
     /** Maps variable names to their metadata; holds only variables defined in this context */
-    private val variables: MutableMap<String,Variable> = HashMap()
+    private val variables: MutableMap<String, Variable> = HashMap()
 
     /** Holds all the toplevel functions defined in this context */
     private val functions: MutableSet<Function> = HashSet()

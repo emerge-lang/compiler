@@ -6,6 +6,8 @@ import compiler.binding.type.Any
 import compiler.binding.type.BaseType
 import compiler.binding.type.BaseTypeReference
 import compiler.ast.type.TypeReference
+import compiler.binding.Function
+import compiler.binding.Variable
 
 /**
  * Compile-Time context. A compile-time context knows all available symbols (through imports and explicit definition).
