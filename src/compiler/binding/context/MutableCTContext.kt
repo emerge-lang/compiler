@@ -8,8 +8,9 @@ import compiler.binding.type.Any
 import compiler.binding.type.BaseType
 import compiler.binding.type.BaseTypeReference
 import compiler.ast.type.TypeReference
-import compiler.binding.Function
-import compiler.binding.Variable
+import compiler.binding.BindingResult
+import compiler.binding.BoundFunction
+import compiler.binding.BoundVariable
 import compiler.lexer.IdentifierToken
 import java.util.*
 
@@ -28,10 +29,10 @@ open class MutableCTContext(
     override var swCtx: SoftwareContext? = null
 
     /** Maps variable names to their metadata; holds only variables defined in this context */
-    private val variables: MutableMap<String, Variable> = HashMap()
+    private val variables: MutableMap<String, BoundVariable> = HashMap()
 
     /** Holds all the toplevel functions defined in this context */
-    private val functions: MutableSet<Function> = HashSet()
+    private val functions: MutableSet<BoundFunction> = HashSet()
 
     /** Holds all the base types defined in this context */
     private val types: MutableSet<BaseType> = HashSet()
@@ -80,11 +81,11 @@ open class MutableCTContext(
     /**
      * Adds the given variable to this context; possibly overriding its type with the given type.
      */
-    open fun addVariable(declaration: VariableDeclaration, overrideType: TypeReference? = null) {
-        variables[declaration.name.value] = Variable(this, declaration, overrideType)
+    open fun addVariable(declaration: VariableDeclaration, overrideType: BaseTypeReference? = null) {
+        variables[declaration.name.value] = BoundVariable(this, declaration, overrideType)
     }
 
-    override fun resolveVariable(name: String, onlyOwn: Boolean): Variable? {
+    override fun resolveVariable(name: String, onlyOwn: Boolean): BoundVariable? {
         val ownVar = variables[name]
         if (onlyOwn || ownVar != null) return ownVar
 
@@ -96,13 +97,15 @@ open class MutableCTContext(
         return importedVars.firstOrNull() ?: parentContext.resolveVariable(name, onlyOwn)
     }
 
-    open fun addFunction(declaration: FunctionDeclaration) {
-        functions.add(Function(this, declaration))
+    open fun addFunction(declaration: FunctionDeclaration): BindingResult<BoundFunction> {
+        val boundResult = declaration.bindTo(this)
+        if (boundResult.bound != null) functions.add(boundResult.bound)
+        return boundResult
     }
 
-    override fun resolveDefinedFunctions(name: String): Collection<Function> = functions.filter { it.declaration.name.value == name }
+    override fun resolveDefinedFunctions(name: String): Collection<BoundFunction> = functions.filter { it.declaration.name.value == name }
 
-    override fun resolveAnyFunctions(name: String): Collection<Function> {
+    override fun resolveAnyFunctions(name: String): Collection<BoundFunction> {
         if (name.contains('.')) {
             val swCtx = this.swCtx ?: throw InternalCompilerError("Cannot resolve FQN when no software context is set.")
 

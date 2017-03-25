@@ -5,21 +5,22 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.Any
 import compiler.binding.type.BaseType
 import compiler.binding.type.BaseTypeReference
-import compiler.retryUntilNotNull
 
 /**
  * Describes the presence/avaiability of a (class member) function in a context.
  * Refers to the original declaration and holds a reference to the appropriate context
  * so that [BaseType]s for receiver, parameters and return type can be resolved.
  */
-class Function(val context: CTContext, val declaration: FunctionDeclaration) {
-    val receiverType: BaseTypeReference? by retryUntilNotNull {
-        declaration.receiverType?.resolveWithin(context)
-    }
+class BoundFunction(
+    val context: CTContext,
+    val declaration: FunctionDeclaration,
 
-    val returnType: BaseTypeReference by retryUntilNotNull(Any.baseReference(context)) {
-        declaration.returnType.resolveWithin(context)
-    }
+    val receiverType: BaseTypeReference?,
+    val parameters: BoundParameterList,
+    val returnType: BaseTypeReference?
+) {
+    val name: String = declaration.name.value
+    val modifiers = declaration.modifiers
 
     val parameterTypes: List<BaseTypeReference?>
         get() = declaration.parameters.types.map { it?.resolveWithin(context) }
@@ -32,7 +33,7 @@ class Function(val context: CTContext, val declaration: FunctionDeclaration) {
  *
  * In essence, this function is the function dispatching algorithm of the language.
  */
-fun Iterable<out Function>.filterAndSortByMatchForInvocationTypes(receiverType: BaseTypeReference?, parameterTypes: Iterable<out BaseTypeReference?>): List<Function> =
+fun Iterable<out BoundFunction>.filterAndSortByMatchForInvocationTypes(receiverType: BaseTypeReference?, parameterTypes: Iterable<out BaseTypeReference?>): List<BoundFunction> =
     this
         // filter out the ones with incompatible receiver type
         .filter {

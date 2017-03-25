@@ -9,11 +9,12 @@ import compiler.binding.context.CTContext
  * Describes the presence/avaiability of a (class member) variable or (class member) value in a context.
  * Refers to the original declaration and contains an override type.
  */
-class Variable(val context: CTContext, val declaration: VariableDeclaration, type: TypeReference? = null)
+class BoundVariable(
+    val context: CTContext,
+    val declaration: VariableDeclaration,
+    val type: BaseTypeReference?)
 {
-    val type: BaseTypeReference? by lazy {
-        type?.resolveWithin(context) ?: declaration.determineType(context)
-    }
-
     val isAssignable: Boolean = declaration.isAssignable
+
+    val name: String = declaration.name.value
 }

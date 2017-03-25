@@ -6,6 +6,8 @@ import compiler.ast.expression.Expression
 import compiler.binding.type.BaseTypeReference
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
+import compiler.binding.BindingResult
+import compiler.binding.BoundVariable
 import compiler.binding.type.Any
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
@@ -18,7 +20,7 @@ open class VariableDeclaration(
     val type: TypeReference?,
     val isAssignable: Boolean,
     val assignExpression: Expression?
-) : Declaration, Executable {
+) : Declaration, Executable<BoundVariable> {
     /**
      * Determines and returns the type of the variable when initialized in the given context. If the type cannot
      * be determined due to semantic reportings, the closest guess is returned, even Any if there is absolutely no clue.
@@ -35,13 +37,13 @@ open class VariableDeclaration(
         return typeRef.resolveWithin(context)
     }
 
-    override fun validate(context: CTContext): Collection<Reporting> = validate(context, "variable")
+    override fun bindTo(context: CTContext): BindingResult<BoundVariable> = bindTo(context, "variable")
 
     /**
      * @param context The context in which to validate
      * @param selfType What type to report this at; should be either `variable` or `parameter`
      */
-    protected fun validate(context: CTContext, selfType: String): Collection<Reporting> {
+    protected fun bindTo(context: CTContext, selfType: String): BindingResult<BoundVariable> {
         val reportings = mutableListOf<Reporting>()
 
         // double declaration
@@ -83,7 +85,17 @@ open class VariableDeclaration(
             }
         }
 
-        return reportings
+        val reportedType: BaseTypeReference? =
+            if (type != null) declaredType else assignExpression?.determineType(context)
+
+        return BindingResult(
+            BoundVariable(
+                context,
+                this,
+                reportedType
+            ),
+            reportings
+        )
     }
 
     override fun modified(context: CTContext): CTContext {

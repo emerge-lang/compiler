@@ -4,6 +4,9 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeReference
+import compiler.binding.BindingResult
+import compiler.binding.BoundFunction
+import compiler.binding.BoundParameterList
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 import compiler.lexer.SourceLocation
@@ -18,7 +21,7 @@ class FunctionDeclaration(
     val returnType: TypeReference,
     val code: CodeChunk?
 ) : Declaration {
-    fun validate(context: CTContext): Collection<Reporting> {
+    fun bindTo(context: CTContext): BindingResult<BoundFunction> {
         val reportings = mutableListOf<Reporting>()
 
         // modifiers
@@ -64,6 +67,14 @@ class FunctionDeclaration(
             reportings.addAll(code.validate(codeContext))
         }
 
-        return reportings
+        return BindingResult(
+            BoundFunction(
+                context,
+                this,
+                receiverBaseType,
+                BoundParameterList(),
+                returnBaseType),
+            reportings
+        )
     }
 }

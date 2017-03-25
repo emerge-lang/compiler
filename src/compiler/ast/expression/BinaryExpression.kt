@@ -1,7 +1,7 @@
 package compiler.ast.expression
 
 import compiler.binding.context.CTContext
-import compiler.binding.Function
+import compiler.binding.BoundFunction
 import compiler.binding.filterAndSortByMatchForInvocationTypes
 import compiler.binding.type.BaseTypeReference
 import compiler.ast.type.FunctionModifier
@@ -44,7 +44,7 @@ class BinaryExpression(
      * @return The operator function to use to evaluate this expression or null the given context does not contain
      *         a suitable function.
      */
-    private fun getOperatorFunction(context: CTContext): Function? {
+    private fun getOperatorFunction(context: CTContext): BoundFunction? {
         val typeFirst = first.determineType(context) ?: return null
         val typeSecond: BaseTypeReference = second.determineType(context) ?: Any.baseReference(context)
 

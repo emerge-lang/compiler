@@ -6,8 +6,8 @@ import compiler.binding.type.Any
 import compiler.binding.type.BaseType
 import compiler.binding.type.BaseTypeReference
 import compiler.ast.type.TypeReference
-import compiler.binding.Function
-import compiler.binding.Variable
+import compiler.binding.BoundFunction
+import compiler.binding.BoundVariable
 
 /**
  * Compile-Time context. A compile-time context knows all available symbols (through imports and explicit definition).
@@ -50,7 +50,7 @@ interface CTContext
      * @param onlyOwn If true, does not attempt to resolve variables through imports.
      * @return The variable accessible under the given name, shadowing included.
      */
-    fun resolveVariable(name: String, onlyOwn: Boolean = false): Variable?
+    fun resolveVariable(name: String, onlyOwn: Boolean = false): BoundVariable?
 
     /**
      * Returns the [BaseType] with the given simple name defined in this context or null if a [BaseType] with the
@@ -61,8 +61,6 @@ interface CTContext
     /**
      * Attempts to resolve the reference within this context considering imports and FQN references.
      * @param ref the reference to resolve
-     * @param withImported Whether to include imported types. When evaluating types inside this context, use true;
-     *                     otherwise false.
      * TODO: maybe return multiple types in case of ambiguity?
      */
     fun resolveAnyType(ref: TypeReference): BaseType?
@@ -70,29 +68,29 @@ interface CTContext
     /**
      * Returns the function overloads with the given simple name defined in this context.
      */
-    fun resolveDefinedFunctions(name: String): Collection<Function>
+    fun resolveDefinedFunctions(name: String): Collection<BoundFunction>
 
     /**
      * Attempts to resolve all functions with the simple name or FQN and receiver type; also includes imported
      * functions.
      * @return The resolved functions
      */
-    fun resolveAnyFunctions(name: String): Collection<Function>
+    fun resolveAnyFunctions(name: String): Collection<BoundFunction>
 
     companion object {
         /**
-         * A [CTContext] that does not resolve anything. This is used as the absolute root context for all toplevel code.
+         * A [CTContext] that does not resolve anything. This is used as the parent context for all toplevel code.
          */
         val EMPTY = object : CTContext {
-            override fun resolveVariable(name: String, onlyOwn: Boolean): Variable? = null
+            override fun resolveVariable(name: String, onlyOwn: Boolean): BoundVariable? = null
 
             override fun resolveDefinedType(simpleName: String): BaseType? = null
 
             override fun resolveAnyType(ref: TypeReference): BaseType? = null
 
-            override fun resolveDefinedFunctions(name: String): Collection<Function> = emptySet()
+            override fun resolveDefinedFunctions(name: String): Collection<BoundFunction> = emptySet()
 
-            override fun resolveAnyFunctions(name: String): Collection<Function> = emptySet()
+            override fun resolveAnyFunctions(name: String): Collection<BoundFunction> = emptySet()
         }
     }
 }
