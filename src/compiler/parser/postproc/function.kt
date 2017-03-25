@@ -5,6 +5,7 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.ParameterList
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeReference
+import compiler.binding.type.Unit
 import compiler.lexer.*
 import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
@@ -46,7 +47,7 @@ private fun toAST(tokens: TransactionalSequence<Any, Position>): FunctionDeclara
 
     next = tokens.next()!!
 
-    var type: TypeReference = compiler.ast.type.Unit.reference
+    var type: TypeReference = Unit.reference
 
     if (next == OperatorToken(Operator.RETURNS)) {
         type = tokens.next()!! as TypeReference

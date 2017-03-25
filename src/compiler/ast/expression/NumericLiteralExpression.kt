@@ -1,7 +1,10 @@
 package compiler.ast.expression
 
 import compiler.binding.context.CTContext
-import compiler.ast.type.BaseTypeReference
+import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.Float
+import compiler.binding.type.Int
+import compiler.binding.type.Number
 import compiler.lexer.NumericLiteralToken
 import compiler.lexer.SourceLocation
 import compiler.parser.Reporting
@@ -142,13 +145,13 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
         validate()
 
         if (integerValue != null) {
-            return compiler.ast.type.Int.baseReference(context)
+            return Int.baseReference(context)
         }
         else if (floatingValue != null) {
-            return compiler.ast.type.Float.baseReference(context)
+            return Float.baseReference(context)
         }
         else {
-            return compiler.ast.type.Number.baseReference(context)
+            return Number.baseReference(context)
         }
     }
 }

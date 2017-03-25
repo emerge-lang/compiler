@@ -1,8 +1,8 @@
 package compiler.ast.expression
 
 import compiler.binding.context.CTContext
-import compiler.ast.type.Any
-import compiler.ast.type.BaseTypeReference
+import compiler.binding.type.Any
+import compiler.binding.type.BaseTypeReference
 import compiler.ast.type.TypeReference
 import compiler.lexer.SourceLocation
 import compiler.parser.Reporting

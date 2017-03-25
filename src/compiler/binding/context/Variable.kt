@@ -1,7 +1,7 @@
 package compiler.binding.context
 
 import compiler.ast.VariableDeclaration
-import compiler.ast.type.BaseTypeReference
+import compiler.binding.type.BaseTypeReference
 import compiler.ast.type.TypeReference
 
 /**

@@ -1,5 +1,5 @@
 import compiler.binding.context.SoftwareContext
-import compiler.ast.type.BuiltinType
+import compiler.binding.type.BuiltinType
 import compiler.lexer.*
 import compiler.parser.grammar.CodeChunkRule
 import compiler.parser.toTransactional

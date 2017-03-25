@@ -3,8 +3,9 @@ package compiler.ast.expression
 import compiler.binding.context.CTContext
 import compiler.binding.context.Function
 import compiler.binding.context.filterAndSortByMatchForInvocationTypes
-import compiler.ast.type.BaseTypeReference
+import compiler.binding.type.BaseTypeReference
 import compiler.ast.type.FunctionModifier
+import compiler.binding.type.Any
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.parser.Reporting
@@ -45,7 +46,7 @@ class BinaryExpression(
      */
     private fun getOperatorFunction(context: CTContext): Function? {
         val typeFirst = first.determineType(context) ?: return null
-        val typeSecond: BaseTypeReference = second.determineType(context) ?: compiler.ast.type.Any.baseReference(context)
+        val typeSecond: BaseTypeReference = second.determineType(context) ?: Any.baseReference(context)
 
         val opFunName = operatorFunctionName(op.operator)
 

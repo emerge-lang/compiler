@@ -1,7 +1,7 @@
 package compiler.parser
 
 import compiler.InternalCompilerError
-import compiler.ast.type.BaseTypeReference
+import compiler.binding.type.BaseTypeReference
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
 import compiler.lexer.SourceLocation

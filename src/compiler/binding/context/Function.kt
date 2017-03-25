@@ -2,9 +2,9 @@ package compiler.binding.context
 
 import compiler.InternalCompilerError
 import compiler.ast.FunctionDeclaration
-import compiler.ast.type.Any
-import compiler.ast.type.BaseType
-import compiler.ast.type.BaseTypeReference
+import compiler.binding.type.Any
+import compiler.binding.type.BaseType
+import compiler.binding.type.BaseTypeReference
 import compiler.retryUntilNotNull
 
 /**

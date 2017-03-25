@@ -3,9 +3,10 @@ package compiler.ast
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
 import compiler.ast.expression.Expression
-import compiler.ast.type.BaseTypeReference
+import compiler.binding.type.BaseTypeReference
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
+import compiler.binding.type.Any
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.parser.Reporting
@@ -92,7 +93,7 @@ open class VariableDeclaration(
             return context
         }
 
-        val type = determineType(context) ?: compiler.ast.type.Any.baseReference
+        val type = determineType(context) ?: Any.baseReference
         val newContext = MutableCTContext.deriveFrom(context)
         newContext.addVariable(this)
         return newContext

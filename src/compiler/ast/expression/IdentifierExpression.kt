@@ -1,7 +1,7 @@
 package compiler.ast.expression
 
 import compiler.binding.context.CTContext
-import compiler.ast.type.BaseTypeReference
+import compiler.binding.type.BaseTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.parser.Reporting
 

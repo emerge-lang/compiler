@@ -1,5 +1,6 @@
 package compiler.ast.type
 
+import compiler.binding.type.BaseType
 import io.kotlintest.specs.BehaviorSpec
 
 class BaseTypeTest : BehaviorSpec() { init {

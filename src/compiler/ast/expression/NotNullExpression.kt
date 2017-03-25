@@ -2,7 +2,7 @@ package compiler.ast.expression
 
 import compiler.ast.Executable
 import compiler.binding.context.CTContext
-import compiler.ast.type.BaseTypeReference
+import compiler.binding.type.BaseTypeReference
 import compiler.ast.type.TypeReference
 import compiler.lexer.OperatorToken
 

@@ -3,8 +3,9 @@ package compiler.ast.expression
 import compiler.binding.context.CTContext
 import compiler.binding.context.Function
 import compiler.binding.context.filterAndSortByMatchForInvocationTypes
-import compiler.ast.type.BaseTypeReference
+import compiler.binding.type.BaseTypeReference
 import compiler.ast.type.FunctionModifier
+import compiler.binding.type.Any
 import compiler.lexer.Operator
 import compiler.lexer.SourceLocation
 
@@ -13,7 +14,7 @@ class UnaryExpression(val operator: Operator, val valueExpression: Expression): 
     override val sourceLocation = valueExpression.sourceLocation
 
     override fun determineType(context: CTContext): BaseTypeReference {
-        return getOperatorFunction(context)?.returnType ?: compiler.ast.type.Any.baseReference(context)
+        return getOperatorFunction(context)?.returnType ?: Any.baseReference(context)
     }
 
     /**

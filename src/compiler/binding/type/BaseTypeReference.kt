@@ -1,5 +1,7 @@
-package compiler.ast.type
+package compiler.binding.type
 
+import compiler.ast.type.TypeModifier
+import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.parser.Reporting
