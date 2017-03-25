@@ -1,6 +1,6 @@
 package compiler.ast
 
-import compiler.ast.context.CTContext
+import compiler.binding.context.CTContext
 import compiler.ast.expression.Expression
 import compiler.lexer.KeywordToken
 import compiler.parser.Reporting

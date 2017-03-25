@@ -1,7 +1,7 @@
 package compiler.ast.expression
 
 import compiler.ast.Executable
-import compiler.ast.context.CTContext
+import compiler.binding.context.CTContext
 
 class InvocationExpression(
     val receiverExpr: Expression,

@@ -1,6 +1,6 @@
 package compiler.ast.type
 
-import compiler.ast.context.CTContext
+import compiler.binding.context.CTContext
 import compiler.lexer.IdentifierToken
 
 open class TypeReference(

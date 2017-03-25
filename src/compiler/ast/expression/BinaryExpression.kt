@@ -1,8 +1,8 @@
 package compiler.ast.expression
 
-import compiler.ast.context.CTContext
-import compiler.ast.context.Function
-import compiler.ast.context.filterAndSortByMatchForInvocationTypes
+import compiler.binding.context.CTContext
+import compiler.binding.context.Function
+import compiler.binding.context.filterAndSortByMatchForInvocationTypes
 import compiler.ast.type.BaseTypeReference
 import compiler.ast.type.FunctionModifier
 import compiler.lexer.Operator

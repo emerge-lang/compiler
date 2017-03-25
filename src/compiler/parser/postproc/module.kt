@@ -2,8 +2,8 @@ package compiler.parser.postproc
 
 import compiler.InternalCompilerError
 import compiler.ast.*
-import compiler.ast.context.Module
-import compiler.ast.context.MutableCTContext
+import compiler.binding.context.Module
+import compiler.binding.context.MutableCTContext
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.matching.ResultCertainty

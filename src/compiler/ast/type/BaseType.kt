@@ -1,7 +1,7 @@
 package compiler.ast.type
 
 import compiler.ast.FunctionDeclaration
-import compiler.ast.context.CTContext
+import compiler.binding.context.CTContext
 
 /**
  * Base type are classes, interfaces, enums, built-in type

@@ -1,7 +1,7 @@
 package compiler.ast
 
-import compiler.ast.context.CTContext
-import compiler.ast.context.MutableCTContext
+import compiler.binding.context.CTContext
+import compiler.binding.context.MutableCTContext
 import compiler.ast.expression.Expression
 import compiler.ast.type.BaseTypeReference
 import compiler.ast.type.TypeModifier

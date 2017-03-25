@@ -1,7 +1,7 @@
 import compiler.ast.ModuleDeclaration
-import compiler.ast.context.CTContext
-import compiler.ast.context.Module
-import compiler.ast.context.MutableCTContext
+import compiler.binding.context.CTContext
+import compiler.binding.context.Module
+import compiler.binding.context.MutableCTContext
 import compiler.ast.expression.Expression
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword.*

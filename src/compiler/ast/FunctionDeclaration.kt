@@ -1,7 +1,7 @@
 package compiler.ast
 
-import compiler.ast.context.CTContext
-import compiler.ast.context.MutableCTContext
+import compiler.binding.context.CTContext
+import compiler.binding.context.MutableCTContext
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken

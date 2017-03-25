@@ -1,4 +1,4 @@
-package compiler.ast.context
+package compiler.binding.context
 
 import compiler.ast.VariableDeclaration
 import compiler.ast.type.BaseTypeReference

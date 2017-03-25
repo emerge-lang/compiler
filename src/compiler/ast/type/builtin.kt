@@ -1,9 +1,9 @@
 package compiler.ast.type
 
 import compiler.ast.FunctionDeclaration
-import compiler.ast.context.CTContext
-import compiler.ast.context.Module
-import compiler.ast.context.MutableCTContext
+import compiler.binding.context.CTContext
+import compiler.binding.context.Module
+import compiler.binding.context.MutableCTContext
 import compiler.parseFromClasspath
 
 /*

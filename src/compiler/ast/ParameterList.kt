@@ -1,6 +1,6 @@
 package compiler.ast
 
-import compiler.ast.context.CTContext
+import compiler.binding.context.CTContext
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken

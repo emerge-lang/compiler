@@ -1,7 +1,7 @@
 package compiler
 
 import Module
-import compiler.ast.context.Module
+import compiler.binding.context.Module
 import compiler.lexer.SourceContentAwareSourceDescriptor
 import compiler.lexer.lex
 import compiler.parser.TokenSequence

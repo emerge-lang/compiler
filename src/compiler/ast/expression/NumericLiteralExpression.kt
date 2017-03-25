@@ -1,6 +1,6 @@
 package compiler.ast.expression
 
-import compiler.ast.context.CTContext
+import compiler.binding.context.CTContext
 import compiler.ast.type.BaseTypeReference
 import compiler.lexer.NumericLiteralToken
 import compiler.lexer.SourceLocation

@@ -1,4 +1,4 @@
-import compiler.ast.context.SoftwareContext
+import compiler.binding.context.SoftwareContext
 import compiler.ast.type.BuiltinType
 import compiler.lexer.*
 import compiler.parser.grammar.CodeChunkRule

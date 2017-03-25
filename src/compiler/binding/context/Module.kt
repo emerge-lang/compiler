@@ -1,4 +1,4 @@
-package compiler.ast.context
+package compiler.binding.context
 
 class Module(
     val name: Array<String>,
