@@ -1,17 +1,19 @@
 package compiler.ast.expression
 
+import compiler.binding.BindingResult
 import compiler.binding.context.CTContext
+import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.*
 import compiler.binding.type.BaseTypeReference
 import compiler.binding.type.Float
 import compiler.binding.type.Int
 import compiler.binding.type.Number
 import compiler.lexer.NumericLiteralToken
-import compiler.lexer.SourceLocation
 import compiler.parser.Reporting
 import java.math.BigDecimal
 import java.math.BigInteger
 
-class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expression {
+class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expression<BoundExpression<NumericLiteralExpression>> {
 
     /** integer value of this expression, if integer */
     private var integerValue: BigInteger? = null
@@ -21,10 +23,42 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
 
     private var validationResult: Collection<Reporting>? = null
 
+    private var bindingResult: BindingResult<BoundNumericLiteralExpression>? = null
+
     override val sourceLocation = literalToken.sourceLocation
 
-    /** Validates this expression */
-    fun validate(): Collection<Reporting> {
+    override fun bindTo(context: CTContext): BindingResult<BoundNumericLiteralExpression> {
+        if (bindingResult != null) return bindingResult!!
+        bindingResult = bindToImpl(context)
+        return bindingResult!!
+    }
+
+    private fun bindToImpl(context: CTContext): BindingResult<BoundNumericLiteralExpression> {
+        validate()
+
+        val type: BaseTypeReference
+
+        if (integerValue != null) {
+            type = Int.baseReference(context)
+        }
+        else if (floatingValue != null) {
+            type = Float.baseReference(context)
+        }
+        else {
+            type = Number.baseReference(context)
+        }
+
+        return BindingResult(
+            object : BoundNumericLiteralExpression {
+                override val context = context
+                override val declaration = this@NumericLiteralExpression
+                override val type = type
+            },
+            validationResult!!
+        )
+    }
+
+    private fun validate(): Collection<Reporting> {
         if (validationResult != null) return validationResult!!
 
         var str = literalToken.stringContent
@@ -138,20 +172,6 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
 
             integerValue = BigInteger(str, base)
             return emptySet()
-        }
-    }
-
-    override fun determineType(context: CTContext): BaseTypeReference {
-        validate()
-
-        if (integerValue != null) {
-            return Int.baseReference(context)
-        }
-        else if (floatingValue != null) {
-            return Float.baseReference(context)
-        }
-        else {
-            return Number.baseReference(context)
         }
     }
 }
