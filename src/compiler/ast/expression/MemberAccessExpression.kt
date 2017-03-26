@@ -1,5 +1,8 @@
 package compiler.ast.expression
 
+import compiler.binding.BindingResult
+import compiler.binding.context.CTContext
+import compiler.binding.expression.BoundMemberAccessExpression
 import compiler.lexer.IdentifierToken
 
 /**
@@ -10,8 +13,25 @@ import compiler.lexer.IdentifierToken
  * it first tries to resolve a member function with the [memberName] before evaluating this expression.
  */
 class MemberAccessExpression(
-    val valueExpression: Expression,
+    val valueExpression: Expression<*>,
     val memberName: IdentifierToken
-) : Expression {
+) : Expression<BoundMemberAccessExpression> {
     override val sourceLocation = valueExpression.sourceLocation
+
+    override fun bindTo(context: CTContext): BindingResult<BoundMemberAccessExpression> {
+        // TODO implement member variable lookup
+
+        val valueExprBinding = valueExpression.bindTo(context)
+
+        return BindingResult(
+            BoundMemberAccessExpression(
+                context,
+                this,
+                null,
+                valueExprBinding.bound,
+                memberName.value
+            ),
+            valueExprBinding.reportings
+        )
+    }
 }
