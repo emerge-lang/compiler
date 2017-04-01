@@ -1,39 +1,52 @@
 package compiler.ast.expression
 
-import compiler.binding.context.CTContext
-import compiler.binding.BoundFunction
-import compiler.binding.filterAndSortByMatchForInvocationTypes
-import compiler.binding.type.BaseTypeReference
 import compiler.ast.type.FunctionModifier
-import compiler.binding.type.Any
+import compiler.binding.BindingResult
+import compiler.binding.BoundFunction
+import compiler.binding.context.CTContext
+import compiler.binding.expression.BoundUnaryExpression
+import compiler.binding.filterAndSortByMatchForInvocationTypes
 import compiler.lexer.Operator
-import compiler.lexer.SourceLocation
+import compiler.parser.Reporting
 
-class UnaryExpression(val operator: Operator, val valueExpression: Expression): Expression
+class UnaryExpression(val operator: Operator, val valueExpression: Expression<*>): Expression<BoundUnaryExpression>
 {
     override val sourceLocation = valueExpression.sourceLocation
 
-    override fun determineType(context: CTContext): BaseTypeReference {
-        return getOperatorFunction(context)?.returnType ?: Any.baseReference(context)
-    }
+    override fun bindTo(context: CTContext): BindingResult<BoundUnaryExpression> {
+        val reportings = mutableListOf<Reporting>()
 
-    /**
-     * Attempts to resolve the operator function in the given context.
-     *
-     * @return The operator function to use to evaluate this expression or null the given context does not contain
-     *         a suitable function.
-     */
-    private fun getOperatorFunction(context: CTContext): BoundFunction? {
-        val valueType = valueExpression.determineType(context)
+        // determine type without operator applied
+        val valueExprBR = valueExpression.bindTo(context)
+        val valueType = valueExprBR.bound.type
 
-        val opFunName = "unary" + operator.name[0].toUpperCase() + operator.name.substring(1).toLowerCase()
+        val operatorFunction: BoundFunction?
+        if (valueType != null) {
+            // determine operator function
+            val opFunName = "unary" + operator.name[0].toUpperCase() + operator.name.substring(1).toLowerCase()
 
-        // functions with receiver
-        val receiverOperatorFuns =
-            context.resolveAnyFunctions(opFunName)
-            .filterAndSortByMatchForInvocationTypes(valueType, emptyList())
-            .filter { FunctionModifier.OPERATOR in it.declaration.modifiers }
+            // functions with receiver
+            val receiverOperatorFuns =
+                context.resolveAnyFunctions(opFunName)
+                    .filterAndSortByMatchForInvocationTypes(valueType, emptyList())
+                    .filter { FunctionModifier.OPERATOR in it.declaration.modifiers }
 
-        return receiverOperatorFuns.firstOrNull()
+            operatorFunction = receiverOperatorFuns.firstOrNull()
+
+            if (operatorFunction == null) {
+                reportings.add(Reporting.error("Unary operator $operator not declared for type $valueType", valueExpression.sourceLocation))
+            }
+        }
+        else operatorFunction = null
+
+        return BindingResult(
+            BoundUnaryExpression(
+                context,
+                this,
+                operatorFunction?.receiverType,
+                valueExprBR.bound
+            ),
+            reportings
+        )
     }
 }
