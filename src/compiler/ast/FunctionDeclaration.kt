@@ -5,12 +5,14 @@ import compiler.binding.context.MutableCTContext
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeReference
 import compiler.binding.BindingResult
+import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundFunction
 import compiler.binding.BoundParameterList
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 import compiler.lexer.SourceLocation
 import compiler.parser.Reporting
+import javax.naming.Binding
 
 class FunctionDeclaration(
     override val declaredAt: SourceLocation,
@@ -64,9 +66,12 @@ class FunctionDeclaration(
 
         // TODO: incorporate the READONLY, PURE and NOTHROW modifiers into codeContext
 
+        val codeBR: BindingResult<BoundCodeChunk>?
         if (code != null) {
-            reportings.addAll(code.validate(codeContext))
+            codeBR = code.bindTo(context)
+            reportings.addAll(codeBR.reportings)
         }
+        else codeBR = null
 
         return BindingResult(
             BoundFunction(
@@ -74,7 +79,9 @@ class FunctionDeclaration(
                 this,
                 receiverBaseType,
                 parametersBR.bound,
-                returnBaseType),
+                returnBaseType,
+                codeBR?.bound
+            ),
             reportings
         )
     }
