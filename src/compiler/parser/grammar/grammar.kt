@@ -90,7 +90,7 @@ val ValueExpression = rule {
     .describeAs("value expression")
     .postprocess(::ValueExpressionPostProcessor)
 
-val ParanthesisedExpression: Rule<Expression> = rule {
+val ParanthesisedExpression: Rule<Expression<*>> = rule {
     operator(PARANT_OPEN)
     expression()
     __matched()
@@ -189,7 +189,7 @@ val ExpressionPostfix = rule {
     __optimistic()
 }
     .flatten()
-    .mapResult { it.next()!! as ExpressionPostfixModifier<Expression> }
+    .mapResult { it.next()!! as ExpressionPostfixModifier<Expression<*>> }
 
 val VariableDeclaration = rule {
 

@@ -21,7 +21,7 @@ fun ReturnStatementPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<
 
 private fun toAST_ReturnStatement(input: TransactionalSequence<Any, Position>): ReturnStatement {
     val keyword = input.next()!! as KeywordToken
-    val expression = input.next()!! as Expression
+    val expression = input.next()!! as Expression<*>
 
     return ReturnStatement(keyword, expression)
 }
@@ -35,14 +35,14 @@ fun CodeChunkPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<CodeCh
 }
 
 private fun toAST_codeChunk(input: TransactionalSequence<Any, Position>): CodeChunk {
-    val executables = mutableListOf<Executable>()
+    val executables = mutableListOf<Executable<*>>()
     input.remainingToList()
         .filter { it !is OperatorToken }
         .forEach {
-            if (it is Executable) {
+            if (it is Executable<*>) {
                 executables.add(it)
             }
-            else if (it is Expression) {
+            else if (it is Expression<*>) {
                 executables.add(StandaloneExpression(it))
             }
             else throw InternalCompilerError("How did this thing get into here?!")

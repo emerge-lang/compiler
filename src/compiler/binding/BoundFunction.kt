@@ -17,7 +17,8 @@ class BoundFunction(
 
     val receiverType: BaseTypeReference?,
     val parameters: BoundParameterList,
-    val returnType: BaseTypeReference?
+    val returnType: BaseTypeReference?,
+    val code: BoundCodeChunk?
 ) {
     val name: String = declaration.name.value
     val modifiers = declaration.modifiers

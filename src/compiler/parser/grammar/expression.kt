@@ -15,10 +15,10 @@ import compiler.parser.rule.RuleMatchingResult
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 
-class ExpressionRule : Rule<Expression> {
+class ExpressionRule : Rule<Expression<*>> {
     override val descriptionOfAMatchingThing = "expression"
 
-    override fun tryMatch(input: TokenSequence): RuleMatchingResult<Expression> {
+    override fun tryMatch(input: TokenSequence): RuleMatchingResult<Expression<*>> {
         return rule.tryMatch(input)
     }
 
@@ -40,8 +40,8 @@ class ExpressionRule : Rule<Expression> {
             .mapResult(this::postprocess)
     }
 
-    private fun postprocess(input: TransactionalSequence<Any, Position>): Expression {
-        var expression = input.next()!! as Expression
+    private fun postprocess(input: TransactionalSequence<Any, Position>): Expression<*> {
+        var expression = input.next()!! as Expression<*>
         @Suppress("UNCHECKED_CAST")
         val postfixes = input.remainingToList() as List<ExpressionPostfixModifier<*>>
 

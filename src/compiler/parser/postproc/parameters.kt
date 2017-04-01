@@ -1,10 +1,8 @@
 package compiler.parser.postproc
 
 import compiler.InternalCompilerError
-import compiler.ast.Parameter
 import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
-import compiler.ast.expression.Expression
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
 import compiler.lexer.*
@@ -12,16 +10,15 @@ import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
-import java.lang.reflect.Type
 import java.util.*
 
-fun ParameterDeclarationPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Parameter> {
+fun ParameterDeclarationPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<VariableDeclaration> {
     return rule
         .flatten()
         .mapResult(::toAST_ParameterDeclaration)
 }
 
-private fun toAST_ParameterDeclaration(input: TransactionalSequence<Any, Position>): Parameter {
+private fun toAST_ParameterDeclaration(input: TransactionalSequence<Any, Position>): VariableDeclaration {
     var declarationKeyword: Keyword? = null
     var typeModifier: TypeModifier? = null
     var name: IdentifierToken
@@ -46,11 +43,13 @@ private fun toAST_ParameterDeclaration(input: TransactionalSequence<Any, Positio
         type = input.next()!! as TypeReference
     }
 
-    return Parameter(
+    return VariableDeclaration(
+        name.sourceLocation,
         typeModifier,
         name,
         type,
-        declarationKeyword == Keyword.VAR
+        declarationKeyword == Keyword.VAR,
+        null
     )
 }
 
@@ -64,7 +63,7 @@ private fun toAST_ParameterList(tokens: TransactionalSequence<Any, Position>): P
     // skip PARANT_OPEN
     tokens.next()!!
 
-    val parameters: MutableList<Parameter> = LinkedList()
+    val parameters: MutableList<VariableDeclaration> = LinkedList()
 
     while (tokens.hasNext()) {
         var next = tokens.next()!!
@@ -72,7 +71,7 @@ private fun toAST_ParameterList(tokens: TransactionalSequence<Any, Position>): P
             return ParameterList(parameters)
         }
 
-        parameters.add(next as Parameter)
+        parameters.add(next as VariableDeclaration)
 
         tokens.mark()
 

@@ -42,12 +42,12 @@ private fun toAST_VariableDeclaration(input: TransactionalSequence<Any, Position
         colonOrEqualsOrNewline = input.next()!!
     }
 
-    var assignExpression: Expression? = null
+    var assignExpression: Expression<*>? = null
 
     val equalsOrNewline = colonOrEqualsOrNewline
 
     if (equalsOrNewline == OperatorToken(Operator.ASSIGNMENT)) {
-        assignExpression = input.next()!! as Expression
+        assignExpression = input.next()!! as Expression<*>
     }
 
     return VariableDeclaration(
