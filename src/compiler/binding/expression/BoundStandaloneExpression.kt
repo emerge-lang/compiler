@@ -9,5 +9,5 @@ class BoundStandaloneExpression(
     override val context: CTContext,
     override val declaration: StandaloneExpression,
     override val type: BaseTypeReference?,
-    val original: BoundExpression<*>
+    val expression: BoundExpression<*>
 ) : BoundExpression<StandaloneExpression>, BoundExecutable<StandaloneExpression>
