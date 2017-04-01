@@ -8,6 +8,7 @@ import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
 import compiler.binding.BindingResult
 import compiler.binding.BoundVariable
+import compiler.binding.expression.BoundExpression
 import compiler.binding.type.Any
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
@@ -19,17 +20,9 @@ open class VariableDeclaration(
     val name: IdentifierToken,
     val type: TypeReference?,
     val isAssignable: Boolean,
-    val assignExpression: Expression?
+    val assignExpression: Expression<*>?
 ) : Declaration, Executable<BoundVariable> {
-    /**
-     * Determines and returns the type of the variable when initialized in the given context. If the type cannot
-     * be determined due to semantic reportings, the closest guess is returned, even Any if there is absolutely no clue.
-     */
-    fun determineType(context: CTContext): BaseTypeReference? {
-        val baseType = declaredType(context) ?: assignExpression?.determineType(context)
-
-        return if (typeModifier == null) baseType else baseType?.modifiedWith(typeModifier)
-    }
+    override val sourceLocation = declaredAt
 
     fun declaredType(context: CTContext): BaseTypeReference? {
         if (type == null) return null
@@ -55,7 +48,7 @@ open class VariableDeclaration(
         // type-related stuff
         // unknown type
         if (assignExpression == null && type == null) {
-            reportings.add(Reporting.error("Cannot determine type for $selfType ${name.value}; neither type nor initializer is specified.", declaredAt))
+            reportings.add(Reporting.error("Cannot determine type of $selfType ${name.value}; neither type nor initializer is specified.", declaredAt))
         }
 
         // cannot resolve declared type
@@ -67,14 +60,17 @@ open class VariableDeclaration(
             reportings.addAll(declaredType.validate())
         }
 
+        val boundAssignExpression: BoundExpression<*>?
         if (assignExpression != null) {
-            reportings.addAll(assignExpression.validate(context))
+            val assignExpressionBR = assignExpression.bindTo(context)
+            reportings.addAll(assignExpressionBR.reportings)
+            boundAssignExpression = assignExpressionBR.bound
 
             if (declaredType != null) {
-                val initializerType = assignExpression.determineType(context)
+                val initializerType = boundAssignExpression.type
 
-                // if the initilizer type cannot be resolved the reporting is already done: assignExpression.validate
-                // should have returned it; so: we dont care :)
+                // if the initializer type cannot be resolved the reporting is already done by assignExpression.bindTo
+                // should have returned it; so: we don't care :)
 
                 // discrepancy between assign expression and declared type
                 if (initializerType != null) {
@@ -83,10 +79,20 @@ open class VariableDeclaration(
                     }
                 }
             }
-        }
 
-        val reportedType: BaseTypeReference? =
-            if (type != null) declaredType else assignExpression?.determineType(context)
+            // discrepancy between implied modifiers of assignExpression and type modifiers of this declaration
+            val assignExprBaseType = boundAssignExpression.type?.baseType
+            val assignExprTypeImpliedModifier = assignExprBaseType?.impliedModifier
+            if (typeModifier != null && assignExprTypeImpliedModifier != null) {
+                if (!(assignExprTypeImpliedModifier isAssignableTo typeModifier)) {
+                    reportings.add(Reporting.error("Modifier $typeModifier not applicable to implied modifier $assignExprTypeImpliedModifier of $assignExprBaseType", declaredAt))
+                }
+            }
+        }
+        else boundAssignExpression = null
+
+        val reportedBaseType = if (type != null) declaredType else boundAssignExpression?.type
+        val reportedType = if (typeModifier == null) reportedBaseType else reportedBaseType?.modifiedWith(typeModifier)
 
         return BindingResult(
             BoundVariable(
@@ -96,18 +102,5 @@ open class VariableDeclaration(
             ),
             reportings
         )
-    }
-
-    override fun modified(context: CTContext): CTContext {
-        val existingVar = context.resolveVariable(name = name.value, onlyOwn = true)
-        if (existingVar != null) {
-            // this is a double declaration => do not change anything
-            return context
-        }
-
-        val type = determineType(context) ?: Any.baseReference
-        val newContext = MutableCTContext.deriveFrom(context)
-        newContext.addVariable(this)
-        return newContext
     }
 }

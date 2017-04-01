@@ -10,9 +10,10 @@ import compiler.binding.context.CTContext
  * Refers to the original declaration and contains an override type.
  */
 class BoundVariable(
-    val context: CTContext,
-    val declaration: VariableDeclaration,
-    val type: BaseTypeReference?)
+    override val context: CTContext,
+    override val declaration: VariableDeclaration,
+    val type: BaseTypeReference?
+) : BoundExecutable<VariableDeclaration>
 {
     val isAssignable: Boolean = declaration.isAssignable
 
