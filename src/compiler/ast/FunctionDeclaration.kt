@@ -45,7 +45,8 @@ class FunctionDeclaration(
         }
 
         // parameters
-        reportings.addAll(parameters.validate(context, false))
+        val parametersBR = parameters.bindTo(context, false)
+        reportings.addAll(parametersBR.reportings)
 
         // return type
         val returnBaseType = returnType.resolveWithin(context)
@@ -72,7 +73,7 @@ class FunctionDeclaration(
                 context,
                 this,
                 receiverBaseType,
-                BoundParameterList(),
+                parametersBR.bound,
                 returnBaseType),
             reportings
         )
