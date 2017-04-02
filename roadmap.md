@@ -15,6 +15,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
      report the error, go to the next Operator.COMMA and continue
 7. Test suite for all existing code
 8. control structures
+    * if-else
+    * while / do-while
+    * for
 9. object model
     1. class definition
     2. struct definition
@@ -41,11 +44,15 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 17. Strings + String literals
     * i ABSOLUTELY want `typealias String = immutable Array<Char>`
 18. Function types
-    1. `operator fun invoke`
-    2. Syntax-Sugar for function type literals:
-       * `(T1, T2) -> R` to `Function<R, T1, T2>` 
-    4. what about function types with receiver? needed for builders :/ :/
-       * would yield syntax sugar `O.(T1, T2) -> R` to `Function<O, R, T1, T2>` 
+    1. `operator fun invoke`: `obj(param)` to `obj.invoke(param)`
+    2. Regular functions: `(T1, T2) -> R`
+    3. Functions w/ receiver: `O.(T1, T2) -> R` that can be invoked on objects
+       as if they were extension functions:
+       ```
+       val fn: O.(T1, T2) -> R = ...
+       val obj: O = ...
+       obj.fn(param1, param2)
+       ```
 19. CTFE 
 20. smart casts
 21. deferred statements
