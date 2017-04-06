@@ -29,6 +29,8 @@ open class BaseTypeReference(
 
     override fun nonNull(): BaseTypeReference = BaseTypeReference(original.nonNull(), context, baseType)
 
+    override fun nullable(): BaseTypeReference = BaseTypeReference(original.nullable(), context, baseType)
+
     override fun asInferred(): BaseTypeReference = BaseTypeReference(original.asInferred(), context, baseType)
 
     /**

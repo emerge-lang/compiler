@@ -21,6 +21,8 @@ open class TypeReference(
 
     open fun nonNull(): TypeReference = TypeReference(declaredName, false, modifier, isInferred, declaringNameToken)
 
+    open fun nullable(): TypeReference = TypeReference(declaredName, true, modifier, isInferred, declaringNameToken);
+
     open fun asInferred(): TypeReference = TypeReference(declaredName, isNullable, modifier, true, declaringNameToken)
 
     open fun resolveWithin(context: CTContext): BaseTypeReference? {
