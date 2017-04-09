@@ -114,9 +114,6 @@ class InvocationExpressionPostfixModifier(
                 input.next()!! as OperatorToken
             }
 
-            // skip
-            input.next()!! as OperatorToken
-
             return InvocationExpressionPostfixModifier(paramExpressions)
         }
     }
