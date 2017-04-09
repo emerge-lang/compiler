@@ -3,9 +3,7 @@ package compiler.binding.expression
 import compiler.ast.expression.InvocationExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
-import compiler.binding.BoundParameterList
 import compiler.binding.context.CTContext
-import compiler.binding.type.BaseTypeReference
 
 abstract class BoundInvocationExpression : BoundExpression<InvocationExpression>, BoundExecutable<InvocationExpression>
 
@@ -26,9 +24,10 @@ class StaticDispatchInvocationExpression(
     val function: BoundFunction?,
 
     /**
-     * Receiver parameter of the function. If the function has no receiver, [BoundNullLiteralExpression] is used.
+     * Receiver parameter of the function. This variable is `null` if the invoked function has no receiver
+     * and the invocation was in a context without receiver.
      */
-    val receiverValue: BoundExpression<*>,
+    val receiverValue: BoundExpression<*>?,
 
     /**
      * The values of the parameters, in order.

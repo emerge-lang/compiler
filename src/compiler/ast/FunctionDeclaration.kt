@@ -17,6 +17,10 @@ import javax.naming.Binding
 class FunctionDeclaration(
     override val declaredAt: SourceLocation,
     val modifiers: Set<FunctionModifier>,
+
+    /**
+     * The receiver type; is null if the declared function has no receiver.
+     */
     val receiverType: TypeReference?,
     val name: IdentifierToken,
     val parameters: ParameterList,

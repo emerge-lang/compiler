@@ -11,7 +11,6 @@ import compiler.binding.expression.StaticDispatchInvocationExpression
 import compiler.binding.filterAndSortByMatchForInvocationTypes
 import compiler.lexer.SourceLocation
 import compiler.parser.Reporting
-import java.lang.UnsupportedOperationException
 
 class InvocationExpression(
     /**

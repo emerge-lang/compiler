@@ -15,6 +15,10 @@ class BoundFunction(
     val context: CTContext,
     val declaration: FunctionDeclaration,
 
+    /**
+     * The type of the receiver. Is null if the declared function has no receiver or if the declared receiver type
+     * could not be resolved. See [FunctionDeclaration.receiverType] to resolve the ambiguity.
+     */
     val receiverType: BaseTypeReference?,
     val parameters: BoundParameterList,
     val returnType: BaseTypeReference?,
