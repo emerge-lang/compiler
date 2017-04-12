@@ -1,10 +1,18 @@
 import compiler.binding.context.SoftwareContext
 import compiler.binding.type.BuiltinType
 import compiler.lexer.*
-import compiler.parser.grammar.CodeChunkRule
 import compiler.parser.toTransactional
 
-val testCode = """a.b!!()
+val testCode = """module testcode
+
+fun foo(bar: Int) -> Int {
+    return bar + 3
+}
+
+fun main() {
+    bar(2)
+}
+
 """
 
 fun main(args: Array<String>) {
@@ -23,9 +31,9 @@ fun main(args: Array<String>) {
 
     println("------------")
 
-    val matched = CodeChunkRule.INSTANCE.tryMatch(tokens.toTransactional(source.toLocation(1, 1)))
-    // val parsedModule = matched.item
-    // parsedModule?.context?.swCtx = swCtx
+    val matched = Module.tryMatch(tokens.toTransactional(source.toLocation(1, 1)))
+    val parsedModule = matched.item
+    parsedModule?.context?.swCtx = swCtx
 
     println("certainty = ${matched.certainty}")
     println("item = ${matched.item}")
