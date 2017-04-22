@@ -35,8 +35,6 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       * Kotlin `GenericType<modifier TypeParameter>`
       * D `GenericType!TypeParameter` and `GenericType!(modifier TypeParameter)`
     * Decide whether to support vararg type parameters
-      * are needed if we want to avoid to shit like `Function1<R, T1>, Function2<R, T1, T2> ... Function10<R, T1 ... T10>`
-      * would be easier with templates
 13. Decision on compile target architecture (native/vm with pointers VS JVM)
 14. Array type
 15. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
