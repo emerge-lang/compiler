@@ -3,10 +3,8 @@ package compiler.binding.type
 import compiler.ast.FunctionDeclaration
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
-import compiler.binding.context.CTContext
 import compiler.binding.context.Module
 import compiler.binding.context.MutableCTContext
-import compiler.parseFromClasspath
 
 /*
  * This file contains raw definitions of the builtin types.

@@ -1,7 +1,6 @@
 package compiler.binding
 
 import compiler.ast.ReturnStatement
-import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseTypeReference
 

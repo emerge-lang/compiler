@@ -3,16 +3,11 @@ package compiler.parser.grammar
 import ReturnStatement
 import VariableDeclaration
 import compiler.ast.CodeChunk
-import compiler.ast.Executable
-import compiler.ast.expression.Expression
-import compiler.ast.expression.StandaloneExpression
 import compiler.lexer.Operator
 import compiler.parser.TokenSequence
 import compiler.parser.postproc.CodeChunkPostProcessor
-import compiler.parser.postproc.flatten
-import compiler.parser.postproc.mapResult
-import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
+import compiler.parser.rule.RuleMatchingResult
 
 class CodeChunkRule : Rule<CodeChunk> {
     override val descriptionOfAMatchingThing = "code"

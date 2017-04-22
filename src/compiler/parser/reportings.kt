@@ -1,14 +1,14 @@
 package compiler.parser
 
 import compiler.InternalCompilerError
-import compiler.binding.type.BaseTypeReference
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
+import compiler.binding.type.BaseTypeReference
 import compiler.lexer.SourceLocation
 import compiler.lexer.Token
-import compiler.parser.rule.RuleMatchingResult
 import compiler.matching.ResultCertainty
 import compiler.matching.SimpleMatchingResult
+import compiler.parser.rule.RuleMatchingResult
 import textutils.indentByFromSecondLine
 
 open class Reporting(

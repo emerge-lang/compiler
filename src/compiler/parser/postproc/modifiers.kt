@@ -4,8 +4,8 @@ import compiler.InternalCompilerError
 import compiler.ast.type.FunctionModifier
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
-import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
+import compiler.parser.rule.RuleMatchingResult
 
 fun FunctionModifierPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<FunctionModifier> {
     return rule

@@ -1,18 +1,15 @@
 package compiler.ast
 
-import compiler.binding.context.CTContext
-import compiler.binding.context.MutableCTContext
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeReference
 import compiler.binding.BindingResult
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundFunction
-import compiler.binding.BoundParameterList
+import compiler.binding.context.CTContext
+import compiler.binding.context.MutableCTContext
 import compiler.lexer.IdentifierToken
-import compiler.lexer.KeywordToken
 import compiler.lexer.SourceLocation
 import compiler.parser.Reporting
-import javax.naming.Binding
 
 class FunctionDeclaration(
     override val declaredAt: SourceLocation,

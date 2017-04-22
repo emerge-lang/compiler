@@ -1,15 +1,13 @@
 package compiler.ast
 
-import compiler.binding.context.CTContext
-import compiler.binding.context.MutableCTContext
 import compiler.ast.expression.Expression
-import compiler.binding.type.BaseTypeReference
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
 import compiler.binding.BindingResult
 import compiler.binding.BoundVariable
+import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
-import compiler.binding.type.Any
+import compiler.binding.type.BaseTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.parser.Reporting

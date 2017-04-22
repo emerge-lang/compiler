@@ -3,8 +3,8 @@ package compiler.parser.postproc
 import compiler.ast.expression.NumericLiteralExpression
 import compiler.lexer.NumericLiteralToken
 import compiler.matching.ResultCertainty
-import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
+import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.RuleMatchingResultImpl
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence

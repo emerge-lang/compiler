@@ -1,6 +1,7 @@
 import compiler.binding.context.SoftwareContext
 import compiler.binding.type.BuiltinType
-import compiler.lexer.*
+import compiler.lexer.SourceContentAwareSourceDescriptor
+import compiler.lexer.lex
 import compiler.parser.toTransactional
 
 val testCode = """module testcode

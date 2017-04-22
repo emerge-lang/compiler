@@ -3,7 +3,6 @@ package compiler.parser.grammar
 import compiler.lexer.*
 import compiler.matching.ResultCertainty
 import compiler.parser.TokenSequence
-import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.*
 
 fun rule(initFn: DSLFixedSequenceRule.() -> Any?): Rule<List<RuleMatchingResult<*>>> {

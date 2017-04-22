@@ -1,6 +1,5 @@
 package compiler.transact
 
-import compiler.lexer.Token
 import java.util.*
 
 /**

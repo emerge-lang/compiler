@@ -5,11 +5,14 @@ package compiler.parser.postproc
 
 import compiler.ast.ImportDeclaration
 import compiler.ast.ModuleDeclaration
-import compiler.lexer.*
+import compiler.lexer.IdentifierToken
+import compiler.lexer.KeywordToken
+import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
 import compiler.parser.Reporting
 import compiler.parser.TokenMismatchReporting
-import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
+import compiler.parser.rule.RuleMatchingResult
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 import java.util.*

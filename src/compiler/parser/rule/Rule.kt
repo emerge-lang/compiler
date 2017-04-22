@@ -1,6 +1,7 @@
 package compiler.parser.rule
 
-import compiler.lexer.*
+import compiler.lexer.Token
+import compiler.lexer.TokenType
 import compiler.matching.Matcher
 import compiler.matching.ResultCertainty
 import compiler.parser.MissingTokenReporting

@@ -6,9 +6,12 @@ import compiler.ast.ParameterList
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeReference
 import compiler.binding.type.Unit
-import compiler.lexer.*
-import compiler.parser.rule.RuleMatchingResult
+import compiler.lexer.IdentifierToken
+import compiler.lexer.KeywordToken
+import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
 import compiler.parser.rule.Rule
+import compiler.parser.rule.RuleMatchingResult
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 import java.util.*

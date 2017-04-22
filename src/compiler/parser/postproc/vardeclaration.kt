@@ -1,12 +1,12 @@
 package compiler.parser.postproc
 
-import compiler.ast.type.TypeReference
 import compiler.ast.VariableDeclaration
 import compiler.ast.expression.Expression
 import compiler.ast.type.TypeModifier
+import compiler.ast.type.TypeReference
 import compiler.lexer.*
-import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
+import compiler.parser.rule.RuleMatchingResult
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 

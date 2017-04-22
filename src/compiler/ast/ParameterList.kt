@@ -1,14 +1,11 @@
 package compiler.ast
 
-import compiler.binding.context.CTContext
-import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
 import compiler.binding.BindingResult
 import compiler.binding.BoundParameter
 import compiler.binding.BoundParameterList
-import compiler.lexer.IdentifierToken
+import compiler.binding.context.CTContext
 import compiler.parser.Reporting
-import java.util.*
 
 class ParameterList (
     val parameters: List<VariableDeclaration> = emptyList()

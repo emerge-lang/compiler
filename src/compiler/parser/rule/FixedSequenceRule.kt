@@ -1,8 +1,8 @@
 package compiler.parser.rule
 
-import textutils.indentByFromSecondLine
 import compiler.matching.ResultCertainty
 import compiler.parser.TokenSequence
+import textutils.indentByFromSecondLine
 
 open class FixedSequenceRule(
         private val subRules: List<Rule<*>>,

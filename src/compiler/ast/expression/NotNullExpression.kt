@@ -1,12 +1,8 @@
 package compiler.ast.expression
 
 import compiler.ast.Executable
-import compiler.binding.context.CTContext
-import compiler.binding.type.BaseTypeReference
-import compiler.ast.type.TypeReference
 import compiler.binding.BindingResult
-import compiler.binding.BoundExecutable
-import compiler.binding.expression.BoundExpression
+import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundNotNullExpression
 import compiler.lexer.OperatorToken
 

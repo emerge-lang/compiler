@@ -3,7 +3,7 @@ package compiler.ast.expression
 import compiler.binding.BindingResult
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
-import compiler.binding.expression.*
+import compiler.binding.expression.BoundNumericLiteralExpression
 import compiler.binding.type.BaseTypeReference
 import compiler.binding.type.Float
 import compiler.binding.type.Int

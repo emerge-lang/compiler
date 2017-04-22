@@ -1,13 +1,10 @@
 package compiler.ast.expression
 
-import compiler.binding.context.CTContext
-import compiler.binding.BoundFunction
-import compiler.binding.filterAndSortByMatchForInvocationTypes
-import compiler.binding.type.BaseTypeReference
 import compiler.ast.type.FunctionModifier
 import compiler.binding.BindingResult
+import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundBinaryExpression
-import compiler.binding.type.Any
+import compiler.binding.filterAndSortByMatchForInvocationTypes
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.parser.Reporting

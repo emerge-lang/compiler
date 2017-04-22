@@ -1,13 +1,9 @@
 package compiler.binding.context
 
-import compiler.ast.FunctionDeclaration
-import compiler.ast.VariableDeclaration
-import compiler.binding.type.Any
-import compiler.binding.type.BaseType
-import compiler.binding.type.BaseTypeReference
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
+import compiler.binding.type.BaseType
 
 /**
  * Compile-Time context. A compile-time context knows all available symbols (through imports and explicit definition).

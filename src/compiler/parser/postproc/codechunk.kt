@@ -8,8 +8,8 @@ import compiler.ast.expression.Expression
 import compiler.ast.expression.StandaloneExpression
 import compiler.lexer.KeywordToken
 import compiler.lexer.OperatorToken
-import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
+import compiler.parser.rule.RuleMatchingResult
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 

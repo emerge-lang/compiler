@@ -2,15 +2,12 @@ package compiler.parser.postproc
 
 import compiler.InternalCompilerError
 import compiler.ast.expression.*
-import compiler.binding.BoundExecutable
-import compiler.binding.expression.BoundExpression
 import compiler.lexer.IdentifierToken
 import compiler.lexer.NumericLiteralToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
-import compiler.parser.TokenSequence
-import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.Rule
+import compiler.parser.rule.RuleMatchingResult
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 

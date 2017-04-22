@@ -2,8 +2,8 @@ package compiler.parser.rule
 
 import compiler.matching.ResultCertainty
 import compiler.parser.Reporting
-import textutils.indentByFromSecondLine
 import compiler.parser.TokenSequence
+import textutils.indentByFromSecondLine
 
 /**
  * Matches the first of any given sub-rule

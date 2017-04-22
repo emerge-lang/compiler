@@ -4,13 +4,12 @@ import compiler.InternalCompilerError
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
 import compiler.ast.VariableDeclaration
-import compiler.binding.type.Any
-import compiler.binding.type.BaseType
-import compiler.binding.type.BaseTypeReference
 import compiler.ast.type.TypeReference
 import compiler.binding.BindingResult
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
+import compiler.binding.type.BaseType
+import compiler.binding.type.BaseTypeReference
 import compiler.lexer.IdentifierToken
 import java.util.*
 
