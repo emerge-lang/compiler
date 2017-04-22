@@ -26,11 +26,11 @@ import compiler.binding.BoundVariable
  * Another example (function scope, immutable):
  *
  *     fun fn(e: Int, f: Int) {
- *         // the immutable context A is initialized with x and y
+ *         // the immutable context A is initialized with e and f
  *         val g = e + f // a new context B is derived from A with g added to it
  *         val h = g + 1 // OK, h is evaluated in context B in which g is present
  *                       // context C is derived from B with h added to it
- *         val i = i + 1 // ERROR when evaluating i because k is not defined in context C
+ *         val i = k + 1 // ERROR when evaluating i because k is not defined in context C
  *         val k = f + 1
  *     }
  *
