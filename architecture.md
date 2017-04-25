@@ -35,7 +35,7 @@ val ModuleDeclaration = rule {
 
 These builders put together a complex tree of `Rule`s that can be matched against
 a `TransactionalSequence` of tokens. Once it is assured that a given sequence of
-tokens matches a particular structure the matched tokens are "post-processed".
+tokens matches a particular structure the matched tokens are "post-processed":
 
 The sequence of matched tokens is passed on to a function that uses simple
 divide-and-conquer to turn the tokens into instances of the AST classes.
@@ -83,14 +83,14 @@ All AST entities are converted to "Bound" entities (e.g. `ast.Variable` becomes
 
 * the bound entity holds a reference to its `CTContext`
 * the bound entity has accessors that can provide higher-level, type-checked
-  information on the entity (e.g. a hard and reliably reference to the type
+  information on the entity (e.g. a hard and reliable reference to the type
   of a variable).
 
 ## Semantic Analysis
 
 The semantic analysis is split into multiple phases. All those phases are performed
-by the bound AST entities. As much as i hate: this means that there is a set
-of methods on the bound AST Rntities that have to be invoked in a particular
+by the bound AST entities. As much as i hate it: this means that there is a set
+of methods on the bound AST Entities that have to be invoked in a particular
 order (one per phase).
 
 ### Phase 1: Explicit type references
