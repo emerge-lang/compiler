@@ -5,7 +5,6 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
 import compiler.ast.VariableDeclaration
 import compiler.ast.type.TypeReference
-import compiler.binding.BindingResult
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
 import compiler.binding.type.BaseType
@@ -96,10 +95,10 @@ open class MutableCTContext(
         return importedVars.firstOrNull() ?: parentContext.resolveVariable(name, onlyOwn)
     }
 
-    open fun addFunction(declaration: FunctionDeclaration): BindingResult<BoundFunction> {
-        val boundResult = declaration.bindTo(this)
-        if (boundResult.bound != null) functions.add(boundResult.bound)
-        return boundResult
+    open fun addFunction(declaration: FunctionDeclaration): BoundFunction {
+        val bound = declaration.bindTo(this)
+        functions.add(bound)
+        return bound
     }
 
     override fun resolveDefinedFunctions(name: String): Collection<BoundFunction> = functions.filter { it.declaration.name.value == name }

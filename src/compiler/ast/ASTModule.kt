@@ -17,15 +17,18 @@ class ASTModule {
     val functions: MutableList<FunctionDeclaration> = mutableListOf()
 
     /**
-     * Works by the same principle as [Bindable.bindTo]; but since it does not yield any reportings and binds to
-     * a [SoftwareContext] (rather than a [CTContext]) this has its own signature.
+     * Works by the same principle as [Bindable.bindTo]; but since binds to a [SoftwareContext] (rather than a
+     * [CTContext]) this has its own signature.
      */
     fun bindTo(context: SoftwareContext): Module {
         val moduleContext = MutableCTContext()
+
+        imports.forEach(moduleContext::addImport)
+        variables.forEach { moduleContext.addVariable(it) }
+        functions.forEach { moduleContext::addFunction }
+
         moduleContext.swCtx = context
 
-        for (import in imports)
-
-        val module = Module(selfDeclaration?.name ?: emptyArray(), moduleContext)
+        return Module(selfDeclaration?.name ?: emptyArray(), moduleContext)
     }
 }
