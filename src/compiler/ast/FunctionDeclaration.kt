@@ -38,24 +38,12 @@ class FunctionDeclaration(
         }
 
         if (FunctionModifier.PURE in modifiers && FunctionModifier.READONLY in modifiers) {
-            reportings.add(Reporting.info("The readonly modifier is obsolete because pure implies readonly.", declaredAt))
-        }
-
-        // receiver type
-        val receiverBaseType = receiverType?.resolveWithin(context)
-        if (receiverType != null && receiverBaseType == null) {
-            reportings.add(Reporting.unknownType(receiverType))
+            reportings.add(Reporting.info("The modifier readonly is superfluous: the function is also pure and pure implies readonly.", declaredAt))
         }
 
         // parameters
         val parametersBR = parameters.bindTo(context, false)
         reportings.addAll(parametersBR.reportings)
-
-        // return type
-        val returnBaseType = returnType.resolveWithin(context)
-        if (returnBaseType == null) {
-            reportings.add(Reporting.unknownType(returnType))
-        }
 
         // construct the code context from all the parameters
         val codeContext = MutableCTContext(context)
