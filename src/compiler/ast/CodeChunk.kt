@@ -14,7 +14,7 @@ class CodeChunk(
 ) : Executable<BoundCodeChunk> {
     override val sourceLocation: SourceLocation = statements.firstOrNull()?.sourceLocation ?: SourceLocation.UNKNOWN
 
-    override fun bindTo(context: CTContext): BindingResult<BoundCodeChunk> {
+    override fun bindTo(context: CTContext): BoundCodeChunk {
         /** gets reassigned for every executable that modifies the context */
         var _context = context
 

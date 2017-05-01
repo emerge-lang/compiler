@@ -1,6 +1,7 @@
 package compiler.binding.context
 
 import compiler.InternalCompilerError
+import compiler.ast.Bindable
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
 import compiler.ast.VariableDeclaration
@@ -79,8 +80,10 @@ open class MutableCTContext(
     /**
      * Adds the given variable to this context; possibly overriding its type with the given type.
      */
-    open fun addVariable(declaration: VariableDeclaration, overrideType: BaseTypeReference? = null) {
-        variables[declaration.name.value] = BoundVariable(this, declaration, overrideType)
+    open fun addVariable(declaration: Bindable<BoundVariable>): BoundVariable {
+        val bound = declaration.bindTo(this)
+        variables[bound.name] = bound
+        return bound
     }
 
     override fun resolveVariable(name: String, onlyOwn: Boolean): BoundVariable? {

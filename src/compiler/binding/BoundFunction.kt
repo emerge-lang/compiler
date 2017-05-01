@@ -58,19 +58,12 @@ class BoundFunction(
         // parameters
         reportings.addAll(parameters.semanticAnalysisPhase1(false))
 
-        // construct the code context from all the parameters
-        val codeContext = MutableCTContext(context)
-        codeContext.swCtx = context.swCtx
-
-        // the parameters have already been bound to the function context
-        // in FunctionDeclaration.bindTo
-
-        // TODO: incorporate the READONLY, PURE and NOTHROW modifiers into codeContext
-
         // the codechunk has no semantic analysis phase 1
 
         return reportings
     }
+
+    // TODO: incorporate the READONLY, PURE and NOTHROW modifiers into codeContext
 }
 
 /**

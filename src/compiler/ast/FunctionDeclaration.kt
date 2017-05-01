@@ -3,7 +3,9 @@ package compiler.ast
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundFunction
+import compiler.binding.BoundParameterList
 import compiler.binding.context.CTContext
+import compiler.binding.context.MutableCTContext
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 
@@ -20,10 +22,18 @@ class FunctionDeclaration(
     val returnType: TypeReference,
     val code: CodeChunk?
 ) : Declaration, Bindable<BoundFunction> {
-    override fun bindTo(context: CTContext) = BoundFunction(
-        context,
-        this,
-        parameters.bindTo(context),
-        code?.bindTo(context)
-    )
+    override fun bindTo(context: CTContext): BoundFunction {
+        val functionContext = MutableCTContext(context)
+        functionContext.swCtx = context.swCtx
+
+        val boundParams = parameters.parameters.map(functionContext::addVariable)
+        val boundParamList = BoundParameterList(context, parameters, boundParams)
+
+        return BoundFunction(
+            functionContext,
+            this,
+            boundParamList,
+            code?.bindTo(context)
+        )
+    }
 }
