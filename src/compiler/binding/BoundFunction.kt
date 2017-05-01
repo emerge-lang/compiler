@@ -1,10 +1,13 @@
 package compiler.binding
 
 import compiler.ast.FunctionDeclaration
+import compiler.ast.type.FunctionModifier
 import compiler.binding.context.CTContext
+import compiler.binding.context.MutableCTContext
 import compiler.binding.type.Any
 import compiler.binding.type.BaseType
 import compiler.binding.type.BaseTypeReference
+import compiler.parser.Reporting
 
 /**
  * Describes the presence/avaiability of a (class member) function in a context.
@@ -14,21 +17,60 @@ import compiler.binding.type.BaseTypeReference
 class BoundFunction(
     val context: CTContext,
     val declaration: FunctionDeclaration,
+    val parameters: BoundParameterList,
+    val code: BoundCodeChunk?
+) {
+    val declaredAt = declaration.declaredAt
 
     /**
      * The type of the receiver. Is null if the declared function has no receiver or if the declared receiver type
      * could not be resolved. See [FunctionDeclaration.receiverType] to resolve the ambiguity.
      */
-    val receiverType: BaseTypeReference?,
-    val parameters: BoundParameterList,
-    val returnType: BaseTypeReference?,
-    val code: BoundCodeChunk?
-) {
+    var receiverType: BaseTypeReference? = null
+        private set
+
     val name: String = declaration.name.value
     val modifiers = declaration.modifiers
 
     val parameterTypes: List<BaseTypeReference?>
         get() = declaration.parameters.types.map { it?.resolveWithin(context) }
+
+    var returnType: BaseTypeReference? = null
+        private set
+
+    fun semanticAnalysisPhase1(): Collection<Reporting> {
+        val reportings = mutableListOf<Reporting>()
+
+        // modifiers
+        if (FunctionModifier.EXTERNAL in modifiers) {
+            if (code != null) {
+                reportings.add(Reporting.error("Functions declared as external must not declare a function body.", declaredAt))
+            }
+        }
+        else if (code == null) {
+            reportings.add(Reporting.error("No function body specified. Declare the function as external or declare a body.", declaredAt))
+        }
+
+        if (FunctionModifier.PURE in modifiers && FunctionModifier.READONLY in modifiers) {
+            reportings.add(Reporting.info("The modifier readonly is superfluous: the function is also pure and pure implies readonly.", declaredAt))
+        }
+
+        // parameters
+        reportings.addAll(parameters.semanticAnalysisPhase1(false))
+
+        // construct the code context from all the parameters
+        val codeContext = MutableCTContext(context)
+        codeContext.swCtx = context.swCtx
+
+        // the parameters have already been bound to the function context
+        // in FunctionDeclaration.bindTo
+
+        // TODO: incorporate the READONLY, PURE and NOTHROW modifiers into codeContext
+
+        // the codechunk has no semantic analysis phase 1
+
+        return reportings
+    }
 }
 
 /**
