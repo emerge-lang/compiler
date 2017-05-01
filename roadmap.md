@@ -36,6 +36,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       * Kotlin `GenericType<modifier TypeParameter>`
       * D `GenericType!TypeParameter` and `GenericType!(modifier TypeParameter)`
     * Decide whether to support vararg type parameters
+    * The `readonly` and `immutable` type modifiers force `out` variance on all type parameters
 13. Decision on compile target architecture (native/vm with pointers VS JVM)
 14. Array type
 15. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
@@ -61,5 +62,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 
 -----
 
-Gotchas:
+Small things to think about:
 
+* Function parameters that the function may not alter are declared as `readonly` and `immutable` with the
+  exception of the receiver paramter: it can be declared readonly by declaring the function as `selector`:
+  `struct X { selector fun foo() -> Unit }` in dotlin equals `struct X { void foo() const }` in D
+  See [this software engineering SE question](https://softwareengineering.stackexchange.com/questions/348113/opposite-of-mutating)
