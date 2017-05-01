@@ -9,7 +9,5 @@ class BoundCodeChunk(
      */
     override val context: CTContext,
 
-    override val declaration: CodeChunk,
-
-    val statements: List<BoundExecutable<*>>
+    override val declaration: CodeChunk
 ) : BoundExecutable<CodeChunk>
