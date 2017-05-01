@@ -12,7 +12,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 5. return type checking
 6. Parsing fallbacks: define simple logic to parse until ... when a sub-rule fails; e.g.:
     * in ParameterList: when a parameter fails, construct a dummy parameter,
-     report the error, go to the next Operator.COMMA and continue
+      report the error, go to the next Operator.COMMA and continue
 7. Test suite for all existing code
 8. control structures
     * if-else
@@ -21,6 +21,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 9. object model
     1. class definition
     2. struct definition
+    3. reference counting vs garbage collection
 10. extend InvocationExeption
     1. handle constructors
     2. when checking `objRef.method()` error if `method` is a property  
@@ -56,3 +57,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 21. deferred statements
     * `scope(exit) {stmt}`, `scope(success) {stmt}` and `scope(fail) {stmt}`
 22. ...
+
+
+-----
+
+Gotchas:
+
