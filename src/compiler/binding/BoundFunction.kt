@@ -39,7 +39,7 @@ class BoundFunction(
         private set
 
     fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
+        val reportings = mutableSetOf<Reporting>()
 
         receiverType = declaration.receiverType?.resolveWithin(context)
 

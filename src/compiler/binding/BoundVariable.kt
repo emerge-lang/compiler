@@ -33,7 +33,7 @@ class BoundVariable(
     fun semanticAnalysisPhase1() = semanticAnalysisPhase1("variable")
 
     fun semanticAnalysisPhase1(selfType: String): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
+        val reportings = mutableSetOf<Reporting>()
 
         // double declaration
         val existingVariable = context.resolveVariable(name = name, onlyOwn = true)
@@ -61,7 +61,7 @@ class BoundVariable(
     }
 
     fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
+        val reportings = mutableSetOf<Reporting>()
 
         if (declaration.assignExpression != null) {
             assignExpression = declaration.assignExpression.bindTo(context)

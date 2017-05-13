@@ -39,7 +39,7 @@ open class BaseTypeReference(
      * @return Any reportings on the validated code
      */
     fun validate(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
+        val reportings = mutableSetOf<Reporting>()
 
         // verify whether the modifier on the reference is compatible with the modifier on the type
         if (original.modifier != null && baseType.impliedModifier != null) {

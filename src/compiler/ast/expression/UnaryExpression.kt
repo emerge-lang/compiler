@@ -14,7 +14,7 @@ class UnaryExpression(val operator: Operator, val valueExpression: Expression<*>
     override val sourceLocation = valueExpression.sourceLocation
 
     override fun bindTo(context: CTContext): BindingResult<BoundUnaryExpression> {
-        val reportings = mutableListOf<Reporting>()
+        val reportings = mutableSetOf<Reporting>()
 
         // determine type without operator applied
         val valueExprBR = valueExpression.bindTo(context)

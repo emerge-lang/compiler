@@ -17,7 +17,7 @@ class BinaryExpression(
     override val sourceLocation = first.sourceLocation
 
     override fun bindTo(context: CTContext): BindingResult<BoundBinaryExpression> {
-        val reportings = mutableListOf<Reporting>()
+        val reportings = mutableSetOf<Reporting>()
 
         val firstBR = first.bindTo(context)
         val secondBR = second.bindTo(context)

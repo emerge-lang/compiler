@@ -19,7 +19,7 @@ class StandaloneExpression(
     override val sourceLocation = expr.sourceLocation
 
     override fun bindTo(context: CTContext): BindingResult<BoundStandaloneExpression> {
-        val reportings = mutableListOf<Reporting>()
+        val reportings = mutableSetOf<Reporting>()
 
         val subBR = expr.bindTo(context)
         reportings.addAll(subBR.reportings)

@@ -10,7 +10,7 @@ class BoundParameterList(
     val parameters: List<BoundParameter>
 ) {
     fun semanticAnalysisPhase1(allowUntyped: Boolean = true): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
+        val reportings = mutableSetOf<Reporting>()
 
         // double names
         for (param in parameters) {
