@@ -41,6 +41,12 @@ class BoundFunction(
     fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableListOf<Reporting>()
 
+        receiverType = declaration.receiverType?.resolveWithin(context)
+
+        if (declaration.receiverType != null && receiverType == null) {
+            reportings.add(Reporting.unknownType(declaration.receiverType))
+        }
+
         // modifiers
         if (FunctionModifier.EXTERNAL in modifiers) {
             if (code != null) {
@@ -58,9 +64,19 @@ class BoundFunction(
         // parameters
         reportings.addAll(parameters.semanticAnalysisPhase1(false))
 
+        returnType = declaration.returnType.resolveWithin(context)
+        if (returnType == null) {
+            reportings.add(Reporting.unknownType(declaration.returnType))
+        }
+
         // the codechunk has no semantic analysis phase 1
 
         return reportings
+    }
+
+    fun semanticAnalysisPhase2(): Collection<Reporting> {
+        // TODO: if the function is a () = expr, infer the return type
+        return emptySet()
     }
 
     // TODO: incorporate the READONLY, PURE and NOTHROW modifiers into codeContext
