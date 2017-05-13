@@ -3,6 +3,7 @@ package compiler.parser
 import compiler.InternalCompilerError
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
+import compiler.binding.expression.BoundInvocationExpression
 import compiler.binding.type.BaseTypeReference
 import compiler.lexer.SourceLocation
 import compiler.lexer.Token
@@ -94,6 +95,37 @@ open class Reporting(
 
         fun typeMismatch(targetType: BaseTypeReference, validatedType: BaseTypeReference)
             = typeMismatch(targetType, validatedType, validatedType.original.declaringNameToken?.sourceLocation ?: SourceLocation.UNKNOWN)
+
+        fun unresolvableFunction(expr: BoundInvocationExpression): Reporting {
+            // if the receiver type could not be inferred, this is might be a consecutive error
+            if (expr.receiverExpression != null && expr.receiverExpression.type == null) {
+                return ConsecutiveFaultReporting(
+                    "Cannot resolve function ${expr.functionNameToken.value} on receiver of unknown type",
+                    expr.declaration.sourceLocation
+                )
+            }
+            else {
+                if (expr.context.resolveAnyFunctions(expr.functionNameToken.value).isEmpty()) {
+                    // a function with the specified name does not even exist
+                    return error("Unknown function ${expr.functionNameToken.value}", expr.functionNameToken)
+                }
+                else {
+                    // type mismatch
+                    // TODO: add typescript like error messages here?
+
+                    val parameterListAsString = "(" + expr.parameterExpressions.map { it.toString() }.joinToString(", ") + ")"
+
+                    if (expr.receiverExpression?.type == null) {
+                        return error("Function ${expr.functionNameToken.value} is not defined without receiver and parameters $parameterListAsString")
+                    }
+                    else {
+                        return error("Function ${expr.functionNameToken.value} is not defined for receiver ${expr.receiverExpression.type} and parameters $parameterListAsString")
+                    }
+                }
+            }
+        }
+
+        fun semanticRecursion(message: String, location: SourceLocation = SourceLocation.UNKNOWN) = error(message, location)
     }
 }
 
