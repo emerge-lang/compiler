@@ -1,6 +1,5 @@
 package compiler.ast
 
-import compiler.binding.BindingResult
 import compiler.binding.context.CTContext
 
 interface Bindable<out BoundType> {

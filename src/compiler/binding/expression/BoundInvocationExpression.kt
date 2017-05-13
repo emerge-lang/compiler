@@ -1,6 +1,7 @@
 package compiler.binding.expression
 
 import compiler.ast.expression.InvocationExpression
+import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.context.CTContext
 import compiler.binding.filterAndSortByMatchForInvocationTypes
@@ -15,7 +16,7 @@ class BoundInvocationExpression(
     val receiverExpression: BoundExpression<*>?,
     val functionNameToken: IdentifierToken,
     val parameterExpressions: List<BoundExpression<*>>
-) : BoundExpression<InvocationExpression> {
+) : BoundExpression<InvocationExpression>, BoundExecutable<InvocationExpression> {
     override var type: BaseTypeReference? = null
         private set
 

@@ -2,13 +2,8 @@ package compiler.ast.expression
 
 import compiler.InternalCompilerError
 import compiler.ast.Executable
-import compiler.binding.BindingResult
 import compiler.binding.context.CTContext
-import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundInvocationExpression
-import compiler.binding.expression.BoundNullLiteralExpression
-import compiler.binding.expression.StaticDispatchInvocationExpression
-import compiler.binding.filterAndSortByMatchForInvocationTypes
 import compiler.lexer.SourceLocation
 import compiler.parser.Reporting
 
