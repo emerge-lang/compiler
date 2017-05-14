@@ -5,9 +5,9 @@ import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.context.CTContext
 import compiler.binding.filterAndSortByMatchForInvocationTypes
-import compiler.binding.type.BaseTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.parser.Reporting
+import compiler.binding.type.BaseTypeReference
 
 class BoundInvocationExpression(
     override val context: CTContext,
@@ -17,7 +17,14 @@ class BoundInvocationExpression(
     val functionNameToken: IdentifierToken,
     val parameterExpressions: List<BoundExpression<*>>
 ) : BoundExpression<InvocationExpression>, BoundExecutable<InvocationExpression> {
+
     override var type: BaseTypeReference? = null
+        private set
+
+    /**
+     * The result of the function dispatching. Is set (non null) after semantic analysis phase 2
+     */
+    var dispatchedFunction: BoundFunction? = null
         private set
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> =
