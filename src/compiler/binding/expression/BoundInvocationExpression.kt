@@ -30,7 +30,7 @@ class BoundInvocationExpression(
         parameterExpressions.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
 
         // determine the function to be invoked
-        val functionCandidates = semanticPhase3_determineFunction()
+        val functionCandidates = semanticPhase2_determineFunction()
         if (functionCandidates.isEmpty()) {
             reportings.add(Reporting.unresolvableFunction(this))
         }
@@ -51,7 +51,7 @@ class BoundInvocationExpression(
     /**
      * Attempts to resolve all candidates for the invocation. If the receiver type cannot be resolved, assumes `Any?`
      */
-    private fun semanticPhase3_determineFunction(): List<BoundFunction> {
+    private fun semanticPhase2_determineFunction(): List<BoundFunction> {
         if (receiverExpression == null) {
             return context.resolveAnyFunctions(functionNameToken.value)
                     .filter { it.receiverType == null }
