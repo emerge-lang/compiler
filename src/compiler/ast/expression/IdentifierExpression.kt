@@ -1,10 +1,8 @@
 package compiler.ast.expression
 
-import compiler.binding.BindingResult
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.lexer.IdentifierToken
-import compiler.parser.Reporting
 
 /**
  * A expression that evaluates using an identigier (variable reference, type reference)
@@ -18,22 +16,7 @@ import compiler.parser.Reporting
 class IdentifierExpression(val identifier: IdentifierToken) : Expression<BoundIdentifierExpression> {
     override val sourceLocation = identifier.sourceLocation
 
-    override fun bindTo(context: CTContext): BindingResult<BoundIdentifierExpression> {
-        val variable = context.resolveVariable(identifier.value)
-
-        return BindingResult(
-            BoundIdentifierExpression(
-                context,
-                this,
-                variable?.type
-            ),
-            if (variable == null) {
-                // TODO refactor to an UndefinedVariableReporting
-                setOf(Reporting.error("Unknown variable ${identifier.value}. TODO: Did you mean X, Y or Z?", identifier))
-            }
-            else {
-                emptySet()
-            }
-        )
+    override fun bindTo(context: CTContext): BoundIdentifierExpression {
+        return BoundIdentifierExpression(context, this)
     }
 }
