@@ -1,6 +1,5 @@
 package compiler.ast.expression
 
-import compiler.binding.BindingResult
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundNullLiteralExpression
 import compiler.lexer.SourceLocation
@@ -12,12 +11,5 @@ class NullLiteralExpression(
     override val sourceLocation: SourceLocation
 
 ) : Expression<BoundNullLiteralExpression> {
-    override fun bindTo(context: CTContext)
-        = BindingResult(
-            BoundNullLiteralExpression(
-                context,
-                this
-            ),
-            emptySet()
-        )
+    override fun bindTo(context: CTContext) = BoundNullLiteralExpression(context, this)
 }
