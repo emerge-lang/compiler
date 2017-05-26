@@ -75,7 +75,7 @@ class BoundFunction(
     }
 
     fun semanticAnalysisPhase2(): Collection<Reporting> {
-        // TODO: if the function is a () = expr, infer the return type
+        // TODO: if the function is a () = expression, infer the return type
         return emptySet()
     }
 
