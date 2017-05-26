@@ -1,5 +1,0 @@
-package compiler.binding.expression
-
-import compiler.ast.expression.NumericLiteralExpression
-
-typealias BoundNumericLiteralExpression = BoundExpression<NumericLiteralExpression>

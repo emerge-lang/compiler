@@ -1,13 +1,10 @@
 package compiler.ast.expression
 
-import compiler.binding.BindingResult
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
-import compiler.binding.expression.BoundNumericLiteralExpression
-import compiler.binding.type.BaseTypeReference
-import compiler.binding.type.Float
-import compiler.binding.type.Int
-import compiler.binding.type.Number
+import compiler.binding.expression.BoundFloatingPointLiteral
+import compiler.binding.expression.BoundIntegerLiteral
+import compiler.binding.expression.BoundNumericLiteral
 import compiler.lexer.NumericLiteralToken
 import compiler.parser.Reporting
 import java.math.BigDecimal
@@ -21,45 +18,44 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
     /** floating point value of this expression, if floating */
     private var floatingValue: BigDecimal? = null
 
+    /** Cached validation result; numeric literals are the same in every context */
     private var validationResult: Collection<Reporting>? = null
-
-    private var bindingResult: BindingResult<BoundNumericLiteralExpression>? = null
 
     override val sourceLocation = literalToken.sourceLocation
 
-    override fun bindTo(context: CTContext): BindingResult<BoundNumericLiteralExpression> {
-        if (bindingResult != null) return bindingResult!!
-        bindingResult = bindToImpl(context)
-        return bindingResult!!
-    }
-
-    private fun bindToImpl(context: CTContext): BindingResult<BoundNumericLiteralExpression> {
+    override fun bindTo(context: CTContext): BoundNumericLiteral {
         validate()
 
-        val type: BaseTypeReference
-
         if (integerValue != null) {
-            type = Int.baseReference(context)
-        }
-        else if (floatingValue != null) {
-            type = Float.baseReference(context)
-        }
-        else {
-            type = Number.baseReference(context)
+            return BoundIntegerLiteral(
+                context,
+                this,
+                integerValue!!,
+                validationResult!!
+            )
         }
 
-        return BindingResult(
-            object : BoundNumericLiteralExpression {
-                override val context = context
-                override val declaration = this@NumericLiteralExpression
-                override val type = type
-            },
-            validationResult!!
+        if (floatingValue != null) {
+            return BoundFloatingPointLiteral(
+                context,
+                this,
+                floatingValue!!,
+                validationResult!!
+            )
+        }
+
+        return BoundNumericLiteral(
+            context,
+            this,
+            validationResult ?: setOf(Reporting.error("Could not determine type of numeric literal", this.sourceLocation))
         )
     }
 
-    private fun validate(): Collection<Reporting> {
-        if (validationResult != null) return validationResult!!
+    /**
+     * Assures [validationResult] is filled with the validation results.
+     */
+    private fun validate() {
+        if (validationResult != null) return
 
         var str = literalToken.stringContent
 
@@ -72,10 +68,11 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
             var allowedChars = ('0' .. '9') + arrayOf('.', 'e', 'E')
             val unallowed = str.minus(allowedChars)
             if (unallowed.isNotEmpty()) {
-                return setOf(Reporting.error(
+                validationResult = setOf(Reporting.error(
                     "Floating point literal contains unallowed characters: ${unallowed.unique()}",
                     literalToken
                 ))
+                return
             }
 
             // cut e
@@ -106,37 +103,42 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
 
             if (!preComma.map(Char::isDigit).reduce(Boolean::and)) {
                 // preComma is not OK
-                return setOf(Reporting.error(
+                validationResult = setOf(Reporting.error(
                     "Floating point literal contains non-decimal characters before the floating point: ${preComma.minus(allowedChars).unique()}",
                     literalToken
                 ))
+                return
             }
 
             if (postComma != null && !postComma.map(Char::isDigit).reduce(Boolean::and)) {
                 // postComma is not OK
-                return setOf(Reporting.error(
+                validationResult = setOf(Reporting.error(
                     "Floating point literal contains non-decimal characters after the floating point: ${postComma.minus(allowedChars).unique()}",
                     literalToken
                 ))
+                return
             }
 
             if (exp != null && exp.isBlank()) {
-                return setOf(Reporting.error(
+                validationResult =  setOf(Reporting.error(
                     "Empty exponent in floating point literal",
                     literalToken
                 ))
+                return
             }
 
             if (exp != null && exp.map(Char::isDigit).reduce(Boolean::and)) {
                 // exponent is not OK
-                return setOf(Reporting.error(
+                validationResult = setOf(Reporting.error(
                     "Floating point literal contains non-decimal characters in the exponent: ${exp.minus(allowedChars).unique()}",
                     literalToken
                 ))
+                return
             }
 
             floatingValue = BigDecimal(str)
-            return emptySet()
+            validationResult = emptySet()
+            return
         }
         else {
             // Integer
@@ -164,14 +166,16 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
 
             val unallowed = str.minus(allowedChars)
             if (unallowed.isNotEmpty()) {
-                return setOf(Reporting.error(
+                validationResult = setOf(Reporting.error(
                     "Integer literal contains unallowed characters: ${unallowed.unique()}",
                     literalToken
                 ))
+                return
             }
 
             integerValue = BigInteger(str, base)
-            return emptySet()
+            validationResult = emptySet()
+            return
         }
     }
 }
