@@ -1,7 +1,7 @@
 package compiler
 
 import Module
-import compiler.binding.context.Module
+import compiler.ast.ASTModule
 import compiler.lexer.SourceContentAwareSourceDescriptor
 import compiler.lexer.lex
 import compiler.parser.TokenSequence
@@ -10,9 +10,9 @@ import java.nio.file.Paths
 import javax.naming.OperationNotSupportedException
 import kotlin.reflect.KProperty
 
-public fun parseFromClasspath(path: String): Module = parseFromClasspath(Paths.get(path))
+public fun parseFromClasspath(path: String): ASTModule = parseFromClasspath(Paths.get(path))
 
-public fun parseFromClasspath(path: Path): Module {
+public fun parseFromClasspath(path: Path): ASTModule {
     val sourceode = ClassLoader.getSystemResource(path.toString()).readText().lines()
 
     val sourceDescriptor = object : SourceContentAwareSourceDescriptor() {

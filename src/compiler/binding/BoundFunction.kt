@@ -89,7 +89,7 @@ class BoundFunction(
  *
  * In essence, this function is the function dispatching algorithm of the language.
  */
-fun Iterable<out BoundFunction>.filterAndSortByMatchForInvocationTypes(receiverType: BaseTypeReference?, parameterTypes: Iterable<out BaseTypeReference?>): List<BoundFunction> =
+fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(receiverType: BaseTypeReference?, parameterTypes: Iterable<BaseTypeReference?>): List<BoundFunction> =
     this
         // filter out the ones with incompatible receiver type
         .filter {

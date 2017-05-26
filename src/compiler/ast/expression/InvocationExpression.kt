@@ -22,8 +22,6 @@ class InvocationExpression(
     }
 
     override fun bindTo(context: CTContext): BoundInvocationExpression {
-        val reportings = mutableSetOf<Reporting>()
-
         // bind all the parameters
         val boundParameterValueExprs = parameterExprs.map { it.bindTo(context) }
 

@@ -33,8 +33,8 @@ fun main(args: Array<String>) {
     println("------------")
 
     val matched = Module.tryMatch(tokens.toTransactional(source.toLocation(1, 1)))
-    val parsedModule = matched.item
-    parsedModule?.context?.swCtx = swCtx
+    val parsedASTModule = matched.item!!
+    val parsedModule = parsedASTModule.bindTo(swCtx)
 
     println("certainty = ${matched.certainty}")
     println("item = ${matched.item}")
