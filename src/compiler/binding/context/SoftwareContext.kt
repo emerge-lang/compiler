@@ -14,9 +14,10 @@ class SoftwareContext {
     private val modules: MutableSet<Module> = HashSet()
 
     /**
+     * @param names The single names of the module; e.g. for module `foo.bar.x` pass `["foo", "bar", "x"]`
      * @return The [CTContext] of the module with the given name or null if no such module is defined.
      */
-    fun module(vararg name: String): Module? = modules.find { Arrays.equals(it.name, name) }
+    fun module(vararg names: String): Module? = modules.find { Arrays.equals(it.name, names) }
 
     fun module(name: Iterable<String>): Module? = module(*name.toList().toTypedArray())
 
