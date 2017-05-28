@@ -42,6 +42,9 @@ interface CTContext
     val swCtx: SoftwareContext?
         get() = null
 
+    val functions: Iterable<BoundFunction>
+    val variables: Iterable<BoundVariable>
+
     /**
      * @param onlyOwn If true, does not attempt to resolve variables through imports.
      * @return The variable accessible under the given name, shadowing included.
@@ -78,6 +81,10 @@ interface CTContext
          * A [CTContext] that does not resolve anything. This is used as the parent context for all toplevel code.
          */
         val EMPTY = object : CTContext {
+            override val functions = emptySet<BoundFunction>()
+
+            override val variables = emptySet<BoundVariable>()
+
             override fun resolveVariable(name: String, onlyOwn: Boolean): BoundVariable? = null
 
             override fun resolveDefinedType(simpleName: String): BaseType? = null

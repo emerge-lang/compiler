@@ -4,7 +4,6 @@ import compiler.InternalCompilerError
 import compiler.ast.Bindable
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
-import compiler.ast.VariableDeclaration
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
@@ -28,10 +27,13 @@ open class MutableCTContext(
     override var swCtx: SoftwareContext? = null
 
     /** Maps variable names to their metadata; holds only variables defined in this context */
-    private val variables: MutableMap<String, BoundVariable> = HashMap()
+    private val variablesMap: MutableMap<String, BoundVariable> = HashMap()
+
+    override val variables
+        get() = variablesMap.values
 
     /** Holds all the toplevel functions defined in this context */
-    private val functions: MutableSet<BoundFunction> = HashSet()
+    override val functions: MutableSet<BoundFunction> = HashSet()
 
     /** Holds all the base types defined in this context */
     private val types: MutableSet<BaseType> = HashSet()
@@ -82,12 +84,12 @@ open class MutableCTContext(
      */
     open fun addVariable(declaration: Bindable<BoundVariable>): BoundVariable {
         val bound = declaration.bindTo(this)
-        variables[bound.name] = bound
+        variablesMap[bound.name] = bound
         return bound
     }
 
     override fun resolveVariable(name: String, onlyOwn: Boolean): BoundVariable? {
-        val ownVar = variables[name]
+        val ownVar = variablesMap[name]
         if (onlyOwn || ownVar != null) return ownVar
 
         val importedVars = importsForSimpleName(name)
