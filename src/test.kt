@@ -7,7 +7,7 @@ import compiler.parser.toTransactional
 
 val testCode = """module testcode
 
-fun foo(bar: Int) -> Int {
+fun foo(bar: Int, bar: Int) -> Int {
     return bar + 3
 }
 

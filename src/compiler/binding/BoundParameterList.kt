@@ -12,18 +12,21 @@ class BoundParameterList(
     fun semanticAnalysisPhase1(allowUntyped: Boolean = true): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
 
-        // double names
-        for (param in parameters) {
-            if (parameters.find { it !== param && it.name == param.name } != null) {
-                reportings.add(Reporting.error("BoundParameter ${param.name} is already defined in the parameter list", param.declaration.declaredAt))
+        parameters.forEachIndexed { index, parameter ->
+            // double names
+            if (index > 0) {
+                val previousWithSameName = parameters.subList(0, index).find { it !== parameter && it.name == parameter.name }
+                if (previousWithSameName != null) {
+                    reportings.add(Reporting.error("Parameter ${parameter.name} has already been defined in ${previousWithSameName.declaration.sourceLocation.fileLineColumnText}", parameter.declaration.declaredAt))
+                }
             }
 
-            if (!allowUntyped && param.declaration.type == null) {
-                reportings.add(Reporting.error("The type of parameter ${param.name} must be explicitly declared.", param.declaration.declaredAt))
+            if (!allowUntyped && parameter.declaration.type == null) {
+                reportings.add(Reporting.error("The type of parameter ${parameter.name} must be explicitly declared.", parameter.declaration.declaredAt))
             }
 
             // etc.
-            reportings.addAll(param.semanticAnalysisPhase1("parameter"))
+            reportings.addAll(parameter.semanticAnalysisPhase1("parameter"))
         }
 
         return reportings
