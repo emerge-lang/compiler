@@ -9,7 +9,7 @@ val testCode = """module testcode
 
 val foo: Int
 val bar = 3
-val foobar = foo
+val foobar = foo2
 
 """
 
