@@ -26,7 +26,7 @@ class ASTModule {
         val reportings = mutableSetOf<Reporting>()
 
         imports.forEach(moduleContext::addImport)
-        functions.forEach { moduleContext::addFunction }
+        functions.forEach { moduleContext.addFunction(it) }
 
         variables.forEach { declaredVariable ->
             // check double declare
