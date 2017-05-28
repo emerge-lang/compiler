@@ -3,6 +3,7 @@ package compiler.ast
 import compiler.binding.context.Module
 import compiler.binding.context.MutableCTContext
 import compiler.binding.context.SoftwareContext
+import compiler.parser.Reporting
 
 /**
  * AST representation of a module
@@ -22,13 +23,25 @@ class ASTModule {
      */
     fun bindTo(context: SoftwareContext): Module {
         val moduleContext = MutableCTContext()
+        val reportings = mutableSetOf<Reporting>()
 
         imports.forEach(moduleContext::addImport)
-        variables.forEach { moduleContext.addVariable(it) }
         functions.forEach { moduleContext::addFunction }
+
+        variables.forEach { declaredVariable ->
+            // check double declare
+            val existingVariable = moduleContext.resolveVariable(declaredVariable.name.value, true)
+            if (existingVariable == null || existingVariable.declaration === declaredVariable) {
+                moduleContext.addVariable(declaredVariable)
+            }
+            else {
+                // variable double-declared
+                reportings.add(Reporting.error("Variable ${declaredVariable.name.value} has already been defined in ${existingVariable.declaration.declaredAt.fileLineColumnText}", declaredVariable.name))
+            }
+        }
 
         moduleContext.swCtx = context
 
-        return Module(selfDeclaration?.name ?: emptyArray(), moduleContext)
+        return Module(selfDeclaration?.name ?: emptyArray(), moduleContext, reportings)
     }
 }

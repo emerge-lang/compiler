@@ -35,12 +35,6 @@ class BoundVariable(
     fun semanticAnalysisPhase1(selfType: String): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
 
-        // double declaration
-        val existingVariable = context.resolveVariable(name = name, onlyOwn = true)
-        if (existingVariable != null) {
-            reportings.add(Reporting.error("$selfType $name has already been defined in ${existingVariable.declaration.declaredAt.fileLineColumnText}", declaration.declaredAt))
-        }
-
         // type-related stuff
         // unknown type
         if (declaration.assignExpression == null && declaration.type == null) {
