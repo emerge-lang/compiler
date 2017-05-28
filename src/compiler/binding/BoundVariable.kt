@@ -13,7 +13,7 @@ import compiler.parser.Reporting
 class BoundVariable(
     override val context: CTContext,
     override val declaration: VariableDeclaration,
-    val assignExpression: BoundExpression<*>?
+    val initializerExpression: BoundExpression<*>?
 ) : BoundExecutable<VariableDeclaration>
 {
     val typeModifier = declaration.typeModifier
@@ -49,8 +49,8 @@ class BoundVariable(
             reportings.addAll(declaredType.validate())
         }
 
-        if (assignExpression != null) {
-            reportings.addAll(assignExpression.semanticAnalysisPhase1())
+        if (initializerExpression != null) {
+            reportings.addAll(initializerExpression.semanticAnalysisPhase1())
         }
 
         return reportings
@@ -59,13 +59,13 @@ class BoundVariable(
     fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
 
-        if (assignExpression != null) {
+        if (initializerExpression != null) {
 
-            reportings.addAll(assignExpression.semanticAnalysisPhase2())
+            reportings.addAll(initializerExpression.semanticAnalysisPhase2())
 
             // verify compatibility declared type <-> initializer type
             if (type != null) {
-                val initializerType = assignExpression.type
+                val initializerType = initializerExpression.type
 
                 // if the initializer type cannot be resolved the reporting is already done and
                 // should have returned it; so: we don't care :)
@@ -79,7 +79,7 @@ class BoundVariable(
             }
 
             // discrepancy between implied modifiers of initializerExpression and type modifiers of this declaration
-            val assignExprBaseType = assignExpression.type?.baseType
+            val assignExprBaseType = initializerExpression.type?.baseType
             val assignExprTypeImpliedModifier = assignExprBaseType?.impliedModifier
             if (typeModifier != null && assignExprTypeImpliedModifier != null) {
                 if (!(assignExprTypeImpliedModifier isAssignableTo typeModifier)) {
@@ -90,7 +90,7 @@ class BoundVariable(
 
         // infer the type
         if (type == null) {
-            val assignExprType = assignExpression?.type
+            val assignExprType = initializerExpression?.type
             type = if (typeModifier == null) assignExprType else assignExprType?.modifiedWith(typeModifier)
         }
 
