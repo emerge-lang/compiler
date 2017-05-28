@@ -1,6 +1,7 @@
 package compiler.binding.context
 
 import compiler.InternalCompilerError
+import compiler.parser.Reporting
 import java.util.*
 
 /**
@@ -28,5 +29,18 @@ class SoftwareContext {
      */
     fun addModule(module: Module) {
         modules.add(module)
+    }
+
+    private var semanticAnaylsisReults: Collection<Reporting>? = null
+
+    fun doSemanticAnalysis(): Collection<Reporting> {
+        if (semanticAnaylsisReults == null) {
+            semanticAnaylsisReults =
+                modules.flatMap(Module::semanticAnalysisPhase1) +
+                    modules.flatMap(Module::semanticAnalysisPhase2) +
+                    modules.flatMap(Module::semanticAnalysisPhase3)
+        }
+
+        return semanticAnaylsisReults!!
     }
 }

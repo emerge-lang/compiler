@@ -2,6 +2,7 @@ import compiler.binding.context.SoftwareContext
 import compiler.binding.type.BuiltinType
 import compiler.lexer.SourceContentAwareSourceDescriptor
 import compiler.lexer.lex
+import compiler.parser.Reporting
 import compiler.parser.toTransactional
 
 val testCode = """module testcode
@@ -34,7 +35,6 @@ fun main(args: Array<String>) {
 
     val matched = Module.tryMatch(tokens.toTransactional(source.toLocation(1, 1)))
     val parsedASTModule = matched.item!!
-    val parsedModule = parsedASTModule.bindTo(swCtx)
 
     println("certainty = ${matched.certainty}")
     println("item = ${matched.item}")
@@ -44,4 +44,15 @@ fun main(args: Array<String>) {
     println()
 
     matched.reportings.forEach { println(it); println(); println() }
+
+    //
+    if (matched.reportings.containsErrors) {
+        return
+    }
+
+    swCtx.addModule(parsedASTModule.bindTo(swCtx))
+    swCtx.doSemanticAnalysis().forEach { println(it); println(); println() }
 }
+
+val Iterable<Reporting>.containsErrors
+    get() = map(Reporting::level).any { it.level > Reporting.Level.ERROR.level }
