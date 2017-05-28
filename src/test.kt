@@ -7,16 +7,15 @@ import compiler.parser.toTransactional
 
 val testCode = """module testcode
 
-val foo: Int
-val bar = 3
-val foobar = foo2
-
+val foo = 3 + 4
 """
 
 fun main(args: Array<String>) {
     // setup context
     val swCtx = SoftwareContext()
-    swCtx.addModule(BuiltinType.Module)
+    val builtinsModule = BuiltinType.getNewModule()
+    builtinsModule.context.swCtx = swCtx
+    swCtx.addModule(builtinsModule)
 
     var source = object : SourceContentAwareSourceDescriptor() {
         override val sourceLocation = "testcode"

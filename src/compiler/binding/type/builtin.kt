@@ -1,10 +1,12 @@
 package compiler.binding.type
 
+import compiler.ast.ASTModule
 import compiler.ast.FunctionDeclaration
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
 import compiler.binding.context.Module
 import compiler.binding.context.MutableCTContext
+import compiler.parseFromClasspath
 
 /*
  * This file contains raw definitions of the builtin types.
@@ -48,22 +50,20 @@ abstract class BuiltinType(override val simpleName: String, vararg superTypes: B
     final override fun resolveMemberFunction(name: String) = emptySet<FunctionDeclaration>()
 
     companion object {
-        /**
-         * A [Context] that holds all instances of [BuiltinType]; updates dynamically whenever an instance of
-         * [BuiltinType] is created.
-         */
-        val Module: Module
+       private val stdlib: ASTModule = parseFromClasspath("builtin.dt")
+        fun getNewModule(): Module {
+            val module = Module(arrayOf("dotlin", "lang"), MutableCTContext())
 
-        init {
-            // TODO: use a dotlin.lang PACKAGE in the classpath and public import the "synthetic" stuff from modules defined in the compiler (like dotlin.lang.builtin)
-            val builtinTypeDeclarations = /*parseFromClasspath("builtin.dt")*/ Module(arrayOf("dotlin", "lang"), MutableCTContext())
+            module.context.addBaseType(Any)
+            module.context.addBaseType(Unit)
+            module.context.addBaseType(Number)
+            module.context.addBaseType(Float)
+            module.context.addBaseType(Int)
 
-            builtinTypeDeclarations.context.addBaseType(Any)
-            builtinTypeDeclarations.context.addBaseType(Unit)
-            builtinTypeDeclarations.context.addBaseType(Number)
-            builtinTypeDeclarations.context.addBaseType(Float)
-            builtinTypeDeclarations.context.addBaseType(Int)
-            Module = builtinTypeDeclarations
+            stdlib.functions.forEach { module.context.addFunction(it) }
+            stdlib.variables.forEach { module.context.addVariable(it) }
+
+            return module
         }
     }
 }

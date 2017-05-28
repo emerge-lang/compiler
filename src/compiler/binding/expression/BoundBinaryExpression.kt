@@ -15,10 +15,8 @@ class BoundBinaryExpression(
     val operator: Operator,
     val second: BoundExpression<*>
 ) : BoundExpression<BinaryExpression> {
-    override var type: BaseTypeReference? = null
-        private set
 
-    private val hiddenInvocation = InvocationExpression(
+    private val hiddenInvocation: BoundInvocationExpression = InvocationExpression(
             MemberAccessExpression(
                     first.declaration as Expression<*>,
                     IdentifierToken(operatorFunctionName(operator), declaration.op.sourceLocation)
@@ -27,7 +25,10 @@ class BoundBinaryExpression(
     )
             .bindTo(context)
 
-    override fun semanticAnalysisPhase1() = first.semanticAnalysisPhase1() + second.semanticAnalysisPhase1()
+    override val type: BaseTypeReference?
+        get() = hiddenInvocation.type
+
+    override fun semanticAnalysisPhase1() = hiddenInvocation.semanticAnalysisPhase1()
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
