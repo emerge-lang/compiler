@@ -25,6 +25,8 @@ open class MutableCTContext(
     private val imports: MutableSet<ImportDeclaration> = HashSet()
 
     override var swCtx: SoftwareContext? = null
+        get() = field ?: parentContext.swCtx
+        set(ctx) { field = ctx }
 
     /** Maps variable names to their metadata; holds only variables defined in this context */
     private val variablesMap: MutableMap<String, BoundVariable> = HashMap()
