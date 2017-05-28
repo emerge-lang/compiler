@@ -12,7 +12,8 @@ import compiler.parser.Reporting
  */
 class BoundVariable(
     override val context: CTContext,
-    override val declaration: VariableDeclaration
+    override val declaration: VariableDeclaration,
+    val assignExpression: BoundExpression<*>?
 ) : BoundExecutable<VariableDeclaration>
 {
     val typeModifier = declaration.typeModifier
@@ -27,9 +28,6 @@ class BoundVariable(
     var type: BaseTypeReference? = null
         private set
 
-    var assignExpression: BoundExpression<*>? = null
-        private set
-
     fun semanticAnalysisPhase1() = semanticAnalysisPhase1("variable")
 
     fun semanticAnalysisPhase1(selfType: String): Collection<Reporting> {
@@ -37,7 +35,7 @@ class BoundVariable(
 
         // type-related stuff
         // unknown type
-        if (declaration.assignExpression == null && declaration.type == null) {
+        if (declaration.initializerExpression == null && declaration.type == null) {
             reportings.add(Reporting.error("Cannot determine type of $selfType $name; neither type nor initializer is specified.", declaration.declaredAt))
         }
 
@@ -51,18 +49,23 @@ class BoundVariable(
             reportings.addAll(declaredType.validate())
         }
 
+        if (assignExpression != null) {
+            reportings.addAll(assignExpression.semanticAnalysisPhase1())
+        }
+
         return reportings
     }
 
     fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
 
-        if (declaration.assignExpression != null) {
-            assignExpression = declaration.assignExpression.bindTo(context)
-            // TODO: invoke sematic analysis on the expression --- do expressions have phase 1?
+        if (assignExpression != null) {
 
+            reportings.addAll(assignExpression.semanticAnalysisPhase2())
+
+            // verify compatibility declared type <-> initializer type
             if (type != null) {
-                val initializerType = assignExpression!!.type
+                val initializerType = assignExpression.type
 
                 // if the initializer type cannot be resolved the reporting is already done and
                 // should have returned it; so: we don't care :)
@@ -70,13 +73,13 @@ class BoundVariable(
                 // discrepancy between assign expression and declared type
                 if (initializerType != null) {
                     if (!(initializerType isAssignableTo type!!)) {
-                        reportings.add(Reporting.typeMismatch(type!!, initializerType, declaration.assignExpression.sourceLocation))
+                        reportings.add(Reporting.typeMismatch(type!!, initializerType, declaration.initializerExpression!!.sourceLocation))
                     }
                 }
             }
 
-            // discrepancy between implied modifiers of assignExpression and type modifiers of this declaration
-            val assignExprBaseType = assignExpression!!.type?.baseType
+            // discrepancy between implied modifiers of initializerExpression and type modifiers of this declaration
+            val assignExprBaseType = assignExpression.type?.baseType
             val assignExprTypeImpliedModifier = assignExprBaseType?.impliedModifier
             if (typeModifier != null && assignExprTypeImpliedModifier != null) {
                 if (!(assignExprTypeImpliedModifier isAssignableTo typeModifier)) {
@@ -84,7 +87,6 @@ class BoundVariable(
                 }
             }
         }
-        else assignExpression = null
 
         // infer the type
         if (type == null) {

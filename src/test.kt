@@ -7,13 +7,9 @@ import compiler.parser.toTransactional
 
 val testCode = """module testcode
 
-fun foo(bar: Int, bar: Int) -> Int {
-    return bar + 3
-}
-
-fun main() {
-    bar(2)
-}
+val foo: Int
+val bar = 3
+val foobar = foo
 
 """
 
@@ -52,6 +48,8 @@ fun main(args: Array<String>) {
 
     swCtx.addModule(parsedASTModule.bindTo(swCtx))
     swCtx.doSemanticAnalysis().forEach { println(it); println(); println() }
+
+    println("---")
 }
 
 val Iterable<Reporting>.containsErrors

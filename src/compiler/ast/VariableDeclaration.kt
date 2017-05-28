@@ -14,9 +14,9 @@ open class VariableDeclaration(
     val name: IdentifierToken,
     val type: TypeReference?,
     val isAssignable: Boolean,
-    val assignExpression: Expression<*>?
+    val initializerExpression: Expression<*>?
 ) : Declaration, Executable<BoundVariable> {
     override val sourceLocation = declaredAt
 
-    override fun bindTo(context: CTContext): BoundVariable = BoundVariable(context, this)
+    override fun bindTo(context: CTContext): BoundVariable = BoundVariable(context, this, initializerExpression?.bindTo(context))
 }
