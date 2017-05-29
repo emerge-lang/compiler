@@ -5,11 +5,10 @@ import ExpressionPostfix
 import ParanthesisedExpression
 import UnaryExpression
 import ValueExpression
+import compiler.ast.expression.BinaryExpression
 import compiler.ast.expression.Expression
 import compiler.parser.TokenSequence
-import compiler.parser.postproc.ExpressionPostfixModifier
-import compiler.parser.postproc.flatten
-import compiler.parser.postproc.mapResult
+import compiler.parser.postproc.*
 import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
 import compiler.transact.Position
@@ -47,6 +46,10 @@ class ExpressionRule : Rule<Expression<*>> {
 
         for (postfixMod in postfixes) {
             expression = postfixMod.modify(expression)
+        }
+
+        if (expression is BinaryExpression) {
+            expression = restructureWithRespectToOperatorPrecedence(expression)
         }
 
         return expression

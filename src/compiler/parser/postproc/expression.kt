@@ -48,10 +48,10 @@ fun ParanthesisedExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>
     return rule
         .flatten()
         .mapResult({ input ->
-            // skip PARANT_OPEN
-            input.next()!!
+            val parantOpen = input.next()!! as OperatorToken
+            val nested     = input.next()!! as Expression<*>
 
-            input.next()!! as Expression<*>
+            ParenthesisedExpression(nested, parantOpen.sourceLocation)
         })
 }
 
