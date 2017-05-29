@@ -1,3 +1,7 @@
+package compiler.parser.postproc
+
+import compiler.ast.expression.BinaryExpression
+
 /**
  * Restructures [BinaryExpression]s so that the resulting tree structure complies to the operator precedence. This is
  * the algorithm used:
@@ -55,10 +59,7 @@
  *
  * This tree then evaluates as desired: `(a * (b + c)) + (e * f) = a * (b + c) + e * f`.
  */
-package compiler.parser.postproc
-
-import compiler.ast.expression.BinaryExpression
-
 fun restructureWithRespectToOperatorPrecedence(original: BinaryExpression): BinaryExpression {
+    // TODO: implement
     return original
 }
