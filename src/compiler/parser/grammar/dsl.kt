@@ -113,7 +113,7 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
     }
 
     /**
-     * Matches the first of any of the sub-rules
+     * Matches the leftHandSide of any of the sub-rules
      */
     fun eitherOf(initFn: DSLEitherOfRule.() -> Any?): Unit
     {

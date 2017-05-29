@@ -5,18 +5,18 @@ import compiler.binding.expression.BoundBinaryExpression
 import compiler.lexer.OperatorToken
 
 class BinaryExpression(
-    val first: Expression<*>,
-    val op: OperatorToken,
-    val second: Expression<*>
+        val leftHandSide: Expression<*>,
+        val op: OperatorToken,
+        val rightHandSide: Expression<*>
 ) : Expression<BoundBinaryExpression> {
-    override val sourceLocation = first.sourceLocation
+    override val sourceLocation = leftHandSide.sourceLocation
 
     // simply rewrite to an invocation
     override fun bindTo(context: CTContext) = BoundBinaryExpression(
             context,
             this,
-            first.bindTo(context),
+            leftHandSide.bindTo(context),
             op.operator,
-            second.bindTo(context)
+            rightHandSide.bindTo(context)
     )
 }

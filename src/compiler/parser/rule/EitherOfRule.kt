@@ -6,7 +6,7 @@ import compiler.parser.TokenSequence
 import textutils.indentByFromSecondLine
 
 /**
- * Matches the first of any given sub-rule
+ * Matches the leftHandSide of any given sub-rule
  */
 open class EitherOfRule(
         open val subRules: Collection<Rule<*>>

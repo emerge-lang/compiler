@@ -9,7 +9,7 @@ import compiler.lexer.IdentifierToken
  * properties only.
  *
  * Member method invocation is handled by [InvocationExpression]. When its receiver expression is a [MemberAccessExpression],
- * it first tries to resolve a member function with the [memberName] before evaluating this expression.
+ * it leftHandSide tries to resolve a member function with the [memberName] before evaluating this expression.
  */
 class MemberAccessExpression(
     val valueExpression: Expression<*>,

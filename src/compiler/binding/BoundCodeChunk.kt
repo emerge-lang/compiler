@@ -5,7 +5,7 @@ import compiler.binding.context.CTContext
 
 class BoundCodeChunk(
     /**
-     * Context that applies to the first statement; derivatives are stored within the statements themselves
+     * Context that applies to the leftHandSide statement; derivatives are stored within the statements themselves
      */
     override val context: CTContext,
 

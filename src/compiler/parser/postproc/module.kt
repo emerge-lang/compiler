@@ -33,7 +33,7 @@ private fun toAST_Module(inResult: RuleMatchingResult<TransactionalSequence<Any,
             if (astModule.selfDeclaration == null) {
                 if (index != 0) {
                     reportings.add(Reporting.error(
-                        "The module declaration must be the first declaration in the source file",
+                        "The module declaration must be the leftHandSide declaration in the source file",
                         declaration.declaredAt
                     ))
                 }
