@@ -11,17 +11,17 @@ import compiler.parser.Reporting
 class BoundBinaryExpression(
     override val context: CTContext,
     override val declaration: BinaryExpression,
-    val first: BoundExpression<*>,
+    val leftHandSide: BoundExpression<*>,
     val operator: Operator,
-    val second: BoundExpression<*>
+    val rigthHandSide: BoundExpression<*>
 ) : BoundExpression<BinaryExpression> {
 
     private val hiddenInvocation: BoundInvocationExpression = InvocationExpression(
             MemberAccessExpression(
-                    first.declaration as Expression<*>,
+                    leftHandSide.declaration as Expression<*>,
                     IdentifierToken(operatorFunctionName(operator), declaration.op.sourceLocation)
             ),
-            listOf(second.declaration as Expression<*>)
+            listOf(rigthHandSide.declaration as Expression<*>)
     )
             .bindTo(context)
 
