@@ -3,6 +3,7 @@ package compiler.binding.expression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseTypeReference
+import compiler.parser.Reporting
 
 class BoundMemberAccessExpression(
     override val context: CTContext,
@@ -16,4 +17,15 @@ class BoundMemberAccessExpression(
      */
     override var type: BaseTypeReference? = null
         private set
+
+    override fun semanticAnalysisPhase1() = valueExpression.semanticAnalysisPhase1()
+    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        val reportings = mutableSetOf<Reporting>()
+        reportings.addAll(valueExpression.semanticAnalysisPhase2())
+
+        // TODO: resolve member
+        // TODO: what about FQNs?
+
+        return reportings
+    }
 }
