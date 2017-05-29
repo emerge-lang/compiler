@@ -22,7 +22,7 @@
  *        b   c
  *
  *  and `a * (b + c) + e * f` which parses to
- *      |
+ *
  *              *
  *             / \
  *            a   +
@@ -36,14 +36,15 @@
  *  The `(b + c)` part stays at it is. It should already have been restructured by another invocation of this method.
  *
  *  The resulting list is then used to build another tree:
- *  Of those operators with the lowest precedence the leftmost will from the toplevel node/expression. In the
- *  upper case its the first and only `+`:
+ *  Of those operators with the lowest precedence the leftmost will from the toplevel node/expression. In this case
+ *  it's the first and only `+`:
  *
  *                       +
  *                      / \
- *      [a, *, (b + c)]    [e, * f]
+ *      [a, *, (b + c)]    [e, *, f]
  *
  *  This process is then recursively repeated for both sides of the node:
+ *
  *              +
  *            /  \
  *           /    *
