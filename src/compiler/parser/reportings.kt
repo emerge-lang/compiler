@@ -3,8 +3,11 @@ package compiler.parser
 import compiler.InternalCompilerError
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
+import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundInvocationExpression
 import compiler.binding.type.BaseTypeReference
+import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
 import compiler.lexer.SourceLocation
 import compiler.lexer.Token
 import compiler.matching.ResultCertainty
@@ -116,16 +119,34 @@ open class Reporting(
                     val parameterListAsString = "(" + expr.parameterExpressions.map { it.toString() }.joinToString(", ") + ")"
 
                     if (expr.receiverExpression?.type == null) {
-                        return error("Function ${expr.functionNameToken.value} is not defined without receiver and parameters $parameterListAsString")
+                        return error("Function ${expr.functionNameToken.value} is not defined without receiver and parameters $parameterListAsString", expr.declaration.sourceLocation)
                     }
                     else {
-                        return error("Function ${expr.functionNameToken.value} is not defined for receiver ${expr.receiverExpression.type} and parameters $parameterListAsString")
+                        return error("Function ${expr.functionNameToken.value} is not defined for receiver ${expr.receiverExpression.type} and parameters $parameterListAsString", expr.declaration.sourceLocation)
                     }
                 }
             }
         }
 
         fun semanticRecursion(message: String, location: SourceLocation = SourceLocation.UNKNOWN) = error(message, location)
+
+        /**
+         * An expression is used in a way that requires it to be non-null but the type of the expression is nullable.
+         * @param nullableExpression The expression that could evaluate to null and thus case an NPE
+         * @see BaseTypeReference.isNullable
+         */
+        fun unsafeObjectTraversal(nullableExpression: BoundExpression<*>, faultyAccessOperator: OperatorToken): Reporting {
+            return error("Receiver expression could evaluate to null (type is ${nullableExpression.type}). " +
+                    "Assert non null (operator ${Operator.NOTNULL.text}) or use the safe object traversal operator ${Operator.SAFEDOT.text}",
+                    faultyAccessOperator)
+        }
+
+        /**
+         * A value is traversed using a null-safe operator but the value can never be null.
+         */
+        fun superfluousNullSafeObjectTraversal(nonNullExpression: BoundExpression<*>, superfluousSafeOperator: OperatorToken): Reporting {
+            return info("Null-safe object traversal is superfluous here; the receiver expression cannot evaluate to null", superfluousSafeOperator)
+        }
     }
 }
 

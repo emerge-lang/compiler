@@ -6,6 +6,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.BaseTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
 import compiler.parser.Reporting
 
 class BoundBinaryExpression(
@@ -19,6 +20,7 @@ class BoundBinaryExpression(
     private val hiddenInvocation: BoundInvocationExpression = InvocationExpression(
             MemberAccessExpression(
                     leftHandSide.declaration as Expression<*>,
+                    OperatorToken(Operator.DOT, declaration.op.sourceLocation),
                     IdentifierToken(operatorFunctionName(operator), declaration.op.sourceLocation)
             ),
             listOf(rigthHandSide.declaration as Expression<*>)

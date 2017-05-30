@@ -117,7 +117,9 @@ class InvocationExpressionPostfixModifier(
 }
 
 class MemberAccessExpressionPostfixModifier(
+    /** must be either [Operator.DOT] or [Operator.SAFEDOT] */
+    val accessOperatorToken: OperatorToken,
     val memberName: IdentifierToken
 ) : ExpressionPostfixModifier<MemberAccessExpression> {
-    override fun modify(expr: Expression<*>) = MemberAccessExpression(expr, memberName)
+    override fun modify(expr: Expression<*>) = MemberAccessExpression(expr, accessOperatorToken, memberName)
 }

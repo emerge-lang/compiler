@@ -107,8 +107,26 @@ private fun rearrange(items: List<OperatorOrExpression>): Expression<*> {
 
 private val Operator.priority: Int
     get() = when(this) {
-        Operator.PLUS, Operator.MINUS   -> 1
-        Operator.TIMES, Operator.DIVIDE -> 2
-        Operator.POWER                  -> 3
+        Operator.ELVIS -> 10
+
+        Operator.LESS_THAN,
+        Operator.LESS_THAN_OR_EQUALS,
+        Operator.GREATER_THAN,
+        Operator.GREATER_THAN_OR_EQUALS,
+        Operator.EQUALS,
+        Operator.NOT_EQUALS,
+        Operator.IDENTITY_EQ,
+        Operator.IDENTITY_NEQ -> 20
+
+        Operator.PLUS,
+        Operator.MINUS -> 30
+
+        Operator.TIMES,
+        Operator.DIVIDE -> 40
+
+        Operator.POWER -> 50
+
+        Operator.CAST,
+        Operator.TRYCAST -> 60
         else -> throw InternalCompilerError("$this is not a binary operator")
     }

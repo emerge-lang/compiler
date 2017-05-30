@@ -102,6 +102,12 @@ open class BaseTypeReference(
             str += modifier!!.name.toLowerCase() + " "
         }
 
-        return str + baseType.fullyQualifiedName
+        str += baseType.fullyQualifiedName
+
+        if (isNullable) {
+            str += "?"
+        }
+
+        return str
     }
 }

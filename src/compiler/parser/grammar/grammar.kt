@@ -1,6 +1,7 @@
 import compiler.ast.expression.Expression
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword.*
+import compiler.lexer.Operator
 import compiler.lexer.Operator.*
 import compiler.lexer.OperatorToken
 import compiler.lexer.TokenType
@@ -174,8 +175,9 @@ val ExpressionPostfixMemberAccess = rule {
     .describeAs("member access")
     .flatten()
     .mapResult {
-        it.next()
-        MemberAccessExpressionPostfixModifier(it.next()!! as IdentifierToken)
+        val accessOperator = it.next() as OperatorToken
+        val memberNameToken = it.next() as IdentifierToken
+        MemberAccessExpressionPostfixModifier(accessOperator, memberNameToken)
     }
 
 val ExpressionPostfix = rule {

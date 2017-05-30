@@ -7,7 +7,9 @@ import compiler.parser.toTransactional
 
 val testCode = """module testcode
 
-val foo = a * (b + c) + e * f
+val foo: Int? = 3
+val bar = foo.bar
+val bar2 = foo?.bar
 """
 
 fun main(args: Array<String>) {
