@@ -12,6 +12,8 @@ class BoundNullLiteralExpression(
 {
     override val type: BaseTypeReference? = null
 
+    override val isReadonly = true
+
     companion object {
         fun getInstance(context: CTContext, sourceLocation: SourceLocation = SourceLocation.UNKNOWN) =
             BoundNullLiteralExpression(

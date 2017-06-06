@@ -17,6 +17,9 @@ class BoundUnaryExpression(
     override var type: BaseTypeReference? = null
         private set
 
+    override val isReadonly: Boolean?
+        get() = original.isReadonly
+
     val operator = declaration.operator
 
     override fun semanticAnalysisPhase1() = original.semanticAnalysisPhase1()

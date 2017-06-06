@@ -27,6 +27,9 @@ class BoundInvocationExpression(
     var dispatchedFunction: BoundFunction? = null
         private set
 
+    override val isReadonly: Boolean?
+        get() = dispatchedFunction?.isReadonly
+
     override fun semanticAnalysisPhase1(): Collection<Reporting> =
         (receiverExpression?.semanticAnalysisPhase1() ?: emptySet()) + parameterExpressions.flatMap(BoundExpression<*>::semanticAnalysisPhase1)
 

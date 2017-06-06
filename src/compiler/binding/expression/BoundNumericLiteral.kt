@@ -18,6 +18,7 @@ open class BoundNumericLiteral(
 ) : BoundExpression<NumericLiteralExpression> {
     override fun semanticAnalysisPhase1() = reportings
     override val type: BaseTypeReference? = null // unknown
+    override final val isReadonly = true
 }
 
 class BoundIntegerLiteral(

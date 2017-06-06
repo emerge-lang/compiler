@@ -14,4 +14,6 @@ class BoundNotNullExpression(
 
     override var type: BaseTypeReference? = null
         private set
+
+    override val isReadonly = true
 }

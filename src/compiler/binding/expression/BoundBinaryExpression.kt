@@ -30,6 +30,17 @@ class BoundBinaryExpression(
     override val type: BaseTypeReference?
         get() = hiddenInvocation.type
 
+    override val isReadonly: Boolean?
+        get() {
+            val lhsReadonly = leftHandSide.isReadonly
+            val rhsReadonly = rigthHandSide.isReadonly
+            if (lhsReadonly == null || rhsReadonly == null) {
+                return null
+            }
+
+            return lhsReadonly && rhsReadonly
+        }
+
     override fun semanticAnalysisPhase1() = hiddenInvocation.semanticAnalysisPhase1()
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {

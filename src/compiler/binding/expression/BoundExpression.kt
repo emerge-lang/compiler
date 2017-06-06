@@ -23,6 +23,13 @@ interface BoundExpression<out ASTType> {
     val type: BaseTypeReference?
 
     /**
+     * Whether this expression is readonly. An expression is readonly if it never writes to its context, not even
+     * parameters passed to it.
+     * Is `null` if the property has not yet been determined. Must be non-null after semantic analysis is completed.
+     */
+    val isReadonly: Boolean?
+
+    /**
      * This method is in place to verify explicit mentions of types in expressions. At the current stage,
      * this affects no expression. In the future, there will be expressions that can (or event must) contain
      * such explicit mentions:

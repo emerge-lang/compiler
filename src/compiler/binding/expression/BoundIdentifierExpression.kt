@@ -14,6 +14,11 @@ class BoundIdentifierExpression(
     override var type: BaseTypeReference? = null
         private set
 
+    /**
+     * Referring to things by their name is always readonly. Getters of variables must be readonly.
+     */
+    override val isReadonly = true
+
     override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {

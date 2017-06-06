@@ -24,6 +24,9 @@ class BoundStandaloneExpression(
     override val type: BaseTypeReference?
         get() = expression.type
 
+    override val isReadonly: Boolean?
+        get() = expression.isReadonly
+
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         super.semanticAnalysisPhase1()
 
