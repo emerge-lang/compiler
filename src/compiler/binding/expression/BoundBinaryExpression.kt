@@ -14,7 +14,7 @@ class BoundBinaryExpression(
     override val declaration: BinaryExpression,
     val leftHandSide: BoundExpression<*>,
     val operator: Operator,
-    val rigthHandSide: BoundExpression<*>
+    val rightHandSide: BoundExpression<*>
 ) : BoundExpression<BinaryExpression> {
 
     private val hiddenInvocation: BoundInvocationExpression = InvocationExpression(
@@ -23,7 +23,7 @@ class BoundBinaryExpression(
                     OperatorToken(Operator.DOT, declaration.op.sourceLocation),
                     IdentifierToken(operatorFunctionName(operator), declaration.op.sourceLocation)
             ),
-            listOf(rigthHandSide.declaration as Expression<*>)
+            listOf(rightHandSide.declaration as Expression<*>)
     )
             .bindTo(context)
 
@@ -33,7 +33,7 @@ class BoundBinaryExpression(
     override val isReadonly: Boolean?
         get() {
             val lhsReadonly = leftHandSide.isReadonly
-            val rhsReadonly = rigthHandSide.isReadonly
+            val rhsReadonly = rightHandSide.isReadonly
             if (lhsReadonly == null || rhsReadonly == null) {
                 return null
             }
