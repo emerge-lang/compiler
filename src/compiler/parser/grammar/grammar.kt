@@ -127,9 +127,15 @@ val BinaryExpression = rule {
         ref(ValueExpression)
         ref(ParanthesisedExpression)
     }
-    eitherOf(*binaryOperators) // TODO: arbitrary infix ops
-    __matched()
-    expression()
+    atLeast(1) {
+        eitherOf(*binaryOperators) // TODO: arbitrary infix ops
+        __matched()
+        eitherOf {
+            ref(UnaryExpression)
+            ref(ValueExpression)
+            ref(ParanthesisedExpression)
+        }
+    }
     __definitive()
 }
     .describeAs("ary operator expression")

@@ -6,7 +6,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
    time context. It keeps all the information derived thereof; things then become easier
    with `expression.boundTo(contex).type` instead of `expression.determineType(context)`.
 2. ~\!> InvocationExpression~
-3. Operator Precedence
+3. ~Operator Precedence~
 4. Scope modifier PURE  
    nothrow will be implemented analogous later on; this is just to figure out the API
 5. distinguish terminating and non-terminating statements in code chunks

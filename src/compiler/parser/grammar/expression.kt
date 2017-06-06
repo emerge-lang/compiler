@@ -48,10 +48,6 @@ class ExpressionRule : Rule<Expression<*>> {
             expression = postfixMod.modify(expression)
         }
 
-        if (expression is BinaryExpression) {
-            expression = restructureWithRespectToOperatorPrecedence(expression)
-        }
-
         return expression
     }
 
