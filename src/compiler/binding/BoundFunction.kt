@@ -38,6 +38,46 @@ class BoundFunction(
     var returnType: BaseTypeReference? = null
         private set
 
+    val isDeclaredPure: Boolean = FunctionModifier.PURE in declaration.modifiers
+
+    /**
+     * Whether this functions code is behaves in a pure way. Is null if that has not yet been determined (see semantic
+     * analysis) or if the function has no body.
+     */
+    var isEffectivelyPure: Boolean? = null
+        private set
+
+    /**
+     * Whether this function should be considered pure by other code using it. This is true if the function is
+     * declared pure. If that is not the case the function is still considered pure if the declared
+     * body behaves in a pure way.
+     * This value is null if the purity was not yet determined; it must be non-null when semantic analysis is completed.
+     * @see isDeclaredPure
+     * @see isEffectivelyPure
+     */
+    val isPure: Boolean?
+        get() = if (isDeclaredPure) true else isEffectivelyPure
+
+    val isDeclaredPeadonly: Boolean = isDeclaredPure || FunctionModifier.READONLY in declaration.modifiers
+
+    /**
+     * Whether this functions code behaves in a readonly way. Is null if that has not yet been determined (see semantic
+     * analysis) or if the function has no body.
+     */
+    var isEffectivelyReadonly: Boolean? = null
+        private set
+
+    /**
+     * Whether this function should be considered readonly by other code using it. This is true if the function is
+     * declared readonly or pure. If that is not the case the function is still considered readonly if the declared
+     * body behaves in a readonly way.
+     * This value is null if the purity was not yet determined; it must be non-null when semantic analysis is completed.
+     * @see isDeclaredPure
+     * @see isEffectivelyPure
+     */
+    val isReadonly: Boolean?
+        get() = if (isDeclaredPeadonly || isDeclaredPure) true else isEffectivelyReadonly
+
     fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
 
