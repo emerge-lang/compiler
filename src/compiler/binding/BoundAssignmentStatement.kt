@@ -14,10 +14,12 @@ class BoundAssignmentStatement(
     val valueExpression: BoundExpression<*>
 ) : BoundExecutable<AssignmentStatement> {
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+    override fun semanticAnalysisPhase1() = targetExpression.semanticAnalysisPhase1() + valueExpression.semanticAnalysisPhase1()
+
+    override fun semanticAnalysisPhase2() = targetExpression.semanticAnalysisPhase2() + valueExpression.semanticAnalysisPhase2()
+
+    override fun semanticAnalysisPhase3(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
-        reportings += targetExpression.semanticAnalysisPhase1()
-        reportings += valueExpression.semanticAnalysisPhase2()
 
         // TODO
         // reject if the targetExpression does not point to something that
@@ -25,7 +27,9 @@ class BoundAssignmentStatement(
         if (targetExpression is BoundIdentifierExpression) {
             // TODO find out what the identifier points to. If it is a variable this is fine for this phase
         }
-        else if (targetExpression !is BoundMemberAccessExpression) {
+        else if (targetExpression is BoundMemberAccessExpression) {
+        }
+        else {
             reportings += Reporting.error("Cannot assign to this target", declaration.targetExpression.sourceLocation)
         }
 
