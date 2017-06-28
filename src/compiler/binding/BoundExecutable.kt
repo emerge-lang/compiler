@@ -34,7 +34,7 @@ interface BoundExecutable<out ASTType> {
     fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
 
     /**
-     *
+     * Here is where actual semantics are validated.
      */
     fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
 }
