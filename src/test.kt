@@ -3,13 +3,13 @@ import compiler.binding.type.BuiltinType
 import compiler.lexer.SourceContentAwareSourceDescriptor
 import compiler.lexer.lex
 import compiler.parser.Reporting
-import compiler.parser.grammar.ExpressionRule
 import compiler.parser.toTransactional
 
 val testCode = """module testcode
 
-val foo = a + b * c
-
+fun foobar() {
+    val x = 3
+}
 """
 
 fun main(args: Array<String>) {
