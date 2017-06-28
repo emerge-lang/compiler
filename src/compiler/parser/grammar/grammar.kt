@@ -359,12 +359,3 @@ val Module = rule {
 }
     .describeAs("module")
     .postprocess(::ModulePostProcessor)
-
-val ReturnStatement = rule {
-    keyword(RETURN)
-    __matched()
-    expression()
-    __definitive()
-}
-    .describeAs("return statement")
-    .postprocess(::ReturnStatementPostProcessor)

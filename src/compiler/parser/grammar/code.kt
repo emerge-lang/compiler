@@ -1,11 +1,13 @@
 package compiler.parser.grammar
 
-import ReturnStatement
+import compiler.parser.grammar.ReturnStatement
 import VariableDeclaration
 import compiler.ast.CodeChunk
+import compiler.lexer.Keyword
 import compiler.lexer.Operator
 import compiler.parser.TokenSequence
 import compiler.parser.postproc.CodeChunkPostProcessor
+import compiler.parser.postproc.ReturnStatementPostProcessor
 import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
 
@@ -42,3 +44,12 @@ class CodeChunkRule : Rule<CodeChunk> {
         val INSTANCE = CodeChunkRule()
     }
 }
+
+val ReturnStatement = rule {
+    keyword(Keyword.RETURN)
+    __matched()
+    expression()
+    __definitive()
+}
+    .describeAs("return statement")
+    .postprocess(::ReturnStatementPostProcessor)
