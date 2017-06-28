@@ -3,11 +3,11 @@ package compiler.parser.grammar
 import compiler.parser.grammar.ReturnStatement
 import VariableDeclaration
 import compiler.ast.CodeChunk
+import compiler.ast.expression.IdentifierExpression
 import compiler.lexer.Keyword
 import compiler.lexer.Operator
 import compiler.parser.TokenSequence
-import compiler.parser.postproc.CodeChunkPostProcessor
-import compiler.parser.postproc.ReturnStatementPostProcessor
+import compiler.parser.postproc.*
 import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
 
@@ -24,6 +24,7 @@ class CodeChunkRule : Rule<CodeChunk> {
                 optionalWhitespace()
                 eitherOf {
                     ref(VariableDeclaration)
+                    ref(AssignmentStatement)
                     ref(ReturnStatement)
                     expression()
                 }
@@ -53,3 +54,22 @@ val ReturnStatement = rule {
 }
     .describeAs("return statement")
     .postprocess(::ReturnStatementPostProcessor)
+
+val AssignmentStatement = rule {
+    expression()
+
+    operator(Operator.EQUALS)
+    __matched()
+
+    expression()
+    __optimistic()
+
+    eitherOf {
+        operator(Operator.NEWLINE)
+        endOfInput()
+    }
+    __definitive()
+}
+    .describeAs("assignment")
+    .flatten()
+    .mapResult(::toAST_AssignmentStatement)

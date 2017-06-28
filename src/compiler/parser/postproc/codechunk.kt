@@ -1,11 +1,13 @@
 package compiler.parser.postproc
 
 import compiler.InternalCompilerError
+import compiler.ast.AssignmentStatement
 import compiler.ast.CodeChunk
 import compiler.ast.Executable
 import compiler.ast.ReturnStatement
 import compiler.ast.expression.Expression
 import compiler.ast.expression.StandaloneExpression
+import compiler.binding.BoundAssignmentStatement
 import compiler.lexer.KeywordToken
 import compiler.lexer.OperatorToken
 import compiler.parser.rule.Rule
@@ -24,6 +26,17 @@ private fun toAST_ReturnStatement(input: TransactionalSequence<Any, Position>): 
     val expression = input.next()!! as Expression<*>
 
     return ReturnStatement(keyword, expression)
+}
+
+// ------
+
+fun toAST_AssignmentStatement(input: TransactionalSequence<Any, Position>): AssignmentStatement {
+    val targetExpression = input.next() as Expression<*>
+    // skip the ASSIGNMENT operator
+    input.next()
+    val valueExpression = input.next() as Expression<*>
+
+    return AssignmentStatement(targetExpression, valueExpression)
 }
 
 // ------
