@@ -1,12 +1,10 @@
 package compiler.parser.grammar
 
-import BinaryExpression
-import ExpressionPostfix
-import ParanthesisedExpression
-import UnaryExpression
-import ValueExpression
-import compiler.ast.expression.BinaryExpression
 import compiler.ast.expression.Expression
+import compiler.lexer.IdentifierToken
+import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
+import compiler.lexer.TokenType
 import compiler.parser.TokenSequence
 import compiler.parser.postproc.*
 import compiler.parser.rule.Rule
@@ -55,3 +53,133 @@ class ExpressionRule : Rule<Expression<*>> {
         val INSTANCE = ExpressionRule()
     }
 }
+
+val LiteralExpression = rule {
+    eitherOf {
+        tokenOfType(TokenType.NUMERIC_LITERAL)
+        // TODO: string literal, function literal
+    }
+    __matched()
+}
+    .describeAs("literal")
+    .postprocess(::LiteralExpressionPostProcessor)
+
+val ValueExpression = rule {
+    eitherOf {
+        ref(LiteralExpression)
+        identifier()
+    }
+    __definitive()
+}
+    .describeAs("value expression")
+    .postprocess(::ValueExpressionPostProcessor)
+
+val ParanthesisedExpression: Rule<Expression<*>> = rule {
+    operator(Operator.PARANT_OPEN)
+    expression()
+    __matched()
+    operator(Operator.PARANT_CLOSE)
+    __definitive()
+}
+    .describeAs("paranthesised expression")
+    .postprocess(::ParanthesisedExpressionPostProcessor)
+
+val UnaryExpression = rule {
+    eitherOf(Operator.PLUS, Operator.MINUS, Operator.NEGATE)
+    // TODO: tilde, ... what else?
+
+    eitherOf {
+        // TODO: reorder these to comply to the defined operator precedence (e.g. DOT before MINUS)
+        ref(ValueExpression)
+        ref(ParanthesisedExpression)
+    }
+    __definitive()
+}
+    .describeAs("unary expression")
+    .postprocess(::UnaryExpressionPostProcessor)
+
+val binaryOperators = arrayOf(
+    // Arithmetic
+    Operator.PLUS, Operator.MINUS, Operator.TIMES, Operator.DIVIDE,
+    // Comparison
+    Operator.EQUALS, Operator.GREATER_THAN, Operator.LESS_THAN, Operator.GREATER_THAN_OR_EQUALS, Operator.LESS_THAN_OR_EQUALS,
+    Operator.IDENTITY_EQ, Operator.IDENTITY_NEQ,
+    // MISC
+    Operator.CAST, Operator.TRYCAST, Operator.ELVIS
+)
+
+val BinaryExpression = rule {
+    eitherOf {
+        ref(UnaryExpression)
+        ref(ValueExpression)
+        ref(ParanthesisedExpression)
+    }
+    atLeast(1) {
+        eitherOf(*binaryOperators) // TODO: arbitrary infix ops
+        __matched()
+        eitherOf {
+            ref(UnaryExpression)
+            ref(ValueExpression)
+            ref(ParanthesisedExpression)
+        }
+    }
+    __definitive()
+}
+    .describeAs("ary operator expression")
+    .postprocess(::BinaryExpressionPostProcessor)
+
+val ExpressionPostfixNotNull = rule {
+    operator(Operator.NOTNULL)
+    __definitive()
+}
+    .describeAs(OperatorToken(Operator.NOTNULL).toStringWithoutLocation())
+    .flatten()
+    .mapResult { NotNullExpressionPostfixModifier(it.next()!! as OperatorToken) }
+
+val ExpressionPostfixInvocation = rule {
+    operator(Operator.PARANT_OPEN)
+    optionalWhitespace()
+
+    optional {
+        expression()
+        optionalWhitespace()
+
+        atLeast(0) {
+            operator(Operator.COMMA)
+            optionalWhitespace()
+            expression()
+        }
+    }
+
+    optionalWhitespace()
+    operator(Operator.PARANT_CLOSE)
+    __matched()
+}
+    .describeAs("function invocation")
+    .flatten()
+    .mapResult(InvocationExpressionPostfixModifier.Companion::fromMatchedTokens)
+
+val ExpressionPostfixMemberAccess = rule {
+    eitherOf(Operator.DOT, Operator.SAFEDOT)
+    __matched()
+    identifier()
+    __optimistic()
+}
+    .describeAs("member access")
+    .flatten()
+    .mapResult {
+        val accessOperator = it.next() as OperatorToken
+        val memberNameToken = it.next() as IdentifierToken
+        MemberAccessExpressionPostfixModifier(accessOperator, memberNameToken)
+    }
+
+val ExpressionPostfix = rule {
+    eitherOf {
+        ref(ExpressionPostfixNotNull)
+        ref(ExpressionPostfixInvocation)
+        ref(ExpressionPostfixMemberAccess)
+    }
+    __optimistic()
+}
+    .flatten()
+    .mapResult { it.next()!! as ExpressionPostfixModifier<Expression<*>> }
