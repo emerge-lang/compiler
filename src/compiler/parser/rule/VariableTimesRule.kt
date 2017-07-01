@@ -82,7 +82,7 @@ class VariableTimesRule<T>(
             }
             else {
                 setOf(Reporting.error(
-                    "Exopected $descriptionOfAMatchingThing but found ${matchResults.size.wordifyActualEN}",
+                    "Expected $descriptionOfAMatchingThing but found ${matchResults.size.wordifyActualEN}",
                     input.currentSourceLocation
                 ))
             }
