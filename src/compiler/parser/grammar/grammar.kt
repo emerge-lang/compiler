@@ -197,10 +197,8 @@ val StandaloneFunctionDeclaration = rule {
             codeChunk()
             operator(CBRACE_CLOSE)
         }
-        eitherOf {
-            operator(NEWLINE)
-            endOfInput()
-        }
+        operator(NEWLINE)
+        endOfInput()
     }
 
     __definitive()
