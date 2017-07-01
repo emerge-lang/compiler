@@ -76,7 +76,7 @@ class BoundInvocationExpression(
         }
     }
 
-    fun semanticAnalysisPhase3(): Collection<Reporting> {
+    override fun semanticAnalysisPhase3(): Collection<Reporting> {
         // TODO: invoke semantic analysis on all sub-expressions
 
         return emptySet()

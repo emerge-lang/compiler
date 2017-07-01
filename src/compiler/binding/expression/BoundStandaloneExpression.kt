@@ -28,7 +28,7 @@ class BoundStandaloneExpression(
         get() = expression.isReadonly
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        super.semanticAnalysisPhase1()
+        super<BoundExpression>.semanticAnalysisPhase1()
 
         val isOfStandaloneType = standaloneExpressionTypes.find { suitableTypeClass ->
             suitableTypeClass.isAssignableFrom(expression.javaClass)
@@ -48,6 +48,8 @@ class BoundStandaloneExpression(
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return expression.semanticAnalysisPhase2()
     }
+
+    override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
 
     companion object {
         private val standaloneExpressionTypes: List<Class<out BoundExpression<*>>> = listOf(

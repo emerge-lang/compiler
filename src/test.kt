@@ -9,6 +9,7 @@ val testCode = """module testcode
 
 fun foobar() {
     val x = 3
+    x = 4
 }
 """
 

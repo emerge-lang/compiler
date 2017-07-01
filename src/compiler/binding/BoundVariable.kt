@@ -28,7 +28,7 @@ class BoundVariable(
     var type: BaseTypeReference? = null
         private set
 
-    fun semanticAnalysisPhase1() = semanticAnalysisPhase1("variable")
+    override fun semanticAnalysisPhase1() = semanticAnalysisPhase1("variable")
 
     fun semanticAnalysisPhase1(selfType: String): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
@@ -56,7 +56,7 @@ class BoundVariable(
         return reportings
     }
 
-    fun semanticAnalysisPhase2(): Collection<Reporting> {
+    override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
 
         if (initializerExpression != null) {
