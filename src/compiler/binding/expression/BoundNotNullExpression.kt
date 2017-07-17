@@ -4,6 +4,7 @@ import compiler.ast.expression.NotNullExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseTypeReference
+import compiler.parser.Reporting
 
 class BoundNotNullExpression(
     override val context: CTContext,
@@ -16,4 +17,8 @@ class BoundNotNullExpression(
         private set
 
     override val isReadonly = true
+
+    override fun semanticAnalysisPhase1() = super<BoundExecutable>.semanticAnalysisPhase1()
+    override fun semanticAnalysisPhase2() = super<BoundExecutable>.semanticAnalysisPhase2()
+    override fun semanticAnalysisPhase3() = super<BoundExecutable>.semanticAnalysisPhase3()
 }
