@@ -60,8 +60,7 @@ enum class Operator(val text: String)
     ELVIS        ("?:"),
     QUESTION_MARK("?"),
     NOTNULL      ("!!"), // find a better name for this...
-    NEGATE       ("!"),
-    POWER        ("^")
+    NEGATE       ("!")
 }
 
 val DECIMAL_SEPARATOR: Char = '.'

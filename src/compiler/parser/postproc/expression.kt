@@ -83,8 +83,6 @@ private val Operator.priority: Int
         Operator.TIMES,
         Operator.DIVIDE -> 40
 
-        Operator.POWER -> 50
-
         Operator.CAST,
         Operator.TRYCAST -> 60
         else -> throw InternalCompilerError("$this is not a binary operator")

@@ -23,11 +23,11 @@ Results in two modules `moduleOne` and `moduleTwo` declaring these symbols:
 
 ---
 
-Every file must have a `module` statement as the very top. That must match the module
+Every file must have a `module` statement at the very top. That must match the module
 name derived from the directory structure. The purpose of this is not to assist the
- compiler (since it can unambidously derive the name) but to support programmers;
+ compiler (since it can unambiguously derive the name) but to support programmers;
  i assume it is easier to hit `Ctrl + Home` and read that line than to look through the
- directory structure; espacially outside of an IDE.
+ directory structure; especially outside of an IDE.
  
 In the file `src/package/module1.dt` these contents produce distinct results:
 
@@ -569,3 +569,131 @@ The declared field must not be nullable:
         expose * of nestedA // OK
         expose * of nestedB // Error: Cannot expose members of nullable field
     }
+
+### Operator overloading
+
+Operators can be overridden from within a data structure and using extension
+methods:
+
+    class foo {
+        operator fun opPlus(other: foo) -> foo
+    }
+    
+    operator fun foo.opMinus(other: foo) -> foo
+    
+    val foo1 = foo()
+    val foo2 = foo()
+    
+    val a = foo1 + foo2         // is rewritten to
+        a = foo1.opPlus(foo2)   // using dynamic dispatch 
+        
+    val b = foo1 - foo2         // is rewritten to
+        b = foo1.opMius(foo2)   // which is semantically equal to
+        b = opMinus(foo1, foo2) // and uses static dispatch
+        
+Combined operate and assign can be overloaded separately:
+
+    class foo {
+        operator fun opPlus(other: foo) -> foo
+        operator fun opPlusAssign(other: foo)
+    }
+    
+    val foo1 = foo()
+    val foo2 = foo()
+    
+    val a = foo1 + foo2 // invokes foo1.opPlus
+    foo2 += foo1 // is rewritten to
+    foo2.opPlusAssign(foo1)
+        
+#### Binary operators
+
+All binary operator functions must take exactly 1 parameter. The type of that
+parameter can vary; dispatch is done as if the operator function was
+invoked directly.
+
+    struct foo {
+        operator fun opPlus(other: foo) -> foo
+        operator fun opPlus(other: Int) -> foo
+    }
+
+    val foo = foo()
+    val a = foo + foo() // invokes foo#opPlus(foo)
+    val b = foo + 3     // invokes foo#opPlus(Int)
+   
+Operator overloads for simple operators have to be readonly; overloads
+for combined operation and assignment must return `Unit` and need not be
+readonly.
+  
+Operator functions do not need to be marked as readonly. It would be more
+clean and explicit but would also introduce a lot of noise when a type
+overrides lots of operators.
+
+These binary operators can be overloaded:
+
+|Operator|Function Name      |readonly?|source   |is rewritten to           |
+|--------|-------------------|---------|---------|--------------------------|
+|+       |opPlus             |yes      |`a + b`  |`a.opPlus(b)`             |
+|-       |opMinus            |yes      |`a - b`  |`a.opMinus(b)`            |
+|*       |opTimes            |yes      |`a * b`  |`a.opTimes(b)`            |
+|/       |opDivide           |yes      |`a / b`  |`a.opDivide(b)`           |
+|%       |opModulo           |yes      |`a % b`  |`a.opModulo(b)`           |
+|..      |rangeTo            |yes      |`a..b`   |`a.rangeTo(b)`            |
+|in      |contains           |yes      |`a in b` |`a.contains(b)`           |
+|>       |opCompare          |yes      |`a > b`  |`a.compareTo(b) >  0`     |
+|>=      |opCompare          |yes      |`a >= b` |`a.compareTo(b) >= 0`     |
+|<       |opCompare          |yes      |`a < b`  |`a.compareTo(b) <  0`     |
+|<=      |opCompare          |yes      |`a <= b` |`a.compareTo(b) <= 0`     |
+|&       |opAnd              |yes      |`a & b`  |`a.opAnd(b)`              |
+|\|      |opOr               |yes      |`a | b`  |`a.opOr(b)`               |
+|^       |opXor              |yes      |`a ^ b`  |`a.opXor(b)`              |
+|>>      |opRightShift       |yes      |`a >> b` |`a.opRightShift(b)`       |
+|<<      |opLeftShift        |yes      |`a << b` |`a.opLeftShift(b)`        |
+|--------|-------------------|---------|---------|--------------------------|
+|+=      |opPlusAssign       |yes      |`a + b`  |`a.opPlusAssign(b)`       |
+|-=      |opMinusAssign      |yes      |`a - b`  |`a.opMinusAssign(b)`      |
+|*=      |opTimesAssign      |yes      |`a * b`  |`a.opTimesAssign(b)`      |
+|/=      |opDivideAssign     |yes      |`a / b`  |`a.opDivideAssign(b)`     |
+|%=      |opModuloAssign     |yes      |`a % b`  |`a.opModuloAssign(b)`     |
+|&=      |opAndAssign        |yes      |`a & b`  |`a.opAndAssign(b)`        |
+|\|=     |opOrAssign         |yes      |`a | b`  |`a.opOrAssign(b)`         |
+|^=      |opXorAssign        |yes      |`a ^ b`  |`a.opXorAssign(b)`        |
+|>>=     |opRightShiftAssign |yes      |`a >> b` |`a.opRightShiftAssign(b)` |
+|<<=     |opLeftShiftAssign  |yes      |`a << b` |`a.opLeftShiftAssign(b)`  |
+
+#### Unary operators
+
+Unary operator overloads must not take any parameters:
+     
+     struct foo {
+         operator fun opNot() -> foo
+     }
+     
+     val foo = foo()
+     val foo2 = !foo        // is rewritten to
+         foo2 = foo.opNot()
+         
+All unary operators must be readonly. As with binary operators, this 
+does not need to be stated explicitly because that can pile up to
+noise.
+         
+|Operator|Function Name   |readonly?|source |is rewritten to        |
+|--------|----------------|---------|-------|-----------------------|
+|+       |opUnaryPlus     |yes      |`-a`   |`a.opUnaryPlus()`      |
+|-       |opUnaryMinus    |yes      |`-a`   |`a.opUnaryMinus()`     |
+|!       |opNegate        |yes      |`!a`   |`a.opNegate()`         |
+|~       |opInvert        |yes      |`~a`   |`a.opInvert()`         |
+
+         
+#### Array syntax overloading
+
+Array read and write access can be overridden, too. In fact, the
+built-in array functionality uses exactly this mechanism.
+
+The array get overload must be readonly. As with unary and binary
+operators, this does not need to be stated explicitly.
+
+|source       |function name|is rewritten to              |
+|-------------|-------------|-----------------------------|
+|`arr[i]`     |opGet        |`a.opGet(i)`                 |
+|`arr[i] = b` |opSet        |`a.opSet(i, b)`              |
+|`arr[i] += b`|             |`a.opGet(i).opPlusAssign(b)` |
