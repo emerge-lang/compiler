@@ -682,6 +682,24 @@ noise.
 |-       |opUnaryMinus    |yes      |`-a`   |`a.opUnaryMinus()`     |
 |!       |opNegate        |yes      |`!a`   |`a.opNegate()`         |
 |~       |opInvert        |yes      |`~a`   |`a.opInvert()`         |
+|++      |opIncrement     |yes      |`++a`  |`a.opIncrement()`      |
+|--      |opDecrement     |yes      |`--a`  |`a.opDecrement()`      |
+
+
+##### Postfix Increment and Decrement
+
+Postfix increment and decrement is implemented as a different rewrite
+with the `opIncrement` and `opDecrement` functions:
+
+|source            |is rewritten to                 |
+|------------------|--------------------------------|
+|`++a`             |`a.opIncrement()`               |
+|`--a`             |`a.opDecrement()`               |
+|`a = a++`         |`a = a.opIncrement()`           |
+|`b = a++`         |`b = a`<br>`a = a.opIncrement()`|
+|`fn(++a)`         |`a = a.opIncrement()`<br>`fn(a)`|
+|`fn(a++)`         |`fn(a)`<br>`a = a.opIncrement()`|
+|`fn(a++, a++)`    |`tmp1 = a`<br>`a = a.opIncrement()`<br>`tmp2 = a`<br>`a = a.opIncrement()`<br>`fn(tmp1, tmp2)`|
 
          
 #### Array syntax overloading
