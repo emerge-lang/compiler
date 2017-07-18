@@ -14,6 +14,9 @@ class BoundAssignmentStatement(
     val valueExpression: BoundExpression<*>
 ) : BoundExecutable<AssignmentStatement> {
 
+    override var isReadonly: Boolean? = null
+        private set
+
     override fun semanticAnalysisPhase1() = targetExpression.semanticAnalysisPhase1() + valueExpression.semanticAnalysisPhase1()
 
     override fun semanticAnalysisPhase2() = targetExpression.semanticAnalysisPhase2() + valueExpression.semanticAnalysisPhase2()
