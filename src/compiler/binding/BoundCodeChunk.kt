@@ -10,4 +10,7 @@ class BoundCodeChunk(
     override val context: CTContext,
 
     override val declaration: CodeChunk
-) : BoundExecutable<CodeChunk>
+) : BoundExecutable<CodeChunk> {
+    override var isReadonly: Boolean? = null
+        private set
+}

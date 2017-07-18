@@ -1,13 +1,27 @@
 package compiler.binding
 
 import compiler.ast.Executable
+import compiler.ast.expression.Expression
 import compiler.binding.context.CTContext
 import compiler.parser.Reporting
 
 interface BoundExecutable<out ASTType> {
+    /**
+     * The context this expression has been bound to.
+     */
     val context: CTContext
 
+    /**
+     * The [Expression] that was bound to [context].
+     */
     val declaration: ASTType
+
+    /**
+     * Whether this expression is readonly. An expression is readonly if it never writes to its context, not even
+     * parameters passed to it.
+     * Is `null` if the property has not yet been determined. Must be non-null after semantic analysis is completed.
+     */
+    val isReadonly: Boolean?
 
     /**
      * Communicates changes the [Executable] applies any changes to its enclosing scope (e.g. a variable declaration declares a new

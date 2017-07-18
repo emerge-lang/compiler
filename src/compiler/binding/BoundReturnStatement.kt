@@ -12,4 +12,7 @@ class BoundReturnStatement(
 
     var returnType: BaseTypeReference? = null
         private set
+
+    override var isReadonly: Boolean? = null
+        private set
 }

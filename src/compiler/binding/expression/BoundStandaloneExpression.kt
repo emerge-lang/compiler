@@ -49,7 +49,9 @@ class BoundStandaloneExpression(
         return expression.semanticAnalysisPhase2()
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
+    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+        return super<BoundExpression>.semanticAnalysisPhase3()
+    }
 
     companion object {
         private val standaloneExpressionTypes: List<Class<out BoundExpression<*>>> = listOf(
