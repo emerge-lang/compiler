@@ -37,28 +37,6 @@ class BoundIdentifierExpression(
     var referredBaseType: BaseType? = null
         private set
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
-        if (referredType == ReferredType.VARIABLE) {
-            for (contextInOwnHierarchy in context.hierarchy) {
-                var variable = contextInOwnHierarchy.resolveVariable(identifier, true)
-                if (variable === referredVariable) {
-                    // variable has been declared within the boundary => the read is within the bondary
-                    return emptySet() // no violation
-                }
-
-                // stop looking when we hit the boundary as going further would act outside of the boundary
-                if (contextInOwnHierarchy === boundary) break
-            }
-
-            // the variable has not been found within the boundary => the read is outside of the boundary
-            return setOf(this)
-        }
-        else {
-            // TODO is reading type information of types declared outside the boundary considered impure?
-            return emptySet() // no violation
-        }
-    }
-
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
 
@@ -99,6 +77,33 @@ class BoundIdentifierExpression(
         // TODO: attempt to resolve type; expression becomes of type "Type/Class", ... whatever, still to be defined
 
         return reportings
+    }
+
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+        if (referredType == ReferredType.VARIABLE) {
+            for (contextInOwnHierarchy in context.hierarchy) {
+                var variable = contextInOwnHierarchy.resolveVariable(identifier, true)
+                if (variable === referredVariable) {
+                    // variable has been declared within the boundary => the read is within the bondary
+                    return emptySet() // no violation
+                }
+
+                // stop looking when we hit the boundary as going further would act outside of the boundary
+                if (contextInOwnHierarchy === boundary) break
+            }
+
+            // the variable has not been found within the boundary => the read is outside of the boundary
+            return setOf(this)
+        }
+        else {
+            // TODO is reading type information of types declared outside the boundary considered impure?
+            return emptySet() // no violation
+        }
+    }
+
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+        // this does not write by itself; writs are done by other statements
+        return emptySet()
     }
 
     /** The kinds of things an identifier can refer to. */
