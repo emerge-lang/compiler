@@ -42,8 +42,29 @@ interface CTContext
     val swCtx: SoftwareContext?
         get() = null
 
+    val parentContext: CTContext?
+
     val functions: Iterable<BoundFunction>
     val variables: Iterable<BoundVariable>
+
+    /** The hierarchy of this context. The first entry in the list is `this`, followed by the parents. E.g.
+     *      context1
+     *        context2 (parent: context1)
+     *          context3 (parent: context2)
+     *
+     *  Then `context3.hierarchy == listOf(context3, context2, context1)`
+     */
+    val hierarchy: List<CTContext>
+        get() {
+            val list = ArrayList<CTContext>(10)
+            var current: CTContext? = this
+            while (current != null && current !== EMPTY) {
+                list.add(current)
+                current = current.parentContext
+            }
+
+            return list
+        }
 
     /**
      * @param onlyOwn If true, does not attempt to resolve variables through imports.
@@ -81,6 +102,8 @@ interface CTContext
          * A [CTContext] that does not resolve anything. This is used as the parent context for all toplevel code.
          */
         val EMPTY = object : CTContext {
+            override val parentContext: CTContext? = null
+
             override val functions = emptySet<BoundFunction>()
 
             override val variables = emptySet<BoundVariable>()

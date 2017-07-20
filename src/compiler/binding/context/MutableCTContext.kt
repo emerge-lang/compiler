@@ -19,9 +19,11 @@ open class MutableCTContext(
     /**
      * The context this one is derived off of
      */
-    private val parentContext: CTContext = CTContext.EMPTY
+    override val parentContext: CTContext = CTContext.EMPTY
 ) : CTContext
 {
+    override val hierarchy by lazy { super.hierarchy }
+
     private val imports: MutableSet<ImportDeclaration> = HashSet()
 
     override var swCtx: SoftwareContext? = null
@@ -86,8 +88,17 @@ open class MutableCTContext(
      */
     open fun addVariable(declaration: Bindable<BoundVariable>): BoundVariable {
         val bound = declaration.bindTo(this)
-        variablesMap[bound.name] = bound
-        return bound
+
+        return addVariable(bound)
+    }
+
+    open fun addVariable(boundVariable: BoundVariable): BoundVariable {
+        if (boundVariable.context in hierarchy) {
+            variablesMap[boundVariable.name] = boundVariable
+            return boundVariable
+        }
+
+        throw InternalCompilerError("Cannot add a variable that has been bound to a different context")
     }
 
     override fun resolveVariable(name: String, onlyOwn: Boolean): BoundVariable? {
