@@ -1,4 +1,3 @@
-import compiler.binding.BoundVariable
 import compiler.binding.context.SoftwareContext
 import compiler.binding.type.BuiltinType
 import compiler.lexer.SourceContentAwareSourceDescriptor
@@ -8,10 +7,10 @@ import compiler.parser.toTransactional
 
 val testCode = """module testcode
 
-val x = 3
+var x = 3
 
 readonly fun foobar() {
-    val y = x
+    x = 5
 }
 """
 
@@ -28,10 +27,6 @@ fun main(args: Array<String>) {
     }
 
     val tokens = lex(testCode, source)
-
-    tokens.forEach(::println)
-
-    println("------------")
 
     val matched = Module.tryMatch(tokens.toTransactional(source.toLocation(1, 1)))
 
@@ -54,11 +49,8 @@ fun main(args: Array<String>) {
     swCtx.addModule(parsedASTModule.bindTo(swCtx))
     swCtx.doSemanticAnalysis().forEach { println(it); println(); println() }
 
-    val fnFoobar = swCtx.module("testcode")!!.context.resolveDefinedFunctions("foobar").first()
-    val assignExpression = (fnFoobar.code!!.statements!![0] as BoundVariable).initializerExpression
-
     println("---")
 }
 
 val Iterable<Reporting>.containsErrors
-    get() = map(Reporting::level).any { it.level > Reporting.Level.ERROR.level }
+    get() = map(Reporting::level).any { it.level >= Reporting.Level.ERROR.level }

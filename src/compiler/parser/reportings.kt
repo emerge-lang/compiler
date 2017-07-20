@@ -167,7 +167,7 @@ open class Reporting(
                 is BoundIdentifierExpression -> code.identifier
                 // TODO: other code
                 is BoundCodeChunk -> throw InternalCompilerError("Illegal Argument")
-                else -> throw InternalCompilerError("Not implemented yet")
+                else -> throw InternalCompilerError("Not implemented yet for ${code.javaClass.simpleName}")
             }
 
         fun purityViolations(readingViolations: Collection<BoundExecutable<Executable<*>>>, writingViolations: Collection<BoundExecutable<Executable<*>>>, pureFunction: BoundFunction): Collection<Reporting> {
