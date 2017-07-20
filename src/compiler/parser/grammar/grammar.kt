@@ -207,6 +207,7 @@ val StandaloneFunctionDeclaration = rule {
     .postprocess(::StandaloneFunctionPostprocessor)
 
 val Module = rule {
+    __matched()
     atLeast(0) {
         __definitive()
         optionalWhitespace()
