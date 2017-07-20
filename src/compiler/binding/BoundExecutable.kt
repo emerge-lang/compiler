@@ -51,4 +51,18 @@ interface BoundExecutable<out ASTType> {
      * Here is where actual semantics are validated.
      */
     fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
+
+    /**
+     * Returns whether this executable reads state declared in any of the parents of the given context. Used to
+     * determine purity of the expression.
+     * @param boundary The bounding context.
+     */
+    fun readsBeyond(boundary: CTContext): Boolean = false // TODO remove default impl
+
+    /**
+     * Returns whether this executable writes state declared in any of the parents of the given context. Used to
+     * determine purity and readonlyness of the expression.
+     * @param boundary The bounding context.
+     */
+    fun writesBeyond(boundary: CTContext): Boolean = false // TODO remove default impl
 }
