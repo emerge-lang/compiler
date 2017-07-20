@@ -37,8 +37,8 @@ class SoftwareContext {
         if (semanticAnaylsisReults == null) {
             semanticAnaylsisReults =
                 modules.flatMap(Module::semanticAnalysisPhase1) +
-                    modules.flatMap(Module::semanticAnalysisPhase2) +
-                    modules.flatMap(Module::semanticAnalysisPhase3)
+                modules.flatMap(Module::semanticAnalysisPhase2) +
+                modules.flatMap(Module::semanticAnalysisPhase3)
         }
 
         return semanticAnaylsisReults!!
