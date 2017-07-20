@@ -21,13 +21,13 @@ class ExpressionRule : Rule<Expression<*>> {
 
     private val rule by lazy {
         rule {
-            __matched()
             eitherOf {
                 ref(BinaryExpression)
                 ref(UnaryExpression)
                 ref(ValueExpression)
                 ref(ParanthesisedExpression)
             }
+            __matched()
             atLeast(0) {
                 ref(ExpressionPostfix)
             }
