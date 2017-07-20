@@ -2,6 +2,7 @@ package compiler.binding
 
 import compiler.ast.VariableDeclaration
 import compiler.binding.context.CTContext
+import compiler.binding.context.MutableCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BaseTypeReference
 import compiler.parser.Reporting
@@ -98,6 +99,12 @@ class BoundVariable(
         }
 
         return reportings
+    }
+
+    override fun modified(context: CTContext): CTContext {
+        val newCtx = MutableCTContext(context)
+        newCtx.addVariable(this)
+        return newCtx
     }
 
     private fun resolveDeclaredType(context: CTContext): BaseTypeReference? {
