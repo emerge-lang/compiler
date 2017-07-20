@@ -209,16 +209,16 @@ val StandaloneFunctionDeclaration = rule {
 val Module = rule {
     __matched()
     atLeast(0) {
-        __definitive()
-        optionalWhitespace()
         eitherOf {
             ref(ModuleDeclaration)
             ref(ImportDeclaration)
             ref(VariableDeclaration)
             ref(StandaloneFunctionDeclaration)
         }
-        optionalWhitespace()
+        __definitive()
     }
+    optionalWhitespace()
+    endOfInput()
 }
     .describeAs("module")
     .postprocess(::ModulePostProcessor)
