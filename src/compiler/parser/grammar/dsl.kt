@@ -178,8 +178,7 @@ class DSLFixedSequenceRule(
         set(c)
         {
             val lastStep = certaintySteps.last()
-            var currentIndex = subRules.lastIndex
-            if (currentIndex == -1) currentIndex = 0
+            val currentIndex = subRules.lastIndex
 
             if (c <= lastStep.second)
             {
