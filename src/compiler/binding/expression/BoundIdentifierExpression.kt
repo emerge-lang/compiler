@@ -81,19 +81,12 @@ class BoundIdentifierExpression(
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
         if (referredType == ReferredType.VARIABLE) {
-            for (contextInOwnHierarchy in context.hierarchy) {
-                var variable = contextInOwnHierarchy.resolveVariable(identifier, true)
-                if (variable === referredVariable) {
-                    // variable has been declared within the boundary => the read is within the bondary
-                    return emptySet() // no violation
-                }
-
-                // stop looking when we hit the boundary as going further would act outside of the boundary
-                if (contextInOwnHierarchy === boundary) break
+            if (context.containsWithinBoundary(referredVariable!!, boundary)) {
+                return emptySet()
             }
-
-            // the variable has not been found within the boundary => the read is outside of the boundary
-            return setOf(this)
+            else {
+                return setOf(this)
+            }
         }
         else {
             // TODO is reading type information of types declared outside the boundary considered impure?

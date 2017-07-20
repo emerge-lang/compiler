@@ -22,9 +22,18 @@ open class MutableCTContext(
     override val parentContext: CTContext = CTContext.EMPTY
 ) : CTContext
 {
-    override val hierarchy by lazy { super.hierarchy }
-
     private val imports: MutableSet<ImportDeclaration> = HashSet()
+
+    private val hierarchy by lazy {
+        val hierarchy = ArrayList<CTContext>(10)
+        var _context: CTContext? = this
+        while (_context != null) {
+            hierarchy.add(_context!!)
+            _context = _context!!.parentContext
+        }
+
+        hierarchy
+    }
 
     override var swCtx: SoftwareContext? = null
         get() = field ?: parentContext.swCtx
@@ -111,6 +120,21 @@ open class MutableCTContext(
 
         // TODO: if importedVars.size is > 1 the name is ambigous; how to handle that?
         return importedVars.firstOrNull() ?: parentContext.resolveVariable(name, onlyOwn)
+    }
+
+    override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean {
+        if (variablesMap.containsValue(variable)) return true
+
+        if (this !== boundary) {
+            if (parentContext == CTContext.EMPTY) {
+                // the boundary is not in the hierarchy => error
+                throw InternalCompilerError("The given boundary is not part of the hierarchy of the invoked context")
+            }
+
+            return parentContext.containsWithinBoundary(variable, boundary)
+        }
+
+        return false
     }
 
     open fun addFunction(declaration: FunctionDeclaration): BoundFunction {
