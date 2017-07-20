@@ -53,7 +53,7 @@ val ReturnStatement = rule {
 val AssignmentStatement = rule {
     expression()
 
-    operator(Operator.EQUALS)
+    operator(Operator.ASSIGNMENT)
     __matched()
 
     expression()
