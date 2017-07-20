@@ -38,7 +38,7 @@ open class FixedSequenceRule(
     override fun tryMatch(input: TokenSequence): RuleMatchingResult<List<RuleMatchingResult<*>>>
     {
         val results: MutableList<RuleMatchingResult<Any?>> = mutableListOf()
-        var certainty: ResultCertainty = ResultCertainty.NOT_RECOGNIZED
+        var certainty: ResultCertainty = certaintySteps.find { it.first == -1 }?.second ?: ResultCertainty.NOT_RECOGNIZED
 
         input.mark()
 
@@ -48,7 +48,7 @@ open class FixedSequenceRule(
                 input.rollback()
 
                 return@tryMatch RuleMatchingResultImpl(
-                    certainty,
+                    if (result.certainty >= ResultCertainty.MATCHED && result.certainty > certainty) result.certainty else certainty,
                     null,
                     results.flatMap { it.reportings } + result.reportings
                 )
