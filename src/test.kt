@@ -1,3 +1,4 @@
+import compiler.binding.BoundVariable
 import compiler.binding.context.SoftwareContext
 import compiler.binding.type.BuiltinType
 import compiler.lexer.SourceContentAwareSourceDescriptor
@@ -7,8 +8,10 @@ import compiler.parser.toTransactional
 
 val testCode = """module testcode
 
-fun foobar() {
-    val x = 3
+val x = 3
+
+readonly fun foobar() {
+    val y = x
 }
 """
 
@@ -31,7 +34,6 @@ fun main(args: Array<String>) {
     println("------------")
 
     val matched = Module.tryMatch(tokens.toTransactional(source.toLocation(1, 1)))
-    val parsedASTModule = matched.item!!
 
     println("certainty = ${matched.certainty}")
     println("item = ${matched.item}")
@@ -47,8 +49,13 @@ fun main(args: Array<String>) {
         return
     }
 
+    val parsedASTModule = matched.item!!
+
     swCtx.addModule(parsedASTModule.bindTo(swCtx))
     swCtx.doSemanticAnalysis().forEach { println(it); println(); println() }
+
+    val fnFoobar = swCtx.module("testcode")!!.context.resolveDefinedFunctions("foobar").first()
+    val assignExpression = (fnFoobar.code!!.statements!![0] as BoundVariable).initializerExpression
 
     println("---")
 }

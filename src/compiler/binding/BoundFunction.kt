@@ -119,7 +119,32 @@ class BoundFunction(
         return emptySet()
     }
 
-    // TODO: incorporate the READONLY, PURE and NOTHROW modifiers into codeContext
+    fun semanticAnalysisPhase3(): Collection<Reporting> {
+        val reportings = mutableSetOf<Reporting>()
+
+        if (code != null) {
+            reportings += code.semanticAnalysisPhase3()
+
+            // readonly and purity checks
+            val statementsReadingBeyondFunctionContext = code.findReadsBeyond(context)
+            val statementsWritingBeyondFunctionContext = code.findWritesBeyond(context)
+
+            isEffectivelyReadonly = statementsWritingBeyondFunctionContext.isEmpty()
+            isEffectivelyPure = isEffectivelyReadonly!! && statementsReadingBeyondFunctionContext.isEmpty()
+
+            if (isDeclaredPure) {
+                if (!isEffectivelyPure!!) {
+                    reportings.addAll(Reporting.purityViolations(statementsReadingBeyondFunctionContext, statementsWritingBeyondFunctionContext, this))
+                }
+                // else: effectively pure means effectively readonly
+            }
+            else if (isDeclaredPeadonly && !isEffectivelyReadonly!!) {
+                reportings.addAll(Reporting.readonlyViolations(statementsWritingBeyondFunctionContext, this))
+            }
+        }
+
+        return reportings
+    }
 }
 
 /**

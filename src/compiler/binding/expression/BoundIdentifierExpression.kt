@@ -1,6 +1,8 @@
 package compiler.binding.expression
 
+import compiler.ast.Executable
 import compiler.ast.expression.IdentifierExpression
+import compiler.binding.BoundExecutable
 import compiler.binding.BoundVariable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseType
@@ -35,25 +37,25 @@ class BoundIdentifierExpression(
     var referredBaseType: BaseType? = null
         private set
 
-    override fun readsBeyond(boundary: CTContext): Boolean {
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
         if (referredType == ReferredType.VARIABLE) {
-            context.hierarchy.forEach { contextInOwnHierarchy ->
+            for (contextInOwnHierarchy in context.hierarchy) {
                 var variable = contextInOwnHierarchy.resolveVariable(identifier, true)
                 if (variable === referredVariable) {
                     // variable has been declared within the boundary => the read is within the bondary
-                    return@readsBeyond false
+                    return emptySet() // no violation
                 }
 
                 // stop looking when we hit the boundary as going further would act outside of the boundary
-                if (contextInOwnHierarchy === boundary) return@forEach
+                if (contextInOwnHierarchy === boundary) break
             }
 
             // the variable has not been found within the boundary => the read is outside of the boundary
-            return true
+            return setOf(this)
         }
         else {
             // TODO is reading type information of types declared outside the boundary considered impure?
-            return false
+            return emptySet() // no violation
         }
     }
 
