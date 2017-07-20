@@ -28,12 +28,6 @@ class CodeChunkRule : Rule<CodeChunk> {
                     ref(ReturnStatement)
                     expression()
                 }
-                __matched()
-                eitherOf {
-                    operator(Operator.NEWLINE)
-                    endOfInput()
-                    optionalWhitespace()
-                }
                 __optimistic()
             }
             __optimistic()
