@@ -20,6 +20,7 @@ class CodeChunkRule : Rule<CodeChunk> {
 
     private val rule by lazy {
         rule {
+            __matched()
             atLeast(0) {
                 optionalWhitespace()
                 eitherOf {
