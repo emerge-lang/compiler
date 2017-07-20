@@ -1,7 +1,9 @@
 package compiler.binding
 
+import compiler.ast.Executable
 import compiler.ast.VariableDeclaration
 import compiler.binding.context.CTContext
+import compiler.binding.context.MutableCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BaseTypeReference
 import compiler.parser.Reporting
@@ -98,6 +100,20 @@ class BoundVariable(
         }
 
         return reportings
+    }
+
+    override fun modified(context: CTContext): CTContext {
+        val newCtx = MutableCTContext(context)
+        newCtx.addVariable(this)
+        return newCtx
+    }
+
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+        return initializerExpression?.findReadsBeyond(boundary) ?: emptySet()
+    }
+
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+        return initializerExpression?.findWritesBeyond(boundary) ?: emptySet()
     }
 
     private fun resolveDeclaredType(context: CTContext): BaseTypeReference? {

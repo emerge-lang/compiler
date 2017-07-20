@@ -7,9 +7,10 @@ import compiler.parser.toTransactional
 
 val testCode = """module testcode
 
-fun foobar() {
-    val x = 3
-    x = 4
+var x = 3
+
+readonly fun foobar() {
+    x = 5
 }
 """
 
@@ -27,12 +28,7 @@ fun main(args: Array<String>) {
 
     val tokens = lex(testCode, source)
 
-    tokens.forEach(::println)
-
-    println("------------")
-
     val matched = Module.tryMatch(tokens.toTransactional(source.toLocation(1, 1)))
-    val parsedASTModule = matched.item!!
 
     println("certainty = ${matched.certainty}")
     println("item = ${matched.item}")
@@ -48,6 +44,8 @@ fun main(args: Array<String>) {
         return
     }
 
+    val parsedASTModule = matched.item!!
+
     swCtx.addModule(parsedASTModule.bindTo(swCtx))
     swCtx.doSemanticAnalysis().forEach { println(it); println(); println() }
 
@@ -55,4 +53,4 @@ fun main(args: Array<String>) {
 }
 
 val Iterable<Reporting>.containsErrors
-    get() = map(Reporting::level).any { it.level > Reporting.Level.ERROR.level }
+    get() = map(Reporting::level).any { it.level >= Reporting.Level.ERROR.level }

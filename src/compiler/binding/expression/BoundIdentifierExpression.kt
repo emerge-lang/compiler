@@ -1,8 +1,11 @@
 package compiler.binding.expression
 
+import compiler.ast.Executable
 import compiler.ast.expression.IdentifierExpression
+import compiler.binding.BoundExecutable
 import compiler.binding.BoundVariable
 import compiler.binding.context.CTContext
+import compiler.binding.type.BaseType
 import compiler.binding.type.BaseTypeReference
 import compiler.parser.Reporting
 
@@ -12,7 +15,14 @@ class BoundIdentifierExpression(
 ) : BoundExpression<IdentifierExpression> {
     val identifier: String = declaration.identifier.value
 
-    override var type: BaseTypeReference? = null
+    override val type: BaseTypeReference?
+        get() = when(referredType) {
+            ReferredType.VARIABLE -> referredVariable?.type
+            ReferredType.TYPENAME -> referredBaseType?.baseReference?.invoke(context)
+            null -> null
+        }
+
+    override var isReadonly: Boolean? = null
         private set
 
     /** What this expression refers to; is null if not known */
@@ -23,7 +33,33 @@ class BoundIdentifierExpression(
     var referredVariable: BoundVariable? = null
         private set
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
+    /** The base type this expression referes to, if it does (see [referredType]); otherwise null. */
+    var referredBaseType: BaseType? = null
+        private set
+
+    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+        val reportings = mutableSetOf<Reporting>()
+
+        // attempt variable
+        val variable = context.resolveVariable(identifier)
+
+        if (variable != null) {
+            referredType = ReferredType.VARIABLE
+            referredVariable = variable
+        }
+        else {
+            var type: BaseType? = context.resolveDefinedType(identifier)
+            if (type == null) {
+                reportings.add(Reporting.undefinedIdentifier(declaration))
+            }
+            else {
+                this.referredBaseType = type
+                this.referredType = ReferredType.TYPENAME
+            }
+        }
+
+        return reportings
+    }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
@@ -31,7 +67,6 @@ class BoundIdentifierExpression(
         // attempt a variable
         val variable = context.resolveVariable(identifier)
         if (variable != null) {
-            type = variable.type
             referredVariable = variable
             referredType = ReferredType.VARIABLE
         }
@@ -42,6 +77,26 @@ class BoundIdentifierExpression(
         // TODO: attempt to resolve type; expression becomes of type "Type/Class", ... whatever, still to be defined
 
         return reportings
+    }
+
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+        if (referredType == ReferredType.VARIABLE) {
+            if (context.containsWithinBoundary(referredVariable!!, boundary)) {
+                return emptySet()
+            }
+            else {
+                return setOf(this)
+            }
+        }
+        else {
+            // TODO is reading type information of types declared outside the boundary considered impure?
+            return emptySet() // no violation
+        }
+    }
+
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+        // this does not write by itself; writs are done by other statements
+        return emptySet()
     }
 
     /** The kinds of things an identifier can refer to. */

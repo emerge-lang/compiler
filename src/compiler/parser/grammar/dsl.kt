@@ -179,6 +179,7 @@ class DSLFixedSequenceRule(
         {
             val lastStep = certaintySteps.last()
             val currentIndex = subRules.lastIndex
+
             if (c <= lastStep.second)
             {
                 throw MisconfigurationException("Certainty steps have to increase; last was " + lastStep.second + ", new one is " + c)

@@ -18,8 +18,9 @@ class CodeChunkRule : Rule<CodeChunk> {
         return rule.tryMatch(input)
     }
 
-    public val rule by lazy {
+    private val rule by lazy {
         rule {
+            __matched()
             atLeast(0) {
                 optionalWhitespace()
                 eitherOf {
@@ -27,13 +28,6 @@ class CodeChunkRule : Rule<CodeChunk> {
                     ref(AssignmentStatement)
                     ref(ReturnStatement)
                     expression()
-                }
-                __matched()
-                optional {
-                    eitherOf {
-                        operator(Operator.NEWLINE)
-                        endOfInput()
-                    }
                 }
                 __optimistic()
             }

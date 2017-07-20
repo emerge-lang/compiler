@@ -42,6 +42,8 @@ interface CTContext
     val swCtx: SoftwareContext?
         get() = null
 
+    val parentContext: CTContext?
+
     val functions: Iterable<BoundFunction>
     val variables: Iterable<BoundVariable>
 
@@ -50,6 +52,12 @@ interface CTContext
      * @return The variable accessible under the given name, shadowing included.
      */
     fun resolveVariable(name: String, onlyOwn: Boolean = false): BoundVariable?
+
+    /**
+     * @return Whether this context contains the given variable. Only parent contexts up to and including the
+     *         given `boundary` will be searched.
+     */
+    fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean
 
     /**
      * Returns the [BaseType] with the given simple name defined in this context or null if a [BaseType] with the
@@ -81,9 +89,13 @@ interface CTContext
          * A [CTContext] that does not resolve anything. This is used as the parent context for all toplevel code.
          */
         val EMPTY = object : CTContext {
+            override val parentContext = null
+
             override val functions = emptySet<BoundFunction>()
 
             override val variables = emptySet<BoundVariable>()
+
+            override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean = false
 
             override fun resolveVariable(name: String, onlyOwn: Boolean): BoundVariable? = null
 

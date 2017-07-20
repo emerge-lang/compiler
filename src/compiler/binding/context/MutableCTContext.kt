@@ -19,10 +19,21 @@ open class MutableCTContext(
     /**
      * The context this one is derived off of
      */
-    private val parentContext: CTContext = CTContext.EMPTY
+    override val parentContext: CTContext = CTContext.EMPTY
 ) : CTContext
 {
     private val imports: MutableSet<ImportDeclaration> = HashSet()
+
+    private val hierarchy by lazy {
+        val hierarchy = ArrayList<CTContext>(10)
+        var _context: CTContext? = this
+        while (_context != null) {
+            hierarchy.add(_context!!)
+            _context = _context!!.parentContext
+        }
+
+        hierarchy
+    }
 
     override var swCtx: SoftwareContext? = null
         get() = field ?: parentContext.swCtx
@@ -86,8 +97,17 @@ open class MutableCTContext(
      */
     open fun addVariable(declaration: Bindable<BoundVariable>): BoundVariable {
         val bound = declaration.bindTo(this)
-        variablesMap[bound.name] = bound
-        return bound
+
+        return addVariable(bound)
+    }
+
+    open fun addVariable(boundVariable: BoundVariable): BoundVariable {
+        if (boundVariable.context in hierarchy) {
+            variablesMap[boundVariable.name] = boundVariable
+            return boundVariable
+        }
+
+        throw InternalCompilerError("Cannot add a variable that has been bound to a different context")
     }
 
     override fun resolveVariable(name: String, onlyOwn: Boolean): BoundVariable? {
@@ -100,6 +120,21 @@ open class MutableCTContext(
 
         // TODO: if importedVars.size is > 1 the name is ambigous; how to handle that?
         return importedVars.firstOrNull() ?: parentContext.resolveVariable(name, onlyOwn)
+    }
+
+    override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean {
+        if (variablesMap.containsValue(variable)) return true
+
+        if (this !== boundary) {
+            if (parentContext == CTContext.EMPTY) {
+                // the boundary is not in the hierarchy => error
+                throw InternalCompilerError("The given boundary is not part of the hierarchy of the invoked context")
+            }
+
+            return parentContext.containsWithinBoundary(variable, boundary)
+        }
+
+        return false
     }
 
     open fun addFunction(declaration: FunctionDeclaration): BoundFunction {

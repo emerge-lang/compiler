@@ -1,9 +1,17 @@
 package compiler.parser
 
 import compiler.InternalCompilerError
+import compiler.ast.CodeChunk
+import compiler.ast.Executable
+import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
+import compiler.binding.BoundCodeChunk
+import compiler.binding.BoundExecutable
+import compiler.binding.BoundFunction
+import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundInvocationExpression
 import compiler.binding.type.BaseTypeReference
 import compiler.lexer.Operator
@@ -99,6 +107,9 @@ open class Reporting(
         fun typeMismatch(targetType: BaseTypeReference, validatedType: BaseTypeReference)
             = typeMismatch(targetType, validatedType, validatedType.original.declaringNameToken?.sourceLocation ?: SourceLocation.UNKNOWN)
 
+        fun undefinedIdentifier(expr: IdentifierExpression): Reporting
+            = error("Identifier ${expr.identifier} is not defined.", expr.sourceLocation)
+
         fun unresolvableFunction(expr: BoundInvocationExpression): Reporting {
             // if the receiver type could not be inferred, this is might be a consecutive error
             if (expr.receiverExpression != null && expr.receiverExpression.type == null) {
@@ -146,6 +157,33 @@ open class Reporting(
          */
         fun superfluousNullSafeObjectTraversal(nonNullExpression: BoundExpression<*>, superfluousSafeOperator: OperatorToken): Reporting {
             return info("Null-safe object traversal is superfluous here; the receiver expression cannot evaluate to null", superfluousSafeOperator)
+        }
+
+        /**
+         * @return A string representation of the state that is being accessed by the given [Executable]
+         */
+        private fun getAccessedStateAsString(code: BoundExecutable<*>): String =
+            when (code) {
+                is BoundIdentifierExpression -> code.identifier
+                // TODO: other code
+                is BoundCodeChunk -> throw InternalCompilerError("Illegal Argument")
+                else -> throw InternalCompilerError("Not implemented yet for ${code.javaClass.simpleName}")
+            }
+
+        fun purityViolations(readingViolations: Collection<BoundExecutable<Executable<*>>>, writingViolations: Collection<BoundExecutable<Executable<*>>>, pureFunction: BoundFunction): Collection<Reporting> {
+            val readingReportings = readingViolations.map { violator ->
+                error("Pure function ${pureFunction.name} cannot access state ${getAccessedStateAsString(violator)}", violator.declaration.sourceLocation)
+            }
+            val writingReportings = writingViolations.map { violator ->
+                error("Pure function ${pureFunction.name} cannot write state ${getAccessedStateAsString(violator)}", violator.declaration.sourceLocation)
+            }
+            return readingReportings + writingReportings
+        }
+
+        fun readonlyViolations(writingViolations: Collection<BoundExecutable<Executable<*>>>, readonlyFunction: BoundFunction): Collection<Reporting> {
+            return writingViolations.map { violator ->
+                error("Readonly function ${readonlyFunction.name} cannot write state ${getAccessedStateAsString(violator)}", violator.declaration.sourceLocation)
+            }
         }
     }
 }

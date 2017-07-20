@@ -65,7 +65,7 @@ private fun toAST_Module(inResult: RuleMatchingResult<TransactionalSequence<Any,
     }
 
     if (astModule.selfDeclaration == null) {
-        reportings.add(Reporting.error("No module declaration found.", (input.items[0] as Declaration).declaredAt))
+        reportings.add(Reporting.error("No module declaration found.", (input.items.getOrNull(0) as Declaration?)?.declaredAt ?: SourceLocation.UNKNOWN))
     }
 
     // default import dotlin.lang.*

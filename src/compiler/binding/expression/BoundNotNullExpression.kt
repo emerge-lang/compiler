@@ -17,7 +17,7 @@ class BoundNotNullExpression(
 
     override val isReadonly = true
 
-    override fun semanticAnalysisPhase1() = super<BoundExecutable>.semanticAnalysisPhase1()
-    override fun semanticAnalysisPhase2() = super<BoundExecutable>.semanticAnalysisPhase2()
-    override fun semanticAnalysisPhase3() = super<BoundExecutable>.semanticAnalysisPhase3()
+    override fun semanticAnalysisPhase1() = super<BoundExpression>.semanticAnalysisPhase1()
+    override fun semanticAnalysisPhase2() = super<BoundExpression>.semanticAnalysisPhase2()
+    override fun semanticAnalysisPhase3() = super<BoundExpression>.semanticAnalysisPhase3()
 }

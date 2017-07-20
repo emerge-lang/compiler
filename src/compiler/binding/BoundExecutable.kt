@@ -51,4 +51,20 @@ interface BoundExecutable<out ASTType> {
      * Here is where actual semantics are validated.
      */
     fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
+
+    /**
+     * Use to find violations of purity.
+     * @param boundary The boundary. The boundary context must be in the [CTContext.hierarchy] of `this`' context.
+     * @return All the nested [BoundExecutable]s (or `this` if there are no nested ones) that read state that belongs
+     *         to context outside of the given boundary.
+     */
+    fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet() // TODO remove default impl
+
+    /**
+     * Use to find violations of readonlyness and/or purity.
+     * @param boundary The boundary. The boundary context must be in the [CTContext.hierarchy] of `this`' context.
+     * @return All the nested [BoundExecutable]s (or `this` if there are no nested ones) that write state that belongs
+     *         to context outside of the given boundary.
+     */
+    fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet() // TODO remove default impl
 }

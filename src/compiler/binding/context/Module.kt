@@ -32,5 +32,7 @@ class Module(
      * Delegates to semantic analysis phase 3 of all components that make up this module;
      * collects the results and returns them.
      */
-    fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet() // TODO: implement
+    fun semanticAnalysisPhase3(): Collection<Reporting> =
+        context.variables.flatMap(BoundVariable::semanticAnalysisPhase3) +
+        context.functions.flatMap(BoundFunction::semanticAnalysisPhase3)
 }

@@ -33,7 +33,7 @@ class FunctionDeclaration(
             functionContext,
             this,
             boundParamList,
-            code?.bindTo(context)
+            code?.bindTo(functionContext)
         )
     }
 }

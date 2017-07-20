@@ -48,7 +48,7 @@ class VariableTimesRule<T>(
 
             lastResult = rule.tryMatch(input)
             if (lastResult.item == null) {
-                if (lastResult.certainty == ResultCertainty.DEFINITIVE) {
+                if (lastResult.certainty >= ResultCertainty.MATCHED) {
                     @Suppress("UNCHECKED_CAST")
                     return RuleMatchingResultImpl(
                         ResultCertainty.DEFINITIVE,
