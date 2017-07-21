@@ -22,9 +22,6 @@ class BoundIdentifierExpression(
             null -> null
         }
 
-    override var isReadonly: Boolean? = null
-        private set
-
     /** What this expression refers to; is null if not known */
     var referredType: ReferredType? = null
         private set

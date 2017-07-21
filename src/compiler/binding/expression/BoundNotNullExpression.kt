@@ -16,8 +16,6 @@ class BoundNotNullExpression(
     override var type: BaseTypeReference? = null
         private set
 
-    override val isReadonly = true
-
     override fun semanticAnalysisPhase1() = super<BoundExpression>.semanticAnalysisPhase1()
     override fun semanticAnalysisPhase2() = super<BoundExpression>.semanticAnalysisPhase2()
     override fun semanticAnalysisPhase3() = super<BoundExpression>.semanticAnalysisPhase3()

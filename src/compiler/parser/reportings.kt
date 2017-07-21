@@ -1,11 +1,15 @@
 package compiler.parser
 
 import compiler.InternalCompilerError
+import compiler.ast.AssignmentStatement
 import compiler.ast.CodeChunk
 import compiler.ast.Executable
 import compiler.ast.expression.IdentifierExpression
+import compiler.ast.expression.InvocationExpression
+import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
+import compiler.binding.BoundAssignmentStatement
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
@@ -159,31 +163,56 @@ open class Reporting(
             return info("Null-safe object traversal is superfluous here; the receiver expression cannot evaluate to null", superfluousSafeOperator)
         }
 
-        /**
-         * @return A string representation of the state that is being accessed by the given [Executable]
-         */
-        private fun getAccessedStateAsString(code: BoundExecutable<*>): String =
-            when (code) {
-                is BoundIdentifierExpression -> code.identifier
-                // TODO: other code
-                is BoundCodeChunk -> throw InternalCompilerError("Illegal Argument")
-                else -> throw InternalCompilerError("Not implemented yet for ${code.javaClass.simpleName}")
-            }
-
         fun purityViolations(readingViolations: Collection<BoundExecutable<Executable<*>>>, writingViolations: Collection<BoundExecutable<Executable<*>>>, pureFunction: BoundFunction): Collection<Reporting> {
             val readingReportings = readingViolations.map { violator ->
-                error("Pure function ${pureFunction.name} cannot access state ${getAccessedStateAsString(violator)}", violator.declaration.sourceLocation)
+                purityOrReadonlyViolationToReporting(violator, pureFunction, false)
             }
             val writingReportings = writingViolations.map { violator ->
-                error("Pure function ${pureFunction.name} cannot write state ${getAccessedStateAsString(violator)}", violator.declaration.sourceLocation)
+                purityOrReadonlyViolationToReporting(violator, pureFunction, true)
             }
             return readingReportings + writingReportings
         }
 
         fun readonlyViolations(writingViolations: Collection<BoundExecutable<Executable<*>>>, readonlyFunction: BoundFunction): Collection<Reporting> {
             return writingViolations.map { violator ->
-                error("Readonly function ${readonlyFunction.name} cannot write state ${getAccessedStateAsString(violator)}", violator.declaration.sourceLocation)
+                purityOrReadonlyViolationToReporting(violator, readonlyFunction, true)
             }
+        }
+
+        /**
+         * Converts a violation of purity or readonlyness into an appropriate error.
+         * @param violationIsWrite Whether the violiation is a writing violation or a reading violation (true = writing, false = reading)
+         */
+        private fun purityOrReadonlyViolationToReporting(violation: BoundExecutable<Executable<*>>, function: BoundFunction, violationIsWrite: Boolean): Reporting {
+            val functionType = if (FunctionModifier.PURE in function.modifiers) FunctionModifier.PURE else FunctionModifier.READONLY
+
+            val functionTypeAsString = functionType.name[0].toUpperCase() + functionType.name.substring(1).toLowerCase()
+            var errorMessage = "$functionTypeAsString function ${function.name} cannot "
+            var errorLocation = violation.declaration.sourceLocation
+            val boundaryType = if (functionType == FunctionModifier.PURE) "purity" else "readonlyness"
+
+            // violations can only be variable reads + writes as well as function invocations
+            if (violation is BoundIdentifierExpression) {
+                errorMessage += "read ${violation.identifier} (its not within the $boundaryType boundary)"
+            }
+            else if (violation is BoundInvocationExpression) {
+                val functionName = violation.dispatchedFunction!!.name
+
+                if (functionType == FunctionModifier.PURE) {
+                    val invokedFunctionType = if (FunctionModifier.READONLY in violation.dispatchedFunction!!.modifiers) "readonly (and thus impure)" else "impure"
+                    errorMessage += "invoke $invokedFunctionType function $functionName"
+                }
+                else {
+                    errorMessage += "invoke modifying function $functionName"
+                }
+            }
+            else if (violation is BoundAssignmentStatement) {
+                errorMessage += "assign state outside of its $boundaryType boundary"
+                errorLocation = violation.declaration.assignmentOperatorToken.sourceLocation
+            }
+            else throw InternalCompilerError("Cannot handle ${violation.javaClass.simpleName} as a purity or readonlyness violation")
+
+            return error(errorMessage, errorLocation)
         }
     }
 }

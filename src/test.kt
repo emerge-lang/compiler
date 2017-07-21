@@ -3,6 +3,7 @@ import compiler.binding.type.BuiltinType
 import compiler.lexer.SourceContentAwareSourceDescriptor
 import compiler.lexer.lex
 import compiler.parser.Reporting
+
 import compiler.parser.toTransactional
 
 val testCode = """module testcode
@@ -10,6 +11,10 @@ val testCode = """module testcode
 var x = 3
 
 readonly fun foobar() {
+    abc()
+}
+
+readonly fun abc() {
     x = 5
 }
 """

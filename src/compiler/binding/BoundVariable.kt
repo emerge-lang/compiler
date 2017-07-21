@@ -18,9 +18,6 @@ class BoundVariable(
     val initializerExpression: BoundExpression<*>?
 ) : BoundExecutable<VariableDeclaration>
 {
-    override var isReadonly: Boolean? = null
-        private set
-
     val typeModifier = declaration.typeModifier
 
     val isAssignable: Boolean = declaration.isAssignable

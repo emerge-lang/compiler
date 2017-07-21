@@ -21,9 +21,6 @@ class BoundMemberAccessExpression(
     override var type: BaseTypeReference? = null
         private set
 
-    override val isReadonly: Boolean?
-        get() = TODO("Semantic analysis of BoundMemberAccessExpression is not fully implemented yet.")
-
     override fun semanticAnalysisPhase1() = valueExpression.semanticAnalysisPhase1()
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()

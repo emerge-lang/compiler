@@ -6,8 +6,6 @@ import compiler.ast.CodeChunk
 import compiler.ast.Executable
 import compiler.ast.ReturnStatement
 import compiler.ast.expression.Expression
-import compiler.ast.expression.StandaloneExpression
-import compiler.binding.BoundAssignmentStatement
 import compiler.lexer.KeywordToken
 import compiler.lexer.OperatorToken
 import compiler.parser.rule.Rule
@@ -31,12 +29,11 @@ private fun toAST_ReturnStatement(input: TransactionalSequence<Any, Position>): 
 // ------
 
 fun toAST_AssignmentStatement(input: TransactionalSequence<Any, Position>): AssignmentStatement {
-    val targetExpression = input.next() as Expression<*>
-    // skip the ASSIGNMENT operator
-    input.next()
-    val valueExpression = input.next() as Expression<*>
+    val targetExpression   = input.next() as Expression<*>
+    val assignmentOperator = input.next() as OperatorToken
+    val valueExpression    = input.next() as Expression<*>
 
-    return AssignmentStatement(targetExpression, valueExpression)
+    return AssignmentStatement(targetExpression, assignmentOperator, valueExpression)
 }
 
 // ------
@@ -54,9 +51,6 @@ private fun toAST_codeChunk(input: TransactionalSequence<Any, Position>): CodeCh
         .forEach {
             if (it is Executable<*>) {
                 executables.add(it)
-            }
-            else if (it is Expression<*>) {
-                executables.add(StandaloneExpression(it))
             }
             else throw InternalCompilerError("How did this thing get into here?!")
         }

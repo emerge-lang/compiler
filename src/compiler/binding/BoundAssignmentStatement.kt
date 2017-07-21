@@ -16,9 +16,6 @@ class BoundAssignmentStatement(
     val valueExpression: BoundExpression<*>
 ) : BoundExecutable<AssignmentStatement> {
 
-    override var isReadonly: Boolean? = null
-        private set
-
     /**
      * What this statement assigns to. Must not be null after semantic analysis has been completed.
      */
@@ -77,7 +74,7 @@ class BoundAssignmentStatement(
                 return writesByValueExpression
             }
             else {
-                return writesByValueExpression + (targetExpression as BoundExecutable<Executable<*>>)
+                return writesByValueExpression + this
             }
         }
         else {

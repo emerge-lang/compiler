@@ -1,6 +1,7 @@
 package compiler.parser.grammar
 
 import compiler.ast.expression.Expression
+import compiler.ast.expression.IdentifierExpression
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
@@ -131,6 +132,7 @@ val BinaryExpression = rule {
 val ExpressionPostfixNotNull = rule {
     operator(Operator.NOTNULL)
     __definitive()
+    optionalWhitespace()
 }
     .describeAs(OperatorToken(Operator.NOTNULL).toStringWithoutLocation())
     .flatten()
@@ -154,6 +156,7 @@ val ExpressionPostfixInvocation = rule {
     optionalWhitespace()
     operator(Operator.PARANT_CLOSE)
     __matched()
+    optionalWhitespace()
 }
     .describeAs("function invocation")
     .flatten()
@@ -164,6 +167,7 @@ val ExpressionPostfixMemberAccess = rule {
     __matched()
     identifier()
     __optimistic()
+    optionalWhitespace()
 }
     .describeAs("member access")
     .flatten()

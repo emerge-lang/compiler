@@ -50,6 +50,11 @@ class BoundInvocationExpression(
             reportings.addAll(function.semanticAnalysisPhase2())
             type = function.returnType
         }
+        else {
+            reportings.add(Reporting.unresolvableFunction(this))
+        }
+
+        this.dispatchedFunction = function
 
         // TODO: determine type of invocation: static dispatch or dynamic dispatch
 
