@@ -19,9 +19,6 @@ class BoundCodeChunk(
     var statements: List<BoundExecutable<*>>? = null
         private set
 
-    override var isReadonly: Boolean? = null
-        private set
-
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
         var currentContext = context

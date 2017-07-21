@@ -649,16 +649,16 @@ These binary operators can be overloaded:
 |>>      |opRightShift       |yes      |`a >> b` |`a.opRightShift(b)`       |
 |<<      |opLeftShift        |yes      |`a << b` |`a.opLeftShift(b)`        |
 |--------|-------------------|---------|---------|--------------------------|
-|+=      |opPlusAssign       |yes      |`a + b`  |`a.opPlusAssign(b)`       |
-|-=      |opMinusAssign      |yes      |`a - b`  |`a.opMinusAssign(b)`      |
-|*=      |opTimesAssign      |yes      |`a * b`  |`a.opTimesAssign(b)`      |
-|/=      |opDivideAssign     |yes      |`a / b`  |`a.opDivideAssign(b)`     |
-|%=      |opModuloAssign     |yes      |`a % b`  |`a.opModuloAssign(b)`     |
-|&=      |opAndAssign        |yes      |`a & b`  |`a.opAndAssign(b)`        |
-|\|=     |opOrAssign         |yes      |`a | b`  |`a.opOrAssign(b)`         |
-|^=      |opXorAssign        |yes      |`a ^ b`  |`a.opXorAssign(b)`        |
-|>>=     |opRightShiftAssign |yes      |`a >> b` |`a.opRightShiftAssign(b)` |
-|<<=     |opLeftShiftAssign  |yes      |`a << b` |`a.opLeftShiftAssign(b)`  |
+|+=      |opPlusAssign       |no       |`a + b`  |`a.opPlusAssign(b)`       |
+|-=      |opMinusAssign      |no       |`a - b`  |`a.opMinusAssign(b)`      |
+|*=      |opTimesAssign      |no       |`a * b`  |`a.opTimesAssign(b)`      |
+|/=      |opDivideAssign     |no       |`a / b`  |`a.opDivideAssign(b)`     |
+|%=      |opModuloAssign     |no       |`a % b`  |`a.opModuloAssign(b)`     |
+|&=      |opAndAssign        |no       |`a & b`  |`a.opAndAssign(b)`        |
+|\|=     |opOrAssign         |no       |`a | b`  |`a.opOrAssign(b)`         |
+|^=      |opXorAssign        |no       |`a ^ b`  |`a.opXorAssign(b)`        |
+|>>=     |opRightShiftAssign |no       |`a >> b` |`a.opRightShiftAssign(b)` |
+|<<=     |opLeftShiftAssign  |no       |`a << b` |`a.opLeftShiftAssign(b)`  |
 
 #### Unary operators
 
@@ -710,8 +710,8 @@ built-in array functionality uses exactly this mechanism.
 The array get overload must be readonly. As with unary and binary
 operators, this does not need to be stated explicitly.
 
-|source       |function name|is rewritten to              |
-|-------------|-------------|-----------------------------|
-|`arr[i]`     |opGet        |`a.opGet(i)`                 |
-|`arr[i] = b` |opSet        |`a.opSet(i, b)`              |
-|`arr[i] += b`|             |`a.opGet(i).opPlusAssign(b)` |
+|source       |function name|readonly?|is rewritten to              |
+|-------------|-------------|---------|-----------------------------|
+|`arr[i]`     |opGet        |   yes   |`a.opGet(i)`                 |
+|`arr[i] = b` |opSet        |   no    |`a.opSet(i, b)`              |
+|`arr[i] += b`|             |         |`a.opGet(i).opPlusAssign(b)` |

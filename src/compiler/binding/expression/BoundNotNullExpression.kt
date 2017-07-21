@@ -1,5 +1,6 @@
 package compiler.binding.expression
 
+import compiler.ast.Executable
 import compiler.ast.expression.NotNullExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
@@ -20,4 +21,10 @@ class BoundNotNullExpression(
     override fun semanticAnalysisPhase1() = super<BoundExpression>.semanticAnalysisPhase1()
     override fun semanticAnalysisPhase2() = super<BoundExpression>.semanticAnalysisPhase2()
     override fun semanticAnalysisPhase3() = super<BoundExpression>.semanticAnalysisPhase3()
+
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+        return nullableExpression.findReadsBeyond(boundary)
+    }
+
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
 }

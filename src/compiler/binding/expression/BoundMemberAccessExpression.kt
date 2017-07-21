@@ -1,6 +1,8 @@
 package compiler.binding.expression
 
+import compiler.ast.Executable
 import compiler.ast.expression.MemberAccessExpression
+import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseTypeReference
 import compiler.parser.Reporting
@@ -42,5 +44,13 @@ class BoundMemberAccessExpression(
         // TODO: what about FQNs?
 
         return reportings
+    }
+
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+        return valueExpression.findReadsBeyond(boundary)
+    }
+
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+        return valueExpression.findWritesBeyond(boundary)
     }
 }

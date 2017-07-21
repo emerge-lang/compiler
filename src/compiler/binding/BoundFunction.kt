@@ -30,7 +30,25 @@ class BoundFunction(
         private set
 
     val name: String = declaration.name.value
-    val modifiers = declaration.modifiers
+
+    /**
+     * Implied modifiers. Operator functions often have an implied [FunctionModifier.READONLY]
+     */
+    val impliedModifiers: Set<FunctionModifier> = {
+        // only operator functions have implied modifiers
+        if (FunctionModifier.OPERATOR !in declaration.modifiers) {
+            emptySet<FunctionModifier>()
+        }
+
+        when {
+            name.startsWith("opUnary")                         -> setOf(FunctionModifier.READONLY)
+            name.startsWith("op") && !name.endsWith("Assign")  -> setOf(FunctionModifier.READONLY)
+            name == "rangeTo" || name == "contains"            -> setOf(FunctionModifier.READONLY)
+            else                                               -> emptySet()
+        }
+    }()
+
+    val modifiers = declaration.modifiers + impliedModifiers
 
     val parameterTypes: List<BaseTypeReference?>
         get() = declaration.parameters.types.map { it?.resolveWithin(context) }

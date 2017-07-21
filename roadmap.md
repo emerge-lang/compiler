@@ -5,9 +5,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
    but also horribly slow), create a type `BoundExpression` that is bound to a compile
    time context. It keeps all the information derived thereof; things then become easier
    with `expression.boundTo(contex).type` instead of `expression.determineType(context)`.
-2. ~\!> InvocationExpression~
-3. ~Operator Precedence~
-4. Scope modifier PURE  
+2. ~~InvocationExpression~~
+3. ~~Operator Precedence~~
+4. ~~Scope modifier PURE and READONLY~~
    nothrow will be implemented analogous later on; this is just to figure out the API
 5. distinguish terminating and non-terminating statements in code chunks
 6. return type checking

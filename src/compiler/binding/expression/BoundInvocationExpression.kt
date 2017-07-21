@@ -1,5 +1,6 @@
 package compiler.binding.expression
 
+import compiler.ast.Executable
 import compiler.ast.expression.InvocationExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
@@ -26,9 +27,6 @@ class BoundInvocationExpression(
      */
     var dispatchedFunction: BoundFunction? = null
         private set
-
-    override val isReadonly: Boolean?
-        get() = dispatchedFunction?.isReadonly
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> =
         (receiverExpression?.semanticAnalysisPhase1() ?: emptySet()) + parameterExpressions.flatMap(BoundExpression<*>::semanticAnalysisPhase1)
@@ -77,8 +75,50 @@ class BoundInvocationExpression(
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        // TODO: invoke semantic analysis on all sub-expressions
+        val reportings = mutableSetOf<Reporting>()
 
-        return emptySet()
+        if (receiverExpression != null) {
+            reportings += receiverExpression.semanticAnalysisPhase3()
+        }
+
+        reportings += parameterExpressions.flatMap { it.semanticAnalysisPhase3() }
+
+        return reportings
+    }
+
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+        val byReceiver = receiverExpression?.findReadsBeyond(boundary) ?: emptySet()
+        val byParameters = parameterExpressions.flatMap { it.findReadsBeyond(boundary) }
+
+        if (dispatchedFunction != null) {
+            if (dispatchedFunction!!.isPure == null) {
+                dispatchedFunction!!.semanticAnalysisPhase1()
+                dispatchedFunction!!.semanticAnalysisPhase2()
+                dispatchedFunction!!.semanticAnalysisPhase3()
+            }
+        }
+
+        val dispatchedFunctionIsPure = dispatchedFunction?.isPure ?: true
+        val bySelf = if (dispatchedFunctionIsPure) emptySet() else setOf(this)
+
+        return byReceiver + byParameters + bySelf
+    }
+
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+        val byReceiver = receiverExpression?.findWritesBeyond(boundary) ?: emptySet()
+        val byParameters = parameterExpressions.flatMap { it.findWritesBeyond(boundary) }
+
+        if (dispatchedFunction != null) {
+            if (dispatchedFunction!!.isReadonly == null) {
+                dispatchedFunction!!.semanticAnalysisPhase1()
+                dispatchedFunction!!.semanticAnalysisPhase2()
+                dispatchedFunction!!.semanticAnalysisPhase3()
+            }
+        }
+
+        val thisExpressionIsReadonly = dispatchedFunction?.isReadonly ?: true
+        val bySelf: Collection<BoundExecutable<Executable<*>>> = if (thisExpressionIsReadonly) emptySet() else setOf(this)
+
+        return byReceiver + byParameters + bySelf
     }
 }

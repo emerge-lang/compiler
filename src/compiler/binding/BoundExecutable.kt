@@ -17,13 +17,6 @@ interface BoundExecutable<out ASTType> {
     val declaration: ASTType
 
     /**
-     * Whether this expression is readonly. An expression is readonly if it never writes to its context, not even
-     * parameters passed to it.
-     * Is `null` if the property has not yet been determined. Must be non-null after semantic analysis is completed.
-     */
-    val isReadonly: Boolean?
-
-    /**
      * Communicates changes the [Executable] applies any changes to its enclosing scope (e.g. a variable declaration declares a new
      * variable)
      * @return A [CTContext] derived from the given one, with all the necessary changes applied.

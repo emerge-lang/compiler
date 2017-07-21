@@ -1,7 +1,9 @@
 package compiler.binding.expression
 
+import compiler.ast.Executable
 import compiler.ast.expression.*
 import compiler.ast.type.FunctionModifier
+import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseTypeReference
 import compiler.lexer.IdentifierToken
@@ -30,17 +32,6 @@ class BoundBinaryExpression(
     override val type: BaseTypeReference?
         get() = hiddenInvocation.type
 
-    override val isReadonly: Boolean?
-        get() {
-            val lhsReadonly = leftHandSide.isReadonly
-            val rhsReadonly = rightHandSide.isReadonly
-            if (lhsReadonly == null || rhsReadonly == null) {
-                return null
-            }
-
-            return lhsReadonly && rhsReadonly
-        }
-
     override fun semanticAnalysisPhase1() = hiddenInvocation.semanticAnalysisPhase1()
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
@@ -56,6 +47,14 @@ class BoundBinaryExpression(
         }
 
         return reportings
+    }
+
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+        return hiddenInvocation.findReadsBeyond(boundary)
+    }
+
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+        return hiddenInvocation.findWritesBeyond(boundary)
     }
 }
 

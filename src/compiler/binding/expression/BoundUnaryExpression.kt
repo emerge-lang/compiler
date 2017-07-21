@@ -1,11 +1,14 @@
 package compiler.binding.expression
 
+import compiler.ast.Executable
 import compiler.ast.expression.UnaryExpression
 import compiler.ast.type.FunctionModifier
+import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.context.CTContext
 import compiler.binding.filterAndSortByMatchForInvocationTypes
 import compiler.binding.type.BaseTypeReference
+import compiler.lexer.Operator
 import compiler.parser.Reporting
 
 class BoundUnaryExpression(
@@ -17,10 +20,10 @@ class BoundUnaryExpression(
     override var type: BaseTypeReference? = null
         private set
 
-    override val isReadonly: Boolean?
-        get() = original.isReadonly
-
     val operator = declaration.operator
+
+    var operatorFunction: BoundFunction? = null
+        private set
 
     override fun semanticAnalysisPhase1() = original.semanticAnalysisPhase1()
 
@@ -35,10 +38,8 @@ class BoundUnaryExpression(
 
         val valueType = original.type!!
 
-        val operatorFunction: BoundFunction?
-
         // determine operator function
-        val opFunName = "unary" + declaration.operator.name[0].toUpperCase() + declaration.operator.name.substring(1).toLowerCase()
+        val opFunName = operatorFunctionName(operator)
 
         // functions with receiver
         val receiverOperatorFuns =
@@ -49,9 +50,23 @@ class BoundUnaryExpression(
         operatorFunction = receiverOperatorFuns.firstOrNull()
 
         if (operatorFunction == null) {
-            reportings.add(Reporting.error("Unary operator $operator not declared for type $valueType", declaration.sourceLocation))
+            reportings.add(Reporting.error("Unary operator $operator (function $opFunName) not declared for type $valueType", declaration.sourceLocation))
         }
 
         return reportings
     }
+
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+        return original.findReadsBeyond(boundary)
+    }
+
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+        return original.findWritesBeyond(boundary)
+
+        // unary operators are readonly by definition; the check for that happens inside the corresponding BoundFunction
+    }
+}
+
+private fun operatorFunctionName(op: Operator): String = when(op) {
+    else -> "unary" + op.name[0].toUpperCase() + op.name.substring(1).toLowerCase()
 }

@@ -1,6 +1,8 @@
 package compiler.binding.expression
 
+import compiler.ast.Executable
 import compiler.ast.expression.NumericLiteralExpression
+import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseTypeReference
 import compiler.parser.Reporting
@@ -18,7 +20,10 @@ open class BoundNumericLiteral(
 ) : BoundExpression<NumericLiteralExpression> {
     override fun semanticAnalysisPhase1() = reportings
     override val type: BaseTypeReference? = null // unknown
-    override final val isReadonly = true
+
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
+
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
 }
 
 class BoundIntegerLiteral(
