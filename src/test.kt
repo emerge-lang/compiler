@@ -10,12 +10,12 @@ val testCode = """module testcode
 
 var x = 3
 
-readonly fun foobar() {
+pure fun foobar() {
     abc()
 }
 
-readonly fun abc() {
-    x = 5
+fun abc() {
+    x = 3
 }
 """
 

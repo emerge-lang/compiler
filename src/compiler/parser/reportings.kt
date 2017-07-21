@@ -199,7 +199,7 @@ open class Reporting(
                 val functionName = violation.dispatchedFunction!!.name
 
                 if (functionType == FunctionModifier.PURE) {
-                    val invokedFunctionType = if (FunctionModifier.READONLY in violation.dispatchedFunction!!.modifiers) "readonly (and thus impure)" else "impure"
+                    val invokedFunctionType = if (FunctionModifier.READONLY in violation.dispatchedFunction!!.modifiers) "readonly and thus impure" else "impure"
                     errorMessage += "invoke $invokedFunctionType function $functionName"
                 }
                 else {
