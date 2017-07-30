@@ -8,15 +8,8 @@ import compiler.parser.toTransactional
 
 val testCode = """module testcode
 
-var x = 3
-
-pure fun foobar() {
-    abc()
-}
-
-fun abc() {
-    x = 3
-}
+fun a() = 3
+fun b() = a()
 """
 
 fun main(args: Array<String>) {

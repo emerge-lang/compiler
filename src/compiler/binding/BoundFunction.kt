@@ -14,12 +14,13 @@ import compiler.parser.Reporting
  * Refers to the original declaration and holds a reference to the appropriate context
  * so that [BaseType]s for receiver, parameters and return type can be resolved.
  */
-class BoundFunction(
+abstract class BoundFunction(
     val context: CTContext,
     val declaration: FunctionDeclaration,
-    val parameters: BoundParameterList,
-    val code: BoundCodeChunk?
+    val parameters: BoundParameterList
 ) {
+    abstract val code: BoundCodeChunk?
+
     val declaredAt = declaration.declaredAt
 
     /**
@@ -164,6 +165,12 @@ class BoundFunction(
         return reportings
     }
 }
+
+class BoundDefaultFunction(
+    val context: CTContext,
+    val declaration: FunctionDeclaration,
+    val parameters: BoundParameterList
+)
 
 /**
  * Given the invocation types `receiverType` and `parameterTypes` of an invocation site

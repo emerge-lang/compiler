@@ -197,6 +197,10 @@ val StandaloneFunctionDeclaration = rule {
             codeChunk()
             operator(CBRACE_CLOSE)
         }
+        sequence {
+            operator(ASSIGNMENT)
+            expression()
+        }
         operator(NEWLINE)
         endOfInput()
     }
