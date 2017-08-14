@@ -9,6 +9,7 @@ import compiler.binding.expression.BoundExpression
 import compiler.binding.type.Any
 import compiler.binding.type.BaseType
 import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.Unit
 import compiler.nullableOr
 import compiler.parser.Reporting
 
@@ -188,7 +189,10 @@ class BoundFunction(
             }
 
             if (!isGuaranteedToTerminate) {
-                reportings.add(Reporting.functionIsNotGuaranteedToTerminate(this))
+                // if the function is declared to return Unit a return of Unit is implied and should be inserted by backends
+                if (returnType == null || returnType!!.baseType !== Unit) {
+                    reportings.add(Reporting.functionIsNotGuaranteedToTerminate(this))
+                }
             }
         }
 

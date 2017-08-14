@@ -26,6 +26,14 @@ interface BoundExecutable<out ASTType> {
         get() = false
 
     /**
+     * Whether this executable may return to the caller; with or without return value.
+     *
+     * Must not be `null` after semantic analysis is complete.
+     */
+    val mayReturn: Boolean?
+        get() = false
+
+    /**
      * Whether this executable is guaranteed to throw an exception.
      *
      * Must not be `null` after semantic analysis is complete.

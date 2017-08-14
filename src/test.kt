@@ -16,6 +16,14 @@ fun b() {
     val x = 3
 }
 
+fun c() -> Int {
+    val x = 3
+}
+
+fun d() -> Int {
+    return -1
+}
+
 """
 
 fun main(args: Array<String>) {

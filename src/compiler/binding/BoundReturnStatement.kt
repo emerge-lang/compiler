@@ -15,6 +15,7 @@ class BoundReturnStatement(
         private set
 
     override val isGuaranteedToReturn = true // this is the core LoC that makes the property work big-scale
+    override val mayReturn = true            // this is the core LoC that makes the property work big-scale
 
     override val isGuaranteedToThrow = expression.isGuaranteedToThrow
 }
