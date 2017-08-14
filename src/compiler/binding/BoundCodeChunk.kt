@@ -22,6 +22,9 @@ class BoundCodeChunk(
     override val isGuaranteedToThrow: Boolean?
         get() = statements?.any { it.isGuaranteedToThrow ?: false }
 
+    override val isGuaranteedToReturn: Boolean?
+        get() = statements?.any { it.isGuaranteedToReturn ?: false }
+
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
         var currentContext = context
