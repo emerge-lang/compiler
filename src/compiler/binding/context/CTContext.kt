@@ -42,6 +42,10 @@ interface CTContext
     val swCtx: SoftwareContext?
         get() = null
 
+    /** The module this context belongs to, right beneath the software context in the tree */
+    val module: Module?
+        get() = null
+
     val parentContext: CTContext?
 
     val functions: Iterable<BoundFunction>

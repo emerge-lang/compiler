@@ -10,6 +10,10 @@ class Module(
     /** [Reporting]s generated at bind-time: double declarations, ... */
     val bindTimeReportings: Collection<Reporting> = emptySet()
 ) {
+    init {
+        context.module = this
+    }
+
     /**
      * Delegates to semantic analysis phase 1 of all components that make up this module;
      * collects the results and returns them. Also returns the [Reporting]s found when binding

@@ -39,6 +39,10 @@ open class MutableCTContext(
         get() = field ?: parentContext.swCtx
         set(ctx) { field = ctx }
 
+    override var module: Module? = null
+        get() = field ?: parentContext.module
+        set(module) { field = module }
+
     /** Maps variable names to their metadata; holds only variables defined in this context */
     private val variablesMap: MutableMap<String, BoundVariable> = HashMap()
 
