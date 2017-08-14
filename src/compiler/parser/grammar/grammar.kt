@@ -199,7 +199,12 @@ val StandaloneFunctionDeclaration = rule {
         }
         sequence {
             operator(ASSIGNMENT)
+            __definitive()
             expression()
+            eitherOf {
+                operator(NEWLINE)
+                endOfInput()
+            }
         }
         operator(NEWLINE)
         endOfInput()
