@@ -18,15 +18,6 @@ interface BoundExecutable<out ASTType> {
     val declaration: ASTType
 
     /**
-     * Whether this executable is guaranteed to terminate the function it is executed in. Either through
-     * throwing exceptions or returning to the caller; with or without return value.
-     *
-     * Must not be `null` after semantic analysis is complete.
-     */
-    val isGuaranteedToTerminate: Boolean?
-        get() = isGuaranteedToReturn nullableOr isGuaranteedToThrow
-
-    /**
      * Whether this executable is guaranteed to return to the caller; with or without return value.
      *
      * Must not be `null` after semantic analysis is complete.

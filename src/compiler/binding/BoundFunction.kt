@@ -9,6 +9,7 @@ import compiler.binding.expression.BoundExpression
 import compiler.binding.type.Any
 import compiler.binding.type.BaseType
 import compiler.binding.type.BaseTypeReference
+import compiler.nullableOr
 import compiler.parser.Reporting
 
 /**
@@ -181,7 +182,7 @@ class BoundFunction(
             }
 
             // assure all paths return or throw
-            val isGuaranteedToTerminate = code.isGuaranteedToTerminate
+            val isGuaranteedToTerminate = code.isGuaranteedToReturn nullableOr code.isGuaranteedToThrow
             if (isGuaranteedToTerminate == null) {
                 throw InternalCompilerError("Could not determine whether function $this returns or throws on all executions paths")
             }
