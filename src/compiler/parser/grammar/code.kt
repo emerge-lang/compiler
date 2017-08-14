@@ -43,6 +43,8 @@ val ReturnStatement = rule {
     keyword(Keyword.RETURN)
     __matched()
     expression()
+    __optimistic()
+    operator(Operator.NEWLINE)
     __definitive()
 }
     .describeAs("return statement")

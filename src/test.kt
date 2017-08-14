@@ -8,8 +8,14 @@ import compiler.parser.toTransactional
 
 val testCode = """module testcode
 
-fun a() = 3
-fun b() = a()
+fun a() {
+    return 0
+}
+
+fun b() {
+    val x = 3
+}
+
 """
 
 fun main(args: Array<String>) {

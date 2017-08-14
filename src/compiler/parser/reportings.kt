@@ -179,6 +179,9 @@ open class Reporting(
             }
         }
 
+        fun functionIsNotGuaranteedToTerminate(function: BoundFunction) =
+            error("Function ${function.fullyQualifiedName} does not terminate (return or throw) on all of its possible execution paths.", function.declaredAt)
+
         /**
          * Converts a violation of purity or readonlyness into an appropriate error.
          * @param violationIsWrite Whether the violiation is a writing violation or a reading violation (true = writing, false = reading)

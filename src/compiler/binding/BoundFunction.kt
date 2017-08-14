@@ -98,6 +98,9 @@ class BoundFunction(
     val isReadonly: Boolean?
         get() = if (isDeclaredPeadonly || isDeclaredPure) true else isEffectivelyReadonly
 
+    val fullyQualifiedName: String
+        get() = (context.module?.name?.joinToString(".") ?: "<unknown module>") + "." + name
+
     fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
 
@@ -175,6 +178,16 @@ class BoundFunction(
             }
             else if (isDeclaredPeadonly && !isEffectivelyReadonly!!) {
                 reportings.addAll(Reporting.readonlyViolations(statementsWritingBeyondFunctionContext, this))
+            }
+
+            // assure all paths return or throw
+            val isGuaranteedToTerminate = code.isGuaranteedToTerminate
+            if (isGuaranteedToTerminate == null) {
+                throw InternalCompilerError("Could not determine whether function $this returns or throws on all executions paths")
+            }
+
+            if (!isGuaranteedToTerminate) {
+                reportings.add(Reporting.functionIsNotGuaranteedToTerminate(this))
             }
         }
 
