@@ -58,21 +58,34 @@ private fun toAST(tokens: TransactionalSequence<Any, Position>): FunctionDeclara
         val code = tokens.next()!! as CodeChunk
         // ignore trailing CBRACE_CLOSE
 
-        return DefaultFunctionDeclaration(declarationKeyword.sourceLocation, modifiers, receiverType, name, parameterList, type, code)
+        return FunctionDeclaration(declarationKeyword.sourceLocation, modifiers, receiverType, name, parameterList, type, code)
     }
     else if (next == OperatorToken(Operator.ASSIGNMENT)) {
         val assignmentOp: OperatorToken = next as OperatorToken
         val singleExpression = tokens.next()!! as Expression<*>
 
-        return SingleExpressionFunctionDeclaration(
+        val expressionAsCode = CodeChunk(
+            listOf(
+                ReturnStatement(
+                    KeywordToken(Keyword.RETURN, "=", assignmentOp.sourceLocation),
+                    singleExpression
+                )
+            )
+        )
+
+        return FunctionDeclaration(
             declarationKeyword.sourceLocation,
             modifiers,
             receiverType,
             name,
             parameterList,
             type,
-            singleExpression
+            expressionAsCode
         )
+    }
+    else if (next == OperatorToken(Operator.NEWLINE) || next == null) {
+        // function without body with trailing newline or immediately followed by EOF
+        return FunctionDeclaration(declarationKeyword.sourceLocation, modifiers, receiverType, name, parameterList, type, null)
     }
     else {
         throw InternalCompilerError("Unexpected token when building AST: expected ${OperatorToken(Operator.CBRACE_OPEN)} or ${OperatorToken(Operator.ASSIGNMENT)} but got $next")
