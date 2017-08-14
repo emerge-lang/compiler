@@ -80,5 +80,18 @@ class SingleExpressionFunctionDeclaration(
     override val returnType: TypeReference?,
     val expression: Expression<*>
 ) : FunctionDeclaration {
+    override fun bindTo(context: CTContext): BoundFunction {
+        val functionContext = MutableCTContext(context)
+        functionContext.swCtx = context.swCtx
 
+        val boundParams = parameters.parameters.map(functionContext::addVariable)
+        val boundParamList = BoundParameterList(context, parameters, boundParams)
+
+        return BoundFunction(
+            functionContext,
+            this,
+            boundParamList,
+            expression.bindTo(functionContext)
+        )
+    }
 }

@@ -1,9 +1,11 @@
 package compiler.binding
 
+import compiler.InternalCompilerError
 import compiler.ast.FunctionDeclaration
 import compiler.ast.type.FunctionModifier
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
+import compiler.binding.expression.BoundExpression
 import compiler.binding.type.Any
 import compiler.binding.type.BaseType
 import compiler.binding.type.BaseTypeReference
@@ -14,13 +16,12 @@ import compiler.parser.Reporting
  * Refers to the original declaration and holds a reference to the appropriate context
  * so that [BaseType]s for receiver, parameters and return type can be resolved.
  */
-abstract class BoundFunction(
+class BoundFunction(
     val context: CTContext,
     val declaration: FunctionDeclaration,
-    val parameters: BoundParameterList
+    val parameters: BoundParameterList,
+    val code: BoundExecutable<*>?
 ) {
-    abstract val code: BoundCodeChunk?
-
     val declaredAt = declaration.declaredAt
 
     /**
@@ -103,7 +104,7 @@ abstract class BoundFunction(
         receiverType = declaration.receiverType?.resolveWithin(context)
 
         if (declaration.receiverType != null && receiverType == null) {
-            reportings.add(Reporting.unknownType(declaration.receiverType))
+            reportings.add(Reporting.unknownType(declaration.receiverType!!))
         }
 
         // modifiers
@@ -123,9 +124,11 @@ abstract class BoundFunction(
         // parameters
         reportings.addAll(parameters.semanticAnalysisPhase1(false))
 
-        returnType = declaration.returnType.resolveWithin(context)
-        if (returnType == null) {
-            reportings.add(Reporting.unknownType(declaration.returnType))
+        if (declaration.returnType != null) {
+            returnType = declaration.returnType!!.resolveWithin(context)
+            if (returnType == null) {
+                reportings.add(Reporting.unknownType(declaration.returnType!!))
+            }
         }
 
         // the codechunk has no semantic analysis phase 1
@@ -134,7 +137,20 @@ abstract class BoundFunction(
     }
 
     fun semanticAnalysisPhase2(): Collection<Reporting> {
-        // TODO: if the function is a () = expression, infer the return type
+        // TODO: detect recursion and issue error about cyclic type inference
+        if (returnType == null) {
+            if (this.code is BoundExpression<*>) {
+                if (this.code.type == null) {
+                    return setOf(Reporting.consecutive("Cannot determine type of function expression; thus cannot infer return type of function."))
+                }
+
+                this.returnType = this.code.type!!
+            }
+            else {
+                throw InternalCompilerError("Semantic analysis phase 1 did not determine return type of function; cannot infer in phase 2 because the functions code is not an expression.")
+            }
+        }
+
         return emptySet()
     }
 
@@ -165,12 +181,6 @@ abstract class BoundFunction(
         return reportings
     }
 }
-
-class BoundDefaultFunction(
-    val context: CTContext,
-    val declaration: FunctionDeclaration,
-    val parameters: BoundParameterList
-)
 
 /**
  * Given the invocation types `receiverType` and `parameterTypes` of an invocation site
