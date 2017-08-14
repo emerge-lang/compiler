@@ -1,5 +1,6 @@
 package compiler.parser.postproc
 
+import compiler.InternalCompilerError
 import compiler.ast.*
 import compiler.ast.expression.Expression
 import compiler.ast.type.FunctionModifier
@@ -63,7 +64,17 @@ private fun toAST(tokens: TransactionalSequence<Any, Position>): FunctionDeclara
         val assignmentOp: OperatorToken = next as OperatorToken
         val singleExpression = tokens.next()!! as Expression<*>
 
+        return SingleExpressionFunctionDeclaration(
+            declarationKeyword.sourceLocation,
+            modifiers,
+            receiverType,
+            name,
+            parameterList,
+            type,
+            singleExpression
+        )
     }
-
-    return FunctionDeclaration(declarationKeyword.sourceLocation, modifiers, receiverType, name, parameterList, type, code)
+    else {
+        throw InternalCompilerError("Unexpected token when building AST: expected ${OperatorToken(Operator.CBRACE_OPEN)} or ${OperatorToken(Operator.ASSIGNMENT)} but got $next")
+    }
 }
