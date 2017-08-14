@@ -30,6 +30,9 @@ class BoundVariable(
     var type: BaseTypeReference? = null
         private set
 
+    override val isGuaranteedToThrow: Boolean?
+        get() = initializerExpression?.isGuaranteedToThrow
+
     override fun semanticAnalysisPhase1() = semanticAnalysisPhase1("variable")
 
     fun semanticAnalysisPhase1(selfType: String): Collection<Reporting> {

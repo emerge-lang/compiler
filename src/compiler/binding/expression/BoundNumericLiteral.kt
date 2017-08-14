@@ -21,6 +21,8 @@ open class BoundNumericLiteral(
     override fun semanticAnalysisPhase1() = reportings
     override val type: BaseTypeReference? = null // unknown
 
+    override val isGuaranteedToThrow = false
+
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()

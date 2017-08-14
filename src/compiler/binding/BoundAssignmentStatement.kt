@@ -7,6 +7,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundMemberAccessExpression
+import compiler.nullableOr
 import compiler.parser.Reporting
 
 class BoundAssignmentStatement(
@@ -27,6 +28,9 @@ class BoundAssignmentStatement(
      */
     var targetVariable: BoundVariable? = null
         private set
+
+    override val isGuaranteedToThrow: Boolean?
+        get() = targetExpression.isGuaranteedToThrow nullableOr valueExpression.isGuaranteedToThrow
 
     override fun semanticAnalysisPhase1() = targetExpression.semanticAnalysisPhase1() + valueExpression.semanticAnalysisPhase1()
 

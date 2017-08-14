@@ -9,6 +9,7 @@ import compiler.binding.type.BaseTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
+import compiler.nullableOr
 import compiler.parser.Reporting
 
 class BoundBinaryExpression(
@@ -31,6 +32,9 @@ class BoundBinaryExpression(
 
     override val type: BaseTypeReference?
         get() = hiddenInvocation.type
+
+    override val isGuaranteedToThrow: Boolean?
+        get() = leftHandSide.isGuaranteedToThrow nullableOr rightHandSide.isGuaranteedToThrow
 
     override fun semanticAnalysisPhase1() = hiddenInvocation.semanticAnalysisPhase1()
 

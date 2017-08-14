@@ -14,6 +14,8 @@ class BoundNullLiteralExpression(
 {
     override val type: BaseTypeReference? = null
 
+    override val isGuaranteedToThrow = null
+
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()

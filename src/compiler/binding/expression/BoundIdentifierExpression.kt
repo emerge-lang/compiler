@@ -34,6 +34,8 @@ class BoundIdentifierExpression(
     var referredBaseType: BaseType? = null
         private set
 
+    override var isGuaranteedToThrow = false
+
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
 

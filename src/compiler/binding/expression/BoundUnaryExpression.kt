@@ -25,6 +25,8 @@ class BoundUnaryExpression(
     var operatorFunction: BoundFunction? = null
         private set
 
+    override val isGuaranteedToThrow = original.isGuaranteedToThrow // the unary operator THEORETICALLY can always throw; not in this language, though
+
     override fun semanticAnalysisPhase1() = original.semanticAnalysisPhase1()
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {

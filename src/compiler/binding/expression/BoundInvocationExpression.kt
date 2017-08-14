@@ -28,6 +28,9 @@ class BoundInvocationExpression(
     var dispatchedFunction: BoundFunction? = null
         private set
 
+    override var isGuaranteedToThrow: Boolean? = null
+        private set
+
     override fun semanticAnalysisPhase1(): Collection<Reporting> =
         (receiverExpression?.semanticAnalysisPhase1() ?: emptySet()) + parameterExpressions.flatMap(BoundExpression<*>::semanticAnalysisPhase1)
 
@@ -49,6 +52,7 @@ class BoundInvocationExpression(
         if (function != null) {
             reportings.addAll(function.semanticAnalysisPhase2())
             type = function.returnType
+            isGuaranteedToThrow = function.code?.isGuaranteedToThrow
         }
         else {
             reportings.add(Reporting.unresolvableFunction(this))

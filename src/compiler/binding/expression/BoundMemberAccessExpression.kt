@@ -21,6 +21,8 @@ class BoundMemberAccessExpression(
     override var type: BaseTypeReference? = null
         private set
 
+    override val isGuaranteedToThrow = false // member accessor CAN throw, but must not ALWAYS do so
+
     override fun semanticAnalysisPhase1() = valueExpression.semanticAnalysisPhase1()
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
