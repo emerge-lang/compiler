@@ -14,11 +14,11 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 7. Parsing fallbacks: define simple logic to parse until ... when a sub-rule fails; e.g.:
     * in ParameterList: when a parameter fails, construct a dummy parameter,
       report the error, go to the next Operator.COMMA and continue
-8. Test suite for all existing code
-9. control structures
+8. control structures
     * if-else
     * while / do-while
     * for
+9. Test suite for all existing code
 10. object model
     1. class definition
     2. struct definition
