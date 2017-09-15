@@ -9,15 +9,15 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 3. ~~Operator Precedence~~
 4. ~~Scope modifier PURE and READONLY~~
    nothrow will be implemented analogous later on; this is just to figure out the API
-5. distinguish terminating and non-terminating statements in code chunks
-6. return type checking
-7. Parsing fallbacks: define simple logic to parse until ... when a sub-rule fails; e.g.:
+5. control structures
+   * if-else
+   * while / do-while
+   * for
+6. distinguish terminating and non-terminating statements in code chunks
+7. return type checking
+8. Parsing fallbacks: define simple logic to parse until ... when a sub-rule fails; e.g.:
     * in ParameterList: when a parameter fails, construct a dummy parameter,
       report the error, go to the next Operator.COMMA and continue
-8. control structures
-    * if-else
-    * while / do-while
-    * for
 9. Test suite for all existing code
 10. object model
     1. class definition
