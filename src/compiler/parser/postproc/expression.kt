@@ -36,7 +36,11 @@ fun ValueExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<
                 valueThing
             }
             else if (valueThing is IdentifierToken) {
-                IdentifierExpression(valueThing)
+                if (valueThing.value == "true" || valueThing.value == "false") {
+                    BooleanLiteralExpression(valueThing.sourceLocation, valueThing.value == "true")
+                } else {
+                    IdentifierExpression(valueThing)
+                }
             }
             else {
                 throw InternalCompilerError("Unsupported value $valueThing")
