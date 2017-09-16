@@ -92,10 +92,6 @@ val VariableDeclaration = rule {
         expression()
     }
 
-    eitherOf {
-        operator(NEWLINE)
-        endOfInput()
-    }
     __definitive()
 }
     .describeAs("variable declaration")
@@ -195,6 +191,7 @@ val StandaloneFunctionDeclaration = rule {
             operator(CBRACE_OPEN)
             __definitive()
             codeChunk()
+            optionalWhitespace()
             operator(CBRACE_CLOSE)
         }
         sequence {

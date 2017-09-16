@@ -1,11 +1,10 @@
 package compiler.parser.postproc
 
 import compiler.InternalCompilerError
+import compiler.ast.CodeChunk
+import compiler.ast.Executable
 import compiler.ast.expression.*
-import compiler.lexer.IdentifierToken
-import compiler.lexer.NumericLiteralToken
-import compiler.lexer.Operator
-import compiler.lexer.OperatorToken
+import compiler.lexer.*
 import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
 import compiler.transact.Position
@@ -53,6 +52,61 @@ fun ParanthesisedExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>
 
             ParenthesisedExpression(nested, parantOpen.sourceLocation)
         })
+}
+
+fun BracedCodeOrSingleStatementPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Executable<*>> {
+    return rule
+        .flatten()
+        .mapResult { input ->
+            var next: Any? = input.next()
+
+            if (next == OperatorToken(Operator.CBRACE_OPEN)) {
+                next = input.next()
+                if (next is CodeChunk) {
+                    next
+                }
+                else if (next != OperatorToken(Operator.CBRACE_CLOSE)) {
+                    throw InternalCompilerError("Unepxected $next, expecting code or ${Operator.CBRACE_CLOSE}")
+                }
+                else {
+                    CodeChunk(emptyList())
+                }
+            }
+            else if (next is Executable<*>) {
+                next
+            }
+            else {
+                throw InternalCompilerError("Unexpected $next, expecting ${Operator.CBRACE_OPEN} or executable")
+            }
+        }
+}
+
+fun IfExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<IfExpression> {
+    return rule
+        .flatten()
+        .mapResult { input ->
+            val ifKeyword = input.next() as KeywordToken
+
+            val condition = input.next() as Expression<*>
+            val thenCode: Executable<*> = input.next() as Executable<*>
+            val elseCode: Executable<*>?
+
+            if (input.hasNext()) {
+                // skip ELSE
+                input.next()
+                elseCode = input.next() as Executable<*>
+            }
+            else {
+                elseCode = null
+            }
+
+            IfExpression(
+                ifKeyword.sourceLocation,
+                condition,
+                thenCode,
+                elseCode
+            )
+        }
 }
 
 fun BinaryExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Expression<*>> {
@@ -114,7 +168,7 @@ private val Operator.priority: Int
  *     ---
  *               +
  *              / \
- *             +   f
+ *             +   g
  *            / \
  *           /   *
  *          /   / \

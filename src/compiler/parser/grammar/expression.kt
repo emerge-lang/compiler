@@ -1,11 +1,8 @@
 package compiler.parser.grammar
 
 import compiler.ast.expression.Expression
-import compiler.ast.expression.IdentifierExpression
-import compiler.lexer.IdentifierToken
-import compiler.lexer.Operator
-import compiler.lexer.OperatorToken
-import compiler.lexer.TokenType
+import compiler.lexer.*
+import compiler.lexer.Keyword.*
 import compiler.parser.TokenSequence
 import compiler.parser.postproc.*
 import compiler.parser.rule.Rule
@@ -27,6 +24,7 @@ class ExpressionRule : Rule<Expression<*>> {
                 ref(UnaryExpression)
                 ref(ValueExpression)
                 ref(ParanthesisedExpression)
+                ref(IfExpression)
             }
             __matched()
             atLeast(0) {
@@ -128,6 +126,50 @@ val BinaryExpression = rule {
 }
     .describeAs("ary operator expression")
     .postprocess(::BinaryExpressionPostProcessor)
+
+val BracedCodeOrSingleStatement = rule {
+    eitherOf {
+        sequence {
+            operator(Operator.CBRACE_OPEN)
+            __matched()
+            optionalWhitespace()
+            optional {
+                codeChunk()
+                __definitive()
+            }
+            optionalWhitespace()
+            operator(Operator.CBRACE_CLOSE)
+            __definitive()
+        }
+        expression()
+    }
+    __definitive()
+}
+    .describeAs("curly braced code or single statement")
+    .postprocess(::BracedCodeOrSingleStatementPostProcessor)
+
+val IfExpression = rule {
+    keyword(IF)
+    __matched()
+    expression()
+
+    ref(BracedCodeOrSingleStatement)
+    __optimistic()
+
+    optionalWhitespace()
+
+    optional {
+        keyword(ELSE)
+        __matched()
+        optionalWhitespace()
+        ref(BracedCodeOrSingleStatement)
+        __definitive()
+    }
+
+    __definitive()
+}
+    .describeAs("if-expression")
+    .postprocess(::IfExpressionPostProcessor)
 
 val ExpressionPostfixNotNull = rule {
     operator(Operator.NOTNULL)

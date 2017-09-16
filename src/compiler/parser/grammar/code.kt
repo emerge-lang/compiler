@@ -17,18 +17,31 @@ class CodeChunkRule : Rule<CodeChunk> {
     }
 
     private val rule by lazy {
+        val oneLine = rule {
+            eitherOf {
+                ref(VariableDeclaration)
+                ref(AssignmentStatement)
+                ref(ReturnStatement)
+                expression()
+            }
+        }
         rule {
             __matched()
-            atLeast(0) {
-                optionalWhitespace()
-                eitherOf {
-                    ref(VariableDeclaration)
-                    ref(AssignmentStatement)
-                    ref(ReturnStatement)
-                    expression()
+            optional {
+                ref(oneLine)
+
+                atLeast(0) {
+                    atLeast(0) {
+                        operator(Operator.NEWLINE)
+                        __matched()
+                    }
+
+                    ref(oneLine)
+                    __definitive()
                 }
-                __optimistic()
+                __definitive()
             }
+
             __optimistic()
         }
             .postprocess(::CodeChunkPostProcessor)
@@ -43,8 +56,6 @@ val ReturnStatement = rule {
     keyword(Keyword.RETURN)
     __matched()
     expression()
-    __optimistic()
-    operator(Operator.NEWLINE)
     __definitive()
 }
     .describeAs("return statement")
@@ -57,12 +68,6 @@ val AssignmentStatement = rule {
     __matched()
 
     expression()
-    __optimistic()
-
-    eitherOf {
-        operator(Operator.NEWLINE)
-        endOfInput()
-    }
     __definitive()
 }
     .describeAs("assignment")

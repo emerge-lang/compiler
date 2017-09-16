@@ -8,20 +8,22 @@ import compiler.parser.toTransactional
 
 val testCode = """module testcode
 
-fun a() {
-    return 0
+fun a() -> Int {
+    if 3 {
+        return 1
+    }
+    else
+    {
+        return 2
+    }
 }
 
-fun b() {
-    val x = 3
+fun b() -> Int {
+    return if 3 1 else 2
 }
 
 fun c() -> Int {
-    val x = 3
-}
-
-fun d() -> Int {
-    return -1
+    return if (3) 1 else 2
 }
 
 """

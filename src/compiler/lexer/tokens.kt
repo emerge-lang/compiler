@@ -22,6 +22,8 @@ enum class Keyword(val text: String)
     PURE("pure"),
     OPERATOR("operator"),
     EXTERNAL("external"),
+    IF("if"),
+    ELSE("else"),
 
     RETURN("return")
 }
