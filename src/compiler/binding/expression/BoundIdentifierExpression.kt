@@ -7,6 +7,7 @@ import compiler.binding.BoundVariable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseType
 import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.BuiltinBoolean
 import compiler.parser.Reporting
 
 class BoundIdentifierExpression(
@@ -17,6 +18,7 @@ class BoundIdentifierExpression(
 
     override val type: BaseTypeReference?
         get() = when(referredType) {
+            ReferredType.LITERAL  -> referredLiteral?.type
             ReferredType.VARIABLE -> referredVariable?.type
             ReferredType.TYPENAME -> referredBaseType?.baseReference?.invoke(context)
             null -> null
@@ -24,6 +26,10 @@ class BoundIdentifierExpression(
 
     /** What this expression refers to; is null if not known */
     var referredType: ReferredType? = null
+        private set
+
+    /** The literal this identifier represents, if it does (see [referredType]); otherwise null */
+    var referredLiteral: BoundExpression<*>? = null
         private set
 
     /** The variable this expression refers to, if it does (see [referredType]); otherwise null. */
@@ -39,21 +45,25 @@ class BoundIdentifierExpression(
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
 
-        // attempt variable
-        val variable = context.resolveVariable(identifier)
+        // attempt boolean literal
+        if (identifier == "true" || identifier == "false") {
+            referredType = ReferredType.LITERAL
+            referredLiteral = BoundBooleanLiteral(declaration, context)
+        } else {
+            // attempt variable
+            val variable = context.resolveVariable(identifier)
 
-        if (variable != null) {
-            referredType = ReferredType.VARIABLE
-            referredVariable = variable
-        }
-        else {
-            var type: BaseType? = context.resolveDefinedType(identifier)
-            if (type == null) {
-                reportings.add(Reporting.undefinedIdentifier(declaration))
-            }
-            else {
-                this.referredBaseType = type
-                this.referredType = ReferredType.TYPENAME
+            if (variable != null) {
+                referredType = ReferredType.VARIABLE
+                referredVariable = variable
+            } else {
+                var type: BaseType? = context.resolveDefinedType(identifier)
+                if (type == null) {
+                    reportings.add(Reporting.undefinedIdentifier(declaration))
+                } else {
+                    this.referredBaseType = type
+                    this.referredType = ReferredType.TYPENAME
+                }
             }
         }
 
@@ -63,14 +73,16 @@ class BoundIdentifierExpression(
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
 
-        // attempt a variable
-        val variable = context.resolveVariable(identifier)
-        if (variable != null) {
-            referredVariable = variable
-            referredType = ReferredType.VARIABLE
-        }
-        else {
-            reportings.add(Reporting.error("Cannot resolve variable $identifier", declaration.sourceLocation))
+        if (this.referredType == null) {
+            // attempt a variable
+            val variable = context.resolveVariable(identifier)
+            if (variable != null) {
+                referredVariable = variable
+                referredType = ReferredType.VARIABLE
+            }
+            else {
+                reportings.add(Reporting.error("Cannot resolve variable $identifier", declaration.sourceLocation))
+            }
         }
 
         // TODO: attempt to resolve type; expression becomes of type "Type/Class", ... whatever, still to be defined
@@ -100,7 +112,17 @@ class BoundIdentifierExpression(
 
     /** The kinds of things an identifier can refer to. */
     enum class ReferredType {
+        LITERAL,
         VARIABLE,
         TYPENAME
     }
+}
+
+class BoundBooleanLiteral(
+    override val declaration: IdentifierExpression,
+    override val context: CTContext
+) : BoundExpression<IdentifierExpression> {
+    override val type: BaseTypeReference = BuiltinBoolean.baseReference(context)
+
+    override val isGuaranteedToThrow: Boolean = false
 }

@@ -1,16 +1,18 @@
 package compiler.binding.expression
 
+import compiler.ast.expression.Expression
 import compiler.ast.expression.IfExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.BuiltinBoolean
 import compiler.nullableAnd
 import compiler.parser.Reporting
 
 class BoundIfExpression(
     override val context: CTContext,
     override val declaration: IfExpression,
-    val condition: BoundExpression<*>,
+    val condition: BoundExpression<Expression<*>>,
     val thenCode: BoundExecutable<*>,
     val elseCode: BoundExecutable<*>?
 ) : BoundExpression<IfExpression>, BoundExecutable<IfExpression> {
@@ -53,6 +55,13 @@ class BoundIfExpression(
 
         if (elseCode != null) {
             reportings.addAll(elseCode.semanticAnalysisPhase3())
+        }
+
+        if (condition.type != null) {
+            val conditionType = condition.type!!
+            if (!conditionType.isAssignableTo(BuiltinBoolean.baseReference(context))) {
+                reportings.add(Reporting.conditionIsNotBoolean(condition, condition.declaration.sourceLocation))
+            }
         }
 
         return reportings

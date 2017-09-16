@@ -1,23 +1,19 @@
 package compiler.parser
 
 import compiler.InternalCompilerError
-import compiler.ast.AssignmentStatement
-import compiler.ast.CodeChunk
 import compiler.ast.Executable
 import compiler.ast.expression.IdentifierExpression
-import compiler.ast.expression.InvocationExpression
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundAssignmentStatement
-import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
-import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundInvocationExpression
 import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.BuiltinBoolean
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.SourceLocation
@@ -88,21 +84,9 @@ open class Reporting(
 
             var message = "Cannot assign a value of type $validatedType to a reference of type $targetType"
 
-            // type inheritance
-            if (!(validatedType.baseType isSubtypeOf targetType.baseType)) {
-                message += "; ${validatedType.baseType.simpleName} is not a subtype of ${targetType.baseType.simpleName}"
-            }
-
-            // mutability
-            val targetModifier = targetType.modifier ?: TypeModifier.MUTABLE
-            val validatedModifier = validatedType.modifier ?: TypeModifier.MUTABLE
-            if (!(validatedModifier isAssignableTo targetModifier)) {
-                message += "; cannot assign ${validatedModifier.name.toLowerCase()} to ${targetModifier.name.toLowerCase()}"
-            }
-
-            // void-safety
-            if (validatedType.isNullable && !targetType.isNullable) {
-                message += "; cannot assign nullable value to non-null reference"
+            val reason = typeMismatchReason(targetType, validatedType)
+            if (reason != null) {
+                message += "; $reason"
             }
 
             return error(message, sL)
@@ -182,6 +166,21 @@ open class Reporting(
         fun functionIsNotGuaranteedToTerminate(function: BoundFunction) =
             error("Function ${function.fullyQualifiedName} does not terminate (return or throw) on all of its possible execution paths.", function.declaredAt)
 
+        fun conditionIsNotBoolean(condition: BoundExpression<*>, location: SourceLocation): Reporting {
+            if (condition.type == null) {
+                return consecutive("The condition must evaluate to Boolean, cannot determine type", location)
+            }
+
+            var message = "The condition must evaluate to Boolean"
+
+            val reason = typeMismatchReason(BuiltinBoolean.baseReference(condition.context), condition.type!!)
+            if (reason != null) {
+                message += "; $reason"
+            }
+
+            return error(message, location)
+        }
+
         /**
          * Converts a violation of purity or readonlyness into an appropriate error.
          * @param violationIsWrite Whether the violiation is a writing violation or a reading violation (true = writing, false = reading)
@@ -218,6 +217,30 @@ open class Reporting(
             return error(errorMessage, errorLocation)
         }
     }
+}
+
+/**
+ * @return A description of why the types dont match. null if they match or the reason cannot be described / is unknown.
+ */
+private fun typeMismatchReason(targetType: BaseTypeReference, validatedType: BaseTypeReference): String? {
+    // type inheritance
+    if (!(validatedType.baseType isSubtypeOf targetType.baseType)) {
+        return "${validatedType.baseType.simpleName} is not a subtype of ${targetType.baseType.simpleName}"
+    }
+
+    // mutability
+    val targetModifier = targetType.modifier ?: TypeModifier.MUTABLE
+    val validatedModifier = validatedType.modifier ?: TypeModifier.MUTABLE
+    if (!(validatedModifier isAssignableTo targetModifier)) {
+        return "cannot assign ${validatedModifier.name.toLowerCase()} to ${targetModifier.name.toLowerCase()}"
+    }
+
+    // void-safety
+    if (validatedType.isNullable && !targetType.isNullable) {
+        return "cannot assign nullable value to non-null reference"
+    }
+
+    return null
 }
 
 class ReportingException(val reporting: Reporting) : Exception(reporting.message)

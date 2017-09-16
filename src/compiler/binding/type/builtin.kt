@@ -32,6 +32,10 @@ val Int = object : BuiltinType("Int", Number) {
     override val impliedModifier = TypeModifier.IMMUTABLE
 }
 
+val BuiltinBoolean = object : BuiltinType("Boolean", Any) {
+    override val impliedModifier = TypeModifier.IMMUTABLE
+}
+
 
 /**
  * A BuiltinType is defined in the ROOT package.

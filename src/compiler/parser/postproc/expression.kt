@@ -4,6 +4,7 @@ import compiler.InternalCompilerError
 import compiler.ast.CodeChunk
 import compiler.ast.Executable
 import compiler.ast.expression.*
+import compiler.binding.expression.BoundExpression
 import compiler.lexer.*
 import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
@@ -87,7 +88,7 @@ fun IfExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<IfE
         .mapResult { input ->
             val ifKeyword = input.next() as KeywordToken
 
-            val condition = input.next() as Expression<*>
+            val condition = input.next() as Expression<BoundExpression<Expression<*>>>
             val thenCode: Executable<*> = input.next() as Executable<*>
             val elseCode: Executable<*>?
 

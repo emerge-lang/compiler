@@ -9,7 +9,7 @@ import compiler.parser.toTransactional
 val testCode = """module testcode
 
 fun a() -> Int {
-    if 3 {
+    if true {
         return 1
     }
     else
