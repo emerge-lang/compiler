@@ -14,7 +14,7 @@ fun a() -> Int {
     }
     else
     {
-        return 2
+        val x = 3
     }
 }
 

@@ -79,3 +79,11 @@ infix fun Boolean?.nullableOr(other: Boolean?): Boolean? {
 
     return false
 }
+
+infix fun Boolean?.nullableAnd(other: Boolean?): Boolean? {
+    if (this != null && this == true && other != null && other == true) {
+        return true
+    }
+
+    return false
+}
