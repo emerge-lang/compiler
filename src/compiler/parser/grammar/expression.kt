@@ -1,8 +1,12 @@
 package compiler.parser.grammar
 
 import compiler.ast.expression.Expression
-import compiler.lexer.*
-import compiler.lexer.Keyword.*
+import compiler.lexer.IdentifierToken
+import compiler.lexer.Keyword.ELSE
+import compiler.lexer.Keyword.IF
+import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
+import compiler.lexer.TokenType
 import compiler.parser.TokenSequence
 import compiler.parser.postproc.*
 import compiler.parser.rule.Rule
@@ -57,6 +61,7 @@ val LiteralExpression = rule {
     eitherOf {
         tokenOfType(TokenType.NUMERIC_LITERAL)
         // TODO: string literal, function literal
+        // literals that the lexer treats as identifiers (booleans, ...?) are handled in ValueExpression
     }
     __matched()
 }
