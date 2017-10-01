@@ -1,5 +1,6 @@
 package compiler.binding
 
+import compiler.InternalCompilerError
 import compiler.ast.ReturnStatement
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseTypeReference
@@ -9,6 +10,8 @@ class BoundReturnStatement(
     override val context: CTContext,
     override val declaration: ReturnStatement
 ) : BoundExecutable<ReturnStatement> {
+
+    private var expectedReturnType: BaseTypeReference? = null
 
     val expression = declaration.expression.bindTo(context)
 
@@ -29,6 +32,22 @@ class BoundReturnStatement(
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return expression.semanticAnalysisPhase3()
+        val reportings = mutableSetOf<Reporting>()
+        reportings += expression.semanticAnalysisPhase3()
+
+        val expectedReturnType = this.expectedReturnType ?: throw InternalCompilerError("Return type not specified - cannot validate")
+        val expressionType = expression.type
+
+        if (expressionType != null) {
+            if (!(expressionType isAssignableTo expectedReturnType)) {
+                reportings += Reporting.returnTypeMismatch(expectedReturnType, expressionType, declaration.sourceLocation)
+            }
+        }
+
+        return reportings
+    }
+
+    override fun enforceReturnType(type: BaseTypeReference) {
+        expectedReturnType = type
     }
 }

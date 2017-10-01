@@ -10,8 +10,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 4. ~~Scope modifier PURE and READONLY~~
    nothrow will be implemented analogous later on; this is just to figure out the API
 5. ~~draft of if-else expression~~
-6. distinguish terminating and non-terminating statements in code chunks
-7. return type checking
+6. ~~distinguish terminating and non-terminating statements in code chunks~~
+7. ~~return type checking~~
 8. Parser Refactoring
    1. Execute rule on match, not on construction time for easier debugging
    2. fallbacks: define simple logic to parse until ... when a sub-rule fails; e.g.:

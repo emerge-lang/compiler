@@ -4,7 +4,6 @@ import compiler.InternalCompilerError
 import compiler.ast.FunctionDeclaration
 import compiler.ast.type.FunctionModifier
 import compiler.binding.context.CTContext
-import compiler.binding.context.MutableCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.Any
 import compiler.binding.type.BaseType
@@ -163,6 +162,10 @@ class BoundFunction(
         val reportings = mutableSetOf<Reporting>()
 
         if (code != null) {
+            if (returnType != null) {
+                code.enforceReturnType(returnType!!)
+            }
+
             reportings += code.semanticAnalysisPhase3()
 
             // readonly and purity checks

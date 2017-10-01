@@ -18,7 +18,7 @@ fun a() -> Int {
     }
 }
 
-fun b() -> Int {
+fun b() -> Number {
     return if true 1.2 else 2
 }
 

@@ -95,6 +95,19 @@ open class Reporting(
         fun typeMismatch(targetType: BaseTypeReference, validatedType: BaseTypeReference)
             = typeMismatch(targetType, validatedType, validatedType.original.declaringNameToken?.sourceLocation ?: SourceLocation.UNKNOWN)
 
+        fun returnTypeMismatch(expectedReturnType: BaseTypeReference, validatedType: BaseTypeReference, sL: SourceLocation): Reporting {
+            if (validatedType isAssignableTo expectedReturnType) throw InternalCompilerError("wtf?!")
+
+            var message = "Cannot return a value of type $validatedType from a context that must return $expectedReturnType"
+
+            val reason = typeMismatchReason(expectedReturnType, validatedType)
+            if (reason != null) {
+                message += "; $reason"
+            }
+
+            return error(message, sL)
+        }
+
         fun undefinedIdentifier(expr: IdentifierExpression): Reporting
             = error("Identifier ${expr.identifier} is not defined.", expr.sourceLocation)
 

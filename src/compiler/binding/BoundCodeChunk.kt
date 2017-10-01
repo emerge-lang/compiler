@@ -4,6 +4,7 @@ import compiler.InternalCompilerError
 import compiler.ast.CodeChunk
 import compiler.ast.Executable
 import compiler.binding.context.CTContext
+import compiler.binding.type.BaseTypeReference
 import compiler.parser.Reporting
 
 class BoundCodeChunk(
@@ -14,6 +15,8 @@ class BoundCodeChunk(
 
     override val declaration: CodeChunk
 ) : BoundExecutable<CodeChunk> {
+
+    private var expectedReturnType: BaseTypeReference? = null
 
     /** The bound statements of this code; must not be null after semantic analysis is done */
     var statements: List<BoundExecutable<*>>? = null
@@ -33,6 +36,10 @@ class BoundCodeChunk(
         for (astStatement in declaration.statements) {
             val boundStatement = astStatement.bindTo(currentContext)
 
+            if (this.expectedReturnType != null) {
+                boundStatement.enforceReturnType(this.expectedReturnType!!)
+            }
+
             reportings += boundStatement.semanticAnalysisPhase1()
             reportings += boundStatement.semanticAnalysisPhase2()
             reportings += boundStatement.semanticAnalysisPhase3()
@@ -44,6 +51,10 @@ class BoundCodeChunk(
         this.statements = boundStatements
 
         return reportings
+    }
+
+    override fun enforceReturnType(type: BaseTypeReference) {
+        this.expectedReturnType = type
     }
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {

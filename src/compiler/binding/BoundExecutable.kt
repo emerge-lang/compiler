@@ -3,7 +3,7 @@ package compiler.binding
 import compiler.ast.Executable
 import compiler.ast.expression.Expression
 import compiler.binding.context.CTContext
-import compiler.nullableOr
+import compiler.binding.type.BaseTypeReference
 import compiler.parser.Reporting
 
 interface BoundExecutable<out ASTType> {
@@ -46,6 +46,15 @@ interface BoundExecutable<out ASTType> {
      * @return A [CTContext] derived from the given one, with all the necessary changes applied.
      */
     fun modified(context: CTContext): CTContext = context
+
+    /**
+     * Must be invoked before [semanticAnalysisPhase3].
+     *
+     * Sets the type that [BoundReturnStatement] within this executable are expected to return. When this method has
+     * been invoked the types evaluated for all [BoundReturnStatement]s within this executable must be assignable to that
+     * given type; otherwise an appropriate reporting as to returned from [semanticAnalysisPhase3].
+     */
+    fun enforceReturnType(type: BaseTypeReference) {}
 
     /**
      * This method is in place to verify explicit mentions of types in expressions. At the current stage,

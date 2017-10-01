@@ -74,4 +74,9 @@ class BoundIfExpression(
 
         return reportings
     }
+
+    override fun enforceReturnType(type: BaseTypeReference) {
+        thenCode.enforceReturnType(type)
+        elseCode?.enforceReturnType(type)
+    }
 }
