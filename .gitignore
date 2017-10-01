@@ -4,6 +4,8 @@
 # User-specific stuff:
 .idea/misc.xml
 .idea/**/workspace.xml
+.idea/markdown-navigator.xml
+.idea/markdown-navigator
 .idea/**/tasks.xml
 .idea/dictionaries
 .idea/shelf
