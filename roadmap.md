@@ -9,9 +9,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 3. ~~Operator Precedence~~
 4. ~~Scope modifier PURE and READONLY~~
    nothrow will be implemented analogous later on; this is just to figure out the API
-5. draft of control structures
-   * ~~if-else~~
-   * while / do-while
+5. ~~draft of if-else expression~~
 6. distinguish terminating and non-terminating statements in code chunks
 7. return type checking
 8. Parser Refactoring
@@ -45,7 +43,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 16. All operator overloads, including
     * contains(T): Boolean
     * <E : Iterable> rangeTo(T): E
-17. for each control structure:
+17. Decision on compile target architecture (native/vm with pointers VS JVM)
+18. Array type
+29. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
+20. for each control structure:
     ```
     for each item in iterable { /* ... */ }
     // is actually
@@ -59,13 +60,12 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     // gets rewritten to
     for i in 0.rangeTo(10) { /* ... */ }
     ```
-18. Decision on compile target architecture (native/vm with pointers VS JVM)
-19. Array type
-20. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
-21. Typealiases
-22. Strings + String literals
+21. while / do-while
+22. Jump targets for return, break and continue like in Kotlin
+23. Typealiases
+24. Strings + String literals
     * i ABSOLUTELY want `typealias String = immutable Array<Char>`
-23. Function types
+25. Function types
     1. `operator fun invoke`: `obj(param)` to `obj.invoke(param)`
     2. Regular functions: `(T1, T2) -> R`
     3. Functions w/ receiver: `O.(T1, T2) -> R` that can be invoked on objects
@@ -75,11 +75,11 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        val obj: O = ...
        obj.fn(param1, param2)
        ```
-24. CTFE
-25. smart casts
-26. deferred statements
+26. CTFE
+27. smart casts
+28. deferred statements
     * `scope(exit) {stmt}`, `scope(success) {stmt}` and `scope(fail) {stmt}`
-27. ...
+29. ...
 
 
 -----
