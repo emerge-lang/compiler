@@ -19,36 +19,37 @@ This file describes the Items that are next on the TODO list. **This list is NOT
    2. fallbacks: define simple logic to parse until ... when a sub-rule fails; e.g.:
      * e.g. in ParameterList: when a parameter fails, construct a dummy parameter,
        report the error, go to the next Operator.COMMA and continue
-9. Test suite for all existing code
-10. object model
+9. Reportings object model for accurate detection in tests
+10. Test suite for all existing code
+11. object model
     1. class definition
     2. struct definition
     3. reference counting vs garbage collection
-11. extend InvocationExeption
+12. extend InvocationExeption
     1. handle constructors
     2. when checking `objRef.method()` error if `method` is a property  
       (will be implemented with function types later on)
-12. exceptions
+13. exceptions
     1. `throw` statement
     2. NOTHROW scope modifier
     3. try+catch+finally
-13. Generics / Templates
+14. Generics / Templates
     * \*sigh\* this is gonna be a huuuge thing... no idea how to go about this, yet
     * decide on the syntax:
       * Kotlin `GenericType<modifier TypeParameter>`
       * D `GenericType!TypeParameter` and `GenericType!(modifier TypeParameter)`
     * Decide whether to support vararg type parameters
     * The `readonly` and `immutable` type modifiers force `out` variance on all type parameters
-14. Stdlib Collections
+15. Stdlib Collections
     * Iterables: java.util.Iterable, D Ranges or sth. else?
-15. All operator overloads, including
+16. All operator overloads, including
     * contains(T): Boolean
     * <E : Iterable> rangeTo(T): E
-15. for each control structure:
+17. for each control structure:
     ```
     for each item in iterable { /* ... */ }
     // is actually
-    val temp1 = iterable.iterator() // or whatever was decided in step 15
+    val temp1 = iterable.iterator() // or whatever was decided in steps 15 and 16
     while temp1.hasNext() {
       val item = temp1.next()
       /* ... */
@@ -58,13 +59,13 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     // gets rewritten to
     for i in 0.rangeTo(10) { /* ... */ }
     ```
-14. Decision on compile target architecture (native/vm with pointers VS JVM)
-15. Array type
-16. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
-17. Typealiases
-18. Strings + String literals
+18. Decision on compile target architecture (native/vm with pointers VS JVM)
+19. Array type
+20. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
+21. Typealiases
+22. Strings + String literals
     * i ABSOLUTELY want `typealias String = immutable Array<Char>`
-19. Function types
+23. Function types
     1. `operator fun invoke`: `obj(param)` to `obj.invoke(param)`
     2. Regular functions: `(T1, T2) -> R`
     3. Functions w/ receiver: `O.(T1, T2) -> R` that can be invoked on objects
@@ -74,11 +75,11 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        val obj: O = ...
        obj.fn(param1, param2)
        ```
-20. CTFE 
-21. smart casts
-22. deferred statements
+24. CTFE
+25. smart casts
+26. deferred statements
     * `scope(exit) {stmt}`, `scope(success) {stmt}` and `scope(fail) {stmt}`
-23. ...
+27. ...
 
 
 -----
