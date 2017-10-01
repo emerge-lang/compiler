@@ -5,6 +5,7 @@ import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.parser.Reporting
+import kotlinext.allEqual
 
 /**
  * A [TypeReference] with resolved [BaseType]
@@ -109,5 +110,49 @@ open class BaseTypeReference(
         }
 
         return str
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as BaseTypeReference
+
+        if (baseType != other.baseType) return false
+        if (modifier != other.modifier) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = baseType.hashCode()
+        result = 31 * result + (modifier?.hashCode() ?: 0)
+        return result
+    }
+
+
+    companion object {
+        fun closestCommonAncestorOf(types: List<BaseTypeReference>): BaseTypeReference {
+            if (types.size == 0) throw IllegalArgumentException("At least one type must be provided")
+            if (types.size == 1) return types[0]
+
+            val typeModifiers = types.map(BaseTypeReference::modifier)
+
+            val modifier: TypeModifier
+
+            when {
+                typeModifiers.allEqual -> modifier = typeModifiers[0]!!
+                types.any { it.modifier == TypeModifier.READONLY || it.modifier == TypeModifier.IMMUTABLE} -> modifier = TypeModifier.READONLY
+                else -> modifier = TypeModifier.MUTABLE
+            }
+
+            return BaseType.closestCommonAncestorOf(types.map(BaseTypeReference::baseType))
+                .baseReference(types[0].context)
+                .modifiedWith(modifier)
+        }
+
+        fun closestCommonAncestorOf(vararg types: BaseTypeReference): BaseTypeReference {
+            return closestCommonAncestorOf(types.asList())
+        }
     }
 }
