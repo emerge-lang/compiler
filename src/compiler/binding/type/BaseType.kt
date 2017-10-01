@@ -4,6 +4,7 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
+import kotlinext.get
 
 /**
  * Base type are classes, interfaces, enums, built-in type
@@ -68,4 +69,62 @@ interface BaseType {
 
     /** @return The member function overloads for the given name or an empty collection if no such member function is defined. */
     fun resolveMemberFunction(name: String): Collection<FunctionDeclaration> = emptySet()
+
+    companion object {
+        /**
+         * Suppose
+         *
+         *     class A
+         *     class AB : A
+         *     class ABC : AB
+         *     class C
+         *
+         * then these are the closest common ancestors:
+         *
+         * | Types       | Closes common ancestor |
+         * | ----------- | ---------------------- |
+         * | A, AB       | A                      |
+         * | AB, ABC     | AB                     |
+         * | A, ABC      | A                      |
+         * | C, A        | Any                    |
+         * | AB, C       | Any                    |
+         *
+         * @return The type to which all of the given types are assignable with the minimum
+         *         [hierachical distance](hierarchicalDistanceTo).
+         */
+        fun closestCommonAncestorOf(types: List<BaseType>): BaseType {
+            if (types.size == 0) throw IllegalArgumentException("At least one type must be provided")
+            if (types.size == 1) return types[0]
+
+            var pivot = types[0]
+            for (_type in types[1..types.size - 1]) {
+                var type = _type
+                var swapped = false
+                while (!(type isSubtypeOf pivot)) {
+                    if (pivot.superTypes.isEmpty()) return Any
+                    if (pivot.superTypes.size > 1) {
+                        if (swapped) {
+                            return Any
+                        }
+                        val temp = pivot
+                        pivot = type
+                        type = temp
+                        swapped = true
+                    }
+                    else {
+                        pivot = pivot.superTypes.iterator().next()
+                    }
+                }
+            }
+
+            return pivot
+        }
+
+        /**
+         * @see [closestCommonAncestorOf]
+         */
+        fun closestCommonAncestorOf(vararg types: BaseType): BaseType {
+            return closestCommonAncestorOf(types.asList())
+        }
+    }
 }
