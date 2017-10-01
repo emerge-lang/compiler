@@ -12,12 +12,13 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 5. control structures
    * if-else
    * while / do-while
-   * for
 6. distinguish terminating and non-terminating statements in code chunks
 7. return type checking
-8. Parsing fallbacks: define simple logic to parse until ... when a sub-rule fails; e.g.:
-    * in ParameterList: when a parameter fails, construct a dummy parameter,
-      report the error, go to the next Operator.COMMA and continue
+8. Parser Refactoring
+   1. Execute rule on match, not on construction time for easier debugging
+   2. fallbacks: define simple logic to parse until ... when a sub-rule fails; e.g.:
+     * e.g. in ParameterList: when a parameter fails, construct a dummy parameter,
+       report the error, go to the next Operator.COMMA and continue
 9. Test suite for all existing code
 10. object model
     1. class definition
@@ -38,6 +39,25 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       * D `GenericType!TypeParameter` and `GenericType!(modifier TypeParameter)`
     * Decide whether to support vararg type parameters
     * The `readonly` and `immutable` type modifiers force `out` variance on all type parameters
+14. Stdlib Collections
+    * Iterables: java.util.Iterable, D Ranges or sth. else?
+15. All operator overloads, including
+    * contains(T): Boolean
+    * <E : Iterable> rangeTo(T): E
+15. for each control structure:
+    ```
+    for each item in iterable { /* ... */ }
+    // is actually
+    val temp1 = iterable.iterator() // or whatever was decided in step 15
+    while temp1.hasNext() {
+      val item = temp1.next()
+      /* ... */
+    }
+
+    for each i in 0 .. 10 { /* ... */ }
+    // gets rewritten to
+    for i in 0.rangeTo(10) { /* ... */ }
+    ```
 14. Decision on compile target architecture (native/vm with pointers VS JVM)
 15. Array type
 16. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
