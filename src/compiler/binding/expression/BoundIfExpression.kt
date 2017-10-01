@@ -6,6 +6,7 @@ import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseTypeReference
 import compiler.binding.type.BuiltinBoolean
+import compiler.binding.type.Unit
 import compiler.nullableAnd
 import compiler.parser.Reporting
 
@@ -62,6 +63,13 @@ class BoundIfExpression(
             if (!conditionType.isAssignableTo(BuiltinBoolean.baseReference(context))) {
                 reportings.add(Reporting.conditionIsNotBoolean(condition, condition.declaration.sourceLocation))
             }
+        }
+
+        var thenType = if (thenCode is BoundExpression<*>) thenCode.type else Unit.baseReference(context)
+        var elseType = if (elseCode is BoundExpression<*>) elseCode.type else Unit.baseReference(context)
+
+        if (thenType != null && elseType != null) {
+            type = BaseTypeReference.closestCommonAncestorOf(thenType, elseType)
         }
 
         return reportings

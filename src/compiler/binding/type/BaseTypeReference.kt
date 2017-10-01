@@ -136,12 +136,12 @@ open class BaseTypeReference(
             if (types.size == 0) throw IllegalArgumentException("At least one type must be provided")
             if (types.size == 1) return types[0]
 
-            val typeModifiers = types.map(BaseTypeReference::modifier)
+            val typeModifiers = types.map { it.modifier ?: TypeModifier.MUTABLE }
 
             val modifier: TypeModifier
 
             when {
-                typeModifiers.allEqual -> modifier = typeModifiers[0]!!
+                typeModifiers.allEqual -> modifier = typeModifiers[0]
                 types.any { it.modifier == TypeModifier.READONLY || it.modifier == TypeModifier.IMMUTABLE} -> modifier = TypeModifier.READONLY
                 else -> modifier = TypeModifier.MUTABLE
             }

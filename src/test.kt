@@ -14,16 +14,16 @@ fun a() -> Int {
     }
     else
     {
-        val x = 3
+        return 2
     }
 }
 
 fun b() -> Int {
-    return if 3 1 else 2
+    return if true 1.2 else 2
 }
 
 fun c() -> Int {
-    return if (3) 1 else 2
+    return if (true) 1 else 2
 }
 
 """

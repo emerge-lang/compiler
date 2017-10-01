@@ -9,8 +9,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 3. ~~Operator Precedence~~
 4. ~~Scope modifier PURE and READONLY~~
    nothrow will be implemented analogous later on; this is just to figure out the API
-5. control structures
-   * if-else
+5. draft of control structures
+   * ~~if-else~~
    * while / do-while
 6. distinguish terminating and non-terminating statements in code chunks
 7. return type checking
