@@ -6,18 +6,17 @@ import compiler.lexer.lex
 import compiler.matching.ResultCertainty
 import compiler.parser.TokenSequence
 import compiler.parser.rule.Rule
-import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.toTransactional
 
 typealias Grammar = GrammarReceiver.() -> Any?
 typealias SequenceGrammar = SequenceRuleDefinitionReceiver.() -> Any?
 
-fun sequence(matcherFn: SequenceGrammar): Rule<List<RuleMatchingResult<*>>> {
-    return object : Rule<List<RuleMatchingResult<*>>> {
-        override val descriptionOfAMatchingThing = describeSequenceGrammar(matcherFn)
-        override fun tryMatch(input: TokenSequence) = tryMatchSequence(matcherFn, input)
-    }
+class SequenceGrammarRule(private val grammar: SequenceGrammar): Rule<List<*>> {
+    override val descriptionOfAMatchingThing by lazy { describeSequenceGrammar(grammar) }
+    override fun tryMatch(input: TokenSequence) = tryMatchSequence(grammar, input)
 }
+
+fun sequence(matcherFn: SequenceGrammar) = SequenceGrammarRule(matcherFn)
 
 fun eitherOf(mismatchCertainty: ResultCertainty, matcherFn: Grammar): Rule<*> {
     return object : Rule<Any?> {
@@ -29,7 +28,7 @@ fun eitherOf(mismatchCertainty: ResultCertainty, matcherFn: Grammar): Rule<*> {
 fun eitherOf(matcherFn: Grammar) = eitherOf(ResultCertainty.NOT_RECOGNIZED, matcherFn)
 
 fun main(args: Array<String>) {
-    val code = "import val fun import"
+    val code = "import val fun import import import"
     var source = object : SourceContentAwareSourceDescriptor() {
         override val sourceLocation = "testcode"
         override val sourceLines = code.split("\n")
@@ -41,9 +40,8 @@ fun main(args: Array<String>) {
             keyword(Keyword.VAL)
             keyword(Keyword.FUNCTION)
         }
-        eitherOf {
-            keyword(Keyword.EXTERNAL)
-            keyword(Keyword.ELSE)
+        atLeast(2) {
+            keyword(Keyword.IMPORT)
         }
     }
     val result = rule.tryMatch(input)

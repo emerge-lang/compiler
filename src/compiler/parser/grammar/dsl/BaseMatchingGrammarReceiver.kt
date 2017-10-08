@@ -63,4 +63,8 @@ internal abstract class BaseMatchingGrammarReceiver(internal val input: TokenSeq
     override fun eitherOf(mismatchCertainty: ResultCertainty, matcherFn: Grammar) {
         handleResult(tryMatchEitherOf(matcherFn, input, mismatchCertainty))
     }
+
+    override fun atLeast(n: Int, matcherFn: SequenceGrammar) {
+        handleResult(tryMatchRepeating(SequenceGrammarRule(matcherFn), IntRange(n, Integer.MAX_VALUE), input))
+    }
 }

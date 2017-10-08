@@ -25,6 +25,8 @@ interface GrammarReceiver {
         eitherOf(ResultCertainty.NOT_RECOGNIZED, matcherFn)
     }
 
+    fun atLeast(n: Int, matcherFn: SequenceGrammar)
+
     /*fun atLeast(n: Int, itemMatcherFn: GrammarReceiver.() -> Any)
     fun optional(matcherFn: GrammarReceiver.() -> Any)*/
 }

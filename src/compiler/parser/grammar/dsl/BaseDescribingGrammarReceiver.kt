@@ -22,4 +22,8 @@ abstract class BaseDescribingGrammarReceiver : GrammarReceiver {
     override fun eitherOf(resultCertainty: ResultCertainty, matcherFn: Grammar) {
         handleItem(describeEitherOfGrammar(matcherFn))
     }
+
+    override fun atLeast(n: Int, matcherFn: SequenceGrammar) {
+        handleItem(describeRepeatingGrammar(matcherFn, IntRange(n, Integer.MAX_VALUE)))
+    }
 }
