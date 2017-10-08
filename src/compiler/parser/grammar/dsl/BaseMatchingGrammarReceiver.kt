@@ -5,10 +5,11 @@ import compiler.matching.ResultCertainty
 import compiler.parser.MissingTokenReporting
 import compiler.parser.TokenMismatchReporting
 import compiler.parser.TokenSequence
+import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.RuleMatchingResultImpl
 
-internal abstract class BaseMatchingGrammarReceiver(private val input: TokenSequence) : GrammarReceiver {
+internal abstract class BaseMatchingGrammarReceiver(internal val input: TokenSequence) : GrammarReceiver {
     /**
      * Is called by all other methods as soon as there is a matching result
      */
@@ -49,5 +50,17 @@ internal abstract class BaseMatchingGrammarReceiver(private val input: TokenSequ
             ))
             return
         }
+    }
+
+    override fun ref(rule: Rule<*>) {
+        handleResult(rule.tryMatch(input))
+    }
+
+    override fun sequence(matcherFn: SequenceGrammar) {
+        handleResult(tryMatchSequence(matcherFn, input))
+    }
+
+    override fun eitherOf(mismatchCertainty: ResultCertainty, matcherFn: Grammar) {
+        handleResult(tryMatchEitherOf(matcherFn, input, mismatchCertainty))
     }
 }
