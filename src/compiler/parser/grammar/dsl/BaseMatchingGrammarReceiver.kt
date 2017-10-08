@@ -1,0 +1,53 @@
+package compiler.parser.grammar.dsl
+
+import compiler.lexer.Token
+import compiler.matching.ResultCertainty
+import compiler.parser.MissingTokenReporting
+import compiler.parser.TokenMismatchReporting
+import compiler.parser.TokenSequence
+import compiler.parser.rule.RuleMatchingResult
+import compiler.parser.rule.RuleMatchingResultImpl
+
+internal abstract class BaseMatchingGrammarReceiver(private val input: TokenSequence) : GrammarReceiver {
+    /**
+     * Is called by all other methods as soon as there is a matching result
+     */
+    protected abstract fun handleResult(result: RuleMatchingResult<*>)
+
+    override fun tokenEqualTo(equalTo: Token) {
+        if (!input.hasNext()) {
+            handleResult(RuleMatchingResultImpl(
+                ResultCertainty.NOT_RECOGNIZED,
+                null,
+                setOf(
+                    MissingTokenReporting(equalTo, input.currentSourceLocation)
+                )
+            ))
+            return
+        }
+
+        input.mark()
+
+        val token = input.next()!!
+        if (token == equalTo) {
+            input.commit()
+            handleResult(RuleMatchingResultImpl(
+                ResultCertainty.DEFINITIVE,
+                token,
+                emptySet()
+            ))
+            return
+        }
+        else {
+            input.rollback()
+            handleResult(RuleMatchingResultImpl(
+                ResultCertainty.NOT_RECOGNIZED,
+                null,
+                setOf(
+                    TokenMismatchReporting(equalTo, token)
+                )
+            ))
+            return
+        }
+    }
+}
