@@ -32,4 +32,12 @@ abstract class BaseDescribingGrammarReceiver : GrammarReceiver {
     override fun identifier(acceptedOperators: Collection<Operator>, acceptedKeywords: Collection<Keyword>) {
         handleItem(describeIdentifier(acceptedOperators, acceptedKeywords))
     }
+
+    override fun optional(matcherFn: SequenceGrammar) {
+        handleItem("optional " + describeSequenceGrammar(matcherFn))
+    }
+
+    override fun optional(rule: Rule<*>) {
+        handleItem("optional " + rule.descriptionOfAMatchingThing)
+    }
 }

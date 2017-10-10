@@ -21,6 +21,8 @@ interface GrammarReceiver {
     fun eitherOf(mismatchCertainty: ResultCertainty, matcherFn: Grammar)
     fun atLeast(n: Int, matcherFn: SequenceGrammar)
     fun identifier(acceptedOperators: Collection<Operator> = emptyList(), acceptedKeywords: Collection<Keyword> = emptyList())
+    fun optional(matcherFn: SequenceGrammar)
+    fun optional(rule: Rule<*>)
 
     fun keyword(keyword: Keyword) {
         tokenEqualTo(KeywordToken(keyword))
@@ -37,6 +39,4 @@ interface GrammarReceiver {
     fun optionalWhitespace() {
         ref(WhitespaceEaterRule.INSTANCE)
     }
-
-    /*fun optional(matcherFn: GrammarReceiver.() -> Any)*/
 }

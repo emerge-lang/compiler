@@ -73,4 +73,12 @@ internal abstract class BaseMatchingGrammarReceiver(internal val input: TokenSeq
     override fun identifier(acceptedOperators: Collection<Operator>, acceptedKeywords: Collection<Keyword>) {
         handleResult(tryMatchIdentifier(input, acceptedOperators, acceptedKeywords))
     }
+
+    override fun optional(rule: Rule<*>) {
+        handleResult(tryMatchOptional(rule, input))
+    }
+
+    override fun optional(matcherFn: SequenceGrammar) {
+        handleResult(tryMatchOptional(SequenceGrammarRule(matcherFn), input))
+    }
 }
