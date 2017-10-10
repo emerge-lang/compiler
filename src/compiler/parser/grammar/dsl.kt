@@ -98,7 +98,7 @@ interface DSLCollectionRule<ResultType> : Rule<ResultType>
      */
     fun optionalWhitespace(): Unit
     {
-        subRules.add(WhitespaceEaterRule.instance)
+        subRules.add(WhitespaceEaterRule.INSTANCE)
     }
 
     /**

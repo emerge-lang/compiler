@@ -30,6 +30,6 @@ class WhitespaceEaterRule : Rule<Unit> {
     }
 
     companion object {
-        val instance: WhitespaceEaterRule = WhitespaceEaterRule()
+        val INSTANCE: WhitespaceEaterRule = WhitespaceEaterRule()
     }
 }

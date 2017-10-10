@@ -7,6 +7,7 @@ import compiler.lexer.Token
 import compiler.matching.ResultCertainty
 import compiler.parser.rule.EOIRule
 import compiler.parser.rule.Rule
+import compiler.parser.rule.WhitespaceEaterRule
 
 /**
  * Objects implementing this interface receive invocations that describe properties of the rule. The object
@@ -31,6 +32,10 @@ interface GrammarReceiver {
 
     fun endOfInput() {
         ref(EOIRule.INSTANCE)
+    }
+
+    fun optionalWhitespace() {
+        ref(WhitespaceEaterRule.INSTANCE)
     }
 
     /*fun optional(matcherFn: GrammarReceiver.() -> Any)*/
