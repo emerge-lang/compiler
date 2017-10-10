@@ -5,6 +5,8 @@ import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.Token
 import compiler.matching.ResultCertainty
+import compiler.parser.grammar.CodeChunkRule
+import compiler.parser.grammar.ExpressionRule
 import compiler.parser.rule.EOIRule
 import compiler.parser.rule.Rule
 import compiler.parser.rule.WhitespaceEaterRule
@@ -38,5 +40,13 @@ interface GrammarReceiver {
 
     fun optionalWhitespace() {
         ref(WhitespaceEaterRule.INSTANCE)
+    }
+
+    fun expression() {
+        ref(ExpressionRule.INSTANCE)
+    }
+
+    fun codeChunk() {
+        ref(CodeChunkRule.INSTANCE)
     }
 }
