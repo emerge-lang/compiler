@@ -1,5 +1,7 @@
 package compiler.parser.grammar.dsl
 
+import compiler.lexer.Keyword
+import compiler.lexer.Operator
 import compiler.lexer.Token
 import compiler.matching.ResultCertainty
 import compiler.parser.MissingTokenReporting
@@ -66,5 +68,9 @@ internal abstract class BaseMatchingGrammarReceiver(internal val input: TokenSeq
 
     override fun atLeast(n: Int, matcherFn: SequenceGrammar) {
         handleResult(tryMatchRepeating(SequenceGrammarRule(matcherFn), IntRange(n, Integer.MAX_VALUE), input))
+    }
+
+    override fun identifier(acceptedOperators: Collection<Operator>, acceptedKeywords: Collection<Keyword>) {
+        handleResult(tryMatchIdentifier(input, acceptedOperators, acceptedKeywords))
     }
 }
