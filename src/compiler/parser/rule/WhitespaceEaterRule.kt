@@ -23,7 +23,7 @@ class WhitespaceEaterRule : Rule<Unit> {
         }
 
         return RuleMatchingResultImpl(
-            ResultCertainty.NOT_RECOGNIZED,
+            ResultCertainty.MATCHED,
             Unit,
             emptySet()
         )

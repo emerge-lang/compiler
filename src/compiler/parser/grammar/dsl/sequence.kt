@@ -1,5 +1,6 @@
 package compiler.parser.grammar.dsl
 
+import compiler.lexer.TokenType
 import compiler.matching.ResultCertainty
 import compiler.parser.Reporting
 import compiler.parser.TokenSequence
@@ -46,7 +47,7 @@ internal fun tryMatchSequence(matcherFn: SequenceGrammar, input: TokenSequence):
         input.rollback()
 
         return RuleMatchingResultImpl(
-            ResultCertainty.NOT_RECOGNIZED,
+            certainty,
             null,
             ex.reportings
         )
@@ -80,4 +81,8 @@ private class DescribingSequenceGrammarReceiver : SequenceRuleDefinitionReceiver
 
     val collectedDescription: String
         get() = buffer.toString()
+
+    override fun tokenOfType(type: TokenType) {
+        handleItem(type.name)
+    }
 }

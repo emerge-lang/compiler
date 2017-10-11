@@ -1,6 +1,7 @@
 package compiler.parser.grammar.dsl
 
 import compiler.InternalCompilerError
+import compiler.lexer.TokenType
 import compiler.matching.ResultCertainty
 import compiler.parser.Reporting
 import compiler.parser.TokenSequence
@@ -61,6 +62,10 @@ private class DescribingEitherOfGrammarReceiver : BaseDescribingGrammarReceiver(
 
     val collectedDescription: String
         get() = buffer.toString()
+
+    override fun tokenOfType(type: TokenType) {
+        handleItem(type.name)
+    }
 }
 
 private class SuccessfulMatchException(val result: RuleMatchingResult<*>) : MatchingAbortedException(emptySet(), "A rule was sucessfully matched; Throwing this exception because other rules dont need to be attempted.")

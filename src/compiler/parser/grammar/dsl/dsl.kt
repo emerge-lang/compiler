@@ -1,17 +1,14 @@
 package compiler.parser.grammar.dsl
 
-import compiler.lexer.Keyword
-import compiler.lexer.SourceContentAwareSourceDescriptor
-import compiler.lexer.lex
 import compiler.matching.ResultCertainty
 import compiler.parser.TokenSequence
 import compiler.parser.rule.Rule
-import compiler.parser.toTransactional
+import compiler.parser.rule.RuleMatchingResult
 
-typealias Grammar = GrammarReceiver.() -> Any?
-typealias SequenceGrammar = SequenceRuleDefinitionReceiver.() -> Any?
+typealias Grammar = GrammarReceiver.() -> Unit
+typealias SequenceGrammar = SequenceRuleDefinitionReceiver.() -> Unit
 
-class SequenceGrammarRule(private val grammar: SequenceGrammar): Rule<List<*>> {
+class SequenceGrammarRule(private val grammar: SequenceGrammar): Rule<List<RuleMatchingResult<*>>> {
     override val descriptionOfAMatchingThing by lazy { describeSequenceGrammar(grammar) }
     override fun tryMatch(input: TokenSequence) = tryMatchSequence(grammar, input)
 }
@@ -27,23 +24,16 @@ fun eitherOf(mismatchCertainty: ResultCertainty, matcherFn: Grammar): Rule<*> {
 
 fun eitherOf(matcherFn: Grammar) = eitherOf(ResultCertainty.NOT_RECOGNIZED, matcherFn)
 
-fun main(args: Array<String>) {
-    val code = "import val fun import import import"
-    var source = object : SourceContentAwareSourceDescriptor() {
-        override val sourceLocation = "testcode"
-        override val sourceLines = code.split("\n")
-    }
-    val input = lex(code, source).toTransactional(source.toLocation(1, 1))
-    val rule = sequence {
-        sequence {
-            keyword(Keyword.IMPORT)
-            keyword(Keyword.VAL)
-            keyword(Keyword.FUNCTION)
-        }
-        atLeast(2) {
-            keyword(Keyword.IMPORT)
+fun <T> Rule<T>.describeAs(description: String): Rule<T> {
+    val base = this
+    return object : Rule<T> {
+        override val descriptionOfAMatchingThing = description
+
+        override fun tryMatch(input: TokenSequence): RuleMatchingResult<T> {
+            return base.tryMatch(input)
         }
     }
-    val result = rule.tryMatch(input)
-    println("Done")
 }
+
+fun <ResultBefore,ResultAfter> Rule<ResultBefore>.postprocess(postProcessor: (Rule<ResultBefore>) -> Rule<ResultAfter>): Rule<ResultAfter>
+    = postProcessor(this)

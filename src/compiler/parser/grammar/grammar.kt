@@ -1,16 +1,19 @@
 import compiler.lexer.Keyword.*
 import compiler.lexer.Operator.*
-import compiler.parser.grammar.*
+import compiler.matching.ResultCertainty.*
+import compiler.parser.grammar.dsl.describeAs
+import compiler.parser.grammar.dsl.postprocess
+import compiler.parser.grammar.dsl.sequence
 import compiler.parser.postproc.*
 
-val ModuleDeclaration = rule {
+val ModuleDeclaration = sequence {
     keyword(MODULE)
 
-    __matched()
+    certainty = MATCHED
 
     identifier()
 
-    __optimistic()
+    certainty = OPTIMISTIC
 
     atLeast(0) {
         operator(DOT)
@@ -21,34 +24,34 @@ val ModuleDeclaration = rule {
     .describeAs("module declaration")
     .postprocess(::ModuleDeclarationPostProcessor)
 
-val ImportDeclaration = rule {
+val ImportDeclaration = sequence {
     keyword(IMPORT)
 
-    __matched()
+    certainty = MATCHED
 
     atLeast(1) {
         identifier()
         operator(DOT)
     }
-    __optimistic()
+    certainty = OPTIMISTIC
     identifier(acceptedOperators = listOf(TIMES))
     operator(NEWLINE)
 }
     .describeAs("import declaration")
     .postprocess(::ImportPostprocessor)
 
-val TypeModifier = rule {
+val TypeModifier = sequence {
     eitherOf {
         keyword(MUTABLE)
         keyword(READONLY)
         keyword(IMMUTABLE)
     }
-    __definitive()
+    certainty = DEFINITIVE
 }
     .describeAs("type modifier")
     .postprocess(::TypeModifierPostProcessor)
 
-val Type = rule {
+val Type = sequence {
     optional {
         ref(TypeModifier)
     }
@@ -61,7 +64,7 @@ val Type = rule {
     .describeAs("type")
     .postprocess(::TypePostprocessor)
 
-val VariableDeclaration = rule {
+val VariableDeclaration = sequence {
 
     optional {
         ref(TypeModifier)
@@ -73,12 +76,12 @@ val VariableDeclaration = rule {
         keyword(VAR)
         keyword(VAL)
     }
-    __matched()
+    certainty = MATCHED
 
     optionalWhitespace()
 
     identifier()
-    __optimistic()
+    certainty = OPTIMISTIC
 
     optional {
         operator(COLON)
@@ -88,16 +91,16 @@ val VariableDeclaration = rule {
     optional {
         optionalWhitespace()
         operator(ASSIGNMENT)
-        __definitive()
+        certainty = DEFINITIVE
         expression()
     }
 
-    __definitive()
+    certainty = DEFINITIVE
 }
     .describeAs("variable declaration")
     .postprocess(::VariableDeclarationPostProcessor)
 
-val Parameter = rule {
+val Parameter = sequence {
 
     optional {
         ref(TypeModifier)
@@ -120,23 +123,21 @@ val Parameter = rule {
     .describeAs("parameter declaration")
     .postprocess(::ParameterDeclarationPostProcessor)
 
-val ParameterList = rule {
+val ParameterList = sequence {
     operator(PARANT_OPEN)
 
     optionalWhitespace()
 
     optional {
-        ref(rule { // TODO: remove the ref(rule { ??
-            ref(Parameter)
+        ref(Parameter)
 
+        optionalWhitespace()
+
+        atLeast(0) {
+            operator(COMMA)
             optionalWhitespace()
-
-            atLeast(0) {
-                operator(COMMA)
-                optionalWhitespace()
-                ref(Parameter)
-            }
-        })
+            ref(Parameter)
+        }
     }
 
     optionalWhitespace()
@@ -145,7 +146,7 @@ val ParameterList = rule {
     .describeAs("parenthesised paramete rlist")
     .postprocess(::ParameterListPostprocessor)
 
-val FunctionModifier = rule {
+val FunctionModifier = sequence {
     eitherOf {
         keyword(READONLY)
         keyword(NOTHROW)
@@ -153,18 +154,18 @@ val FunctionModifier = rule {
         keyword(OPERATOR)
         keyword(EXTERNAL)
     }
-    __definitive()
+    certainty = DEFINITIVE
 }
     .postprocess(::FunctionModifierPostProcessor)
 
-val StandaloneFunctionDeclaration = rule {
+val StandaloneFunctionDeclaration = sequence {
     atLeast(0) {
         ref(FunctionModifier)
     }
 
     keyword(FUNCTION)
 
-    __matched()
+    certainty = MATCHED
 
     optional {
         ref(Type)
@@ -183,20 +184,20 @@ val StandaloneFunctionDeclaration = rule {
         ref(Type)
     }
 
-    __optimistic()
+    certainty = OPTIMISTIC
 
     eitherOf {
         sequence {
             optionalWhitespace()
             operator(CBRACE_OPEN)
-            __definitive()
+            certainty = DEFINITIVE
             codeChunk()
             optionalWhitespace()
             operator(CBRACE_CLOSE)
         }
         sequence {
             operator(ASSIGNMENT)
-            __definitive()
+            certainty = DEFINITIVE
             expression()
             eitherOf {
                 operator(NEWLINE)
@@ -207,21 +208,22 @@ val StandaloneFunctionDeclaration = rule {
         endOfInput()
     }
 
-    __definitive()
+    certainty = DEFINITIVE
 }
     .describeAs("function declaration")
     .postprocess(::StandaloneFunctionPostprocessor)
 
-val Module = rule {
-    __matched()
+val Module = sequence {
+    certainty = MATCHED
     atLeast(0) {
+        optionalWhitespace()
         eitherOf {
             ref(ModuleDeclaration)
             ref(ImportDeclaration)
             ref(VariableDeclaration)
             ref(StandaloneFunctionDeclaration)
         }
-        __definitive()
+        certainty = DEFINITIVE
     }
     optionalWhitespace()
     endOfInput()

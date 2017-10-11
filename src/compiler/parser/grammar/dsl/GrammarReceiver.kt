@@ -1,9 +1,6 @@
 package compiler.parser.grammar.dsl
 
-import compiler.lexer.Keyword
-import compiler.lexer.KeywordToken
-import compiler.lexer.Operator
-import compiler.lexer.Token
+import compiler.lexer.*
 import compiler.matching.ResultCertainty
 import compiler.parser.grammar.CodeChunkRule
 import compiler.parser.grammar.ExpressionRule
@@ -18,6 +15,7 @@ import compiler.parser.rule.WhitespaceEaterRule
  */
 interface GrammarReceiver {
     fun tokenEqualTo(token: Token)
+    fun tokenOfType(type: TokenType)
     fun ref(rule: Rule<*>)
     fun sequence(matcherFn: SequenceGrammar)
     fun eitherOf(mismatchCertainty: ResultCertainty, matcherFn: Grammar)
@@ -30,8 +28,18 @@ interface GrammarReceiver {
         tokenEqualTo(KeywordToken(keyword))
     }
 
+    fun operator(operator: Operator) {
+        tokenEqualTo(OperatorToken(operator))
+    }
+
     fun eitherOf(matcherFn: Grammar) {
         eitherOf(ResultCertainty.NOT_RECOGNIZED, matcherFn)
+    }
+
+    fun eitherOf(vararg operators: Operator) {
+        eitherOf {
+            operators.forEach(this::operator)
+        }
     }
 
     fun endOfInput() {

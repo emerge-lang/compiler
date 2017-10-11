@@ -3,8 +3,10 @@ package compiler.parser.grammar.dsl
 import compiler.lexer.Keyword
 import compiler.lexer.Operator
 import compiler.lexer.Token
+import compiler.lexer.TokenType
 import compiler.matching.ResultCertainty
 import compiler.parser.MissingTokenReporting
+import compiler.parser.Reporting
 import compiler.parser.TokenMismatchReporting
 import compiler.parser.TokenSequence
 import compiler.parser.rule.Rule
@@ -48,6 +50,43 @@ internal abstract class BaseMatchingGrammarReceiver(internal val input: TokenSeq
                 null,
                 setOf(
                     TokenMismatchReporting(equalTo, token)
+                )
+            ))
+            return
+        }
+    }
+
+    override fun tokenOfType(type: TokenType) {
+        if (!input.hasNext()) {
+            handleResult(RuleMatchingResultImpl(
+                ResultCertainty.NOT_RECOGNIZED,
+                null,
+                setOf(
+                    Reporting.error("Unexpected EOI, expecting $type token", input.currentSourceLocation)
+                )
+            ))
+            return
+        }
+
+        input.mark()
+
+        val token = input.next()!!
+        if (token.type == type) {
+            input.commit()
+            handleResult(RuleMatchingResultImpl(
+                ResultCertainty.DEFINITIVE,
+                token,
+                emptySet()
+            ))
+            return
+        }
+        else {
+            input.rollback()
+            handleResult(RuleMatchingResultImpl(
+                ResultCertainty.NOT_RECOGNIZED,
+                null,
+                setOf(
+                    Reporting.error("Unexpected $token, expecting $type", token)
                 )
             ))
             return

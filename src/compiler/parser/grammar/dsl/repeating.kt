@@ -30,7 +30,7 @@ internal fun <T> tryMatchRepeating(rule: Rule<T>, amount: IntRange, input: Token
         input.commit()
 
         return RuleMatchingResultImpl(
-            results.map { it.certainty }.min() ?: ResultCertainty.NOT_RECOGNIZED,
+            results.map { it.certainty }.min() ?: ResultCertainty.MATCHED,
             results,
             setOf()
         )
