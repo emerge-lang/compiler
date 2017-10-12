@@ -21,7 +21,14 @@ class BoundIfExpression(
         get() = thenCode.isGuaranteedToThrow nullableAnd (elseCode?.isGuaranteedToThrow ?: false)
 
     override val isGuaranteedToReturn: Boolean?
-        get() = thenCode.isGuaranteedToReturn nullableAnd (elseCode?.isGuaranteedToReturn ?: true)
+        get() {
+            if (elseCode == null) {
+                return false
+            }
+            else {
+                return thenCode.isGuaranteedToReturn nullableAnd elseCode.isGuaranteedToReturn
+            }
+        }
 
     override var type: BaseTypeReference? = null
         private set
