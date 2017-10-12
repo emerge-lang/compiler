@@ -2,6 +2,8 @@ package compiler.ast.type
 
 import compiler.binding.type.Any
 import compiler.binding.type.BaseType
+import io.kotlintest.matchers.shouldEqual
+import io.kotlintest.matchers.shouldThrow
 import io.kotlintest.specs.FreeSpec
 
 class BaseTypeTest : FreeSpec() { init {
@@ -62,28 +64,28 @@ class BaseTypeTest : FreeSpec() { init {
 
         "Then the closest common ancestor of" - {
             "B and A is A" {
-                BaseType.closestCommonAncestorOf(typeB, typeA) shouldEqual typeA
-                BaseType.closestCommonAncestorOf(typeA, typeB) shouldEqual typeA
+                BaseType.closestCommonAncestorOf(listOf(typeB, typeA)) shouldEqual typeA
+                BaseType.closestCommonAncestorOf(listOf(typeA, typeB)) shouldEqual typeA
             }
 
             "B and C is A" {
-                BaseType.closestCommonAncestorOf(typeB, typeC) shouldEqual typeA
-                BaseType.closestCommonAncestorOf(typeC, typeB) shouldEqual typeA
+                BaseType.closestCommonAncestorOf(listOf(typeB, typeC)) shouldEqual typeA
+                BaseType.closestCommonAncestorOf(listOf(typeC, typeB)) shouldEqual typeA
             }
 
             "D and E is B" {
-                BaseType.closestCommonAncestorOf(typeD, typeE) shouldEqual typeB
-                BaseType.closestCommonAncestorOf(typeE, typeD) shouldEqual typeB
+                BaseType.closestCommonAncestorOf(listOf(typeD, typeE)) shouldEqual typeB
+                BaseType.closestCommonAncestorOf(listOf(typeE, typeD)) shouldEqual typeB
             }
 
             "C and E is A" {
-                BaseType.closestCommonAncestorOf(typeC, typeE) shouldEqual typeA
-                BaseType.closestCommonAncestorOf(typeE, typeC) shouldEqual typeA
+                BaseType.closestCommonAncestorOf(listOf(typeC, typeE)) shouldEqual typeA
+                BaseType.closestCommonAncestorOf(listOf(typeE, typeC)) shouldEqual typeA
             }
 
             "F and G is Any" {
-                BaseType.closestCommonAncestorOf(typeF, typeG) shouldEqual Any
-                BaseType.closestCommonAncestorOf(typeG, typeF) shouldEqual Any
+                BaseType.closestCommonAncestorOf(listOf(typeF, typeG)) shouldEqual Any
+                BaseType.closestCommonAncestorOf(listOf(typeG, typeF)) shouldEqual Any
             }
         }
     }

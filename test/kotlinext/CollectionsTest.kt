@@ -1,5 +1,6 @@
 package kotlinext
 
+import io.kotlintest.matchers.shouldEqual
 import io.kotlintest.specs.StringSpec
 
 class CollectionsTest : StringSpec() { init {

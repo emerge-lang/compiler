@@ -1,3 +1,5 @@
+import compiler.binding.context.SoftwareContext
+import compiler.binding.type.BuiltinType
 import compiler.lexer.SourceContentAwareSourceDescriptor
 import compiler.lexer.lex
 import compiler.parser.Reporting
@@ -5,19 +7,19 @@ import compiler.parser.toTransactional
 
 val testCode = """module testcode
 
-external operator fun Int.unaryMinus() -> Int
-
-external operator fun Int.opPlus(summand: Int) -> Int
-
-external operator fun Int.opMinus(operand: Int) -> Int
+fun a() -> Int {
+    if true {
+        return 1
+    }
+}
 """
 
 fun main(args: Array<String>) {
     // setup context
-    /*val swCtx = SoftwareContext()
+    val swCtx = SoftwareContext()
     val builtinsModule = BuiltinType.getNewModule()
     builtinsModule.context.swCtx = swCtx
-    swCtx.addModule(builtinsModule)*/
+    swCtx.addModule(builtinsModule)
 
     var source = object : SourceContentAwareSourceDescriptor() {
         override val sourceLocation = "testcode"
@@ -25,8 +27,9 @@ fun main(args: Array<String>) {
     }
 
     val tokens = lex(testCode, source)
+    val transactionalTokenSequence = tokens.toTransactional(source.toLocation(1, 1))
 
-    val matched = Module.tryMatch(tokens.toTransactional(source.toLocation(1, 1)))
+    val matched = Module.tryMatch(transactionalTokenSequence)
 
     println("certainty = ${matched.certainty}")
     println("item = ${matched.item}")
@@ -37,7 +40,7 @@ fun main(args: Array<String>) {
 
     matched.reportings.forEach { println(it); println(); println() }
 
-    /*
+
     if (matched.reportings.containsErrors) {
         return
     }
@@ -48,7 +51,6 @@ fun main(args: Array<String>) {
     swCtx.doSemanticAnalysis().forEach { println(it); println(); println() }
 
     println("---")
-    */
 }
 
 val Iterable<Reporting>.containsErrors

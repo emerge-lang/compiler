@@ -2,6 +2,7 @@ package compiler.ast.type
 
 import compiler.binding.context.MutableCTContext
 import compiler.binding.type.BaseTypeReference
+import io.kotlintest.matchers.shouldEqual
 import io.kotlintest.specs.FreeSpec
 
 class BaseTypeReferenceTest : FreeSpec() { init {
