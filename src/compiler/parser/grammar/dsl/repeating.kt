@@ -6,6 +6,7 @@ import compiler.parser.TokenSequence
 import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.RuleMatchingResultImpl
+import compiler.parser.rule.hasErrors
 
 internal fun <T> tryMatchRepeating(rule: Rule<T>, amount: IntRange, input: TokenSequence): RuleMatchingResult<List<RuleMatchingResult<T>>> {
     input.mark()
@@ -19,6 +20,16 @@ internal fun <T> tryMatchRepeating(rule: Rule<T>, amount: IntRange, input: Token
         lastResult = rule.tryMatch(input)
         if (lastResult.item == null) {
             input.rollback()
+            // TODO: Fallback!
+
+            if (lastResult.hasErrors && lastResult.certainty >= ResultCertainty.MATCHED) {
+                return RuleMatchingResultImpl(
+                    results.map { it.certainty }.max() ?: ResultCertainty.MATCHED,
+                    null,
+                    lastResult.reportings
+                )
+            }
+
             break
         }
 

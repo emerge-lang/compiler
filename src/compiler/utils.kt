@@ -13,7 +13,7 @@ import kotlin.reflect.KProperty
 public fun parseFromClasspath(path: String): ASTModule = parseFromClasspath(Paths.get(path))
 
 public fun parseFromClasspath(path: Path): ASTModule {
-    val sourceode = ClassLoader.getSystemResource(path.toString()).readText().lines()
+    val sourceode = ClassLoader.getSystemResource(path.toString())!!.readText().lines()
 
     val sourceDescriptor = object : SourceContentAwareSourceDescriptor() {
         override val sourceLocation = "classpath:" + path

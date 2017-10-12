@@ -6,6 +6,7 @@ import compiler.parser.Reporting
 import compiler.parser.TokenSequence
 import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.RuleMatchingResultImpl
+import compiler.parser.rule.hasErrors
 import textutils.indentByFromSecondLine
 
 internal fun tryMatchSequence(matcherFn: SequenceGrammar, input: TokenSequence): RuleMatchingResult<List<RuleMatchingResult<*>>> {
@@ -19,8 +20,8 @@ internal fun tryMatchSequence(matcherFn: SequenceGrammar, input: TokenSequence):
     try {
         (object : BaseMatchingGrammarReceiver(input), SequenceRuleDefinitionReceiver {
             override fun handleResult(result: RuleMatchingResult<*>) {
-                if (result.certainty < ResultCertainty.MATCHED) {
-                    throw MatchingAbortedException(result.reportings)
+                if (result.item == null || result.hasErrors) {
+                    throw MatchingAbortedException(result)
                 }
                 results.add(result)
                 reportings.addAll(result.reportings)
@@ -49,7 +50,7 @@ internal fun tryMatchSequence(matcherFn: SequenceGrammar, input: TokenSequence):
         return RuleMatchingResultImpl(
             certainty,
             null,
-            ex.reportings
+            ex.result.reportings
         )
     }
 }

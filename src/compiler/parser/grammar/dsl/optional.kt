@@ -6,7 +6,7 @@ import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.RuleMatchingResultImpl
 
-internal fun <T> tryMatchOptional(rule: Rule<T>, input: TokenSequence): RuleMatchingResult<T?> {
+internal fun tryMatchOptional(rule: Rule<*>, input: TokenSequence): RuleMatchingResult<Any?> {
     val subResult = rule.tryMatch(input)
 
     if (subResult.item == null) {
@@ -20,7 +20,7 @@ internal fun <T> tryMatchOptional(rule: Rule<T>, input: TokenSequence): RuleMatc
         else {
             return RuleMatchingResultImpl(
                 ResultCertainty.NOT_RECOGNIZED,
-                null,
+                Unit,
                 emptySet()
             )
         }

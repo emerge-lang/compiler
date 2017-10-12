@@ -2,7 +2,6 @@ package compiler.parser.grammar.dsl
 
 import compiler.lexer.*
 import compiler.matching.ResultCertainty
-import compiler.parser.grammar.CodeChunkRule
 import compiler.parser.grammar.ExpressionRule
 import compiler.parser.rule.EOIRule
 import compiler.parser.rule.Rule
@@ -52,9 +51,5 @@ interface GrammarReceiver {
 
     fun expression() {
         ref(ExpressionRule.INSTANCE)
-    }
-
-    fun codeChunk() {
-        ref(CodeChunkRule.INSTANCE)
     }
 }

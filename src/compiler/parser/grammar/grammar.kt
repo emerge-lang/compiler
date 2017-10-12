@@ -1,6 +1,7 @@
 import compiler.lexer.Keyword.*
 import compiler.lexer.Operator.*
 import compiler.matching.ResultCertainty.*
+import compiler.parser.grammar.CodeChunk
 import compiler.parser.grammar.dsl.describeAs
 import compiler.parser.grammar.dsl.postprocess
 import compiler.parser.grammar.dsl.sequence
@@ -191,7 +192,7 @@ val StandaloneFunctionDeclaration = sequence {
             optionalWhitespace()
             operator(CBRACE_OPEN)
             certainty = DEFINITIVE
-            codeChunk()
+            ref(CodeChunk)
             optionalWhitespace()
             operator(CBRACE_CLOSE)
         }
@@ -217,16 +218,15 @@ val Module = sequence {
     certainty = MATCHED
     atLeast(0) {
         optionalWhitespace()
-        eitherOf {
+        eitherOf(mismatchCertainty = DEFINITIVE) {
             ref(ModuleDeclaration)
             ref(ImportDeclaration)
             ref(VariableDeclaration)
             ref(StandaloneFunctionDeclaration)
+            endOfInput()
         }
         certainty = DEFINITIVE
     }
-    optionalWhitespace()
-    endOfInput()
 }
     .describeAs("module")
     .postprocess(::ModulePostProcessor)

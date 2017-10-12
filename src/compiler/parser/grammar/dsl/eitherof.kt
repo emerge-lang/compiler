@@ -26,13 +26,19 @@ internal fun tryMatchEitherOf(matcherFn: Grammar, input: TokenSequence, mismatch
             mismatchCertainty,
             null,
             setOf(Reporting.error(
-                "Unexpected ${input.peek()?.toStringWithoutLocation() ?: "end of input"}. Expected ${describeEitherOfGrammar(matcherFn)}",
+                "Unexpected ${input.peek()?.toStringWithoutLocation() ?: "end of input"}, expected ${describeEitherOfGrammar(matcherFn)}",
                 input.currentSourceLocation
             ))
         )
     }
     catch (ex: SuccessfulMatchException) {
-        input.commit()
+        if (ex.result.item == null) {
+            input.rollback()
+            // TODO: FALLBACK!
+        }
+        else {
+            input.commit()
+        }
 
         return ex.result
     }
@@ -51,7 +57,7 @@ private class DescribingEitherOfGrammarReceiver : BaseDescribingGrammarReceiver(
     private val buffer = StringBuilder(50)
 
     init {
-        buffer.append("One of:\n")
+        buffer.append("one of:\n")
     }
 
     override fun handleItem(descriptionOfItem: String) {
@@ -68,4 +74,4 @@ private class DescribingEitherOfGrammarReceiver : BaseDescribingGrammarReceiver(
     }
 }
 
-private class SuccessfulMatchException(val result: RuleMatchingResult<*>) : MatchingAbortedException(emptySet(), "A rule was sucessfully matched; Throwing this exception because other rules dont need to be attempted.")
+private class SuccessfulMatchException(result: RuleMatchingResult<*>) : MatchingAbortedException(result, "A rule was sucessfully matched; Throwing this exception because other rules dont need to be attempted.")

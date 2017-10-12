@@ -44,7 +44,7 @@ class ExpressionRule : Rule<Expression<*>> {
             .mapResult(this::postprocess)
     }
 
-    private fun postprocess(input: TransactionalSequence<Any, Position>): Expression<*> {
+    public fun postprocess(input: TransactionalSequence<Any, Position>): Expression<*> {
         var expression = input.next()!! as Expression<*>
         @Suppress("UNCHECKED_CAST")
         val postfixes = input.remainingToList() as List<ExpressionPostfixModifier<*>>
@@ -143,7 +143,7 @@ val BracedCodeOrSingleStatement = sequence {
             certainty = MATCHED
             optionalWhitespace()
             optional {
-                codeChunk()
+                ref(CodeChunk)
                 certainty = DEFINITIVE
             }
             optionalWhitespace()
