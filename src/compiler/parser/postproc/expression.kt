@@ -11,6 +11,22 @@ import compiler.parser.rule.RuleMatchingResult
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 
+fun ExpressionPostprocessor(rule: Rule<*>): Rule<Expression<*>> {
+    return rule
+        .flatten()
+        .mapResult({ tokens ->
+            var expression = tokens.next()!! as Expression<*>
+            @Suppress("UNCHECKED_CAST")
+            val postfixes = tokens.remainingToList() as List<ExpressionPostfixModifier<*>>
+
+            for (postfixMod in postfixes) {
+                expression = postfixMod.modify(expression)
+            }
+
+            expression
+        })
+}
+
 fun LiteralExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Expression<*>> {
     return rule
         .flatten()

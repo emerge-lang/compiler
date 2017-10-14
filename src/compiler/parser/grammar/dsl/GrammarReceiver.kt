@@ -2,7 +2,6 @@ package compiler.parser.grammar.dsl
 
 import compiler.lexer.*
 import compiler.matching.ResultCertainty
-import compiler.parser.grammar.ExpressionRule
 import compiler.parser.rule.EOIRule
 import compiler.parser.rule.Rule
 import compiler.parser.rule.WhitespaceEaterRule
@@ -47,9 +46,5 @@ interface GrammarReceiver {
 
     fun optionalWhitespace() {
         ref(WhitespaceEaterRule.INSTANCE)
-    }
-
-    fun expression() {
-        ref(ExpressionRule.INSTANCE)
     }
 }

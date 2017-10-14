@@ -1,6 +1,7 @@
 package compiler.parser.grammar
 
 import VariableDeclaration
+import compiler.ast.AssignmentStatement
 import compiler.lexer.Keyword
 import compiler.lexer.Operator
 import compiler.matching.ResultCertainty.*
@@ -8,11 +9,12 @@ import compiler.parser.grammar.dsl.describeAs
 import compiler.parser.grammar.dsl.postprocess
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.postproc.*
+import compiler.parser.rule.Rule
 
 val ReturnStatement = sequence {
     keyword(Keyword.RETURN)
     certainty = MATCHED
-    expression()
+    ref(Expression)
     certainty = DEFINITIVE
 }
     .describeAs("return statement")
@@ -35,16 +37,15 @@ val Assignable = sequence {
     }
     certainty = DEFINITIVE
 }
-    .flatten()
-    .mapResult(ExpressionRule.INSTANCE::postprocess)
+    .postprocess(::ExpressionPostprocessor)
 
-val AssignmentStatement = sequence {
+val AssignmentStatement: Rule<AssignmentStatement> = sequence {
     ref(Assignable)
 
     operator(Operator.ASSIGNMENT)
     certainty = MATCHED
 
-    expression()
+    ref(Expression)
     certainty = DEFINITIVE
 }
     .describeAs("assignment")
@@ -56,7 +57,7 @@ val LineOfCode = sequence {
         ref(VariableDeclaration)
         ref(AssignmentStatement)
         ref(ReturnStatement)
-        expression()
+        ref(Expression)
     }
     certainty = MATCHED
 

@@ -8,57 +8,28 @@ import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.TokenType
 import compiler.matching.ResultCertainty.*
-import compiler.parser.TokenSequence
 import compiler.parser.grammar.dsl.describeAs
 import compiler.parser.grammar.dsl.postprocess
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.postproc.*
 import compiler.parser.rule.Rule
-import compiler.parser.rule.RuleMatchingResult
-import compiler.transact.Position
-import compiler.transact.TransactionalSequence
 
-class ExpressionRule : Rule<Expression<*>> {
-    override val descriptionOfAMatchingThing = "expression"
-
-    override fun tryMatch(input: TokenSequence): RuleMatchingResult<Expression<*>> {
-        return rule.tryMatch(input)
-    }
-
-    private val rule by lazy {
-        sequence {
-            eitherOf {
-                ref(BinaryExpression)
-                ref(UnaryExpression)
-                ref(ValueExpression)
-                ref(ParanthesisedExpression)
-                ref(IfExpression)
-            }
-            certainty = MATCHED
-            atLeast(0) {
-                ref(ExpressionPostfix)
-            }
-            certainty = DEFINITIVE
+val Expression: Rule<Expression<*>> by lazy {
+    sequence {
+        eitherOf {
+            ref(BinaryExpression)
+            ref(UnaryExpression)
+            ref(ValueExpression)
+            ref(ParanthesisedExpression)
+            ref(IfExpression)
         }
-            .flatten()
-            .mapResult(this::postprocess)
-    }
-
-    public fun postprocess(input: TransactionalSequence<Any, Position>): Expression<*> {
-        var expression = input.next()!! as Expression<*>
-        @Suppress("UNCHECKED_CAST")
-        val postfixes = input.remainingToList() as List<ExpressionPostfixModifier<*>>
-
-        for (postfixMod in postfixes) {
-            expression = postfixMod.modify(expression)
+        certainty = MATCHED
+        atLeast(0) {
+            ref(ExpressionPostfix)
         }
-
-        return expression
+        certainty = DEFINITIVE
     }
-
-    companion object {
-        val INSTANCE = ExpressionRule()
-    }
+        .postprocess(::ExpressionPostprocessor)
 }
 
 val LiteralExpression = sequence {
@@ -84,7 +55,7 @@ val ValueExpression = sequence {
 
 val ParanthesisedExpression: Rule<Expression<*>> = sequence {
     operator(Operator.PARANT_OPEN)
-    expression()
+    ref(Expression)
     certainty = MATCHED
     operator(Operator.PARANT_CLOSE)
     certainty = DEFINITIVE
@@ -150,7 +121,7 @@ val BracedCodeOrSingleStatement = sequence {
             operator(Operator.CBRACE_CLOSE)
             certainty = DEFINITIVE
         }
-        expression()
+        ref(Expression)
     }
     certainty = DEFINITIVE
 }
@@ -160,7 +131,7 @@ val BracedCodeOrSingleStatement = sequence {
 val IfExpression = sequence {
     keyword(IF)
     certainty = MATCHED
-    expression()
+    ref(Expression)
 
     ref(BracedCodeOrSingleStatement)
     certainty = OPTIMISTIC
@@ -194,20 +165,19 @@ val ExpressionPostfixInvocation = sequence {
     optionalWhitespace()
 
     optional {
-        expression()
+        ref(Expression)
         optionalWhitespace()
 
         atLeast(0) {
             operator(Operator.COMMA)
             optionalWhitespace()
-            expression()
+            ref(Expression)
         }
     }
 
     optionalWhitespace()
     operator(Operator.PARANT_CLOSE)
     certainty = MATCHED
-    optionalWhitespace()
 }
     .describeAs("function invocation")
     .flatten()

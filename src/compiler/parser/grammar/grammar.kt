@@ -2,6 +2,7 @@ import compiler.lexer.Keyword.*
 import compiler.lexer.Operator.*
 import compiler.matching.ResultCertainty.*
 import compiler.parser.grammar.CodeChunk
+import compiler.parser.grammar.Expression
 import compiler.parser.grammar.dsl.describeAs
 import compiler.parser.grammar.dsl.postprocess
 import compiler.parser.grammar.dsl.sequence
@@ -94,7 +95,7 @@ val VariableDeclaration = sequence {
         optionalWhitespace()
         operator(ASSIGNMENT)
         certainty = DEFINITIVE
-        expression()
+        ref(Expression)
     }
 
     certainty = DEFINITIVE
@@ -200,7 +201,7 @@ val StandaloneFunctionDeclaration = sequence {
         sequence {
             operator(ASSIGNMENT)
             certainty = DEFINITIVE
-            expression()
+            ref(Expression)
             eitherOf {
                 operator(NEWLINE)
                 endOfInput()
