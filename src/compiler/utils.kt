@@ -1,10 +1,10 @@
 package compiler
 
-import Module
 import compiler.ast.ASTModule
 import compiler.lexer.SourceContentAwareSourceDescriptor
 import compiler.lexer.lex
 import compiler.parser.TokenSequence
+import compiler.parser.grammar.Module
 import java.nio.file.Path
 import java.nio.file.Paths
 import javax.naming.OperationNotSupportedException

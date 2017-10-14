@@ -1,6 +1,5 @@
 package compiler.parser.grammar
 
-import ModuleDeclaration
 import com.natpryce.hamkrest.*
 import com.natpryce.hamkrest.assertion.assertThat
 import compiler.matching.ResultCertainty
@@ -8,7 +7,7 @@ import compiler.parser.rule.hasErrors
 import matchers.isNotNull
 import matchers.isNull
 
-class ModuleDeclarationTest : GrammarTestCase() { init {
+class ModuleDeclarationGrammarTest : GrammarTestCase() { init {
     "singleName" {
         val tokens = lex("module foobar\n")
         val result = ModuleDeclaration.tryMatch(tokens)

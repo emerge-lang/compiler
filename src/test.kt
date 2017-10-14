@@ -3,6 +3,7 @@ import compiler.binding.type.BuiltinType
 import compiler.lexer.SourceContentAwareSourceDescriptor
 import compiler.lexer.lex
 import compiler.parser.Reporting
+import compiler.parser.grammar.Module
 import compiler.parser.toTransactional
 
 val testCode = """module testcode

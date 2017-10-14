@@ -1,6 +1,5 @@
 package compiler.parser.grammar
 
-import VariableDeclaration
 import compiler.ast.AssignmentStatement
 import compiler.lexer.Keyword
 import compiler.lexer.Operator
