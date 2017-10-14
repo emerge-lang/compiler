@@ -18,6 +18,7 @@ val ModuleDeclaration = sequence {
 
     atLeast(0) {
         operator(DOT)
+        certainty = MATCHED
         identifier()
     }
     operator(NEWLINE)
