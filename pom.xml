@@ -87,5 +87,11 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <groupId>com.natpryce</groupId>
+            <artifactId>hamkrest</artifactId>
+            <version>1.4.2.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>
