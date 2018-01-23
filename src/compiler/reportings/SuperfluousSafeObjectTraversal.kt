@@ -16,13 +16,13 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-/**
- * This package contains the code that works unpon the tokens matched by the grammer.
- * It does several things:
- * * Enhances reportings by recognizing known patterns; adds context info and resolution suggestions
- * * Creates AST data structures from the tokens. These structures have the ability to...
- *   * verify the semantic correctness of the code and provide meaningful error messages if that is not the case
- *   * put the code in context with other code in the input (link symbols)
- *   * once validated, perform CTFE on the code (if all variables are known at compile time)
- */
-package compiler.parser.postproc
+package compiler.reportings
+
+import compiler.binding.expression.BoundExpression
+import compiler.lexer.OperatorToken
+
+class SuperfluousSafeObjectTraversal(val nonNullExpression: BoundExpression<*>, val superfluousSafeOperator: OperatorToken) : Reporting(
+    Level.INFO,
+    "Null-safe object traversal is superfluous here; the receiver expression cannot evaluate to null",
+    superfluousSafeOperator.sourceLocation
+)

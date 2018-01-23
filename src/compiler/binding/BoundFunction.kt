@@ -212,7 +212,7 @@ class BoundFunction(
             if (!isGuaranteedToTerminate) {
                 // if the function is declared to return Unit a return of Unit is implied and should be inserted by backends
                 if (returnType == null || returnType!!.baseType !== Unit) {
-                    reportings.add(Reporting.functionIsNotGuaranteedToTerminate(this))
+                    reportings.add(Reporting.uncertainTermination(this))
                 }
             }
         }

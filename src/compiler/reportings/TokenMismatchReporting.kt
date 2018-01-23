@@ -16,13 +16,15 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+package compiler.reportings
+
+import compiler.lexer.Token
+
 /**
- * This package contains the code that works unpon the tokens matched by the grammer.
- * It does several things:
- * * Enhances reportings by recognizing known patterns; adds context info and resolution suggestions
- * * Creates AST data structures from the tokens. These structures have the ability to...
- *   * verify the semantic correctness of the code and provide meaningful error messages if that is not the case
- *   * put the code in context with other code in the input (link symbols)
- *   * once validated, perform CTFE on the code (if all variables are known at compile time)
+ * Reported by the parser when it encounters the token [actual] when it expected a token similar to [expected] and
+ * [actual] cannot be used for that purpose (e.g. a closing parenthesis where an identifier is expected).
  */
-package compiler.parser.postproc
+class TokenMismatchReporting(
+    val expected: Token,
+    val actual: Token
+) : Reporting(Level.ERROR, "Unexpected ${actual.toStringWithoutLocation()}, expected $expected", actual.sourceLocation)

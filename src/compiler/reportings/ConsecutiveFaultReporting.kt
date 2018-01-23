@@ -16,13 +16,17 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+package compiler.reportings
+
+import compiler.lexer.SourceLocation
+
 /**
- * This package contains the code that works unpon the tokens matched by the grammer.
- * It does several things:
- * * Enhances reportings by recognizing known patterns; adds context info and resolution suggestions
- * * Creates AST data structures from the tokens. These structures have the ability to...
- *   * verify the semantic correctness of the code and provide meaningful error messages if that is not the case
- *   * put the code in context with other code in the input (link symbols)
- *   * once validated, perform CTFE on the code (if all variables are known at compile time)
+ * An error that results from another one. These should not be shown to an end-user because - assuming the compiler
+ * acts as designed - there is another reporting with [Level.ERROR] that describes the root cause.
+ * Use this class only if the consecutive error is sever and will likely cause further issues (e.g. because crucial
+ * information is missing)
  */
-package compiler.parser.postproc
+class ConsecutiveFaultReporting(
+        message: String,
+        sourceLocation: SourceLocation = SourceLocation.UNKNOWN
+) : Reporting(Level.CONSECUTIVE, message, sourceLocation)

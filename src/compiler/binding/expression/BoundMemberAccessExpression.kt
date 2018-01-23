@@ -53,7 +53,7 @@ class BoundMemberAccessExpression(
                 // TODO: set the type of this expression nullable
             }
             else if (!valueType.isNullable && isNullSafeAccess) {
-                reportings.add(Reporting.superfluousNullSafeObjectTraversal(valueExpression, declaration.accessOperatorToken))
+                reportings.add(Reporting.superfluousSafeObjectTraversal(valueExpression, declaration.accessOperatorToken))
             }
         }
 
