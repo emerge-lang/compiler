@@ -1,11 +1,11 @@
 package compiler.parser.postproc
 
 import compiler.matching.AbstractMatchingResult
-import compiler.parser.Reporting
 import compiler.parser.TokenSequence
 import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.RuleMatchingResultImpl
+import compiler.reportings.Reporting
 import compiler.transact.Position
 import compiler.transact.SimpleTransactionalSequence
 import compiler.transact.TransactionalSequence

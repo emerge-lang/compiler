@@ -4,7 +4,7 @@ import compiler.InternalCompilerError
 import compiler.ast.ReturnStatement
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseTypeReference
-import compiler.parser.Reporting
+import compiler.reportings.Reporting
 
 class BoundReturnStatement(
     override val context: CTContext,

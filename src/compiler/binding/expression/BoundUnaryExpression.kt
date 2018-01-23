@@ -9,7 +9,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.filterAndSortByMatchForInvocationTypes
 import compiler.binding.type.BaseTypeReference
 import compiler.lexer.Operator
-import compiler.parser.Reporting
+import compiler.reportings.Reporting
 
 class BoundUnaryExpression(
     override val context: CTContext,

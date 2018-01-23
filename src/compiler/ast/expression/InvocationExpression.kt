@@ -5,7 +5,6 @@ import compiler.ast.Executable
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundInvocationExpression
 import compiler.lexer.SourceLocation
-import compiler.parser.Reporting
 
 class InvocationExpression(
     /**

@@ -2,7 +2,7 @@ package compiler.binding.context
 
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
-import compiler.parser.Reporting
+import compiler.reportings.Reporting
 
 class Module(
     val name: Array<String>,

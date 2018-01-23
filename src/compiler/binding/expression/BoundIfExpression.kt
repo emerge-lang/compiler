@@ -8,7 +8,7 @@ import compiler.binding.type.BaseTypeReference
 import compiler.binding.type.BuiltinBoolean
 import compiler.binding.type.Unit
 import compiler.nullableAnd
-import compiler.parser.Reporting
+import compiler.reportings.Reporting
 
 class BoundIfExpression(
     override val context: CTContext,

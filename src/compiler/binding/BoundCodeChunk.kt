@@ -5,7 +5,7 @@ import compiler.ast.CodeChunk
 import compiler.ast.Executable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseTypeReference
-import compiler.parser.Reporting
+import compiler.reportings.Reporting
 
 class BoundCodeChunk(
     /**

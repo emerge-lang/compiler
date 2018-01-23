@@ -3,7 +3,7 @@ package compiler.ast
 import compiler.binding.context.Module
 import compiler.binding.context.MutableCTContext
 import compiler.binding.context.SoftwareContext
-import compiler.parser.Reporting
+import compiler.reportings.Reporting
 
 /**
  * AST representation of a module

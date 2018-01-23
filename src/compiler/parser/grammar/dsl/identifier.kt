@@ -2,10 +2,10 @@ package compiler.parser.grammar.dsl
 
 import compiler.lexer.*
 import compiler.matching.ResultCertainty
-import compiler.parser.Reporting
 import compiler.parser.TokenSequence
 import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.RuleMatchingResultImpl
+import compiler.reportings.Reporting
 
 /**
  * Matches [IdentifierToken]s, as well as predefined types of [OperatorToken] and [KeywordToken]. This is to be used

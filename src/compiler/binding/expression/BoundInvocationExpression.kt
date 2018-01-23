@@ -6,9 +6,9 @@ import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.context.CTContext
 import compiler.binding.filterAndSortByMatchForInvocationTypes
-import compiler.lexer.IdentifierToken
-import compiler.parser.Reporting
 import compiler.binding.type.BaseTypeReference
+import compiler.lexer.IdentifierToken
+import compiler.reportings.Reporting
 
 class BoundInvocationExpression(
     override val context: CTContext,

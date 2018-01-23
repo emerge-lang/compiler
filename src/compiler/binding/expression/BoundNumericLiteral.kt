@@ -5,7 +5,7 @@ import compiler.ast.expression.NumericLiteralExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseTypeReference
-import compiler.parser.Reporting
+import compiler.reportings.Reporting
 import java.math.BigDecimal
 import java.math.BigInteger
 

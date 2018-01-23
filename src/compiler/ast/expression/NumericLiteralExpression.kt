@@ -6,7 +6,7 @@ import compiler.binding.expression.BoundFloatingPointLiteral
 import compiler.binding.expression.BoundIntegerLiteral
 import compiler.binding.expression.BoundNumericLiteral
 import compiler.lexer.NumericLiteralToken
-import compiler.parser.Reporting
+import compiler.reportings.Reporting
 import java.math.BigDecimal
 import java.math.BigInteger
 

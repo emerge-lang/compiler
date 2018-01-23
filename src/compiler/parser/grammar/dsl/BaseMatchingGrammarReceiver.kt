@@ -5,13 +5,13 @@ import compiler.lexer.Operator
 import compiler.lexer.Token
 import compiler.lexer.TokenType
 import compiler.matching.ResultCertainty
-import compiler.parser.MissingTokenReporting
-import compiler.parser.Reporting
-import compiler.parser.TokenMismatchReporting
 import compiler.parser.TokenSequence
 import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.RuleMatchingResultImpl
+import compiler.reportings.MissingTokenReporting
+import compiler.reportings.Reporting
+import compiler.reportings.TokenMismatchReporting
 
 internal abstract class BaseMatchingGrammarReceiver(internal val input: TokenSequence) : GrammarReceiver {
     /**

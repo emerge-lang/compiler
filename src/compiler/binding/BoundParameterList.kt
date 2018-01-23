@@ -2,7 +2,7 @@ package compiler.binding
 
 import compiler.ast.ParameterList
 import compiler.binding.context.CTContext
-import compiler.parser.Reporting
+import compiler.reportings.Reporting
 
 class BoundParameterList(
     val context: CTContext,

@@ -1,7 +1,7 @@
 package compiler.binding.context
 
 import compiler.InternalCompilerError
-import compiler.parser.Reporting
+import compiler.reportings.Reporting
 import java.util.*
 
 /**

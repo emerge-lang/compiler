@@ -10,7 +10,7 @@ import compiler.binding.type.BaseType
 import compiler.binding.type.BaseTypeReference
 import compiler.binding.type.Unit
 import compiler.nullableOr
-import compiler.parser.Reporting
+import compiler.reportings.Reporting
 
 /**
  * Describes the presence/avaiability of a (class member) function in a context.

@@ -1,8 +1,8 @@
 package compiler.parser.rule
 
 import compiler.matching.ResultCertainty
-import compiler.parser.Reporting
 import compiler.parser.TokenSequence
+import compiler.reportings.Reporting
 
 /**
  * Matches the end of the given token sequence

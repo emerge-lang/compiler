@@ -4,7 +4,7 @@ import compiler.ast.Executable
 import compiler.ast.expression.Expression
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseTypeReference
-import compiler.parser.Reporting
+import compiler.reportings.Reporting
 
 interface BoundExecutable<out ASTType> {
     /**

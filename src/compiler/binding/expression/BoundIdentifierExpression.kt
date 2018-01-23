@@ -7,7 +7,7 @@ import compiler.binding.BoundVariable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseType
 import compiler.binding.type.BaseTypeReference
-import compiler.parser.Reporting
+import compiler.reportings.Reporting
 
 class BoundIdentifierExpression(
     override val context: CTContext,

@@ -9,10 +9,10 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
-import compiler.parser.Reporting
-import compiler.parser.TokenMismatchReporting
 import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
+import compiler.reportings.Reporting
+import compiler.reportings.TokenMismatchReporting
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 import java.util.*

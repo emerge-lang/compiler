@@ -6,7 +6,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BaseTypeReference
-import compiler.parser.Reporting
+import compiler.reportings.Reporting
 
 /**
  * Describes the presence/avaiability of a (class member) variable or (class member) value in a context.

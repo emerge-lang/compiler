@@ -1,7 +1,10 @@
 package compiler.binding.expression
 
 import compiler.ast.Executable
-import compiler.ast.expression.*
+import compiler.ast.expression.BinaryExpression
+import compiler.ast.expression.Expression
+import compiler.ast.expression.InvocationExpression
+import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.FunctionModifier
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
@@ -10,7 +13,7 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.nullableOr
-import compiler.parser.Reporting
+import compiler.reportings.Reporting
 
 class BoundBinaryExpression(
     override val context: CTContext,

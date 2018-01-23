@@ -2,9 +2,9 @@ import compiler.binding.context.SoftwareContext
 import compiler.binding.type.BuiltinType
 import compiler.lexer.SourceContentAwareSourceDescriptor
 import compiler.lexer.lex
-import compiler.parser.Reporting
 import compiler.parser.grammar.Module
 import compiler.parser.toTransactional
+import compiler.reportings.Reporting
 import java.time.Clock
 import java.time.Duration
 

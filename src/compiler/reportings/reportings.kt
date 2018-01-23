@@ -1,4 +1,4 @@
-package compiler.parser
+package compiler.reportings
 
 import compiler.InternalCompilerError
 import compiler.ast.Executable
@@ -36,7 +36,7 @@ open class Reporting(
     fun toException(): ReportingException = ReportingException(this)
 
     fun <T> toErrorResult(certainty: ResultCertainty = ResultCertainty.DEFINITIVE): RuleMatchingResult<T>
-            = SimpleMatchingResult<T,Reporting>(certainty, null, this)
+            = SimpleMatchingResult<T, Reporting>(certainty, null, this)
 
     open override fun toString() = "($level) $message".indentByFromSecondLine(2) + "\nin $sourceLocation"
 
@@ -93,7 +93,8 @@ open class Reporting(
         }
 
         fun typeMismatch(targetType: BaseTypeReference, validatedType: BaseTypeReference)
-            = typeMismatch(targetType, validatedType, validatedType.original.declaringNameToken?.sourceLocation ?: SourceLocation.UNKNOWN)
+            = typeMismatch(targetType, validatedType, validatedType.original.declaringNameToken?.sourceLocation
+            ?: SourceLocation.UNKNOWN)
 
         fun returnTypeMismatch(expectedReturnType: BaseTypeReference, validatedType: BaseTypeReference, sL: SourceLocation): Reporting {
             if (validatedType isAssignableTo expectedReturnType) throw InternalCompilerError("wtf?!")
@@ -149,8 +150,8 @@ open class Reporting(
          */
         fun unsafeObjectTraversal(nullableExpression: BoundExpression<*>, faultyAccessOperator: OperatorToken): Reporting {
             return error("Receiver expression could evaluate to null (type is ${nullableExpression.type}). " +
-                    "Assert non null (operator ${Operator.NOTNULL.text}) or use the safe object traversal operator ${Operator.SAFEDOT.text}",
-                    faultyAccessOperator)
+                "Assert non null (operator ${Operator.NOTNULL.text}) or use the safe object traversal operator ${Operator.SAFEDOT.text}",
+                faultyAccessOperator)
         }
 
         /**

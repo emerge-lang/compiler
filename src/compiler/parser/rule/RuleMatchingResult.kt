@@ -3,7 +3,7 @@ package compiler.parser.rule
 import compiler.matching.AbstractMatchingResult
 import compiler.matching.ResultCertainty
 import compiler.matching.SimpleMatchingResult
-import compiler.parser.Reporting
+import compiler.reportings.Reporting
 
 typealias RuleMatchingResult<ItemType> = AbstractMatchingResult<ItemType, Reporting>
 

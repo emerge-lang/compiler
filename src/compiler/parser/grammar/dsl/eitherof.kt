@@ -3,10 +3,10 @@ package compiler.parser.grammar.dsl
 import compiler.InternalCompilerError
 import compiler.lexer.TokenType
 import compiler.matching.ResultCertainty
-import compiler.parser.Reporting
 import compiler.parser.TokenSequence
 import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.RuleMatchingResultImpl
+import compiler.reportings.Reporting
 import textutils.indentByFromSecondLine
 
 internal fun tryMatchEitherOf(matcherFn: Grammar, input: TokenSequence, mismatchCertainty: ResultCertainty): RuleMatchingResult<*> {

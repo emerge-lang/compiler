@@ -1,12 +1,12 @@
 package compiler.parser.grammar.dsl
 
 import compiler.matching.ResultCertainty
-import compiler.parser.Reporting
 import compiler.parser.TokenSequence
 import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.RuleMatchingResultImpl
 import compiler.parser.rule.hasErrors
+import compiler.reportings.Reporting
 
 internal fun <T> tryMatchRepeating(rule: Rule<T>, amount: IntRange, input: TokenSequence): RuleMatchingResult<List<RuleMatchingResult<T>>> {
     input.mark()

@@ -8,7 +8,7 @@ import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundMemberAccessExpression
 import compiler.nullableOr
-import compiler.parser.Reporting
+import compiler.reportings.Reporting
 
 class BoundAssignmentStatement(
     override val context: CTContext,

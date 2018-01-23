@@ -1,6 +1,6 @@
 package compiler.binding
 
-import compiler.parser.Reporting
+import compiler.reportings.Reporting
 
 /**
  * Assists elements with semantic analysis methods in managing the state of the analysis:
