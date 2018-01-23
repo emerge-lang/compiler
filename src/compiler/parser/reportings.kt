@@ -177,7 +177,7 @@ open class Reporting(
         }
 
         fun functionIsNotGuaranteedToTerminate(function: BoundFunction) =
-            error("Function ${function.fullyQualifiedName} does not terminate (return or throw) on all of its possible execution paths.", function.declaredAt)
+            error("Function ${function.fullyQualifiedName} does not terminate (return or throw) on all possible execution paths.", function.declaredAt)
 
         fun conditionIsNotBoolean(condition: BoundExpression<*>, location: SourceLocation): Reporting {
             if (condition.type == null) {

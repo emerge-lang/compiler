@@ -188,7 +188,7 @@ class BoundFunction(
             // assure all paths return or throw
             val isGuaranteedToTerminate = code.isGuaranteedToReturn nullableOr code.isGuaranteedToThrow
             if (isGuaranteedToTerminate == null) {
-                throw InternalCompilerError("Could not determine whether function $this returns or throws on all executions paths")
+                throw InternalCompilerError("Could not determine whether function $this terminates on all executions paths")
             }
 
             if (!isGuaranteedToTerminate) {
