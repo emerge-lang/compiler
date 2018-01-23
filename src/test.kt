@@ -5,6 +5,8 @@ import compiler.lexer.lex
 import compiler.parser.Reporting
 import compiler.parser.grammar.Module
 import compiler.parser.toTransactional
+import java.time.Clock
+import java.time.Duration
 
 val testCode = """module testcode
 
@@ -17,6 +19,9 @@ fun a() -> Int {
 
 fun main(args: Array<String>) {
     // setup context
+    val measureClock = Clock.systemUTC()
+    val startedAt = measureClock.instant()
+
     val swCtx = SoftwareContext()
     val builtinsModule = BuiltinType.getNewModule()
     builtinsModule.context.swCtx = swCtx
@@ -29,11 +34,13 @@ fun main(args: Array<String>) {
 
     val tokens = lex(testCode, source)
     val transactionalTokenSequence = tokens.toTransactional(source.toLocation(1, 1))
+    val sourceInMemoryAt = measureClock.instant()
+    println("Source in memory after ${Duration.between(startedAt, sourceInMemoryAt)}")
 
     val matched = Module.tryMatch(transactionalTokenSequence)
-
-    println("certainty = ${matched.certainty}")
-    println("item = ${matched.item}")
+    val lexicalCompleteAt = measureClock.instant()
+    println("Lexical analysis complete after ${Duration.between(startedAt, lexicalCompleteAt)}"
+        + " (took ${Duration.between(sourceInMemoryAt, lexicalCompleteAt)})")
 
     println()
     println("Reportings:")
@@ -41,6 +48,9 @@ fun main(args: Array<String>) {
 
     matched.reportings.forEach { println(it); println(); println() }
 
+    println("---")
+    println()
+    println()
 
     if (matched.reportings.containsErrors) {
         return
@@ -49,7 +59,16 @@ fun main(args: Array<String>) {
     val parsedASTModule = matched.item!!
 
     swCtx.addModule(parsedASTModule.bindTo(swCtx))
-    swCtx.doSemanticAnalysis().forEach { println(it); println(); println() }
+    val semanticResults = swCtx.doSemanticAnalysis()
+    val semanticCompleteAt = measureClock.instant()
+    println("Semantic analysis complete after ${Duration.between(startedAt, semanticCompleteAt)}"
+        + " (took ${Duration.between(lexicalCompleteAt, semanticCompleteAt)})")
+
+    println()
+    println("Reportings:")
+    println()
+
+    semanticResults.forEach { println(it); println(); println() }
 
     println("---")
 }
