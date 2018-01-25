@@ -20,6 +20,8 @@ package compiler.reportings
 
 import compiler.InternalCompilerError
 import compiler.ast.Executable
+import compiler.ast.FunctionDeclaration
+import compiler.ast.VariableDeclaration
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeReference
@@ -78,8 +80,30 @@ abstract class Reporting internal constructor(
         fun returnTypeMismatch(expectedReturnType: BaseTypeReference, returnedType: BaseTypeReference, location: SourceLocation)
             = ReturnTypeMismatchReporting(expectedReturnType, returnedType, location)
 
-        fun undefinedIdentifier(expr: IdentifierExpression): Reporting
+        fun undefinedIdentifier(expr: IdentifierExpression)
             = UndefinedIdentifierReporting(expr)
+
+        /**
+         * @param acceptedDeclaration The declaration that is accepted by the compiler as the first / actual one
+         * @param additionalDeclaration The erroneous declaration; is rejected (instead of accepted)
+         */
+        fun variableDeclaredMoreThanOnce(acceptedDeclaration: VariableDeclaration, additionalDeclaration: VariableDeclaration): Reporting
+            = MultipleVariableDeclarationsReporting(acceptedDeclaration, additionalDeclaration)
+
+        fun erroneousLiteralExpression(message: String, location: SourceLocation)
+            = ErroneousLiteralExpressionReporting(message, location)
+
+        fun illegalAssignment(message: String, assignmentStatement: BoundAssignmentStatement)
+            = IllegalAssignmentReporting(message, assignmentStatement)
+
+        fun illegalFunctionBody(function: FunctionDeclaration)
+            = IllegalFunctionBodyReporting(function)
+
+        fun missingFunctionBody(function: FunctionDeclaration)
+            = MissingFunctionBodyReporting(function)
+
+        fun inefficientModifiers(message: String, location: SourceLocation)
+            = ModifierInefficiencyReporting(message, location)
 
         fun unresolvableFunction(expr: BoundInvocationExpression): Reporting {
             // if the receiver type could not be inferred, this is might be a consecutive error

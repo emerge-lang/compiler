@@ -54,7 +54,7 @@ class ASTModule {
             }
             else {
                 // variable double-declared
-                reportings.add(Reporting.error("Variable ${declaredVariable.name.value} has already been defined in ${existingVariable.declaration.declaredAt.fileLineColumnText}", declaredVariable.name))
+                reportings.add(Reporting.variableDeclaredMoreThanOnce(existingVariable.declaration, declaredVariable))
             }
         }
 

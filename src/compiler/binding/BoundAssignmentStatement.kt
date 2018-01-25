@@ -67,17 +67,17 @@ class BoundAssignmentStatement(
                 targetVariable = targetExpression.referredVariable!!
 
                 if (!targetVariable!!.isAssignable) {
-                    reportings.add(Reporting.error("Cannot assign to value / final variable ${targetVariable!!.name}", declaration.sourceLocation))
+                    reportings.add(Reporting.illegalAssignment("Cannot assign to value / final variable ${targetVariable!!.name}", this))
                 }
             }
             else {
-                reportings += Reporting.error("Cannot assign a value to a type", declaration.sourceLocation)
+                reportings += Reporting.illegalAssignment("Cannot assign a value to a type", this)
             }
         }
         else if (targetExpression is BoundMemberAccessExpression) {
         }
         else {
-            reportings += Reporting.error("Cannot assign to this target", declaration.targetExpression.sourceLocation)
+            reportings += Reporting.illegalAssignment("Cannot assign to this target", this)
         }
 
         return reportings

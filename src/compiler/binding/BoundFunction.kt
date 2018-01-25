@@ -132,15 +132,15 @@ class BoundFunction(
         // modifiers
         if (FunctionModifier.EXTERNAL in modifiers) {
             if (code != null) {
-                reportings.add(Reporting.error("Functions declared as external must not declare a function body.", declaredAt))
+                reportings.add(Reporting.illegalFunctionBody(declaration))
             }
         }
         else if (code == null) {
-            reportings.add(Reporting.error("No function body specified. Declare the function as external or declare a body.", declaredAt))
+            reportings.add(Reporting.missingFunctionBody(declaration))
         }
 
         if (FunctionModifier.PURE in modifiers && FunctionModifier.READONLY in modifiers) {
-            reportings.add(Reporting.info("The modifier readonly is superfluous: the function is also pure and pure implies readonly.", declaredAt))
+            reportings.add(Reporting.inefficientModifiers("The modifier readonly is superfluous: the function is also pure and pure implies readonly.", declaredAt))
         }
 
         // parameters
