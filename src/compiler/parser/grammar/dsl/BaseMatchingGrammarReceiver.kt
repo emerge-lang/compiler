@@ -80,7 +80,7 @@ internal abstract class BaseMatchingGrammarReceiver(internal val input: TokenSeq
                 ResultCertainty.NOT_RECOGNIZED,
                 null,
                 setOf(
-                    Reporting.error("Unexpected EOI, expecting $type token", input.currentSourceLocation)
+                    Reporting.unexpectedEOI(type.toString(), input.currentSourceLocation)
                 )
             ))
             return
@@ -103,9 +103,7 @@ internal abstract class BaseMatchingGrammarReceiver(internal val input: TokenSeq
             handleResult(RuleMatchingResultImpl(
                 ResultCertainty.NOT_RECOGNIZED,
                 null,
-                setOf(
-                    Reporting.error("Unexpected $token, expecting $type", token)
-                )
+                setOf(Reporting.parsingError("Expected $type but found $token", token.sourceLocation))
             ))
             return
         }

@@ -32,7 +32,7 @@ class EOIRule private constructor() : Rule<TokenSequence> {
             return RuleMatchingResultImpl(
                 ResultCertainty.DEFINITIVE,
                 null,
-                setOf(Reporting.error("Unexpected ${input.peek()!!.toStringWithoutLocation()}, expecting $descriptionOfAMatchingThing", input.peek()!!))
+                setOf(Reporting.parsingError("Unexpected ${input.peek()!!.toStringWithoutLocation()}, expecting $descriptionOfAMatchingThing", input.peek()!!.sourceLocation))
             )
         }
         else {

@@ -43,7 +43,7 @@ fun ImportPostprocessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<ImportDec
         { it is TokenMismatchReporting && it.expected == OperatorToken(Operator.DOT) && it.actual == OperatorToken(Operator.NEWLINE) },
         { _it ->
             val it = _it as TokenMismatchReporting
-            Reporting.Companion.error("${it.message}; To import all exports of the module write module.*", it.actual)
+            Reporting.parsingError("${it.message}; To import all exports of the module write module.*", it.actual.sourceLocation)
         }
     )
     .flatten()

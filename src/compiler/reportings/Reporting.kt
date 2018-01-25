@@ -75,6 +75,12 @@ abstract class Reporting internal constructor(
         fun unknownType(erroneousRef: TypeReference)
             = UnknownTypeReporting(erroneousRef)
 
+        fun parsingError(message: String, location: SourceLocation)
+            = ParsingErrorReporting(message, location)
+
+        fun unsupported(message: String, location: SourceLocation)
+            = UnsupportedFeatureReporting(message, location)
+
         fun typeMismatch(targetType: BaseTypeReference, sourceType: BaseTypeReference, location: SourceLocation)
             = TypeMismatchReporting(targetType, sourceType, location)
 

@@ -43,10 +43,12 @@ internal fun tryMatchEitherOf(matcherFn: Grammar, input: TokenSequence, mismatch
         return RuleMatchingResultImpl(
             mismatchCertainty,
             null,
-            setOf(Reporting.error(
-                "Unexpected ${input.peek()?.toStringWithoutLocation() ?: "end of input"}, expected ${describeEitherOfGrammar(matcherFn)}",
-                input.currentSourceLocation
-            ))
+            setOf(
+                Reporting.parsingError(
+                    "Unexpected ${input.peek()?.toStringWithoutLocation() ?: "end of input"}, expected ${describeEitherOfGrammar(matcherFn)}",
+                    input.currentSourceLocation
+                )
+            )
         )
     }
     catch (ex: SuccessfulMatchException) {

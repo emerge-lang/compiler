@@ -70,7 +70,7 @@ internal fun tryMatchIdentifier(input: TokenSequence, acceptedOperators: Collect
     return RuleMatchingResultImpl(
         ResultCertainty.DEFINITIVE,
         null,
-        setOf(Reporting.error("Unexpected ${token.toStringWithoutLocation()}, expecting ${describeIdentifier(acceptedOperators, acceptedKeywords)}", token))
+        setOf(Reporting.parsingError("Unexpected ${token.toStringWithoutLocation()}, expecting ${describeIdentifier(acceptedOperators, acceptedKeywords)}", token.sourceLocation))
     )
 }
 

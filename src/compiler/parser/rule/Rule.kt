@@ -78,7 +78,7 @@ interface Rule<T> : Matcher<TokenSequence,T, Reporting> {
                         ResultCertainty.NOT_RECOGNIZED,
                         null,
                         setOf(
-                            Reporting.error("Expected token of type $type, found nothing", input.currentSourceLocation)
+                            Reporting.unexpectedEOI("token of type $type", input.currentSourceLocation)
                         )
                     )
                 }
@@ -100,7 +100,7 @@ interface Rule<T> : Matcher<TokenSequence,T, Reporting> {
                         ResultCertainty.NOT_RECOGNIZED,
                         null,
                         setOf(
-                                Reporting.error("Expected token of type $type, found $token", token)
+                                Reporting.parsingError("Expected token of type $type, found $token", token.sourceLocation)
                         )
                     )
                 }

@@ -66,7 +66,7 @@ open class BaseTypeReference(
                 val origMod = original.modifier?.toString()?.toLowerCase()
                 val baseMod = baseType.impliedModifier?.toString()?.toLowerCase()
 
-                reportings.add(Reporting.error(
+                reportings.add(Reporting.modifierError(
                     "Cannot reference ${baseType.fullyQualifiedName} as $origMod; " +
                     "modifier $origMod is not assignable to the implied modifier $baseMod of ${baseType.simpleName}",
                     original.declaringNameToken?.sourceLocation ?: SourceLocation.UNKNOWN

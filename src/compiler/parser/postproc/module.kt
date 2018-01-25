@@ -50,8 +50,8 @@ private fun toAST_Module(inResult: RuleMatchingResult<TransactionalSequence<Any,
         if (declaration is ModuleDeclaration) {
             if (astModule.selfDeclaration == null) {
                 if (index != 0) {
-                    reportings.add(Reporting.error(
-                        "The module declaration must be the leftHandSide declaration in the source file",
+                    reportings.add(Reporting.parsingError(
+                        "The module declaration must be the first declaration in the source file",
                         declaration.declaredAt
                     ))
                 }
@@ -59,7 +59,7 @@ private fun toAST_Module(inResult: RuleMatchingResult<TransactionalSequence<Any,
                 astModule.selfDeclaration = declaration
             }
             else {
-                reportings.add(Reporting.error(
+                reportings.add(Reporting.parsingError(
                     "Duplicate module declaration",
                     declaration.declaredAt
                 ))
@@ -75,7 +75,7 @@ private fun toAST_Module(inResult: RuleMatchingResult<TransactionalSequence<Any,
             astModule.functions.add(declaration)
         }
         else {
-            reportings.add(Reporting.error(
+            reportings.add(Reporting.unsupported(
                 "Unsupported declaration $declaration",
                 declaration.declaredAt
             ))
@@ -83,7 +83,7 @@ private fun toAST_Module(inResult: RuleMatchingResult<TransactionalSequence<Any,
     }
 
     if (astModule.selfDeclaration == null) {
-        reportings.add(Reporting.error("No module declaration found.", (input.items.getOrNull(0) as Declaration?)?.declaredAt ?: SourceLocation.UNKNOWN))
+        reportings.add(Reporting.parsingError("No module declaration found.", (input.items.getOrNull(0) as Declaration?)?.declaredAt ?: SourceLocation.UNKNOWN))
     }
 
     // default import dotlin.lang.*

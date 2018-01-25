@@ -72,7 +72,7 @@ internal fun <T> tryMatchRepeating(rule: Rule<T>, amount: IntRange, input: Token
             lastResult.reportings
         }
         else {
-            setOf(Reporting.error(
+            setOf(Reporting.parsingError(
                 "Expected at least ${amount.first.wordifyEN} ${rule.descriptionOfAMatchingThing} but found only ${results.size.wordifyEN}",
                 input.currentSourceLocation
             ))
