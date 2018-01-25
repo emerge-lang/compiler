@@ -87,7 +87,7 @@ class BoundIdentifierExpression(
                 referredType = ReferredType.VARIABLE
             }
             else {
-                reportings.add(Reporting.error("Cannot resolve variable $identifier", declaration.sourceLocation))
+                reportings.add(Reporting.undefinedIdentifier(declaration, "Cannot resolve variable $identifier"))
             }
         }
 

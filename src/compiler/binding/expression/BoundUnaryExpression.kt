@@ -70,7 +70,7 @@ class BoundUnaryExpression(
         operatorFunction = receiverOperatorFuns.firstOrNull()
 
         if (operatorFunction == null) {
-            reportings.add(Reporting.error("Unary operator $operator (function $opFunName) not declared for type $valueType", declaration.sourceLocation))
+            reportings.add(Reporting.operatorNotDeclared("Unary operator $operator (function $opFunName) not declared for type $valueType", declaration))
         }
 
         return reportings

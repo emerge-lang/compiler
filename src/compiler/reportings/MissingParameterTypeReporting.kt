@@ -18,13 +18,10 @@
 
 package compiler.reportings
 
-import compiler.ast.expression.IdentifierExpression
+import compiler.ast.VariableDeclaration
 
-/**
- * Reported when the identifier [expr] is used but it is not defined at that point.
- */
-class UndefinedIdentifierReporting(expr: IdentifierExpression, messageOverride: String? = null) : Reporting(
+class MissingParameterTypeReporting(val parameter: VariableDeclaration) : Reporting(
     Level.ERROR,
-    messageOverride ?: "Identifier ${expr.identifier} is not defined.",
-    expr.sourceLocation
+    "The type of parameter ${parameter.name} must be explicitly declared.",
+    parameter.sourceLocation
 )

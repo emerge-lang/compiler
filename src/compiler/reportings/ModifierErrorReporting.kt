@@ -18,13 +18,14 @@
 
 package compiler.reportings
 
-import compiler.ast.expression.IdentifierExpression
+import compiler.lexer.SourceLocation
 
 /**
- * Reported when the identifier [expr] is used but it is not defined at that point.
+ * Reported on generic modifier *errors*, e.g. when
+ * * incompatible modifiers are present (declared or implicit) on the same element, e.g. the type `mutable Int`:
+ *   explicit `mutable` is not compatible with implicit `immutable`
  */
-class UndefinedIdentifierReporting(expr: IdentifierExpression, messageOverride: String? = null) : Reporting(
-    Level.ERROR,
-    messageOverride ?: "Identifier ${expr.identifier} is not defined.",
-    expr.sourceLocation
-)
+class ModifierErrorReporting(
+    message: String,
+    location: SourceLocation
+) : Reporting(Level.ERROR, message, location)

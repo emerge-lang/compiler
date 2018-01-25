@@ -67,7 +67,7 @@ class BoundBinaryExpression(
         val opFn = hiddenInvocation.dispatchedFunction
         if (opFn != null) {
             if (FunctionModifier.OPERATOR !in opFn.modifiers) {
-                reportings.add(Reporting.error("Function $opFn is missing the operator modifier", declaration.sourceLocation))
+                reportings.add(Reporting.modifierError("Function $opFn cannot be used as an operator: the operator modifier is missing", declaration.sourceLocation))
             }
         }
 

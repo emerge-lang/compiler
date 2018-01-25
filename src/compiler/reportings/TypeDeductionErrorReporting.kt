@@ -18,13 +18,10 @@
 
 package compiler.reportings
 
-import compiler.ast.expression.IdentifierExpression
+import compiler.lexer.SourceLocation
 
-/**
- * Reported when the identifier [expr] is used but it is not defined at that point.
- */
-class UndefinedIdentifierReporting(expr: IdentifierExpression, messageOverride: String? = null) : Reporting(
-    Level.ERROR,
-    messageOverride ?: "Identifier ${expr.identifier} is not defined.",
-    expr.sourceLocation
-)
+/** Reported when a type cannot be inferred. */
+class TypeDeductionErrorReporting(
+    message: String,
+    location: SourceLocation
+) : Reporting(Level.ERROR, message, location)

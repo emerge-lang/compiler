@@ -18,13 +18,10 @@
 
 package compiler.reportings
 
-import compiler.ast.expression.IdentifierExpression
+import compiler.ast.expression.Expression
 
-/**
- * Reported when the identifier [expr] is used but it is not defined at that point.
- */
-class UndefinedIdentifierReporting(expr: IdentifierExpression, messageOverride: String? = null) : Reporting(
+class OperatorNotDeclaredReporting(message: String, val expression: Expression<*>) : Reporting(
     Level.ERROR,
-    messageOverride ?: "Identifier ${expr.identifier} is not defined.",
-    expr.sourceLocation
+    message,
+    expression.sourceLocation
 )

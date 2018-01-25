@@ -18,6 +18,7 @@
 
 package compiler.binding
 
+import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 
 /**
@@ -42,7 +43,7 @@ class SemanticAnalysisPhaseState {
      */
     fun synchronize(code: () -> Collection<Reporting>): Collection<Reporting> {
         if (executing) {
-            return setOf(Reporting.semanticRecursion("Semantic recursion... i dont know how to get good error info in here yet..."))
+            return setOf(Reporting.semanticRecursion("Semantic recursion... i dont know how to get good error info in here yet...", SourceLocation.UNKNOWN))
         }
 
         if (result != null) {

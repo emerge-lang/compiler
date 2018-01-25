@@ -22,6 +22,7 @@ import compiler.InternalCompilerError
 import compiler.ast.Executable
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
+import compiler.ast.expression.Expression
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeReference
@@ -80,15 +81,21 @@ abstract class Reporting internal constructor(
         fun returnTypeMismatch(expectedReturnType: BaseTypeReference, returnedType: BaseTypeReference, location: SourceLocation)
             = ReturnTypeMismatchReporting(expectedReturnType, returnedType, location)
 
-        fun undefinedIdentifier(expr: IdentifierExpression)
-            = UndefinedIdentifierReporting(expr)
+        fun undefinedIdentifier(expr: IdentifierExpression, messageOverride: String? = null)
+            = UndefinedIdentifierReporting(expr, messageOverride)
 
         /**
          * @param acceptedDeclaration The declaration that is accepted by the compiler as the first / actual one
          * @param additionalDeclaration The erroneous declaration; is rejected (instead of accepted)
          */
-        fun variableDeclaredMoreThanOnce(acceptedDeclaration: VariableDeclaration, additionalDeclaration: VariableDeclaration): Reporting
+        fun variableDeclaredMoreThanOnce(acceptedDeclaration: VariableDeclaration, additionalDeclaration: VariableDeclaration)
             = MultipleVariableDeclarationsReporting(acceptedDeclaration, additionalDeclaration)
+
+        fun parameterDeclaredMoreThanOnce(firstDeclaration: VariableDeclaration, additionalDeclaration: VariableDeclaration)
+            = MultipleParameterDeclarationsReporting(firstDeclaration, additionalDeclaration)
+
+        fun parameterTypeNotDeclared(declaration: VariableDeclaration)
+            = MissingParameterTypeReporting(declaration)
 
         fun erroneousLiteralExpression(message: String, location: SourceLocation)
             = ErroneousLiteralExpressionReporting(message, location)
@@ -120,6 +127,15 @@ abstract class Reporting internal constructor(
 
         fun semanticRecursion(message: String, location: SourceLocation)
             = SemanticRecursionReporting(message, location)
+
+        fun typeDeductionError(message: String, location: SourceLocation)
+            = TypeDeductionErrorReporting(message, location)
+
+        fun modifierError(message: String, location: SourceLocation)
+            = ModifierErrorReporting(message, location)
+
+        fun operatorNotDeclared(message: String, expression: Expression<*>)
+            = OperatorNotDeclaredReporting(message, expression)
 
         /**
          * An expression is used in a way that requires it to be non-null but the type of the expression is nullable.

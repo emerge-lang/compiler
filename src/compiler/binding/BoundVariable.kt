@@ -59,7 +59,7 @@ class BoundVariable(
         // type-related stuff
         // unknown type
         if (declaration.initializerExpression == null && declaration.type == null) {
-            reportings.add(Reporting.error("Cannot determine type of $selfType $name; neither type nor initializer is specified.", declaration.declaredAt))
+            reportings.add(Reporting.typeDeductionError("Cannot determine type of $selfType $name; neither type nor initializer is specified.", declaration.declaredAt))
         }
 
         // cannot resolve declared type
@@ -106,7 +106,7 @@ class BoundVariable(
             val assignExprTypeImpliedModifier = assignExprBaseType?.impliedModifier
             if (typeModifier != null && assignExprTypeImpliedModifier != null) {
                 if (!(assignExprTypeImpliedModifier isAssignableTo typeModifier)) {
-                    reportings.add(Reporting.error("Modifier $typeModifier not applicable to implied modifier $assignExprTypeImpliedModifier of $assignExprBaseType", declaration.declaredAt))
+                    reportings.add(Reporting.modifierError("Modifier $typeModifier not applicable to implied modifier $assignExprTypeImpliedModifier of $assignExprBaseType", declaration.declaredAt))
                 }
             }
         }
