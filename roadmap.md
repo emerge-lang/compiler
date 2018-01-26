@@ -14,7 +14,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 7. ~~return type checking~~
 8. ~~Parser Refactoring~~
    1. ~~Execute rule on match, not on construction time for easier debugging~~
-9. Reportings object model for accurate detection in tests
+9. ~~Reportings object model for accurate detection in tests~~
 10. Test suite for all existing code
 11. Parser Refactoring
    2. fallbacks: define simple logic to parse until ... when a sub-rule fails; e.g.:
