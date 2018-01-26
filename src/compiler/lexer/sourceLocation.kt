@@ -66,6 +66,24 @@ open class SourceLocation(
     open fun minusChars(n: Int): SourceLocation = SourceLocation(sD, sourceLine, sourceColumn - n + 1)
 
     override fun toString() = illustrate()
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is SourceLocation) return false
+
+        if (sD != other.sD) return false
+        if (sourceLine != other.sourceLine) return false
+        if (sourceColumn != other.sourceColumn) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = sD.hashCode()
+        result = 31 * result + sourceLine
+        result = 31 * result + sourceColumn
+        return result
+    }
+
 
     companion object {
         val UNKNOWN: SourceLocation = object : SourceLocation(
@@ -147,4 +165,9 @@ class PathSourceDescriptor(val path: Path) : SourceContentAwareSourceDescriptor(
     override val sourceLocation = path.toString()
 
     override val sourceLines: List<String> by lazy { Files.readAllLines(path) }
+}
+
+class SimpleSourceDescriptor(val sourceFileName: String) : SourceDescriptor {
+    override val sourceLocation: String
+        get() = sourceFileName
 }
