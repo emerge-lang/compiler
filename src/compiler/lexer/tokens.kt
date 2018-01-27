@@ -46,22 +46,22 @@ enum class Keyword(val text: String)
     RETURN("return")
 }
 
-enum class Operator(val text: String)
+enum class Operator(val text: String, private val _humanReadableName: String? = null)
 {
     // ORDER IS VERY IMPORTANT
     // e.g. if + was before +=, += would never get recognized as such (but rather as separate + and =)
 
-    PARANT_OPEN  ("("),
-    PARANT_CLOSE (")"),
-    CBRACE_OPEN  ("{"),
-    CBRACE_CLOSE ("}"),
-    DOT          ("."),
+    PARANT_OPEN  ("(", "left parenthesis"),
+    PARANT_CLOSE (")", "right parenthesis"),
+    CBRACE_OPEN  ("{", "left curly brace"),
+    CBRACE_CLOSE ("}", "right curly brace"),
+    DOT          (".", "dot"),
     SAFEDOT      ("?."),
     TIMES        ("*"),
-    COMMA        (","),
+    COMMA        (",", "comma"),
     SEMICOLON    (";"),
-    COLON        (":"),
-    NEWLINE      ("\n"),
+    COLON        (":", "colon"),
+    NEWLINE      ("\n", "newline"),
     RETURNS      ("->"),
     PLUS         ("+"),
     MINUS        ("-"),
@@ -75,12 +75,16 @@ enum class Operator(val text: String)
     LESS_THAN_OR_EQUALS("<="),
     GREATER_THAN (">"),
     LESS_THAN    ("<"),
-    TRYCAST      ("as?"),
-    CAST         ("as"),
-    ELVIS        ("?:"),
+    TRYCAST      ("as?", "safe cast"),
+    CAST         ("as", "cast"),
+    ELVIS        ("?:", "elvis operator"),
     QUESTION_MARK("?"),
     NOTNULL      ("!!"), // find a better name for this...
-    NEGATE       ("!")
+    NEGATE       ("!", "negation");
+
+    /** A human readable name of this operator; if none was specified, falls back to `"operator $text"` */
+    val humanReadableName: String
+        get() = this._humanReadableName ?: "operator $text"
 }
 
 val DECIMAL_SEPARATOR: Char = '.'
@@ -136,7 +140,13 @@ class OperatorToken(
 ) : Token() {
     override val type = TokenType.OPERATOR
 
-    override fun toStringWithoutLocation() = type.name + " " + operator.name
+    override fun toStringWithoutLocation(): String {
+        return if (operator == Operator.NEWLINE) {
+            "newline"
+        } else {
+            operator.humanReadableName
+        }
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
