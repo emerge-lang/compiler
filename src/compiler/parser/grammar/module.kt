@@ -26,6 +26,7 @@ import compiler.parser.grammar.dsl.postprocess
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.postproc.ImportPostprocessor
 import compiler.parser.postproc.ModuleDeclarationPostProcessor
+import compiler.parser.postproc.ModulePostProcessor
 
 val ModuleDeclaration = sequence {
     keyword(Keyword.MODULE)
@@ -61,3 +62,19 @@ val ImportDeclaration = sequence {
 }
     .describeAs("import declaration")
     .postprocess(::ImportPostprocessor)
+val Module = sequence {
+    certainty = ResultCertainty.MATCHED
+    atLeast(0) {
+        optionalWhitespace()
+        eitherOf(mismatchCertainty = ResultCertainty.DEFINITIVE) {
+            ref(ModuleDeclaration)
+            ref(ImportDeclaration)
+            ref(VariableDeclaration)
+            ref(StandaloneFunctionDeclaration)
+            endOfInput()
+        }
+        certainty = ResultCertainty.DEFINITIVE
+    }
+}
+    .describeAs("module")
+    .postprocess(::ModulePostProcessor)
