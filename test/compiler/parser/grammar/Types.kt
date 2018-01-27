@@ -22,13 +22,16 @@ import com.natpryce.hamkrest.assertion.assertThat
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.greaterThanOrEqualTo
 import com.natpryce.hamkrest.isEmpty
+import compiler.lexer.Keyword.IMMUTABLE
+import compiler.lexer.Keyword.MUTABLE
+import compiler.lexer.Operator.QUESTION_MARK
 import compiler.matching.ResultCertainty
 import matchers.isNotNull
 import matchers.isNull
 
 class TypesGrammarTest : GrammarTestCase() {init {
     "simple" {
-        val result = Type.tryMatch(lex("Typename"))
+        val result = tokenSequence { identifier("Typename") }.matchAgainst(Type)
 
         assertThat(result.certainty, greaterThanOrEqualTo(ResultCertainty.MATCHED))
         assertThat(result.item, isNotNull)
@@ -41,7 +44,10 @@ class TypesGrammarTest : GrammarTestCase() {init {
     }
 
     "nullable" {
-        val result = Type.tryMatch(lex("Typename?"))
+        val result = tokenSequence {
+            identifier("Typename")
+            operator(QUESTION_MARK)
+        }.matchAgainst(Type)
 
         assertThat(result.certainty, greaterThanOrEqualTo(ResultCertainty.MATCHED))
         assertThat(result.item, isNotNull)
@@ -54,7 +60,10 @@ class TypesGrammarTest : GrammarTestCase() {init {
     }
 
     "modified" {
-        val result = Type.tryMatch(lex("immutable Typename"))
+        val result = tokenSequence {
+            keyword(IMMUTABLE)
+            identifier("Typename")
+        }.matchAgainst(Type)
 
         assertThat(result.certainty, greaterThanOrEqualTo(ResultCertainty.MATCHED))
         assertThat(result.item, isNotNull)
@@ -67,7 +76,11 @@ class TypesGrammarTest : GrammarTestCase() {init {
     }
 
     "modified nullable" {
-        val result = Type.tryMatch(lex("mutable Typename?"))
+        val result = tokenSequence {
+            keyword(MUTABLE)
+            identifier("Typename")
+            operator(QUESTION_MARK)
+        }.matchAgainst(Type)
 
         assertThat(result.certainty, greaterThanOrEqualTo(ResultCertainty.MATCHED))
         assertThat(result.item, isNotNull)

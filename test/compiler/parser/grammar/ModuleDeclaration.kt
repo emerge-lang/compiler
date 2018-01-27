@@ -20,6 +20,8 @@ package compiler.parser.grammar
 
 import com.natpryce.hamkrest.*
 import com.natpryce.hamkrest.assertion.assertThat
+import compiler.lexer.Keyword.MODULE
+import compiler.lexer.Operator.DOT
 import compiler.matching.ResultCertainty
 import compiler.parser.rule.hasErrors
 import matchers.isNotNull
@@ -27,8 +29,11 @@ import matchers.isNull
 
 class ModuleDeclarationGrammarTest : GrammarTestCase() { init {
     "singleName" {
-        val tokens = lex("module foobar\n")
-        val result = ModuleDeclaration.tryMatch(tokens)
+        val result = tokenSequence {
+            keyword(MODULE)
+            identifier("foobar")
+            newline()
+        }.matchAgainst(ModuleDeclaration)
 
         assertThat(result.certainty, greaterThanOrEqualTo(ResultCertainty.MATCHED))
         assertThat(result.item, isNotNull)
@@ -39,8 +44,13 @@ class ModuleDeclarationGrammarTest : GrammarTestCase() { init {
     }
 
     "twoNames" {
-        val tokens = lex("module foo.bar\n")
-        val result = ModuleDeclaration.tryMatch(tokens)
+        val result = tokenSequence {
+            keyword(MODULE)
+            identifier("foo")
+            operator(DOT)
+            identifier("bar")
+            newline()
+        }.matchAgainst(ModuleDeclaration)
 
         assertThat(result.certainty, greaterThanOrEqualTo(ResultCertainty.MATCHED))
         assertThat(result.item, isNotNull)
@@ -52,8 +62,15 @@ class ModuleDeclarationGrammarTest : GrammarTestCase() { init {
     }
 
     "threeNames" {
-        val tokens = lex("module foo.bar.baz\n")
-        val result = ModuleDeclaration.tryMatch(tokens)
+        val result = tokenSequence {
+            keyword(MODULE)
+            identifier("foo")
+            operator(DOT)
+            identifier("bar")
+            operator(DOT)
+            identifier("baz")
+            newline()
+        }.matchAgainst(ModuleDeclaration)
 
         assertThat(result.certainty, greaterThanOrEqualTo(ResultCertainty.MATCHED))
         assertThat(result.item, isNotNull)
@@ -66,8 +83,10 @@ class ModuleDeclarationGrammarTest : GrammarTestCase() { init {
     }
 
     "missingName" {
-        val tokens = lex("module \n")
-        val result = ModuleDeclaration.tryMatch(tokens)
+        val result = tokenSequence {
+            keyword(MODULE)
+            newline()
+        }.matchAgainst(ModuleDeclaration)
 
         assertThat(result.certainty, greaterThanOrEqualTo(ResultCertainty.MATCHED))
         assertThat(result.item, isNull)
@@ -77,8 +96,12 @@ class ModuleDeclarationGrammarTest : GrammarTestCase() { init {
     }
 
     "endsWithDot" {
-        val tokens = lex("module foo.\n")
-        val result = ModuleDeclaration.tryMatch(tokens)
+        val result = tokenSequence {
+            keyword(MODULE)
+            identifier("foo")
+            operator(DOT)
+            newline()
+        }.matchAgainst(ModuleDeclaration)
 
         assertThat(result.certainty, greaterThanOrEqualTo(ResultCertainty.MATCHED))
         assertThat(result.item, isNull)
