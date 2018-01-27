@@ -18,6 +18,9 @@
 
 package compiler.lexer
 
+import compiler.parser.grammar.ParameterList
+import compiler.parser.grammar.VariableDeclaration
+
 enum class TokenType
 {
     KEYWORD,
@@ -199,4 +202,15 @@ class NumericLiteralToken(
         val stringContent: String
 ): Token() {
     override val type = TokenType.NUMERIC_LITERAL
+}
+
+/**
+ * **FOR TESTING ONLY**
+ *
+ * To be used as a placeholder for nested rules. E.g. the rule [ParameterList] uses [GrammarReceiver.ref] with
+ * [VariableDeclaration] as the parameter. An instance of this class can be used instead of actual tokens resembling
+ * the variable declaration. The given [replacement] will be returned as if the nested rule had parsed it.
+ */
+class NestedRuleMockingToken(val replacement: Any, override val sourceLocation: SourceLocation) : Token() {
+    override val type: TokenType = TokenType.OPERATOR
 }

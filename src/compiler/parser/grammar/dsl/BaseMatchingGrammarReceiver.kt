@@ -18,10 +18,7 @@
 
 package compiler.parser.grammar.dsl
 
-import compiler.lexer.Keyword
-import compiler.lexer.Operator
-import compiler.lexer.Token
-import compiler.lexer.TokenType
+import compiler.lexer.*
 import compiler.matching.ResultCertainty
 import compiler.parser.TokenSequence
 import compiler.parser.rule.Rule
@@ -110,7 +107,16 @@ internal abstract class BaseMatchingGrammarReceiver(internal val input: TokenSeq
     }
 
     override fun ref(rule: Rule<*>) {
-        handleResult(rule.tryMatch(input))
+        // this branch is for testing only
+        if (input.peek() is NestedRuleMockingToken) {
+            handleResult(
+                RuleMatchingResult.of<Any, Any, Reporting>(
+                    (input.next()!! as NestedRuleMockingToken).replacement
+                )
+            )
+        } else {
+            handleResult(rule.tryMatch(input))
+        }
     }
 
     override fun sequence(matcherFn: SequenceGrammar) {
