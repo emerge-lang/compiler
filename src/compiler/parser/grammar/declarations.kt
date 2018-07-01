@@ -18,13 +18,17 @@
 
 package compiler.parser.grammar
 
-import compiler.lexer.Keyword
-import compiler.lexer.Operator
-import compiler.matching.ResultCertainty
+import compiler.ast.ASTVisibilityModifier
+import compiler.lexer.Keyword.*
+import compiler.lexer.Operator.*
+import compiler.matching.ResultCertainty.*
 import compiler.parser.grammar.dsl.describeAs
+import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.postprocess
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.postproc.VariableDeclarationPostProcessor
+import compiler.parser.postproc.VisibilityModifierPostProcessor
+import compiler.parser.rule.Rule
 
 val VariableDeclaration = sequence {
 
@@ -35,30 +39,50 @@ val VariableDeclaration = sequence {
     optionalWhitespace()
 
     eitherOf {
-        keyword(Keyword.VAR)
-        keyword(Keyword.VAL)
+        keyword(VAR)
+        keyword(VAL)
     }
-    certainty = ResultCertainty.MATCHED
+    certainty = MATCHED
 
     optionalWhitespace()
 
     identifier()
-    certainty = ResultCertainty.OPTIMISTIC
+    certainty = OPTIMISTIC
 
     optional {
-        operator(Operator.COLON)
+        operator(COLON)
         ref(Type)
     }
 
     optional {
         optionalWhitespace()
-        operator(Operator.ASSIGNMENT)
-        certainty = ResultCertainty.DEFINITIVE
+        operator(ASSIGNMENT)
+        certainty = DEFINITIVE
         ref(Expression)
     }
 
-    certainty = ResultCertainty.DEFINITIVE
+    certainty = DEFINITIVE
 }
     .describeAs("variable declaration")
     .postprocess(::VariableDeclarationPostProcessor)
 
+val VisibilityModifier : Rule<ASTVisibilityModifier> = eitherOf {
+    eitherOf {
+        keyword(PRIVATE)
+        keyword(PROTECTED)
+        keyword(EXPORT)
+        sequence {
+            keyword(INTERNAL)
+            optional {
+                operator(PARANT_OPEN)
+                certainty = MATCHED
+                ref(ModuleName)
+                certainty = DEFINITIVE
+                operator(PARANT_CLOSE)
+            }
+            certainty = MATCHED
+        }
+    }
+}
+    .describeAs("visibility modifier")
+    .postprocess(::VisibilityModifierPostProcessor)

@@ -33,6 +33,7 @@ enum class Keyword(val text: String)
 {
     MODULE("module"),
     IMPORT("import"),
+
     FUNCTION("fun"),
     VAL("val"),
     VAR("var"),
@@ -46,7 +47,14 @@ enum class Keyword(val text: String)
     IF("if"),
     ELSE("else"),
 
-    RETURN("return")
+    RETURN("return"),
+
+    STRUCT_DEFINITION("struct"),
+
+    PRIVATE("private"),
+    PROTECTED("protected"),
+    INTERNAL("internal"),
+    EXPORT("export")
 }
 
 enum class Operator(val text: String, private val _humanReadableName: String? = null)

@@ -19,11 +19,15 @@
 package compiler.parser.postproc
 
 import compiler.InternalCompilerError
+import compiler.ast.*
 import compiler.ast.type.FunctionModifier
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
+import compiler.lexer.OperatorToken
 import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
+import compiler.transact.Position
+import compiler.transact.TransactionalSequence
 
 fun FunctionModifierPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<FunctionModifier> {
     return rule
@@ -36,4 +40,28 @@ fun FunctionModifierPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule
             Keyword.EXTERNAL -> FunctionModifier.EXTERNAL
             else             -> throw InternalCompilerError("Keyword is not a function modifier")
         }}
+}
+
+fun VisibilityModifierPostProcessor(rule: Rule<*>): Rule<ASTVisibilityModifier> {
+    return rule
+        .flatten()
+        .mapResult(::toAST_VisibilityModifier)
+}
+
+private fun toAST_VisibilityModifier(tokens: TransactionalSequence<Any, Position>): ASTVisibilityModifier {
+    val keyword = (tokens.next()!! as KeywordToken).keyword
+    return when (keyword) {
+        Keyword.PRIVATE -> PrivateASTVisibilityModifier.INSTANCE
+        Keyword.INTERNAL -> InternalASTVisibilityModifier.INSTANCE
+        Keyword.EXPORT -> ExportASTVisibilityModifier.INSTANCE
+        Keyword.PROTECTED -> if (tokens.hasNext()) {
+            tokens.next()!! as OperatorToken // PARANT_OPEN
+            val qualifier = tokens.next()!! as Array<String>
+            tokens.next()!! as OperatorToken // PARANT_CLOSE
+            QualifiedASTProtectedVisibilityModifier(qualifier)
+        } else {
+            ProtectedASTVisibilityModifier.INSTANCE
+        }
+        else -> throw InternalCompilerError("Unknown visibility modifier keyword $keyword")
+    }
 }

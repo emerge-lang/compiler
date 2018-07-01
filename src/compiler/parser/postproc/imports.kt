@@ -22,7 +22,6 @@
 package compiler.parser.postproc
 
 import compiler.ast.ImportDeclaration
-import compiler.ast.ModuleDeclaration
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
@@ -65,27 +64,4 @@ private fun toAST_import(tokens: TransactionalSequence<Any, Position>): ImportDe
     }
 
     return ImportDeclaration(keyword.sourceLocation, identifiers)
-}
-
-fun ModuleDeclarationPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<ModuleDeclaration> {
-    return rule
-        .flatten()
-        .trimWhitespaceTokens()
-        .mapResult(::toAST_moduleDeclaration)
-}
-
-private fun toAST_moduleDeclaration(tokens: TransactionalSequence<Any, Position>): ModuleDeclaration {
-    val keyword = tokens.next()!! as KeywordToken
-
-    val identifiers = ArrayList<String>()
-
-    while (tokens.hasNext()) {
-        // collect the identifier
-        identifiers.add((tokens.next()!! as IdentifierToken).value)
-
-        // skip the dot, if there
-        tokens.next()
-    }
-
-    return ModuleDeclaration(keyword.sourceLocation, identifiers.toTypedArray())
 }

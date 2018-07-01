@@ -21,6 +21,7 @@ package compiler.parser.postproc
 import compiler.InternalCompilerError
 import compiler.ast.*
 import compiler.lexer.IdentifierToken
+import compiler.lexer.KeywordToken
 import compiler.lexer.SourceLocation
 import compiler.matching.ResultCertainty
 import compiler.parser.rule.Rule
@@ -30,6 +31,39 @@ import compiler.reportings.Reporting
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 import java.util.*
+
+fun ModuleNamePostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Array<String>> {
+    return rule
+            .flatten()
+            .trimWhitespaceTokens()
+            .mapResult { tokens ->
+                val identifiers = ArrayList<String>()
+
+                while (tokens.hasNext()) {
+                    // collect the identifier
+                    identifiers.add((tokens.next()!! as IdentifierToken).value)
+
+                    // skip the dot, if there
+                    tokens.next()
+                }
+
+                identifiers.toTypedArray()
+            }
+}
+
+fun ModuleDeclarationPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<ModuleDeclaration> {
+    return rule
+            .flatten()
+            .trimWhitespaceTokens()
+            .mapResult(::toAST_moduleDeclaration)
+}
+
+private fun toAST_moduleDeclaration(tokens: TransactionalSequence<Any, Position>): ModuleDeclaration {
+    val keyword = tokens.next()!! as KeywordToken
+    val moduleName = tokens.next()!! as Array<String>
+
+    return ModuleDeclaration(keyword.sourceLocation, moduleName)
+}
 
 fun ModulePostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<ASTModule> {
     return rule

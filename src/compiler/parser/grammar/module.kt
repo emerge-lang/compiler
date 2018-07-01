@@ -26,13 +26,10 @@ import compiler.parser.grammar.dsl.postprocess
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.postproc.ImportPostprocessor
 import compiler.parser.postproc.ModuleDeclarationPostProcessor
+import compiler.parser.postproc.ModuleNamePostProcessor
 import compiler.parser.postproc.ModulePostProcessor
 
-val ModuleDeclaration = sequence {
-    keyword(Keyword.MODULE)
-
-    certainty = ResultCertainty.MATCHED
-
+val ModuleName = sequence {
     identifier()
 
     certainty = ResultCertainty.OPTIMISTIC
@@ -42,6 +39,17 @@ val ModuleDeclaration = sequence {
         certainty = ResultCertainty.MATCHED
         identifier()
     }
+}
+        .describeAs("module or package name")
+        .postprocess(::ModuleNamePostProcessor)
+
+val ModuleDeclaration = sequence {
+    keyword(Keyword.MODULE)
+
+    certainty = ResultCertainty.MATCHED
+
+    ref(ModuleName)
+
     operator(Operator.NEWLINE)
 }
     .describeAs("module declaration")
