@@ -79,6 +79,7 @@ val Module = sequence {
             ref(ImportDeclaration)
             ref(VariableDeclaration)
             ref(StandaloneFunctionDeclaration)
+            ref(StructDefinition)
             endOfInput()
         }
         certainty = ResultCertainty.DEFINITIVE

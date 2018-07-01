@@ -20,6 +20,7 @@ package compiler.binding.context
 
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
+import compiler.binding.struct.Struct
 import compiler.reportings.Reporting
 
 class Module(
@@ -40,7 +41,8 @@ class Module(
     fun semanticAnalysisPhase1(): Collection<Reporting> =
         bindTimeReportings +
         context.variables.flatMap(BoundVariable::semanticAnalysisPhase1) +
-        context.functions.flatMap(BoundFunction::semanticAnalysisPhase1)
+        context.functions.flatMap(BoundFunction::semanticAnalysisPhase1) +
+        context.structs.flatMap(Struct::semanticAnalysisPhase1)
 
     /**
      * Delegates to semantic analysis phase 2 of all components that make up this module;
@@ -48,7 +50,8 @@ class Module(
      */
     fun semanticAnalysisPhase2(): Collection<Reporting> =
         context.variables.flatMap(BoundVariable::semanticAnalysisPhase2) +
-        context.functions.flatMap(BoundFunction::semanticAnalysisPhase2)
+        context.functions.flatMap(BoundFunction::semanticAnalysisPhase2) +
+        context.structs.flatMap(Struct::semanticAnalysisPhase2)
 
     /**
      * Delegates to semantic analysis phase 3 of all components that make up this module;
@@ -56,5 +59,6 @@ class Module(
      */
     fun semanticAnalysisPhase3(): Collection<Reporting> =
         context.variables.flatMap(BoundVariable::semanticAnalysisPhase3) +
-        context.functions.flatMap(BoundFunction::semanticAnalysisPhase3)
+        context.functions.flatMap(BoundFunction::semanticAnalysisPhase3) +
+        context.structs.flatMap(Struct::semanticAnalysisPhase3)
 }

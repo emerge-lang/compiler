@@ -49,3 +49,29 @@ val <T> Iterable<T>.allEqual: Boolean
 
         return true
     }
+
+/**
+ * Returns distinct elements from the collection whose selected properties
+ * are equal.
+ */
+fun <T, E> Iterable<T>.duplicatesBy(selector: (T) -> E): Map<E, Set<T>> {
+    val uniques = mutableMapOf<E, T>()
+    val duplicates = mutableMapOf<E, MutableSet<T>>()
+
+    for (t in this) {
+        val e = selector(t)
+        if (uniques.containsKey(e)) {
+            if (duplicates.containsKey(e)) {
+                duplicates[e]!!.add(uniques[e]!!)
+                duplicates[e]!!.add(t)
+            } else {
+                duplicates[e] = mutableSetOf(uniques[e]!!, t)
+            }
+
+        } else {
+            uniques[e] = t
+        }
+    }
+
+    return duplicates
+}

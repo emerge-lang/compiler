@@ -32,6 +32,8 @@ import compiler.binding.BoundFunction
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundInvocationExpression
+import compiler.binding.struct.Struct
+import compiler.binding.struct.StructMember
 import compiler.binding.type.BaseTypeReference
 import compiler.lexer.OperatorToken
 import compiler.lexer.SourceLocation
@@ -174,6 +176,9 @@ abstract class Reporting internal constructor(
 
             return ConditionNotBooleanReporting(condition, location)
         }
+
+        fun duplicateTypeMembers(struct: Struct, duplicateMembers: Set<StructMember>) =
+            DuplicateStructMemberReporting(struct, duplicateMembers)
 
         /**
          * Converts a violation of purity or readonlyness into an appropriate error.

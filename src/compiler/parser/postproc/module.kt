@@ -20,6 +20,7 @@ package compiler.parser.postproc
 
 import compiler.InternalCompilerError
 import compiler.ast.*
+import compiler.ast.struct.StructDeclaration
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 import compiler.lexer.SourceLocation
@@ -107,6 +108,9 @@ private fun toAST_Module(inResult: RuleMatchingResult<TransactionalSequence<Any,
         }
         else if (declaration is FunctionDeclaration) {
             astModule.functions.add(declaration)
+        }
+        else if (declaration is StructDeclaration) {
+            astModule.structs.add(declaration)
         }
         else {
             reportings.add(Reporting.unsupported(

@@ -21,6 +21,7 @@ package compiler.binding.context
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
+import compiler.binding.struct.Struct
 import compiler.binding.type.BaseType
 
 /**
@@ -68,6 +69,7 @@ interface CTContext
 
     val functions: Iterable<BoundFunction>
     val variables: Iterable<BoundVariable>
+    val structs: Iterable<Struct>
 
     /**
      * @param onlyOwn If true, does not attempt to resolve variables through imports.
@@ -116,6 +118,8 @@ interface CTContext
             override val functions = emptySet<BoundFunction>()
 
             override val variables = emptySet<BoundVariable>()
+
+            override val structs = emptySet<Struct>()
 
             override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean = false
 

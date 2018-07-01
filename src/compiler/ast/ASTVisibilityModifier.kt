@@ -18,7 +18,16 @@
 
 package compiler.ast
 
-sealed class ASTVisibilityModifier
+/** (At least in the AST) has an access modifier. */
+interface ASTVisibilityModified {
+    var accessModifier: ASTVisibilityModifier
+}
+
+sealed class ASTVisibilityModifier {
+    companion object {
+        val DEFAULT: ASTVisibilityModifier = InternalASTVisibilityModifier.INSTANCE
+    }
+}
 
 class PrivateASTVisibilityModifier private constructor() : ASTVisibilityModifier() {
     companion object {

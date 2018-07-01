@@ -25,6 +25,7 @@ import compiler.ast.ImportDeclaration
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
+import compiler.binding.struct.Struct
 import compiler.binding.type.BaseType
 import compiler.binding.type.BaseTypeReference
 import compiler.lexer.IdentifierToken
@@ -70,6 +71,9 @@ open class MutableCTContext(
     /** Holds all the toplevel functions defined in this context */
     override val functions: MutableSet<BoundFunction> = HashSet()
 
+    /** Holds all the toplevel structs defined in this context */
+    override val structs: MutableSet<Struct> = HashSet()
+
     /** Holds all the base types defined in this context */
     private val types: MutableSet<BaseType> = HashSet()
 
@@ -82,6 +86,12 @@ open class MutableCTContext(
      */
     open fun addBaseType(type: BaseType) {
         types.add(type)
+        if (type is Struct) structs.add(type)
+    }
+
+    open fun addStruct(definition: Struct) {
+        types.add(definition)
+        structs.add(definition)
     }
 
     override fun resolveDefinedType(simpleName: String): BaseType? = types.find { it.simpleName == simpleName }

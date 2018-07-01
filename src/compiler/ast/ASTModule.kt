@@ -18,6 +18,7 @@
 
 package compiler.ast
 
+import compiler.ast.struct.StructDeclaration
 import compiler.binding.context.Module
 import compiler.binding.context.MutableCTContext
 import compiler.binding.context.SoftwareContext
@@ -35,6 +36,8 @@ class ASTModule {
 
     val functions: MutableList<FunctionDeclaration> = mutableListOf()
 
+    val structs: MutableList<StructDeclaration> = mutableListOf()
+
     /**
      * Works by the same principle as [Bindable.bindTo]; but since binds to a [SoftwareContext] (rather than a
      * [CTContext]) this has its own signature.
@@ -45,6 +48,7 @@ class ASTModule {
 
         imports.forEach(moduleContext::addImport)
         functions.forEach { moduleContext.addFunction(it) }
+        structs.forEach { moduleContext.addStruct(it.bindTo(moduleContext)) }
 
         variables.forEach { declaredVariable ->
             // check double declare
