@@ -469,6 +469,59 @@ Note that the `readonly` modifier of the class field does not affect the functio
     
 	obj.fnTypeField = () { doSthElse() } // Error: Cannot assign value to readonly variable obj.fnTypeField
 
+### Visibility  Modifiers
+
+This language distinguishes between visibility within the same source set/libary
+and outside code. Elements can be visible throughout an entire codebase but not
+to code that lives in other code bases. The goal of this is to enable more 
+optimization: this distinction reduces the number of symbols exposed to other
+code (e.g. in a dll/so). That means less ABI contracts have to be upheld. The code
+that need not comply to an ABI contract can be further optimized, violating the
+ABI contract. An example case: There is an interface in the application that
+is visible to all other code in the application but not to outside code. When
+there is only one implementation for this interface in the codebase, the compiler
+can treat the code as if the interface does not exist and the implementation was
+declared as final (no subclasses allowed).
+
+|Modifier   | Visibility                       | | | | 
+|-----------|-----------|------------|--------|------|
+|           |same module|same package|codebase|global|
+|`private`  |     Y     |     N      |   N    |   N  |
+|`protected`|     Y     |     Y      |   N    |   N  |
+|`internal` |     Y     |     Y      |   Y    |   N  |
+|`export`   |     Y     |     Y      |   Y    |   Y  |
+
+If a modifier is omitted, the visibility defaults to `internal`.
+
+The modifier `protected` can be further qualified (see the `package` modifier in D) by
+putting a package name in parenthesis after tha modifier. That denotes the visibility boundary. For example:
+
+Assume the following package and module structure:
+
+    com.myapp
+        main
+        foo/
+            moduleA
+        bar/
+            moduleB
+      
+The following table shows the semantics of the qualified visibility modifier as
+if used within `moduleA`:
+
+|Modifier                  | Visibility                                           |
+|--------------------------|------------------------------------------------------|
+|`protected`               | All code inside com/myapp/foo                        |
+|`protected(com.myapp.foo)`| All code inside com/myapp/foo                        |
+|`protected(com.myapp)`    | All code inside com/myapp, including the bar package |
+                  
+---
+
+Although applicable, `public` was deliberately not used. This avoids conflicts between
+the semantics users might know from other languages. E.g. public in Kotlin/Java means
+something else than in D. This wording does not collide with any of the languages this
+one draws inspiration from.
+
+
 ### Interfaces + abstract Classes
 
 They work just the same way they do in any OOP language. Default implementations on interfaces are supported.
@@ -649,16 +702,16 @@ These binary operators can be overloaded:
 |>>      |opRightShift       |yes      |`a >> b` |`a.opRightShift(b)`       |
 |<<      |opLeftShift        |yes      |`a << b` |`a.opLeftShift(b)`        |
 |--------|-------------------|---------|---------|--------------------------|
-|+=      |opPlusAssign       |no       |`a + b`  |`a.opPlusAssign(b)`       |
-|-=      |opMinusAssign      |no       |`a - b`  |`a.opMinusAssign(b)`      |
-|*=      |opTimesAssign      |no       |`a * b`  |`a.opTimesAssign(b)`      |
-|/=      |opDivideAssign     |no       |`a / b`  |`a.opDivideAssign(b)`     |
-|%=      |opModuloAssign     |no       |`a % b`  |`a.opModuloAssign(b)`     |
-|&=      |opAndAssign        |no       |`a & b`  |`a.opAndAssign(b)`        |
-|\|=     |opOrAssign         |no       |`a | b`  |`a.opOrAssign(b)`         |
-|^=      |opXorAssign        |no       |`a ^ b`  |`a.opXorAssign(b)`        |
-|>>=     |opRightShiftAssign |no       |`a >> b` |`a.opRightShiftAssign(b)` |
-|<<=     |opLeftShiftAssign  |no       |`a << b` |`a.opLeftShiftAssign(b)`  |
+|+=      |opPlusAssign       |no       |`a += b` |`a.opPlusAssign(b)`       |
+|-=      |opMinusAssign      |no       |`a -= b` |`a.opMinusAssign(b)`      |
+|*=      |opTimesAssign      |no       |`a *= b` |`a.opTimesAssign(b)`      |
+|/=      |opDivideAssign     |no       |`a /= b` |`a.opDivideAssign(b)`     |
+|%=      |opModuloAssign     |no       |`a %= b` |`a.opModuloAssign(b)`     |
+|&=      |opAndAssign        |no       |`a &= b` |`a.opAndAssign(b)`        |
+|\|=     |opOrAssign         |no       |`a |= b` |`a.opOrAssign(b)`         |
+|^=      |opXorAssign        |no       |`a ^= b` |`a.opXorAssign(b)`        |
+|>>=     |opRightShiftAssign |no       |`a >>= b`|`a.opRightShiftAssign(b)` |
+|<<=     |opLeftShiftAssign  |no       |`a <<= b`|`a.opLeftShiftAssign(b)`  |
 
 #### Unary operators
 
