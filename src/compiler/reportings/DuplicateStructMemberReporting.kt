@@ -20,6 +20,8 @@ package compiler.reportings
 
 import compiler.binding.struct.Struct
 import compiler.binding.struct.StructMember
+import compiler.lexer.SourceContentAwareSourceDescriptor
+import textutils.indentByFromSecondLine
 
 class DuplicateStructMemberReporting(
     val struct: Struct,
@@ -28,4 +30,20 @@ class DuplicateStructMemberReporting(
     Level.ERROR,
     "Struct member ${duplicates.iterator().next().name} declared multiple times",
     struct.declaration.declaredAt
-)
+) {
+    override fun toString(): String {
+        var txt = "($level) $message".indentByFromSecondLine(2) + "\nin ${struct.declaration.declaredAt.sD.sourceLocation}\n\nDeclarations found with the same name:\n"
+
+        if (struct.declaration.declaredAt.sD is SourceContentAwareSourceDescriptor) {
+            txt += (struct.declaration.declaredAt.sD as SourceContentAwareSourceDescriptor).getIllustrationForHighlightedLines(
+                duplicates.map { it.declaration.declaredAt.sourceLine }.toSet()
+            )
+        }
+        else for (dup in duplicates) {
+            val dupLocation = dup.declaration.declaredAt
+            txt += "- line ${dupLocation.sourceLine}, column ${dupLocation.sourceColumn}\n"
+        }
+
+        return txt.trimEnd()
+    }
+}
