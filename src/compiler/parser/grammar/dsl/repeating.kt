@@ -42,7 +42,7 @@ internal fun <T> tryMatchRepeating(rule: Rule<T>, amount: IntRange, input: Token
 
             if (lastResult.hasErrors && lastResult.certainty >= ResultCertainty.MATCHED) {
                 return RuleMatchingResultImpl(
-                    results.map { it.certainty }.max() ?: ResultCertainty.MATCHED,
+                    results.map { it.certainty }.maxOrNull() ?: ResultCertainty.MATCHED,
                     null,
                     lastResult.reportings
                 )
@@ -59,7 +59,7 @@ internal fun <T> tryMatchRepeating(rule: Rule<T>, amount: IntRange, input: Token
         input.commit()
 
         return RuleMatchingResultImpl(
-            results.map { it.certainty }.min() ?: ResultCertainty.MATCHED,
+            results.map { it.certainty }.minOrNull() ?: ResultCertainty.MATCHED,
             results,
             setOf()
         )

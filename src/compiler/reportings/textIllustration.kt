@@ -44,13 +44,14 @@ fun SourceContentAwareSourceDescriptor.getIllustrationForHighlightedLines(desire
     }
 
     val lineNumbersToOutputSorted = lineNumbersToOutput.sorted()
-    val lineCounterLength = min(3, lineNumbersToOutputSorted.max()!!.toString(10).length)
+    val lineCounterLength = min(3, lineNumbersToOutputSorted.maxOrNull()!!.toString(10).length)
 
     val linesToOutputWithNormalizedTabs: Map<Int, String> = lineNumbersToOutputSorted.map {
         it to sourceLines[it - 1].replace("\t", "    ")
     }.toMap()
 
-    val commonNumberOfLeadingSpaces = linesToOutputWithNormalizedTabs.values.map { it.takeWhile { it == ' ' }.length }.min()!!
+    val commonNumberOfLeadingSpaces =
+        linesToOutputWithNormalizedTabs.values.map { it.takeWhile { it == ' ' }.length }.minOrNull()!!
 
     val out = StringBuilder()
     out.append(" ".repeat(lineCounterLength + 1))

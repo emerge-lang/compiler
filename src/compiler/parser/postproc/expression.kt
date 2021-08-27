@@ -21,9 +21,23 @@ package compiler.parser.postproc
 import compiler.InternalCompilerError
 import compiler.ast.CodeChunk
 import compiler.ast.Executable
-import compiler.ast.expression.*
+import compiler.ast.expression.BinaryExpression
+import compiler.ast.expression.BooleanLiteralExpression
+import compiler.ast.expression.Expression
+import compiler.ast.expression.IdentifierExpression
+import compiler.ast.expression.IfExpression
+import compiler.ast.expression.InvocationExpression
+import compiler.ast.expression.MemberAccessExpression
+import compiler.ast.expression.NotNullExpression
+import compiler.ast.expression.NumericLiteralExpression
+import compiler.ast.expression.ParenthesisedExpression
+import compiler.ast.expression.UnaryExpression
 import compiler.binding.expression.BoundExpression
-import compiler.lexer.*
+import compiler.lexer.IdentifierToken
+import compiler.lexer.KeywordToken
+import compiler.lexer.NumericLiteralToken
+import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
 import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
 import compiler.transact.Position
@@ -226,7 +240,7 @@ private fun toAST_BinaryExpression(rawExpression: List<OperatorOrExpression>): E
 
     val rightmostWithLeastPriority = operatorsWithIndex
         .reversed()
-        .minBy { it.second.operator.priority }
+        .minByOrNull { it.second.operator.priority }
         ?: throw InternalCompilerError("No operator in the list... how can this even be?")
 
     val leftOfOperator = rawExpression.subList(0, rightmostWithLeastPriority.first)

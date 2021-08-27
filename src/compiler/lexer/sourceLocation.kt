@@ -128,8 +128,8 @@ open class SourceContentAwareSourceLocation(
 
         val excerptLines = lines.subList(startLine - 1, endLine - 1)
         val commonLeadingWhitespace = excerptLines
-                .map { line -> line.length - line.trimStart(IsWhitespace).length }
-                .min()!!
+            .map { line -> line.length - line.trimStart(IsWhitespace).length }
+            .minOrNull()!!
 
         val trimmedExcerptLines = excerptLines.map { it.substring(commonLeadingWhitespace) }
         val targetLineIndexInExcerpt = if (sourceLine < 3) sourceLine else startLine + 2
