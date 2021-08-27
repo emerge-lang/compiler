@@ -43,22 +43,24 @@ internal fun tryMatchIdentifier(input: TokenSequence, acceptedOperators: Collect
     }
 
     input.mark()
-
     val token = input.next()!!
 
     if (token is IdentifierToken) {
+        input.commit()
         return RuleMatchingResultImpl(
             ResultCertainty.DEFINITIVE,
             token,
             emptySet()
         )
     } else if (token is OperatorToken && token.operator in acceptedOperators) {
+        input.commit()
         return RuleMatchingResultImpl(
             ResultCertainty.DEFINITIVE,
             IdentifierToken(token.operator.text, token.sourceLocation),
             emptySet()
         )
     } else if (token is KeywordToken && token.keyword in acceptedKeywords) {
+        input.commit()
         return RuleMatchingResultImpl(
             ResultCertainty.DEFINITIVE,
             IdentifierToken(token.sourceText, token.sourceLocation),
@@ -67,6 +69,7 @@ internal fun tryMatchIdentifier(input: TokenSequence, acceptedOperators: Collect
     }
 
     // none matched => error
+    input.rollback()
     return RuleMatchingResultImpl(
         ResultCertainty.DEFINITIVE,
         null,
