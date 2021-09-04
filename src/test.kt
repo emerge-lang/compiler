@@ -46,13 +46,14 @@ import java.time.Duration
 
 val testCode = """module testcode
 
-struct foo {
-    x: Int
-    y: String
-    z: Int = 3.2
-    x: Float
+pure fun a() {
+    b()
 }
-
+val x = 3
+fun b() {
+    x
+    a()
+}
 """
 
 fun main(args: Array<String>) {

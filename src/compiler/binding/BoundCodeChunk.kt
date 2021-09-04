@@ -18,12 +18,14 @@
 
 package compiler.binding
 
+import compiler.EarlyStackOverflowException
 import compiler.InternalCompilerError
 import compiler.ast.CodeChunk
 import compiler.ast.Executable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseTypeReference
 import compiler.reportings.Reporting
+import compiler.throwOnCycle
 
 class BoundCodeChunk(
     /**
@@ -78,12 +80,24 @@ class BoundCodeChunk(
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
         if (statements == null) throw InternalCompilerError("Illegal state: invoke this function after semantic analysis phase 3 is completed.")
 
-        return statements!!.flatMap { it.findReadsBeyond(boundary) }
+        return statements!!.flatMap {
+            try {
+                throwOnCycle(this) { it.findReadsBeyond(boundary) }
+            } catch (ex: EarlyStackOverflowException) {
+                emptySet()
+            }
+        }
     }
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
         if (statements == null) throw InternalCompilerError("Illegal state: invoke this function after semantic analysis phase 3 is completed.")
 
-        return statements!!.flatMap { it.findWritesBeyond(boundary) }
+        return statements!!.flatMap {
+            try {
+                throwOnCycle(this) { it.findWritesBeyond(boundary) }
+            } catch (ex: EarlyStackOverflowException) {
+                emptySet()
+            }
+        }
     }
 }
