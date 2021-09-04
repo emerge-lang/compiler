@@ -25,11 +25,27 @@ import compiler.lexer.Keyword.IF
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.TokenType
-import compiler.matching.ResultCertainty.*
+import compiler.matching.ResultCertainty.DEFINITIVE
+import compiler.matching.ResultCertainty.MATCHED
+import compiler.matching.ResultCertainty.OPTIMISTIC
 import compiler.parser.grammar.dsl.describeAs
+import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.postprocess
 import compiler.parser.grammar.dsl.sequence
-import compiler.parser.postproc.*
+import compiler.parser.postproc.BinaryExpressionPostProcessor
+import compiler.parser.postproc.BracedCodeOrSingleStatementPostProcessor
+import compiler.parser.postproc.ExpressionPostfixModifier
+import compiler.parser.postproc.ExpressionPostprocessor
+import compiler.parser.postproc.IdentifierExpressionPostProcessor
+import compiler.parser.postproc.IfExpressionPostProcessor
+import compiler.parser.postproc.InvocationExpressionPostfixModifier
+import compiler.parser.postproc.LiteralExpressionPostProcessor
+import compiler.parser.postproc.MemberAccessExpressionPostfixModifier
+import compiler.parser.postproc.NotNullExpressionPostfixModifier
+import compiler.parser.postproc.ParanthesisedExpressionPostProcessor
+import compiler.parser.postproc.UnaryExpressionPostProcessor
+import compiler.parser.postproc.flatten
+import compiler.parser.postproc.mapResult
 import compiler.parser.rule.Rule
 
 val Expression: Rule<Expression<*>> by lazy {
@@ -61,15 +77,18 @@ val LiteralExpression = sequence {
     .describeAs("literal")
     .postprocess(::LiteralExpressionPostProcessor)
 
-val ValueExpression = sequence {
-    eitherOf {
-        ref(LiteralExpression)
-        identifier()
-    }
+val IdentifierExpression = sequence {
+    identifier()
     certainty = DEFINITIVE
 }
+    .describeAs("identifier")
+    .postprocess(::IdentifierExpressionPostProcessor)
+
+val ValueExpression = eitherOf {
+    ref(LiteralExpression)
+    ref(IdentifierExpression)
+}
     .describeAs("value expression")
-    .postprocess(::ValueExpressionPostProcessor)
 
 val ParanthesisedExpression: Rule<Expression<*>> = sequence {
     operator(Operator.PARANT_OPEN)

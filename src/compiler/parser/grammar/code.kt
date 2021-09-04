@@ -21,11 +21,18 @@ package compiler.parser.grammar
 import compiler.ast.AssignmentStatement
 import compiler.lexer.Keyword
 import compiler.lexer.Operator
-import compiler.matching.ResultCertainty.*
+import compiler.matching.ResultCertainty.DEFINITIVE
+import compiler.matching.ResultCertainty.MATCHED
+import compiler.matching.ResultCertainty.OPTIMISTIC
 import compiler.parser.grammar.dsl.describeAs
 import compiler.parser.grammar.dsl.postprocess
 import compiler.parser.grammar.dsl.sequence
-import compiler.parser.postproc.*
+import compiler.parser.postproc.CodeChunkPostProcessor
+import compiler.parser.postproc.ExpressionPostprocessor
+import compiler.parser.postproc.ReturnStatementPostProcessor
+import compiler.parser.postproc.flatten
+import compiler.parser.postproc.mapResult
+import compiler.parser.postproc.toAST_AssignmentStatement
 import compiler.parser.rule.Rule
 
 val ReturnStatement = sequence {
@@ -46,7 +53,7 @@ val Assignable = sequence {
             certainty = MATCHED
             ref(ExpressionPostfix)
         }
-        identifier()
+        ref(IdentifierExpression)
     }
     certainty = MATCHED
     atLeast(0) {

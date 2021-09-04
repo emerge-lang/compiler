@@ -62,38 +62,28 @@ fun ExpressionPostprocessor(rule: Rule<*>): Rule<Expression<*>> {
 fun LiteralExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Expression<*>> {
     return rule
         .flatten()
-        .mapResult({ tokens ->
+        .mapResult { tokens ->
             val valueToken = tokens.next()!!
 
             if (valueToken is NumericLiteralToken) {
                 NumericLiteralExpression(valueToken)
-            }
-            else {
+            } else {
                 throw InternalCompilerError("Unsupported literal value $valueToken")
             }
-        })
+        }
 }
 
-fun ValueExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Expression<*>> {
+fun IdentifierExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Expression<*>> {
     return rule
         .flatten()
-        .mapResult({  things ->
-            val valueThing = things.next()!!
-
-            if (valueThing is Expression<*>) {
-                valueThing
+        .mapResult { tokens ->
+            val identifier = tokens.next() as IdentifierToken
+            if (identifier.value == "true" || identifier.value == "false") {
+                BooleanLiteralExpression(identifier.sourceLocation, identifier.value == "true")
+            } else {
+                IdentifierExpression(identifier)
             }
-            else if (valueThing is IdentifierToken) {
-                if (valueThing.value == "true" || valueThing.value == "false") {
-                    BooleanLiteralExpression(valueThing.sourceLocation, valueThing.value == "true")
-                } else {
-                    IdentifierExpression(valueThing)
-                }
-            }
-            else {
-                throw InternalCompilerError("Unsupported value $valueThing")
-            }
-        })
+        }
 }
 
 fun ParanthesisedExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Expression<*>> {
