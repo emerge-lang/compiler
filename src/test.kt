@@ -46,13 +46,11 @@ import java.time.Duration
 
 val testCode = """module testcode
 
-pure fun a() {
-    b()
+fun a() {
+    return b()
 }
-val x = 3
-fun b() {
-    x
-    a()
+pure fun b() {
+    return a()
 }
 """
 

@@ -73,6 +73,7 @@ val ParameterList = sequence {
 }
     .describeAs("parenthesised paramete rlist")
     .postprocess(::ParameterListPostprocessor)
+
 val FunctionModifier = sequence {
     eitherOf {
         keyword(Keyword.READONLY)
@@ -84,6 +85,7 @@ val FunctionModifier = sequence {
     certainty = ResultCertainty.DEFINITIVE
 }
     .postprocess(::FunctionModifierPostProcessor)
+
 val StandaloneFunctionDeclaration = sequence {
     atLeast(0) {
         ref(FunctionModifier)

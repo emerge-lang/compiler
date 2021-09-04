@@ -18,7 +18,9 @@
 
 package compiler.binding
 
+import compiler.EarlyStackOverflowException
 import compiler.InternalCompilerError
+import compiler.OnceAction
 import compiler.ast.FunctionDeclaration
 import compiler.ast.type.FunctionModifier
 import compiler.binding.context.CTContext
@@ -29,6 +31,7 @@ import compiler.binding.type.BaseTypeReference
 import compiler.binding.type.Unit
 import compiler.nullableOr
 import compiler.reportings.Reporting
+import compiler.throwOnCycle
 
 /**
  * Describes the presence/avaiability of a (class member) function in a context.
@@ -41,6 +44,8 @@ class BoundFunction(
     val parameters: BoundParameterList,
     val code: BoundExecutable<*>?
 ) {
+    private val onceAction = OnceAction()
+
     val declaredAt = declaration.declaredAt
 
     /**
@@ -121,103 +126,128 @@ class BoundFunction(
         get() = (context.module?.name?.joinToString(".") ?: "<unknown module>") + "." + name
 
     fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
+        return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
+            val reportings = mutableSetOf<Reporting>()
 
-        receiverType = declaration.receiverType?.resolveWithin(context)
+            receiverType = declaration.receiverType?.resolveWithin(context)
 
-        if (declaration.receiverType != null && receiverType == null) {
-            reportings.add(Reporting.unknownType(declaration.receiverType!!))
-        }
-
-        // modifiers
-        if (FunctionModifier.EXTERNAL in modifiers) {
-            if (code != null) {
-                reportings.add(Reporting.illegalFunctionBody(declaration))
+            if (declaration.receiverType != null && receiverType == null) {
+                reportings.add(Reporting.unknownType(declaration.receiverType!!))
             }
-        }
-        else if (code == null) {
-            reportings.add(Reporting.missingFunctionBody(declaration))
-        }
 
-        if (FunctionModifier.PURE in modifiers && FunctionModifier.READONLY in modifiers) {
-            reportings.add(Reporting.inefficientModifiers("The modifier readonly is superfluous: the function is also pure and pure implies readonly.", declaredAt))
-        }
-
-        // parameters
-        reportings.addAll(parameters.semanticAnalysisPhase1(false))
-
-        if (declaration.returnType != null) {
-            returnType = declaration.returnType!!.resolveWithin(context)
-            if (returnType == null) {
-                reportings.add(Reporting.unknownType(declaration.returnType!!))
+            // modifiers
+            if (FunctionModifier.EXTERNAL in modifiers) {
+                if (code != null) {
+                    reportings.add(Reporting.illegalFunctionBody(declaration))
+                }
+            } else if (code == null) {
+                reportings.add(Reporting.missingFunctionBody(declaration))
             }
+
+            if (FunctionModifier.PURE in modifiers && FunctionModifier.READONLY in modifiers) {
+                reportings.add(Reporting.inefficientModifiers("The modifier readonly is superfluous: the function is also pure and pure implies readonly.",
+                    declaredAt))
+            }
+
+            // parameters
+            reportings.addAll(parameters.semanticAnalysisPhase1(false))
+
+            if (declaration.returnType != null) {
+                returnType = declaration.returnType.resolveWithin(context)
+                if (returnType == null) {
+                    reportings.add(Reporting.unknownType(declaration.returnType!!))
+                }
+            }
+
+            this.code?.semanticAnalysisPhase1()?.let(reportings::addAll)
+
+            return@getResult reportings
         }
-
-        // the codechunk has no semantic analysis phase 1
-
-        return reportings
     }
 
     fun semanticAnalysisPhase2(): Collection<Reporting> {
-        // TODO: detect recursion and issue error about cyclic type inference
-        if (returnType == null) {
-            if (this.code is BoundExpression<*>) {
-                if (this.code.type == null) {
-                    return setOf(Reporting.consecutive("Cannot determine type of function expression; thus cannot infer return type of function."))
+        return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
+            val reportings = mutableSetOf<Reporting>()
+
+            try {
+                throwOnCycle(this) {
+                    this.code?.semanticAnalysisPhase2()?.let(reportings::addAll)
                 }
+            } catch (ex: EarlyStackOverflowException) {
+                reportings.add(Reporting.typeDeductionError("Cannot infer the return type of function $name because the type inference is cyclic here. Specify the type of one element explicitly.",
+                    declaredAt))
+            }
 
-                this.returnType = this.code.type!!
+            if (returnType == null) {
+                if (this.code is BoundExpression<*>) {
+                    this.returnType = this.code.type
+                } else {
+                    throw InternalCompilerError("Semantic analysis phase 1 did not determine return type of function; cannot infer in phase 2 because the functions code is not an expression.")
+                }
             }
-            else {
-                throw InternalCompilerError("Semantic analysis phase 1 did not determine return type of function; cannot infer in phase 2 because the functions code is not an expression.")
-            }
+
+            return@getResult reportings
         }
-
-        return emptySet()
     }
 
     fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
+        return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
+            val reportings = mutableSetOf<Reporting>()
 
-        if (code != null) {
-            if (returnType != null) {
-                code.enforceReturnType(returnType!!)
-            }
-
-            reportings += code.semanticAnalysisPhase3()
-
-            // readonly and purity checks
-            val statementsReadingBeyondFunctionContext = code.findReadsBeyond(context)
-            val statementsWritingBeyondFunctionContext = code.findWritesBeyond(context)
-
-            isEffectivelyReadonly = statementsWritingBeyondFunctionContext.isEmpty()
-            isEffectivelyPure = isEffectivelyReadonly!! && statementsReadingBeyondFunctionContext.isEmpty()
-
-            if (isDeclaredPure) {
-                if (!isEffectivelyPure!!) {
-                    reportings.addAll(Reporting.purityViolations(statementsReadingBeyondFunctionContext, statementsWritingBeyondFunctionContext, this))
+            if (code != null) {
+                if (returnType != null) {
+                    code.enforceReturnType(returnType!!)
                 }
-                // else: effectively pure means effectively readonly
-            }
-            else if (isDeclaredPeadonly && !isEffectivelyReadonly!!) {
-                reportings.addAll(Reporting.readonlyViolations(statementsWritingBeyondFunctionContext, this))
-            }
 
-            // assure all paths return or throw
-            val isGuaranteedToTerminate = code.isGuaranteedToReturn nullableOr code.isGuaranteedToThrow
-            if (isGuaranteedToTerminate == null) {
-                throw InternalCompilerError("Could not determine whether function $this terminates on all executions paths")
-            }
+                reportings += code.semanticAnalysisPhase3()
 
-            if (!isGuaranteedToTerminate) {
-                // if the function is declared to return Unit a return of Unit is implied and should be inserted by backends
-                if (returnType == null || returnType!!.baseType !== Unit) {
-                    reportings.add(Reporting.uncertainTermination(this))
+                // readonly and purity checks
+                val statementsReadingBeyondFunctionContext = try {
+                    throwOnCycle(this) {
+                        code.findReadsBeyond(context)
+                    }
+                } catch (ex: EarlyStackOverflowException) {
+                    emptySet()
+                }
+                val statementsWritingBeyondFunctionContext = try {
+                    throwOnCycle(this) {
+                        code.findWritesBeyond(context)
+                    }
+                } catch (ex: EarlyStackOverflowException) {
+                    emptySet()
+                }
+
+                isEffectivelyReadonly = statementsWritingBeyondFunctionContext.isEmpty()
+                isEffectivelyPure = isEffectivelyReadonly!! && statementsReadingBeyondFunctionContext.isEmpty()
+
+                if (isDeclaredPure) {
+                    if (!isEffectivelyPure!!) {
+                        reportings.addAll(Reporting.purityViolations(statementsReadingBeyondFunctionContext,
+                            statementsWritingBeyondFunctionContext,
+                            this))
+                    }
+                    // else: effectively pure means effectively readonly
+                } else if (isDeclaredPeadonly && !isEffectivelyReadonly!!) {
+                    reportings.addAll(Reporting.readonlyViolations(statementsWritingBeyondFunctionContext, this))
+                }
+
+                // assure all paths return or throw
+                val isGuaranteedToTerminate = code.isGuaranteedToReturn nullableOr code.isGuaranteedToThrow
+                if (isGuaranteedToTerminate == null) {
+                    throw InternalCompilerError("Could not determine whether function $this terminates on all executions paths")
+                }
+
+                if (!isGuaranteedToTerminate) {
+                    // if the function is declared to return Unit a return of Unit is implied and should be inserted by backends
+                    // if this is a single-expression function (fun a() = 3), return is implied
+                    if ((returnType == null || returnType!!.baseType !== Unit) && this.code !is BoundExpression<*>) {
+                        reportings.add(Reporting.uncertainTermination(this))
+                    }
                 }
             }
+
+            return@getResult reportings
         }
-
-        return reportings
     }
 }
 

@@ -22,11 +22,13 @@ import compiler.InternalCompilerError
 import compiler.ast.CodeChunk
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ParameterList
-import compiler.ast.ReturnStatement
 import compiler.ast.expression.Expression
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeReference
-import compiler.lexer.*
+import compiler.lexer.IdentifierToken
+import compiler.lexer.KeywordToken
+import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
 import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
 import compiler.transact.Position
@@ -77,20 +79,18 @@ private fun toAST(tokens: TransactionalSequence<Any, Position>): FunctionDeclara
         val code = tokens.next()!! as CodeChunk
         // ignore trailing CBRACE_CLOSE
 
-        return FunctionDeclaration(declarationKeyword.sourceLocation, modifiers, receiverType, name, parameterList, type, code)
+        return FunctionDeclaration(
+            declarationKeyword.sourceLocation,
+            modifiers,
+            receiverType,
+            name,
+            parameterList,
+            type ?: compiler.binding.type.Unit.reference,
+            code
+        )
     }
     else if (next == OperatorToken(Operator.ASSIGNMENT)) {
-        val assignmentOp: OperatorToken = next as OperatorToken
         val singleExpression = tokens.next()!! as Expression<*>
-
-        val expressionAsCode = CodeChunk(
-            listOf(
-                ReturnStatement(
-                    KeywordToken(Keyword.RETURN, "=", assignmentOp.sourceLocation),
-                    singleExpression
-                )
-            )
-        )
 
         return FunctionDeclaration(
             declarationKeyword.sourceLocation,
@@ -99,12 +99,20 @@ private fun toAST(tokens: TransactionalSequence<Any, Position>): FunctionDeclara
             name,
             parameterList,
             type,
-            expressionAsCode
+            singleExpression,
         )
     }
     else if (next == OperatorToken(Operator.NEWLINE) || next == null) {
         // function without body with trailing newline or immediately followed by EOF
-        return FunctionDeclaration(declarationKeyword.sourceLocation, modifiers, receiverType, name, parameterList, type, null)
+        return FunctionDeclaration(
+            declarationKeyword.sourceLocation,
+            modifiers,
+            receiverType,
+            name,
+            parameterList,
+            type,
+            null
+        )
     }
     else {
         throw InternalCompilerError("Unexpected token when building AST: expected ${OperatorToken(Operator.CBRACE_OPEN)} or ${OperatorToken(Operator.ASSIGNMENT)} but got $next")

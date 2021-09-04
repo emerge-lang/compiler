@@ -37,13 +37,13 @@ class FunctionDeclaration(
     val name: IdentifierToken,
     val parameters: ParameterList,
     parsedReturnType: TypeReference?,
-    val code: CodeChunk?
+    val code: Executable<*>?,
 ) : Declaration, Bindable<BoundFunction> {
 
     /**
      * The return type. Is null if none was declared and it has not been inferred yet (see semantic analysis phase 2)
      */
-    val returnType = parsedReturnType ?: compiler.binding.type.Unit.reference
+    val returnType: TypeReference? = parsedReturnType
 
     override fun bindTo(context: CTContext): BoundFunction {
         val functionContext = MutableCTContext(context)
