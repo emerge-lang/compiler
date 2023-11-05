@@ -8,9 +8,7 @@ import compiler.lexer.lex
 import compiler.parser.grammar.Module
 import compiler.parser.toTransactional
 import compiler.reportings.Reporting
-import compiler.reportings.ReportingException
 import io.kotest.inspectors.forOne
-import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 /**
@@ -62,7 +60,7 @@ fun validateModule(code: String, addModuleDeclaration: Boolean = true): Collecti
     return (lexicalReportings + semanticReportings).toSet()
 }
 
-inline fun <reified T : Reporting> Collection<Reporting>.shouldRejectWith(additional: (T) -> Unit = {}) {
+inline fun <reified T : Reporting> Collection<Reporting>.shouldReport(additional: (T) -> Unit = {}) {
     this.forOne {
         it.shouldBeInstanceOf<T>()
         additional(it)
