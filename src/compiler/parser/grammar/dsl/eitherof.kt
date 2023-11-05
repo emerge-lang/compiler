@@ -25,6 +25,7 @@ import compiler.parser.TokenSequence
 import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.RuleMatchingResultImpl
 import compiler.reportings.Reporting
+import textutils.assureEndsWith
 import textutils.indentByFromSecondLine
 
 internal fun tryMatchEitherOf(matcherFn: Grammar, input: TokenSequence, mismatchCertainty: ResultCertainty): RuleMatchingResult<*> {
@@ -33,6 +34,7 @@ internal fun tryMatchEitherOf(matcherFn: Grammar, input: TokenSequence, mismatch
     try {
         (object : BaseMatchingGrammarReceiver(input) {
             override fun handleResult(result: RuleMatchingResult<*>) {
+                mismatchCertainty
                 if (result.certainty >= ResultCertainty.MATCHED) {
                     throw SuccessfulMatchException(result)
                 }
@@ -82,8 +84,7 @@ private class DescribingEitherOfGrammarReceiver : BaseDescribingGrammarReceiver(
 
     override fun handleItem(descriptionOfItem: String) {
         buffer.append("- ")
-        buffer.append(descriptionOfItem.indentByFromSecondLine(2))
-        buffer.append("\n")
+        buffer.append(descriptionOfItem.indentByFromSecondLine(2).assureEndsWith('\n'))
     }
 
     val collectedDescription: String
