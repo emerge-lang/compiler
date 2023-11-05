@@ -32,10 +32,8 @@ fun SourceContentAwareSourceDescriptor.getIllustrationForHighlightedLines(desire
         throw IllegalArgumentException("Source lines out of range.")
     }
 
-    val desiredLineNumbersSorted = desiredLineNumbers.sorted()
-
     val lineNumbersToOutput = mutableSetOf<Int>()
-    for (desiredLine in desiredLineNumbersSorted) {
+    for (desiredLine in desiredLineNumbers) {
         lineNumbersToOutput.add(desiredLine)
         for (i in 1 .. lineContext) {
             lineNumbersToOutput.add(desiredLine - i)
@@ -44,14 +42,14 @@ fun SourceContentAwareSourceDescriptor.getIllustrationForHighlightedLines(desire
     }
 
     val lineNumbersToOutputSorted = lineNumbersToOutput.sorted()
-    val lineCounterLength = min(3, lineNumbersToOutputSorted.maxOrNull()!!.toString(10).length)
+    val lineCounterLength = min(3, lineNumbersToOutputSorted.max().toString(10).length)
 
-    val linesToOutputWithNormalizedTabs: Map<Int, String> = lineNumbersToOutputSorted.map {
-        it to sourceLines[it - 1].replace("\t", "    ")
-    }.toMap()
+    val linesToOutputWithNormalizedTabs: Map<Int, String> = lineNumbersToOutputSorted.associateWith {
+        sourceLines[it - 1].replace("\t", "    ")
+    }
 
     val commonNumberOfLeadingSpaces =
-        linesToOutputWithNormalizedTabs.values.map { it.takeWhile { it == ' ' }.length }.minOrNull()!!
+        linesToOutputWithNormalizedTabs.values.minOf { it.takeWhile { char -> char == ' ' }.length }
 
     val out = StringBuilder()
     out.append(" ".repeat(lineCounterLength + 1))

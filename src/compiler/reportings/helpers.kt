@@ -34,7 +34,7 @@ internal fun typeMismatchReason(targetType: BaseTypeReference, sourceType: BaseT
     val targetModifier = targetType.modifier ?: TypeModifier.MUTABLE
     val validatedModifier = sourceType.modifier ?: TypeModifier.MUTABLE
     if (!(validatedModifier isAssignableTo targetModifier)) {
-        return "cannot assign ${validatedModifier.name.toLowerCase()} to ${targetModifier.name.toLowerCase()}"
+        return "cannot assign ${validatedModifier.name.lowercase()} to ${targetModifier.name.lowercase()}"
     }
 
     // void-safety

@@ -20,6 +20,7 @@ package compiler.lexer
 
 import compiler.parser.grammar.ParameterList
 import compiler.parser.grammar.VariableDeclaration
+import compiler.sortedTopologically
 
 enum class TokenType
 {
@@ -59,9 +60,6 @@ enum class Keyword(val text: String)
 
 enum class Operator(val text: String, private val _humanReadableName: String? = null)
 {
-    // ORDER IS VERY IMPORTANT
-    // e.g. if + was before +=, += would never get recognized as such (but rather as separate + and =)
-
     PARANT_OPEN  ("(", "left parenthesis"),
     PARANT_CLOSE (")", "right parenthesis"),
     CBRACE_OPEN  ("{", "left curly brace"),
@@ -96,6 +94,12 @@ enum class Operator(val text: String, private val _humanReadableName: String? = 
     /** A human readable name of this operator; if none was specified, falls back to `"operator $text"` */
     val humanReadableName: String
         get() = this._humanReadableName ?: "operator $text"
+
+    companion object {
+        val valuesSortedForLexing: List<Operator> = values().toList().sortedTopologically { depender, dependency ->
+            dependency.text.startsWith(depender.text)
+        }
+    }
 }
 
 val DECIMAL_SEPARATOR: Char = '.'

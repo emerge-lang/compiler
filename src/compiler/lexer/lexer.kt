@@ -133,7 +133,7 @@ class Lexer(code: String, private val sourceDescriptor: SourceDescriptor)
     }
 
     private fun tryMatchOperator(doCommit: Boolean = true): OperatorToken? {
-        for (operator in Operator.values())
+        for (operator in Operator.valuesSortedForLexing)
         {
             sourceTxSequence.mark()
 
