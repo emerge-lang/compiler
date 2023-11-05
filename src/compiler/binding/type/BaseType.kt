@@ -38,11 +38,8 @@ interface BaseType {
     val fullyQualifiedName: String
         get() = simpleName
 
-    val reference: TypeReference
-        get() = TypeReference(fullyQualifiedName, false, impliedModifier)
-
     val baseReference: (CTContext) -> BaseTypeReference
-        get() = { ctx -> BaseTypeReference(reference, ctx, this) }
+        get() = { ctx -> BaseTypeReference(TypeReference(simpleName, false, impliedModifier), ctx, this) }
 
     val superTypes: Set<BaseType>
         get() = emptySet()
@@ -111,7 +108,7 @@ interface BaseType {
          *         [hierachical distance](hierarchicalDistanceTo).
          */
         fun closestCommonAncestorOf(types: List<BaseType>): BaseType {
-            if (types.size == 0) throw IllegalArgumentException("At least one type must be provided")
+            if (types.isEmpty()) throw IllegalArgumentException("At least one type must be provided")
             if (types.size == 1) return types[0]
 
             var pivot = types[0]

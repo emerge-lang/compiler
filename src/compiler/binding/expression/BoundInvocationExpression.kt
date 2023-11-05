@@ -95,12 +95,12 @@ class BoundInvocationExpression(
      */
     private fun semanticPhase2_determineFunction(): List<BoundFunction> {
         if (receiverExpression == null) {
-            return context.resolveAnyFunctions(functionNameToken.value)
+            return context.resolveFunction(functionNameToken.value)
                     .filter { it.receiverType == null }
                     .filterAndSortByMatchForInvocationTypes(null, parameterExpressions.map(BoundExpression<*>::type))
         } else {
             val receiverType = receiverExpression.type ?: compiler.binding.type.Any.baseReference(context).nullable()
-            return context.resolveAnyFunctions(functionNameToken.value)
+            return context.resolveFunction(functionNameToken.value)
                 .filterAndSortByMatchForInvocationTypes(
                     receiverType,
                     parameterExpressions.map { it.type }

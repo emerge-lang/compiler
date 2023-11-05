@@ -63,7 +63,7 @@ class BoundUnaryExpression(
 
         // functions with receiver
         val receiverOperatorFuns =
-            context.resolveAnyFunctions(opFunName)
+            context.resolveFunction(opFunName)
                 .filterAndSortByMatchForInvocationTypes(valueType, emptyList())
                 .filter { FunctionModifier.OPERATOR in it.declaration.modifiers }
 

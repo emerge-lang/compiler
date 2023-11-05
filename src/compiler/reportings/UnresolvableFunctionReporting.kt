@@ -29,7 +29,7 @@ class UnresolvableFunctionReporting private constructor(val expr: BoundInvocatio
 
     companion object {
         fun of(expr: BoundInvocationExpression): UnresolvableFunctionReporting {
-            if (expr.context.resolveAnyFunctions(expr.functionNameToken.value).isEmpty()) {
+            if (expr.context.resolveFunction(expr.functionNameToken.value).isEmpty()) {
                 // a function with the specified name does not even exist
                 return UnresolvableFunctionReporting(
                     expr,

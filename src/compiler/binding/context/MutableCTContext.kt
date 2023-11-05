@@ -38,44 +38,37 @@ open class MutableCTContext(
     /**
      * The context this one is derived off of
      */
-    override val parentContext: CTContext = CTContext.EMPTY
-) : CTContext
-{
+    private val parentContext: CTContext,
+) : CTContext {
     private val imports: MutableSet<ImportDeclaration> = HashSet()
 
-    private val hierarchy by lazy {
-        val hierarchy = ArrayList<CTContext>(10)
-        var _context: CTContext? = this
-        while (_context != null) {
-            hierarchy.add(_context!!)
-            _context = _context!!.parentContext
+    private var _swCtx: SoftwareContext? = null
+    override var swCtx: SoftwareContext
+        get() = _swCtx ?: parentContext.swCtx
+        set(value) {
+            _swCtx = value
         }
 
-        hierarchy
-    }
+    private var _module: Module? = null
+    override var module
+        get() = _module ?: parentContext.module
+        set(value) {
+            _module = value
+        }
 
-    override var swCtx: SoftwareContext? = null
-        get() = field ?: parentContext.swCtx
-        set(ctx) { field = ctx }
-
-    override var module: Module? = null
-        get() = field ?: parentContext.module
-        set(module) { field = module }
+    private val hierarchy: Sequence<CTContext> = generateSequence(this as CTContext) { (it as? MutableCTContext)?.parentContext }
 
     /** Maps variable names to their metadata; holds only variables defined in this context */
-    private val variablesMap: MutableMap<String, BoundVariable> = HashMap()
-
-    override val variables
-        get() = variablesMap.values
+    protected val _variables: MutableMap<String, BoundVariable> = HashMap()
 
     /** Holds all the toplevel functions defined in this context */
-    override val functions: MutableSet<BoundFunction> = HashSet()
+    protected val _functions: MutableSet<BoundFunction> = HashSet()
 
     /** Holds all the toplevel structs defined in this context */
-    override val structs: MutableSet<Struct> = HashSet()
+    protected val _structs: MutableSet<Struct> = HashSet()
 
     /** Holds all the base types defined in this context */
-    private val types: MutableSet<BaseType> = HashSet()
+    protected val _types: MutableSet<BaseType> = HashSet()
 
     fun addImport(decl: ImportDeclaration) {
         this.imports.add(decl)
@@ -85,43 +78,61 @@ open class MutableCTContext(
      * Adds the given [BaseType] to this context, possibly overriding
      */
     open fun addBaseType(type: BaseType) {
-        types.add(type)
-        if (type is Struct) structs.add(type)
+        _types.add(type)
+        if (type is Struct) _structs.add(type)
     }
 
     open fun addStruct(definition: Struct) {
-        types.add(definition)
-        structs.add(definition)
+        _types.add(definition)
+        _structs.add(definition)
     }
 
-    override fun resolveDefinedType(simpleName: String): BaseType? = types.find { it.simpleName == simpleName }
-
-    override fun resolveAnyType(ref: TypeReference): BaseType? {
+    override fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean): BaseType? {
         if (ref is BaseTypeReference) return ref.baseType
 
-        if (ref.declaredName.contains('.')) {
-            val swCtx = this.swCtx ?: throw InternalCompilerError("Cannot resolve FQN when no software context is set.")
+        _types.find { it.simpleName == ref.simpleName }?.let { return it }
 
-            // FQN specified
-            val fqnName = ref.declaredName.split('.')
-            val simpleName = fqnName.last()
-            val moduleNameOfType = fqnName.dropLast(1)
-            val foreignModuleCtx = swCtx.module(moduleNameOfType)
-            return foreignModuleCtx?.context?.resolveDefinedType(simpleName)
-        }
-        else {
-            // try to resolve from this context
-            val selfDefined = resolveDefinedType(ref.declaredName)
-            if (selfDefined != null) return selfDefined
-
-            // look through the imports
-            val importedTypes = importsForSimpleName(ref.declaredName)
-                .map { it.resolveDefinedType(ref.declaredName) }
+        val fromImport = if (fromOwnModuleOnly) null else {
+            val importedTypes = importsForSimpleName(ref.simpleName)
+                .map { it.resolveType(ref, fromOwnModuleOnly = true) }
                 .filterNotNull()
 
-            // TODO: if importedTypes.size is > 1 the reference is ambigous; how to handle that?
-            return importedTypes.firstOrNull() ?: parentContext.resolveAnyType(ref)
+            // TODO: if importedTypes.size is > 1 the reference is ambiguous; how to handle that?
+            importedTypes.firstOrNull()
         }
+
+        return fromImport ?: parentContext.resolveType(ref, fromOwnModuleOnly)
+    }
+
+    override fun resolveVariable(name: String, fromOwnModuleOnly: Boolean): BoundVariable? {
+        _variables[name]?.let { return it }
+
+        val fromImport = if (fromOwnModuleOnly) null else {
+            val importedVars = importsForSimpleName(name)
+                .map { it.resolveVariable(name, fromOwnModuleOnly = true) }
+                .filterNotNull()
+
+            // TODO: if importedVars.size is > 1 the name is ambigous; how to handle that?
+            importedVars.firstOrNull()
+        }
+
+        return fromImport ?: parentContext.resolveVariable(name, fromOwnModuleOnly)
+    }
+
+    override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean {
+        if (_variables.containsValue(variable)) return true
+
+        if (this === boundary) {
+            return false
+        }
+
+        return parentContext.containsWithinBoundary(variable, boundary)
+    }
+
+    open fun addFunction(declaration: FunctionDeclaration): BoundFunction {
+        val bound = declaration.bindTo(this)
+        _functions.add(bound)
+        return bound
     }
 
     /**
@@ -135,79 +146,28 @@ open class MutableCTContext(
 
     open fun addVariable(boundVariable: BoundVariable): BoundVariable {
         if (boundVariable.context in hierarchy) {
-            variablesMap[boundVariable.name] = boundVariable
+            _variables[boundVariable.name] = boundVariable
             return boundVariable
         }
 
         throw InternalCompilerError("Cannot add a variable that has been bound to a different context")
     }
 
-    override fun resolveVariable(name: String, onlyOwn: Boolean): BoundVariable? {
-        val ownVar = variablesMap[name]
-        if (onlyOwn || ownVar != null) return ownVar
+    override fun resolveFunction(name: String, fromOwnModuleOnly: Boolean): Collection<BoundFunction> {
+        // try to resolve from this context
+        val selfDefined = _functions.filter { it.name == name }
 
-        val importedVars = importsForSimpleName(name)
-            .map { it.resolveVariable(name, true) }
-            .filterNotNull()
+        // look through the imports
+        val importedTypes = if (fromOwnModuleOnly) emptySet() else importsForSimpleName(name).map { it.resolveFunction(name, fromOwnModuleOnly = true) }
 
-        // TODO: if importedVars.size is > 1 the name is ambigous; how to handle that?
-        return importedVars.firstOrNull() ?: parentContext.resolveVariable(name, onlyOwn)
-    }
-
-    override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean {
-        if (variablesMap.containsValue(variable)) return true
-
-        if (this !== boundary) {
-            if (parentContext == CTContext.EMPTY) {
-                // the boundary is not in the hierarchy => error
-                throw InternalCompilerError("The given boundary is not part of the hierarchy of the invoked context")
-            }
-
-            return parentContext.containsWithinBoundary(variable, boundary)
-        }
-
-        return false
-    }
-
-    open fun addFunction(declaration: FunctionDeclaration): BoundFunction {
-        val bound = declaration.bindTo(this)
-        functions.add(bound)
-        return bound
-    }
-
-    override fun resolveDefinedFunctions(name: String): Collection<BoundFunction> = functions.filter { it.declaration.name.value == name }
-
-    override fun resolveAnyFunctions(name: String): Collection<BoundFunction> {
-        if (name.contains('.')) {
-            val swCtx = this.swCtx ?: throw InternalCompilerError("Cannot resolve FQN when no software context is set.")
-
-            // FQN specified
-            val fqnName = name.split('.')
-            val simpleName = fqnName.last()
-            val moduleNameOfType = fqnName.dropLast(1)
-            val foreignModuleCtx = swCtx.module(moduleNameOfType)
-            return foreignModuleCtx?.context?.resolveDefinedFunctions(simpleName) ?: emptySet()
-        }
-        else {
-            // try to resolve from this context
-            val selfDefined = resolveDefinedFunctions(name)
-
-            // look through the imports
-            val importedTypes = importsForSimpleName(name)
-                .map { it.resolveDefinedFunctions(name) }
-                .filterNotNull()
-
-            // TODO: if importedTypes.size is > 1 the reference is ambiguous; how to handle that?
-            return selfDefined + (importedTypes.firstOrNull() ?: emptySet()) + parentContext.resolveAnyFunctions(name)
-        }
+        // TODO: if importedTypes.size is > 1 the reference is ambiguous; how to handle that?
+        return selfDefined + (importedTypes.firstOrNull() ?: emptySet()) + parentContext.resolveFunction(name, fromOwnModuleOnly)
     }
 
     /**
      * @return All the imported contexts that could contain the given simple name.
      */
     private fun importsForSimpleName(simpleName: String): Iterable<CTContext> {
-        val swCtx = this.swCtx ?: throw InternalCompilerError("Cannot resolve symbol $simpleName including imports when no software context is set.")
-
         return imports.map { import ->
             val importRange = import.identifiers.map(IdentifierToken::value)
             val moduleName = importRange.dropLast(1)
@@ -221,20 +181,4 @@ open class MutableCTContext(
         }
             .filterNotNull()
     }
-
-    companion object {
-        /**
-         * Derives a new [MutableCTContext] from the given one, runs `initFn` on it and returns it.
-         */
-        fun deriveFrom(context: CTContext, initFn: MutableCTContext.() -> Any? = {}): MutableCTContext {
-            val newContext = MutableCTContext(context)
-            newContext.swCtx = context.swCtx
-
-            newContext.initFn()
-
-            return newContext
-        }
-    }
 }
-
-private fun <T, R> Iterable<T>.firstNotNull(transform: (T) -> R?): R? = map(transform).filterNot{ it == null }.firstOrNull()

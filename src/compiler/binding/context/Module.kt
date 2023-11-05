@@ -25,7 +25,7 @@ import compiler.reportings.Reporting
 
 class Module(
     val name: Array<String>,
-    val context: MutableCTContext,
+    val context: ModuleRootContext,
     /** [Reporting]s generated at bind-time: double declarations, ... */
     val bindTimeReportings: Collection<Reporting> = emptySet()
 ) {

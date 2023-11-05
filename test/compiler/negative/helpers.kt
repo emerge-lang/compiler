@@ -9,6 +9,8 @@ import compiler.parser.grammar.Module
 import compiler.parser.toTransactional
 import compiler.reportings.Reporting
 import io.kotest.inspectors.forOne
+import io.kotest.matchers.comparables.beGreaterThan
+import io.kotest.matchers.should
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 /**
@@ -47,6 +49,10 @@ fun validateModule(code: String, addModuleDeclaration: Boolean = true): Collecti
         throw AssertionError("Failed to parse code: ${error.message} in ${error.sourceLocation}")
     }
     val lexicalReportings = result.reportings
+    val nTopLevelDeclarations = result.item!!.let { module ->
+        module.functions.size + module.structs.size + module.variables.size
+    }
+    check(nTopLevelDeclarations > 0) { "Found no top-level declarations in the test source. Very likely a parsing bug." }
 
     val swCtxt = SoftwareContext()
 

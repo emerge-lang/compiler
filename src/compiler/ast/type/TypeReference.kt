@@ -23,7 +23,7 @@ import compiler.binding.type.BaseTypeReference
 import compiler.lexer.IdentifierToken
 
 open class TypeReference(
-    val declaredName: String,
+    val simpleName: String,
     val isNullable: Boolean,
     open val modifier: TypeModifier? = null,
     val isInferred: Boolean = false,
@@ -34,17 +34,17 @@ open class TypeReference(
 
     open fun modifiedWith(modifier: TypeModifier): TypeReference {
         // TODO: implement type modifiers
-        return TypeReference(declaredName, isNullable, modifier)
+        return TypeReference(simpleName, isNullable, modifier)
     }
 
-    open fun nonNull(): TypeReference = TypeReference(declaredName, false, modifier, isInferred, declaringNameToken)
+    open fun nonNull(): TypeReference = TypeReference(simpleName, false, modifier, isInferred, declaringNameToken)
 
-    open fun nullable(): TypeReference = TypeReference(declaredName, true, modifier, isInferred, declaringNameToken);
+    open fun nullable(): TypeReference = TypeReference(simpleName, true, modifier, isInferred, declaringNameToken);
 
-    open fun asInferred(): TypeReference = TypeReference(declaredName, isNullable, modifier, true, declaringNameToken)
+    open fun asInferred(): TypeReference = TypeReference(simpleName, isNullable, modifier, true, declaringNameToken)
 
     open fun resolveWithin(context: CTContext): BaseTypeReference? {
-        val baseType = context.resolveAnyType(this)
+        val baseType = context.resolveType(this)
         return if (baseType != null) BaseTypeReference(this, context, baseType) else null
     }
 }

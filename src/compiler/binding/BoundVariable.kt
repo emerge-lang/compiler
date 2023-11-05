@@ -56,6 +56,14 @@ class BoundVariable(
     fun semanticAnalysisPhase1(selfType: String): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
 
+        context.resolveVariable(this.name)
+            ?.takeUnless { it == this }
+            ?.let { firstDeclarationOfVariable ->
+                reportings.add(Reporting.variableDeclaredMoreThanOnce(firstDeclarationOfVariable.declaration, this.declaration))
+            }
+
+        // TODO: warn about shadowing
+
         // type-related stuff
         // unknown type
         if (declaration.initializerExpression == null && declaration.type == null) {

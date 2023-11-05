@@ -20,6 +20,7 @@ package compiler.ast
 
 import compiler.ast.struct.StructDeclaration
 import compiler.binding.context.Module
+import compiler.binding.context.ModuleRootContext
 import compiler.binding.context.MutableCTContext
 import compiler.binding.context.SoftwareContext
 import compiler.reportings.Reporting
@@ -43,7 +44,8 @@ class ASTModule {
      * [CTContext]) this has its own signature.
      */
     fun bindTo(context: SoftwareContext): Module {
-        val moduleContext = MutableCTContext()
+        val moduleContext = ModuleRootContext()
+        moduleContext.swCtx = context
         val reportings = mutableSetOf<Reporting>()
 
         imports.forEach(moduleContext::addImport)
@@ -61,8 +63,6 @@ class ASTModule {
                 reportings.add(Reporting.variableDeclaredMoreThanOnce(existingVariable.declaration, declaredVariable))
             }
         }
-
-        moduleContext.swCtx = context
 
         return Module(selfDeclaration?.name ?: emptyArray(), moduleContext, reportings)
     }
