@@ -21,6 +21,7 @@ package compiler.parser.postproc
 import compiler.InternalCompilerError
 import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
+import compiler.ast.expression.Expression
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
 import compiler.lexer.*
@@ -41,6 +42,7 @@ private fun toAST_ParameterDeclaration(input: TransactionalSequence<Any, Positio
     var typeModifier: TypeModifier? = null
     var name: IdentifierToken
     var type: TypeReference? = null
+    var initializer: Expression<*>? = null
 
     var next = input.next()!!
 
@@ -61,13 +63,18 @@ private fun toAST_ParameterDeclaration(input: TransactionalSequence<Any, Positio
         type = input.next()!! as TypeReference
     }
 
+    if (input.peek() == OperatorToken(Operator.ASSIGNMENT)) {
+        input.next()
+        initializer = input.next()!! as Expression<*>
+    }
+
     return VariableDeclaration(
         name.sourceLocation,
         typeModifier,
         name,
         type,
         declarationKeyword == Keyword.VAR,
-        null
+        initializer,
     )
 }
 

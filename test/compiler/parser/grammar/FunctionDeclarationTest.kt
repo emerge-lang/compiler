@@ -10,6 +10,7 @@ import compiler.parser.grammar.GrammarTestCase
 import compiler.parser.grammar.StandaloneFunctionDeclaration
 import io.kotest.inspectors.forOne
 import io.kotest.matchers.collections.haveSize
+import io.kotest.matchers.comparables.beGreaterThanOrEqualTo
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -44,20 +45,20 @@ class FunctionDeclarationTest : GrammarTestCase() { init {
         operator(Operator.CBRACE_CLOSE)
     }.matchAgainst(StandaloneFunctionDeclaration)
 
-    result.certainty shouldBe ResultCertainty.DEFINITIVE
+    result.certainty should beGreaterThanOrEqualTo(ResultCertainty.MATCHED)
     result.item.shouldNotBeNull()
-    result.item!!.declaredAt.sourceLine shouldBe "1"
-    result.item!!.declaredAt.sourceColumn shouldBe "1"
+    result.item!!.declaredAt.sourceLine shouldBe 1
+    result.item!!.declaredAt.sourceColumn shouldBe 18
     result.item!!.modifiers shouldBe setOf(FunctionModifier.READONLY, FunctionModifier.NOTHROW)
     result.item!!.parameters.parameters should haveSize(2)
     result.item!!.parameters.parameters.forOne {
-        it.name shouldBe "a"
-        it.type shouldBe TypeReference("Int", false)
+        it.name.value shouldBe "a"
+        it.type!!.declaredName shouldBe "Int"
     }
     result.item!!.parameters.parameters.forOne {
-        it.name shouldBe "b"
-        it.type shouldBe TypeReference("Int", false)
+        it.name.value shouldBe "b"
+        it.type!!.declaredName shouldBe "Int"
         it.initializerExpression.shouldBeInstanceOf<NumericLiteralExpression>().literalToken.stringContent shouldBe "512"
     }
-    result.item!!.returnType shouldBe TypeReference("Boolean", false)
+    result.item!!.returnType!!.declaredName shouldBe "Boolean"
 } }

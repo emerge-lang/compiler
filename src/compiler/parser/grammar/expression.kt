@@ -63,6 +63,7 @@ val Expression: Rule<Expression<*>> by lazy {
         }
         certainty = DEFINITIVE
     }
+        .describeAs("expression")
         .postprocess(::ExpressionPostprocessor)
 }
 

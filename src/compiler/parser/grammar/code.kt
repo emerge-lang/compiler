@@ -96,8 +96,8 @@ val CodeChunk = sequence {
     certainty = MATCHED
     optionalWhitespace()
     optional {
-        certainty = MATCHED
         ref(LineOfCode)
+        certainty = MATCHED
 
         atLeast(0) {
             ref(LineOfCode)

@@ -48,6 +48,11 @@ val Parameter = sequence {
         operator(Operator.COLON)
         ref(Type)
     }
+
+    optional {
+        operator(Operator.ASSIGNMENT)
+        ref(Expression)
+    }
 }
     .describeAs("parameter declaration")
     .postprocess(::ParameterDeclarationPostProcessor)
@@ -69,6 +74,9 @@ val ParameterList = sequence {
     }
 
     optionalWhitespace()
+    optional {
+        operator(Operator.COMMA)
+    }
     operator(Operator.PARANT_CLOSE)
 }
     .describeAs("parenthesised paramete rlist")

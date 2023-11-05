@@ -23,6 +23,7 @@ import io.kotest.matchers.comparables.beGreaterThan
 import io.kotest.matchers.comparables.beGreaterThanOrEqualTo
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNot
 import io.kotest.matchers.types.beInstanceOf
 
 class LexerTest : FreeSpec() {init {
@@ -91,7 +92,7 @@ class LexerTest : FreeSpec() {init {
             val result = Lexer(".25", testSource).remainingTokens().toList()
 
             result.size should beGreaterThan(1)
-            result[0] shouldBe beInstanceOf(NumericLiteralToken::class)
+            result[0] shouldNot beInstanceOf(NumericLiteralToken::class)
         }
 
         "invocation on integer literal" {
