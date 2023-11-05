@@ -16,7 +16,7 @@ class StructErrors : FreeSpec({
                 a: Boolean
             }
         """.trimIndent())
-            .shouldRejectWith<DuplicateStructMemberReporting> {
+            .shouldReport<DuplicateStructMemberReporting> {
                 it.duplicates should haveSize(2)
                 it.duplicates.forAll {
                     it.name shouldBe "a"

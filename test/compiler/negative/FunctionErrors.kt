@@ -12,14 +12,14 @@ class FunctionErrors : FreeSpec({
                 return 3
             }
         """.trimIndent())
-            .shouldRejectWith<IllegalFunctionBodyReporting>()
+            .shouldReport<IllegalFunctionBodyReporting>()
     }
 
     "function parameters must have explicit types" {
         validateModule("""
             fun foo(bar) = 3
         """.trimIndent())
-            .shouldRejectWith<MissingParameterTypeReporting>() {
+            .shouldReport<MissingParameterTypeReporting>() {
                 it.parameter.name.value shouldBe "bar"
             }
     }
