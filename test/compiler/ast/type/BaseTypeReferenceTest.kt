@@ -18,6 +18,7 @@
 
 package compiler.ast.type
 
+import compiler.binding.context.ModuleRootContext
 import compiler.binding.context.MutableCTContext
 import compiler.binding.type.BaseTypeReference
 import io.kotest.core.spec.style.FreeSpec
@@ -25,7 +26,7 @@ import io.kotest.matchers.shouldBe
 
 class BaseTypeReferenceTest : FreeSpec() { init {
     "Given a type hierarchy A; B : A; C : A, Z; D : A, Z; E : A, Z" - {
-        val context = MutableCTContext()
+        val context = ModuleRootContext()
         val typeA = fakeType("A")
         val typeB = fakeType("B", typeA)
         val typeC = fakeType("C", typeA)

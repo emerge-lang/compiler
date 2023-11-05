@@ -1,9 +1,6 @@
 package matchers.compiler.negative
 
-import compiler.reportings.IllegalAssignmentReporting
-import compiler.reportings.ModifierErrorReporting
-import compiler.reportings.TypeDeductionErrorReporting
-import compiler.reportings.TypeMismatchReporting
+import compiler.reportings.*
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 
@@ -68,6 +65,20 @@ class VariableErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<IllegalAssignmentReporting>()
+        }
+
+        "variable declared multiple times" {
+            validateModule("""
+                fun foo() {
+                    val x = 3
+                    val a = 1
+                    val x = true
+                }
+            """.trimIndent())
+                .shouldReport<MultipleVariableDeclarationsReporting> {
+                    it.originalDeclaration.name.value shouldBe "x"
+                    it.additionalDeclaration.name.value shouldBe "x"
+                }
         }
     }
 })

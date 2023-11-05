@@ -23,6 +23,7 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
 import compiler.binding.context.Module
+import compiler.binding.context.ModuleRootContext
 import compiler.binding.context.MutableCTContext
 import compiler.parseFromClasspath
 
@@ -63,8 +64,6 @@ abstract class BuiltinType(override val simpleName: String, vararg superTypes: B
 
     override final val superTypes: Set<BaseType> = superTypes.toSet()
 
-    override final val reference = TypeReference(fullyQualifiedName, false, impliedModifier)
-
     /**
      * BaseTypes do not define anything themselves. All of that is defined in source language in the
      * stdlib and implementation is provided from elsewhere, probably platform-specific.
@@ -74,7 +73,8 @@ abstract class BuiltinType(override val simpleName: String, vararg superTypes: B
     companion object {
        private val stdlib: ASTModule = parseFromClasspath("builtin.dt")
         fun getNewModule(): Module {
-            val module = Module(arrayOf("dotlin", "lang"), MutableCTContext())
+            val moduleContext = ModuleRootContext()
+            val module = Module(arrayOf("dotlin", "lang"), moduleContext)
 
             module.context.addBaseType(Any)
             module.context.addBaseType(Unit)

@@ -279,7 +279,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
                 receiverType,
                 name,
                 parameterList,
-                type ?: Unit.reference,
+                type ?: TypeReference("Unit", isNullable = false, isInferred = true),
                 code
             )
         }

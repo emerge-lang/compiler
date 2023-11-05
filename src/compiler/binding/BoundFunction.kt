@@ -123,7 +123,7 @@ class BoundFunction(
         get() = if (isDeclaredPeadonly || isDeclaredPure) true else isEffectivelyReadonly
 
     val fullyQualifiedName: String
-        get() = (context.module?.name?.joinToString(".") ?: "<unknown module>") + "." + name
+        get() = (context.module.name.joinToString(".") ?: "<unknown module>") + "." + name
 
     fun semanticAnalysisPhase1(): Collection<Reporting> {
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
@@ -233,9 +233,6 @@ class BoundFunction(
 
                 // assure all paths return or throw
                 val isGuaranteedToTerminate = code.isGuaranteedToReturn nullableOr code.isGuaranteedToThrow
-                if (isGuaranteedToTerminate == null) {
-                    throw InternalCompilerError("Could not determine whether function $this terminates on all executions paths")
-                }
 
                 if (!isGuaranteedToTerminate) {
                     // if the function is declared to return Unit a return of Unit is implied and should be inserted by backends

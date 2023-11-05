@@ -37,8 +37,6 @@ class Struct(
 ) : BaseType, BoundElement<StructDeclaration> {
     override val simpleName: String = declaration.name.value
 
-    override val reference: TypeReference = TypeReference(simpleName, false)
-
     override val superTypes: Set<BaseType> = setOf(Any)
 
     override fun resolveMemberFunction(name: String): Collection<FunctionDeclaration> = emptySet()

@@ -33,7 +33,7 @@ open class BaseTypeReference(
     open val context: CTContext,
     val baseType: BaseType
 ) : TypeReference(
-    original.declaredName,
+    original.simpleName,
     original.isNullable,
     original.modifier,
     original.isInferred,

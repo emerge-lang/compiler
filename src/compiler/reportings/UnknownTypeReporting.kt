@@ -23,6 +23,6 @@ import compiler.lexer.SourceLocation
 
 class UnknownTypeReporting(val erroneousReference: TypeReference) : Reporting(
     Level.ERROR,
-    "Cannot resolve type ${erroneousReference.declaredName}",
+    "Cannot resolve type ${erroneousReference.simpleName}",
     if (erroneousReference.declaringNameToken == null) SourceLocation.UNKNOWN else erroneousReference.declaringNameToken.sourceLocation
 )

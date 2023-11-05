@@ -20,6 +20,7 @@ package compiler.binding.expression
 
 import compiler.ast.Executable
 import compiler.ast.expression.IdentifierExpression
+import compiler.ast.type.TypeReference
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundVariable
 import compiler.binding.context.CTContext
@@ -64,7 +65,10 @@ class BoundIdentifierExpression(
             referredType = ReferredType.VARIABLE
             referredVariable = variable
         } else {
-            var type: BaseType? = context.resolveDefinedType(identifier)
+            val type: BaseType? = context.resolveType(
+                TypeReference(declaration.identifier, false, modifier = null, isInferred = false)
+            )
+
             if (type == null) {
                 reportings.add(Reporting.undefinedIdentifier(declaration))
             } else {
