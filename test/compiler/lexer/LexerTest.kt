@@ -18,8 +18,12 @@
 
 package compiler.lexer
 
-import io.kotlintest.matchers.*
-import io.kotlintest.specs.FreeSpec
+import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.comparables.beGreaterThan
+import io.kotest.matchers.comparables.beGreaterThanOrEqualTo
+import io.kotest.matchers.should
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.beInstanceOf
 
 class LexerTest : FreeSpec() {init {
 
@@ -32,8 +36,8 @@ class LexerTest : FreeSpec() {init {
             result.size shouldBe 1
             result[0] should beInstanceOf(KeywordToken::class)
             (result[0] as KeywordToken).keyword shouldBe Keyword.MODULE
-            (result[0] as KeywordToken).sourceText shouldEqual "module"
-            (result[0] as KeywordToken).sourceLocation shouldEqual SourceLocation(testSource, 1, 4)
+            (result[0] as KeywordToken).sourceText shouldBe "module"
+            (result[0] as KeywordToken).sourceLocation shouldBe SourceLocation(testSource, 1, 4)
         }
 
         "should be case insensitive" {
@@ -48,29 +52,29 @@ class LexerTest : FreeSpec() {init {
     "newlines are semantic" {
         val result = Lexer("  \n  \n  \n", testSource).remainingTokens().toList()
 
-        result.size shouldEqual 3
+        result.size shouldBe 3
         result[0] should beInstanceOf(OperatorToken::class)
         (result[0] as OperatorToken).operator shouldBe Operator.NEWLINE
 
-        result[1] shouldEqual result[0]
-        result[2] shouldEqual result[0]
+        result[1] shouldBe result[0]
+        result[2] shouldBe result[0]
     }
 
     "integers" - {
         "single digit" {
             val result = Lexer("7", testSource).remainingTokens().toList()
 
-            result.size shouldEqual 1
+            result.size shouldBe 1
             result[0] should beInstanceOf(NumericLiteralToken::class)
-            (result[0] as NumericLiteralToken).stringContent shouldEqual "7"
+            (result[0] as NumericLiteralToken).stringContent shouldBe "7"
         }
 
         "multiple digit" {
             val result = Lexer("21498743", testSource).remainingTokens().toList()
 
-            result.size shouldEqual 1
+            result.size shouldBe 1
             result[0] should beInstanceOf(NumericLiteralToken::class)
-            (result[0] as NumericLiteralToken).stringContent shouldEqual "21498743"
+            (result[0] as NumericLiteralToken).stringContent shouldBe "21498743"
         }
     }
 
@@ -78,16 +82,16 @@ class LexerTest : FreeSpec() {init {
         "simple decimal" {
             val result = Lexer("312.1232", testSource).remainingTokens().toList()
 
-            result.size shouldEqual 1
+            result.size shouldBe 1
             result[0] should beInstanceOf(NumericLiteralToken::class)
-            (result[0] as NumericLiteralToken).stringContent shouldEqual "312.1232"
+            (result[0] as NumericLiteralToken).stringContent shouldBe "312.1232"
         }
 
         "without leading digit it's not a decimal" {
             val result = Lexer(".25", testSource).remainingTokens().toList()
 
             result.size should beGreaterThan(1)
-            result[0] shouldNot beInstanceOf(NumericLiteralToken::class)
+            result[0] shouldBe beInstanceOf(NumericLiteralToken::class)
         }
 
         "invocation on integer literal" {
@@ -95,13 +99,13 @@ class LexerTest : FreeSpec() {init {
 
             result.size should beGreaterThan(3)
             result[0] should beInstanceOf(NumericLiteralToken::class)
-            (result[0] as NumericLiteralToken).stringContent shouldEqual "312"
+            (result[0] as NumericLiteralToken).stringContent shouldBe "312"
 
             result[1] should beInstanceOf(OperatorToken::class)
             (result[1] as OperatorToken).operator shouldBe Operator.DOT
 
             result[2] should beInstanceOf(IdentifierToken::class)
-            (result[2] as IdentifierToken).value shouldEqual "toLong"
+            (result[2] as IdentifierToken).value shouldBe "toLong"
         }
     }
 
@@ -112,10 +116,10 @@ class LexerTest : FreeSpec() {init {
             result.size shouldBe 2
 
             result[0] should beInstanceOf(IdentifierToken::class)
-            (result[0] as IdentifierToken).value shouldEqual "foo"
+            (result[0] as IdentifierToken).value shouldBe "foo"
 
             result[1] should beInstanceOf(IdentifierToken::class)
-            (result[1] as IdentifierToken).value shouldEqual "bar"
+            (result[1] as IdentifierToken).value shouldBe "bar"
         }
 
         "identifier stops at operator" {
@@ -124,7 +128,7 @@ class LexerTest : FreeSpec() {init {
             result.size shouldBe 2
 
             result[0] should beInstanceOf(IdentifierToken::class)
-            (result[0] as IdentifierToken).value shouldEqual "baz"
+            (result[0] as IdentifierToken).value shouldBe "baz"
 
             result[1] should beInstanceOf(OperatorToken::class)
             (result[1] as OperatorToken).operator shouldBe Operator.TIMES
@@ -136,7 +140,7 @@ class LexerTest : FreeSpec() {init {
             result.size shouldBe 2
 
             result[0] should beInstanceOf(IdentifierToken::class)
-            (result[0] as IdentifierToken).value shouldEqual "cat"
+            (result[0] as IdentifierToken).value shouldBe "cat"
 
             result[1] should beInstanceOf(OperatorToken::class)
             (result[1] as OperatorToken).operator shouldBe Operator.NEWLINE
@@ -154,7 +158,7 @@ class LexerTest : FreeSpec() {init {
         (result[0] as KeywordToken).keyword shouldBe Keyword.MODULE
 
         result[1] should beInstanceOf(IdentifierToken::class)
-        (result[1] as IdentifierToken).value shouldEqual "foo"
+        (result[1] as IdentifierToken).value shouldBe "foo"
 
         result[2] should beInstanceOf(OperatorToken::class)
         (result[2] as OperatorToken).operator shouldBe Operator.NEWLINE
@@ -163,7 +167,7 @@ class LexerTest : FreeSpec() {init {
         (result[3] as KeywordToken).keyword shouldBe Keyword.FUNCTION
 
         result[4] should beInstanceOf(IdentifierToken::class)
-        (result[4] as IdentifierToken).value shouldEqual "foobar"
+        (result[4] as IdentifierToken).value shouldBe "foobar"
 
         result[5] should beInstanceOf(OperatorToken::class)
         (result[5] as OperatorToken).operator shouldBe Operator.PARANT_OPEN
@@ -172,19 +176,19 @@ class LexerTest : FreeSpec() {init {
         (result[6] as KeywordToken).keyword shouldBe Keyword.VAL
 
         result[7] should beInstanceOf(IdentifierToken::class)
-        (result[7] as IdentifierToken).value shouldEqual "x"
+        (result[7] as IdentifierToken).value shouldBe "x"
 
         result[8] should beInstanceOf(OperatorToken::class)
         (result[8] as OperatorToken).operator shouldBe Operator.COLON
 
         result[9] should beInstanceOf(IdentifierToken::class)
-        (result[9] as IdentifierToken).value shouldEqual "Int"
+        (result[9] as IdentifierToken).value shouldBe "Int"
 
         result[10] should beInstanceOf(OperatorToken::class)
         (result[10] as OperatorToken).operator shouldBe Operator.ASSIGNMENT
 
         result[11] should beInstanceOf(NumericLiteralToken::class)
-        (result[11] as NumericLiteralToken).stringContent shouldEqual "24"
+        (result[11] as NumericLiteralToken).stringContent shouldBe "24"
 
         result[12] should beInstanceOf(OperatorToken::class)
         (result[12] as OperatorToken).operator shouldBe Operator.PARANT_CLOSE
@@ -199,7 +203,7 @@ class LexerTest : FreeSpec() {init {
         (result[15] as OperatorToken).operator shouldBe Operator.PARANT_OPEN
 
         result[16] should beInstanceOf(NumericLiteralToken::class)
-        (result[16] as NumericLiteralToken).stringContent shouldEqual "142.12"
+        (result[16] as NumericLiteralToken).stringContent shouldBe "142.12"
 
         result[17] should beInstanceOf(OperatorToken::class)
         (result[17] as OperatorToken).operator shouldBe Operator.PARANT_CLOSE
@@ -208,7 +212,7 @@ class LexerTest : FreeSpec() {init {
         (result[18] as OperatorToken).operator shouldBe Operator.SAFEDOT
 
         result[19] should beInstanceOf(IdentifierToken::class)
-        (result[19] as IdentifierToken).value shouldEqual "toLong"
+        (result[19] as IdentifierToken).value shouldBe "toLong"
 
         result[20] should beInstanceOf(OperatorToken::class)
         (result[20] as OperatorToken).operator shouldBe Operator.PARANT_OPEN
@@ -220,7 +224,7 @@ class LexerTest : FreeSpec() {init {
         (result[22] as OperatorToken).operator shouldBe Operator.EQUALS
 
         result[23] should beInstanceOf(IdentifierToken::class)
-        (result[23] as IdentifierToken).value shouldEqual "x"
+        (result[23] as IdentifierToken).value shouldBe "x"
 
         result[24] should beInstanceOf(OperatorToken::class)
         (result[24] as OperatorToken).operator shouldBe Operator.NEWLINE

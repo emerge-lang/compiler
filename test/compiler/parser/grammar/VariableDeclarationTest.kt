@@ -25,10 +25,9 @@ import compiler.lexer.Keyword.VAR
 import compiler.lexer.Operator.ASSIGNMENT
 import compiler.lexer.Operator.COLON
 import compiler.matching.ResultCertainty.DEFINITIVE
-import io.kotlintest.matchers.shouldBe
-import io.kotlintest.matchers.shouldEqual
-import io.kotlintest.matchers.shouldNotBe
-import io.kotlintest.mock.mock
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
+import io.mockk.mockk
 import java.util.*
 
 class VariableDeclarationTest : GrammarTestCase() {init {
@@ -43,15 +42,15 @@ class VariableDeclarationTest : GrammarTestCase() {init {
         result.item shouldNotBe null
         val ast = result.item!!
         ast.initializerExpression shouldBe null
-        ast.name.value shouldEqual "someVar"
+        ast.name.value shouldBe "someVar"
         ast.typeModifier shouldBe null
         ast.type shouldBe null
         ast.isAssignable shouldBe true
     }
 
     "all features" - {
-        val mockTypeReference = mock<TypeReference>()
-        val mockInitializer = mock<Expression<*>>()
+        val mockTypeReference = mockk<TypeReference>()
+        val mockInitializer = mockk<Expression<*>>()
         val mockTypeModifier = compiler.ast.type.TypeModifier.values()[Random().nextInt(compiler.ast.type.TypeModifier.values().size)]
 
         val result = tokenSequence {
@@ -75,7 +74,7 @@ class VariableDeclarationTest : GrammarTestCase() {init {
         }
 
         "name is recognized" {
-            ast.name.value shouldEqual "someVarTwo"
+            ast.name.value shouldBe "someVarTwo"
         }
 
         "type is recognized" {

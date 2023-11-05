@@ -23,7 +23,7 @@ import compiler.parser.TokenSequence
 import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.toTransactional
-import io.kotlintest.specs.FreeSpec
+import io.kotest.core.spec.style.FreeSpec
 
 abstract class GrammarTestCase : FreeSpec() {
     fun lex(code: String): TokenSequence {
@@ -60,29 +60,29 @@ class TokenSequenceGenerator {
     }
 
     fun identifier(value: String) {
-        var location: SourceLocation? = null
+        var location: SourceLocation
 
         synchronized(locationModificationMutex) {
             location = SourceLocation(sD, currentLine, currentColumn)
             currentColumn += value.length + 1
         }
 
-        tokens += IdentifierToken(value, location!!)
+        tokens += IdentifierToken(value, location)
     }
 
     fun keyword(keyword: Keyword) {
-        var location: SourceLocation? = null
+        var location: SourceLocation
 
         synchronized(locationModificationMutex) {
             location = SourceLocation(sD, currentLine, currentColumn)
             currentColumn += keyword.text.length + 1
         }
 
-        tokens += KeywordToken(keyword, keyword.text, location!!)
+        tokens += KeywordToken(keyword, keyword.text, location)
     }
 
     fun operator(operator: Operator) {
-        var location: SourceLocation? = null
+        var location: SourceLocation
 
         synchronized(locationModificationMutex) {
             location = SourceLocation(sD, currentLine, currentColumn)
@@ -95,7 +95,18 @@ class TokenSequenceGenerator {
             }
         }
 
-        tokens += OperatorToken(operator, location!!)
+        tokens += OperatorToken(operator, location)
+    }
+
+    fun numericLiteral(valueAsText: String) {
+        val location: SourceLocation
+
+        synchronized(locationModificationMutex) {
+            location = SourceLocation(sD, currentLine, currentColumn)
+            currentColumn += valueAsText.length
+        }
+
+        tokens += NumericLiteralToken(location, valueAsText)
     }
 
     fun newline() {
@@ -103,14 +114,14 @@ class TokenSequenceGenerator {
     }
 
     fun mockRef(replacement: Any) {
-        var location: SourceLocation? = null
+        var location: SourceLocation
 
         synchronized(locationModificationMutex) {
             location = SourceLocation(sD, currentLine, currentColumn)
             currentColumn += 2
         }
 
-        tokens += NestedRuleMockingToken(replacement, location!!)
+        tokens += NestedRuleMockingToken(replacement, location)
     }
 }
 

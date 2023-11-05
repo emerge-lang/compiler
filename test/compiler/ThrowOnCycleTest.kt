@@ -2,8 +2,8 @@ package matchers.compiler
 
 import compiler.EarlyStackOverflowException
 import compiler.throwOnCycle
-import io.kotlintest.matchers.shouldThrow
-import org.junit.Test
+import io.kotest.assertions.throwables.shouldThrow
+import org.junit.jupiter.api.Test
 
 class ThrowOnCycleTest {
     @Test
