@@ -88,5 +88,5 @@ class BoundUnaryExpression(
 }
 
 private fun operatorFunctionName(op: Operator): String = when(op) {
-    else -> "unary" + op.name[0].toUpperCase() + op.name.substring(1).toLowerCase()
+    else -> "unary" + op.name[0].uppercase() + op.name.substring(1).lowercase()
 }

@@ -63,8 +63,8 @@ open class BaseTypeReference(
         // verify whether the modifier on the reference is compatible with the modifier on the type
         if (original.modifier != null && baseType.impliedModifier != null) {
             if (!(original.modifier!! isAssignableTo baseType.impliedModifier!!)) {
-                val origMod = original.modifier?.toString()?.toLowerCase()
-                val baseMod = baseType.impliedModifier?.toString()?.toLowerCase()
+                val origMod = original.modifier?.toString()?.lowercase()
+                val baseMod = baseType.impliedModifier?.toString()?.lowercase()
 
                 reportings.add(Reporting.modifierError(
                     "Cannot reference ${baseType.fullyQualifiedName} as $origMod; " +
@@ -118,7 +118,7 @@ open class BaseTypeReference(
     override fun toString(): String {
         var str = ""
         if (modifier != null) {
-            str += modifier!!.name.toLowerCase() + " "
+            str += modifier!!.name.lowercase() + " "
         }
 
         str += baseType.fullyQualifiedName

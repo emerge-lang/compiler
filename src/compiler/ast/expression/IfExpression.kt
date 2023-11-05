@@ -37,7 +37,7 @@ class IfExpression (
             context,
             this,
             condition.bindTo(MutableCTContext(context)),
-            thenCode?.bindTo(MutableCTContext(context)),
+            thenCode.bindTo(MutableCTContext(context)),
             elseCode?.bindTo(MutableCTContext(context))
         )
     }

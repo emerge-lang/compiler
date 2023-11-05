@@ -27,8 +27,8 @@ import compiler.parser.rule.Rule
 abstract class BaseDescribingGrammarReceiver : GrammarReceiver {
     internal abstract fun handleItem(descriptionOfItem: String)
 
-    override fun tokenEqualTo(token: Token) {
-        handleItem(token.toStringWithoutLocation())
+    override fun tokenEqualTo(equalTo: Token) {
+        handleItem(equalTo.toStringWithoutLocation())
     }
 
     override fun ref(rule: Rule<*>) {
@@ -39,7 +39,7 @@ abstract class BaseDescribingGrammarReceiver : GrammarReceiver {
         handleItem(describeSequenceGrammar(matcherFn))
     }
 
-    override fun eitherOf(resultCertainty: ResultCertainty, matcherFn: Grammar) {
+    override fun eitherOf(mismatchCertainty: ResultCertainty, matcherFn: Grammar) {
         handleItem(describeEitherOfGrammar(matcherFn))
     }
 

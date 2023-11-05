@@ -23,7 +23,7 @@
     <version>0.1.0</version>
     <packaging>jar</packaging>
     <properties>
-        <kotlin.version>1.5.0</kotlin.version>
+        <kotlin.version>1.9.20</kotlin.version>
         <src.dir>src</src.dir>
     </properties>
 
@@ -31,6 +31,11 @@
 
     <build>
         <sourceDirectory>${src.dir}</sourceDirectory>
+        <resources>
+            <resource>
+                <directory>stdlib</directory>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <artifactId>kotlin-maven-plugin</artifactId>
@@ -58,8 +63,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>2.3.2</version>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>21</source>
+                    <target>21</target>
                 </configuration>
             </plugin>
             <plugin>
@@ -108,7 +113,7 @@
         <dependency>
             <groupId>com.natpryce</groupId>
             <artifactId>hamkrest</artifactId>
-            <version>1.4.2.0</version>
+            <version>1.8.0.1</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

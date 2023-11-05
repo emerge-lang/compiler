@@ -30,7 +30,7 @@ import compiler.parser.rule.WhitespaceEaterRule
  * or dynamically build a description text)f
  */
 interface GrammarReceiver {
-    fun tokenEqualTo(token: Token)
+    fun tokenEqualTo(equalTo: Token)
     fun tokenOfType(type: TokenType)
     fun ref(rule: Rule<*>)
     fun sequence(matcherFn: SequenceGrammar)

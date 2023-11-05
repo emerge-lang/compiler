@@ -24,7 +24,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     1. class definition
     2. struct definition
     3. reference counting vs garbage collection
-13. extend InvocationExeption
+13. extend InvocationExpression
     1. handle constructors
     2. when checking `objRef.method()` error if `method` is a property  
       (will be implemented with function types later on)

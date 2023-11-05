@@ -94,7 +94,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
             }
 
             // cut e
-            val expIndex = str.toLowerCase().indexOf('e')
+            val expIndex = str.lowercase().indexOf('e')
             val exp: String?
             if (expIndex >= 0) {
                 exp = str.substring(expIndex + 1)

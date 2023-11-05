@@ -132,7 +132,7 @@ class BoundFunction(
             receiverType = declaration.receiverType?.resolveWithin(context)
 
             if (declaration.receiverType != null && receiverType == null) {
-                reportings.add(Reporting.unknownType(declaration.receiverType!!))
+                reportings.add(Reporting.unknownType(declaration.receiverType))
             }
 
             // modifiers
@@ -155,7 +155,7 @@ class BoundFunction(
             if (declaration.returnType != null) {
                 returnType = declaration.returnType.resolveWithin(context)
                 if (returnType == null) {
-                    reportings.add(Reporting.unknownType(declaration.returnType!!))
+                    reportings.add(Reporting.unknownType(declaration.returnType))
                 }
             }
 
