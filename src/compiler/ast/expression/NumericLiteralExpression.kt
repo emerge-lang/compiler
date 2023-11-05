@@ -80,7 +80,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
         if (str.contains('.') || str.endsWith('f') || str.contains('e')) {
             // Floating point
             if (str.endsWith('f')) {
-                str = str.substring(0, str.lastIndex - 1)
+                str = str.substring(0, str.lastIndex)
             }
 
             var allowedChars = ('0' .. '9') + arrayOf('.', 'e', 'E')

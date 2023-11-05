@@ -30,7 +30,7 @@ class EOIRule private constructor() : Rule<TokenSequence> {
     override fun tryMatch(input: TokenSequence): RuleMatchingResult<TokenSequence> {
         if (input.hasNext()) {
             return RuleMatchingResultImpl(
-                ResultCertainty.DEFINITIVE,
+                ResultCertainty.NOT_RECOGNIZED,
                 null,
                 setOf(Reporting.parsingError("Unexpected ${input.peek()!!.toStringWithoutLocation()}, expecting $descriptionOfAMatchingThing", input.peek()!!.sourceLocation))
             )

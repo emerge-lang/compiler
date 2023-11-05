@@ -34,7 +34,7 @@ open class VariableDeclaration(
     val isAssignable: Boolean,
     val initializerExpression: Expression<*>?
 ) : Declaration, Executable<BoundVariable> {
-    override val sourceLocation = declaredAt
+    override val sourceLocation get() = declaredAt
 
     override fun bindTo(context: CTContext): BoundVariable = BoundVariable(context, this, initializerExpression?.bindTo(context))
 }

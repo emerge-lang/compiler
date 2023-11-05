@@ -35,3 +35,11 @@ fun String.indentByFromSecondLine(n: Int, what: String = " "): String {
 
     return buf.toString()
 }
+
+fun String.assureEndsWith(suffix: Char): String {
+    if (endsWith(suffix)) {
+        return this
+    }
+
+    return this + suffix
+}

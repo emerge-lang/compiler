@@ -90,17 +90,20 @@ class BoundAssignmentStatement(
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
         val writesByValueExpression = valueExpression.findWritesBeyond(boundary)
 
-        if (assignmentTargetType == AssignmentTargetType.VARIABLE) {
-            // check whether the target variable is beyond the boundary
-            if (context.containsWithinBoundary(targetVariable!!, boundary)) {
+        when (assignmentTargetType) {
+            AssignmentTargetType.VARIABLE -> {
+                if (context.containsWithinBoundary(targetVariable!!, boundary)) {
+                    return writesByValueExpression
+                }
+                else {
+                    return writesByValueExpression + this
+                }
+            }
+            null -> {
                 return writesByValueExpression
+                /* could not be determined, should have produced an ERROR reporting earlier*/
             }
-            else {
-                return writesByValueExpression + this
-            }
-        }
-        else {
-            throw InternalCompilerError("Write boundary check for $assignmentTargetType not implemented yet")
+            else -> throw InternalCompilerError("Write boundary check for $assignmentTargetType not implemented yet")
         }
     }
 

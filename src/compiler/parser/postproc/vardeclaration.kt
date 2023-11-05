@@ -57,7 +57,7 @@ private fun toAST_VariableDeclaration(input: TransactionalSequence<Any, Position
 
     if (colonOrEqualsOrNewline == OperatorToken(Operator.COLON)) {
         type = input.next()!! as TypeReference
-        colonOrEqualsOrNewline = input.next()!!
+        colonOrEqualsOrNewline = input.next()
     }
 
     var assignExpression: Expression<*>? = null
