@@ -18,20 +18,22 @@
 
 package compiler.parser.grammar
 
+import compiler.InternalCompilerError
 import compiler.ast.AssignmentStatement
+import compiler.ast.CodeChunk
+import compiler.ast.Executable
+import compiler.ast.ReturnStatement
+import compiler.ast.expression.Expression
 import compiler.lexer.Keyword
+import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
 import compiler.matching.ResultCertainty.DEFINITIVE
 import compiler.matching.ResultCertainty.MATCHED
 import compiler.matching.ResultCertainty.OPTIMISTIC
-import compiler.parser.grammar.dsl.postprocess
+import compiler.parser.ExpressionPostfix
+import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.sequence
-import compiler.parser.postproc.CodeChunkPostProcessor
-import compiler.parser.postproc.ExpressionPostprocessor
-import compiler.parser.postproc.ReturnStatementPostProcessor
-import compiler.parser.postproc.flatten
-import compiler.parser.postproc.mapResult
-import compiler.parser.postproc.toAST_AssignmentStatement
 import compiler.parser.rule.Rule
 
 val ReturnStatement = sequence("return statement") {
@@ -40,7 +42,12 @@ val ReturnStatement = sequence("return statement") {
     ref(Expression)
     certainty = DEFINITIVE
 }
-    .postprocess(::ReturnStatementPostProcessor)
+    .astTransformation { tokens ->
+        val keyword = tokens.next()!! as KeywordToken
+        val expression = tokens.next()!! as Expression<*>
+
+        ReturnStatement(keyword, expression)
+    }
 
 val Assignable = sequence("assignable") {
     eitherOf {
@@ -59,7 +66,12 @@ val Assignable = sequence("assignable") {
     }
     certainty = DEFINITIVE
 }
-    .postprocess(::ExpressionPostprocessor)
+    .astTransformation { tokens ->
+        val expression = tokens.next()!! as Expression<*>
+        tokens
+            .remainingToList()
+            .fold(expression) { expr, postfix -> (postfix as ExpressionPostfix<*>).modify(expr) }
+    }
 
 val AssignmentStatement: Rule<AssignmentStatement> = sequence("assignment") {
     ref(Assignable)
@@ -70,8 +82,13 @@ val AssignmentStatement: Rule<AssignmentStatement> = sequence("assignment") {
     ref(Expression)
     certainty = DEFINITIVE
 }
-    .flatten()
-    .mapResult(::toAST_AssignmentStatement)
+    .astTransformation { tokens ->
+        val targetExpression   = tokens.next() as Expression<*>
+        val assignmentOperator = tokens.next() as OperatorToken
+        val valueExpression    = tokens.next() as Expression<*>
+
+        AssignmentStatement(targetExpression, assignmentOperator, valueExpression)
+    }
 
 val LineOfCode = sequence {
     eitherOf {
@@ -105,4 +122,9 @@ val CodeChunk = sequence {
 
     certainty = OPTIMISTIC
 }
-    .postprocess(::CodeChunkPostProcessor)
+    .astTransformation { tokens ->
+        tokens.remainingToList()
+            .filter { it !is OperatorToken }
+            .map { it as? Executable<*> ?: throw InternalCompilerError("How did this thing get into here?!") }
+            .let(::CodeChunk)
+    }

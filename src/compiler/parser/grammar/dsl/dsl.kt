@@ -20,8 +20,11 @@ package compiler.parser.grammar.dsl
 
 import compiler.matching.ResultCertainty
 import compiler.parser.TokenSequence
+import compiler.parser.postproc.flatten
+import compiler.parser.postproc.mapResult
 import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
+import compiler.transact.TransactionalSequence
 
 typealias Grammar = GrammarReceiver.() -> Unit
 typealias SequenceGrammar = SequenceRuleDefinitionReceiver.() -> Unit
@@ -52,3 +55,7 @@ fun eitherOf(name: String? = null, mismatchCertainty: ResultCertainty = ResultCe
 
 fun <ResultBefore, ResultAfter> Rule<ResultBefore>.postprocess(postProcessor: (Rule<ResultBefore>) -> Rule<ResultAfter>): Rule<ResultAfter>
     = postProcessor(this)
+
+fun <AstNode> Rule<List<RuleMatchingResult<*>>>.astTransformation(transformer: (TransactionalSequence<Any, *>) -> AstNode): Rule<AstNode> {
+    return flatten().mapResult(transformer)
+}
