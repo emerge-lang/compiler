@@ -46,17 +46,12 @@ import compiler.transact.TransactionalSequence
 fun ExpressionPostprocessor(rule: Rule<*>): Rule<Expression<*>> {
     return rule
         .flatten()
-        .mapResult({ tokens ->
-            var expression = tokens.next()!! as Expression<*>
-            @Suppress("UNCHECKED_CAST")
-            val postfixes = tokens.remainingToList() as List<ExpressionPostfixModifier<*>>
-
-            for (postfixMod in postfixes) {
-                expression = postfixMod.modify(expression)
-            }
-
-            expression
-        })
+        .mapResult { tokens ->
+            val expression = tokens.next()!! as Expression<*>
+            tokens
+                .remainingToList()
+                .fold(expression) { expr, modifier -> (modifier as ExpressionPostfixModifier<*>).modify(expr) }
+        }
 }
 
 fun LiteralExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Expression<*>> {
@@ -89,12 +84,12 @@ fun IdentifierExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): 
 fun ParanthesisedExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Expression<*>> {
     return rule
         .flatten()
-        .mapResult({ input ->
+        .mapResult { input ->
             val parantOpen = input.next()!! as OperatorToken
-            val nested     = input.next()!! as Expression<*>
+            val nested = input.next()!! as Expression<*>
 
             ParenthesisedExpression(nested, parantOpen.sourceLocation)
-        })
+        }
 }
 
 fun BracedCodeOrSingleStatementPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Executable<*>> {
@@ -159,7 +154,7 @@ fun BinaryExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule
         .mapResult { input -> toAST_BinaryExpression(input.remainingToList()) }
 }
 
-private typealias OperatorOrExpression = Any // kotlin does not have a union type; if it hat, this would be = OperatorToken | Expression<*>
+private typealias OperatorOrExpression = Any // kotlin does not have a union type; if it had, this would be = OperatorToken | Expression<*>
 
 private val Operator.priority: Int
     get() = when(this) {
@@ -246,11 +241,11 @@ private fun toAST_BinaryExpression(rawExpression: List<OperatorOrExpression>): E
 fun UnaryExpressionPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<Expression<*>> {
     return rule
         .flatten()
-        .mapResult({ input ->
+        .mapResult { input ->
             val operator = (input.next()!! as OperatorToken).operator
             val expression = input.next()!! as Expression<*>
             UnaryExpression(operator, expression)
-        })
+        }
 }
 
 /**

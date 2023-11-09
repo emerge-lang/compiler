@@ -31,15 +31,14 @@ class ReturnTypeMismatchReporting(
     location: SourceLocation
 ) : Reporting(
     Level.ERROR,
-    {
-        var message = "Cannot return a value of type $returnedType from a context that is expected to return $expectedReturnType"
-
+    run {
+        var message =
+            "Cannot return a value of type $returnedType from a context that is expected to return $expectedReturnType"
         val reason = typeMismatchReason(expectedReturnType, returnedType)
         if (reason != null) {
             message += "; $reason"
         }
-
         message
-    }(),
+    },
     location
 )

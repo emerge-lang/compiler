@@ -27,7 +27,7 @@ import compiler.reportings.MissingTokenReporting
 import compiler.reportings.Reporting
 import compiler.reportings.TokenMismatchReporting
 
-interface Rule<T> : Matcher<TokenSequence,T, Reporting> {
+interface Rule<T> : Matcher<TokenSequence, T, Reporting> {
     companion object {
         fun singleton(equalTo: Token, mismatchCertainty: ResultCertainty = ResultCertainty.NOT_RECOGNIZED): Rule<Token> = object : Rule<Token> {
             override val descriptionOfAMatchingThing: String

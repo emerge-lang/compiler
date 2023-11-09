@@ -53,5 +53,5 @@ fun <T> Rule<T>.describeAs(description: String): Rule<T> {
     }
 }
 
-fun <ResultBefore,ResultAfter> Rule<ResultBefore>.postprocess(postProcessor: (Rule<ResultBefore>) -> Rule<ResultAfter>): Rule<ResultAfter>
+fun <ResultBefore, ResultAfter> Rule<ResultBefore>.postprocess(postProcessor: (Rule<ResultBefore>) -> Rule<ResultAfter>): Rule<ResultAfter>
     = postProcessor(this)

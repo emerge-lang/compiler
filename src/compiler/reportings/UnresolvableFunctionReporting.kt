@@ -41,7 +41,7 @@ class UnresolvableFunctionReporting private constructor(val expr: BoundInvocatio
                 // type mismatch
                 // TODO: add typescript like error messages here?
 
-                val parameterListAsString = "(" + expr.parameterExpressions.map { it.toString() }.joinToString(", ") + ")"
+                val parameterListAsString = "(" + expr.parameterExpressions.joinToString(", ") { it.toString() } + ")"
 
                 if (expr.receiverExpression?.type == null) {
                     return UnresolvableFunctionReporting(

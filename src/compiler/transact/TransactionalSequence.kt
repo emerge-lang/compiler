@@ -136,7 +136,6 @@ abstract class TransactionalSequence<out ItemType, FallbackPointType : Position>
 
     inner class TransactionReceiver {
         fun next(): ItemType? = this@TransactionalSequence.next()
-        fun <T> transact(txCode: TransactionReceiver.() -> T): T? = this@TransactionReceiver.transact(txCode)
     }
     private val txReceiver = TransactionReceiver()
 }
