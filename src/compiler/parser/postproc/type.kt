@@ -57,12 +57,11 @@ private fun toAST(tokens: TransactionalSequence<Any, Position>): TypeReference {
 }
 
 
-fun TypeModifierPostProcessor(rule: Rule<List<RuleMatchingResult<*>>>): Rule<TypeModifier> {
+fun TypeModifierPostProcessor(rule: Rule<*>): Rule<TypeModifier> {
     return rule
         .flatten()
         .mapResult { tokens ->
-            val keyword = (tokens.next() as KeywordToken?)?.keyword
-            when(keyword) {
+            when(val keyword = (tokens.next() as KeywordToken?)?.keyword) {
                 Keyword.MUTABLE   -> TypeModifier.MUTABLE
                 Keyword.READONLY  -> TypeModifier.READONLY
                 Keyword.IMMUTABLE -> TypeModifier.IMMUTABLE

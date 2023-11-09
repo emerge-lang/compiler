@@ -26,31 +26,28 @@ import compiler.parser.rule.RuleMatchingResult
 typealias Grammar = GrammarReceiver.() -> Unit
 typealias SequenceGrammar = SequenceRuleDefinitionReceiver.() -> Unit
 
-class SequenceGrammarRule(private val grammar: SequenceGrammar): Rule<List<RuleMatchingResult<*>>> {
-    override val descriptionOfAMatchingThing by lazy { describeSequenceGrammar(grammar) }
+class SequenceGrammarRule(
+    private val givenName: String? = null,
+    private val grammar: SequenceGrammar
+): Rule<List<RuleMatchingResult<*>>> {
+    constructor(grammar: SequenceGrammar) : this(null, grammar)
+    override val descriptionOfAMatchingThing by lazy { givenName ?: describeSequenceGrammar(grammar) }
     override fun tryMatch(input: TokenSequence) = tryMatchSequence(grammar, input)
 }
 
-fun sequence(matcherFn: SequenceGrammar) = SequenceGrammarRule(matcherFn)
-
-fun eitherOf(mismatchCertainty: ResultCertainty, matcherFn: Grammar): Rule<*> {
-    return object : Rule<Any?> {
-        override val descriptionOfAMatchingThing = describeEitherOfGrammar(matcherFn)
-        override fun tryMatch(input: TokenSequence) = tryMatchEitherOf(matcherFn, input, mismatchCertainty)
-    }
+class EitherOfGrammarRule(
+    private val givenName: String?,
+    private val mismatchCertainty: ResultCertainty,
+    private val options: Grammar,
+) : Rule<Any> {
+    override val descriptionOfAMatchingThing by lazy { givenName ?: describeEitherOfGrammar(options) }
+    override fun tryMatch(input: TokenSequence) = tryMatchEitherOf(options, input, mismatchCertainty) as RuleMatchingResult<Any>
 }
 
-fun eitherOf(matcherFn: Grammar) = eitherOf(ResultCertainty.NOT_RECOGNIZED, matcherFn)
+fun sequence(name: String? = null, matcherFn: SequenceGrammar) = SequenceGrammarRule(name, matcherFn)
 
-fun <T> Rule<T>.describeAs(description: String): Rule<T> {
-    val base = this
-    return object : Rule<T> {
-        override val descriptionOfAMatchingThing = description
-
-        override fun tryMatch(input: TokenSequence): RuleMatchingResult<T> {
-            return base.tryMatch(input)
-        }
-    }
+fun eitherOf(name: String? = null, mismatchCertainty: ResultCertainty = ResultCertainty.NOT_RECOGNIZED, options: Grammar): Rule<*> {
+    return EitherOfGrammarRule(name, mismatchCertainty, options)
 }
 
 fun <ResultBefore, ResultAfter> Rule<ResultBefore>.postprocess(postProcessor: (Rule<ResultBefore>) -> Rule<ResultAfter>): Rule<ResultAfter>

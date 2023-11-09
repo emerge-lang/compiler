@@ -22,13 +22,12 @@ import compiler.lexer.Keyword.STRUCT_DEFINITION
 import compiler.lexer.Operator.*
 import compiler.matching.ResultCertainty.DEFINITIVE
 import compiler.matching.ResultCertainty.MATCHED
-import compiler.parser.grammar.dsl.describeAs
 import compiler.parser.grammar.dsl.postprocess
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.postproc.StructDeclarationPostProcessor
 import compiler.parser.postproc.StructMemberDeclarationPostProcessor
 
-val StructMemberDefinition = sequence {
+val StructMemberDefinition = sequence("struct member declaration") {
     optional {
         ref(VisibilityModifier)
     }
@@ -48,10 +47,9 @@ val StructMemberDefinition = sequence {
         ref(Expression)
     }
 }
-    .describeAs("struct member declaration")
     .postprocess(::StructMemberDeclarationPostProcessor)
 
-val StructDefinition = sequence {
+val StructDefinition = sequence("struct definition") {
     keyword(STRUCT_DEFINITION)
     certainty = MATCHED
     optionalWhitespace()
@@ -73,5 +71,4 @@ val StructDefinition = sequence {
     optionalWhitespace()
     operator(CBRACE_CLOSE)
 }
-    .describeAs("struct definition")
     .postprocess(::StructDeclarationPostProcessor)

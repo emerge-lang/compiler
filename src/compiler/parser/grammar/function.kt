@@ -21,7 +21,6 @@ package compiler.parser.grammar
 import compiler.lexer.Keyword
 import compiler.lexer.Operator
 import compiler.matching.ResultCertainty
-import compiler.parser.grammar.dsl.describeAs
 import compiler.parser.grammar.dsl.postprocess
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.postproc.FunctionModifierPostProcessor
@@ -29,7 +28,7 @@ import compiler.parser.postproc.ParameterDeclarationPostProcessor
 import compiler.parser.postproc.ParameterListPostprocessor
 import compiler.parser.postproc.StandaloneFunctionPostprocessor
 
-val Parameter = sequence {
+val Parameter = sequence("parameter declaration") {
 
     optional {
         ref(TypeModifier)
@@ -54,9 +53,9 @@ val Parameter = sequence {
         ref(Expression)
     }
 }
-    .describeAs("parameter declaration")
     .postprocess(::ParameterDeclarationPostProcessor)
-val ParameterList = sequence {
+
+val ParameterList = sequence("parenthesised parameter list") {
     operator(Operator.PARANT_OPEN)
 
     optionalWhitespace()
@@ -79,7 +78,6 @@ val ParameterList = sequence {
     }
     operator(Operator.PARANT_CLOSE)
 }
-    .describeAs("parenthesised paramete rlist")
     .postprocess(::ParameterListPostprocessor)
 
 val FunctionModifier = sequence {
@@ -94,7 +92,7 @@ val FunctionModifier = sequence {
 }
     .postprocess(::FunctionModifierPostProcessor)
 
-val StandaloneFunctionDeclaration = sequence {
+val StandaloneFunctionDeclaration = sequence("function declaration") {
     atLeast(0) {
         ref(FunctionModifier)
     }
@@ -146,5 +144,4 @@ val StandaloneFunctionDeclaration = sequence {
 
     certainty = ResultCertainty.DEFINITIVE
 }
-    .describeAs("function declaration")
     .postprocess(::StandaloneFunctionPostprocessor)

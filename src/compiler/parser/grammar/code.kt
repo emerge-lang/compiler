@@ -24,7 +24,6 @@ import compiler.lexer.Operator
 import compiler.matching.ResultCertainty.DEFINITIVE
 import compiler.matching.ResultCertainty.MATCHED
 import compiler.matching.ResultCertainty.OPTIMISTIC
-import compiler.parser.grammar.dsl.describeAs
 import compiler.parser.grammar.dsl.postprocess
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.postproc.CodeChunkPostProcessor
@@ -35,16 +34,15 @@ import compiler.parser.postproc.mapResult
 import compiler.parser.postproc.toAST_AssignmentStatement
 import compiler.parser.rule.Rule
 
-val ReturnStatement = sequence {
+val ReturnStatement = sequence("return statement") {
     keyword(Keyword.RETURN)
     certainty = MATCHED
     ref(Expression)
     certainty = DEFINITIVE
 }
-    .describeAs("return statement")
     .postprocess(::ReturnStatementPostProcessor)
 
-val Assignable = sequence {
+val Assignable = sequence("assignable") {
     eitherOf {
         ref(BinaryExpression)
         ref(UnaryExpression)
@@ -63,7 +61,7 @@ val Assignable = sequence {
 }
     .postprocess(::ExpressionPostprocessor)
 
-val AssignmentStatement: Rule<AssignmentStatement> = sequence {
+val AssignmentStatement: Rule<AssignmentStatement> = sequence("assignment") {
     ref(Assignable)
 
     operator(Operator.ASSIGNMENT)
@@ -72,7 +70,6 @@ val AssignmentStatement: Rule<AssignmentStatement> = sequence {
     ref(Expression)
     certainty = DEFINITIVE
 }
-    .describeAs("assignment")
     .flatten()
     .mapResult(::toAST_AssignmentStatement)
 

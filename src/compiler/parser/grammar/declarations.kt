@@ -22,7 +22,6 @@ import compiler.ast.ASTVisibilityModifier
 import compiler.lexer.Keyword.*
 import compiler.lexer.Operator.*
 import compiler.matching.ResultCertainty.*
-import compiler.parser.grammar.dsl.describeAs
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.postprocess
 import compiler.parser.grammar.dsl.sequence
@@ -30,7 +29,7 @@ import compiler.parser.postproc.VariableDeclarationPostProcessor
 import compiler.parser.postproc.VisibilityModifierPostProcessor
 import compiler.parser.rule.Rule
 
-val VariableDeclaration = sequence {
+val VariableDeclaration = sequence("variable declaration") {
 
     optional {
         ref(TypeModifier)
@@ -63,10 +62,9 @@ val VariableDeclaration = sequence {
 
     certainty = DEFINITIVE
 }
-    .describeAs("variable declaration")
     .postprocess(::VariableDeclarationPostProcessor)
 
-val VisibilityModifier : Rule<ASTVisibilityModifier> = eitherOf {
+val VisibilityModifier : Rule<ASTVisibilityModifier> = eitherOf("visibility modifier") {
     eitherOf {
         keyword(PRIVATE)
         keyword(PROTECTED)
@@ -84,5 +82,4 @@ val VisibilityModifier : Rule<ASTVisibilityModifier> = eitherOf {
         }
     }
 }
-    .describeAs("visibility modifier")
     .postprocess(::VisibilityModifierPostProcessor)

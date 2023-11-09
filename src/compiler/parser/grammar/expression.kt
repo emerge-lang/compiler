@@ -28,7 +28,6 @@ import compiler.lexer.TokenType
 import compiler.matching.ResultCertainty.DEFINITIVE
 import compiler.matching.ResultCertainty.MATCHED
 import compiler.matching.ResultCertainty.OPTIMISTIC
-import compiler.parser.grammar.dsl.describeAs
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.postprocess
 import compiler.parser.grammar.dsl.sequence
@@ -49,7 +48,7 @@ import compiler.parser.postproc.mapResult
 import compiler.parser.rule.Rule
 
 val Expression: Rule<Expression<*>> by lazy {
-    sequence {
+    sequence("expression") {
         eitherOf {
             ref(BinaryExpression)
             ref(UnaryExpression)
@@ -63,11 +62,10 @@ val Expression: Rule<Expression<*>> by lazy {
         }
         certainty = DEFINITIVE
     }
-        .describeAs("expression")
         .postprocess(::ExpressionPostprocessor)
 }
 
-val LiteralExpression = sequence {
+val LiteralExpression = sequence("literal") {
     eitherOf {
         tokenOfType(TokenType.NUMERIC_LITERAL)
         // TODO: string literal, function literal
@@ -75,33 +73,29 @@ val LiteralExpression = sequence {
     }
     certainty = MATCHED
 }
-    .describeAs("literal")
     .postprocess(::LiteralExpressionPostProcessor)
 
-val IdentifierExpression = sequence {
+val IdentifierExpression = sequence("identifier") {
     identifier()
     certainty = DEFINITIVE
 }
-    .describeAs("identifier")
     .postprocess(::IdentifierExpressionPostProcessor)
 
-val ValueExpression = eitherOf {
+val ValueExpression = eitherOf("value expression") {
     ref(LiteralExpression)
     ref(IdentifierExpression)
 }
-    .describeAs("value expression")
 
-val ParanthesisedExpression: Rule<Expression<*>> = sequence {
+val ParanthesisedExpression: Rule<Expression<*>> = sequence("paranthesised expression") {
     operator(Operator.PARANT_OPEN)
     ref(Expression)
     certainty = MATCHED
     operator(Operator.PARANT_CLOSE)
     certainty = DEFINITIVE
 }
-    .describeAs("paranthesised expression")
     .postprocess(::ParanthesisedExpressionPostProcessor)
 
-val UnaryExpression = sequence {
+val UnaryExpression = sequence("unary expression") {
     eitherOf(Operator.PLUS, Operator.MINUS, Operator.NEGATE)
     // TODO: tilde, ... what else?
 
@@ -112,7 +106,6 @@ val UnaryExpression = sequence {
     }
     certainty = DEFINITIVE
 }
-    .describeAs("unary expression")
     .postprocess(::UnaryExpressionPostProcessor)
 
 val binaryOperators = arrayOf(
@@ -125,7 +118,7 @@ val binaryOperators = arrayOf(
     Operator.CAST, Operator.TRYCAST, Operator.ELVIS
 )
 
-val BinaryExpression = sequence {
+val BinaryExpression = sequence("ary operator expression") {
     eitherOf {
         ref(UnaryExpression)
         ref(ValueExpression)
@@ -142,10 +135,9 @@ val BinaryExpression = sequence {
     }
     certainty = DEFINITIVE
 }
-    .describeAs("ary operator expression")
     .postprocess(::BinaryExpressionPostProcessor)
 
-val BracedCodeOrSingleStatement = sequence {
+val BracedCodeOrSingleStatement = sequence("curly braced code or single statement") {
     eitherOf {
         sequence {
             operator(Operator.CBRACE_OPEN)
@@ -163,10 +155,9 @@ val BracedCodeOrSingleStatement = sequence {
     }
     certainty = DEFINITIVE
 }
-    .describeAs("curly braced code or single statement")
     .postprocess(::BracedCodeOrSingleStatementPostProcessor)
 
-val IfExpression = sequence {
+val IfExpression = sequence("if-expression") {
     keyword(IF)
     certainty = MATCHED
     ref(Expression)
@@ -186,19 +177,17 @@ val IfExpression = sequence {
 
     certainty = DEFINITIVE
 }
-    .describeAs("if-expression")
     .postprocess(::IfExpressionPostProcessor)
 
-val ExpressionPostfixNotNull = sequence {
+val ExpressionPostfixNotNull = sequence(OperatorToken(Operator.NOTNULL).toStringWithoutLocation()) {
     operator(Operator.NOTNULL)
     certainty = DEFINITIVE
     optionalWhitespace()
 }
-    .describeAs(OperatorToken(Operator.NOTNULL).toStringWithoutLocation())
     .flatten()
     .mapResult { NotNullExpressionPostfixModifier(it.next()!! as OperatorToken) }
 
-val ExpressionPostfixInvocation = sequence {
+val ExpressionPostfixInvocation = sequence("function invocation") {
     operator(Operator.PARANT_OPEN)
     optionalWhitespace()
 
@@ -217,18 +206,16 @@ val ExpressionPostfixInvocation = sequence {
     operator(Operator.PARANT_CLOSE)
     certainty = MATCHED
 }
-    .describeAs("function invocation")
     .flatten()
     .mapResult(InvocationExpressionPostfixModifier.Companion::fromMatchedTokens)
 
-val ExpressionPostfixMemberAccess = sequence {
+val ExpressionPostfixMemberAccess = sequence("member access") {
     eitherOf(Operator.DOT, Operator.SAFEDOT)
     certainty = MATCHED
     identifier()
     certainty = OPTIMISTIC
     optionalWhitespace()
 }
-    .describeAs("member access")
     .flatten()
     .mapResult {
         val accessOperator = it.next() as OperatorToken

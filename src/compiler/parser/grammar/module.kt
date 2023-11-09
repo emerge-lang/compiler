@@ -21,7 +21,6 @@ package compiler.parser.grammar
 import compiler.lexer.Keyword
 import compiler.lexer.Operator
 import compiler.matching.ResultCertainty
-import compiler.parser.grammar.dsl.describeAs
 import compiler.parser.grammar.dsl.postprocess
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.postproc.ImportPostprocessor
@@ -29,7 +28,7 @@ import compiler.parser.postproc.ModuleDeclarationPostProcessor
 import compiler.parser.postproc.ModuleNamePostProcessor
 import compiler.parser.postproc.ModulePostProcessor
 
-val ModuleName = sequence {
+val ModuleName = sequence("module or package name") {
     identifier()
 
     certainty = ResultCertainty.OPTIMISTIC
@@ -40,10 +39,9 @@ val ModuleName = sequence {
         identifier()
     }
 }
-        .describeAs("module or package name")
         .postprocess(::ModuleNamePostProcessor)
 
-val ModuleDeclaration = sequence {
+val ModuleDeclaration = sequence("module declaration") {
     keyword(Keyword.MODULE)
 
     certainty = ResultCertainty.MATCHED
@@ -52,10 +50,9 @@ val ModuleDeclaration = sequence {
 
     operator(Operator.NEWLINE)
 }
-    .describeAs("module declaration")
     .postprocess(::ModuleDeclarationPostProcessor)
 
-val ImportDeclaration = sequence {
+val ImportDeclaration = sequence("import declaration") {
     keyword(Keyword.IMPORT)
 
     certainty = ResultCertainty.MATCHED
@@ -68,9 +65,9 @@ val ImportDeclaration = sequence {
     identifier(acceptedOperators = listOf(Operator.TIMES))
     operator(Operator.NEWLINE)
 }
-    .describeAs("import declaration")
     .postprocess(::ImportPostprocessor)
-val Module = sequence {
+
+val Module = sequence("module") {
     certainty = ResultCertainty.MATCHED
     atLeast(0) {
         optionalWhitespace()
@@ -85,5 +82,4 @@ val Module = sequence {
         certainty = ResultCertainty.DEFINITIVE
     }
 }
-    .describeAs("module")
     .postprocess(::ModulePostProcessor)
