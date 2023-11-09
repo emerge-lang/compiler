@@ -18,15 +18,26 @@
 
 package compiler.parser.grammar
 
+import compiler.InternalCompilerError
 import compiler.ast.ASTVisibilityModifier
+import compiler.ast.ExportASTVisibilityModifier
+import compiler.ast.InternalASTVisibilityModifier
+import compiler.ast.PrivateASTVisibilityModifier
+import compiler.ast.ProtectedASTVisibilityModifier
+import compiler.ast.QualifiedASTProtectedVisibilityModifier
+import compiler.ast.VariableDeclaration
+import compiler.ast.expression.Expression
+import compiler.ast.type.TypeModifier
+import compiler.ast.type.TypeReference
+import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword.*
+import compiler.lexer.KeywordToken
 import compiler.lexer.Operator.*
+import compiler.lexer.OperatorToken
 import compiler.matching.ResultCertainty.*
+import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
-import compiler.parser.grammar.dsl.postprocess
 import compiler.parser.grammar.dsl.sequence
-import compiler.parser.postproc.VariableDeclarationPostProcessor
-import compiler.parser.postproc.VisibilityModifierPostProcessor
 import compiler.parser.rule.Rule
 
 val VariableDeclaration = sequence("variable declaration") {
@@ -62,7 +73,49 @@ val VariableDeclaration = sequence("variable declaration") {
 
     certainty = DEFINITIVE
 }
-    .postprocess(::VariableDeclarationPostProcessor)
+    .astTransformation { tokens ->
+        val modifierOrKeyword = tokens.next()!!
+
+        val typeModifier: TypeModifier?
+        val declarationKeyword: KeywordToken
+
+        if (modifierOrKeyword is TypeModifier) {
+            typeModifier = modifierOrKeyword
+            declarationKeyword = tokens.next()!! as KeywordToken
+        }
+        else {
+            typeModifier = null
+            declarationKeyword = modifierOrKeyword as KeywordToken
+        }
+
+        val name = tokens.next()!! as IdentifierToken
+
+        var type: TypeReference? = null
+
+        var colonOrEqualsOrNewline = tokens.next()
+
+        if (colonOrEqualsOrNewline == OperatorToken(COLON)) {
+            type = tokens.next()!! as TypeReference
+            colonOrEqualsOrNewline = tokens.next()
+        }
+
+        var assignExpression: Expression<*>? = null
+
+        val equalsOrNewline = colonOrEqualsOrNewline
+
+        if (equalsOrNewline == OperatorToken(ASSIGNMENT)) {
+            assignExpression = tokens.next()!! as Expression<*>
+        }
+
+        VariableDeclaration(
+            declarationKeyword.sourceLocation,
+            typeModifier,
+            name,
+            type,
+            declarationKeyword.keyword == VAR,
+            assignExpression
+        )
+    }
 
 val VisibilityModifier : Rule<ASTVisibilityModifier> = eitherOf("visibility modifier") {
     eitherOf {
@@ -82,4 +135,19 @@ val VisibilityModifier : Rule<ASTVisibilityModifier> = eitherOf("visibility modi
         }
     }
 }
-    .postprocess(::VisibilityModifierPostProcessor)
+    .astTransformation { tokens ->
+        when (val keyword = (tokens.next()!! as KeywordToken).keyword) {
+            PRIVATE -> PrivateASTVisibilityModifier.INSTANCE
+            INTERNAL -> InternalASTVisibilityModifier.INSTANCE
+            EXPORT -> ExportASTVisibilityModifier.INSTANCE
+            PROTECTED -> if (tokens.hasNext()) {
+                tokens.next()!! as OperatorToken // PARANT_OPEN
+                val qualifier = tokens.next()!! as Array<String>
+                tokens.next()!! as OperatorToken // PARANT_CLOSE
+                QualifiedASTProtectedVisibilityModifier(qualifier)
+            } else {
+                ProtectedASTVisibilityModifier.INSTANCE
+            }
+            else -> throw InternalCompilerError("Unknown visibility modifier keyword $keyword")
+        }
+    }

@@ -18,15 +18,26 @@
 
 package compiler.parser.grammar
 
+import compiler.InternalCompilerError
+import compiler.ast.CodeChunk
+import compiler.ast.FunctionDeclaration
+import compiler.ast.ParameterList
+import compiler.ast.VariableDeclaration
+import compiler.ast.expression.Expression
+import compiler.ast.type.FunctionModifier
+import compiler.ast.type.TypeModifier
+import compiler.ast.type.TypeReference
+import compiler.binding.type.Unit
+import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
+import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
+import compiler.lexer.Token
 import compiler.matching.ResultCertainty
-import compiler.parser.grammar.dsl.postprocess
+import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.sequence
-import compiler.parser.postproc.FunctionModifierPostProcessor
-import compiler.parser.postproc.ParameterDeclarationPostProcessor
-import compiler.parser.postproc.ParameterListPostprocessor
-import compiler.parser.postproc.StandaloneFunctionPostprocessor
+import java.util.LinkedList
 
 val Parameter = sequence("parameter declaration") {
 
@@ -53,7 +64,46 @@ val Parameter = sequence("parameter declaration") {
         ref(Expression)
     }
 }
-    .postprocess(::ParameterDeclarationPostProcessor)
+    .astTransformation { tokens ->
+        var declarationKeyword: Keyword? = null
+        var typeModifier: TypeModifier? = null
+        val name: IdentifierToken
+        var type: TypeReference? = null
+        var initializer: Expression<*>? = null
+
+        var next = tokens.next()!!
+
+        if (next is KeywordToken) {
+            declarationKeyword = next.keyword
+            next = tokens.next()!!
+        }
+
+        if (next is TypeModifier) {
+            typeModifier = next
+            next = tokens.next()!!
+        }
+
+        name = next as IdentifierToken
+
+        if (tokens.peek() == OperatorToken(Operator.COLON)) {
+            tokens.next()
+            type = tokens.next()!! as TypeReference
+        }
+
+        if (tokens.peek() == OperatorToken(Operator.ASSIGNMENT)) {
+            tokens.next()
+            initializer = tokens.next()!! as Expression<*>
+        }
+
+        VariableDeclaration(
+            name.sourceLocation,
+            typeModifier,
+            name,
+            type,
+            declarationKeyword == Keyword.VAR,
+            initializer,
+        )
+    }
 
 val ParameterList = sequence("parenthesised parameter list") {
     operator(Operator.PARANT_OPEN)
@@ -78,7 +128,40 @@ val ParameterList = sequence("parenthesised parameter list") {
     }
     operator(Operator.PARANT_CLOSE)
 }
-    .postprocess(::ParameterListPostprocessor)
+    .astTransformation { tokens ->
+        // skip PARANT_OPEN
+        tokens.next()!!
+
+        val parameters: MutableList<VariableDeclaration> = LinkedList()
+
+        while (tokens.hasNext()) {
+            var next = tokens.next()!!
+            if (next == OperatorToken(Operator.PARANT_CLOSE)) {
+                return@astTransformation ParameterList(parameters)
+            }
+
+            parameters.add(next as VariableDeclaration)
+
+            tokens.mark()
+
+            next = tokens.next()!!
+            if (next == OperatorToken(Operator.PARANT_CLOSE)) {
+                tokens.commit()
+                return@astTransformation ParameterList(parameters)
+            }
+
+            if (next == OperatorToken(Operator.COMMA)) {
+                tokens.commit()
+            }
+            else if (next !is VariableDeclaration) {
+                tokens.rollback()
+                next as Token
+                throw InternalCompilerError("Unexpected ${next.toStringWithoutLocation()} in parameter list, expecting ${Operator.PARANT_CLOSE.text} or ${Operator.COMMA.text}")
+            }
+        }
+
+        throw InternalCompilerError("This line should never have been reached :(")
+    }
 
 val FunctionModifier = sequence {
     eitherOf {
@@ -90,7 +173,14 @@ val FunctionModifier = sequence {
     }
     certainty = ResultCertainty.DEFINITIVE
 }
-    .postprocess(::FunctionModifierPostProcessor)
+    .astTransformation { tokens -> when((tokens.next()!! as KeywordToken).keyword) {
+        Keyword.READONLY -> compiler.ast.type.FunctionModifier.READONLY
+        Keyword.NOTHROW  -> compiler.ast.type.FunctionModifier.NOTHROW
+        Keyword.PURE     -> compiler.ast.type.FunctionModifier.PURE
+        Keyword.OPERATOR -> compiler.ast.type.FunctionModifier.OPERATOR
+        Keyword.EXTERNAL -> compiler.ast.type.FunctionModifier.EXTERNAL
+        else             -> throw InternalCompilerError("Keyword is not a function modifier")
+    } }
 
 val StandaloneFunctionDeclaration = sequence("function declaration") {
     atLeast(0) {
@@ -144,4 +234,82 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
 
     certainty = ResultCertainty.DEFINITIVE
 }
-    .postprocess(::StandaloneFunctionPostprocessor)
+    .astTransformation { tokens ->
+        val modifiers = mutableSetOf<FunctionModifier>()
+        var next: Any? = tokens.next()!!
+        while (next is FunctionModifier) {
+            modifiers.add(next)
+            next = tokens.next()!!
+        }
+
+        val declarationKeyword = next as KeywordToken
+
+        val receiverType: TypeReference?
+        next = tokens.next()!!
+        if (next is TypeReference) {
+            receiverType = next
+            // skip DOT
+            tokens.next()
+
+            next = tokens.next()!!
+        }
+        else {
+            receiverType = null
+        }
+
+        val name = next as IdentifierToken
+        val parameterList = tokens.next()!! as ParameterList
+
+        next = tokens.next()!!
+
+        var type: TypeReference? = null
+
+        if (next == OperatorToken(Operator.RETURNS)) {
+            type = tokens.next()!! as TypeReference
+            next = tokens.next()
+        }
+
+        if (next == OperatorToken(Operator.CBRACE_OPEN)) {
+            val code = tokens.next()!! as CodeChunk
+            // ignore trailing CBRACE_CLOSE
+
+            return@astTransformation FunctionDeclaration(
+                declarationKeyword.sourceLocation,
+                modifiers,
+                receiverType,
+                name,
+                parameterList,
+                type ?: Unit.reference,
+                code
+            )
+        }
+
+        if (next == OperatorToken(Operator.ASSIGNMENT)) {
+            val singleExpression = tokens.next()!! as Expression<*>
+
+            return@astTransformation FunctionDeclaration(
+                declarationKeyword.sourceLocation,
+                modifiers,
+                receiverType,
+                name,
+                parameterList,
+                type,
+                singleExpression,
+            )
+        }
+
+        if (next == OperatorToken(Operator.NEWLINE) || next == null) {
+            // function without body with trailing newline or immediately followed by EOF
+            return@astTransformation FunctionDeclaration(
+                declarationKeyword.sourceLocation,
+                modifiers,
+                receiverType,
+                name,
+                parameterList,
+                type,
+                null
+            )
+        }
+
+        throw InternalCompilerError("Unexpected token when building AST: expected ${OperatorToken(Operator.CBRACE_OPEN)} or ${OperatorToken(Operator.ASSIGNMENT)} but got $next")
+    }

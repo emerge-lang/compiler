@@ -22,6 +22,7 @@ import compiler.InternalCompilerError
 import compiler.lexer.TokenType
 import compiler.matching.ResultCertainty
 import compiler.parser.TokenSequence
+import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.RuleMatchingResultImpl
 import compiler.reportings.Reporting
@@ -96,3 +97,19 @@ private class DescribingEitherOfGrammarReceiver : BaseDescribingGrammarReceiver(
 }
 
 private class SuccessfulMatchException(result: RuleMatchingResult<*>) : MatchingAbortedException(result, "A rule was sucessfully matched; Throwing this exception because other rules dont need to be attempted.")
+class EitherOfGrammarRule(
+    private val givenName: String?,
+    private val mismatchCertainty: ResultCertainty,
+    private val options: Grammar,
+) : Rule<Any> {
+    override val descriptionOfAMatchingThing by lazy { givenName ?: describeEitherOfGrammar(options) }
+    override fun tryMatch(input: TokenSequence) = tryMatchEitherOf(
+        options,
+        input,
+        mismatchCertainty
+    ) as RuleMatchingResult<Any>
+}
+
+fun eitherOf(name: String? = null, mismatchCertainty: ResultCertainty = ResultCertainty.NOT_RECOGNIZED, options: Grammar): Rule<*> {
+    return EitherOfGrammarRule(name, mismatchCertainty, options)
+}

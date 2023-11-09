@@ -18,15 +18,33 @@
 
 package compiler.parser.grammar
 
+import compiler.InternalCompilerError
+import compiler.ast.ASTModule
+import compiler.ast.Declaration
+import compiler.ast.FunctionDeclaration
+import compiler.ast.ImportDeclaration
+import compiler.ast.ModuleDeclaration
+import compiler.ast.VariableDeclaration
+import compiler.ast.struct.StructDeclaration
+import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
+import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
+import compiler.lexer.SourceLocation
 import compiler.matching.ResultCertainty
-import compiler.parser.grammar.dsl.postprocess
+import compiler.parser.grammar.dsl.astTransformation
+import compiler.parser.grammar.dsl.enhanceErrors
+import compiler.parser.grammar.dsl.flatten
+import compiler.parser.grammar.dsl.map
 import compiler.parser.grammar.dsl.sequence
-import compiler.parser.postproc.ImportPostprocessor
-import compiler.parser.postproc.ModuleDeclarationPostProcessor
-import compiler.parser.postproc.ModuleNamePostProcessor
-import compiler.parser.postproc.ModulePostProcessor
+import compiler.parser.rule.Rule
+import compiler.parser.rule.RuleMatchingResult
+import compiler.parser.rule.RuleMatchingResultImpl
+import compiler.reportings.Reporting
+import compiler.reportings.TokenMismatchReporting
+import java.util.ArrayList
+import java.util.HashSet
 
 val ModuleName = sequence("module or package name") {
     identifier()
@@ -39,7 +57,19 @@ val ModuleName = sequence("module or package name") {
         identifier()
     }
 }
-        .postprocess(::ModuleNamePostProcessor)
+    .astTransformation { tokens ->
+        val identifiers = ArrayList<String>()
+
+        while (tokens.hasNext()) {
+            // collect the identifier
+            identifiers.add((tokens.next()!! as IdentifierToken).value)
+
+            // skip the dot, if there
+            tokens.next()
+        }
+
+        identifiers.toTypedArray()
+    }
 
 val ModuleDeclaration = sequence("module declaration") {
     keyword(Keyword.MODULE)
@@ -50,7 +80,12 @@ val ModuleDeclaration = sequence("module declaration") {
 
     operator(Operator.NEWLINE)
 }
-    .postprocess(::ModuleDeclarationPostProcessor)
+    .astTransformation { tokens ->
+        val keyword = tokens.next()!! as KeywordToken
+        val moduleName = tokens.next()!! as Array<String>
+
+        ModuleDeclaration(keyword.sourceLocation, moduleName)
+    }
 
 val ImportDeclaration = sequence("import declaration") {
     keyword(Keyword.IMPORT)
@@ -65,9 +100,30 @@ val ImportDeclaration = sequence("import declaration") {
     identifier(acceptedOperators = listOf(Operator.TIMES))
     operator(Operator.NEWLINE)
 }
-    .postprocess(::ImportPostprocessor)
+    .enhanceErrors(
+        { it is TokenMismatchReporting && it.expected == OperatorToken(Operator.DOT) && it.actual == OperatorToken(Operator.NEWLINE) },
+        { _it ->
+            val it = _it as TokenMismatchReporting
+            Reporting.parsingError("${it.message}; To import all exports of the module write module.*", it.actual.sourceLocation)
+        }
+    )
+    .astTransformation { tokens ->
+        val keyword = tokens.next()!! as KeywordToken
 
-val Module = sequence("module") {
+        val identifiers = ArrayList<IdentifierToken>()
+
+        while (tokens.hasNext()) {
+            // collect the identifier
+            identifiers.add(tokens.next()!! as IdentifierToken)
+
+            // skip the dot, if there
+            tokens.next()
+        }
+
+        ImportDeclaration(keyword.sourceLocation, identifiers)
+    }
+
+val Module: Rule<ASTModule> = sequence("module") {
     certainty = ResultCertainty.MATCHED
     atLeast(0) {
         optionalWhitespace()
@@ -82,4 +138,70 @@ val Module = sequence("module") {
         certainty = ResultCertainty.DEFINITIVE
     }
 }
-    .postprocess(::ModulePostProcessor)
+    .flatten()
+    .map { inResult ->
+        @Suppress("UNCHECKED_CAST")
+        val input = inResult.item ?: return@map inResult as RuleMatchingResult<ASTModule> // null can haz any type that i want :)
+
+        val reportings: MutableSet<Reporting> = HashSet()
+        val astModule = ASTModule()
+
+        input.forEachRemainingIndexed { index, declaration ->
+            declaration as? Declaration ?: throw InternalCompilerError("What tha heck went wrong here?!")
+
+            if (declaration is ModuleDeclaration) {
+                if (astModule.selfDeclaration == null) {
+                    if (index != 0) {
+                        reportings.add(Reporting.parsingError(
+                            "The module declaration must be the first declaration in the source file",
+                            declaration.declaredAt
+                        ))
+                    }
+
+                    astModule.selfDeclaration = declaration
+                }
+                else {
+                    reportings.add(Reporting.parsingError(
+                        "Duplicate module declaration",
+                        declaration.declaredAt
+                    ))
+                }
+            }
+            else if (declaration is ImportDeclaration) {
+                astModule.imports.add(declaration)
+            }
+            else if (declaration is VariableDeclaration) {
+                astModule.variables.add(declaration)
+            }
+            else if (declaration is FunctionDeclaration) {
+                astModule.functions.add(declaration)
+            }
+            else if (declaration is StructDeclaration) {
+                astModule.structs.add(declaration)
+            }
+            else {
+                reportings.add(Reporting.unsupported(
+                    "Unsupported declaration $declaration",
+                    declaration.declaredAt
+                ))
+            }
+        }
+
+        if (astModule.selfDeclaration == null) {
+            reportings.add(Reporting.parsingError("No module declaration found.", (input.items.getOrNull(0) as Declaration?)?.declaredAt ?: SourceLocation.UNKNOWN))
+        }
+
+        // default import dotlin.lang.*
+        astModule.imports.add(ImportDeclaration(
+            SourceLocation.UNKNOWN, listOf(
+            IdentifierToken("dotlin"),
+            IdentifierToken("lang"),
+            IdentifierToken("*")
+        )))
+
+        RuleMatchingResultImpl(
+            certainty = ResultCertainty.DEFINITIVE,
+            item = astModule,
+            reportings = inResult.reportings.plus(reportings)
+        )
+    }

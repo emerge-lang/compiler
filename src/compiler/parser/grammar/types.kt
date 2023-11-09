@@ -18,20 +18,33 @@
 
 package compiler.parser.grammar
 
+import compiler.InternalCompilerError
+import compiler.ast.type.TypeModifier
+import compiler.ast.type.TypeReference
+import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
+import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
+import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
-import compiler.parser.grammar.dsl.postprocess
+import compiler.parser.grammar.dsl.mapResult
 import compiler.parser.grammar.dsl.sequence
-import compiler.parser.postproc.TypeModifierPostProcessor
-import compiler.parser.postproc.TypePostprocessor
 
 val TypeModifier = eitherOf("type modifier") {
     keyword(Keyword.MUTABLE)
     keyword(Keyword.READONLY)
     keyword(Keyword.IMMUTABLE)
 }
-    .postprocess(::TypeModifierPostProcessor)
+    .mapResult { keywordToken ->
+        keywordToken as KeywordToken
+        when(keywordToken.keyword) {
+            Keyword.MUTABLE   -> compiler.ast.type.TypeModifier.MUTABLE
+            Keyword.READONLY  -> compiler.ast.type.TypeModifier.READONLY
+            Keyword.IMMUTABLE -> compiler.ast.type.TypeModifier.IMMUTABLE
+            else -> throw InternalCompilerError("${keywordToken.keyword} is not a type modifier")
+        }
+    }
 
 val Type = sequence("type") {
     optional {
@@ -46,4 +59,22 @@ val Type = sequence("type") {
     // TODO: function types
     // TODO: generics
 }
-    .postprocess(::TypePostprocessor)
+    .astTransformation { tokens ->
+        val nameOrModifier = tokens.next()!!
+
+        val typeModifier: TypeModifier?
+        val nameToken: IdentifierToken
+
+        if (nameOrModifier is TypeModifier) {
+            typeModifier = nameOrModifier
+            nameToken = tokens.next()!! as IdentifierToken
+        }
+        else {
+            typeModifier = null
+            nameToken = nameOrModifier as IdentifierToken
+        }
+
+        val isNullable = tokens.hasNext() && tokens.next()!! == OperatorToken(Operator.QUESTION_MARK)
+
+        TypeReference(nameToken, isNullable, typeModifier)
+    }

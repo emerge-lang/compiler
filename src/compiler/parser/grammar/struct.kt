@@ -18,14 +18,21 @@
 
 package compiler.parser.grammar
 
+import compiler.ast.ASTVisibilityModifier
+import compiler.ast.expression.Expression
+import compiler.ast.struct.StructDeclaration
+import compiler.ast.struct.StructMemberDeclaration
+import compiler.ast.type.TypeReference
+import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword.STRUCT_DEFINITION
+import compiler.lexer.KeywordToken
+import compiler.lexer.Operator
 import compiler.lexer.Operator.*
+import compiler.lexer.OperatorToken
 import compiler.matching.ResultCertainty.DEFINITIVE
 import compiler.matching.ResultCertainty.MATCHED
-import compiler.parser.grammar.dsl.postprocess
+import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.sequence
-import compiler.parser.postproc.StructDeclarationPostProcessor
-import compiler.parser.postproc.StructMemberDeclarationPostProcessor
 
 val StructMemberDefinition = sequence("struct member declaration") {
     optional {
@@ -47,7 +54,35 @@ val StructMemberDefinition = sequence("struct member declaration") {
         ref(Expression)
     }
 }
-    .postprocess(::StructMemberDeclarationPostProcessor)
+    .astTransformation { tokens ->
+        var next = tokens.next()!!
+
+        val visibilityModifier = if (next is ASTVisibilityModifier) {
+            val _t = next
+            next = tokens.next()!!
+            _t
+        } else ASTVisibilityModifier.DEFAULT
+
+        val name = next as IdentifierToken
+
+        tokens.next()!! as OperatorToken // skip OPERATOR_COLON
+
+        val type = tokens.next()!! as TypeReference
+
+        val defaultValue = if (tokens.hasNext()) {
+            // default value is present
+            tokens.next()!! as OperatorToken // EQUALS
+            tokens.next()!! as Expression<*>?
+        } else null
+
+        StructMemberDeclaration(
+            name.sourceLocation,
+            visibilityModifier,
+            name,
+            type,
+            defaultValue
+        )
+    }
 
 val StructDefinition = sequence("struct definition") {
     keyword(STRUCT_DEFINITION)
@@ -71,4 +106,28 @@ val StructDefinition = sequence("struct definition") {
     optionalWhitespace()
     operator(CBRACE_CLOSE)
 }
-    .postprocess(::StructDeclarationPostProcessor)
+    .astTransformation { tokens ->
+        val declarationKeyword = tokens.next()!! as KeywordToken // struct keyword
+
+        val name = tokens.next()!! as IdentifierToken
+
+        tokens.next()!! as OperatorToken // CBRACE_OPEN
+
+        val memberDeclarations = mutableSetOf<StructMemberDeclaration>()
+
+        var next = tokens.next()!! // until CBRACE_CLOSE
+        while (next is StructMemberDeclaration) {
+            memberDeclarations += next
+            next = tokens.next()!! as OperatorToken
+
+            if (next.operator == Operator.NEWLINE) {
+                next = tokens.next()!!
+            }
+        }
+
+        StructDeclaration(
+            declarationKeyword.sourceLocation,
+            name,
+            memberDeclarations
+        )
+    }

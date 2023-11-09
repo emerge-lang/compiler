@@ -24,6 +24,8 @@ import compiler.parser.rule.EOIRule
 import compiler.parser.rule.Rule
 import compiler.parser.rule.WhitespaceEaterRule
 
+typealias Grammar = GrammarReceiver.() -> Unit
+
 /**
  * Objects implementing this interface receive invocations that describe properties of the rule. The object
  * can then decide what to do based on those invocations (e.g. match the described rules against a token stream

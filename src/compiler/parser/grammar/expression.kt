@@ -48,7 +48,7 @@ import compiler.parser.ExpressionPostfix
 import compiler.parser.InvocationExpressionPostfix
 import compiler.parser.MemberAccessExpressionPostfix
 import compiler.parser.NotNullExpressionPostfix
-import compiler.parser.postproc.mapResult
+import compiler.parser.grammar.dsl.mapResult
 import compiler.parser.rule.Rule
 
 val Expression: Rule<Expression<*>> by lazy {

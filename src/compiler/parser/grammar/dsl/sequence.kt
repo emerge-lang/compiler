@@ -21,6 +21,7 @@ package compiler.parser.grammar.dsl
 import compiler.lexer.TokenType
 import compiler.matching.ResultCertainty
 import compiler.parser.TokenSequence
+import compiler.parser.rule.Rule
 import compiler.parser.rule.RuleMatchingResult
 import compiler.parser.rule.RuleMatchingResultImpl
 import compiler.parser.rule.hasErrors
@@ -83,6 +84,8 @@ interface SequenceRuleDefinitionReceiver : GrammarReceiver {
     var certainty: ResultCertainty
 }
 
+typealias SequenceGrammar = SequenceRuleDefinitionReceiver.() -> Unit
+
 private class DescribingSequenceGrammarReceiver : SequenceRuleDefinitionReceiver, BaseDescribingGrammarReceiver() {
     override var certainty = ResultCertainty.NOT_RECOGNIZED
 
@@ -105,3 +108,14 @@ private class DescribingSequenceGrammarReceiver : SequenceRuleDefinitionReceiver
         handleItem(type.name)
     }
 }
+
+class SequenceGrammarRule(
+    private val givenName: String? = null,
+    private val grammar: SequenceGrammar
+): Rule<List<RuleMatchingResult<*>>> {
+    constructor(grammar: SequenceGrammar) : this(null, grammar)
+    override val descriptionOfAMatchingThing by lazy { givenName ?: describeSequenceGrammar(grammar) }
+    override fun tryMatch(input: TokenSequence) = tryMatchSequence(grammar, input)
+}
+
+fun sequence(name: String? = null, matcherFn: SequenceGrammar) = SequenceGrammarRule(name, matcherFn)
