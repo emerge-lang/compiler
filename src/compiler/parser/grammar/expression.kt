@@ -188,7 +188,7 @@ val BracedCodeOrSingleStatement = sequence("curly braced code or single statemen
             return@astTransformation next
         }
 
-        if (next == OperatorToken(Operator.CBRACE_OPEN)) {
+        if (next != OperatorToken(Operator.CBRACE_OPEN)) {
             throw InternalCompilerError("Unexpected $next, expecting ${Operator.CBRACE_OPEN} or executable")
         }
 
@@ -199,7 +199,7 @@ val BracedCodeOrSingleStatement = sequence("curly braced code or single statemen
         }
 
         if (next !is CodeChunk) {
-            throw InternalCompilerError("Unepxected $next, expecting code or ${Operator.CBRACE_CLOSE}")
+            throw InternalCompilerError("Unexpected $next, expecting code or ${Operator.CBRACE_CLOSE}")
         }
 
         return@astTransformation next

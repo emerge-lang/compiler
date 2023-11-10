@@ -35,7 +35,7 @@ internal fun tryMatchSequence(matcherFn: SequenceGrammar, context: Any, input: T
     try {
         (object : BaseMatchingGrammarReceiver(context, input), SequenceRuleDefinitionReceiver {
             override fun handleResult(result: RuleMatchingResult<*>) {
-                if (result.item == null || result.hasErrors) {
+                if (result.item == null && result.hasErrors) {
                     throw MatchingAbortedException(result)
                 }
                 results.add(result)
@@ -57,6 +57,7 @@ internal fun tryMatchSequence(matcherFn: SequenceGrammar, context: Any, input: T
         )
     }
     catch (ex: MatchingAbortedException) {
+        check(ex.result.hasErrors)
         input.rollback()
 
         return RuleMatchingResult(

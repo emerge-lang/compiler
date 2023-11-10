@@ -121,6 +121,7 @@ val ImportDeclaration = sequence("import declaration") {
 val Module: Rule<ASTModule> = sequence("module") {
     __unambiguous()
     atLeast(0) {
+        __unambiguous()
         optionalWhitespace()
         eitherOf(mismatchIsAmbiguous = false) {
             ref(ModuleDeclaration)
@@ -130,7 +131,6 @@ val Module: Rule<ASTModule> = sequence("module") {
             ref(StructDefinition)
             endOfInput()
         }
-        __unambiguous()
     }
 }
     .flatten()

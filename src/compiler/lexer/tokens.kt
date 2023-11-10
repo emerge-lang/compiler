@@ -91,9 +91,7 @@ enum class Operator(val text: String, private val _humanReadableName: String? = 
     NOTNULL      ("!!"), // find a better name for this...
     NEGATE       ("!", "negation");
 
-    /** A human readable name of this operator; if none was specified, falls back to `"operator $text"` */
-    val humanReadableName: String
-        get() = this._humanReadableName ?: "operator $text"
+    override fun toString() = this._humanReadableName ?: "operator $text"
 
     companion object {
         val valuesSortedForLexing: List<Operator> = values().toList().sortedTopologically { depender, dependency ->
@@ -155,13 +153,7 @@ class OperatorToken(
 ) : Token() {
     override val type = TokenType.OPERATOR
 
-    override fun toStringWithoutLocation(): String {
-        return if (operator == Operator.NEWLINE) {
-            "newline"
-        } else {
-            operator.humanReadableName
-        }
-    }
+    override fun toStringWithoutLocation() = operator.toString()
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
