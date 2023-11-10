@@ -19,25 +19,21 @@
 package compiler.parser.grammar.dsl
 
 import compiler.lexer.TokenType
-import compiler.matching.ResultCertainty
+import compiler.parser.Rule
+import compiler.parser.RuleMatchingResult
 import compiler.parser.TokenSequence
-import compiler.parser.rule.Rule
-import compiler.parser.rule.RuleMatchingResult
-import compiler.parser.rule.RuleMatchingResultImpl
-import compiler.parser.rule.hasErrors
 import compiler.reportings.Reporting
 import textutils.indentByFromSecondLine
 
-internal fun tryMatchSequence(matcherFn: SequenceGrammar, input: TokenSequence): RuleMatchingResult<List<RuleMatchingResult<*>>> {
+internal fun tryMatchSequence(matcherFn: SequenceGrammar, context: Any, input: TokenSequence): RuleMatchingResult<List<RuleMatchingResult<*>>> {
     input.mark()
 
     val results = mutableListOf<RuleMatchingResult<*>>()
     val reportings = mutableListOf<Reporting>()
-    var certainty = ResultCertainty.NOT_RECOGNIZED
-    var hasCertaintyBeenSet = false
+    var isAmbiguous = true
 
     try {
-        (object : BaseMatchingGrammarReceiver(input), SequenceRuleDefinitionReceiver {
+        (object : BaseMatchingGrammarReceiver(context, input), SequenceRuleDefinitionReceiver {
             override fun handleResult(result: RuleMatchingResult<*>) {
                 if (result.item == null || result.hasErrors) {
                     throw MatchingAbortedException(result)
@@ -46,19 +42,16 @@ internal fun tryMatchSequence(matcherFn: SequenceGrammar, input: TokenSequence):
                 reportings.addAll(result.reportings)
             }
 
-            override var certainty: ResultCertainty
-                get() = certainty
-                set(value) {
-                    certainty = value
-                    hasCertaintyBeenSet = true
-                }
+            override fun __unambiguous() {
+                isAmbiguous = false
+            }
         })
             .matcherFn()
 
         input.commit()
 
-        return RuleMatchingResultImpl(
-            if (hasCertaintyBeenSet) certainty else ResultCertainty.MATCHED,
+        return RuleMatchingResult(
+            false, // ambiguity is only used to improve error messages; this is a successful match -> all good
             results,
             reportings
         )
@@ -66,8 +59,8 @@ internal fun tryMatchSequence(matcherFn: SequenceGrammar, input: TokenSequence):
     catch (ex: MatchingAbortedException) {
         input.rollback()
 
-        return RuleMatchingResultImpl(
-            certainty,
+        return RuleMatchingResult(
+            isAmbiguous,
             null,
             ex.result.reportings
         )
@@ -81,14 +74,12 @@ internal fun describeSequenceGrammar(matcherFn: SequenceGrammar): String {
 }
 
 interface SequenceRuleDefinitionReceiver : GrammarReceiver {
-    var certainty: ResultCertainty
+    fun __unambiguous()
 }
 
 typealias SequenceGrammar = SequenceRuleDefinitionReceiver.() -> Unit
 
 private class DescribingSequenceGrammarReceiver : SequenceRuleDefinitionReceiver, BaseDescribingGrammarReceiver() {
-    override var certainty = ResultCertainty.NOT_RECOGNIZED
-
     private val buffer = StringBuilder(50)
 
     init {
@@ -107,6 +98,10 @@ private class DescribingSequenceGrammarReceiver : SequenceRuleDefinitionReceiver
     override fun tokenOfType(type: TokenType) {
         handleItem(type.name)
     }
+
+    override fun __unambiguous() {
+        // nothing to do, no matching logic is going on
+    }
 }
 
 class SequenceGrammarRule(
@@ -114,8 +109,8 @@ class SequenceGrammarRule(
     private val grammar: SequenceGrammar
 ): Rule<List<RuleMatchingResult<*>>> {
     constructor(grammar: SequenceGrammar) : this(null, grammar)
-    override val descriptionOfAMatchingThing by lazy { givenName ?: describeSequenceGrammar(grammar) }
-    override fun tryMatch(input: TokenSequence) = tryMatchSequence(grammar, input)
+    override val descriptionOfAMatchingThing: String by lazy { givenName ?: describeSequenceGrammar(grammar) }
+    override fun tryMatch(context: Any, input: TokenSequence) = tryMatchSequence(grammar, context, input)
 }
 
 fun sequence(name: String? = null, matcherFn: SequenceGrammar) = SequenceGrammarRule(name, matcherFn)

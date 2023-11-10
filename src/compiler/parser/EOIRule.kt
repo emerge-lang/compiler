@@ -16,18 +16,32 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package compiler.matching
+package compiler.parser
 
-open class SimpleMatchingResult<ResultType, ReportingType>(
-        override val certainty: ResultCertainty,
-        override val item: ResultType?,
-        override val reportings: Collection<ReportingType>
-) : AbstractMatchingResult<ResultType, ReportingType> {
-    constructor(certainty: ResultCertainty, item: ResultType?, vararg reportings: ReportingType) : this(certainty, item, reportings.toSet())
+import compiler.reportings.Reporting
 
-    init {
-        if (item == null && reportings.isEmpty()) {
-            //throw InternalCompilerError("When the item is null there must be reportings. Use Unit to resemble meaningless matches.")
+/**
+ * Matches the end of the given token sequence
+ */
+class EOIRule private constructor() : Rule<Unit> {
+    override val descriptionOfAMatchingThing = "end of input"
+    override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<Unit> {
+        if (input.hasNext()) {
+            return RuleMatchingResult(
+                true,
+                null,
+                setOf(Reporting.parsingError("Unexpected ${input.peek()!!.toStringWithoutLocation()}, expecting $descriptionOfAMatchingThing", input.peek()!!.sourceLocation))
+            )
         }
+
+        return RuleMatchingResult(
+            false,
+            Unit,
+            emptySet()
+        )
+    }
+
+    companion object {
+        val INSTANCE = EOIRule()
     }
 }

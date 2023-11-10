@@ -29,8 +29,6 @@ import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.Operator.*
 import compiler.lexer.OperatorToken
-import compiler.matching.ResultCertainty.DEFINITIVE
-import compiler.matching.ResultCertainty.MATCHED
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.sequence
 
@@ -42,7 +40,7 @@ val StructMemberDefinition = sequence("struct member declaration") {
     optionalWhitespace()
 
     identifier()
-    certainty = DEFINITIVE
+    __unambiguous()
 
     operator(COLON)
     ref(Type)
@@ -50,7 +48,7 @@ val StructMemberDefinition = sequence("struct member declaration") {
     optional {
         optionalWhitespace()
         operator(ASSIGNMENT)
-        certainty = DEFINITIVE
+        __unambiguous()
         ref(Expression)
     }
 }
@@ -86,7 +84,7 @@ val StructMemberDefinition = sequence("struct member declaration") {
 
 val StructDefinition = sequence("struct definition") {
     keyword(STRUCT_DEFINITION)
-    certainty = MATCHED
+    __unambiguous()
     optionalWhitespace()
     identifier()
     optionalWhitespace()

@@ -19,10 +19,9 @@
 package compiler.parser.grammar.dsl
 
 import compiler.lexer.*
-import compiler.matching.ResultCertainty
-import compiler.parser.rule.EOIRule
-import compiler.parser.rule.Rule
-import compiler.parser.rule.WhitespaceEaterRule
+import compiler.parser.Rule
+import compiler.parser.EOIRule
+import compiler.parser.WhitespaceEaterRule
 
 typealias Grammar = GrammarReceiver.() -> Unit
 
@@ -36,7 +35,7 @@ interface GrammarReceiver {
     fun tokenOfType(type: TokenType)
     fun ref(rule: Rule<*>)
     fun sequence(matcherFn: SequenceGrammar)
-    fun eitherOf(mismatchCertainty: ResultCertainty, matcherFn: Grammar)
+    fun eitherOf(mismatchIsAmbiguous: Boolean, matcherFn: Grammar)
     fun atLeast(n: Int, matcherFn: SequenceGrammar)
     fun identifier(acceptedOperators: Collection<Operator> = emptyList(), acceptedKeywords: Collection<Keyword> = emptyList())
     fun optional(matcherFn: SequenceGrammar)
@@ -51,7 +50,7 @@ interface GrammarReceiver {
     }
 
     fun eitherOf(matcherFn: Grammar) {
-        eitherOf(ResultCertainty.NOT_RECOGNIZED, matcherFn)
+        eitherOf(true, matcherFn)
     }
 
     fun eitherOf(vararg operators: Operator) {

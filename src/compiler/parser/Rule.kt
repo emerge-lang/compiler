@@ -16,27 +16,27 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package compiler.parser.rule
+package compiler.parser
 
 import compiler.lexer.Token
 import compiler.lexer.TokenType
-import compiler.matching.Matcher
-import compiler.matching.ResultCertainty
-import compiler.parser.TokenSequence
 import compiler.reportings.MissingTokenReporting
 import compiler.reportings.Reporting
 import compiler.reportings.TokenMismatchReporting
 
-interface Rule<T> : Matcher<TokenSequence, T, Reporting> {
+interface Rule<ResultType> {
+    val descriptionOfAMatchingThing: String
+    fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<ResultType>
+
     companion object {
-        fun singleton(equalTo: Token, mismatchCertainty: ResultCertainty = ResultCertainty.NOT_RECOGNIZED): Rule<Token> = object : Rule<Token> {
+        fun singleton(equalTo: Token, mismatchIsAmbiguous: Boolean = true): Rule<Token> = object : Rule<Token> {
             override val descriptionOfAMatchingThing: String
                 get() = equalTo.toString()
 
-            override fun tryMatch(input: TokenSequence): RuleMatchingResult<Token> {
+            override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<Token> {
                 if (!input.hasNext()) {
-                    return RuleMatchingResultImpl(
-                        mismatchCertainty,
+                    return RuleMatchingResult(
+                        mismatchIsAmbiguous,
                         null,
                         setOf(
                             MissingTokenReporting(equalTo, input.currentSourceLocation)
@@ -49,16 +49,16 @@ interface Rule<T> : Matcher<TokenSequence, T, Reporting> {
                 val token = input.next()!!
                 if (token == equalTo) {
                     input.commit()
-                    return RuleMatchingResultImpl(
-                        ResultCertainty.DEFINITIVE,
+                    return RuleMatchingResult(
+                        false,
                         token,
                         emptySet()
                     )
                 }
                 else {
                     input.rollback()
-                    return RuleMatchingResultImpl(
-                        mismatchCertainty,
+                    return RuleMatchingResult(
+                        mismatchIsAmbiguous,
                         null,
                         setOf(
                             TokenMismatchReporting(equalTo, token)
@@ -72,10 +72,10 @@ interface Rule<T> : Matcher<TokenSequence, T, Reporting> {
             override val descriptionOfAMatchingThing: String
                 get() = type.name
 
-            override fun tryMatch(input: TokenSequence): RuleMatchingResult<Token> {
+            override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<Token> {
                 if (!input.hasNext()) {
-                    return RuleMatchingResultImpl(
-                        ResultCertainty.NOT_RECOGNIZED,
+                    return RuleMatchingResult(
+                        true,
                         null,
                         setOf(
                             Reporting.unexpectedEOI("token of type $type", input.currentSourceLocation)
@@ -88,25 +88,23 @@ interface Rule<T> : Matcher<TokenSequence, T, Reporting> {
                 val token = input.next()!!
                 if (token.type == type) {
                     input.commit()
-                    return RuleMatchingResultImpl(
-                        ResultCertainty.OPTIMISTIC,
+                    return RuleMatchingResult(
+                        false,
                         token,
                         emptySet()
                     )
                 }
                 else {
                     input.rollback()
-                    return RuleMatchingResultImpl(
-                        ResultCertainty.NOT_RECOGNIZED,
+                    return RuleMatchingResult(
+                        true,
                         null,
                         setOf(
-                                Reporting.parsingError("Expected token of type $type, found $token", token.sourceLocation)
+                            Reporting.parsingError("Expected token of type $type, found $token", token.sourceLocation)
                         )
                     )
                 }
             }
         }
     }
-
-    override fun tryMatch(input: TokenSequence): RuleMatchingResult<T>
 }

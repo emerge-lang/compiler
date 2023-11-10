@@ -34,11 +34,10 @@ import compiler.lexer.Keyword.*
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator.*
 import compiler.lexer.OperatorToken
-import compiler.matching.ResultCertainty.*
+import compiler.parser.Rule
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
-import compiler.parser.rule.Rule
 
 val VariableDeclaration = sequence("variable declaration") {
 
@@ -52,12 +51,11 @@ val VariableDeclaration = sequence("variable declaration") {
         keyword(VAR)
         keyword(VAL)
     }
-    certainty = MATCHED
+    __unambiguous()
 
     optionalWhitespace()
 
     identifier()
-    certainty = OPTIMISTIC
 
     optional {
         operator(COLON)
@@ -67,11 +65,9 @@ val VariableDeclaration = sequence("variable declaration") {
     optional {
         optionalWhitespace()
         operator(ASSIGNMENT)
-        certainty = DEFINITIVE
+        __unambiguous()
         ref(Expression)
     }
-
-    certainty = DEFINITIVE
 }
     .astTransformation { tokens ->
         val modifierOrKeyword = tokens.next()!!
@@ -126,12 +122,11 @@ val VisibilityModifier : Rule<ASTVisibilityModifier> = eitherOf("visibility modi
             keyword(INTERNAL)
             optional {
                 operator(PARANT_OPEN)
-                certainty = MATCHED
+                __unambiguous()
                 ref(ModuleName)
-                certainty = DEFINITIVE
                 operator(PARANT_CLOSE)
             }
-            certainty = MATCHED
+            __unambiguous()
         }
     }
 }

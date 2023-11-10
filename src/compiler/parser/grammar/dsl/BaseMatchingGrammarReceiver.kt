@@ -19,16 +19,17 @@
 package compiler.parser.grammar.dsl
 
 import compiler.lexer.*
-import compiler.matching.ResultCertainty
+import compiler.parser.Rule
+import compiler.parser.RuleMatchingResult
 import compiler.parser.TokenSequence
-import compiler.parser.rule.Rule
-import compiler.parser.rule.RuleMatchingResult
-import compiler.parser.rule.RuleMatchingResultImpl
 import compiler.reportings.MissingTokenReporting
 import compiler.reportings.Reporting
 import compiler.reportings.TokenMismatchReporting
 
-internal abstract class BaseMatchingGrammarReceiver(internal val input: TokenSequence) : GrammarReceiver {
+internal abstract class BaseMatchingGrammarReceiver(
+    private val context: Any,
+    internal val input: TokenSequence,
+) : GrammarReceiver {
     /**
      * Is called by all other methods as soon as there is a matching result
      */
@@ -36,8 +37,8 @@ internal abstract class BaseMatchingGrammarReceiver(internal val input: TokenSeq
 
     override fun tokenEqualTo(equalTo: Token) {
         if (!input.hasNext()) {
-            handleResult(RuleMatchingResultImpl(
-                ResultCertainty.NOT_RECOGNIZED,
+            handleResult(RuleMatchingResult(
+                true,
                 null,
                 setOf(
                     MissingTokenReporting(equalTo, input.currentSourceLocation)
@@ -51,30 +52,28 @@ internal abstract class BaseMatchingGrammarReceiver(internal val input: TokenSeq
         val token = input.next()!!
         if (token == equalTo) {
             input.commit()
-            handleResult(RuleMatchingResultImpl(
-                ResultCertainty.DEFINITIVE,
+            handleResult(RuleMatchingResult(
+                false,
                 token,
                 emptySet()
             ))
             return
         }
-        else {
-            input.rollback()
-            handleResult(RuleMatchingResultImpl(
-                ResultCertainty.NOT_RECOGNIZED,
-                null,
-                setOf(
-                    TokenMismatchReporting(equalTo, token)
-                )
-            ))
-            return
-        }
+
+        input.rollback()
+        handleResult(RuleMatchingResult(
+            true,
+            null,
+            setOf(
+                TokenMismatchReporting(equalTo, token)
+            )
+        ))
     }
 
     override fun tokenOfType(type: TokenType) {
         if (!input.hasNext()) {
-            handleResult(RuleMatchingResultImpl(
-                ResultCertainty.NOT_RECOGNIZED,
+            handleResult(RuleMatchingResult(
+                true,
                 null,
                 setOf(
                     Reporting.unexpectedEOI(type.toString(), input.currentSourceLocation)
@@ -88,47 +87,47 @@ internal abstract class BaseMatchingGrammarReceiver(internal val input: TokenSeq
         val token = input.next()!!
         if (token.type == type) {
             input.commit()
-            handleResult(RuleMatchingResultImpl(
-                ResultCertainty.DEFINITIVE,
+            handleResult(RuleMatchingResult(
+                false,
                 token,
                 emptySet()
             ))
             return
         }
-        else {
-            input.rollback()
-            handleResult(RuleMatchingResultImpl(
-                ResultCertainty.NOT_RECOGNIZED,
-                null,
-                setOf(Reporting.parsingError("Expected $type but found $token", token.sourceLocation))
-            ))
-            return
-        }
+
+        input.rollback()
+        handleResult(RuleMatchingResult(
+            true,
+            null,
+            setOf(Reporting.parsingError("Expected $type but found $token", token.sourceLocation))
+        ))
     }
 
     override fun ref(rule: Rule<*>) {
         // this branch is for testing only
         if (input.peek() is NestedRuleMockingToken) {
             handleResult(
-                RuleMatchingResult.of<Any, Any, Reporting>(
-                    (input.next()!! as NestedRuleMockingToken).replacement
+                RuleMatchingResult(
+                    false,
+                    (input.next()!! as NestedRuleMockingToken).replacement,
+                    emptySet(),
                 )
             )
         } else {
-            handleResult(rule.tryMatch(input))
+            handleResult(rule.tryMatch(context, input))
         }
     }
 
     override fun sequence(matcherFn: SequenceGrammar) {
-        handleResult(tryMatchSequence(matcherFn, input))
+        handleResult(tryMatchSequence(matcherFn, context, input))
     }
 
-    override fun eitherOf(mismatchCertainty: ResultCertainty, matcherFn: Grammar) {
-        handleResult(tryMatchEitherOf(matcherFn, input, mismatchCertainty))
+    override fun eitherOf(mismatchIsAmbiguous: Boolean, matcherFn: Grammar) {
+        handleResult(tryMatchEitherOf(matcherFn, context, input, mismatchIsAmbiguous))
     }
 
     override fun atLeast(n: Int, matcherFn: SequenceGrammar) {
-        handleResult(tryMatchRepeating(SequenceGrammarRule(matcherFn), IntRange(n, Integer.MAX_VALUE), input))
+        handleResult(tryMatchRepeating(SequenceGrammarRule(matcherFn), IntRange(n, Int.MAX_VALUE), context, input))
     }
 
     override fun identifier(acceptedOperators: Collection<Operator>, acceptedKeywords: Collection<Keyword>) {
@@ -136,10 +135,10 @@ internal abstract class BaseMatchingGrammarReceiver(internal val input: TokenSeq
     }
 
     override fun optional(rule: Rule<*>) {
-        handleResult(tryMatchOptional(rule, input))
+        handleResult(tryMatchOptional(rule, context, input))
     }
 
     override fun optional(matcherFn: SequenceGrammar) {
-        handleResult(tryMatchOptional(SequenceGrammarRule(matcherFn), input))
+        handleResult(tryMatchOptional(SequenceGrammarRule(matcherFn), context, input))
     }
 }

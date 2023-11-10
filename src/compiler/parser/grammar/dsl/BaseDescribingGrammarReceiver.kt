@@ -21,8 +21,7 @@ package compiler.parser.grammar.dsl
 import compiler.lexer.Keyword
 import compiler.lexer.Operator
 import compiler.lexer.Token
-import compiler.matching.ResultCertainty
-import compiler.parser.rule.Rule
+import compiler.parser.Rule
 
 abstract class BaseDescribingGrammarReceiver : GrammarReceiver {
     internal abstract fun handleItem(descriptionOfItem: String)
@@ -39,7 +38,8 @@ abstract class BaseDescribingGrammarReceiver : GrammarReceiver {
         handleItem(describeSequenceGrammar(matcherFn))
     }
 
-    override fun eitherOf(mismatchCertainty: ResultCertainty, matcherFn: Grammar) {
+    override fun eitherOf(mismatchIsAmbiguous: Boolean, matcherFn: Grammar) {
+        // TODO: use mismatchIsAmbiguous
         handleItem(describeEitherOfGrammar(matcherFn))
     }
 

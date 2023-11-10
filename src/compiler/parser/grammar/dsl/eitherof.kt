@@ -20,31 +20,28 @@ package compiler.parser.grammar.dsl
 
 import compiler.InternalCompilerError
 import compiler.lexer.TokenType
-import compiler.matching.ResultCertainty
+import compiler.parser.Rule
+import compiler.parser.RuleMatchingResult
 import compiler.parser.TokenSequence
-import compiler.parser.rule.Rule
-import compiler.parser.rule.RuleMatchingResult
-import compiler.parser.rule.RuleMatchingResultImpl
 import compiler.reportings.Reporting
 import textutils.assureEndsWith
 import textutils.indentByFromSecondLine
 
-internal fun tryMatchEitherOf(matcherFn: Grammar, input: TokenSequence, mismatchCertainty: ResultCertainty): RuleMatchingResult<*> {
+internal fun tryMatchEitherOf(matcherFn: Grammar, context: Any, input: TokenSequence, mismatchIsAmbiguous: Boolean): RuleMatchingResult<*> {
     input.mark()
 
     try {
-        (object : BaseMatchingGrammarReceiver(input) {
+        (object : BaseMatchingGrammarReceiver(context, input) {
             override fun handleResult(result: RuleMatchingResult<*>) {
-                mismatchCertainty
-                if (result.certainty >= ResultCertainty.MATCHED) {
+                if (!result.isAmbiguous || !result.hasErrors) {
                     throw SuccessfulMatchException(result)
                 }
             }
         }).matcherFn()
 
         input.rollback()
-        return RuleMatchingResultImpl(
-            mismatchCertainty,
+        return RuleMatchingResult(
+            mismatchIsAmbiguous,
             null,
             setOf(
                 Reporting.parsingError(
@@ -96,20 +93,22 @@ private class DescribingEitherOfGrammarReceiver : BaseDescribingGrammarReceiver(
     }
 }
 
-private class SuccessfulMatchException(result: RuleMatchingResult<*>) : MatchingAbortedException(result, "A rule was sucessfully matched; Throwing this exception because other rules dont need to be attempted.")
+private class SuccessfulMatchException(result: RuleMatchingResult<*>) : MatchingAbortedException(result, "A rule was successfully matched; Throwing this exception because other rules dont need to be attempted.")
+
 class EitherOfGrammarRule(
     private val givenName: String?,
-    private val mismatchCertainty: ResultCertainty,
+    private val mismatchIsAmbiguous: Boolean,
     private val options: Grammar,
 ) : Rule<Any> {
     override val descriptionOfAMatchingThing by lazy { givenName ?: describeEitherOfGrammar(options) }
-    override fun tryMatch(input: TokenSequence) = tryMatchEitherOf(
+    override fun tryMatch(context: Any, input: TokenSequence) = tryMatchEitherOf(
         options,
+        context,
         input,
-        mismatchCertainty
+        mismatchIsAmbiguous,
     ) as RuleMatchingResult<Any>
 }
 
-fun eitherOf(name: String? = null, mismatchCertainty: ResultCertainty = ResultCertainty.NOT_RECOGNIZED, options: Grammar): Rule<*> {
-    return EitherOfGrammarRule(name, mismatchCertainty, options)
+fun eitherOf(name: String? = null, mismatchIsAmbiguous: Boolean = true, options: Grammar): Rule<*> {
+    return EitherOfGrammarRule(name, mismatchIsAmbiguous, options)
 }

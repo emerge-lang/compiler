@@ -18,31 +18,28 @@
 
 package compiler.parser.grammar.dsl
 
-import compiler.matching.ResultCertainty
+import compiler.parser.Rule
+import compiler.parser.RuleMatchingResult
 import compiler.parser.TokenSequence
-import compiler.parser.rule.Rule
-import compiler.parser.rule.RuleMatchingResult
-import compiler.parser.rule.RuleMatchingResultImpl
-import compiler.parser.rule.hasErrors
 import compiler.reportings.Reporting
 
-internal fun <T> tryMatchRepeating(rule: Rule<T>, amount: IntRange, input: TokenSequence): RuleMatchingResult<List<RuleMatchingResult<T>>> {
+internal fun <T> tryMatchRepeating(rule: Rule<T>, amount: IntRange, context: Any, input: TokenSequence): RuleMatchingResult<List<RuleMatchingResult<T>>> {
     input.mark()
 
-    var results = ArrayList<RuleMatchingResult<T>>(amount.first)
+    val results = ArrayList<RuleMatchingResult<T>>(amount.first)
     var lastResult: RuleMatchingResult<T>? = null
 
     while (results.size < amount.last) {
         input.mark()
 
-        lastResult = rule.tryMatch(input)
+        lastResult = rule.tryMatch(context, input)
         if (lastResult.item == null) {
             input.rollback()
             // TODO: Fallback!
 
-            if (lastResult.hasErrors && lastResult.certainty >= ResultCertainty.MATCHED) {
-                return RuleMatchingResultImpl(
-                    results.maxOfOrNull { it.certainty } ?: ResultCertainty.MATCHED,
+            if (lastResult.hasErrors && !lastResult.isAmbiguous) {
+                return RuleMatchingResult(
+                    results.all { it.isAmbiguous },
                     null,
                     lastResult.reportings
                 )
@@ -58,8 +55,8 @@ internal fun <T> tryMatchRepeating(rule: Rule<T>, amount: IntRange, input: Token
     if (results.size >= amount.first) {
         input.commit()
 
-        return RuleMatchingResultImpl(
-            results.minOfOrNull { it.certainty } ?: ResultCertainty.MATCHED,
+        return RuleMatchingResult(
+            results.any { it.isAmbiguous },
             results,
             setOf()
         )
@@ -68,7 +65,7 @@ internal fun <T> tryMatchRepeating(rule: Rule<T>, amount: IntRange, input: Token
     {
         input.rollback()
 
-        var errors = if (lastResult?.reportings != null && lastResult.reportings.isNotEmpty()) {
+        val errors = if (lastResult?.reportings != null && lastResult.reportings.isNotEmpty()) {
             lastResult.reportings
         }
         else {
@@ -78,8 +75,8 @@ internal fun <T> tryMatchRepeating(rule: Rule<T>, amount: IntRange, input: Token
             ))
         }
 
-        return RuleMatchingResultImpl(
-            ResultCertainty.NOT_RECOGNIZED,
+        return RuleMatchingResult(
+            true,
             null,
             errors
         )
@@ -92,14 +89,10 @@ internal fun describeRepeatingGrammar(grammar: SequenceGrammar, amount: IntRange
 }
 
 private val Int.wordifyEN: String
-    get() {
-        if (this in 0..12) {
-            return listOf(
-                "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"
-            )[this]
-        }
-        else
-        {
-            return this.toString()
-        }
+    get()  = when(this) {
+        in 0..12 -> listOf(
+            "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"
+        )[this]
+        Int.MAX_VALUE -> "infinite"
+        else -> this.toString()
     }

@@ -16,6 +16,34 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package compiler.parser.rule
+package compiler.parser
 
-class MisconfigurationException(message: String) : RuntimeException(message)
+/**
+ * Skips whitespace in the input stream
+ */
+class WhitespaceEaterRule : Rule<Unit> {
+    override val descriptionOfAMatchingThing = "whitespace"
+
+    override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<Unit> {
+        while (input.hasNext()) {
+            input.mark()
+            val token = input.next()!!
+            if (!isWhitespace(token)) {
+                input.rollback()
+                break
+            }
+
+            input.commit()
+        }
+
+        return RuleMatchingResult(
+            false,
+            Unit,
+            emptySet()
+        )
+    }
+
+    companion object {
+        val INSTANCE: WhitespaceEaterRule = WhitespaceEaterRule()
+    }
+}

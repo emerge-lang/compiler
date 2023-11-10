@@ -18,7 +18,7 @@
 
 package compiler.parser.grammar.dsl
 
-import compiler.parser.rule.RuleMatchingResult
+import compiler.parser.RuleMatchingResult
 
 /**
  * To be thrown **ONLY** from functions defined in [GrammarReceiver] and [BaseMatchingGrammarReceiver].

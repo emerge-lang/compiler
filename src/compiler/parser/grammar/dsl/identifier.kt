@@ -19,10 +19,8 @@
 package compiler.parser.grammar.dsl
 
 import compiler.lexer.*
-import compiler.matching.ResultCertainty
+import compiler.parser.RuleMatchingResult
 import compiler.parser.TokenSequence
-import compiler.parser.rule.RuleMatchingResult
-import compiler.parser.rule.RuleMatchingResultImpl
 import compiler.reportings.Reporting
 
 /**
@@ -35,8 +33,8 @@ import compiler.reportings.Reporting
 internal fun tryMatchIdentifier(input: TokenSequence, acceptedOperators: Collection<Operator>,
                                 acceptedKeywords: Collection<Keyword>): RuleMatchingResult<IdentifierToken> {
     if (!input.hasNext()) {
-        return RuleMatchingResultImpl(
-            ResultCertainty.DEFINITIVE,
+        return RuleMatchingResult(
+            false,
             null,
             setOf(Reporting.unexpectedEOI(describeIdentifier(acceptedOperators, acceptedKeywords), input.currentSourceLocation))
         )
@@ -47,22 +45,22 @@ internal fun tryMatchIdentifier(input: TokenSequence, acceptedOperators: Collect
 
     if (token is IdentifierToken) {
         input.commit()
-        return RuleMatchingResultImpl(
-            ResultCertainty.DEFINITIVE,
+        return RuleMatchingResult(
+            false,
             token,
             emptySet()
         )
     } else if (token is OperatorToken && token.operator in acceptedOperators) {
         input.commit()
-        return RuleMatchingResultImpl(
-            ResultCertainty.DEFINITIVE,
+        return RuleMatchingResult(
+            false,
             IdentifierToken(token.operator.text, token.sourceLocation),
             emptySet()
         )
     } else if (token is KeywordToken && token.keyword in acceptedKeywords) {
         input.commit()
-        return RuleMatchingResultImpl(
-            ResultCertainty.DEFINITIVE,
+        return RuleMatchingResult(
+            false,
             IdentifierToken(token.sourceText, token.sourceLocation),
             emptySet()
         )
@@ -70,8 +68,8 @@ internal fun tryMatchIdentifier(input: TokenSequence, acceptedOperators: Collect
 
     // none matched => error
     input.rollback()
-    return RuleMatchingResultImpl(
-        ResultCertainty.DEFINITIVE,
+    return RuleMatchingResult(
+        false,
         null,
         setOf(Reporting.parsingError("Unexpected ${token.toStringWithoutLocation()}, expecting ${describeIdentifier(acceptedOperators, acceptedKeywords)}", token.sourceLocation))
     )

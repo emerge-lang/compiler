@@ -34,7 +34,6 @@ import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.Token
-import compiler.matching.ResultCertainty
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.sequence
 import java.util.LinkedList
@@ -171,7 +170,7 @@ val FunctionModifier = sequence {
         keyword(Keyword.OPERATOR)
         keyword(Keyword.EXTERNAL)
     }
-    certainty = ResultCertainty.DEFINITIVE
+    __unambiguous()
 }
     .astTransformation { tokens -> when((tokens.next()!! as KeywordToken).keyword) {
         Keyword.READONLY -> compiler.ast.type.FunctionModifier.READONLY
@@ -189,7 +188,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
 
     keyword(Keyword.FUNCTION)
 
-    certainty = ResultCertainty.MATCHED
+    __unambiguous()
 
     optional {
         ref(Type)
@@ -208,20 +207,20 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
         ref(Type)
     }
 
-    certainty = ResultCertainty.OPTIMISTIC
+    __unambiguous()
 
     eitherOf {
         sequence {
             optionalWhitespace()
             operator(Operator.CBRACE_OPEN)
-            certainty = ResultCertainty.DEFINITIVE
+            __unambiguous()
             ref(CodeChunk)
             optionalWhitespace()
             operator(Operator.CBRACE_CLOSE)
         }
         sequence {
             operator(Operator.ASSIGNMENT)
-            certainty = ResultCertainty.DEFINITIVE
+            __unambiguous()
             ref(Expression)
             eitherOf {
                 operator(Operator.NEWLINE)
@@ -231,8 +230,6 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
         operator(Operator.NEWLINE)
         endOfInput()
     }
-
-    certainty = ResultCertainty.DEFINITIVE
 }
     .astTransformation { tokens ->
         val modifiers = mutableSetOf<FunctionModifier>()
