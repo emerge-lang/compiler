@@ -16,10 +16,11 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+@file:JvmName("AstDsl")
 package compiler.parser.grammar.dsl
 
-import compiler.parser.Rule
-import compiler.parser.RuleMatchingResult
+import compiler.parser.grammar.rule.Rule
+import compiler.parser.grammar.rule.RuleMatchingResult
 import compiler.parser.TokenSequence
 import compiler.reportings.Reporting
 import compiler.transact.Position

@@ -40,13 +40,13 @@ import compiler.lexer.OperatorToken
 import compiler.lexer.TokenType
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
-import compiler.parser.grammar.dsl.sequence
 import compiler.parser.ExpressionPostfix
 import compiler.parser.InvocationExpressionPostfix
 import compiler.parser.MemberAccessExpressionPostfix
 import compiler.parser.NotNullExpressionPostfix
-import compiler.parser.Rule
+import compiler.parser.grammar.rule.Rule
 import compiler.parser.grammar.dsl.mapResult
+import compiler.parser.grammar.dsl.sequence
 
 val Expression: Rule<Expression<*>> by lazy {
     sequence("expression") {
@@ -57,7 +57,7 @@ val Expression: Rule<Expression<*>> by lazy {
             ref(ParanthesisedExpression)
             ref(IfExpression)
         }
-        __unambiguous()
+        //__unambiguous()
         atLeast(0) {
             ref(ExpressionPostfix)
         }
@@ -76,7 +76,7 @@ val LiteralExpression = sequence("literal") {
         // TODO: string literal, function literal
         // literals that the lexer treats as identifiers (booleans, ...?) are handled in ValueExpression
     }
-    __unambiguous()
+    //__unambiguous()
 }
     .astTransformation { tokens ->
         when (val valueToken = tokens.next()!!) {
@@ -87,7 +87,7 @@ val LiteralExpression = sequence("literal") {
 
 val IdentifierExpression = sequence("identifier") {
     identifier()
-    __unambiguous()
+    //__unambiguous()
 }
     .astTransformation { tokens ->
         val identifier = tokens.next() as IdentifierToken
@@ -106,7 +106,7 @@ val ValueExpression = eitherOf("value expression") {
 val ParanthesisedExpression: Rule<Expression<*>> = sequence("paranthesised expression") {
     operator(Operator.PARANT_OPEN)
     ref(Expression)
-    __unambiguous()
+    //__unambiguous()
     operator(Operator.PARANT_CLOSE)
 }
     .astTransformation { tokens ->
@@ -125,7 +125,7 @@ val UnaryExpression = sequence("unary expression") {
         ref(ValueExpression)
         ref(ParanthesisedExpression)
     }
-    __unambiguous()
+    //__unambiguous()
 }
     .astTransformation { tokens ->
         val operator = (tokens.next()!! as OperatorToken).operator
@@ -151,14 +151,14 @@ val BinaryExpression = sequence("ary operator expression") {
     }
     atLeast(1) {
         eitherOf(*binaryOperators) // TODO: arbitrary infix ops
-        __unambiguous()
+        //__unambiguous()
         eitherOf {
             ref(UnaryExpression)
             ref(ValueExpression)
             ref(ParanthesisedExpression)
         }
     }
-    __unambiguous()
+    //__unambiguous()
 }
     .astTransformation { tokens ->
         buildBinaryExpressionAst(tokens.remainingToList())
@@ -168,18 +168,18 @@ val BracedCodeOrSingleStatement = sequence("curly braced code or single statemen
     eitherOf {
         sequence {
             operator(Operator.CBRACE_OPEN)
-            __unambiguous()
+            //__unambiguous()
             optionalWhitespace()
             optional {
                 ref(CodeChunk)
-                __unambiguous()
+                //__unambiguous()
             }
             optionalWhitespace()
             operator(Operator.CBRACE_CLOSE)
         }
         ref(Expression)
     }
-    __unambiguous()
+    //__unambiguous()
 }
     .astTransformation { tokens ->
         var next: Any? = tokens.next()
@@ -207,7 +207,7 @@ val BracedCodeOrSingleStatement = sequence("curly braced code or single statemen
 
 val IfExpression = sequence("if-expression") {
     keyword(IF)
-    __unambiguous()
+    //__unambiguous()
     ref(Expression)
 
     ref(BracedCodeOrSingleStatement)
@@ -216,7 +216,7 @@ val IfExpression = sequence("if-expression") {
 
     optional {
         keyword(ELSE)
-        __unambiguous()
+        //__unambiguous()
         optionalWhitespace()
         ref(BracedCodeOrSingleStatement)
     }
@@ -244,14 +244,14 @@ val IfExpression = sequence("if-expression") {
 
 val ExpressionPostfixNotNull = sequence(OperatorToken(Operator.NOTNULL).toStringWithoutLocation()) {
     operator(Operator.NOTNULL)
-    __unambiguous()
+    //__unambiguous()
     optionalWhitespace()
 }
     .astTransformation { NotNullExpressionPostfix(it.next()!! as OperatorToken) }
 
 val ExpressionPostfixInvocation = sequence("function invocation") {
     operator(Operator.PARANT_OPEN)
-    __unambiguous()
+    //__unambiguous()
     optionalWhitespace()
 
     optional {
@@ -285,7 +285,7 @@ val ExpressionPostfixInvocation = sequence("function invocation") {
 
 val ExpressionPostfixMemberAccess = sequence("member access") {
     eitherOf(Operator.DOT, Operator.SAFEDOT)
-    __unambiguous()
+    //__unambiguous()
     identifier()
     optionalWhitespace()
 }

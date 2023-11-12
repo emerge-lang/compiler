@@ -32,8 +32,8 @@ import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.SourceLocation
-import compiler.parser.Rule
-import compiler.parser.RuleMatchingResult
+import compiler.parser.grammar.rule.Rule
+import compiler.parser.grammar.rule.RuleMatchingResult
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.enhanceErrors
 import compiler.parser.grammar.dsl.flatten
@@ -46,7 +46,7 @@ import java.util.HashSet
 
 val ModuleName = sequence("module or package name") {
     identifier()
-    __unambiguous()
+    //__unambiguous()
 
     atLeast(0) {
         operator(Operator.DOT)
@@ -69,7 +69,7 @@ val ModuleName = sequence("module or package name") {
 
 val ModuleDeclaration = sequence("module declaration") {
     keyword(Keyword.MODULE)
-    __unambiguous()
+    //__unambiguous()
 
     ref(ModuleName)
 
@@ -85,13 +85,13 @@ val ModuleDeclaration = sequence("module declaration") {
 val ImportDeclaration = sequence("import declaration") {
     keyword(Keyword.IMPORT)
 
-    __unambiguous()
+    //__unambiguous()
 
     atLeast(1) {
         identifier()
         operator(Operator.DOT)
     }
-    __unambiguous()
+    //__unambiguous()
     identifier(acceptedOperators = listOf(Operator.TIMES))
     operator(Operator.NEWLINE)
 }
@@ -119,9 +119,9 @@ val ImportDeclaration = sequence("import declaration") {
     }
 
 val Module: Rule<ASTModule> = sequence("module") {
-    __unambiguous()
+    //__unambiguous()
     atLeast(0) {
-        __unambiguous()
+        //__unambiguous()
         optionalWhitespace()
         eitherOf(mismatchIsAmbiguous = false) {
             ref(ModuleDeclaration)

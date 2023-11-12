@@ -16,7 +16,9 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package compiler.parser
+package compiler.parser.grammar.rule
+
+import compiler.parser.TokenSequence
 
 interface Rule<T> {
     val descriptionOfAMatchingThing: String

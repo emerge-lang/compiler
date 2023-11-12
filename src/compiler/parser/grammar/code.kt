@@ -28,14 +28,14 @@ import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
-import compiler.parser.Rule
+import compiler.parser.grammar.rule.Rule
 import compiler.parser.ExpressionPostfix
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.sequence
 
 val ReturnStatement = sequence("return statement") {
     keyword(Keyword.RETURN)
-    __unambiguous()
+    //__unambiguous()
     ref(Expression)
 }
     .astTransformation { tokens ->
@@ -51,12 +51,12 @@ val Assignable = sequence("assignable") {
         ref(UnaryExpression)
         sequence {
             ref(ParanthesisedExpression)
-            __unambiguous()
+            //__unambiguous()
             ref(ExpressionPostfix)
         }
         ref(IdentifierExpression)
     }
-    __unambiguous()
+    //__unambiguous()
     atLeast(0) {
         ref(ExpressionPostfix)
     }
@@ -71,7 +71,7 @@ val Assignable = sequence("assignable") {
 val AssignmentStatement: Rule<AssignmentStatement> = sequence("assignment") {
     ref(Assignable)
     operator(Operator.ASSIGNMENT)
-    __unambiguous()
+    //__unambiguous()
     ref(Expression)
 }
     .astTransformation { tokens ->
@@ -89,24 +89,24 @@ val LineOfCode = sequence {
         ref(ReturnStatement)
         ref(Expression)
     }
-    __unambiguous()
+    //__unambiguous()
 
     atLeast(0) {
         operator(Operator.NEWLINE)
-        __unambiguous()
+        //__unambiguous()
     }
 }
 
 val CodeChunk = sequence {
-    __unambiguous()
+    //__unambiguous()
     optionalWhitespace()
     optional {
         ref(LineOfCode)
-        __unambiguous()
+        //__unambiguous()
 
         atLeast(0) {
             ref(LineOfCode)
-            __unambiguous()
+            //__unambiguous()
         }
     }
 }
