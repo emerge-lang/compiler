@@ -96,7 +96,7 @@ val StructDefinition = sequence("struct definition") {
     optional {
         ref(StructMemberDefinition)
     }
-    atLeast(0) {
+    repeating {
         operator(NEWLINE)
         ref(StructMemberDefinition)
     }

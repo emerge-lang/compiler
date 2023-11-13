@@ -57,7 +57,7 @@ val Assignable = sequence("assignable") {
         ref(IdentifierExpression)
     }
     //__unambiguous()
-    atLeast(0) {
+    repeating {
         ref(ExpressionPostfix)
     }
 }
@@ -91,7 +91,7 @@ val LineOfCode = sequence {
     }
     //__unambiguous()
 
-    atLeast(0) {
+    repeating {
         operator(Operator.NEWLINE)
         //__unambiguous()
     }
@@ -104,7 +104,7 @@ val CodeChunk = sequence {
         ref(LineOfCode)
         //__unambiguous()
 
-        atLeast(0) {
+        repeating {
             ref(LineOfCode)
             //__unambiguous()
         }

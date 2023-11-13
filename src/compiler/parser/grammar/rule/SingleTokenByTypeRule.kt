@@ -38,4 +38,12 @@ class SingleTokenByTypeRule(private val type: TokenType) : Rule<Token> {
             setOf(Reporting.parsingError("Expected $type but found $token", token.sourceLocation))
         )
     }
+
+    override val minimalMatchingSequence = sequenceOf(sequenceOf(ByTypeExpectedToken(type) as ExpectedToken))
+
+    private data class ByTypeExpectedToken(private val type: TokenType) : ExpectedToken {
+        override fun markAsRemovingAmbiguity(inContext: Any) {
+
+        }
+    }
 }

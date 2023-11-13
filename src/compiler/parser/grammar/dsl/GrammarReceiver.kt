@@ -19,6 +19,7 @@
 package compiler.parser.grammar.dsl
 
 import compiler.lexer.*
+import compiler.parser.TokenSequence
 import compiler.parser.grammar.rule.Rule
 import compiler.parser.grammar.rule.EOIRule
 import compiler.parser.grammar.rule.WhitespaceEaterRule
@@ -40,8 +41,9 @@ interface GrammarReceiver {
     /**
      * @param mismatchIsAmbiguous TODO: remove, automatically deduce
      */
-    fun eitherOf(mismatchIsAmbiguous: Boolean = true, matcherFn: Grammar)
-    fun atLeast(n: Int, matcherFn: Grammar)
+    fun eitherOf(mismatchIsAmbiguous: Boolean = true, grammar: Grammar)
+    fun repeating(grammar: Grammar)
+    fun repeatingAtLeastOnce(grammar: Grammar)
     fun identifier(acceptedOperators: Collection<Operator> = emptyList(), acceptedKeywords: Collection<Keyword> = emptyList())
     fun optional(matcherFn: Grammar)
     fun optional(rule: Rule<*>)
@@ -96,11 +98,12 @@ class RuleCollectingGrammarReceiver private constructor() : GrammarReceiver {
         addRule(EitherOfRule(collect(grammar)), false)
     }
 
-    override fun atLeast(n: Int, sequenceGrammar: Grammar) {
-        addRule(
-            RepeatingRule(SequenceRule(collect(sequenceGrammar)), IntRange(n, Int.MAX_VALUE)),
-            false
-        )
+    override fun repeating(grammar: Grammar) {
+        addRule(RepeatingRule(SequenceRule(collect(grammar)), requireAtLeastOnce = false), false)
+    }
+
+    override fun repeatingAtLeastOnce(grammar: Grammar) {
+        addRule(RepeatingRule(SequenceRule(collect(grammar)), requireAtLeastOnce = true), false)
     }
 
     override fun identifier(acceptedOperators: Collection<Operator>, acceptedKeywords: Collection<Keyword>) {
@@ -116,7 +119,7 @@ class RuleCollectingGrammarReceiver private constructor() : GrammarReceiver {
 
     override fun optional(rule: Rule<*>) {
         addRule(
-            RepeatingRule(rule, 0..1),
+            RepeatingRule(rule, requireAtLeastOnce = false, maxRepeats = 1),
             false,
         )
     }

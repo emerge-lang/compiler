@@ -38,15 +38,12 @@ import compiler.lexer.NumericLiteralToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.TokenType
-import compiler.parser.grammar.dsl.astTransformation
-import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.ExpressionPostfix
 import compiler.parser.InvocationExpressionPostfix
 import compiler.parser.MemberAccessExpressionPostfix
 import compiler.parser.NotNullExpressionPostfix
+import compiler.parser.grammar.dsl.*
 import compiler.parser.grammar.rule.Rule
-import compiler.parser.grammar.dsl.mapResult
-import compiler.parser.grammar.dsl.sequence
 
 val Expression: Rule<Expression<*>> by lazy {
     sequence("expression") {
@@ -58,10 +55,11 @@ val Expression: Rule<Expression<*>> by lazy {
             ref(IfExpression)
         }
         //__unambiguous()
-        atLeast(0) {
+        repeating {
             ref(ExpressionPostfix)
         }
     }
+        .withEmptyMinimalMatchingSequence
         .astTransformation { tokens ->
             val expression = tokens.next()!! as Expression<*>
             tokens
@@ -149,7 +147,7 @@ val BinaryExpression = sequence("ary operator expression") {
         ref(ValueExpression)
         ref(ParanthesisedExpression)
     }
-    atLeast(1) {
+    repeatingAtLeastOnce {
         eitherOf(*binaryOperators) // TODO: arbitrary infix ops
         //__unambiguous()
         eitherOf {
@@ -258,7 +256,7 @@ val ExpressionPostfixInvocation = sequence("function invocation") {
         ref(Expression)
         optionalWhitespace()
 
-        atLeast(0) {
+        repeating {
             operator(Operator.COMMA)
             optionalWhitespace()
             ref(Expression)

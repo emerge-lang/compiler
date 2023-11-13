@@ -38,4 +38,12 @@ class SingleTokenByEqualityRule(private val equalTo: Token) : Rule<Token> {
             setOf(TokenMismatchReporting(equalTo, token))
         )
     }
+
+    override val minimalMatchingSequence = sequenceOf(sequenceOf(ByEqualityExpectedToken(equalTo) as ExpectedToken))
+
+    private data class ByEqualityExpectedToken(private val token: Token) : ExpectedToken {
+        override fun markAsRemovingAmbiguity(inContext: Any) {
+
+        }
+    }
 }

@@ -46,6 +46,8 @@ class WhitespaceEaterRule : Rule<Unit> {
         )
     }
 
+    override val minimalMatchingSequence = sequenceOf(emptySequence<ExpectedToken>())
+
     companion object {
         val INSTANCE: WhitespaceEaterRule = WhitespaceEaterRule()
     }

@@ -114,7 +114,7 @@ val ParameterList = sequence("parenthesised parameter list") {
 
         optionalWhitespace()
 
-        atLeast(0) {
+        repeating {
             operator(Operator.COMMA)
             optionalWhitespace()
             ref(Parameter)
@@ -182,7 +182,7 @@ val FunctionModifier = sequence {
     } }
 
 val StandaloneFunctionDeclaration = sequence("function declaration") {
-    atLeast(0) {
+    repeating {
         ref(FunctionModifier)
     }
 

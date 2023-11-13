@@ -3,19 +3,44 @@ package compiler.parser.grammar.rule
 import compiler.parser.TokenSequence
 import compiler.reportings.Reporting
 
-class RepeatingRule<T>(val rule: Rule<T>, val amount: IntRange) : Rule<List<T>> {
+/**
+ * Models the rule [rule] repeated 0..* or 1..* times (depending on [requireAtLeastOnce])
+ */
+class RepeatingRule<T>(
+    private val rule: Rule<T>,
+    private val requireAtLeastOnce: Boolean,
+    private val maxRepeats: Int = Int.MAX_VALUE,
+) : Rule<List<T>> {
+    init {
+        check(maxRepeats >= 1)
+        check(!(maxRepeats == 1 && requireAtLeastOnce)) {
+            "Rule ${rule.descriptionOfAMatchingThing} is required to match exactly once, use it directly."
+        }
+    }
+
     override val descriptionOfAMatchingThing: String by lazy {
-        "The following between ${amount.first.wordifyEN} and ${amount.last.wordifyEN} times:\n" +
-                rule.descriptionOfAMatchingThing.prependIndent("  ")
+        val buffer = StringBuilder()
+        buffer.append("The following")
+        if (requireAtLeastOnce) {
+            buffer.append(" at least once and then")
+        }
+        buffer.append(" repeatedly")
+        if (maxRepeats < Int.MAX_VALUE) {
+            buffer.append(" at most ${maxRepeats.wordifyEN} times")
+        }
+        buffer.append(":\n")
+        buffer.append(rule.descriptionOfAMatchingThing.prependIndent("  "))
+
+        buffer.toString()
     }
 
     override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<List<T>> {
         input.mark()
 
-        val results = ArrayList<RuleMatchingResult<T>>(amount.first)
+        val results = ArrayList<RuleMatchingResult<T>>(1)
         var lastResult: RuleMatchingResult<T>? = null
 
-        while (results.size < amount.last) {
+        while (results.size <= maxRepeats) {
             input.mark()
 
             lastResult = rule.tryMatch(context, input)
@@ -38,7 +63,7 @@ class RepeatingRule<T>(val rule: Rule<T>, val amount: IntRange) : Rule<List<T>> 
             results.add(lastResult)
         }
 
-        if (results.size >= amount.first) {
+        if (!requireAtLeastOnce || results.isNotEmpty()) {
             input.commit()
 
             return RuleMatchingResult(
@@ -57,7 +82,7 @@ class RepeatingRule<T>(val rule: Rule<T>, val amount: IntRange) : Rule<List<T>> 
             else {
                 setOf(
                     Reporting.parsingError(
-                    "Expected at least ${amount.first.wordifyEN} ${rule.descriptionOfAMatchingThing} but found only ${results.size.wordifyEN}",
+                    "Expected at least one ${rule.descriptionOfAMatchingThing} but found none",
                     input.currentSourceLocation
                 ))
             }
@@ -68,6 +93,12 @@ class RepeatingRule<T>(val rule: Rule<T>, val amount: IntRange) : Rule<List<T>> 
                 errors
             )
         }
+    }
+
+    override val minimalMatchingSequence = if (requireAtLeastOnce) {
+        rule.minimalMatchingSequence
+    } else {
+        sequenceOf(emptySequence())
     }
 }
 

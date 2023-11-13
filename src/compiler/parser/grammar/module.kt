@@ -48,7 +48,7 @@ val ModuleName = sequence("module or package name") {
     identifier()
     //__unambiguous()
 
-    atLeast(0) {
+    repeating {
         operator(Operator.DOT)
         identifier()
     }
@@ -87,7 +87,7 @@ val ImportDeclaration = sequence("import declaration") {
 
     //__unambiguous()
 
-    atLeast(1) {
+    repeatingAtLeastOnce {
         identifier()
         operator(Operator.DOT)
     }
@@ -120,7 +120,7 @@ val ImportDeclaration = sequence("import declaration") {
 
 val Module: Rule<ASTModule> = sequence("module") {
     //__unambiguous()
-    atLeast(0) {
+    repeatingAtLeastOnce {
         //__unambiguous()
         optionalWhitespace()
         eitherOf(mismatchIsAmbiguous = false) {

@@ -42,6 +42,15 @@ class EOIRule private constructor() : Rule<Unit> {
         )
     }
 
+    override val minimalMatchingSequence = sequenceOf(sequenceOf(EoiExpectedToken as ExpectedToken))
+
+    private object EoiExpectedToken : ExpectedToken {
+        override fun markAsRemovingAmbiguity(inContext: Any) {
+            // nothing to do; a successful match is never ambiguous
+            // and a mismatch can't be unambiguous as there is nothing to match
+        }
+    }
+
     companion object {
         val INSTANCE = EOIRule()
     }

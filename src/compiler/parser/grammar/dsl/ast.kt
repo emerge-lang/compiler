@@ -22,6 +22,7 @@ package compiler.parser.grammar.dsl
 import compiler.parser.grammar.rule.Rule
 import compiler.parser.grammar.rule.RuleMatchingResult
 import compiler.parser.TokenSequence
+import compiler.parser.grammar.rule.ExpectedToken
 import compiler.reportings.Reporting
 import compiler.transact.Position
 import compiler.transact.SimpleTransactionalSequence
@@ -47,7 +48,7 @@ fun <B,A> Rule<B>.map(mapper: (RuleMatchingResult<B>) -> RuleMatchingResult<A>):
     val base = this
 
     return object: Rule<A> {
-        override val descriptionOfAMatchingThing: String = base.descriptionOfAMatchingThing
+        override val descriptionOfAMatchingThing get() = base.descriptionOfAMatchingThing
 
         override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<A> {
             val baseResult = base.tryMatch(context, input)
@@ -60,6 +61,8 @@ fun <B,A> Rule<B>.map(mapper: (RuleMatchingResult<B>) -> RuleMatchingResult<A>):
                 return mapper(baseResult)
             }
         }
+
+        override val minimalMatchingSequence get() = base.minimalMatchingSequence
     }
 }
 
@@ -162,5 +165,7 @@ fun <T> Rule<T>.enhanceErrors(predicate: (Reporting) -> Boolean, enhance: (Repor
                 )
             }
         }
+
+        override val minimalMatchingSequence get() = base.minimalMatchingSequence
     }
 }

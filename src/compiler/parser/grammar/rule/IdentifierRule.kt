@@ -63,4 +63,13 @@ class IdentifierRule(
             setOf(Reporting.parsingError("Unexpected ${token.toStringWithoutLocation()}, expecting $descriptionOfAMatchingThing", token.sourceLocation))
         )
     }
+
+    override val minimalMatchingSequence = sequenceOf(sequenceOf(IdentifierExpectedToken(acceptedOperators.toSet(), acceptedKeywords.toSet()) as ExpectedToken))
+
+    private data class IdentifierExpectedToken(
+        val acceptedOperators: Set<Operator>,
+        val acceptedKeywords: Set<Keyword>,
+    ) : ExpectedToken {
+        override fun markAsRemovingAmbiguity(inContext: Any) {}
+    }
 }
