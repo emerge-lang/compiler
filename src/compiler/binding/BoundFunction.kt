@@ -60,7 +60,7 @@ class BoundFunction(
     /**
      * Implied modifiers. Operator functions often have an implied [FunctionModifier.READONLY]
      */
-    val impliedModifiers: Set<FunctionModifier> = {
+    val impliedModifiers: Set<FunctionModifier> = run {
         // only operator functions have implied modifiers
         if (FunctionModifier.OPERATOR !in declaration.modifiers) {
             emptySet<FunctionModifier>()
@@ -72,7 +72,7 @@ class BoundFunction(
             name == "rangeTo" || name == "contains"            -> setOf(FunctionModifier.READONLY)
             else                                               -> emptySet()
         }
-    }()
+    }
 
     val modifiers = declaration.modifiers + impliedModifiers
 

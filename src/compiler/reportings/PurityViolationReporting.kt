@@ -29,25 +29,25 @@ import compiler.binding.expression.BoundInvocationExpression
 abstract class PurityViolationReporting protected constructor(val violation: BoundExecutable<Executable<*>>, function: BoundFunction, message: String)
     : Reporting(Level.ERROR, message, violation.declaration.sourceLocation)
 
-class ReadInPureContextReporting internal constructor(readingExpression: BoundIdentifierExpression, function: BoundFunction) : PurityViolationReporting(
+data class ReadInPureContextReporting internal constructor(val readingExpression: BoundIdentifierExpression, val function: BoundFunction) : PurityViolationReporting(
     readingExpression,
     function,
     "pure function ${function.name} cannot read ${readingExpression.identifier} (is not within the pure boundary)"
 )
 
-class ImpureInvocationInPureContextReporting internal constructor(invcExpr: BoundInvocationExpression, function: BoundFunction) : PurityViolationReporting(
+data class ImpureInvocationInPureContextReporting internal constructor(val invcExpr: BoundInvocationExpression, val function: BoundFunction) : PurityViolationReporting(
     invcExpr,
     function,
     "pure function ${function.name} cannot invoke impure function ${invcExpr.dispatchedFunction!!.name}"
 )
 
-class ModifyingInvocationInReadonlyContextReporting internal constructor(invcExpr: BoundInvocationExpression, function: BoundFunction) : PurityViolationReporting(
+data class ModifyingInvocationInReadonlyContextReporting internal constructor(val invcExpr: BoundInvocationExpression, val function: BoundFunction) : PurityViolationReporting(
     invcExpr,
     function,
     "readonly function ${function.name} cannot invoke modifying function ${invcExpr.dispatchedFunction!!.name}"
 )
 
-class StateModificationOutsideOfPurityBoundaryReporting internal constructor(assignment: BoundAssignmentStatement, function: BoundFunction) : PurityViolationReporting(
+data class StateModificationOutsideOfPurityBoundaryReporting internal constructor(val assignment: BoundAssignmentStatement, val function: BoundFunction) : PurityViolationReporting(
     assignment,
     function,
     {

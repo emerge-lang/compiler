@@ -9,8 +9,6 @@ import compiler.parser.grammar.Module
 import compiler.parser.toTransactional
 import compiler.reportings.Reporting
 import io.kotest.inspectors.forOne
-import io.kotest.matchers.comparables.beGreaterThan
-import io.kotest.matchers.should
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 /**
