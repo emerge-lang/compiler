@@ -16,33 +16,39 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package compiler.parser.grammar.dsl
+package compiler.parser.grammar.rule
 
-import compiler.matching.ResultCertainty
 import compiler.parser.TokenSequence
-import compiler.parser.rule.Rule
-import compiler.parser.rule.RuleMatchingResult
-import compiler.parser.rule.RuleMatchingResultImpl
+import compiler.parser.isWhitespace
 
-internal fun tryMatchOptional(rule: Rule<*>, input: TokenSequence): RuleMatchingResult<Any?> {
-    val subResult = rule.tryMatch(input)
+/**
+ * Skips whitespace in the input stream
+ */
+class WhitespaceEaterRule : Rule<Unit> {
+    override val descriptionOfAMatchingThing = "whitespace"
 
-    if (subResult.item == null) {
-        if (subResult.certainty >= ResultCertainty.MATCHED) {
-            return RuleMatchingResultImpl(
-                ResultCertainty.NOT_RECOGNIZED,
-                subResult.item,
-                subResult.reportings
-            )
+    override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<Unit> {
+        while (input.hasNext()) {
+            input.mark()
+            val token = input.next()!!
+            if (!isWhitespace(token)) {
+                input.rollback()
+                break
+            }
+
+            input.commit()
         }
-        else {
-            return RuleMatchingResultImpl(
-                ResultCertainty.NOT_RECOGNIZED,
-                Unit,
-                emptySet()
-            )
-        }
+
+        return RuleMatchingResult(
+            false,
+            Unit,
+            emptySet()
+        )
     }
 
-    return subResult
+    override val minimalMatchingSequence = sequenceOf(emptySequence<ExpectedToken>())
+
+    companion object {
+        val INSTANCE: WhitespaceEaterRule = WhitespaceEaterRule()
+    }
 }

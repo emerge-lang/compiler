@@ -28,19 +28,15 @@ import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
-import compiler.matching.ResultCertainty.DEFINITIVE
-import compiler.matching.ResultCertainty.MATCHED
-import compiler.matching.ResultCertainty.OPTIMISTIC
+import compiler.parser.grammar.rule.Rule
 import compiler.parser.ExpressionPostfix
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.sequence
-import compiler.parser.rule.Rule
 
 val ReturnStatement = sequence("return statement") {
     keyword(Keyword.RETURN)
-    certainty = MATCHED
+    //__unambiguous()
     ref(Expression)
-    certainty = DEFINITIVE
 }
     .astTransformation { tokens ->
         val keyword = tokens.next()!! as KeywordToken
@@ -55,16 +51,15 @@ val Assignable = sequence("assignable") {
         ref(UnaryExpression)
         sequence {
             ref(ParanthesisedExpression)
-            certainty = MATCHED
+            //__unambiguous()
             ref(ExpressionPostfix)
         }
         ref(IdentifierExpression)
     }
-    certainty = MATCHED
-    atLeast(0) {
+    //__unambiguous()
+    repeating {
         ref(ExpressionPostfix)
     }
-    certainty = DEFINITIVE
 }
     .astTransformation { tokens ->
         val expression = tokens.next()!! as Expression<*>
@@ -75,12 +70,9 @@ val Assignable = sequence("assignable") {
 
 val AssignmentStatement: Rule<AssignmentStatement> = sequence("assignment") {
     ref(Assignable)
-
     operator(Operator.ASSIGNMENT)
-    certainty = MATCHED
-
+    //__unambiguous()
     ref(Expression)
-    certainty = DEFINITIVE
 }
     .astTransformation { tokens ->
         val targetExpression   = tokens.next() as Expression<*>
@@ -97,30 +89,26 @@ val LineOfCode = sequence {
         ref(ReturnStatement)
         ref(Expression)
     }
-    certainty = MATCHED
+    //__unambiguous()
 
-    atLeast(0) {
+    repeating {
         operator(Operator.NEWLINE)
-        certainty = MATCHED
+        //__unambiguous()
     }
-    certainty = DEFINITIVE
 }
 
 val CodeChunk = sequence {
-    certainty = MATCHED
+    //__unambiguous()
     optionalWhitespace()
     optional {
         ref(LineOfCode)
-        certainty = MATCHED
+        //__unambiguous()
 
-        atLeast(0) {
+        repeating {
             ref(LineOfCode)
-            certainty = DEFINITIVE
+            //__unambiguous()
         }
-        certainty = DEFINITIVE
     }
-
-    certainty = OPTIMISTIC
 }
     .astTransformation { tokens ->
         tokens.remainingToList()

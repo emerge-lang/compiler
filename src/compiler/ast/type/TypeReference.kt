@@ -47,4 +47,35 @@ open class TypeReference(
         val baseType = context.resolveType(this)
         return if (baseType != null) BaseTypeReference(this, context, baseType) else null
     }
+
+    private lateinit var _string: String
+    override fun toString(): String {
+        if (!this::_string.isInitialized) {
+            val buffer = StringBuilder()
+
+            buffer.append("TypeReference[")
+
+            modifier?.let {
+                buffer.append(it.name.lowercase())
+                buffer.append(' ')
+            }
+
+            if (declaringNameToken != null) {
+                buffer.append(declaringNameToken.value)
+            } else {
+                buffer.append(simpleName)
+            }
+
+            if (isNullable) {
+                buffer.append('?')
+            }
+
+            buffer.append(", inferred=")
+            buffer.append(isInferred)
+            buffer.append(']')
+            _string = buffer.toString()
+        }
+
+        return this._string
+    }
 }

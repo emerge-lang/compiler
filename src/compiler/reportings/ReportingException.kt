@@ -18,11 +18,4 @@
 
 package compiler.reportings
 
-import compiler.matching.ResultCertainty
-import compiler.parser.rule.RuleMatchingResult
-
 class ReportingException(val reporting: Reporting) : Exception(reporting.message)
-{
-    fun <T> toErrorResult(certainty: ResultCertainty = ResultCertainty.DEFINITIVE): RuleMatchingResult<T>
-            = reporting.toErrorResult(certainty)
-}

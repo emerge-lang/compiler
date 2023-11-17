@@ -19,10 +19,11 @@
 package compiler.parser.grammar.dsl
 
 import compiler.lexer.*
-import compiler.matching.ResultCertainty
-import compiler.parser.rule.EOIRule
-import compiler.parser.rule.Rule
-import compiler.parser.rule.WhitespaceEaterRule
+import compiler.parser.TokenSequence
+import compiler.parser.grammar.rule.Rule
+import compiler.parser.grammar.rule.EOIRule
+import compiler.parser.grammar.rule.WhitespaceEaterRule
+import compiler.parser.grammar.rule.*
 
 typealias Grammar = GrammarReceiver.() -> Unit
 
@@ -35,11 +36,16 @@ interface GrammarReceiver {
     fun tokenEqualTo(equalTo: Token)
     fun tokenOfType(type: TokenType)
     fun ref(rule: Rule<*>)
-    fun sequence(matcherFn: SequenceGrammar)
-    fun eitherOf(mismatchCertainty: ResultCertainty, matcherFn: Grammar)
-    fun atLeast(n: Int, matcherFn: SequenceGrammar)
+    fun sequence(grammar: Grammar)
+
+    /**
+     * @param mismatchIsAmbiguous TODO: remove, automatically deduce
+     */
+    fun eitherOf(mismatchIsAmbiguous: Boolean = true, grammar: Grammar)
+    fun repeating(grammar: Grammar)
+    fun repeatingAtLeastOnce(grammar: Grammar)
     fun identifier(acceptedOperators: Collection<Operator> = emptyList(), acceptedKeywords: Collection<Keyword> = emptyList())
-    fun optional(matcherFn: SequenceGrammar)
+    fun optional(matcherFn: Grammar)
     fun optional(rule: Rule<*>)
 
     fun keyword(keyword: Keyword) {
@@ -50,12 +56,8 @@ interface GrammarReceiver {
         tokenEqualTo(OperatorToken(operator))
     }
 
-    fun eitherOf(matcherFn: Grammar) {
-        eitherOf(ResultCertainty.NOT_RECOGNIZED, matcherFn)
-    }
-
     fun eitherOf(vararg operators: Operator) {
-        eitherOf {
+        this.eitherOf {
             operators.forEach(this::operator)
         }
     }
@@ -66,5 +68,67 @@ interface GrammarReceiver {
 
     fun optionalWhitespace() {
         ref(WhitespaceEaterRule.INSTANCE)
+    }
+}
+
+class RuleCollectingGrammarReceiver private constructor() : GrammarReceiver {
+    private val rules = mutableListOf<Rule<*>>()
+
+    private fun addRule(rule: Rule<*>, asRef: Boolean) {
+        rules.add(rule)
+    }
+
+    override fun tokenEqualTo(equalTo: Token) {
+        addRule(SingleTokenByEqualityRule(equalTo), false)
+    }
+
+    override fun tokenOfType(type: TokenType) {
+        addRule(SingleTokenByTypeRule(type), false)
+    }
+
+    override fun ref(rule: Rule<*>) {
+        addRule(rule, true)
+    }
+
+    override fun sequence(grammar: Grammar) {
+        addRule(SequenceRule(collect(grammar)), false)
+    }
+
+    override fun eitherOf(mismatchIsAmbiguous: Boolean, grammar: Grammar) {
+        addRule(EitherOfRule(collect(grammar)), false)
+    }
+
+    override fun repeating(grammar: Grammar) {
+        addRule(RepeatingRule(SequenceRule(collect(grammar)), requireAtLeastOnce = false), false)
+    }
+
+    override fun repeatingAtLeastOnce(grammar: Grammar) {
+        addRule(RepeatingRule(SequenceRule(collect(grammar)), requireAtLeastOnce = true), false)
+    }
+
+    override fun identifier(acceptedOperators: Collection<Operator>, acceptedKeywords: Collection<Keyword>) {
+        addRule(
+            IdentifierRule(acceptedOperators, acceptedKeywords),
+            false,
+        )
+    }
+
+    override fun optional(grammar: Grammar) {
+        optional(SequenceRule(collect(grammar)))
+    }
+
+    override fun optional(rule: Rule<*>) {
+        addRule(
+            RepeatingRule(rule, requireAtLeastOnce = false, maxRepeats = 1),
+            false,
+        )
+    }
+
+    companion object {
+        fun collect(grammar: Grammar): List<Rule<*>> {
+            val collector = RuleCollectingGrammarReceiver()
+            collector.grammar()
+            return collector.rules
+        }
     }
 }

@@ -38,7 +38,7 @@ fun main(args: Array<String>) {
     val sourceInMemoryAt = measureClock.instant()
     println("Source in memory after ${Duration.between(startedAt, sourceInMemoryAt)}")
 
-    val matched = Module.tryMatch(transactionalTokenSequence)
+    val matched = Module.tryMatch(Unit, transactionalTokenSequence)
     val lexicalCompleteAt = measureClock.instant()
     println("Lexical analysis complete after ${Duration.between(startedAt, lexicalCompleteAt)}"
         + " (took ${Duration.between(sourceInMemoryAt, lexicalCompleteAt)})")

@@ -37,9 +37,6 @@ import compiler.binding.struct.StructMember
 import compiler.binding.type.BaseTypeReference
 import compiler.lexer.OperatorToken
 import compiler.lexer.SourceLocation
-import compiler.matching.ResultCertainty
-import compiler.matching.SimpleMatchingResult
-import compiler.parser.rule.RuleMatchingResult
 import textutils.indentByFromSecondLine
 
 abstract class Reporting internal constructor(
@@ -54,10 +51,7 @@ abstract class Reporting internal constructor(
 
     fun toException(): ReportingException = ReportingException(this)
 
-    fun <T> toErrorResult(certainty: ResultCertainty = ResultCertainty.DEFINITIVE): RuleMatchingResult<T>
-            = SimpleMatchingResult<T, Reporting>(certainty, null, this)
-
-    open override fun toString() = "($level) $message".indentByFromSecondLine(2) + "\nin $sourceLocation"
+    override fun toString() = "($level) $message".indentByFromSecondLine(2) + "\nin $sourceLocation"
 
     enum class Level(val level: Int) {
         CONSECUTIVE(0),

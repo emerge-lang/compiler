@@ -38,18 +38,12 @@ import compiler.lexer.NumericLiteralToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.TokenType
-import compiler.matching.ResultCertainty.DEFINITIVE
-import compiler.matching.ResultCertainty.MATCHED
-import compiler.matching.ResultCertainty.OPTIMISTIC
-import compiler.parser.grammar.dsl.astTransformation
-import compiler.parser.grammar.dsl.eitherOf
-import compiler.parser.grammar.dsl.sequence
 import compiler.parser.ExpressionPostfix
 import compiler.parser.InvocationExpressionPostfix
 import compiler.parser.MemberAccessExpressionPostfix
 import compiler.parser.NotNullExpressionPostfix
-import compiler.parser.grammar.dsl.mapResult
-import compiler.parser.rule.Rule
+import compiler.parser.grammar.dsl.*
+import compiler.parser.grammar.rule.Rule
 
 val Expression: Rule<Expression<*>> by lazy {
     sequence("expression") {
@@ -60,12 +54,12 @@ val Expression: Rule<Expression<*>> by lazy {
             ref(ParanthesisedExpression)
             ref(IfExpression)
         }
-        certainty = MATCHED
-        atLeast(0) {
+        //__unambiguous()
+        repeating {
             ref(ExpressionPostfix)
         }
-        certainty = DEFINITIVE
     }
+        .withEmptyMinimalMatchingSequence
         .astTransformation { tokens ->
             val expression = tokens.next()!! as Expression<*>
             tokens
@@ -80,7 +74,7 @@ val LiteralExpression = sequence("literal") {
         // TODO: string literal, function literal
         // literals that the lexer treats as identifiers (booleans, ...?) are handled in ValueExpression
     }
-    certainty = MATCHED
+    //__unambiguous()
 }
     .astTransformation { tokens ->
         when (val valueToken = tokens.next()!!) {
@@ -91,7 +85,7 @@ val LiteralExpression = sequence("literal") {
 
 val IdentifierExpression = sequence("identifier") {
     identifier()
-    certainty = DEFINITIVE
+    //__unambiguous()
 }
     .astTransformation { tokens ->
         val identifier = tokens.next() as IdentifierToken
@@ -110,9 +104,8 @@ val ValueExpression = eitherOf("value expression") {
 val ParanthesisedExpression: Rule<Expression<*>> = sequence("paranthesised expression") {
     operator(Operator.PARANT_OPEN)
     ref(Expression)
-    certainty = MATCHED
+    //__unambiguous()
     operator(Operator.PARANT_CLOSE)
-    certainty = DEFINITIVE
 }
     .astTransformation { tokens ->
         val parantOpen = tokens.next()!! as OperatorToken
@@ -130,7 +123,7 @@ val UnaryExpression = sequence("unary expression") {
         ref(ValueExpression)
         ref(ParanthesisedExpression)
     }
-    certainty = DEFINITIVE
+    //__unambiguous()
 }
     .astTransformation { tokens ->
         val operator = (tokens.next()!! as OperatorToken).operator
@@ -154,16 +147,16 @@ val BinaryExpression = sequence("ary operator expression") {
         ref(ValueExpression)
         ref(ParanthesisedExpression)
     }
-    atLeast(1) {
+    repeatingAtLeastOnce {
         eitherOf(*binaryOperators) // TODO: arbitrary infix ops
-        certainty = MATCHED
+        //__unambiguous()
         eitherOf {
             ref(UnaryExpression)
             ref(ValueExpression)
             ref(ParanthesisedExpression)
         }
     }
-    certainty = DEFINITIVE
+    //__unambiguous()
 }
     .astTransformation { tokens ->
         buildBinaryExpressionAst(tokens.remainingToList())
@@ -173,19 +166,18 @@ val BracedCodeOrSingleStatement = sequence("curly braced code or single statemen
     eitherOf {
         sequence {
             operator(Operator.CBRACE_OPEN)
-            certainty = MATCHED
+            //__unambiguous()
             optionalWhitespace()
             optional {
                 ref(CodeChunk)
-                certainty = DEFINITIVE
+                //__unambiguous()
             }
             optionalWhitespace()
             operator(Operator.CBRACE_CLOSE)
-            certainty = DEFINITIVE
         }
         ref(Expression)
     }
-    certainty = DEFINITIVE
+    //__unambiguous()
 }
     .astTransformation { tokens ->
         var next: Any? = tokens.next()
@@ -194,7 +186,7 @@ val BracedCodeOrSingleStatement = sequence("curly braced code or single statemen
             return@astTransformation next
         }
 
-        if (next == OperatorToken(Operator.CBRACE_OPEN)) {
+        if (next != OperatorToken(Operator.CBRACE_OPEN)) {
             throw InternalCompilerError("Unexpected $next, expecting ${Operator.CBRACE_OPEN} or executable")
         }
 
@@ -205,7 +197,7 @@ val BracedCodeOrSingleStatement = sequence("curly braced code or single statemen
         }
 
         if (next !is CodeChunk) {
-            throw InternalCompilerError("Unepxected $next, expecting code or ${Operator.CBRACE_CLOSE}")
+            throw InternalCompilerError("Unexpected $next, expecting code or ${Operator.CBRACE_CLOSE}")
         }
 
         return@astTransformation next
@@ -213,23 +205,19 @@ val BracedCodeOrSingleStatement = sequence("curly braced code or single statemen
 
 val IfExpression = sequence("if-expression") {
     keyword(IF)
-    certainty = MATCHED
+    //__unambiguous()
     ref(Expression)
 
     ref(BracedCodeOrSingleStatement)
-    certainty = OPTIMISTIC
 
     optionalWhitespace()
 
     optional {
         keyword(ELSE)
-        certainty = MATCHED
+        //__unambiguous()
         optionalWhitespace()
         ref(BracedCodeOrSingleStatement)
-        certainty = DEFINITIVE
     }
-
-    certainty = DEFINITIVE
 }
     .astTransformation { tokens ->
         val ifKeyword = tokens.next() as KeywordToken
@@ -254,20 +242,21 @@ val IfExpression = sequence("if-expression") {
 
 val ExpressionPostfixNotNull = sequence(OperatorToken(Operator.NOTNULL).toStringWithoutLocation()) {
     operator(Operator.NOTNULL)
-    certainty = DEFINITIVE
+    //__unambiguous()
     optionalWhitespace()
 }
     .astTransformation { NotNullExpressionPostfix(it.next()!! as OperatorToken) }
 
 val ExpressionPostfixInvocation = sequence("function invocation") {
     operator(Operator.PARANT_OPEN)
+    //__unambiguous()
     optionalWhitespace()
 
     optional {
         ref(Expression)
         optionalWhitespace()
 
-        atLeast(0) {
+        repeating {
             operator(Operator.COMMA)
             optionalWhitespace()
             ref(Expression)
@@ -276,7 +265,6 @@ val ExpressionPostfixInvocation = sequence("function invocation") {
 
     optionalWhitespace()
     operator(Operator.PARANT_CLOSE)
-    certainty = MATCHED
 }
     .astTransformation { tokens ->
         // skip PARANT_OPEN
@@ -295,9 +283,8 @@ val ExpressionPostfixInvocation = sequence("function invocation") {
 
 val ExpressionPostfixMemberAccess = sequence("member access") {
     eitherOf(Operator.DOT, Operator.SAFEDOT)
-    certainty = MATCHED
+    //__unambiguous()
     identifier()
-    certainty = OPTIMISTIC
     optionalWhitespace()
 }
     .astTransformation { tokens ->

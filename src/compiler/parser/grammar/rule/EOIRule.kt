@@ -16,31 +16,39 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package compiler.parser.rule
+package compiler.parser.grammar.rule
 
-import compiler.matching.ResultCertainty
 import compiler.parser.TokenSequence
 import compiler.reportings.Reporting
 
 /**
  * Matches the end of the given token sequence
  */
-class EOIRule private constructor() : Rule<TokenSequence> {
+class EOIRule private constructor() : Rule<Unit> {
     override val descriptionOfAMatchingThing = "end of input"
-    override fun tryMatch(input: TokenSequence): RuleMatchingResult<TokenSequence> {
+    override fun toString(): String = descriptionOfAMatchingThing
+    override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<Unit> {
         if (input.hasNext()) {
-            return RuleMatchingResultImpl(
-                ResultCertainty.NOT_RECOGNIZED,
+            return RuleMatchingResult(
+                true,
                 null,
                 setOf(Reporting.parsingError("Unexpected ${input.peek()!!.toStringWithoutLocation()}, expecting $descriptionOfAMatchingThing", input.peek()!!.sourceLocation))
             )
         }
-        else {
-            return RuleMatchingResultImpl(
-                ResultCertainty.DEFINITIVE,
-                null,
-                emptySet()
-            )
+
+        return RuleMatchingResult(
+            false,
+            Unit,
+            emptySet()
+        )
+    }
+
+    override val minimalMatchingSequence = sequenceOf(sequenceOf(EoiExpectedToken as ExpectedToken))
+
+    private object EoiExpectedToken : ExpectedToken {
+        override fun markAsRemovingAmbiguity(inContext: Any) {
+            // nothing to do; a successful match is never ambiguous
+            // and a mismatch can't be unambiguous as there is nothing to match
         }
     }
 

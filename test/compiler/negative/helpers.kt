@@ -43,7 +43,7 @@ fun validateModule(code: String, addModuleDeclaration: Boolean = true): Collecti
         override val sourceLines = moduleCode.split("\n")
     }
     val initialSourceLocation = SourceLocation(sourceDescriptor, invokedFrom.lineNumber + 1, 1)
-    val result = Module.tryMatch(lex(moduleCode, sourceDescriptor).toTransactional(initialSourceLocation))
+    val result = Module.tryMatch(Unit, lex(moduleCode, sourceDescriptor).toTransactional(initialSourceLocation))
     if (result.item == null) {
         val error = result.reportings.maxBy { it.level }
         throw AssertionError("Failed to parse code: ${error.message} in ${error.sourceLocation}")

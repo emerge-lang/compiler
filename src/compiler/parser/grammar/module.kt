@@ -32,15 +32,13 @@ import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.SourceLocation
-import compiler.matching.ResultCertainty
+import compiler.parser.grammar.rule.Rule
+import compiler.parser.grammar.rule.RuleMatchingResult
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.enhanceErrors
 import compiler.parser.grammar.dsl.flatten
 import compiler.parser.grammar.dsl.map
 import compiler.parser.grammar.dsl.sequence
-import compiler.parser.rule.Rule
-import compiler.parser.rule.RuleMatchingResult
-import compiler.parser.rule.RuleMatchingResultImpl
 import compiler.reportings.Reporting
 import compiler.reportings.TokenMismatchReporting
 import java.util.ArrayList
@@ -48,12 +46,10 @@ import java.util.HashSet
 
 val ModuleName = sequence("module or package name") {
     identifier()
+    //__unambiguous()
 
-    certainty = ResultCertainty.OPTIMISTIC
-
-    atLeast(0) {
+    repeating {
         operator(Operator.DOT)
-        certainty = ResultCertainty.MATCHED
         identifier()
     }
 }
@@ -73,8 +69,7 @@ val ModuleName = sequence("module or package name") {
 
 val ModuleDeclaration = sequence("module declaration") {
     keyword(Keyword.MODULE)
-
-    certainty = ResultCertainty.MATCHED
+    //__unambiguous()
 
     ref(ModuleName)
 
@@ -90,13 +85,13 @@ val ModuleDeclaration = sequence("module declaration") {
 val ImportDeclaration = sequence("import declaration") {
     keyword(Keyword.IMPORT)
 
-    certainty = ResultCertainty.MATCHED
+    //__unambiguous()
 
-    atLeast(1) {
+    repeatingAtLeastOnce {
         identifier()
         operator(Operator.DOT)
     }
-    certainty = ResultCertainty.OPTIMISTIC
+    //__unambiguous()
     identifier(acceptedOperators = listOf(Operator.TIMES))
     operator(Operator.NEWLINE)
 }
@@ -124,18 +119,18 @@ val ImportDeclaration = sequence("import declaration") {
     }
 
 val Module: Rule<ASTModule> = sequence("module") {
-    certainty = ResultCertainty.MATCHED
-    atLeast(0) {
+    //__unambiguous()
+    repeatingAtLeastOnce {
+        //__unambiguous()
         optionalWhitespace()
-        eitherOf(mismatchCertainty = ResultCertainty.DEFINITIVE) {
+        eitherOf(mismatchIsAmbiguous = false) {
+            endOfInput()
             ref(ModuleDeclaration)
             ref(ImportDeclaration)
             ref(VariableDeclaration)
             ref(StandaloneFunctionDeclaration)
             ref(StructDefinition)
-            endOfInput()
         }
-        certainty = ResultCertainty.DEFINITIVE
     }
 }
     .flatten()
@@ -199,8 +194,8 @@ val Module: Rule<ASTModule> = sequence("module") {
             IdentifierToken("*")
         )))
 
-        RuleMatchingResultImpl(
-            certainty = ResultCertainty.DEFINITIVE,
+        RuleMatchingResult(
+            false,
             item = astModule,
             reportings = inResult.reportings.plus(reportings)
         )

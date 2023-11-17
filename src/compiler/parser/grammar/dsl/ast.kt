@@ -16,13 +16,13 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+@file:JvmName("AstDsl")
 package compiler.parser.grammar.dsl
 
-import compiler.matching.AbstractMatchingResult
+import compiler.parser.grammar.rule.Rule
+import compiler.parser.grammar.rule.RuleMatchingResult
 import compiler.parser.TokenSequence
-import compiler.parser.rule.Rule
-import compiler.parser.rule.RuleMatchingResult
-import compiler.parser.rule.RuleMatchingResultImpl
+import compiler.parser.grammar.rule.ExpectedToken
 import compiler.reportings.Reporting
 import compiler.transact.Position
 import compiler.transact.SimpleTransactionalSequence
@@ -44,14 +44,11 @@ fun <AstNode> Rule<*>.astTransformation(trimWhitespace: Boolean = false, transfo
  * on error results with null results
  */
 fun <B,A> Rule<B>.map(mapper: (RuleMatchingResult<B>) -> RuleMatchingResult<A>): Rule<A> {
-
-    val base = this
-
     return object: Rule<A> {
-        override val descriptionOfAMatchingThing: String = base.descriptionOfAMatchingThing
+        override val descriptionOfAMatchingThing get() = this@map.descriptionOfAMatchingThing
 
-        override fun tryMatch(input: TokenSequence): RuleMatchingResult<A> {
-            val baseResult = base.tryMatch(input)
+        override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<A> {
+            val baseResult = this@map.tryMatch(context, input)
 
             if (baseResult.item == null) {
                 @Suppress("UNCHECKED_CAST")
@@ -61,16 +58,19 @@ fun <B,A> Rule<B>.map(mapper: (RuleMatchingResult<B>) -> RuleMatchingResult<A>):
                 return mapper(baseResult)
             }
         }
+
+        override val minimalMatchingSequence get() = this@map.minimalMatchingSequence
+        override fun toString() = this@map.toString()
     }
 }
 
 /**
  * Like map, but requires the mapper to act on the results only
  */
-fun <B,A> Rule<B>.mapResult(mapper: (B) -> A): Rule<A> = map {
-    RuleMatchingResultImpl(
-        it.certainty,
-        if (it.item == null) null else mapper(it.item!!),
+fun <B,A> Rule<B>.mapResult(mapper: (B) -> A): Rule<A> = map { it ->
+    RuleMatchingResult(
+        it.isAmbiguous,
+        it.item?.let(mapper),
         it.reportings
     )
 }
@@ -87,7 +87,7 @@ fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
         fun collectFrom(item: Any?) {
             if (item == null || item == Unit) return
 
-            if (item is AbstractMatchingResult<*, *>) {
+            if (item is RuleMatchingResult<*>) {
                 collectFrom(item.item)
                 collectFrom(item.reportings)
             }
@@ -109,8 +109,8 @@ fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
 
         collectFrom(base)
 
-        return@map RuleMatchingResultImpl(
-            base.certainty,
+        return@map RuleMatchingResult(
+            base.isAmbiguous,
             SimpleTransactionalSequence(itemBucket),
             reportingsBucket
         )
@@ -149,19 +149,21 @@ fun <T> Rule<T>.enhanceErrors(predicate: (Reporting) -> Boolean, enhance: (Repor
     return object: Rule<T> {
         override val descriptionOfAMatchingThing: String = base.descriptionOfAMatchingThing
 
-        override fun tryMatch(input: TokenSequence): RuleMatchingResult<T> {
-            val baseResult = base.tryMatch(input)
+        override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<T> {
+            val baseResult = base.tryMatch(context, input)
 
             if (baseResult.reportings.isEmpty()) {
                 return baseResult
             }
             else {
-                return RuleMatchingResultImpl(
-                    baseResult.certainty,
+                return RuleMatchingResult(
+                    baseResult.isAmbiguous,
                     baseResult.item,
                     baseResult.reportings.map(enhancerMapper).toSet()
                 )
             }
         }
+
+        override val minimalMatchingSequence get() = base.minimalMatchingSequence
     }
 }
