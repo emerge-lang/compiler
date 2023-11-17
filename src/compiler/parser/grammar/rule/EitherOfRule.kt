@@ -1,10 +1,10 @@
 package compiler.parser.grammar.rule
 
 import compiler.parser.TokenSequence
+import compiler.pivot
 import compiler.reportings.Reporting
 import textutils.assureEndsWith
 import textutils.indentByFromSecondLine
-import java.util.NoSuchElementException
 
 class EitherOfRule(
     val options: List<Rule<*>>,
@@ -25,27 +25,28 @@ class EitherOfRule(
         buffer.toString()
     }
 
+    override fun toString(): String = descriptionOfAMatchingThing
+
     private val ambiguityResolvedForContexts = HashSet<Any>()
 
     override val minimalMatchingSequence: Sequence<Sequence<ExpectedToken>> = options.asSequence()
             .flatMapIndexed { optionIndex, optionRule ->
-                optionRule.minimalMatchingSequence.mapIndexed { _, subOptionSequence ->
-                    subOptionSequence.mapIndexed { _, expectedToken ->
-                        EitherOfWrappedExpectedToken(expectedToken, optionIndex, this.ambiguityResolvedForContexts::add)
+                optionRule.minimalMatchingSequence.mapIndexed { _, optionSequence ->
+                    optionSequence.mapIndexed { _, expectedToken ->
+                        EitherOfWrappedExpectedToken(expectedToken, this, optionIndex, this.ambiguityResolvedForContexts::add)
                     }
                 }
             }
 
     override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<Any?> {
-        if (context !in ambiguityResolvedForContexts) {
-            check(context == Unit) { "Evaluating rule $descriptionOfAMatchingThing in context $context but ambiguity for this context is not resolved yet." }
+        if (context !in ambiguityResolvedForContexts && context == Unit) {
             resolveAmbiguityForContext(context)
         }
 
         input.mark()
 
         options.forEachIndexed { optionIndex, option ->
-            val result = option.tryMatch(EitherOfOptionContext(context, optionIndex), input)
+            val result = option.tryMatch(EitherOfOptionContext(context, this, optionIndex), input)
             if (!result.isAmbiguous || !result.hasErrors) {
                 input.commit()
                 return result
@@ -70,7 +71,14 @@ class EitherOfRule(
             tokensAtIndexIntoThisRule
                 .filterNotNull()
                 .groupUsing(ExpectedToken::matchesSameTokensAs)
-                .mapNotNull { tokenGroup -> tokenGroup.singleOrNull() }
+                .mapNotNull { tokenGroup ->
+                    // there could be the same token on multiple paths. Still, if its the exact same token
+                    // present on multiple paths, it's unambiguous already
+                    tokenGroup
+                        .groupUsing { a, b -> a.unwrap() === b.unwrap() }
+                        .singleOrNull()
+                }
+                .flatten()
                 .forEach { it.markAsRemovingAmbiguity(context) }
         }
     }
@@ -78,17 +86,19 @@ class EitherOfRule(
 
 private data class EitherOfOptionContext(
     private val parentContext: Any,
+    private val parentRule: Rule<*>,
     private val optionIndex: Int,
 )
 
 private class EitherOfWrappedExpectedToken(
     val delegate: ExpectedToken,
+    val eitherOfRule: Rule<*>,
     val optionIndex: Int,
     val onAmbiguityResolved: (context: Any) -> Any?,
 ) : ExpectedToken {
     override fun markAsRemovingAmbiguity(inContext: Any) {
         onAmbiguityResolved(inContext)
-        delegate.markAsRemovingAmbiguity(EitherOfOptionContext(inContext, optionIndex))
+        delegate.markAsRemovingAmbiguity(EitherOfOptionContext(inContext, eitherOfRule, optionIndex))
     }
 
     override fun unwrap() = delegate.unwrap()
@@ -97,41 +107,7 @@ private class EitherOfWrappedExpectedToken(
 }
 
 /**
- * @return all the 0th, 1st, 2nd, ... elements of the sub-sequences in a list each
- */
-private fun <T : Any> Sequence<Sequence<T>>.pivot(): Sequence<List<T?>> {
-    val subSequenceIterators = this.mapIndexed { _, it -> it.iterator() }.toList()
-    return object : Sequence<List<T?>> {
-        override fun iterator(): Iterator<List<T?>> {
-            return object : Iterator<List<T?>> {
-                private var next: List<T?>? = null
-
-                private fun tryFindNext() {
-                    if (next != null) {
-                        return
-                    }
-
-                    val nextLocal = subSequenceIterators.map { if (it.hasNext()) it.next() else null }
-                    next = nextLocal.takeIf { it.any { e -> e != null }}
-                }
-
-                override fun hasNext(): Boolean {
-                    tryFindNext()
-
-                    return next != null
-                }
-
-                override fun next(): List<T?> {
-                    tryFindNext()
-                    return next ?: throw NoSuchElementException()
-                }
-            }
-        }
-    }
-}
-
-/**
- * @param equals an alternative [Any.equals] implementation, but must adhere to the same contract.
+ * @param equals an alternative [Any.equals] implementation, must adhere to the same contract.
  */
 private fun <T> Iterable<T>.groupUsing(equals: (T, T) -> Boolean): List<List<T>> {
     val groups = mutableListOf<MutableList<T>>()

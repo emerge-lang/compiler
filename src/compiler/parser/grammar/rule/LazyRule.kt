@@ -10,4 +10,6 @@ class LazyRule<T>(private val compute: () -> Rule<T>) : Rule<T> {
     override fun tryMatch(context: Any, input: TokenSequence) = rule.tryMatch(context, input)
 
     override val minimalMatchingSequence get() = rule.minimalMatchingSequence
+
+    override fun toString() = rule.toString()
 }

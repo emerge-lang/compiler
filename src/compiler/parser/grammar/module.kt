@@ -124,12 +124,12 @@ val Module: Rule<ASTModule> = sequence("module") {
         //__unambiguous()
         optionalWhitespace()
         eitherOf(mismatchIsAmbiguous = false) {
+            endOfInput()
             ref(ModuleDeclaration)
             ref(ImportDeclaration)
             ref(VariableDeclaration)
             ref(StandaloneFunctionDeclaration)
             ref(StructDefinition)
-            endOfInput()
         }
     }
 }

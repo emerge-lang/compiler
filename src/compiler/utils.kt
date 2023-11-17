@@ -26,8 +26,7 @@ import compiler.parser.grammar.Module
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.IdentityHashMap
-import javax.naming.OperationNotSupportedException
-import kotlin.reflect.KProperty
+import java.util.NoSuchElementException
 
 fun parseFromClasspath(path: String): ASTModule = parseFromClasspath(Paths.get(path))
 
@@ -90,9 +89,50 @@ fun <T : Any> Iterable<T>.sortedTopologically(dependsOn: (element: T, dependency
         }
 
         if (!anyRemoved) {
-            throw RuntimeException("Cyclic dependency invloving ${elementsToSort.firstNotNullOf { it.key }}")
+            throw RuntimeException("Cyclic dependency involving ${elementsToSort.firstNotNullOf { it.key }}")
         }
     }
 
     return sorted
+}
+
+/**
+ * @return all the 0th, 1st, 2nd, ... elements of the sub-sequences in a list each
+ */
+fun <T : Any> Sequence<Sequence<T>>.pivot(): Sequence<List<T?>> {
+    return object : Sequence<List<T?>> {
+        override fun iterator(): Iterator<List<T?>> {
+            val subSequenceIterators = this@pivot.mapIndexed { _, it -> it.iterator() }.toList()
+            return object : Iterator<List<T?>> {
+                private var next: List<T?>? = null
+
+                private fun tryFindNext() {
+                    if (next != null) {
+                        return
+                    }
+
+                    next = subSequenceIterators
+                        .map { if (it.hasNext()) it.next() else null }
+                        .takeIf { it.any { e -> e != null }}
+                }
+
+                override fun hasNext(): Boolean {
+                    tryFindNext()
+
+                    return next != null
+                }
+
+                override fun next(): List<T?> {
+                    tryFindNext()
+                    val nextLocal = next ?: throw NoSuchElementException()
+                    next = null
+                    return nextLocal
+                }
+            }
+        }
+    }
+}
+
+fun Sequence<*>.hasMoreElementsThan(n: Int): Boolean {
+    return take(n + 1).count() > n
 }

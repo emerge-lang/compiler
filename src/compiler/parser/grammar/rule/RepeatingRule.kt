@@ -40,7 +40,7 @@ class RepeatingRule<T>(
         val results = ArrayList<RuleMatchingResult<T>>(1)
         var lastResult: RuleMatchingResult<T>? = null
 
-        while (results.size <= maxRepeats) {
+        while (results.size < maxRepeats && input.hasNext()) {
             input.mark()
 
             lastResult = rule.tryMatch(context, input)

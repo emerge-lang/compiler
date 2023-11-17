@@ -26,6 +26,7 @@ import compiler.reportings.Reporting
  */
 class EOIRule private constructor() : Rule<Unit> {
     override val descriptionOfAMatchingThing = "end of input"
+    override fun toString(): String = descriptionOfAMatchingThing
     override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<Unit> {
         if (input.hasNext()) {
             return RuleMatchingResult(

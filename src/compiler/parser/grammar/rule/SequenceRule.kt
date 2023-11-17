@@ -1,12 +1,10 @@
 package compiler.parser.grammar.rule
 
-import compiler.InternalCompilerError
+import compiler.hasMoreElementsThan
 import compiler.parser.TokenSequence
-import compiler.parser.grammar.rule.MappingIterator.Companion.mapRemainingIndexed
 import compiler.reportings.Reporting
 import textutils.assureEndsWith
 import textutils.indentByFromSecondLine
-import java.util.IdentityHashMap
 
 class SequenceRule(
     private val subRules: List<Rule<*>>,
@@ -28,17 +26,19 @@ class SequenceRule(
         buffer.toString()
     }
 
+    override fun toString(): String = descriptionOfAMatchingThing
+
     override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<List<RuleMatchingResult<*>>> {
         input.mark()
 
         val results = mutableListOf<RuleMatchingResult<*>>()
         val reportings = mutableListOf<Reporting>()
-        val unambiguousStartingAtIndex: Int = unambiguousStartingAtSubRuleIndexByContext[context] ?: 0
-        check(unambiguousStartingAtIndex <= firstDiversionAtRuleIndex)
+        val unambiguousStartingAtIndex: Int? = unambiguousStartingAtSubRuleIndexByContext[context]
+        check(unambiguousStartingAtIndex == null || unambiguousStartingAtIndex <= firstDiversionAtRuleIndex)
         var subRuleContext = context
 
         subRules.forEachIndexed { ruleIndex, rule ->
-            if (ruleIndex > unambiguousStartingAtIndex) {
+            if (unambiguousStartingAtIndex != null && ruleIndex > unambiguousStartingAtIndex) {
                 subRuleContext = Unit
             }
 
@@ -47,7 +47,7 @@ class SequenceRule(
                 input.rollback()
 
                 return RuleMatchingResult(
-                    ruleIndex <= unambiguousStartingAtIndex,
+                    unambiguousStartingAtIndex == null || ruleIndex <= unambiguousStartingAtIndex,
                     null,
                     result.reportings,
                 )
@@ -69,7 +69,7 @@ class SequenceRule(
     private val unambiguousStartingAtSubRuleIndexByContext = HashMap<Any, Int>()
 
     private val firstDiversionAtRuleIndex = subRules.asSequence()
-        .takeWhile { it.minimalMatchingSequence.take(2).count() <= 1 }
+        .takeWhile { it.minimalMatchingSequence.hasMoreElementsThan(1) }
         .count()
 
     // the logical thing might be to do a cross-product of all the sub-rule options. But actually tracking that
@@ -100,9 +100,7 @@ class SequenceRule(
 
 
     private fun storeAmbiguityResolution(ruleIndex: Int, inContext: Any) {
-        if (unambiguousStartingAtSubRuleIndexByContext.putIfAbsent(inContext, ruleIndex) != null) {
-            throw InternalCompilerError("Resolving ambiguity multiple times for context $inContext")
-        }
+        unambiguousStartingAtSubRuleIndexByContext.putIfAbsent(inContext, ruleIndex)
     }
 }
 
@@ -117,8 +115,8 @@ private class SequenceDelegatingExpectedToken(
     val onAmbiguityResolved: (ruleIndex: Int, inContext: Any) -> Any?,
 ) : ExpectedToken {
     override fun markAsRemovingAmbiguity(inContext: Any) {
-        delegate.markAsRemovingAmbiguity(SequenceIndexContext(inContext, indexOfRuleObtainedFrom))
         onAmbiguityResolved(indexOfRuleObtainedFrom, inContext)
+        delegate.markAsRemovingAmbiguity(SequenceIndexContext(inContext, indexOfRuleObtainedFrom))
     }
 
     override fun unwrap() = delegate.unwrap()

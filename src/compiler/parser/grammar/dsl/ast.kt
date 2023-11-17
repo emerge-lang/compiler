@@ -44,14 +44,11 @@ fun <AstNode> Rule<*>.astTransformation(trimWhitespace: Boolean = false, transfo
  * on error results with null results
  */
 fun <B,A> Rule<B>.map(mapper: (RuleMatchingResult<B>) -> RuleMatchingResult<A>): Rule<A> {
-
-    val base = this
-
     return object: Rule<A> {
-        override val descriptionOfAMatchingThing get() = base.descriptionOfAMatchingThing
+        override val descriptionOfAMatchingThing get() = this@map.descriptionOfAMatchingThing
 
         override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<A> {
-            val baseResult = base.tryMatch(context, input)
+            val baseResult = this@map.tryMatch(context, input)
 
             if (baseResult.item == null) {
                 @Suppress("UNCHECKED_CAST")
@@ -62,7 +59,8 @@ fun <B,A> Rule<B>.map(mapper: (RuleMatchingResult<B>) -> RuleMatchingResult<A>):
             }
         }
 
-        override val minimalMatchingSequence get() = base.minimalMatchingSequence
+        override val minimalMatchingSequence get() = this@map.minimalMatchingSequence
+        override fun toString() = this@map.toString()
     }
 }
 
