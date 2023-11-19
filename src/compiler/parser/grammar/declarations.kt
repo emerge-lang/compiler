@@ -51,7 +51,6 @@ val VariableDeclaration = sequence("variable declaration") {
         keyword(VAR)
         keyword(VAL)
     }
-    //__unambiguous()
 
     optionalWhitespace()
 
@@ -65,7 +64,6 @@ val VariableDeclaration = sequence("variable declaration") {
     optional {
         optionalWhitespace()
         operator(ASSIGNMENT)
-        //__unambiguous()
         ref(Expression)
     }
 }
@@ -122,11 +120,9 @@ val VisibilityModifier : Rule<ASTVisibilityModifier> = eitherOf("visibility modi
             keyword(INTERNAL)
             optional {
                 operator(PARANT_OPEN)
-                //__unambiguous()
                 ref(ModuleName)
                 operator(PARANT_CLOSE)
             }
-            //__unambiguous()
         }
     }
 }

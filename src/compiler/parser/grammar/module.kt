@@ -46,7 +46,6 @@ import java.util.HashSet
 
 val ModuleName = sequence("module or package name") {
     identifier()
-    //__unambiguous()
 
     repeating {
         operator(Operator.DOT)
@@ -69,7 +68,6 @@ val ModuleName = sequence("module or package name") {
 
 val ModuleDeclaration = sequence("module declaration") {
     keyword(Keyword.MODULE)
-    //__unambiguous()
 
     ref(ModuleName)
 
@@ -85,13 +83,10 @@ val ModuleDeclaration = sequence("module declaration") {
 val ImportDeclaration = sequence("import declaration") {
     keyword(Keyword.IMPORT)
 
-    //__unambiguous()
-
     repeatingAtLeastOnce {
         identifier()
         operator(Operator.DOT)
     }
-    //__unambiguous()
     identifier(acceptedOperators = listOf(Operator.TIMES))
     operator(Operator.NEWLINE)
 }
@@ -119,9 +114,7 @@ val ImportDeclaration = sequence("import declaration") {
     }
 
 val Module: Rule<ASTModule> = sequence("module") {
-    //__unambiguous()
     repeatingAtLeastOnce {
-        //__unambiguous()
         optionalWhitespace()
         eitherOf(mismatchIsAmbiguous = false) {
             endOfInput()

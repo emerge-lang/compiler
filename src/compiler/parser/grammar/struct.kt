@@ -40,7 +40,6 @@ val StructMemberDefinition = sequence("struct member declaration") {
     optionalWhitespace()
 
     identifier()
-    //__unambiguous()
 
     operator(COLON)
     ref(Type)
@@ -48,7 +47,6 @@ val StructMemberDefinition = sequence("struct member declaration") {
     optional {
         optionalWhitespace()
         operator(ASSIGNMENT)
-        //__unambiguous()
         ref(Expression)
     }
 }
@@ -84,7 +82,6 @@ val StructMemberDefinition = sequence("struct member declaration") {
 
 val StructDefinition = sequence("struct definition") {
     keyword(STRUCT_DEFINITION)
-    //__unambiguous()
     optionalWhitespace()
     identifier()
     optionalWhitespace()

@@ -170,7 +170,6 @@ val FunctionModifier = sequence {
         keyword(Keyword.OPERATOR)
         keyword(Keyword.EXTERNAL)
     }
-    //__unambiguous()
 }
     .astTransformation { tokens -> when((tokens.next()!! as KeywordToken).keyword) {
         Keyword.READONLY -> compiler.ast.type.FunctionModifier.READONLY
@@ -187,8 +186,6 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
     }
 
     keyword(Keyword.FUNCTION)
-
-    //__unambiguous()
 
     optional {
         ref(Type)
@@ -207,20 +204,16 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
         ref(Type)
     }
 
-    //__unambiguous()
-
     eitherOf {
         sequence {
             optionalWhitespace()
             operator(Operator.CBRACE_OPEN)
-            //__unambiguous()
             ref(CodeChunk)
             optionalWhitespace()
             operator(Operator.CBRACE_CLOSE)
         }
         sequence {
             operator(Operator.ASSIGNMENT)
-            //__unambiguous()
             ref(Expression)
             eitherOf {
                 operator(Operator.NEWLINE)

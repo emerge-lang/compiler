@@ -35,7 +35,6 @@ import compiler.parser.grammar.dsl.sequence
 
 val ReturnStatement = sequence("return statement") {
     keyword(Keyword.RETURN)
-    //__unambiguous()
     ref(Expression)
 }
     .astTransformation { tokens ->
@@ -51,12 +50,10 @@ val Assignable = sequence("assignable") {
         ref(UnaryExpression)
         sequence {
             ref(ParanthesisedExpression)
-            //__unambiguous()
             ref(ExpressionPostfix)
         }
         ref(IdentifierExpression)
     }
-    //__unambiguous()
     repeating {
         ref(ExpressionPostfix)
     }
@@ -71,7 +68,6 @@ val Assignable = sequence("assignable") {
 val AssignmentStatement: Rule<AssignmentStatement> = sequence("assignment") {
     ref(Assignable)
     operator(Operator.ASSIGNMENT)
-    //__unambiguous()
     ref(Expression)
 }
     .astTransformation { tokens ->
@@ -89,24 +85,19 @@ val LineOfCode = sequence {
         ref(ReturnStatement)
         ref(Expression)
     }
-    //__unambiguous()
 
     repeating {
         operator(Operator.NEWLINE)
-        //__unambiguous()
     }
 }
 
 val CodeChunk = sequence {
-    //__unambiguous()
     optionalWhitespace()
     optional {
         ref(LineOfCode)
-        //__unambiguous()
 
         repeating {
             ref(LineOfCode)
-            //__unambiguous()
         }
     }
 }
