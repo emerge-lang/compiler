@@ -71,15 +71,21 @@ class BoundUnaryExpression(
 
         if (operatorFunction != null) {
             if (FunctionModifier.OPERATOR !in operatorFunction!!.modifiers) {
-                reportings.add(Reporting.functionIsMissingModifier(operatorFunction!!, this.declaration, FunctionModifier.OPERATOR))
-            } else {
                 reportings.add(
-                    Reporting.operatorNotDeclared(
-                        "Unary operator $operator (function $opFunName) not declared for type $valueType",
-                        declaration
+                    Reporting.functionIsMissingModifier(
+                        operatorFunction!!,
+                        this.declaration,
+                        FunctionModifier.OPERATOR
                     )
                 )
             }
+        } else {
+            reportings.add(
+                Reporting.operatorNotDeclared(
+                    "Unary operator $operator (function $opFunName) not declared for type $valueType",
+                    declaration
+                )
+            )
         }
 
         return reportings
