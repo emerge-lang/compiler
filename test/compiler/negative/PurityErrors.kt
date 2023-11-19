@@ -1,4 +1,4 @@
-package matchers.compiler.negative
+package compiler.negative
 
 import compiler.reportings.ImpureInvocationInPureContextReporting
 import compiler.reportings.ModifyingInvocationInReadonlyContextReporting

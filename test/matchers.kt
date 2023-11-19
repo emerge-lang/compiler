@@ -16,7 +16,18 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package matchers
+package compiler
 
-var isNotNull = com.natpryce.hamkrest.Matcher("isNotNull", { it: Any? -> it != null })
-var isNull = com.natpryce.hamkrest.Matcher("isNull", { it: Any? -> it == null })
+import io.kotest.matchers.Matcher
+import io.kotest.matchers.MatcherResult
+
+fun haveLessElementsThan(n: Int): Matcher<Sequence<Any>> = object : Matcher<Sequence<Any>> {
+    override fun test(value: Sequence<Any>): MatcherResult {
+        val hasFewer = value.take(n).count() < n
+        return object : MatcherResult {
+            override fun failureMessage() = "has $n or more elements"
+            override fun negatedFailureMessage() = "has less than $n elements"
+            override fun passed() = hasFewer
+        }
+    }
+}

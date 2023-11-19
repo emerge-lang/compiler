@@ -1,4 +1,4 @@
-package matchers.compiler.negative
+package compiler.negative
 
 import compiler.reportings.TypeDeductionErrorReporting
 import io.kotest.core.spec.style.FreeSpec

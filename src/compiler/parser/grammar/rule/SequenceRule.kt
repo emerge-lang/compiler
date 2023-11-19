@@ -1,6 +1,6 @@
 package compiler.parser.grammar.rule
 
-import compiler.hasMoreElementsThan
+import compiler.hasFewerElementsThan
 import compiler.parser.TokenSequence
 import compiler.reportings.Reporting
 import textutils.assureEndsWith
@@ -34,7 +34,7 @@ class SequenceRule(
         val results = mutableListOf<RuleMatchingResult<*>>()
         val reportings = mutableListOf<Reporting>()
         val unambiguousStartingAtIndex: Int? = unambiguousStartingAtSubRuleIndexByContext[context]
-        check(unambiguousStartingAtIndex == null || unambiguousStartingAtIndex <= firstDiversionAtRuleIndex)
+        check(unambiguousStartingAtIndex == null || firstDiversionAtRuleIndex == null || unambiguousStartingAtIndex <= firstDiversionAtRuleIndex)
         var subRuleContext = context
 
         subRules.forEachIndexed { ruleIndex, rule ->
@@ -47,7 +47,7 @@ class SequenceRule(
                 input.rollback()
 
                 return RuleMatchingResult(
-                    unambiguousStartingAtIndex == null || ruleIndex <= unambiguousStartingAtIndex,
+                    result.isAmbiguous && (unambiguousStartingAtIndex == null || ruleIndex <= unambiguousStartingAtIndex),
                     null,
                     result.reportings,
                 )
@@ -69,7 +69,7 @@ class SequenceRule(
     private val unambiguousStartingAtSubRuleIndexByContext = HashMap<Any, Int>()
 
     private val firstDiversionAtRuleIndex = subRules.asSequence()
-        .takeWhile { it.minimalMatchingSequence.hasMoreElementsThan(1) }
+        .takeWhile { it.minimalMatchingSequence.hasFewerElementsThan(2) }
         .count()
 
     // the logical thing might be to do a cross-product of all the sub-rule options. But actually tracking that

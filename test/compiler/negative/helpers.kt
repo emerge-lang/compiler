@@ -1,15 +1,57 @@
-package matchers.compiler.negative
+package compiler.negative
 
 import compiler.binding.context.SoftwareContext
 import compiler.binding.type.BuiltinType
 import compiler.lexer.SourceContentAwareSourceDescriptor
+import compiler.lexer.SourceDescriptor
 import compiler.lexer.SourceLocation
 import compiler.lexer.lex
+import compiler.parser.TokenSequence
 import compiler.parser.grammar.Module
 import compiler.parser.toTransactional
 import compiler.reportings.Reporting
 import io.kotest.inspectors.forOne
 import io.kotest.matchers.types.shouldBeInstanceOf
+
+fun lexCode(code: String, addModuleDeclaration: Boolean = true): TokenSequence {
+    return lexCodeInternal(code, addModuleDeclaration)
+}
+
+private fun getInvokedFromAsSourceLocation(additionalStackOffset: Int = 0): SourceLocation {
+    val invokedFrom = Thread.currentThread().stackTrace[4 + additionalStackOffset]
+    return SourceLocation(
+        object : SourceDescriptor {
+            override val sourceLocation = invokedFrom.fileName
+        },
+        invokedFrom.lineNumber,
+        1,
+    )
+}
+
+private fun lexCodeInternal(code: String, addModuleDeclaration: Boolean): TokenSequence {
+    val initialSourceLocation = getInvokedFromAsSourceLocation(1)
+
+    var moduleCode = code
+    var nEmptyLinesToPrepend = initialSourceLocation.sourceLine
+    if (addModuleDeclaration) {
+        moduleCode = "module testmodule\n$code"
+        nEmptyLinesToPrepend--
+    }
+
+    if (!moduleCode.endsWith("\n")) {
+        moduleCode += "\n"
+    }
+
+    moduleCode = "\n".repeat(nEmptyLinesToPrepend.coerceAtLeast(0)) + moduleCode
+
+    val sourceDescriptor = object : SourceContentAwareSourceDescriptor() {
+        override val sourceLocation = initialSourceLocation.sD.sourceLocation
+        override val sourceLines = moduleCode.split("\n")
+    }
+    val initialSourceLocationWithCode = SourceLocation(sourceDescriptor, initialSourceLocation.sourceLine, initialSourceLocation.sourceColumn)
+
+    return lex(moduleCode, sourceDescriptor).toTransactional(initialSourceLocationWithCode)
+}
 
 /**
  * To be invoked with this exact syntax to have the line numbers match
@@ -21,27 +63,8 @@ import io.kotest.matchers.types.shouldBeInstanceOf
  * ```
  */
 fun validateModule(code: String, addModuleDeclaration: Boolean = true): Collection<Reporting> {
-    val invokedFrom = Thread.currentThread().stackTrace[3]
-
-    var moduleCode = code
-    var nEmptyLinesToPrepend = invokedFrom.lineNumber
-    if (addModuleDeclaration) {
-        moduleCode = "module testmodule\n$code"
-        nEmptyLinesToPrepend--
-    }
-
-    if (!moduleCode.endsWith("\n")) {
-        moduleCode += "\n"
-    }
-
-    moduleCode = "\n".repeat(nEmptyLinesToPrepend) + moduleCode
-
-    val sourceDescriptor = object : SourceContentAwareSourceDescriptor() {
-        override val sourceLocation = invokedFrom.fileName
-        override val sourceLines = moduleCode.split("\n")
-    }
-    val initialSourceLocation = SourceLocation(sourceDescriptor, invokedFrom.lineNumber + 1, 1)
-    val result = Module.tryMatch(Unit, lex(moduleCode, sourceDescriptor).toTransactional(initialSourceLocation))
+    val tokens = lexCodeInternal(code, addModuleDeclaration)
+    val result = Module.tryMatch(Unit, tokens)
     if (result.item == null) {
         val error = result.reportings.maxBy { it.level }
         throw AssertionError("Failed to parse code: ${error.message} in ${error.sourceLocation}")

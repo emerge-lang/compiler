@@ -1,9 +1,8 @@
-package matchers.compiler.negative
+package compiler.negative
 
 import compiler.ast.type.FunctionModifier
 import compiler.reportings.FunctionMissingModifierReporting
 import compiler.reportings.OperatorNotDeclaredReporting
-import compiler.reportings.Reporting
 import compiler.reportings.UnresolvableFunctionReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe

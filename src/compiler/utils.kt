@@ -133,6 +133,6 @@ fun <T : Any> Sequence<Sequence<T>>.pivot(): Sequence<List<T?>> {
     }
 }
 
-fun Sequence<*>.hasMoreElementsThan(n: Int): Boolean {
-    return take(n + 1).count() > n
+fun Sequence<*>.hasFewerElementsThan(n: Int): Boolean {
+    return take(n).count() < n
 }
