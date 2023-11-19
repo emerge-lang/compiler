@@ -53,10 +53,14 @@ class SoftwareContext {
 
     fun doSemanticAnalysis(): Collection<Reporting> {
         if (semanticAnaylsisReults == null) {
-            semanticAnaylsisReults =
-                modules.flatMap(Module::semanticAnalysisPhase1) +
-                modules.flatMap(Module::semanticAnalysisPhase2) +
-                modules.flatMap(Module::semanticAnalysisPhase3)
+            val results = modules.flatMap(Module::semanticAnalysisPhase1).toMutableSet()
+            if (results.none { it.level >= Reporting.Level.ERROR }) {
+                results.addAll(modules.flatMap(Module::semanticAnalysisPhase2))
+            }
+            if (results.none { it.level >= Reporting.Level.ERROR }) {
+                results.addAll(modules.flatMap(Module::semanticAnalysisPhase3))
+            }
+            this.semanticAnaylsisReults = results
         }
 
         return semanticAnaylsisReults!!

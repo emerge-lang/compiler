@@ -36,7 +36,7 @@ class DuplicateStructMemberReporting(
 
         if (struct.declaration.declaredAt.sD is SourceContentAwareSourceDescriptor) {
             txt += (struct.declaration.declaredAt.sD as SourceContentAwareSourceDescriptor).getIllustrationForHighlightedLines(
-                duplicates.map { it.declaration.declaredAt.sourceLine }.toSet()
+                duplicates.map { it.declaration.declaredAt },
             )
         }
         else for (dup in duplicates) {

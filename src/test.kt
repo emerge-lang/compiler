@@ -10,11 +10,11 @@ import java.time.Duration
 
 val testCode = """module testcode
 
-fun a() {
-    return b()
-}
-pure fun b() {
-    return a()
+struct X {
+    a: Int
+    b: Int
+    c: Int
+    a: Int
 }
 """
 

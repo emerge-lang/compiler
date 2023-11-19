@@ -24,6 +24,7 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
 import compiler.ast.expression.Expression
 import compiler.ast.expression.IdentifierExpression
+import compiler.ast.expression.InvocationExpression
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundAssignmentStatement
@@ -138,6 +139,9 @@ abstract class Reporting internal constructor(
 
         fun operatorNotDeclared(message: String, expression: Expression<*>)
             = OperatorNotDeclaredReporting(message, expression)
+
+        fun functionIsMissingModifier(function: BoundFunction, usageRequiringModifier: Expression<*>, missingModifier: FunctionModifier)
+            = FunctionMissingModifierReporting(function, usageRequiringModifier, missingModifier)
 
         /**
          * An expression is used in a way that requires it to be non-null but the type of the expression is nullable.

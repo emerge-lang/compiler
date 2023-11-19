@@ -66,23 +66,13 @@ class BoundInvocationExpression(
             parameterExpressions.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
 
             // determine the function to be invoked
-            val functionCandidates = semanticPhase2_determineFunction()
-            if (functionCandidates.isEmpty()) {
-                reportings.add(Reporting.unresolvableFunction(this))
-            }
-
-            val function = functionCandidates.firstOrNull()
-
-            // the resolved function yields the evaluation type
-            if (function != null) {
+            semanticPhase2_determineFunction().firstOrNull()?.let { function ->
                 reportings.addAll(function.semanticAnalysisPhase2())
+                dispatchedFunction = function
                 type = function.returnType
                 isGuaranteedToThrow = function.code?.isGuaranteedToThrow
-            } else {
-                reportings.add(Reporting.unresolvableFunction(this))
             }
-
-            this.dispatchedFunction = function
+            ?: reportings.add(Reporting.unresolvableFunction(this))
 
             // TODO: determine type of invocation: static dispatch or dynamic dispatch
 

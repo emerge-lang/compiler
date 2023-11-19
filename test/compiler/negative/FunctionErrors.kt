@@ -1,9 +1,6 @@
 package matchers.compiler.negative
 
-import compiler.reportings.IllegalFunctionBodyReporting
-import compiler.reportings.MissingParameterTypeReporting
-import compiler.reportings.ModifierInefficiencyReporting
-import compiler.reportings.MultipleParameterDeclarationsReporting
+import compiler.reportings.*
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 
@@ -15,6 +12,13 @@ class FunctionErrors : FreeSpec({
             }
         """.trimIndent())
             .shouldReport<IllegalFunctionBodyReporting>()
+    }
+
+    "non-external function must have body" {
+        validateModule("""
+            fun foo() -> Int
+        """.trimIndent())
+            .shouldReport<MissingFunctionBodyReporting>()
     }
 
     "function parameters must have explicit types" {
@@ -41,5 +45,12 @@ class FunctionErrors : FreeSpec({
                 it.firstDeclaration.name.value shouldBe "a"
                 it.additionalDeclaration.name.value shouldBe "a"
             }
+    }
+
+    "redundant modifiers readonly + pure" {
+        validateModule("""
+            readonly pure fun a() {}
+        """.trimIndent())
+            .shouldReport<ModifierInefficiencyReporting>()
     }
 })

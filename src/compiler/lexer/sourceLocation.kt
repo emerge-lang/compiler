@@ -18,6 +18,7 @@
 
 package compiler.lexer
 
+import compiler.reportings.getIllustrationForHighlightedLines
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -110,54 +111,7 @@ open class SourceContentAwareSourceLocation(
 {
     override fun minusChars(n: Int): SourceLocation = SourceContentAwareSourceLocation(sD, sourceLine, sourceColumn - n + 1)
 
-    override fun illustrate(): String {
-        val line = sD.sourceLines[sourceLine - 1]
-
-        return super.illustrate() + "\n" +
-            "-".repeat(50) + "\n\n" +
-            "  " + line + "\n" +
-            "  " + " ".repeat(sourceColumn - 1) + "^\n" +
-            "-".repeat(50)
-    }
-
-    fun illustrateWithExcerpt(): String {
-        val lines = sD.sourceLines
-
-        val startLine = if(sourceLine < 3) 1 else sourceLine - 2
-        val endLine = Math.min(startLine + 5, lines.size)
-
-        val excerptLines = lines.subList(startLine - 1, endLine - 1)
-        val commonLeadingWhitespace = excerptLines
-            .map { line -> line.length - line.trimStart(IsWhitespace).length }
-            .minOrNull()!!
-
-        val trimmedExcerptLines = excerptLines.map { it.substring(commonLeadingWhitespace) }
-        val targetLineIndexInExcerpt = if (sourceLine < 3) sourceLine else startLine + 2
-
-        val out = StringBuffer()
-
-        out.append(super.illustrate())
-        out.append('\n')
-        out.append("-".repeat(50))
-        out.append('\n')
-
-        trimmedExcerptLines.forEachIndexed { index, line ->
-            out.append("  ")
-            out.append(line)
-            out.append('\n')
-
-            if (index + 1 == targetLineIndexInExcerpt)
-            {
-                out.append("  ")
-                out.append(" ".repeat(Math.max(0, sourceColumn - 1)))
-                out.append("^\n")
-            }
-        }
-
-        out.append("-".repeat(50))
-
-        return out.toString()
-    }
+    override fun illustrate() = sD.sourceLocation + "\n" + sD.getIllustrationForHighlightedLines(listOf(this))
 }
 
 class PathSourceDescriptor(val path: Path) : SourceContentAwareSourceDescriptor()

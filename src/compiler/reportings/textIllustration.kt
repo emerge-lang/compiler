@@ -19,23 +19,29 @@
 package compiler.reportings
 
 import compiler.lexer.SourceContentAwareSourceDescriptor
+import compiler.lexer.SourceLocation
 import kotlin.math.min
 
-fun SourceContentAwareSourceDescriptor.getIllustrationForHighlightedLines(desiredLineNumbers: Collection<Int>): String {
-    val lineContext = 0 // +- X lines of context
-
-    if (desiredLineNumbers.isEmpty()) {
-        throw IllegalArgumentException("No source lines given.")
+fun SourceContentAwareSourceDescriptor.getIllustrationForHighlightedLines(
+    highlights: Collection<SourceLocation>,
+    nLinesContext: Int = 0,
+): String {
+    if (highlights.isEmpty()) {
+        throw IllegalArgumentException("No locations given to highlight")
     }
 
-    if (desiredLineNumbers.any { it < 1 || it > sourceLines.size }) {
-        throw IllegalArgumentException("Source lines out of range.")
+    highlights.find { it.sourceLine < 1 || it.sourceLine > sourceLines.size }?.let {
+        throw IllegalArgumentException("Source lines out of range: $it")
     }
+
+    val highlightedColumnsByLine: Map<Int, List<Int>> = highlights
+        .groupBy { it.sourceLine }
+        .mapValues { (_, highlights) -> highlights.map { it.sourceColumn }.toSet().sorted() }
 
     val lineNumbersToOutput = mutableSetOf<Int>()
-    for (desiredLine in desiredLineNumbers) {
+    for (desiredLine in highlightedColumnsByLine.keys) {
         lineNumbersToOutput.add(desiredLine)
-        for (i in 1 .. lineContext) {
+        for (i in 1 .. nLinesContext) {
             lineNumbersToOutput.add(desiredLine - i)
             lineNumbersToOutput.add(desiredLine + i)
         }
@@ -51,9 +57,16 @@ fun SourceContentAwareSourceDescriptor.getIllustrationForHighlightedLines(desire
     val commonNumberOfLeadingSpaces =
         linesToOutputWithNormalizedTabs.values.minOf { it.takeWhile { char -> char == ' ' }.length }
 
+    fun StringBuilder.appendUnnumberedLinePrefix() {
+        repeat(lineCounterLength + 1) {
+            append(' ')
+        }
+        append("|  ")
+    }
+
     val out = StringBuilder()
-    out.append(" ".repeat(lineCounterLength + 1))
-    out.append("|\n")
+    out.appendUnnumberedLinePrefix()
+    out.append('\n')
     val lineSkippingIndicatorLine = "...".padStart(lineCounterLength, ' ') + "\n"
 
     for (index in 0 .. lineNumbersToOutputSorted.lastIndex) {
@@ -62,6 +75,17 @@ fun SourceContentAwareSourceDescriptor.getIllustrationForHighlightedLines(desire
         out.append(" |  ")
         out.append(linesToOutputWithNormalizedTabs[lineNumber]!!.substring(commonNumberOfLeadingSpaces))
         out.append("\n")
+        highlightedColumnsByLine[lineNumber]?.let { colsToHighlight ->
+            out.appendUnnumberedLinePrefix()
+            colsToHighlight.fold(commonNumberOfLeadingSpaces) { previousCol: Int, col: Int ->
+                repeat(col - previousCol - 1) {
+                    out.append(' ')
+                }
+                out.append('^')
+                col
+            }
+            out.append('\n')
+        }
 
         if (index != lineNumbersToOutputSorted.lastIndex) {
             val nextLineNumber = lineNumbersToOutputSorted[index + 1]
@@ -71,6 +95,9 @@ fun SourceContentAwareSourceDescriptor.getIllustrationForHighlightedLines(desire
             }
         }
     }
+
+    out.appendUnnumberedLinePrefix()
+    out.append('\n')
 
     return out.toString()
 }

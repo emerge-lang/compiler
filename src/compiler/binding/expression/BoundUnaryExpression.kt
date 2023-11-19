@@ -65,12 +65,21 @@ class BoundUnaryExpression(
         val receiverOperatorFuns =
             context.resolveFunction(opFunName)
                 .filterAndSortByMatchForInvocationTypes(valueType, emptyList())
-                .filter { FunctionModifier.OPERATOR in it.declaration.modifiers }
+                .sortedByDescending { FunctionModifier.OPERATOR in it.declaration.modifiers }
 
         operatorFunction = receiverOperatorFuns.firstOrNull()
 
-        if (operatorFunction == null) {
-            reportings.add(Reporting.operatorNotDeclared("Unary operator $operator (function $opFunName) not declared for type $valueType", declaration))
+        if (operatorFunction != null) {
+            if (FunctionModifier.OPERATOR !in operatorFunction!!.modifiers) {
+                reportings.add(Reporting.functionIsMissingModifier(operatorFunction!!, this.declaration, FunctionModifier.OPERATOR))
+            } else {
+                reportings.add(
+                    Reporting.operatorNotDeclared(
+                        "Unary operator $operator (function $opFunName) not declared for type $valueType",
+                        declaration
+                    )
+                )
+            }
         }
 
         return reportings
