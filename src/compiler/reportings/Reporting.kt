@@ -128,9 +128,6 @@ abstract class Reporting internal constructor(
             }
         }
 
-        fun semanticRecursion(message: String, location: SourceLocation)
-            = SemanticRecursionReporting(message, location)
-
         fun typeDeductionError(message: String, location: SourceLocation)
             = TypeDeductionErrorReporting(message, location)
 

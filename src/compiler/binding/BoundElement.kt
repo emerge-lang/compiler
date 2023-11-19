@@ -33,7 +33,7 @@ interface BoundElement<out ASTType> {
     val context: CTContext
 
     /**
-     * The [Expression] that was bound to [context].
+     * The node that was bound to [context].
      */
     val declaration: ASTType
 

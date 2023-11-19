@@ -22,7 +22,7 @@ import compiler.ast.Executable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseTypeReference
 
-interface BoundExecutable<out ASTType> : BoundElement<ASTType> {
+interface BoundExecutable<out ASTType> : BoundElement<Executable<*>> {
     /**
      * Whether this executable is guaranteed to return to the caller; with or without return value.
      *

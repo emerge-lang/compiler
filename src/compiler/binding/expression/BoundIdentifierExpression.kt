@@ -83,19 +83,33 @@ class BoundIdentifierExpression(
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
 
-        if (this.referredType == null) {
-            // attempt a variable
-            val variable = context.resolveVariable(identifier)
-            if (variable != null) {
-                referredVariable = variable
-                referredType = ReferredType.VARIABLE
+        when (this.referredType) {
+            null -> {
+                // attempt a variable
+                val variable = context.resolveVariable(identifier)
+                if (variable != null) {
+                    referredVariable = variable
+                    referredType = ReferredType.VARIABLE
+                }
+                else {
+                    // TODO: attempt to resolve type; expression becomes of type "Type/Class", ... whatever, still to be defined
+                    reportings.add(Reporting.undefinedIdentifier(declaration, "Cannot resolve variable $identifier"))
+                }
             }
-            else {
-                reportings.add(Reporting.undefinedIdentifier(declaration, "Cannot resolve variable $identifier"))
+            ReferredType.VARIABLE -> {
+                val variable = context.resolveVariable(identifier)
+                if (variable != null) {
+                    reportings.addAll(variable.semanticAnalysisPhase2())
+                    referredVariable = variable
+                }
+                else {
+                    reportings.add(Reporting.undefinedIdentifier(declaration, "Cannot resolve variable $identifier"))
+                }
+            }
+            ReferredType.TYPENAME -> {
+                // TODO: attempt to resolve type; expression becomes of type "Type/Class", ... whatever, still to be defined
             }
         }
-
-        // TODO: attempt to resolve type; expression becomes of type "Type/Class", ... whatever, still to be defined
 
         return reportings
     }

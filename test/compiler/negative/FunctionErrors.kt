@@ -53,4 +53,13 @@ class FunctionErrors : FreeSpec({
         """.trimIndent())
             .shouldReport<ModifierInefficiencyReporting>()
     }
+
+    "return type mismatch" {
+        validateModule("""
+            fun a() -> Int {
+                return true
+            }
+        """.trimIndent())
+            .shouldReport<ReturnTypeMismatchReporting>()
+    }
 })
