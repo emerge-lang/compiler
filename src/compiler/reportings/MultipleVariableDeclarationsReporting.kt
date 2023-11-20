@@ -29,6 +29,6 @@ class MultipleVariableDeclarationsReporting(
     val additionalDeclaration: VariableDeclaration
 ) : Reporting(
     Level.ERROR,
-    "Variable ${additionalDeclaration.name} has already been declared in ${originalDeclaration.sourceLocation}",
+    "Variable ${additionalDeclaration.name.value} has already been declared in ${originalDeclaration.sourceLocation}",
     additionalDeclaration.sourceLocation
 )
