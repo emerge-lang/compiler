@@ -58,7 +58,7 @@ class IdentifierRule(
         // none matched => error
         input.rollback()
         return RuleMatchingResult(
-            false,
+            true,
             null,
             setOf(Reporting.parsingError("Unexpected ${token.toStringWithoutLocation()}, expecting $descriptionOfAMatchingThing", token.sourceLocation))
         )
