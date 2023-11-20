@@ -1,57 +1,69 @@
-package matchers.compiler.negative
+package compiler.negative
 
 import compiler.reportings.*
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 
 class FunctionErrors : FreeSpec({
-    "external function cannot have body" {
-        validateModule("""
-            external fun foo() -> Int {
-                return 3
-            }
-        """.trimIndent())
-            .shouldReport<IllegalFunctionBodyReporting>()
+    "body" - {
+        "external function cannot have body" {
+            validateModule(
+                """
+                external fun foo() -> Int {
+                    return 3
+                }
+            """.trimIndent()
+            )
+                .shouldReport<IllegalFunctionBodyReporting>()
+        }
+
+        "non-external function must have body" {
+            validateModule(
+                """
+                fun foo() -> Int
+            """.trimIndent()
+            )
+                .shouldReport<MissingFunctionBodyReporting>()
+        }
     }
 
-    "non-external function must have body" {
-        validateModule("""
-            fun foo() -> Int
-        """.trimIndent())
-            .shouldReport<MissingFunctionBodyReporting>()
-    }
+    "parameters" - {
+        "function parameters must have explicit types" {
+            validateModule(
+                """
+                fun foo(bar) = 3
+            """.trimIndent()
+            )
+                .shouldReport<MissingParameterTypeReporting>() {
+                    it.parameter.name.value shouldBe "bar"
+                }
+        }
 
-    "function parameters must have explicit types" {
-        validateModule("""
-            fun foo(bar) = 3
-        """.trimIndent())
-            .shouldReport<MissingParameterTypeReporting>() {
-                it.parameter.name.value shouldBe "bar"
-            }
-    }
-
-    "readonly+pure redundancy" {
-        validateModule("""
-            readonly pure fun foo() {}
-        """.trimIndent())
-            .shouldReport<ModifierInefficiencyReporting>()
-    }
-
-    "parameter name duplicate" {
-        validateModule("""
+        "parameter name duplicate" {
+            validateModule("""
             fun foo(a: Int, a: Boolean, b: Int) {}
         """.trimIndent())
-            .shouldReport<MultipleParameterDeclarationsReporting> {
-                it.firstDeclaration.name.value shouldBe "a"
-                it.additionalDeclaration.name.value shouldBe "a"
-            }
+                .shouldReport<MultipleParameterDeclarationsReporting> {
+                    it.firstDeclaration.name.value shouldBe "a"
+                    it.additionalDeclaration.name.value shouldBe "a"
+                }
+        }
     }
 
-    "redundant modifiers readonly + pure" {
-        validateModule("""
+    "modifier" - {
+        "readonly+pure redundancy" {
+            validateModule("""
+            readonly pure fun foo() {}
+        """.trimIndent())
+                .shouldReport<ModifierInefficiencyReporting>()
+        }
+
+        "redundant modifiers readonly + pure" {
+            validateModule("""
             readonly pure fun a() {}
         """.trimIndent())
-            .shouldReport<ModifierInefficiencyReporting>()
+                .shouldReport<ModifierInefficiencyReporting>()
+        }
     }
 
     "return type mismatch" {
@@ -61,5 +73,19 @@ class FunctionErrors : FreeSpec({
             }
         """.trimIndent())
             .shouldReport<ReturnTypeMismatchReporting>()
+    }
+
+    "termination" - {
+        "empty body in non-unit function" {
+            validateModule("""
+                fun a(): Int {
+                }
+            """.trimIndent())
+                .shouldReport<UncertainTerminationReporting>()
+        }
+
+        // TODO: if where only one branch returns, one test for then and else each
+        // TODO: if where only one branch throws, one test for then and else each
+        // TODO: loop where the termination (return + throw) is in the loop body and the condition is not always true
     }
 })
