@@ -39,7 +39,7 @@ class EitherOfRule(
             }
 
     override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<Any?> {
-        if (context !in ambiguityResolvedForContexts && context == Unit) {
+        if (context !in ambiguityResolvedForContexts) {
             resolveAmbiguityForContext(context)
         }
 

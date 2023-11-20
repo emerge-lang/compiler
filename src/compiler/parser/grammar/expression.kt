@@ -136,7 +136,7 @@ val binaryOperators = arrayOf(
     Operator.CAST, Operator.TRYCAST, Operator.ELVIS
 )
 
-val BinaryExpression = sequence("ary operator expression") {
+val BinaryExpression = sequence("binary operator expression") {
     eitherOf {
         ref(UnaryExpression)
         ref(ValueExpression)
