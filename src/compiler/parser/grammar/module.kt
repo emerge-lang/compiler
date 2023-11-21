@@ -30,7 +30,6 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
-import compiler.lexer.OperatorToken
 import compiler.lexer.SourceLocation
 import compiler.parser.grammar.rule.Rule
 import compiler.parser.grammar.rule.RuleMatchingResult
@@ -39,8 +38,8 @@ import compiler.parser.grammar.dsl.enhanceErrors
 import compiler.parser.grammar.dsl.flatten
 import compiler.parser.grammar.dsl.map
 import compiler.parser.grammar.dsl.sequence
+import compiler.reportings.ParsingMismatchReporting
 import compiler.reportings.Reporting
-import compiler.reportings.TokenMismatchReporting
 import java.util.ArrayList
 import java.util.HashSet
 
@@ -91,10 +90,9 @@ val ImportDeclaration = sequence("import declaration") {
     operator(Operator.NEWLINE)
 }
     .enhanceErrors(
-        { it is TokenMismatchReporting && it.expected == OperatorToken(Operator.DOT) && it.actual == OperatorToken(Operator.NEWLINE) },
-        { _it ->
-            val it = _it as TokenMismatchReporting
-            Reporting.parsingError("${it.message}; To import all exports of the module write module.*", it.actual.sourceLocation)
+        { it is ParsingMismatchReporting && it.expected == "operator dot" && it.actual == "operator newline" },
+        {
+            Reporting.parsingError("${it.message}; To import all exports of the module write module.*", it.sourceLocation)
         }
     )
     .astTransformation { tokens ->
