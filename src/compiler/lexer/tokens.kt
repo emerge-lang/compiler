@@ -22,12 +22,12 @@ import compiler.parser.grammar.ParameterList
 import compiler.parser.grammar.VariableDeclaration
 import compiler.sortedTopologically
 
-enum class TokenType
+enum class TokenType(val description: String)
 {
-    KEYWORD,
-    IDENTIFIER,
-    NUMERIC_LITERAL,
-    OPERATOR
+    KEYWORD("keyword"),
+    IDENTIFIER("identifier"),
+    NUMERIC_LITERAL("numeric literal"),
+    OPERATOR("operator")
 }
 
 enum class Keyword(val text: String)
@@ -114,7 +114,7 @@ abstract class Token
             return toStringWithoutLocation() + " in " + sourceLocation.fileLineColumnText
     }
 
-    open fun toStringWithoutLocation(): String = type.name
+    open fun toStringWithoutLocation(): String = type.description
 }
 
 class KeywordToken(
@@ -126,7 +126,7 @@ class KeywordToken(
 {
     override val type = TokenType.KEYWORD
 
-    override fun toStringWithoutLocation() = type.name + " " + keyword.name
+    override fun toStringWithoutLocation() = type.description + " " + keyword.text.lowercase()
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -180,7 +180,7 @@ class IdentifierToken(
 ) : Token() {
     override val type = TokenType.IDENTIFIER
 
-    override fun toStringWithoutLocation() = type.name + " " + value
+    override fun toStringWithoutLocation() = type.description + " " + value
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
