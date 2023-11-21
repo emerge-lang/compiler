@@ -5,10 +5,7 @@ import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.negative.lexCode
 import compiler.negative.shouldReport
-import compiler.parser.grammar.dsl.GrammarReceiver
-import compiler.parser.grammar.dsl.flatten
-import compiler.parser.grammar.dsl.mapResult
-import compiler.parser.grammar.dsl.sequence
+import compiler.parser.grammar.dsl.*
 import compiler.reportings.ParsingMismatchReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.beEmpty
@@ -145,6 +142,42 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
                 it.expected shouldBe "identifier d"
                 it.actual shouldBe "identifier a"
             }
+        }
+    }
+
+    "optional" - {
+        "should recognize ambiguity introduced by optional tokens" {
+            val grammar = eitherOf {
+                sequence {
+                    optional {
+                        eitherOf {
+                            identifier("preA")
+                            identifier("preB")
+                        }
+                    }
+                    identifier("a")
+                }
+                sequence {
+                    optional {
+                        eitherOf {
+                            identifier("preA")
+                            identifier("preC")
+                        }
+                    }
+                    identifier("b")
+                }
+            }
+                .flatten()
+                .mapResult { it.remainingToList() }
+
+            val tokens = lexCode("preA b", addModuleDeclaration = false)
+            val result = grammar.tryMatch(Unit, tokens)
+
+            result.reportings should beEmpty()
+            result.item shouldBe listOf(
+                IdentifierToken("preA"),
+                IdentifierToken("b"),
+            )
         }
     }
 })

@@ -103,7 +103,10 @@ class RepeatingRule<T>(
     override val minimalMatchingSequence = if (requireAtLeastOnce) {
         rule.minimalMatchingSequence
     } else {
-        sequenceOf(emptySequence())
+        sequence {
+            yield(sequenceOf())
+            yieldAll(rule.minimalMatchingSequence)
+        }
     }
 }
 
