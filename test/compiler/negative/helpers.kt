@@ -38,10 +38,6 @@ private fun lexCodeInternal(code: String, addModuleDeclaration: Boolean): TokenS
         nEmptyLinesToPrepend--
     }
 
-    if (!moduleCode.endsWith("\n")) {
-        moduleCode += "\n"
-    }
-
     moduleCode = "\n".repeat(nEmptyLinesToPrepend.coerceAtLeast(0)) + moduleCode
 
     val sourceDescriptor = object : SourceContentAwareSourceDescriptor() {
@@ -63,7 +59,7 @@ private fun lexCodeInternal(code: String, addModuleDeclaration: Boolean): TokenS
  * ```
  */
 fun validateModule(code: String, addModuleDeclaration: Boolean = true): Collection<Reporting> {
-    val tokens = lexCodeInternal(code, addModuleDeclaration)
+    val tokens = lexCodeInternal(code.assureEndsWith('\n'), addModuleDeclaration)
     val result = Module.tryMatch(Unit, tokens)
     if (result.item == null) {
         val error = result.reportings.maxBy { it.level }
@@ -92,4 +88,8 @@ inline fun <reified T : Reporting> Collection<Reporting>.shouldReport(additional
         it.shouldBeInstanceOf<T>()
         additional(it)
     }
+}
+
+private fun String.assureEndsWith(suffix: Char): String {
+    return if (endsWith(suffix)) this else this + suffix
 }
