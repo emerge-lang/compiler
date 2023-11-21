@@ -78,7 +78,7 @@ class FunctionErrors : FreeSpec({
     "termination" - {
         "empty body in non-unit function" {
             validateModule("""
-                fun a(): Int {
+                fun a() -> Int {
                 }
             """.trimIndent())
                 .shouldReport<UncertainTerminationReporting>()
