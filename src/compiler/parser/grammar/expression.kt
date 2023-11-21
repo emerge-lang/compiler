@@ -45,27 +45,25 @@ import compiler.parser.NotNullExpressionPostfix
 import compiler.parser.grammar.dsl.*
 import compiler.parser.grammar.rule.Rule
 
-val Expression: Rule<Expression<*>> by lazy {
-    sequence("expression") {
-        eitherOf {
-            ref(BinaryExpression)
-            ref(UnaryExpression)
-            ref(ValueExpression)
-            ref(ParanthesisedExpression)
-            ref(IfExpression)
-        }
-        repeating {
-            ref(ExpressionPostfix)
-        }
+val Expression: Rule<Expression<*>> = sequence("expression") {
+    eitherOf {
+        ref(BinaryExpression)
+        ref(UnaryExpression)
+        ref(ValueExpression)
+        ref(ParanthesisedExpression)
+        ref(IfExpression)
     }
-        .isolateCyclicGrammar
-        .astTransformation { tokens ->
-            val expression = tokens.next()!! as Expression<*>
-            tokens
-                .remainingToList()
-                .fold(expression) { expr, postfix -> (postfix as ExpressionPostfix<*>).modify(expr) }
-        }
+    repeating {
+        ref(ExpressionPostfix)
+    }
 }
+    .isolateCyclicGrammar
+    .astTransformation { tokens ->
+        val expression = tokens.next()!! as Expression<*>
+        tokens
+            .remainingToList()
+            .fold(expression) { expr, postfix -> (postfix as ExpressionPostfix<*>).modify(expr) }
+    }
 
 val LiteralExpression = sequence("literal") {
     eitherOf {
