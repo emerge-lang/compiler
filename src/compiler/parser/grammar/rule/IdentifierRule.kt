@@ -33,8 +33,24 @@ class IdentifierRule(
         else -> null
     }
 
-    private data class IdentifierExpectedToken(
+    data class IdentifierExpectedToken(
         val acceptedOperators: Set<Operator>,
         val acceptedKeywords: Set<Keyword>,
-    ) : ExpectedToken
+    ) : ExpectedToken {
+        override fun couldMatchSameTokenAs(other: ExpectedToken): Boolean {
+            if (other is IdentifierExpectedToken) {
+                return true
+            }
+
+            if (other is SingleTokenByTypeRule.ByTypeExpectedToken && other.type == TokenType.IDENTIFIER) {
+                return true
+            }
+
+            if (other is SingleTokenByEqualityRule.ByEqualityExpectedToken && other.expected.type == TokenType.IDENTIFIER) {
+                return true
+            }
+
+            return false
+        }
+    }
 }

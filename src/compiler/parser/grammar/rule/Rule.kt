@@ -38,7 +38,7 @@ interface Rule<T> {
     val minimalMatchingSequence: Sequence<Sequence<ExpectedToken>>
 }
 
-abstract class SingleTokenRule(
+sealed class SingleTokenRule(
     private val expectedToken: ExpectedToken,
 ) : Rule<Token> {
     override val explicitName = null
@@ -128,19 +128,14 @@ interface ExpectedToken {
     fun unwrap(): ExpectedToken = this
 
     /**
-     * Has the same contract as [Any.equals].
-     *
-     * `a.isCloneOf(b)` implies `a.matchesSameTokensAs(b)`
-     *
-     * @return whether [this] and [other] would produce a match on the same singular [Token], even if the
-     * two original from entirely unrelated grammars.
+     * @return true Iff a [Token] exists that would match both `this` and [other].
      */
-    fun matchesSameTokensAs(other: ExpectedToken): Boolean = unwrap() == other.unwrap()
+    fun couldMatchSameTokenAs(other: ExpectedToken): Boolean = unwrap().couldMatchSameTokenAs(other.unwrap())
 
     /**
      * has the same contract as [Any.equals].
      *
-     * `a.isCloneOf(b)` implies `a.matchesSameTokensAs(b)`
+     * `a.isCloneOf(b)` implies `a.couldMatchSameTokenAs(b)`
      *
      * @return whether [this] and [other] refer to the same original token in the same grammar, through the
      * same route. `a.isCloneOf(b) && a !== b` happens to tokens preceding an [EitherOfRule] in a [SequenceRule].

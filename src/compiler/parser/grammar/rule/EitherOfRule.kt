@@ -70,7 +70,7 @@ class EitherOfRule(
         minimalMatchingSequence.pivot().forEach { tokensAtIndexIntoThisRule ->
             tokensAtIndexIntoThisRule
                 .filterNotNull()
-                .groupUsing(ExpectedToken::matchesSameTokensAs)
+                .groupUsing(ExpectedToken::couldMatchSameTokenAs)
                 .filter { equalExpectedTokens -> equalExpectedTokens.isNotEmptyAndIsAllClones() }
                 .flatten()
                 .forEach { it.markAsRemovingAmbiguity(context) }

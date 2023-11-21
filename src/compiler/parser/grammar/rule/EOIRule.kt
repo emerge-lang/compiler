@@ -54,6 +54,8 @@ class EOIRule private constructor() : Rule<Unit> {
         }
 
         override fun toString() = "<end of input>"
+
+        override fun couldMatchSameTokenAs(other: ExpectedToken) = other === this
     }
 
     override val minimalMatchingSequence = sequenceOf(sequenceOf(expectedToken))
