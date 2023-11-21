@@ -74,27 +74,25 @@ class RepeatingRule<T>(
                 results.flatMap { it.reportings },
             )
         }
-        else
-        {
-            input.rollback()
 
-            val errors = if (lastResult?.reportings != null && lastResult.reportings.isNotEmpty()) {
-                lastResult.reportings
-            }
-            else {
-                setOf(
-                    Reporting.parsingError(
-                    "Expected at least one ${rule.descriptionOfAMatchingThing} but found none",
-                    input.currentSourceLocation
-                ))
-            }
+        input.rollback()
 
-            return RuleMatchingResult(
-                true,
-                null,
-                errors
-            )
+        val errors = if (lastResult?.reportings != null && lastResult.reportings.isNotEmpty()) {
+            lastResult.reportings
         }
+        else {
+            setOf(
+                Reporting.parsingError(
+                "Expected at least one ${rule.descriptionOfAMatchingThing} but found none",
+                input.currentSourceLocation
+            ))
+        }
+
+        return RuleMatchingResult(
+            lastResult?.isAmbiguous ?: true,
+            null,
+            errors
+        )
     }
 
     override val minimalMatchingSequence = if (requireAtLeastOnce) {
