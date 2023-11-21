@@ -21,11 +21,13 @@ val <T> Rule<T>.isolateCyclicGrammar: Rule<T> get() = object : Rule<T> {
     override val descriptionOfAMatchingThing get() = this@isolateCyclicGrammar.descriptionOfAMatchingThing
 
     override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<T> {
-        return this@isolateCyclicGrammar.tryMatch(context, input)
+        return this@isolateCyclicGrammar.tryMatch(Unit, input)
     }
 
     override fun markAmbiguityResolved(inContext: Any) {
-
+        if (inContext == Unit) {
+            this@isolateCyclicGrammar.markAmbiguityResolved(Unit)
+        }
     }
 
     override val minimalMatchingSequence = sequenceOf(emptySequence<ExpectedToken>())
