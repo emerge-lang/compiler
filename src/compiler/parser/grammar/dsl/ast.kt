@@ -70,9 +70,10 @@ fun <B,A> Rule<B>.map(mapper: (RuleMatchingResult<B>) -> RuleMatchingResult<A>):
  */
 fun <B,A> Rule<B>.mapResult(mapper: (B) -> A): Rule<A> = map { it ->
     RuleMatchingResult(
-        it.isAmbiguous,
-        it.item?.let(mapper),
-        it.reportings
+        isAmbiguous = it.isAmbiguous,
+        marksEndOfAmbiguity = it.marksEndOfAmbiguity,
+        item = it.item?.let(mapper),
+        reportings = it.reportings,
     )
 }
 
@@ -111,9 +112,10 @@ fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
         collectFrom(base)
 
         return@map RuleMatchingResult(
-            base.isAmbiguous,
-            SimpleTransactionalSequence(itemBucket),
-            reportingsBucket
+            isAmbiguous = base.isAmbiguous,
+            marksEndOfAmbiguity = base.marksEndOfAmbiguity,
+            item = SimpleTransactionalSequence(itemBucket),
+            reportings = reportingsBucket,
         )
     }
 }
@@ -159,9 +161,10 @@ fun <T> Rule<T>.enhanceErrors(predicate: (Reporting) -> Boolean, enhance: (Repor
             }
             else {
                 return RuleMatchingResult(
-                    baseResult.isAmbiguous,
-                    baseResult.item,
-                    baseResult.reportings.map(enhancerMapper).toSet()
+                    isAmbiguous = baseResult.isAmbiguous,
+                    marksEndOfAmbiguity = baseResult.marksEndOfAmbiguity,
+                    item = baseResult.item,
+                    reportings = baseResult.reportings.map(enhancerMapper).toSet()
                 )
             }
         }

@@ -41,9 +41,10 @@ class WhitespaceEaterRule : Rule<Unit> {
         }
 
         return RuleMatchingResult(
-            true,
-            Unit,
-            emptySet()
+            isAmbiguous = true,
+            marksEndOfAmbiguity = false,
+            item = Unit,
+            reportings = emptySet(),
         )
     }
 

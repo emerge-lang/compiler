@@ -108,7 +108,7 @@ class RuleCollectingGrammarReceiver private constructor() : GrammarReceiver {
 
     override fun identifier(acceptedOperators: Collection<Operator>, acceptedKeywords: Collection<Keyword>) {
         addRule(
-            IdentifierRule(acceptedOperators, acceptedKeywords),
+            IdentifierRule(acceptedOperators.toSet(), acceptedKeywords.toSet()),
             false,
         )
     }

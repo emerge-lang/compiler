@@ -10,6 +10,7 @@ import compiler.parser.grammar.dsl.flatten
 import compiler.parser.grammar.dsl.mapResult
 import compiler.parser.grammar.dsl.sequence
 import compiler.reportings.ParsingErrorReporting
+import compiler.reportings.ParsingMismatchReporting
 import compiler.reportings.TokenMismatchReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.beEmpty
@@ -67,7 +68,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
 
             result.item shouldBe null
             result.isAmbiguous shouldBe true
-            result.reportings.shouldReport<ParsingErrorReporting>()
+            result.reportings.shouldReport<ParsingMismatchReporting>()
         }
 
         "mismatch after disambiguifying token in first branch" {
@@ -76,9 +77,9 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
 
             result.item shouldBe null
             result.isAmbiguous shouldBe false
-            result.reportings.shouldReport<TokenMismatchReporting> {
-                it.expected shouldBe KeywordToken(Keyword.FUNCTION)
-                it.actual shouldBe KeywordToken(Keyword.STRUCT_DEFINITION)
+            result.reportings.shouldReport<ParsingMismatchReporting> {
+                it.expected shouldBe "keyword fun"
+                it.actual shouldBe "keyword struct"
             }
         }
 
@@ -88,9 +89,9 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
 
             result.item shouldBe null
             result.isAmbiguous shouldBe false
-            result.reportings.shouldReport<TokenMismatchReporting> {
-                it.expected shouldBe KeywordToken(Keyword.VAL)
-                it.actual shouldBe KeywordToken(Keyword.STRUCT_DEFINITION)
+            result.reportings.shouldReport<ParsingMismatchReporting> {
+                it.expected shouldBe "keyword val"
+                it.actual shouldBe "keyword struct"
             }
         }
 
@@ -98,9 +99,9 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
             val tokens = lexCode("foo", addModuleDeclaration = false)
             val result = grammar.tryMatch(Unit, tokens)
 
-            result.reportings.shouldReport<TokenMismatchReporting> {
-                it.expected shouldBe KeywordToken(Keyword.EXTERNAL)
-                it.actual shouldBe IdentifierToken("foo")
+            result.reportings.shouldReport<ParsingMismatchReporting> {
+                it.expected shouldBe "keyword external"
+                it.actual shouldBe "identifier foo"
             }
         }
     }
@@ -124,7 +125,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
             .flatten()
             .mapResult { it.remainingToList() }
 
-        "nested either of must not affect other ambiguous branches" {
+        "must not affect other ambiguous branches" {
             val tokens = lexCode("b e", addModuleDeclaration = false)
             val result = grammar.tryMatch(Unit, tokens)
 
@@ -142,9 +143,9 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
 
             result.isAmbiguous shouldBe false
             result.item shouldBe null
-            result.reportings.shouldReport<TokenMismatchReporting> {
-                it.expected shouldBe IdentifierToken("d")
-                it.actual shouldBe IdentifierToken("a")
+            result.reportings.shouldReport<ParsingMismatchReporting> {
+                it.expected shouldBe "identifier d"
+                it.actual shouldBe "identifier a"
             }
         }
     }

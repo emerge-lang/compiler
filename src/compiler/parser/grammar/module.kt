@@ -188,7 +188,8 @@ val Module: Rule<ASTModule> = sequence("module") {
         )))
 
         RuleMatchingResult(
-            false,
+            isAmbiguous = false,
+            marksEndOfAmbiguity = inResult.marksEndOfAmbiguity,
             item = astModule,
             reportings = inResult.reportings.plus(reportings)
         )

@@ -18,7 +18,7 @@
 
 package compiler.parser.grammar.rule
 
-import compiler.parser.grammar.dsl.eitherOf
+import compiler.InternalCompilerError
 import compiler.reportings.Reporting
 
 /**
@@ -27,10 +27,15 @@ import compiler.reportings.Reporting
  */
 class RuleMatchingResult<out ItemType>(
     /**
-     * If false, the result is unambiguous in the original context ([Rule.tryMatch]), especially
-     * relevant on [eitherOf] rules.
+     * If false, the result is unambiguous in the original context ([Rule.tryMatch]). If `false`, [EitherOfRule]
+     * will not backtrack.
      */
     val isAmbiguous: Boolean,
+
+    /**
+     * `true` on single token results that have been marked using [ExpectedToken.markAsRemovingAmbiguity]
+     */
+    val marksEndOfAmbiguity: Boolean,
 
     /**
      * The [item] may only be null if the given input did not contain enough information to construct a meaningful item.

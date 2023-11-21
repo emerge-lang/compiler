@@ -23,37 +23,40 @@ import compiler.reportings.Reporting
 
 /**
  * Matches the end of the given token sequence
+ * TODO: can this stay a singleton in light of [ExpectedToken.isCloneOf] asking for a distinction between every mention of this rule?
  */
 class EOIRule private constructor() : Rule<Unit> {
+    private val marksEndOfAmbiguityInContexts = HashSet<Any>()
     override val explicitName = null
     override val descriptionOfAMatchingThing = "end of input"
     override fun toString(): String = descriptionOfAMatchingThing
     override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<Unit> {
         if (input.hasNext()) {
             return RuleMatchingResult(
-                true,
+                isAmbiguous = true,
+                marksEndOfAmbiguity = false,
                 null,
-                setOf(Reporting.parsingError("Unexpected ${input.peek()!!.toStringWithoutLocation()}, expecting $descriptionOfAMatchingThing", input.peek()!!.sourceLocation))
+                setOf(Reporting.mismatch(descriptionOfAMatchingThing, input.peek()!!))
             )
         }
 
         return RuleMatchingResult(
-            false,
-            Unit,
-            emptySet()
+            isAmbiguous = false,
+            marksEndOfAmbiguity = context in marksEndOfAmbiguityInContexts,
+            item = Unit,
+            reportings = emptySet()
         )
     }
 
-    override val minimalMatchingSequence = sequenceOf(sequenceOf(EoiExpectedToken as ExpectedToken))
-
-    private object EoiExpectedToken : ExpectedToken {
+    private val expectedToken: ExpectedToken = object : ExpectedToken {
         override fun markAsRemovingAmbiguity(inContext: Any) {
-            // nothing to do; a successful match is never ambiguous
-            // and a mismatch can't be unambiguous as there is nothing to match
+            marksEndOfAmbiguityInContexts.add(inContext)
         }
 
-        override fun isCloneOf(other: ExpectedToken): Boolean = this == other
+        override fun toString() = "<end of input>"
     }
+
+    override val minimalMatchingSequence = sequenceOf(sequenceOf(expectedToken))
 
     companion object {
         val INSTANCE = EOIRule()

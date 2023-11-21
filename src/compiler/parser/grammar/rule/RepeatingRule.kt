@@ -52,9 +52,10 @@ class RepeatingRule<T>(
 
                 if (lastResult.hasErrors && !lastResult.isAmbiguous) {
                     return RuleMatchingResult(
-                        results.all { it.isAmbiguous },
-                        null,
-                        lastResult.reportings
+                        isAmbiguous = results.all { it.isAmbiguous },
+                        marksEndOfAmbiguity = results.any { it.marksEndOfAmbiguity },
+                        item = null,
+                        reportings = lastResult.reportings
                     )
                 }
 
@@ -69,7 +70,8 @@ class RepeatingRule<T>(
             input.commit()
 
             return RuleMatchingResult(
-                results.any { it.isAmbiguous },
+                isAmbiguous = results.any { it.isAmbiguous },
+                marksEndOfAmbiguity = results.any { it.marksEndOfAmbiguity },
                 results.mapNotNull { it.item },
                 results.flatMap { it.reportings },
             )
@@ -82,16 +84,19 @@ class RepeatingRule<T>(
         }
         else {
             setOf(
-                Reporting.parsingError(
-                "Expected at least one ${rule.descriptionOfAMatchingThing} but found none",
-                input.currentSourceLocation
-            ))
+                Reporting.mismatch(
+                    "at least one ${rule.descriptionOfAMatchingThing}",
+                    "none",
+                    input.currentSourceLocation,
+                )
+            )
         }
 
         return RuleMatchingResult(
-            lastResult?.isAmbiguous ?: true,
-            null,
-            errors
+            isAmbiguous = lastResult?.isAmbiguous ?: true,
+            marksEndOfAmbiguity = lastResult?.marksEndOfAmbiguity ?: false,
+            item = null,
+            reportings = errors,
         )
     }
 

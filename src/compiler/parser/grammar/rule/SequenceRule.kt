@@ -1,6 +1,5 @@
 package compiler.parser.grammar.rule
 
-import compiler.InternalCompilerError
 import compiler.hasFewerElementsThan
 import compiler.parser.TokenSequence
 import compiler.reportings.Reporting
@@ -34,8 +33,7 @@ class SequenceRule(
 
         val results = mutableListOf<RuleMatchingResult<*>>()
         val reportings = mutableListOf<Reporting>()
-        val unambiguousAfterSubRuleIndex: Int? = unambiguousAfterSubRuleIndexByContext[context]
-        check(unambiguousAfterSubRuleIndex == null || unambiguousAfterSubRuleIndex <= firstDiversionAtRuleIndex)
+        var ambiguityResolved = false
 
         subRules.forEachIndexed { ruleIndex, rule ->
             val result = rule.tryMatch(SequenceIndexContext(context, this, ruleIndex), input)
@@ -43,18 +41,16 @@ class SequenceRule(
                 input.rollback()
 
                 return RuleMatchingResult(
-                    when {
-                        unambiguousAfterSubRuleIndex == null -> result.isAmbiguous
-                        ruleIndex < unambiguousAfterSubRuleIndex -> true
-                        ruleIndex == unambiguousAfterSubRuleIndex -> result.isAmbiguous
-                        ruleIndex > unambiguousAfterSubRuleIndex -> false
-                        else -> throw InternalCompilerError("unreachable code: the two above branches are exhaustive: ruleIndex <= or > the same number")
-                    },
+                    isAmbiguous = !ambiguityResolved && result.isAmbiguous,
+                    false,
                     null,
                     result.reportings,
                 )
             }
 
+            if (result.marksEndOfAmbiguity) {
+                ambiguityResolved = true
+            }
             results.add(result)
             reportings.addAll(result.reportings)
         }
@@ -62,13 +58,12 @@ class SequenceRule(
         input.commit()
 
         return RuleMatchingResult(
-            false, // ambiguity is only used to improve error messages; this is a successful match -> all good
-            results,
-            reportings
+            isAmbiguous = false,
+            marksEndOfAmbiguity = !ambiguityResolved,
+            item = results,
+            reportings = reportings,
         )
     }
-
-    private val unambiguousAfterSubRuleIndexByContext = HashMap<Any, Int>()
 
     private val firstDiversionAtRuleIndex = subRules.asSequence()
         .takeWhile { it.minimalMatchingSequence.hasFewerElementsThan(2) }
@@ -100,18 +95,12 @@ class SequenceRule(
         } }
     }
 
-
-    private fun storeAmbiguityResolution(ruleIndex: Int, inContext: Any) {
-        unambiguousAfterSubRuleIndexByContext.putIfAbsent(inContext, ruleIndex)
-    }
-
     private class SequenceDelegatingExpectedToken(
         val delegate: ExpectedToken,
         val indexOfRuleObtainedFrom: Int,
         val parentSequence: SequenceRule,
     ) : ExpectedToken {
         override fun markAsRemovingAmbiguity(inContext: Any) {
-            parentSequence.storeAmbiguityResolution(indexOfRuleObtainedFrom, inContext)
             delegate.markAsRemovingAmbiguity(SequenceIndexContext(inContext, parentSequence, indexOfRuleObtainedFrom))
         }
 

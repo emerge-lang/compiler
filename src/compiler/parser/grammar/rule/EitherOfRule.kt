@@ -54,15 +54,15 @@ class EitherOfRule(
         }
 
         input.rollback()
+        val reporting = input.peek()?.let {
+            Reporting.mismatch(descriptionOfAMatchingThing, it)
+        } ?: Reporting.unexpectedEOI(descriptionOfAMatchingThing, input.currentSourceLocation)
+
         return RuleMatchingResult(
-            true,
-            null,
-            setOf(
-                Reporting.parsingError(
-                    "Unexpected ${input.peek()?.toStringWithoutLocation() ?: "end of input"}, expected $descriptionOfAMatchingThing",
-                    input.currentSourceLocation
-                )
-            )
+            isAmbiguous = true,
+            marksEndOfAmbiguity = false,
+            item = null,
+            reportings = setOf(reporting),
         )
     }
 
@@ -75,6 +75,7 @@ class EitherOfRule(
                 .flatten()
                 .forEach { it.markAsRemovingAmbiguity(context) }
         }
+        ambiguityResolvedForContexts.add(context)
     }
 }
 
