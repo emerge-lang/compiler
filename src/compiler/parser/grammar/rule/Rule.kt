@@ -87,6 +87,8 @@ abstract class SingleTokenRule(
      */
     abstract fun matchAndPostprocess(token: Token): Token?
 
+    override fun toString() = "single token: $descriptionOfAMatchingThing"
+
     private inner class MarkingExpectedToken(
         private val delegate: ExpectedToken,
     ) : ExpectedToken {
