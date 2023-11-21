@@ -50,8 +50,12 @@ fun SourceContentAwareSourceDescriptor.getIllustrationForHighlightedLines(
     for (desiredLine in highlightedColumnsByLine.keys) {
         lineNumbersToOutput.add(desiredLine)
         for (i in 1 .. nLinesContext) {
-            lineNumbersToOutput.add(desiredLine - i)
-            lineNumbersToOutput.add(desiredLine + i)
+            if (desiredLine > 2) {
+                lineNumbersToOutput.add(desiredLine - i)
+            }
+            if (desiredLine < sourceLines.size) {
+                lineNumbersToOutput.add(desiredLine + i)
+            }
         }
     }
 
