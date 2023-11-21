@@ -39,11 +39,13 @@ fun parseFromClasspath(path: Path): ASTModule {
     }
     val matchResult = Module.tryMatch(Unit, TokenSequence(lex(sourceDescriptor).toList(), sourceDescriptor.toLocation(1, 1)))
 
-    System.err.println()
-    System.err.println()
-    System.err.println("----------------------------------")
-    System.err.println("Errors while parsing from classpath:")
-    matchResult.reportings.forEach(System.err::println)
+    if (matchResult.hasErrors) {
+        System.err.println()
+        System.err.println()
+        System.err.println("----------------------------------")
+        System.err.println("Errors while parsing from classpath:")
+        matchResult.reportings.forEach(System.err::println)
+    }
 
     return matchResult.item ?: throw InternalCompilerError("Failed to parse from classpath $path")
 }

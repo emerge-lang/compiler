@@ -16,16 +16,16 @@ fun eitherOf(explicitName: String? = null, grammar: Grammar): Rule<*> {
     }
 }
 
-val <T> Rule<T>.withEmptyMinimalMatchingSequence: Rule<T> get() = object : Rule<T> {
-    override val explicitName: String? get() = this@withEmptyMinimalMatchingSequence.explicitName
-    override val descriptionOfAMatchingThing get() = this@withEmptyMinimalMatchingSequence.descriptionOfAMatchingThing
+val <T> Rule<T>.isolateCyclicGrammar: Rule<T> get() = object : Rule<T> {
+    override val explicitName: String? get() = this@isolateCyclicGrammar.explicitName
+    override val descriptionOfAMatchingThing get() = this@isolateCyclicGrammar.descriptionOfAMatchingThing
 
     override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<T> {
-        return this@withEmptyMinimalMatchingSequence.tryMatch(context, input)
+        return this@isolateCyclicGrammar.tryMatch(context, input)
     }
 
     override fun markAmbiguityResolved(inContext: Any) {
-        return this@withEmptyMinimalMatchingSequence.markAmbiguityResolved(inContext)
+
     }
 
     override val minimalMatchingSequence = sequenceOf(emptySequence<ExpectedToken>())

@@ -58,7 +58,7 @@ val Expression: Rule<Expression<*>> by lazy {
             ref(ExpressionPostfix)
         }
     }
-        .withEmptyMinimalMatchingSequence
+        .isolateCyclicGrammar
         .astTransformation { tokens ->
             val expression = tokens.next()!! as Expression<*>
             tokens
@@ -85,6 +85,7 @@ val IdentifierExpression = sequence("identifier") {
     identifier()
 }
     .astTransformation { tokens ->
+        // todo: null
         val identifier = tokens.next() as IdentifierToken
         if (identifier.value == "true" || identifier.value == "false") {
             BooleanLiteralExpression(identifier.sourceLocation, identifier.value == "true")
