@@ -22,9 +22,14 @@ import compiler.lexer.SourceContentAwareSourceDescriptor
 import compiler.lexer.SourceLocation
 import kotlin.math.min
 
+/**
+ * @param highlights must all be from the receiver
+ * @param nLinesContext Around each line obtained from [highlights], this number of lines will additionally be shown
+ * above and below. So e.g. `nLinesOfContext == 1` and line 5 has a highlight then lines 4 and 6 will also be shown.
+ */
 fun SourceContentAwareSourceDescriptor.getIllustrationForHighlightedLines(
     highlights: Collection<SourceLocation>,
-    nLinesContext: Int = 0,
+    nLinesContext: Int = 1,
 ): String {
     if (highlights.isEmpty()) {
         throw IllegalArgumentException("No locations given to highlight")
@@ -32,6 +37,9 @@ fun SourceContentAwareSourceDescriptor.getIllustrationForHighlightedLines(
 
     highlights.find { it.sourceLine < 1 || it.sourceLine > sourceLines.size }?.let {
         throw IllegalArgumentException("Source lines out of range: $it")
+    }
+    highlights.find { it.sD is SourceContentAwareSourceDescriptor && it.sD !== this }?.let {
+        throw IllegalArgumentException("All locations-to-highlight must be from the same ${SourceContentAwareSourceDescriptor::class.simpleName}, this one isn't: $it")
     }
 
     val highlightedColumnsByLine: Map<Int, List<Int>> = highlights
