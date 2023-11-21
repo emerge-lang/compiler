@@ -1,6 +1,5 @@
 package compiler.parser.grammar.rule
 
-import compiler.hasFewerElementsThan
 import compiler.parser.TokenSequence
 import compiler.reportings.Reporting
 import textutils.assureEndsWith
@@ -71,34 +70,55 @@ class SequenceRule(
         }
     }
 
-    private val firstDiversionAtRuleIndex = subRules.asSequence()
-        .takeWhile { it.minimalMatchingSequence.hasFewerElementsThan(2) }
-        .count()
-
     // the logical thing might be to do a cross-product of all the sub-rule options. But actually tracking that
-    // context during matching is a MAJOR hassle. As a simplification we put a limitation on the set of possible
-    // grammars: sequences can reference unambiguous (= single option) sub-rules and must become unambiguous
-    // at their first diversion into options at the latest
-    // this COULD be extended to limiting sequences to one diversion before they become unambiguous, but allowing
-    // more unambiguous sub-rules after the diversion.
-    override val minimalMatchingSequence: Sequence<Sequence<ExpectedToken>> = run minimalSequnce@{
-        val prefix = subRules
-            .subList(0, firstDiversionAtRuleIndex)
-            .asSequence()
-            .map { it.minimalMatchingSequence.single() }
-            .flatMapIndexed { ruleIndex, ruleMinimalSequence -> ruleMinimalSequence.map { prefixExpectedToken ->
-                SequenceDelegatingExpectedToken(prefixExpectedToken, ruleIndex, this)
-            } }
+    // context during matching is a MAJOR hassle. As a simplification we put a limitation on the power of the ambiguity
+    // resolution: it will only consider the first diversion
+    override val minimalMatchingSequence: Sequence<Sequence<ExpectedToken>> = run minimalSequence@{
+        val sequencesBeforeDiversion = ArrayList<Sequence<ExpectedToken>>(subRules.size / 2)
+        var diversion: Sequence<Sequence<ExpectedToken>> = sequenceOf(emptySequence())
+        var diversionSeen = false
+        val sequencesAfterDiversion = ArrayList<Sequence<ExpectedToken>>(subRules.size / 2)
 
-        val diversion: Sequence<Sequence<ExpectedToken>> = if (subRules.isEmpty() || firstDiversionAtRuleIndex !in subRules.indices) {
-            sequenceOf(emptySequence())
-        } else {
-            subRules[firstDiversionAtRuleIndex].minimalMatchingSequence
+        for (rule in subRules) {
+            val unambiguousSequence = rule.minimalMatchingSequence.singleOrNull()
+            if (unambiguousSequence == null) {
+                if (diversionSeen) {
+                    // this is the second diversion => limit reached
+                    break
+                }
+                diversionSeen = true
+                diversion = rule.minimalMatchingSequence
+                continue
+            }
+            else if (diversionSeen) {
+                sequencesAfterDiversion.add(unambiguousSequence)
+            }
+            else {
+                sequencesBeforeDiversion.add(unambiguousSequence)
+            }
         }
 
-        diversion.map { prefix + it.map { diversionOptionToken ->
-            SequenceDelegatingExpectedToken(diversionOptionToken, firstDiversionAtRuleIndex, this)
-        } }
+        val prefix: Sequence<ExpectedToken> = sequencesBeforeDiversion.asSequence().flatMapIndexed { ruleIndex, prefixSequence ->
+            prefixSequence.map { prefixToken ->
+                SequenceDelegatingExpectedToken(prefixToken, ruleIndex, this)
+            }
+        }
+
+        if (!diversionSeen) {
+            return@minimalSequence sequenceOf(prefix)
+        }
+
+        val suffix: Sequence<ExpectedToken> = sequencesAfterDiversion.asSequence().flatMapIndexed { ruleIndexAfterDiversion, suffixSequence ->
+            suffixSequence.map { suffixToken ->
+                SequenceDelegatingExpectedToken(suffixToken, sequencesBeforeDiversion.size + 1 + ruleIndexAfterDiversion, this)
+            }
+        }
+
+        return@minimalSequence diversion.map {
+            prefix + it.map { diversionToken ->
+                SequenceDelegatingExpectedToken(diversionToken, sequencesBeforeDiversion.size, this)
+            } + suffix
+        }
     }
 
     private class SequenceDelegatingExpectedToken(

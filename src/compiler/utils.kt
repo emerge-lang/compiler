@@ -26,7 +26,7 @@ import compiler.parser.grammar.Module
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.IdentityHashMap
-import java.util.NoSuchElementException
+import kotlin.NoSuchElementException
 
 fun parseFromClasspath(path: String): ASTModule = parseFromClasspath(Paths.get(path))
 
@@ -137,8 +137,4 @@ fun <T : Any> Sequence<Sequence<T>>.pivot(): Sequence<List<T?>> {
             }
         }
     }
-}
-
-fun Sequence<*>.hasFewerElementsThan(n: Int): Boolean {
-    return take(n).count() < n
 }
