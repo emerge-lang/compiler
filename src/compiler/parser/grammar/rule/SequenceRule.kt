@@ -59,7 +59,7 @@ class SequenceRule(
 
         return RuleMatchingResult(
             isAmbiguous = false,
-            marksEndOfAmbiguity = !ambiguityResolved,
+            marksEndOfAmbiguity = ambiguityResolved,
             item = results,
             reportings = reportings,
         )
