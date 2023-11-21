@@ -101,11 +101,4 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
             it.actual shouldBe IdentifierToken("foo")
         }
     }
-
-    "around repeating" {
-        TODO("how to handle ambiguity in results in RepeatingRule?")
-        // TODO: how does the minimal sequence behave around repeating {} and repeatingAtLeastOnce {} ?
-        // i suspect this is the cause of the current parsing problems, solving it will get us a major step closer
-        // to FINALLY being able to close the parser chapter...
-    }
 })

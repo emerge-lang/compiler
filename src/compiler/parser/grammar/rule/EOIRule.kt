@@ -50,6 +50,8 @@ class EOIRule private constructor() : Rule<Unit> {
             // nothing to do; a successful match is never ambiguous
             // and a mismatch can't be unambiguous as there is nothing to match
         }
+
+        override fun isCloneOf(other: ExpectedToken): Boolean = this == other
     }
 
     companion object {

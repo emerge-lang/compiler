@@ -117,6 +117,12 @@ class SequenceRule(
 
         override fun unwrap() = delegate.unwrap()
         override fun toString() = delegate.toString()
+        override fun isCloneOf(other: ExpectedToken): Boolean {
+            return other is SequenceDelegatingExpectedToken &&
+                    this.indexOfRuleObtainedFrom == other.indexOfRuleObtainedFrom &&
+                    this.parentSequence == other.parentSequence &&
+                    this.delegate.isCloneOf(other.delegate)
+        }
     }
 }
 

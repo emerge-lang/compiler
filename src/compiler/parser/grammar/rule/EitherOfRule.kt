@@ -71,13 +71,7 @@ class EitherOfRule(
             tokensAtIndexIntoThisRule
                 .filterNotNull()
                 .groupUsing(ExpectedToken::matchesSameTokensAs)
-                .mapNotNull { tokenGroup ->
-                    // there could be the same token on multiple paths. Still, if its the exact same token
-                    // present on multiple paths, it's unambiguous already
-                    tokenGroup
-                        .groupUsing { a, b -> a.unwrap() === b.unwrap() }
-                        .singleOrNull()
-                }
+                .filter { equalExpectedTokens -> equalExpectedTokens.isNotEmptyAndIsAllClones() }
                 .flatten()
                 .forEach { it.markAsRemovingAmbiguity(context) }
         }
@@ -104,6 +98,13 @@ private class EitherOfWrappedExpectedToken(
     override fun unwrap() = delegate.unwrap()
 
     override fun toString() = delegate.toString()
+
+    override fun isCloneOf(other: ExpectedToken): Boolean {
+        return other is EitherOfWrappedExpectedToken &&
+                this.optionIndex == other.optionIndex &&
+                this.eitherOfRule == other.eitherOfRule &&
+                this.delegate.isCloneOf(other.delegate)
+    }
 }
 
 /**
@@ -122,4 +123,21 @@ private fun <T> Iterable<T>.groupUsing(equals: (T, T) -> Boolean): List<List<T>>
     }
 
     return groups
+}
+
+private fun Iterable<ExpectedToken>.isNotEmptyAndIsAllClones(): Boolean {
+    val iterator = iterator()
+    if (!iterator.hasNext()) {
+        return false
+    }
+
+    val pivot = iterator.next()
+    while (iterator.hasNext()) {
+        val element = iterator.next()
+        if (!element.isCloneOf(pivot)) {
+            return false
+        }
+    }
+
+    return true
 }
