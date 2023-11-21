@@ -7,7 +7,7 @@ class LazyRule<T>(private val compute: () -> Rule<T>) : Rule<T> {
 
     override val explicitName get() = rule.descriptionOfAMatchingThing
     override val descriptionOfAMatchingThing get() = rule.descriptionOfAMatchingThing
-    override fun tryMatch(context: Any, input: TokenSequence) = rule.tryMatch(context, input)
+    override fun match(context: Any, input: TokenSequence) = rule.match(context, input)
     override fun markAmbiguityResolved(inContext: Any) = rule.markAmbiguityResolved(inContext)
     override val minimalMatchingSequence get() = rule.minimalMatchingSequence
     override fun toString() = rule.toString()

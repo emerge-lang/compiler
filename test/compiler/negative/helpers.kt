@@ -60,7 +60,7 @@ private fun lexCodeInternal(code: String, addModuleDeclaration: Boolean): TokenS
  */
 fun validateModule(code: String, addModuleDeclaration: Boolean = true): Collection<Reporting> {
     val tokens = lexCodeInternal(code.assureEndsWith('\n'), addModuleDeclaration)
-    val result = Module.tryMatch(Unit, tokens)
+    val result = Module.match(Unit, tokens)
     if (result.item == null) {
         val error = result.reportings.maxBy { it.level }
         throw AssertionError("Failed to parse code: ${error.message} in ${error.sourceLocation}")

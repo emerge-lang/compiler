@@ -1,10 +1,8 @@
 package compiler.parser.grammar.rule
 
-import compiler.EarlyStackOverflowException
 import compiler.parser.TokenSequence
 import compiler.pivot
 import compiler.reportings.Reporting
-import compiler.throwOnCycle
 import textutils.assureEndsWith
 import textutils.indentByFromSecondLine
 
@@ -40,7 +38,7 @@ class EitherOfRule(
             }
         }
 
-    override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<Any?> {
+    override fun match(context: Any, input: TokenSequence): RuleMatchingResult<Any?> {
         if (context !in ambiguityResolvedForContexts) {
             resolveAmbiguityForContext(context)
         }
@@ -48,7 +46,7 @@ class EitherOfRule(
         input.mark()
 
         options.forEachIndexed { optionIndex, option ->
-            val result = option.tryMatch(EitherOfOptionContext(context, this, optionIndex), input)
+            val result = option.match(EitherOfOptionContext(context, this, optionIndex), input)
             if (!result.isAmbiguous || !result.hasErrors) {
                 input.commit()
                 return result

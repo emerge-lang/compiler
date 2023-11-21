@@ -37,7 +37,7 @@ fun parseFromClasspath(path: Path): ASTModule {
         override val sourceLocation = "classpath:" + path
         override val sourceLines = sourceode
     }
-    val matchResult = Module.tryMatch(Unit, TokenSequence(lex(sourceDescriptor).toList(), sourceDescriptor.toLocation(1, 1)))
+    val matchResult = Module.match(Unit, TokenSequence(lex(sourceDescriptor).toList(), sourceDescriptor.toLocation(1, 1)))
 
     if (matchResult.hasErrors) {
         System.err.println()

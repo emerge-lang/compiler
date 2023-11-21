@@ -36,7 +36,7 @@ class RepeatingRule<T>(
         buffer.toString()
     }
 
-    override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<List<T>> {
+    override fun match(context: Any, input: TokenSequence): RuleMatchingResult<List<T>> {
         input.mark()
 
         val results = ArrayList<RuleMatchingResult<T>>(1)
@@ -45,7 +45,7 @@ class RepeatingRule<T>(
         while (results.size < maxRepeats && input.hasNext()) {
             input.mark()
 
-            lastResult = rule.tryMatch(context, input)
+            lastResult = rule.match(context, input)
             if (lastResult.item == null) {
                 input.rollback()
                 // TODO: Fallback!

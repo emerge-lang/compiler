@@ -28,7 +28,7 @@ class WhitespaceEaterRule : Rule<Unit> {
     override val explicitName = null
     override val descriptionOfAMatchingThing = "optional whitespace"
 
-    override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<Unit> {
+    override fun match(context: Any, input: TokenSequence): RuleMatchingResult<Unit> {
         while (input.hasNext()) {
             input.mark()
             val token = input.next()!!

@@ -15,7 +15,7 @@ sealed class SingleTokenRule(
         sequenceOf(sequenceOf(MarkingExpectedToken(expectedToken)))
     }
 
-    final override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<Token> {
+    final override fun match(context: Any, input: TokenSequence): RuleMatchingResult<Token> {
         if (!input.hasNext()) {
             return RuleMatchingResult(
                 isAmbiguous = true,

@@ -27,7 +27,7 @@ class SequenceRule(
 
     override fun toString(): String = descriptionOfAMatchingThing
 
-    override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<List<RuleMatchingResult<*>>> {
+    override fun match(context: Any, input: TokenSequence): RuleMatchingResult<List<RuleMatchingResult<*>>> {
         input.mark()
 
         val results = mutableListOf<RuleMatchingResult<*>>()
@@ -35,7 +35,7 @@ class SequenceRule(
         var ambiguityResolved = false
 
         subRules.forEachIndexed { ruleIndex, rule ->
-            val result = rule.tryMatch(SequenceIndexContext(context, this, ruleIndex), input)
+            val result = rule.match(SequenceIndexContext(context, this, ruleIndex), input)
             if (result.item == null && result.hasErrors) {
                 input.rollback()
 

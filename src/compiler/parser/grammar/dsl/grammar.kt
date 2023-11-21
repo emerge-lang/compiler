@@ -20,8 +20,8 @@ val <T> Rule<T>.isolateCyclicGrammar: Rule<T> get() = object : Rule<T> {
     override val explicitName: String? get() = this@isolateCyclicGrammar.explicitName
     override val descriptionOfAMatchingThing get() = this@isolateCyclicGrammar.descriptionOfAMatchingThing
 
-    override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<T> {
-        return this@isolateCyclicGrammar.tryMatch(Unit, input)
+    override fun match(context: Any, input: TokenSequence): RuleMatchingResult<T> {
+        return this@isolateCyclicGrammar.match(Unit, input)
     }
 
     override fun markAmbiguityResolved(inContext: Any) {

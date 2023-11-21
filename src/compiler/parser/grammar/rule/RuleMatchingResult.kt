@@ -18,7 +18,6 @@
 
 package compiler.parser.grammar.rule
 
-import compiler.InternalCompilerError
 import compiler.reportings.Reporting
 
 /**
@@ -27,7 +26,7 @@ import compiler.reportings.Reporting
  */
 class RuleMatchingResult<out ItemType>(
     /**
-     * If false, the result is unambiguous in the original context ([Rule.tryMatch]). If `false`, [EitherOfRule]
+     * If false, the result is unambiguous in the original context ([Rule.match]). If `false`, [EitherOfRule]
      * will not backtrack.
      */
     val isAmbiguous: Boolean,

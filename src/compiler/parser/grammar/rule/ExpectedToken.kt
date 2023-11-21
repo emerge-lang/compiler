@@ -14,7 +14,7 @@ interface ExpectedToken {
     /**
      * Called on the first [ExpectedToken] in a sequence returned from [Rule.minimalMatchingSequence]
      * which is unique among the other options (see e.g. [EitherOfRule]). By consequence, once this
-     * token is matched in any invocation of [Rule.tryMatch], the [RuleMatchingResult.isAmbiguous] returned
+     * token is matched in any invocation of [Rule.match], the [RuleMatchingResult.isAmbiguous] returned
      * from then on must be `true`.
      * All of that is scoped to each unique context ([inContext]).
      */

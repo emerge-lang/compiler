@@ -22,7 +22,6 @@ package compiler.parser.grammar.dsl
 import compiler.parser.grammar.rule.Rule
 import compiler.parser.grammar.rule.RuleMatchingResult
 import compiler.parser.TokenSequence
-import compiler.parser.grammar.rule.ExpectedToken
 import compiler.reportings.Reporting
 import compiler.transact.Position
 import compiler.transact.SimpleTransactionalSequence
@@ -48,8 +47,8 @@ fun <B,A> Rule<B>.map(mapper: (RuleMatchingResult<B>) -> RuleMatchingResult<A>):
         override val explicitName get() = this@map.explicitName
         override val descriptionOfAMatchingThing get() = this@map.descriptionOfAMatchingThing
 
-        override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<A> {
-            val baseResult = this@map.tryMatch(context, input)
+        override fun match(context: Any, input: TokenSequence): RuleMatchingResult<A> {
+            val baseResult = this@map.match(context, input)
 
             if (baseResult.item == null) {
                 @Suppress("UNCHECKED_CAST")
