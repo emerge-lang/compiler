@@ -5,6 +5,7 @@ import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.negative.lexCode
 import compiler.negative.shouldReport
+import compiler.parser.grammar.dsl.GrammarReceiver
 import compiler.parser.grammar.dsl.flatten
 import compiler.parser.grammar.dsl.mapResult
 import compiler.parser.grammar.dsl.sequence
@@ -17,88 +18,138 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 class MismatchAmbiguityResolutionTest : FreeSpec({
-    val grammar = sequence {
-        keyword(Keyword.EXTERNAL)
-        eitherOf {
-            sequence {
-                keyword(Keyword.OPERATOR)
-                keyword(Keyword.NOTHROW)
-                keyword(Keyword.FUNCTION)
+    "sequence backtracking" - {
+        val grammar = sequence {
+            keyword(Keyword.EXTERNAL)
+            eitherOf {
+                sequence {
+                    keyword(Keyword.OPERATOR)
+                    keyword(Keyword.NOTHROW)
+                    keyword(Keyword.FUNCTION)
+                }
+                sequence {
+                    keyword(Keyword.OPERATOR)
+                    keyword(Keyword.READONLY)
+                    keyword(Keyword.VAL)
+                }
             }
-            sequence {
-                keyword(Keyword.OPERATOR)
-                keyword(Keyword.READONLY)
-                keyword(Keyword.VAL)
+        }.flatten().mapResult { it.remainingToList() }
+
+        "match first path" {
+            val tokens = lexCode("external operator nothrow fun", addModuleDeclaration = false)
+            val result = grammar.tryMatch(Unit, tokens)
+
+            result.item.shouldBeInstanceOf<List<out Any>>()
+            (result.item as List<out Any>)[0] shouldBe KeywordToken(Keyword.EXTERNAL)
+            (result.item as List<out Any>)[1] shouldBe KeywordToken(Keyword.OPERATOR)
+            (result.item as List<out Any>)[2] shouldBe KeywordToken(Keyword.NOTHROW)
+            (result.item as List<out Any>)[3] shouldBe KeywordToken(Keyword.FUNCTION)
+            result.reportings should beEmpty()
+            result.isAmbiguous shouldBe false
+        }
+
+        "match second path with backtracing" {
+            val tokens = lexCode("external operator readonly val", addModuleDeclaration = false)
+            val result = grammar.tryMatch(Unit, tokens)
+
+            result.item.shouldBeInstanceOf<List<out Any>>()
+            (result.item as List<out Any>)[0] shouldBe KeywordToken(Keyword.EXTERNAL)
+            (result.item as List<out Any>)[1] shouldBe KeywordToken(Keyword.OPERATOR)
+            (result.item as List<out Any>)[2] shouldBe KeywordToken(Keyword.READONLY)
+            (result.item as List<out Any>)[3] shouldBe KeywordToken(Keyword.VAL)
+            result.reportings should beEmpty()
+            result.isAmbiguous shouldBe false
+        }
+
+        "mismatch on ambiguous token" {
+            val tokens = lexCode("external operator pure fun", addModuleDeclaration = false)
+            val result = grammar.tryMatch(Unit, tokens)
+
+            result.item shouldBe null
+            result.isAmbiguous shouldBe true
+            result.reportings.shouldReport<ParsingErrorReporting>()
+        }
+
+        "mismatch after disambiguifying token in first branch" {
+            val tokens = lexCode("external operator nothrow struct", addModuleDeclaration = false)
+            val result = grammar.tryMatch(Unit, tokens)
+
+            result.item shouldBe null
+            result.isAmbiguous shouldBe false
+            result.reportings.shouldReport<TokenMismatchReporting> {
+                it.expected shouldBe KeywordToken(Keyword.FUNCTION)
+                it.actual shouldBe KeywordToken(Keyword.STRUCT_DEFINITION)
             }
         }
-    }.flatten().mapResult { it.remainingToList() }
 
-    "match first path" {
-        val tokens = lexCode("external operator nothrow fun", addModuleDeclaration = false)
-        val result = grammar.tryMatch(Unit, tokens)
+        "mismatch after disambiguifying token in second branch" {
+            val tokens = lexCode("external operator readonly struct", addModuleDeclaration = false)
+            val result = grammar.tryMatch(Unit, tokens)
 
-        result.item.shouldBeInstanceOf<List<out Any>>()
-        (result.item as List<out Any>)[0] shouldBe KeywordToken(Keyword.EXTERNAL)
-        (result.item as List<out Any>)[1] shouldBe KeywordToken(Keyword.OPERATOR)
-        (result.item as List<out Any>)[2] shouldBe KeywordToken(Keyword.NOTHROW)
-        (result.item as List<out Any>)[3] shouldBe KeywordToken(Keyword.FUNCTION)
-        result.reportings should beEmpty()
-        result.isAmbiguous shouldBe false
-    }
+            result.item shouldBe null
+            result.isAmbiguous shouldBe false
+            result.reportings.shouldReport<TokenMismatchReporting> {
+                it.expected shouldBe KeywordToken(Keyword.VAL)
+                it.actual shouldBe KeywordToken(Keyword.STRUCT_DEFINITION)
+            }
+        }
 
-    "match second path with backtracing" {
-        val tokens = lexCode("external operator readonly val", addModuleDeclaration = false)
-        val result = grammar.tryMatch(Unit, tokens)
+        "fail before ambiguity in outer sequence" {
+            val tokens = lexCode("foo", addModuleDeclaration = false)
+            val result = grammar.tryMatch(Unit, tokens)
 
-        result.item.shouldBeInstanceOf<List<out Any>>()
-        (result.item as List<out Any>)[0] shouldBe KeywordToken(Keyword.EXTERNAL)
-        (result.item as List<out Any>)[1] shouldBe KeywordToken(Keyword.OPERATOR)
-        (result.item as List<out Any>)[2] shouldBe KeywordToken(Keyword.READONLY)
-        (result.item as List<out Any>)[3] shouldBe KeywordToken(Keyword.VAL)
-        result.reportings should beEmpty()
-        result.isAmbiguous shouldBe false
-    }
-
-    "mismatch on ambiguous token" {
-        val tokens = lexCode("external operator pure fun", addModuleDeclaration = false)
-        val result = grammar.tryMatch(Unit, tokens)
-
-        result.item shouldBe null
-        result.isAmbiguous shouldBe true
-        result.reportings.shouldReport<ParsingErrorReporting>()
-    }
-
-    "mismatch after disambiguifying token in first branch" {
-        val tokens = lexCode("external operator nothrow struct", addModuleDeclaration = false)
-        val result = grammar.tryMatch(Unit, tokens)
-
-        result.item shouldBe null
-        result.isAmbiguous shouldBe false
-        result.reportings.shouldReport<TokenMismatchReporting> {
-            it.expected shouldBe KeywordToken(Keyword.FUNCTION)
-            it.actual shouldBe KeywordToken(Keyword.STRUCT_DEFINITION)
+            result.reportings.shouldReport<TokenMismatchReporting> {
+                it.expected shouldBe KeywordToken(Keyword.EXTERNAL)
+                it.actual shouldBe IdentifierToken("foo")
+            }
         }
     }
 
-    "mismatch after disambiguifying token in second branch" {
-        val tokens = lexCode("external operator readonly struct", addModuleDeclaration = false)
-        val result = grammar.tryMatch(Unit, tokens)
-
-        result.item shouldBe null
-        result.isAmbiguous shouldBe false
-        result.reportings.shouldReport<TokenMismatchReporting> {
-            it.expected shouldBe KeywordToken(Keyword.VAL)
-            it.actual shouldBe KeywordToken(Keyword.STRUCT_DEFINITION)
+    "nested either of" - {
+        val grammar = sequence {
+            eitherOf {
+                sequence {
+                    eitherOf {
+                        identifier("b")
+                        identifier("c")
+                    }
+                    identifier("d")
+                }
+                sequence {
+                    identifier("b")
+                    identifier("e")
+                }
+            }
         }
-    }
+            .flatten()
+            .mapResult { it.remainingToList() }
 
-    "fail before ambiguity in outer sequence" {
-        val tokens = lexCode("foo", addModuleDeclaration = false)
-        val result = grammar.tryMatch(Unit, tokens)
+        "nested either of must not affect other ambiguous branches" {
+            val tokens = lexCode("b e", addModuleDeclaration = false)
+            val result = grammar.tryMatch(Unit, tokens)
 
-        result.reportings.shouldReport<TokenMismatchReporting> {
-            it.expected shouldBe KeywordToken(Keyword.EXTERNAL)
-            it.actual shouldBe IdentifierToken("foo")
+            result.reportings should beEmpty()
+            result.isAmbiguous shouldBe false
+            result.item shouldBe listOf(
+                IdentifierToken("b"),
+                IdentifierToken("e"),
+            )
+        }
+
+        "mismatch in unambiguous branch should prevent backtracking" {
+            val tokens = lexCode("c a", addModuleDeclaration = false)
+            val result = grammar.tryMatch(Unit, tokens)
+
+            result.isAmbiguous shouldBe false
+            result.item shouldBe null
+            result.reportings.shouldReport<TokenMismatchReporting> {
+                it.expected shouldBe IdentifierToken("d")
+                it.actual shouldBe IdentifierToken("a")
+            }
         }
     }
 })
+
+private fun GrammarReceiver.identifier(value: String) {
+    tokenEqualTo(IdentifierToken(value))
+}
