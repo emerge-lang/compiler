@@ -25,6 +25,7 @@ import compiler.reportings.Reporting
  * Matches the end of the given token sequence
  */
 class EOIRule private constructor() : Rule<Unit> {
+    override val explicitName = null
     override val descriptionOfAMatchingThing = "end of input"
     override fun toString(): String = descriptionOfAMatchingThing
     override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<Unit> {

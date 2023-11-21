@@ -8,6 +8,7 @@ class IdentifierRule(
     private val acceptedOperators: Collection<Operator>,
     private val acceptedKeywords: Collection<Keyword>,
 ) : Rule<IdentifierToken> {
+    override val explicitName: String? = null
     override val descriptionOfAMatchingThing: String by lazy {
         var out = "any identifier"
         if (acceptedOperators.isNotEmpty()) {

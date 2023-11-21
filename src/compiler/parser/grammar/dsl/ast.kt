@@ -45,6 +45,7 @@ fun <AstNode> Rule<*>.astTransformation(trimWhitespace: Boolean = false, transfo
  */
 fun <B,A> Rule<B>.map(mapper: (RuleMatchingResult<B>) -> RuleMatchingResult<A>): Rule<A> {
     return object: Rule<A> {
+        override val explicitName get() = this@map.explicitName
         override val descriptionOfAMatchingThing get() = this@map.descriptionOfAMatchingThing
 
         override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<A> {
@@ -147,7 +148,8 @@ fun <T> Rule<T>.enhanceErrors(predicate: (Reporting) -> Boolean, enhance: (Repor
     val base = this
 
     return object: Rule<T> {
-        override val descriptionOfAMatchingThing: String = base.descriptionOfAMatchingThing
+        override val explicitName get() = base.explicitName
+        override val descriptionOfAMatchingThing get() = base.descriptionOfAMatchingThing
 
         override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<T> {
             val baseResult = base.tryMatch(context, input)

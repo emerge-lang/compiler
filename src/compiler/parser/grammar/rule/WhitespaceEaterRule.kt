@@ -25,6 +25,7 @@ import compiler.parser.isWhitespace
  * Skips whitespace in the input stream
  */
 class WhitespaceEaterRule : Rule<Unit> {
+    override val explicitName = null
     override val descriptionOfAMatchingThing = "optional whitespace"
 
     override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<Unit> {

@@ -23,6 +23,7 @@ import compiler.parser.grammar.dsl.GrammarReceiver
 
 interface Rule<T> {
     val descriptionOfAMatchingThing: String
+    val explicitName: String?
     fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<T>
 
     /**

@@ -9,10 +9,10 @@ import textutils.indentByFromSecondLine
 
 class SequenceRule(
     private val subRules: List<Rule<*>>,
-    private val givenName: String? = null,
+    override val explicitName: String? = null,
 ) : Rule<List<RuleMatchingResult<*>>> {
     override val descriptionOfAMatchingThing: String by lazy {
-        givenName?.let { return@lazy it }
+        explicitName?.let { return@lazy it }
 
         val buffer = StringBuilder(50 + subRules.size * 10)
         buffer.append("Tokens matching these rules in sequence:\n")
@@ -128,6 +128,8 @@ class SequenceRule(
 
 private data class SequenceIndexContext(
     private val parentContext: Any,
-    private val parentSequence: SequenceRule,
+    private val sequenceRule: SequenceRule,
     private val sequenceIndex: Int,
-)
+) {
+    override fun toString(): String = "sequence" + (sequenceRule.explicitName?.let { "<$it>" } ?: "") + "#$sequenceIndex"
+}

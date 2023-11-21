@@ -7,11 +7,11 @@ import textutils.assureEndsWith
 import textutils.indentByFromSecondLine
 
 class EitherOfRule(
-    val options: List<Rule<*>>,
-    val givenName: String? = null,
+    private val options: List<Rule<*>>,
+    override val explicitName: String? = null,
 ) : Rule<Any?> {
     override val descriptionOfAMatchingThing: String by lazy {
-        givenName?.let { return@lazy it }
+        explicitName?.let { return@lazy it }
         val buffer = StringBuffer("one of:\n")
         options.forEach {
             buffer.append("- ")
@@ -80,13 +80,15 @@ class EitherOfRule(
 
 private data class EitherOfOptionContext(
     private val parentContext: Any,
-    private val parentRule: Rule<*>,
+    private val eitherOfRule: EitherOfRule,
     private val optionIndex: Int,
-)
+) {
+    override fun toString() = "eitherOf" + (eitherOfRule.explicitName?.let { "<$it>" } ?: "") + "#$optionIndex"
+}
 
 private class EitherOfWrappedExpectedToken(
     val delegate: ExpectedToken,
-    val eitherOfRule: Rule<*>,
+    val eitherOfRule: EitherOfRule,
     val optionIndex: Int,
     val onAmbiguityResolved: (context: Any) -> Any?,
 ) : ExpectedToken {

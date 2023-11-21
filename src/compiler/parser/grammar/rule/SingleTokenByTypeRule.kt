@@ -6,7 +6,8 @@ import compiler.parser.TokenSequence
 import compiler.reportings.Reporting
 
 class SingleTokenByTypeRule(private val type: TokenType) : Rule<Token> {
-    override val descriptionOfAMatchingThing: String get() = type.name
+    override val explicitName = null
+    override val descriptionOfAMatchingThing get() = type.name
 
     override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<Token> {
         if (!input.hasNext()) {

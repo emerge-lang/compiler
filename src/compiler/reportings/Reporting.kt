@@ -38,6 +38,7 @@ import compiler.binding.struct.StructMember
 import compiler.binding.type.BaseTypeReference
 import compiler.lexer.OperatorToken
 import compiler.lexer.SourceLocation
+import compiler.lexer.Token
 import textutils.indentByFromSecondLine
 
 abstract class Reporting internal constructor(

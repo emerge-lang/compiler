@@ -6,6 +6,7 @@ import compiler.reportings.MissingTokenReporting
 import compiler.reportings.TokenMismatchReporting
 
 class SingleTokenByEqualityRule(private val equalTo: Token) : Rule<Token> {
+    override val explicitName = null
     override val descriptionOfAMatchingThing: String get() = equalTo.toStringWithoutLocation()
 
     override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<Token> {

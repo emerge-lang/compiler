@@ -18,6 +18,8 @@ class RepeatingRule<T>(
         }
     }
 
+    override val explicitName = null
+
     override val descriptionOfAMatchingThing: String by lazy {
         val buffer = StringBuilder()
         buffer.append("The following")
