@@ -32,7 +32,7 @@ import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.SourceLocation
 import compiler.parser.grammar.rule.Rule
-import compiler.parser.grammar.rule.RuleMatchingResult
+import compiler.parser.grammar.rule.MatchingResult
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.enhanceErrors
 import compiler.parser.grammar.dsl.flatten
@@ -128,7 +128,7 @@ val Module: Rule<ASTModule> = sequence("module") {
     .flatten()
     .map { inResult ->
         @Suppress("UNCHECKED_CAST")
-        val input = inResult.item ?: return@map inResult as RuleMatchingResult<ASTModule> // null can haz any type that i want :)
+        val input = inResult.item ?: return@map inResult as MatchingResult<ASTModule> // null can haz any type that i want :)
 
         val reportings: MutableSet<Reporting> = HashSet()
         val astModule = ASTModule()
@@ -186,7 +186,7 @@ val Module: Rule<ASTModule> = sequence("module") {
             IdentifierToken("*")
         )))
 
-        RuleMatchingResult(
+        MatchingResult(
             isAmbiguous = false,
             marksEndOfAmbiguity = inResult.marksEndOfAmbiguity,
             item = astModule,

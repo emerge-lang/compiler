@@ -38,7 +38,7 @@ class EitherOfRule(
             }
         }
 
-    override fun match(context: Any, input: TokenSequence): RuleMatchingResult<Any?> {
+    override fun match(context: Any, input: TokenSequence): MatchingResult<Any?> {
         if (context !in ambiguityResolvedForContexts) {
             resolveAmbiguityForContext(context)
         }
@@ -58,7 +58,7 @@ class EitherOfRule(
             Reporting.mismatch(descriptionOfAMatchingThing, it)
         } ?: Reporting.unexpectedEOI(descriptionOfAMatchingThing, input.currentSourceLocation)
 
-        return RuleMatchingResult(
+        return MatchingResult(
             isAmbiguous = true,
             marksEndOfAmbiguity = false,
             item = null,

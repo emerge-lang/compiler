@@ -36,11 +36,11 @@ class RepeatingRule<T>(
         buffer.toString()
     }
 
-    override fun match(context: Any, input: TokenSequence): RuleMatchingResult<List<T>> {
+    override fun match(context: Any, input: TokenSequence): MatchingResult<List<T>> {
         input.mark()
 
-        val results = ArrayList<RuleMatchingResult<T>>(1)
-        var lastResult: RuleMatchingResult<T>? = null
+        val results = ArrayList<MatchingResult<T>>(1)
+        var lastResult: MatchingResult<T>? = null
 
         while (results.size < maxRepeats && input.hasNext()) {
             input.mark()
@@ -51,7 +51,7 @@ class RepeatingRule<T>(
                 // TODO: Fallback!
 
                 if (lastResult.hasErrors && !lastResult.isAmbiguous) {
-                    return RuleMatchingResult(
+                    return MatchingResult(
                         isAmbiguous = results.all { it.isAmbiguous },
                         marksEndOfAmbiguity = results.any { it.marksEndOfAmbiguity },
                         item = null,
@@ -69,7 +69,7 @@ class RepeatingRule<T>(
         if (!requireAtLeastOnce || results.isNotEmpty()) {
             input.commit()
 
-            return RuleMatchingResult(
+            return MatchingResult(
                 isAmbiguous = results.any { it.isAmbiguous },
                 marksEndOfAmbiguity = results.any { it.marksEndOfAmbiguity },
                 results.mapNotNull { it.item },
@@ -92,7 +92,7 @@ class RepeatingRule<T>(
             )
         }
 
-        return RuleMatchingResult(
+        return MatchingResult(
             isAmbiguous = lastResult?.isAmbiguous ?: true,
             marksEndOfAmbiguity = lastResult?.marksEndOfAmbiguity ?: false,
             item = null,

@@ -20,7 +20,7 @@
 package compiler.parser.grammar.dsl
 
 import compiler.parser.grammar.rule.Rule
-import compiler.parser.grammar.rule.RuleMatchingResult
+import compiler.parser.grammar.rule.MatchingResult
 import compiler.parser.TokenSequence
 import compiler.reportings.Reporting
 import compiler.transact.Position
@@ -39,20 +39,20 @@ fun <AstNode> Rule<*>.astTransformation(trimWhitespace: Boolean = false, transfo
 }
 
 /**
- * Maps all the emitted [RuleMatchingResult]s of the receiver [Rule] that are SUCCESSes using the given `mapper`; passes
+ * Maps all the emitted [MatchingResult]s of the receiver [Rule] that are SUCCESSes using the given `mapper`; passes
  * on error results with null results
  */
-fun <B,A> Rule<B>.map(mapper: (RuleMatchingResult<B>) -> RuleMatchingResult<A>): Rule<A> {
+fun <B,A> Rule<B>.map(mapper: (MatchingResult<B>) -> MatchingResult<A>): Rule<A> {
     return object: Rule<A> {
         override val explicitName get() = this@map.explicitName
         override val descriptionOfAMatchingThing get() = this@map.descriptionOfAMatchingThing
 
-        override fun match(context: Any, input: TokenSequence): RuleMatchingResult<A> {
+        override fun match(context: Any, input: TokenSequence): MatchingResult<A> {
             val baseResult = this@map.match(context, input)
 
             if (baseResult.item == null) {
                 @Suppress("UNCHECKED_CAST")
-                return baseResult as RuleMatchingResult<A>
+                return baseResult as MatchingResult<A>
             }
             else {
                 return mapper(baseResult)
@@ -70,7 +70,7 @@ fun <B,A> Rule<B>.map(mapper: (RuleMatchingResult<B>) -> RuleMatchingResult<A>):
  * Like map, but requires the mapper to act on the results only
  */
 fun <B,A> Rule<B>.mapResult(mapper: (B) -> A): Rule<A> = map { it ->
-    RuleMatchingResult(
+    MatchingResult(
         isAmbiguous = it.isAmbiguous,
         marksEndOfAmbiguity = it.marksEndOfAmbiguity,
         item = it.item?.let(mapper),
@@ -90,7 +90,7 @@ fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
         fun collectFrom(item: Any?) {
             if (item == null || item == Unit) return
 
-            if (item is RuleMatchingResult<*>) {
+            if (item is MatchingResult<*>) {
                 collectFrom(item.item)
                 collectFrom(item.reportings)
             }
@@ -112,7 +112,7 @@ fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
 
         collectFrom(base)
 
-        return@map RuleMatchingResult(
+        return@map MatchingResult(
             isAmbiguous = base.isAmbiguous,
             marksEndOfAmbiguity = base.marksEndOfAmbiguity,
             item = SimpleTransactionalSequence(itemBucket),
@@ -136,7 +136,7 @@ fun <T> Rule<TransactionalSequence<T, Position>>.trimWhitespaceTokens(front: Boo
 }
 
 /**
- * Operates on all [RuleMatchingResult]s emitted by the receiver rule.
+ * Operates on all [MatchingResult]s emitted by the receiver rule.
  * Runs all [Reporting]s of the receiver that have a level of [Reporting.Level.ERROR] or higher and are matched by the
  * given `predicate` through the `enhance` function; the [Reporting]s passed into `enhance` are not returned.
  */
@@ -153,7 +153,7 @@ fun <T> Rule<T>.enhanceErrors(predicate: (Reporting) -> Boolean, enhance: (Repor
             return@map baseResult
         }
 
-        return@map RuleMatchingResult(
+        return@map MatchingResult(
             isAmbiguous = baseResult.isAmbiguous,
             marksEndOfAmbiguity = baseResult.marksEndOfAmbiguity,
             item = baseResult.item,

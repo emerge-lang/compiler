@@ -23,7 +23,7 @@ import compiler.parser.TokenSequence
 interface Rule<T> {
     val descriptionOfAMatchingThing: String
     val explicitName: String?
-    fun match(context: Any, input: TokenSequence): RuleMatchingResult<T>
+    fun match(context: Any, input: TokenSequence): MatchingResult<T>
 
     /**
      * @return outer iterator: for each possible alternative in this rule (resolves [EitherOfRule] multitude of options):

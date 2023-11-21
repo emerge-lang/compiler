@@ -21,10 +21,10 @@ package compiler.parser.grammar.rule
 import compiler.reportings.Reporting
 
 /**
- * When a [Rule] is matched against an input it returns an [RuleMatchingResult] that describes
+ * When a [Rule] is matched against an input it returns an [MatchingResult] that describes
  * the outcome of the matching process.
  */
-class RuleMatchingResult<out ItemType>(
+class MatchingResult<out ItemType>(
     /**
      * If false, the result is unambiguous in the original context ([Rule.match]). If `false`, [EitherOfRule]
      * will not backtrack.
@@ -42,7 +42,7 @@ class RuleMatchingResult<out ItemType>(
     val item: ItemType?,
 
     /**
-     * Along with the [item] of the match, an [RuleMatchingResult] can provide the caller with additional reportings
+     * Along with the [item] of the match, an [MatchingResult] can provide the caller with additional reportings
      * about the matched input. If the input did not match the expectations of the [Rule] that could be details on what
      * expectations were not met.
      */

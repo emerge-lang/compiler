@@ -15,9 +15,9 @@ sealed class SingleTokenRule(
         sequenceOf(sequenceOf(MarkingExpectedToken(expectedToken)))
     }
 
-    final override fun match(context: Any, input: TokenSequence): RuleMatchingResult<Token> {
+    final override fun match(context: Any, input: TokenSequence): MatchingResult<Token> {
         if (!input.hasNext()) {
-            return RuleMatchingResult(
+            return MatchingResult(
                 isAmbiguous = true,
                 marksEndOfAmbiguity = false,
                 item = null,
@@ -31,7 +31,7 @@ sealed class SingleTokenRule(
         val processed = matchAndPostprocess(token)
         if (processed != null) {
             input.commit()
-            return RuleMatchingResult(
+            return MatchingResult(
                 isAmbiguous = false,
                 marksEndOfAmbiguity = context in marksEndOfAmbiguityInContexts,
                 item = processed,
@@ -40,7 +40,7 @@ sealed class SingleTokenRule(
         }
 
         input.rollback()
-        return RuleMatchingResult(
+        return MatchingResult(
             isAmbiguous = true,
             marksEndOfAmbiguity = false,
             item = null,

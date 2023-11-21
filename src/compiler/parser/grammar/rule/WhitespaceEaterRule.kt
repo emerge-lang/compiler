@@ -28,7 +28,7 @@ class WhitespaceEaterRule : Rule<Unit> {
     override val explicitName = null
     override val descriptionOfAMatchingThing = "optional whitespace"
 
-    override fun match(context: Any, input: TokenSequence): RuleMatchingResult<Unit> {
+    override fun match(context: Any, input: TokenSequence): MatchingResult<Unit> {
         while (input.hasNext()) {
             input.mark()
             val token = input.next()!!
@@ -40,7 +40,7 @@ class WhitespaceEaterRule : Rule<Unit> {
             input.commit()
         }
 
-        return RuleMatchingResult(
+        return MatchingResult(
             isAmbiguous = true,
             marksEndOfAmbiguity = false,
             item = Unit,

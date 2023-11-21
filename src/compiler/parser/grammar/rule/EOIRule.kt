@@ -30,9 +30,9 @@ class EOIRule private constructor() : Rule<Unit> {
     override val explicitName = null
     override val descriptionOfAMatchingThing = "end of input"
     override fun toString(): String = descriptionOfAMatchingThing
-    override fun match(context: Any, input: TokenSequence): RuleMatchingResult<Unit> {
+    override fun match(context: Any, input: TokenSequence): MatchingResult<Unit> {
         if (input.hasNext()) {
-            return RuleMatchingResult(
+            return MatchingResult(
                 isAmbiguous = true,
                 marksEndOfAmbiguity = false,
                 null,
@@ -40,7 +40,7 @@ class EOIRule private constructor() : Rule<Unit> {
             )
         }
 
-        return RuleMatchingResult(
+        return MatchingResult(
             isAmbiguous = false,
             marksEndOfAmbiguity = context in marksEndOfAmbiguityInContexts,
             item = Unit,
