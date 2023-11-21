@@ -123,6 +123,7 @@ val Module: Rule<ASTModule> = sequence("module") {
             ref(StructDefinition)
         }
     }
+    endOfInput()
 }
     .flatten()
     .map { inResult ->
