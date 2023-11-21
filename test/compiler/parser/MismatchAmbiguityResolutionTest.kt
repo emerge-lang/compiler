@@ -1,10 +1,12 @@
 package compiler.parser
 
+import compiler.ast.expression.IdentifierExpression
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.negative.lexCode
 import compiler.negative.shouldReport
+import compiler.parser.grammar.Expression
 import compiler.parser.grammar.dsl.*
 import compiler.reportings.ParsingMismatchReporting
 import io.kotest.core.spec.style.FreeSpec
@@ -179,6 +181,32 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
                 IdentifierToken("b"),
             )
         }
+    }
+
+    "totally ambiguous eitherOf should not be re-evaluated on recursion / nesting" {
+        val valueExpr = eitherOf("value expression") {
+            identifier("literal")
+            identifier("identifier")
+        }
+
+        val binaryExpr = sequence("binary expression") {
+            ref(valueExpr)
+            identifier("binary operator")
+        }
+
+        val expr = eitherOf("expression") {
+            ref(binaryExpr)
+            ref(valueExpr)
+        }
+            .flatten()
+            .mapResult { it.remainingToList() }
+
+        val tokens = lexCode("identifier", addModuleDeclaration = false)
+        val result = expr.tryMatch(Unit, tokens)
+
+        result.reportings should beEmpty()
+        result.isAmbiguous shouldBe false
+        result.item shouldBe listOf(IdentifierToken("identifier"))
     }
 })
 

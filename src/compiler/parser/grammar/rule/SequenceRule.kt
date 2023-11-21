@@ -65,6 +65,12 @@ class SequenceRule(
         )
     }
 
+    override fun markAmbiguityResolved(inContext: Any) {
+        this.subRules.forEachIndexed { ruleIndex, rule ->
+            rule.markAmbiguityResolved(SequenceIndexContext(inContext, this, ruleIndex))
+        }
+    }
+
     private val firstDiversionAtRuleIndex = subRules.asSequence()
         .takeWhile { it.minimalMatchingSequence.hasFewerElementsThan(2) }
         .count()

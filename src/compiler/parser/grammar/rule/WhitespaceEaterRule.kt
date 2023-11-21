@@ -48,6 +48,10 @@ class WhitespaceEaterRule : Rule<Unit> {
         )
     }
 
+    override fun markAmbiguityResolved(inContext: Any) {
+        // nothing to do
+    }
+
     override val minimalMatchingSequence = sequenceOf(emptySequence<ExpectedToken>())
 
     companion object {

@@ -48,6 +48,10 @@ class EOIRule private constructor() : Rule<Unit> {
         )
     }
 
+    override fun markAmbiguityResolved(inContext: Any) {
+        // nothing to do
+    }
+
     private val expectedToken: ExpectedToken = object : ExpectedToken {
         override fun markAsRemovingAmbiguity(inContext: Any) {
             marksEndOfAmbiguityInContexts.add(inContext)

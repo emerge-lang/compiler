@@ -100,6 +100,10 @@ class RepeatingRule<T>(
         )
     }
 
+    override fun markAmbiguityResolved(inContext: Any) {
+        rule.markAmbiguityResolved(inContext)
+    }
+
     override val minimalMatchingSequence = if (requireAtLeastOnce) {
         rule.minimalMatchingSequence
     } else {

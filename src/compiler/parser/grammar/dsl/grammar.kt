@@ -24,5 +24,9 @@ val <T> Rule<T>.withEmptyMinimalMatchingSequence: Rule<T> get() = object : Rule<
         return this@withEmptyMinimalMatchingSequence.tryMatch(context, input)
     }
 
+    override fun markAmbiguityResolved(inContext: Any) {
+        return this@withEmptyMinimalMatchingSequence.markAmbiguityResolved(inContext)
+    }
+
     override val minimalMatchingSequence = sequenceOf(emptySequence<ExpectedToken>())
 }

@@ -22,6 +22,6 @@ import compiler.lexer.SourceLocation
 
 class UnexpectedEndOfInputReporting(location: SourceLocation, expected: String) : Reporting(
     Level.ERROR,
-    "Unexpected EOI, expected $expected",
+    "Unexpected end of input, expected $expected",
     location
 )

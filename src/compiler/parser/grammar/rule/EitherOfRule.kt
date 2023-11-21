@@ -1,8 +1,10 @@
 package compiler.parser.grammar.rule
 
+import compiler.EarlyStackOverflowException
 import compiler.parser.TokenSequence
 import compiler.pivot
 import compiler.reportings.Reporting
+import compiler.throwOnCycle
 import textutils.assureEndsWith
 import textutils.indentByFromSecondLine
 
@@ -30,13 +32,13 @@ class EitherOfRule(
     private val ambiguityResolvedForContexts = HashSet<Any>()
 
     override val minimalMatchingSequence: Sequence<Sequence<ExpectedToken>> = options.asSequence()
-            .flatMapIndexed { optionIndex, optionRule ->
-                optionRule.minimalMatchingSequence.mapIndexed { _, optionSequence ->
-                    optionSequence.mapIndexed { _, expectedToken ->
-                        EitherOfWrappedExpectedToken(expectedToken, this, optionIndex, this.ambiguityResolvedForContexts::add)
-                    }
+        .flatMapIndexed { optionIndex, optionRule ->
+            optionRule.minimalMatchingSequence.mapIndexed { _, optionSequence ->
+                optionSequence.mapIndexed { _, expectedToken ->
+                    EitherOfWrappedExpectedToken(expectedToken, this, optionIndex)
                 }
             }
+        }
 
     override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<Any?> {
         if (context !in ambiguityResolvedForContexts) {
@@ -75,7 +77,15 @@ class EitherOfRule(
                 .flatten()
                 .forEach { it.markAsRemovingAmbiguity(context) }
         }
-        ambiguityResolvedForContexts.add(context)
+        markAmbiguityResolved(context)
+    }
+
+    override fun markAmbiguityResolved(inContext: Any) {
+        if (ambiguityResolvedForContexts.add(inContext)) {
+            options.forEachIndexed { optionIndex, option ->
+                option.markAmbiguityResolved(EitherOfOptionContext(inContext, this, optionIndex))
+            }
+        }
     }
 }
 
@@ -91,10 +101,8 @@ private class EitherOfWrappedExpectedToken(
     val delegate: ExpectedToken,
     val eitherOfRule: EitherOfRule,
     val optionIndex: Int,
-    val onAmbiguityResolved: (context: Any) -> Any?,
 ) : ExpectedToken {
     override fun markAsRemovingAmbiguity(inContext: Any) {
-        onAmbiguityResolved(inContext)
         delegate.markAsRemovingAmbiguity(EitherOfOptionContext(inContext, eitherOfRule, optionIndex))
     }
 

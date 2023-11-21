@@ -60,6 +60,8 @@ fun <B,A> Rule<B>.map(mapper: (RuleMatchingResult<B>) -> RuleMatchingResult<A>):
             }
         }
 
+        override fun markAmbiguityResolved(inContext: Any) = this@map.markAmbiguityResolved(inContext)
+
         override val minimalMatchingSequence get() = this@map.minimalMatchingSequence
         override fun toString() = this@map.toString()
     }
@@ -147,28 +149,16 @@ fun <T> Rule<T>.enhanceErrors(predicate: (Reporting) -> Boolean, enhance: (Repor
         else reporting
     }
 
-    val base = this
-
-    return object: Rule<T> {
-        override val explicitName get() = base.explicitName
-        override val descriptionOfAMatchingThing get() = base.descriptionOfAMatchingThing
-
-        override fun tryMatch(context: Any, input: TokenSequence): RuleMatchingResult<T> {
-            val baseResult = base.tryMatch(context, input)
-
-            if (baseResult.reportings.isEmpty()) {
-                return baseResult
-            }
-            else {
-                return RuleMatchingResult(
-                    isAmbiguous = baseResult.isAmbiguous,
-                    marksEndOfAmbiguity = baseResult.marksEndOfAmbiguity,
-                    item = baseResult.item,
-                    reportings = baseResult.reportings.map(enhancerMapper).toSet()
-                )
-            }
+    return map { baseResult ->
+        if (baseResult.reportings.isEmpty()) {
+            return@map baseResult
         }
 
-        override val minimalMatchingSequence get() = base.minimalMatchingSequence
+        return@map RuleMatchingResult(
+            isAmbiguous = baseResult.isAmbiguous,
+            marksEndOfAmbiguity = baseResult.marksEndOfAmbiguity,
+            item = baseResult.item,
+            reportings = baseResult.reportings.map(enhancerMapper).toSet()
+        )
     }
 }

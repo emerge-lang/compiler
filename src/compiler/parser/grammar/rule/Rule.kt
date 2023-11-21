@@ -36,6 +36,8 @@ interface Rule<T> {
      * `listOf(emptyList().iterator()).iterator()`.
      */
     val minimalMatchingSequence: Sequence<Sequence<ExpectedToken>>
+
+    fun markAmbiguityResolved(inContext: Any)
 }
 
 sealed class SingleTokenRule(
@@ -80,6 +82,10 @@ sealed class SingleTokenRule(
             item = null,
             setOf(Reporting.mismatch(descriptionOfAMatchingThing, token)),
         )
+    }
+
+    override fun markAmbiguityResolved(inContext: Any) {
+        // nothing to do, no nested rules to inform and no own bookkeeping to adjust
     }
 
     /**
