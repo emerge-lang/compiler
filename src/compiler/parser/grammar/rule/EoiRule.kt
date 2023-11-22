@@ -25,7 +25,7 @@ import compiler.reportings.Reporting
  * Matches the end of the given token sequence
  * TODO: can this stay a singleton in light of [ExpectedToken.isCloneOf] asking for a distinction between every mention of this rule?
  */
-class EOIRule private constructor() : Rule<Unit> {
+class EoiRule private constructor() : Rule<Unit> {
     private val marksEndOfAmbiguityInContexts = HashSet<Any>()
     override val explicitName = null
     override val descriptionOfAMatchingThing = "end of input"
@@ -65,6 +65,6 @@ class EOIRule private constructor() : Rule<Unit> {
     override val minimalMatchingSequence = sequenceOf(sequenceOf(expectedToken))
 
     companion object {
-        val INSTANCE = EOIRule()
+        val INSTANCE = EoiRule()
     }
 }

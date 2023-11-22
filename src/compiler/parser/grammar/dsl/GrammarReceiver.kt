@@ -20,7 +20,7 @@ package compiler.parser.grammar.dsl
 
 import compiler.lexer.*
 import compiler.parser.grammar.rule.Rule
-import compiler.parser.grammar.rule.EOIRule
+import compiler.parser.grammar.rule.EoiRule
 import compiler.parser.grammar.rule.WhitespaceEaterRule
 import compiler.parser.grammar.rule.*
 
@@ -57,7 +57,7 @@ interface GrammarReceiver {
     }
 
     fun endOfInput() {
-        ref(EOIRule.INSTANCE)
+        ref(EoiRule.INSTANCE)
     }
 
     fun optionalWhitespace() {
