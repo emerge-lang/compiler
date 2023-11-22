@@ -123,7 +123,7 @@ fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
 
 fun <T> Rule<TransactionalSequence<T, Position>>.trimWhitespaceTokens(front: Boolean = true, back: Boolean = true): Rule<TransactionalSequence<T, Position>> {
 
-    val isWhitespace: (T) -> Boolean = { compiler.parser.isWhitespace(it as Any) }
+    val isWhitespace: (T) -> Boolean = { compiler.parser.isNewline(it as Any) }
 
     return this.mapResult { tokens ->
         val tokenList = tokens.remainingToList()

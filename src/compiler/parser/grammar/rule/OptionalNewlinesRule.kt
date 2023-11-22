@@ -19,12 +19,12 @@
 package compiler.parser.grammar.rule
 
 import compiler.parser.TokenSequence
-import compiler.parser.isWhitespace
+import compiler.parser.isNewline
 
 /**
- * Skips whitespace in the input stream
+ * Skips newlines in the input stream. Placing this makes newlines non-semantic.
  */
-class WhitespaceEaterRule : Rule<Unit> {
+class OptionalNewlinesRule : Rule<Unit> {
     override val explicitName = null
     override val descriptionOfAMatchingThing = "optional whitespace"
 
@@ -32,7 +32,7 @@ class WhitespaceEaterRule : Rule<Unit> {
         while (input.hasNext()) {
             input.mark()
             val token = input.next()!!
-            if (!isWhitespace(token)) {
+            if (!isNewline(token)) {
                 input.rollback()
                 break
             }
@@ -55,6 +55,6 @@ class WhitespaceEaterRule : Rule<Unit> {
     override val minimalMatchingSequence = sequenceOf(emptySequence<ExpectedToken>())
 
     companion object {
-        val INSTANCE: WhitespaceEaterRule = WhitespaceEaterRule()
+        val INSTANCE: OptionalNewlinesRule = OptionalNewlinesRule()
     }
 }

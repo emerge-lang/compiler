@@ -21,7 +21,7 @@ package compiler.parser.grammar.dsl
 import compiler.lexer.*
 import compiler.parser.grammar.rule.Rule
 import compiler.parser.grammar.rule.EoiRule
-import compiler.parser.grammar.rule.WhitespaceEaterRule
+import compiler.parser.grammar.rule.OptionalNewlinesRule
 import compiler.parser.grammar.rule.*
 
 typealias Grammar = GrammarReceiver.() -> Unit
@@ -61,7 +61,7 @@ interface GrammarReceiver {
     }
 
     fun optionalWhitespace() {
-        ref(WhitespaceEaterRule.INSTANCE)
+        ref(OptionalNewlinesRule.INSTANCE)
     }
 }
 
