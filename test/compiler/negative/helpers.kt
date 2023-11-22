@@ -8,10 +8,12 @@ import compiler.lexer.SourceLocation
 import compiler.lexer.lex
 import compiler.parser.TokenSequence
 import compiler.parser.grammar.Module
+import compiler.parser.grammar.rule.MatchingContext
 import compiler.parser.toTransactional
 import compiler.reportings.Reporting
 import io.kotest.inspectors.forOne
 import io.kotest.matchers.types.shouldBeInstanceOf
+import java.math.MathContext
 
 fun lexCode(code: String, addModuleDeclaration: Boolean = true): TokenSequence {
     return lexCodeInternal(code, addModuleDeclaration)
@@ -60,7 +62,7 @@ private fun lexCodeInternal(code: String, addModuleDeclaration: Boolean): TokenS
  */
 fun validateModule(code: String, addModuleDeclaration: Boolean = true): Collection<Reporting> {
     val tokens = lexCodeInternal(code.assureEndsWith('\n'), addModuleDeclaration)
-    val result = Module.match(Unit, tokens)
+    val result = Module.match(MatchingContext.None, tokens)
     if (result.item == null) {
         val error = result.reportings.maxBy { it.level }
         throw AssertionError("Failed to parse code: ${error.message} in ${error.sourceLocation}")

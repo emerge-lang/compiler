@@ -3,6 +3,7 @@ import compiler.binding.type.BuiltinType
 import compiler.lexer.SourceContentAwareSourceDescriptor
 import compiler.lexer.lex
 import compiler.parser.grammar.Module
+import compiler.parser.grammar.rule.MatchingContext
 import compiler.parser.toTransactional
 import compiler.reportings.Reporting
 import java.time.Clock
@@ -38,7 +39,7 @@ fun main(args: Array<String>) {
     val sourceInMemoryAt = measureClock.instant()
     println("Source in memory after ${Duration.between(startedAt, sourceInMemoryAt)}")
 
-    val matched = Module.match(Unit, transactionalTokenSequence)
+    val matched = Module.match(MatchingContext.None, transactionalTokenSequence)
     val lexicalCompleteAt = measureClock.instant()
     println("Lexical analysis complete after ${Duration.between(startedAt, lexicalCompleteAt)}"
         + " (took ${Duration.between(sourceInMemoryAt, lexicalCompleteAt)})")

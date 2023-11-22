@@ -23,6 +23,7 @@ import compiler.lexer.SourceContentAwareSourceDescriptor
 import compiler.lexer.lex
 import compiler.parser.TokenSequence
 import compiler.parser.grammar.Module
+import compiler.parser.grammar.rule.MatchingContext
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.IdentityHashMap
@@ -37,7 +38,7 @@ fun parseFromClasspath(path: Path): ASTModule {
         override val sourceLocation = "classpath:" + path
         override val sourceLines = sourceode
     }
-    val matchResult = Module.match(Unit, TokenSequence(lex(sourceDescriptor).toList(), sourceDescriptor.toLocation(1, 1)))
+    val matchResult = Module.match(MatchingContext.None, TokenSequence(lex(sourceDescriptor).toList(), sourceDescriptor.toLocation(1, 1)))
 
     if (matchResult.hasErrors) {
         System.err.println()

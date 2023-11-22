@@ -27,7 +27,7 @@ class SequenceRule(
 
     override fun toString(): String = descriptionOfAMatchingThing
 
-    override fun match(context: Any, input: TokenSequence): MatchingResult<List<MatchingResult<*>>> {
+    override fun match(context: MatchingContext, input: TokenSequence): MatchingResult<List<MatchingResult<*>>> {
         input.mark()
 
         val results = mutableListOf<MatchingResult<*>>()
@@ -64,7 +64,7 @@ class SequenceRule(
         )
     }
 
-    override fun markAmbiguityResolved(inContext: Any) {
+    override fun markAmbiguityResolved(inContext: MatchingContext) {
         this.subRules.forEachIndexed { ruleIndex, rule ->
             rule.markAmbiguityResolved(SequenceIndexContext(inContext, this, ruleIndex))
         }
@@ -126,7 +126,7 @@ class SequenceRule(
         val indexOfRuleObtainedFrom: Int,
         val parentSequence: SequenceRule,
     ) : ExpectedToken {
-        override fun markAsRemovingAmbiguity(inContext: Any) {
+        override fun markAsRemovingAmbiguity(inContext: MatchingContext) {
             delegate.markAsRemovingAmbiguity(SequenceIndexContext(inContext, parentSequence, indexOfRuleObtainedFrom))
         }
 
@@ -145,6 +145,6 @@ private data class SequenceIndexContext(
     private val parentContext: Any,
     private val sequenceRule: SequenceRule,
     private val sequenceIndex: Int,
-) {
+) : MatchingContext() {
     override fun toString(): String = "sequence" + (sequenceRule.explicitName?.let { "<$it>" } ?: "") + "#$sequenceIndex"
 }

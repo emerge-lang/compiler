@@ -30,7 +30,7 @@ class EoiRule private constructor() : Rule<Unit> {
     override val explicitName = null
     override val descriptionOfAMatchingThing = "end of input"
     override fun toString(): String = descriptionOfAMatchingThing
-    override fun match(context: Any, input: TokenSequence): MatchingResult<Unit> {
+    override fun match(context: MatchingContext, input: TokenSequence): MatchingResult<Unit> {
         if (input.hasNext()) {
             return MatchingResult(
                 isAmbiguous = true,
@@ -48,12 +48,12 @@ class EoiRule private constructor() : Rule<Unit> {
         )
     }
 
-    override fun markAmbiguityResolved(inContext: Any) {
+    override fun markAmbiguityResolved(inContext: MatchingContext) {
         // nothing to do
     }
 
     private val expectedToken: ExpectedToken = object : ExpectedToken {
-        override fun markAsRemovingAmbiguity(inContext: Any) {
+        override fun markAsRemovingAmbiguity(inContext: MatchingContext) {
             marksEndOfAmbiguityInContexts.add(inContext)
         }
 

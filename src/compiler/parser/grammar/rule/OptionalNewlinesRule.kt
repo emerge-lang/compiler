@@ -28,7 +28,7 @@ class OptionalNewlinesRule : Rule<Unit> {
     override val explicitName = null
     override val descriptionOfAMatchingThing = "optional whitespace"
 
-    override fun match(context: Any, input: TokenSequence): MatchingResult<Unit> {
+    override fun match(context: MatchingContext, input: TokenSequence): MatchingResult<Unit> {
         while (input.hasNext()) {
             input.mark()
             val token = input.next()!!
@@ -48,7 +48,7 @@ class OptionalNewlinesRule : Rule<Unit> {
         )
     }
 
-    override fun markAmbiguityResolved(inContext: Any) {
+    override fun markAmbiguityResolved(inContext: MatchingContext) {
         // nothing to do
     }
 

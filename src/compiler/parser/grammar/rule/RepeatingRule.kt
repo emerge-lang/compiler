@@ -36,7 +36,7 @@ class RepeatingRule<T>(
         buffer.toString()
     }
 
-    override fun match(context: Any, input: TokenSequence): MatchingResult<List<T>> {
+    override fun match(context: MatchingContext, input: TokenSequence): MatchingResult<List<T>> {
         input.mark()
 
         val results = ArrayList<MatchingResult<T>>(1)
@@ -100,7 +100,7 @@ class RepeatingRule<T>(
         )
     }
 
-    override fun markAmbiguityResolved(inContext: Any) {
+    override fun markAmbiguityResolved(inContext: MatchingContext) {
         rule.markAmbiguityResolved(inContext)
     }
 

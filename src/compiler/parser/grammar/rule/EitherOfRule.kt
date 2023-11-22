@@ -38,7 +38,7 @@ class EitherOfRule(
             }
         }
 
-    override fun match(context: Any, input: TokenSequence): MatchingResult<Any?> {
+    override fun match(context: MatchingContext, input: TokenSequence): MatchingResult<Any?> {
         if (context !in ambiguityResolvedForContexts) {
             resolveAmbiguityForContext(context)
         }
@@ -66,7 +66,7 @@ class EitherOfRule(
         )
     }
 
-    private fun resolveAmbiguityForContext(context: Any) {
+    private fun resolveAmbiguityForContext(context: MatchingContext) {
         minimalMatchingSequence.pivot().forEach { tokensAtIndexIntoThisRule ->
             tokensAtIndexIntoThisRule
                 .filterNotNull()
@@ -78,7 +78,7 @@ class EitherOfRule(
         markAmbiguityResolved(context)
     }
 
-    override fun markAmbiguityResolved(inContext: Any) {
+    override fun markAmbiguityResolved(inContext: MatchingContext) {
         if (ambiguityResolvedForContexts.add(inContext)) {
             options.forEachIndexed { optionIndex, option ->
                 option.markAmbiguityResolved(EitherOfOptionContext(inContext, this, optionIndex))
@@ -91,7 +91,7 @@ private data class EitherOfOptionContext(
     private val parentContext: Any,
     private val eitherOfRule: EitherOfRule,
     private val optionIndex: Int,
-) {
+) : MatchingContext() {
     override fun toString() = "eitherOf" + (eitherOfRule.explicitName?.let { "<$it>" } ?: "") + "#$optionIndex"
 }
 
@@ -100,7 +100,7 @@ private class EitherOfWrappedExpectedToken(
     val eitherOfRule: EitherOfRule,
     val optionIndex: Int,
 ) : ExpectedToken {
-    override fun markAsRemovingAmbiguity(inContext: Any) {
+    override fun markAsRemovingAmbiguity(inContext: MatchingContext) {
         delegate.markAsRemovingAmbiguity(EitherOfOptionContext(inContext, eitherOfRule, optionIndex))
     }
 

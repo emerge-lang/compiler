@@ -9,13 +9,13 @@ sealed class SingleTokenRule(
 ) : Rule<Token> {
     override val explicitName = null
 
-    private val marksEndOfAmbiguityInContexts = HashSet<Any>()
+    private val marksEndOfAmbiguityInContexts = HashSet<MatchingContext>()
 
     final override val minimalMatchingSequence: Sequence<Sequence<ExpectedToken>> by lazy {
         sequenceOf(sequenceOf(MarkingExpectedToken(expectedToken)))
     }
 
-    final override fun match(context: Any, input: TokenSequence): MatchingResult<Token> {
+    final override fun match(context: MatchingContext, input: TokenSequence): MatchingResult<Token> {
         if (!input.hasNext()) {
             return MatchingResult(
                 isAmbiguous = true,
@@ -48,7 +48,7 @@ sealed class SingleTokenRule(
         )
     }
 
-    override fun markAmbiguityResolved(inContext: Any) {
+    override fun markAmbiguityResolved(inContext: MatchingContext) {
         // nothing to do, no nested rules to inform and no own bookkeeping to adjust
     }
 
@@ -62,7 +62,7 @@ sealed class SingleTokenRule(
     private inner class MarkingExpectedToken(
         private val delegate: ExpectedToken,
     ) : ExpectedToken {
-        override fun markAsRemovingAmbiguity(inContext: Any) {
+        override fun markAsRemovingAmbiguity(inContext: MatchingContext) {
             marksEndOfAmbiguityInContexts.add(inContext)
             delegate.markAsRemovingAmbiguity(inContext)
         }

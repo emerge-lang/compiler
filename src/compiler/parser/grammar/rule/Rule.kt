@@ -23,7 +23,7 @@ import compiler.parser.TokenSequence
 interface Rule<T> {
     val descriptionOfAMatchingThing: String
     val explicitName: String?
-    fun match(context: Any, input: TokenSequence): MatchingResult<T>
+    fun match(context: MatchingContext, input: TokenSequence): MatchingResult<T>
 
     /**
      * @return outer iterator: for each possible alternative in this rule (resolves [EitherOfRule] multitude of options):
@@ -34,5 +34,5 @@ interface Rule<T> {
      */
     val minimalMatchingSequence: Sequence<Sequence<ExpectedToken>>
 
-    fun markAmbiguityResolved(inContext: Any)
+    fun markAmbiguityResolved(inContext: MatchingContext)
 }

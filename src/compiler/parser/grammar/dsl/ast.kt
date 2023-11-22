@@ -22,6 +22,7 @@ package compiler.parser.grammar.dsl
 import compiler.parser.grammar.rule.Rule
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.parser.TokenSequence
+import compiler.parser.grammar.rule.MatchingContext
 import compiler.reportings.Reporting
 import compiler.transact.Position
 import compiler.transact.SimpleTransactionalSequence
@@ -47,7 +48,7 @@ fun <B,A> Rule<B>.map(mapper: (MatchingResult<B>) -> MatchingResult<A>): Rule<A>
         override val explicitName get() = this@map.explicitName
         override val descriptionOfAMatchingThing get() = this@map.descriptionOfAMatchingThing
 
-        override fun match(context: Any, input: TokenSequence): MatchingResult<A> {
+        override fun match(context: MatchingContext, input: TokenSequence): MatchingResult<A> {
             val baseResult = this@map.match(context, input)
 
             if (baseResult.item == null) {
@@ -59,7 +60,7 @@ fun <B,A> Rule<B>.map(mapper: (MatchingResult<B>) -> MatchingResult<A>): Rule<A>
             }
         }
 
-        override fun markAmbiguityResolved(inContext: Any) = this@map.markAmbiguityResolved(inContext)
+        override fun markAmbiguityResolved(inContext: MatchingContext) = this@map.markAmbiguityResolved(inContext)
 
         override val minimalMatchingSequence get() = this@map.minimalMatchingSequence
         override fun toString() = this@map.toString()

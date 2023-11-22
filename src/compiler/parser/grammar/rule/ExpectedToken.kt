@@ -18,7 +18,7 @@ interface ExpectedToken {
      * from then on must be `true`.
      * All of that is scoped to each unique context ([inContext]).
      */
-    fun markAsRemovingAmbiguity(inContext: Any) {}
+    fun markAsRemovingAmbiguity(inContext: MatchingContext) {}
 
     /**
      * @return an [ExpectedToken] that directly models an expected token, rather than delegating/wrapping
