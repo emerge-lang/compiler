@@ -6,13 +6,21 @@ import compiler.parser.grammar.rule.*
 
 fun sequence(explicitName: String? = null, grammar: Grammar): Rule<*> {
     return LazyRule {
-        SequenceRule(RuleCollectingGrammarReceiver.collect(grammar), explicitName)
+        RuleCollectingGrammarReceiver.collect(
+            grammar,
+            { rules -> SequenceRule(rules, explicitName) },
+            explicitName == null,
+        )
     }
 }
 
 fun eitherOf(explicitName: String? = null, grammar: Grammar): Rule<*> {
     return LazyRule {
-        EitherOfRule(RuleCollectingGrammarReceiver.collect(grammar), explicitName)
+        RuleCollectingGrammarReceiver.collect(
+            grammar,
+            { rules -> EitherOfRule(rules, explicitName) },
+            explicitName == null,
+        )
     }
 }
 

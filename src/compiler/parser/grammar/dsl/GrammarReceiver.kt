@@ -19,7 +19,6 @@
 package compiler.parser.grammar.dsl
 
 import compiler.lexer.*
-import compiler.parser.TokenSequence
 import compiler.parser.grammar.rule.Rule
 import compiler.parser.grammar.rule.EOIRule
 import compiler.parser.grammar.rule.WhitespaceEaterRule
@@ -41,8 +40,7 @@ interface GrammarReceiver {
     fun repeating(grammar: Grammar)
     fun repeatingAtLeastOnce(grammar: Grammar)
     fun identifier(acceptedOperators: Collection<Operator> = emptyList(), acceptedKeywords: Collection<Keyword> = emptyList())
-    fun optional(matcherFn: Grammar)
-    fun optional(rule: Rule<*>)
+    fun optional(grammar: Grammar)
 
     fun keyword(keyword: Keyword) {
         tokenEqualTo(KeywordToken(keyword))
@@ -87,19 +85,19 @@ class RuleCollectingGrammarReceiver private constructor() : GrammarReceiver {
     }
 
     override fun sequence(grammar: Grammar) {
-        addRule(SequenceRule(collect(grammar)), false)
+        addRule(collect(grammar, ::SequenceRule), false)
     }
 
-    override fun eitherOf(mismatchIsAmbiguous: Boolean, grammar: Grammar) {
-        addRule(EitherOfRule(collect(grammar)), false)
+    override fun eitherOf(grammar: Grammar) {
+        addRule(collect(grammar, ::EitherOfRule), false)
     }
 
     override fun repeating(grammar: Grammar) {
-        addRule(RepeatingRule(SequenceRule(collect(grammar)), requireAtLeastOnce = false), false)
+        addRule(RepeatingRule(collect(grammar, ::SequenceRule), requireAtLeastOnce = false), false)
     }
 
     override fun repeatingAtLeastOnce(grammar: Grammar) {
-        addRule(RepeatingRule(SequenceRule(collect(grammar)), requireAtLeastOnce = true), false)
+        addRule(RepeatingRule(collect(grammar, ::SequenceRule), requireAtLeastOnce = true), false)
     }
 
     override fun identifier(acceptedOperators: Collection<Operator>, acceptedKeywords: Collection<Keyword>) {
@@ -110,21 +108,26 @@ class RuleCollectingGrammarReceiver private constructor() : GrammarReceiver {
     }
 
     override fun optional(grammar: Grammar) {
-        optional(SequenceRule(collect(grammar)))
-    }
-
-    override fun optional(rule: Rule<*>) {
         addRule(
-            RepeatingRule(rule, requireAtLeastOnce = false, maxRepeats = 1),
+            RepeatingRule(collect(grammar, ::SequenceRule), requireAtLeastOnce = false, maxRepeats = 1),
             false,
         )
     }
 
     companion object {
-        fun collect(grammar: Grammar): List<Rule<*>> {
+        /**
+         * Runs the given [grammar] to discover all its rules. If it produces only a single rule and [optimizeSingleRule],
+         * that rule is returned directly. If it produces more than once, the list of rules is passed through
+         * [combinedBuilder] so you can get a [SequenceRule] or [EitherOfRule], depending on context.
+         */
+        fun collect(grammar: Grammar, combinedBuilder: (List<Rule<*>>) -> Rule<*>, optimizeSingleRule: Boolean = true): Rule<*> {
             val collector = RuleCollectingGrammarReceiver()
             collector.grammar()
-            return collector.rules
+            if (optimizeSingleRule && collector.rules.size == 1) {
+                return collector.rules.single()
+            }
+            
+            return combinedBuilder(collector.rules)
         }
     }
 }
