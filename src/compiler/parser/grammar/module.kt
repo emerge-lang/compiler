@@ -114,7 +114,7 @@ val ImportDeclaration = sequence("import declaration") {
 val Module: Rule<ASTModule> = sequence("module") {
     repeatingAtLeastOnce {
         optionalWhitespace()
-        eitherOf(mismatchIsAmbiguous = false) {
+        eitherOf {
             endOfInput()
             ref(ModuleDeclaration)
             ref(ImportDeclaration)

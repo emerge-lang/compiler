@@ -37,11 +37,7 @@ interface GrammarReceiver {
     fun tokenOfType(type: TokenType)
     fun ref(rule: Rule<*>)
     fun sequence(grammar: Grammar)
-
-    /**
-     * @param mismatchIsAmbiguous TODO: remove, automatically deduce
-     */
-    fun eitherOf(mismatchIsAmbiguous: Boolean = true, grammar: Grammar)
+    fun eitherOf(grammar: Grammar)
     fun repeating(grammar: Grammar)
     fun repeatingAtLeastOnce(grammar: Grammar)
     fun identifier(acceptedOperators: Collection<Operator> = emptyList(), acceptedKeywords: Collection<Keyword> = emptyList())
