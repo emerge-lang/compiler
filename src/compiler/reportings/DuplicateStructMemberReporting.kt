@@ -32,7 +32,7 @@ class DuplicateStructMemberReporting(
     struct.declaration.declaredAt
 ) {
     override fun toString(): String {
-        var txt = "($level) $message".indentByFromSecondLine(2) + "\nin ${struct.declaration.declaredAt.sD.sourceLocation}\n\nDeclarations found with the same name:\n"
+        var txt = "($level) $message\n\nin ${struct.declaration.declaredAt.sD.sourceLocation}\n"
 
         if (struct.declaration.declaredAt.sD is SourceContentAwareSourceDescriptor) {
             txt += (struct.declaration.declaredAt.sD as SourceContentAwareSourceDescriptor).getIllustrationForHighlightedLines(
