@@ -35,6 +35,7 @@ import compiler.binding.expression.BoundInvocationExpression
 import compiler.binding.struct.Struct
 import compiler.binding.struct.StructMember
 import compiler.binding.type.BaseTypeReference
+import compiler.lexer.IdentifierToken
 import compiler.lexer.OperatorToken
 import compiler.lexer.SourceLocation
 import compiler.lexer.Token
@@ -121,18 +122,11 @@ abstract class Reporting internal constructor(
         fun inefficientModifiers(message: String, location: SourceLocation)
             = ModifierInefficiencyReporting(message, location)
 
-        fun unresolvableFunction(expr: BoundInvocationExpression): Reporting {
-            // if the receiver type could not be inferred, this is might be a consecutive error
-            if (expr.receiverExpression != null && expr.receiverExpression.type == null) {
-                return ConsecutiveFaultReporting(
-                    "Cannot resolve function ${expr.functionNameToken.value} on receiver of unknown type",
-                    expr.declaration.sourceLocation
-                )
-            }
-            else {
-                return UnresolvableFunctionReporting.of(expr)
-            }
-        }
+        fun noMatchingFunctionOverload(functionNameReference: IdentifierToken, receiverType: BaseTypeReference?, forTypes: List<BaseTypeReference?>, functionDeclaredAtAll: Boolean)
+            = UnresolvableFunctionOverloadReporting(functionNameReference, receiverType, forTypes, functionDeclaredAtAll)
+
+        fun unresolvableConstructor(nameToken: IdentifierToken, parameterTypes: List<BaseTypeReference?>, functionsWithNameAvailable: Boolean)
+            = UnresolvableConstructorReporting(nameToken, parameterTypes, functionsWithNameAvailable)
 
         fun typeDeductionError(message: String, location: SourceLocation)
             = TypeDeductionErrorReporting(message, location)

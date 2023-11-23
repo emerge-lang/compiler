@@ -3,7 +3,7 @@ package compiler.negative
 import compiler.ast.type.FunctionModifier
 import compiler.reportings.FunctionMissingModifierReporting
 import compiler.reportings.OperatorNotDeclaredReporting
-import compiler.reportings.UnresolvableFunctionReporting
+import compiler.reportings.UnresolvableFunctionOverloadReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 
@@ -23,7 +23,7 @@ class OperatorOverloadErrors : FreeSpec({
                 val a = false + true
             }
         """.trimIndent())
-            .shouldReport<UnresolvableFunctionReporting>()
+            .shouldReport<UnresolvableFunctionOverloadReporting>()
     }
 
     "unary minus declared without operator modifier" {

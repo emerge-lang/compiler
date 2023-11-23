@@ -21,6 +21,7 @@ package compiler.binding.expression
 import compiler.OnceAction
 import compiler.ast.Executable
 import compiler.ast.expression.InvocationExpression
+import compiler.ast.type.TypeReference
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.context.CTContext
@@ -40,17 +41,17 @@ class BoundInvocationExpression(
 
     private val onceAction = OnceAction()
 
-    override var type: BaseTypeReference? = null
-        private set
-
     /**
      * The result of the function dispatching. Is set (non null) after semantic analysis phase 2
      */
     var dispatchedFunction: BoundFunction? = null
         private set
 
-    override var isGuaranteedToThrow: Boolean? = null
-        private set
+    override val type: BaseTypeReference?
+        get() = dispatchedFunction?.returnType
+
+    override val isGuaranteedToThrow: Boolean?
+        get() = dispatchedFunction?.isGuaranteedToThrow
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> =
         onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
@@ -62,39 +63,46 @@ class BoundInvocationExpression(
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
             val reportings = mutableSetOf<Reporting>()
 
-            if (receiverExpression != null) reportings.addAll(receiverExpression.semanticAnalysisPhase2())
+            receiverExpression?.semanticAnalysisPhase2()?.let(reportings::addAll)
             parameterExpressions.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
 
-            // determine the function to be invoked
-            semanticPhase2_determineFunction().firstOrNull()?.let { function ->
-                reportings.addAll(function.semanticAnalysisPhase2())
-                dispatchedFunction = function
-                type = function.returnType
-                isGuaranteedToThrow = function.code?.isGuaranteedToThrow
+            val parameterTypes = parameterExpressions.map(BoundExpression<*>::type)
+            val resolvedConstructors = if (receiverExpression != null) null else context.resolveType(TypeReference(functionNameToken, false))?.constructors
+            val resolvedFunctions = context.resolveFunction(functionNameToken.value)
+            val receiverType = receiverExpression?.let { it.type ?: compiler.binding.type.Any.baseReference(context).nullable() }
+
+            if (resolvedConstructors.isNullOrEmpty() && resolvedFunctions.isEmpty()) {
+                reportings.add(Reporting.noMatchingFunctionOverload(functionNameToken, receiverType, parameterTypes, false))
+                return@getResult reportings
             }
-            ?: reportings.add(Reporting.unresolvableFunction(this))
+
+            if (resolvedConstructors != null) {
+                val matchingConstructor = resolvedConstructors
+                    .filterAndSortByMatchForInvocationTypes(null, parameterTypes)
+                    .firstOrNull()
+
+                if (matchingConstructor == null) {
+                    reportings.add(Reporting.unresolvableConstructor(functionNameToken, parameterTypes, resolvedFunctions.isNotEmpty()))
+                }
+
+                dispatchedFunction = matchingConstructor
+            } else {
+                val matchingFunction = resolvedFunctions
+                    .filterAndSortByMatchForInvocationTypes(receiverType, parameterTypes)
+                    .firstOrNull()
+
+                if (matchingFunction == null) {
+                    reportings.add(Reporting.noMatchingFunctionOverload(functionNameToken, receiverType, parameterTypes, resolvedFunctions.isNotEmpty()))
+                }
+
+                dispatchedFunction = matchingFunction
+            }
+
+            dispatchedFunction?.semanticAnalysisPhase2()?.let(reportings::addAll)
 
             // TODO: determine type of invocation: static dispatch or dynamic dispatch
 
             return@getResult reportings
-        }
-    }
-
-    /**
-     * Attempts to resolve all candidates for the invocation. If the receiver type cannot be resolved, assumes `Any?`
-     */
-    private fun semanticPhase2_determineFunction(): List<BoundFunction> {
-        if (receiverExpression == null) {
-            return context.resolveFunction(functionNameToken.value)
-                    .filter { it.receiverType == null }
-                    .filterAndSortByMatchForInvocationTypes(null, parameterExpressions.map(BoundExpression<*>::type))
-        } else {
-            val receiverType = receiverExpression.type ?: compiler.binding.type.Any.baseReference(context).nullable()
-            return context.resolveFunction(functionNameToken.value)
-                .filterAndSortByMatchForInvocationTypes(
-                    receiverType,
-                    parameterExpressions.map { it.type }
-                )
         }
     }
 

@@ -18,234 +18,57 @@
 
 package compiler.binding
 
-import compiler.EarlyStackOverflowException
-import compiler.InternalCompilerError
-import compiler.OnceAction
 import compiler.ast.FunctionDeclaration
 import compiler.ast.type.FunctionModifier
 import compiler.binding.context.CTContext
-import compiler.binding.expression.BoundExpression
 import compiler.binding.type.Any
-import compiler.binding.type.BaseType
 import compiler.binding.type.BaseTypeReference
-import compiler.binding.type.Unit
-import compiler.nullableOr
-import compiler.reportings.Reporting
-import compiler.throwOnCycle
+import compiler.lexer.SourceLocation
 
-/**
- * Describes the presence/avaiability of a (class member) function in a context.
- * Refers to the original declaration and holds a reference to the appropriate context
- * so that [BaseType]s for receiver, parameters and return type can be resolved.
- */
-class BoundFunction(
-    val context: CTContext,
-    val declaration: FunctionDeclaration,
-    val parameters: BoundParameterList,
-    val code: BoundExecutable<*>?
-) {
-    private val onceAction = OnceAction()
-
-    val declaredAt = declaration.declaredAt
+abstract class BoundFunction : SemanticallyAnalyzable {
+    abstract val context: CTContext
+    abstract val declaredAt: SourceLocation
 
     /**
      * The type of the receiver. Is null if the declared function has no receiver or if the declared receiver type
      * could not be resolved. See [FunctionDeclaration.receiverType] to resolve the ambiguity.
      */
-    var receiverType: BaseTypeReference? = null
-        private set
+    abstract val receiverType: BaseTypeReference?
 
-    val name: String = declaration.name.value
-
-    /**
-     * Implied modifiers. Operator functions often have an implied [FunctionModifier.READONLY]
-     */
-    val impliedModifiers: Set<FunctionModifier> = run {
-        // only operator functions have implied modifiers
-        if (FunctionModifier.OPERATOR !in declaration.modifiers) {
-            emptySet<FunctionModifier>()
-        }
-
-        when {
-            name.startsWith("opUnary")                         -> setOf(FunctionModifier.READONLY)
-            name.startsWith("op") && !name.endsWith("Assign")  -> setOf(FunctionModifier.READONLY)
-            name == "rangeTo" || name == "contains"            -> setOf(FunctionModifier.READONLY)
-            else                                               -> emptySet()
-        }
-    }
-
-    val modifiers = declaration.modifiers + impliedModifiers
-
-    val parameterTypes: List<BaseTypeReference?>
-        get() = declaration.parameters.types.map { it?.resolveWithin(context) }
-
-    var returnType: BaseTypeReference? = null
-        private set
-
-    val isDeclaredPure: Boolean = FunctionModifier.PURE in declaration.modifiers
-
-    /**
-     * Whether this functions code is behaves in a pure way. Is null if that has not yet been determined (see semantic
-     * analysis) or if the function has no body.
-     */
-    var isEffectivelyPure: Boolean? = null
-        private set
+    abstract val name: String
+    abstract val modifiers: Set<FunctionModifier>
 
     /**
      * Whether this function should be considered pure by other code using it. This is true if the function is
      * declared pure. If that is not the case the function is still considered pure if the declared
      * body behaves in a pure way.
      * This value is null if the purity was not yet determined; it must be non-null when semantic analysis is completed.
-     * @see isDeclaredPure
-     * @see isEffectivelyPure
+     * @see [BoundDeclaredFunction.isDeclaredPure]
+     * @see [BoundDeclaredFunction.isEffectivelyPure]
      */
-    val isPure: Boolean?
-        get() = if (isDeclaredPure) true else isEffectivelyPure
-
-    val isDeclaredPeadonly: Boolean = isDeclaredPure || FunctionModifier.READONLY in declaration.modifiers
-
-    /**
-     * Whether this functions code behaves in a readonly way. Is null if that has not yet been determined (see semantic
-     * analysis) or if the function has no body.
-     */
-    var isEffectivelyReadonly: Boolean? = null
-        private set
+    abstract val isPure: Boolean?
 
     /**
      * Whether this function should be considered readonly by other code using it. This is true if the function is
      * declared readonly or pure. If that is not the case the function is still considered readonly if the declared
      * body behaves in a readonly way.
      * This value is null if the purity was not yet determined; it must be non-null when semantic analysis is completed.
-     * @see isDeclaredPure
-     * @see isEffectivelyPure
+     * @see [BoundDeclaredFunction.isDeclaredReadonly]
+     * @see [BoundDeclaredFunction.isEffectivelyReadonly]
      */
-    val isReadonly: Boolean?
-        get() = if (isDeclaredPeadonly || isDeclaredPure) true else isEffectivelyReadonly
+    abstract val isReadonly: Boolean?
+
+    abstract val isGuaranteedToThrow: Boolean?
+
+    abstract val parameters: BoundParameterList
+
+    val parameterTypes: List<BaseTypeReference?>
+        get() = parameters.parameters.map { it.type }
+
+    abstract val returnType: BaseTypeReference?
 
     val fullyQualifiedName: String
-        get() = (context.module.name.joinToString(".") ?: "<unknown module>") + "." + name
-
-    fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
-            val reportings = mutableSetOf<Reporting>()
-
-            receiverType = declaration.receiverType?.resolveWithin(context)
-
-            if (declaration.receiverType != null && receiverType == null) {
-                reportings.add(Reporting.unknownType(declaration.receiverType))
-            }
-
-            // modifiers
-            if (FunctionModifier.EXTERNAL in modifiers) {
-                if (code != null) {
-                    reportings.add(Reporting.illegalFunctionBody(declaration))
-                }
-            } else if (code == null) {
-                reportings.add(Reporting.missingFunctionBody(declaration))
-            }
-
-            if (FunctionModifier.PURE in modifiers && FunctionModifier.READONLY in modifiers) {
-                reportings.add(Reporting.inefficientModifiers("The modifier readonly is superfluous: the function is also pure and pure implies readonly.",
-                    declaredAt))
-            }
-
-            // parameters
-            reportings.addAll(parameters.semanticAnalysisPhase1(false))
-
-            if (declaration.returnType != null) {
-                returnType = declaration.returnType.resolveWithin(context)
-                if (returnType == null) {
-                    reportings.add(Reporting.unknownType(declaration.returnType))
-                }
-            }
-
-            this.code?.semanticAnalysisPhase1()?.let(reportings::addAll)
-
-            return@getResult reportings
-        }
-    }
-
-    fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
-            val reportings = mutableSetOf<Reporting>()
-
-            try {
-                throwOnCycle(this) {
-                    this.code?.semanticAnalysisPhase2()?.let(reportings::addAll)
-                }
-            } catch (ex: EarlyStackOverflowException) {
-                reportings.add(Reporting.typeDeductionError("Cannot infer the return type of function $name because the type inference is cyclic here. Specify the type of one element explicitly.",
-                    declaredAt))
-            }
-
-            if (returnType == null) {
-                if (this.code is BoundExpression<*>) {
-                    this.returnType = this.code.type
-                } else {
-                    throw InternalCompilerError("Semantic analysis phase 1 did not determine return type of function; cannot infer in phase 2 because the functions code is not an expression.")
-                }
-            }
-
-            return@getResult reportings
-        }
-    }
-
-    fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
-            val reportings = mutableSetOf<Reporting>()
-
-            if (code != null) {
-                if (returnType != null) {
-                    code.enforceReturnType(returnType!!)
-                }
-
-                reportings += code.semanticAnalysisPhase3()
-
-                // readonly and purity checks
-                val statementsReadingBeyondFunctionContext = try {
-                    throwOnCycle(this) {
-                        code.findReadsBeyond(context)
-                    }
-                } catch (ex: EarlyStackOverflowException) {
-                    emptySet()
-                }
-                val statementsWritingBeyondFunctionContext = try {
-                    throwOnCycle(this) {
-                        code.findWritesBeyond(context)
-                    }
-                } catch (ex: EarlyStackOverflowException) {
-                    emptySet()
-                }
-
-                isEffectivelyReadonly = statementsWritingBeyondFunctionContext.isEmpty()
-                isEffectivelyPure = isEffectivelyReadonly!! && statementsReadingBeyondFunctionContext.isEmpty()
-
-                if (isDeclaredPure) {
-                    if (!isEffectivelyPure!!) {
-                        reportings.addAll(Reporting.purityViolations(statementsReadingBeyondFunctionContext,
-                            statementsWritingBeyondFunctionContext,
-                            this))
-                    }
-                    // else: effectively pure means effectively readonly
-                } else if (isDeclaredPeadonly && !isEffectivelyReadonly!!) {
-                    reportings.addAll(Reporting.readonlyViolations(statementsWritingBeyondFunctionContext, this))
-                }
-
-                // assure all paths return or throw
-                val isGuaranteedToTerminate = code.isGuaranteedToReturn nullableOr code.isGuaranteedToThrow
-
-                if (!isGuaranteedToTerminate) {
-                    // if the function is declared to return Unit a return of Unit is implied and should be inserted by backends
-                    // if this is a single-expression function (fun a() = 3), return is implied
-                    if ((returnType == null || returnType!!.baseType !== Unit) && this.code !is BoundExpression<*>) {
-                        reportings.add(Reporting.uncertainTermination(this))
-                    }
-                }
-            }
-
-            return@getResult reportings
-        }
-    }
+        get() = context.module.name.joinToString(".") + "." + name
 }
 
 /**
@@ -271,7 +94,7 @@ fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(receiverType:
             return@filter receiverType.isAssignableTo(it.receiverType!!)
         }
         // filter by incompatible number of parameters
-        .filter { it.declaration.parameters.parameters.size == parameterTypes.count() }
+        .filter { it.parameters.parameters.size == parameterTypes.count() }
         // filter by incompatible parameters
         .filter { candidateFn ->
             parameterTypes.forEachIndexed { paramIndex, paramType ->

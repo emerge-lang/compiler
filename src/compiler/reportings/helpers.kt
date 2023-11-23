@@ -45,3 +45,8 @@ internal fun typeMismatchReason(targetType: BaseTypeReference, sourceType: BaseT
     return null
 }
 
+internal fun List<BaseTypeReference?>.typeTupleToString(): String = joinToString(
+    prefix = "(",
+    transform = { it?.simpleName ?: "<unknown type>" },
+    postfix = ")",
+)

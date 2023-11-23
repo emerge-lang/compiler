@@ -26,7 +26,7 @@ import compiler.reportings.Reporting
 /**
  * Anything that resulted from AST and that can have compile time checks.
  */
-interface BoundElement<out ASTType> {
+interface BoundElement<out ASTType> : SemanticallyAnalyzable {
     /**
      * The context this expression has been bound to.
      */
@@ -36,28 +36,6 @@ interface BoundElement<out ASTType> {
      * The node that was bound to [context].
      */
     val declaration: ASTType
-
-    /**
-     * This method is in place to verify explicit mentions of types in expressions. At the current stage,
-     * this affects no expression. In the future, there will be expressions that can (or event must) contain
-     * such explicit mentions:
-     * * casts
-     * * explicit generics
-     */
-    fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
-
-    /**
-     * This method does currently not affect any expression. In the future, these expressions will make
-     * good use of this method:
-     * * constructor invocations
-     * * method references (both static ones and such with a context)
-     */
-    fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
-
-    /**
-     * Here is where actual semantics are validated.
-     */
-    fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
 
     /**
      * Use to find violations of purity.

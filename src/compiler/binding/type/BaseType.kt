@@ -21,6 +21,7 @@ package compiler.binding.type
 import compiler.ast.FunctionDeclaration
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
+import compiler.binding.BoundFunction
 import compiler.binding.context.CTContext
 import kotlinext.get
 
@@ -42,6 +43,9 @@ interface BaseType {
         get() = { ctx -> BaseTypeReference(TypeReference(simpleName, false, impliedModifier), ctx, this) }
 
     val superTypes: Set<BaseType>
+        get() = emptySet()
+
+    val constructors: Set<BoundFunction>
         get() = emptySet()
 
     /** @return Whether this type is the same as or a subtype of the given type. */

@@ -65,7 +65,7 @@ class BoundUnaryExpression(
         val receiverOperatorFuns =
             context.resolveFunction(opFunName)
                 .filterAndSortByMatchForInvocationTypes(valueType, emptyList())
-                .sortedByDescending { FunctionModifier.OPERATOR in it.declaration.modifiers }
+                .sortedByDescending { FunctionModifier.OPERATOR in it.modifiers }
 
         operatorFunction = receiverOperatorFuns.firstOrNull()
 

@@ -24,6 +24,7 @@ import compiler.ast.struct.StructDeclaration
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundElement
 import compiler.binding.BoundExecutable
+import compiler.binding.BoundFunction
 import compiler.binding.context.CTContext
 import compiler.binding.type.Any
 import compiler.binding.type.BaseType
@@ -38,6 +39,8 @@ class Struct(
     override val simpleName: String = declaration.name.value
 
     override val superTypes: Set<BaseType> = setOf(Any)
+
+    override val constructors: Set<BoundFunction> = setOf(StructConstructor(this))
 
     override fun resolveMemberFunction(name: String): Collection<FunctionDeclaration> = emptySet()
 

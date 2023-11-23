@@ -20,6 +20,7 @@ package compiler.ast
 
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeReference
+import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundFunction
 import compiler.binding.BoundParameterList
 import compiler.binding.context.CTContext
@@ -38,24 +39,24 @@ class FunctionDeclaration(
     val parameters: ParameterList,
     parsedReturnType: TypeReference?,
     val code: Executable<*>?,
-) : Declaration, Bindable<BoundFunction> {
+) : Declaration, Bindable<BoundDeclaredFunction> {
 
     /**
      * The return type. Is null if none was declared and it has not been inferred yet (see semantic analysis phase 2)
      */
     val returnType: TypeReference? = parsedReturnType
 
-    override fun bindTo(context: CTContext): BoundFunction {
+    override fun bindTo(context: CTContext): BoundDeclaredFunction {
         val functionContext = MutableCTContext(context)
 
         val boundParams = parameters.parameters.map(functionContext::addVariable)
         val boundParamList = BoundParameterList(context, parameters, boundParams)
 
-        return BoundFunction(
-                functionContext,
-                this,
-                boundParamList,
-                code?.bindTo(functionContext)
+        return BoundDeclaredFunction(
+            functionContext,
+            this,
+            boundParamList,
+            code?.bindTo(functionContext)
         )
     }
 }
