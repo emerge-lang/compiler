@@ -169,10 +169,10 @@ class BoundVariable(
         }
     }
 
-    override fun modified(context: CTContext): CTContext {
+    override val modifiedContext: CTContext by lazy {
         val newCtx = MutableCTContext(context)
         newCtx.addVariable(this)
-        return newCtx
+        newCtx
     }
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {

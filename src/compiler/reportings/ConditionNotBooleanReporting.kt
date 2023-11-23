@@ -25,14 +25,12 @@ import compiler.lexer.SourceLocation
 internal class ConditionNotBooleanReporting(val condition: BoundExpression<*>, location: SourceLocation)
     : TypeMismatchReporting(BuiltinBoolean.baseReference(condition.context), condition.type!!, location)
 {
-    override val message: String = {
-        var _message = "The condition must evaluate to Boolean"
-
+    override val message: String = run {
+        var message = "The condition must evaluate to Boolean"
         val reason = typeMismatchReason(targetType, sourceType)
         if (reason != null) {
-            _message += "; $reason"
+            message += "; $reason"
         }
-
-        _message
-    }()
+        message
+    }
 }

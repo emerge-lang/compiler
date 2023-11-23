@@ -65,16 +65,19 @@ class BoundAssignmentExpression(
         // can or should be written to
         if (targetExpression is BoundIdentifierExpression) {
             reportings.addAll(targetExpression.semanticAnalysisPhase3())
-            if (targetExpression.referredType == BoundIdentifierExpression.ReferredType.VARIABLE) {
-                assignmentTargetType = AssignmentTargetType.VARIABLE
-                targetVariable = targetExpression.referredVariable!!
+            when (targetExpression.referredType) {
+                BoundIdentifierExpression.ReferredType.VARIABLE -> {
+                    assignmentTargetType = AssignmentTargetType.VARIABLE
+                    targetVariable = targetExpression.referredVariable!!
 
-                if (!targetVariable!!.isAssignable) {
-                    reportings.add(Reporting.illegalAssignment("Cannot assign to value / final variable ${targetVariable!!.name}", this))
+                    if (!targetVariable!!.isAssignable) {
+                        reportings.add(Reporting.illegalAssignment("Cannot assign to value / final variable ${targetVariable!!.name}", this))
+                    }
                 }
-            }
-            else {
-                reportings += Reporting.illegalAssignment("Cannot assign a value to a type", this)
+                BoundIdentifierExpression.ReferredType.TYPENAME -> {
+                    reportings += Reporting.illegalAssignment("Cannot assign a value to a type", this)
+                }
+                else -> {}
             }
         }
         else if (targetExpression is BoundMemberAccessExpression) {

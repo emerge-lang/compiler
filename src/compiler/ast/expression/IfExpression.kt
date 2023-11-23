@@ -33,12 +33,14 @@ class IfExpression (
 ) : Expression<BoundIfExpression>, Executable<BoundIfExpression> {
 
     override fun bindTo(context: CTContext): BoundIfExpression {
+        val contextBeforeCondition: CTContext = MutableCTContext(context)
+        val boundCondition = condition.bindTo(contextBeforeCondition)
         return BoundIfExpression(
-            context,
+            contextBeforeCondition,
             this,
-            condition.bindTo(MutableCTContext(context)),
-            thenCode.bindTo(MutableCTContext(context)),
-            elseCode?.bindTo(MutableCTContext(context))
+            boundCondition,
+            thenCode.bindTo(boundCondition.modifiedContext),
+            elseCode?.bindTo(contextBeforeCondition),
         )
     }
 }

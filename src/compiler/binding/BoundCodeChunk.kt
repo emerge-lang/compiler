@@ -65,7 +65,7 @@ class BoundCodeChunk(
             reportings += boundStatement.semanticAnalysisPhase3()
 
             boundStatements.add(boundStatement)
-            currentContext = boundStatement.modified(currentContext)
+            currentContext = boundStatement.modifiedContext
         }
 
         this.statements = boundStatements

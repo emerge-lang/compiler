@@ -47,11 +47,11 @@ interface BoundExecutable<out ASTType> : BoundElement<Executable<*>> {
     val isGuaranteedToThrow: Boolean?
 
     /**
-     * Communicates changes the [Executable] applies any changes to its enclosing scope (e.g. a variable declaration declares a new
-     * variable)
-     * @return A [CTContext] derived from the given one, with all the necessary changes applied.
+     * A context derviced from the one bound to ([context]), containing all the changes the [Executable] applies
+     * to its enclosing scope (e.g. a variable declaration add a new variable)
      */
-    fun modified(context: CTContext): CTContext = context
+    val modifiedContext: CTContext
+        get() = context
 
     /**
      * Must be invoked before [semanticAnalysisPhase3].

@@ -24,10 +24,9 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
 import compiler.ast.expression.Expression
 import compiler.ast.expression.IdentifierExpression
-import compiler.ast.expression.InvocationExpression
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeReference
-import compiler.binding.BoundAssignmentStatement
+import compiler.binding.expression.BoundAssignmentExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.expression.BoundExpression
@@ -110,7 +109,7 @@ abstract class Reporting internal constructor(
         fun erroneousLiteralExpression(message: String, location: SourceLocation)
             = ErroneousLiteralExpressionReporting(message, location)
 
-        fun illegalAssignment(message: String, assignmentStatement: BoundAssignmentStatement)
+        fun illegalAssignment(message: String, assignmentStatement: BoundAssignmentExpression)
             = IllegalAssignmentReporting(message, assignmentStatement)
 
         fun illegalFunctionBody(function: FunctionDeclaration)
@@ -182,6 +181,12 @@ abstract class Reporting internal constructor(
         fun duplicateTypeMembers(struct: Struct, duplicateMembers: Set<StructMember>) =
             DuplicateStructMemberReporting(struct, duplicateMembers)
 
+        fun assignmentInCondition(assignment: BoundAssignmentExpression)
+            = AssignmentInConditionReporting(assignment.declaration)
+
+        fun mutationInCondition(mutation: BoundExecutable<*>)
+            = MutationInConditionReporting(mutation.declaration)
+
         /**
          * Converts a violation of purity or readonlyness into an appropriate error.
          * @param violationIsWrite Whether the violiation is a writing violation or a reading violation (true = writing, false = reading)
@@ -200,7 +205,7 @@ abstract class Reporting internal constructor(
                     return ModifyingInvocationInReadonlyContextReporting(violation, context)
                 }
             }
-            else if (violation is BoundAssignmentStatement) {
+            else if (violation is BoundAssignmentExpression) {
                 return StateModificationOutsideOfPurityBoundaryReporting(violation, context)
             }
 

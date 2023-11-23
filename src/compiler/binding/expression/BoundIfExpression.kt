@@ -35,10 +35,10 @@ class BoundIfExpression(
     val thenCode: BoundExecutable<*>,
     val elseCode: BoundExecutable<*>?
 ) : BoundExpression<IfExpression>, BoundExecutable<IfExpression> {
-    override val isGuaranteedToThrow: Boolean?
+    override val isGuaranteedToThrow: Boolean
         get() = thenCode.isGuaranteedToThrow nullableAnd (elseCode?.isGuaranteedToThrow ?: false)
 
-    override val isGuaranteedToReturn: Boolean?
+    override val isGuaranteedToReturn: Boolean
         get() {
             if (elseCode == null) {
                 return false
@@ -74,7 +74,7 @@ class BoundIfExpression(
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        var reportings = mutableSetOf<Reporting>()
+        val reportings = mutableSetOf<Reporting>()
 
         reportings.addAll(condition.semanticAnalysisPhase3())
         reportings.addAll(thenCode.semanticAnalysisPhase3())
@@ -90,11 +90,19 @@ class BoundIfExpression(
             }
         }
 
-        var thenType = if (thenCode is BoundExpression<*>) thenCode.type else Unit.baseReference(context)
-        var elseType = if (elseCode is BoundExpression<*>) elseCode.type else Unit.baseReference(context)
+        val thenType = if (thenCode is BoundExpression<*>) thenCode.type else Unit.baseReference(context)
+        val elseType = if (elseCode is BoundExpression<*>) elseCode.type else Unit.baseReference(context)
 
         if (thenType != null && elseType != null) {
             type = BaseTypeReference.closestCommonAncestorOf(thenType, elseType)
+        }
+
+        condition.findWritesBeyond(context).forEach { mutationInCondition ->
+            if (mutationInCondition is BoundAssignmentExpression) {
+                reportings.add(Reporting.assignmentInCondition(mutationInCondition))
+            } else {
+                reportings.add(Reporting.mutationInCondition(mutationInCondition))
+            }
         }
 
         return reportings

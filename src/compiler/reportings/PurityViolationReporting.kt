@@ -20,7 +20,7 @@ package compiler.reportings
 
 import compiler.ast.Executable
 import compiler.ast.type.FunctionModifier
-import compiler.binding.BoundAssignmentStatement
+import compiler.binding.expression.BoundAssignmentExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.expression.BoundIdentifierExpression
@@ -47,7 +47,7 @@ data class ModifyingInvocationInReadonlyContextReporting internal constructor(va
     "readonly function ${function.name} cannot invoke modifying function ${invcExpr.dispatchedFunction!!.name}"
 )
 
-data class StateModificationOutsideOfPurityBoundaryReporting internal constructor(val assignment: BoundAssignmentStatement, val function: BoundFunction) : PurityViolationReporting(
+data class StateModificationOutsideOfPurityBoundaryReporting internal constructor(val assignment: BoundAssignmentExpression, val function: BoundFunction) : PurityViolationReporting(
     assignment,
     function,
     {

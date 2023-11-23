@@ -11,6 +11,11 @@ import java.time.Duration
 
 val testCode = """module testcode
 
+fun foo() {
+    if x = 3 {
+    }
+}
+
 struct X {
     a: Int
     b: Int
@@ -29,7 +34,7 @@ fun main(args: Array<String>) {
     builtinsModule.context.swCtx = swCtx
     swCtx.addModule(builtinsModule)
 
-    var source = object : SourceContentAwareSourceDescriptor() {
+    val source = object : SourceContentAwareSourceDescriptor() {
         override val sourceLocation = "testcode"
         override val sourceLines = testCode.split("\n")
     }
