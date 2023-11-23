@@ -16,24 +16,24 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package compiler.binding
+package compiler.binding.expression
 
 import compiler.InternalCompilerError
-import compiler.ast.AssignmentStatement
+import compiler.ast.expression.AssignmentExpression
 import compiler.ast.Executable
+import compiler.binding.BoundExecutable
+import compiler.binding.BoundVariable
 import compiler.binding.context.CTContext
-import compiler.binding.expression.BoundExpression
-import compiler.binding.expression.BoundIdentifierExpression
-import compiler.binding.expression.BoundMemberAccessExpression
+import compiler.binding.type.BaseTypeReference
 import compiler.nullableOr
 import compiler.reportings.Reporting
 
-class BoundAssignmentStatement(
+class BoundAssignmentExpression(
     override val context: CTContext,
-    override val declaration: AssignmentStatement,
+    override val declaration: AssignmentExpression,
     val targetExpression: BoundExpression<*>,
     val valueExpression: BoundExpression<*>
-) : BoundExecutable<AssignmentStatement> {
+) : BoundExpression<AssignmentExpression> {
 
     /**
      * What this statement assigns to. Must not be null after semantic analysis has been completed.
@@ -46,6 +46,9 @@ class BoundAssignmentStatement(
      */
     var targetVariable: BoundVariable? = null
         private set
+
+    override val type: BaseTypeReference?
+        get() = valueExpression.type ?: targetExpression.type
 
     override val isGuaranteedToThrow: Boolean?
         get() = targetExpression.isGuaranteedToThrow nullableOr valueExpression.isGuaranteedToThrow
@@ -75,6 +78,7 @@ class BoundAssignmentStatement(
             }
         }
         else if (targetExpression is BoundMemberAccessExpression) {
+            // TODO
         }
         else {
             reportings += Reporting.illegalAssignment("Cannot assign to this target", this)

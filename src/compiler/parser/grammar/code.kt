@@ -19,7 +19,6 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
-import compiler.ast.AssignmentStatement
 import compiler.ast.CodeChunk
 import compiler.ast.Executable
 import compiler.ast.ReturnStatement
@@ -28,7 +27,6 @@ import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
-import compiler.parser.grammar.rule.Rule
 import compiler.parser.ExpressionPostfix
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.sequence
@@ -65,23 +63,9 @@ val Assignable = sequence("assignable") {
             .fold(expression) { expr, postfix -> (postfix as ExpressionPostfix<*>).modify(expr) }
     }
 
-val AssignmentStatement: Rule<AssignmentStatement> = sequence("assignment") {
-    ref(Assignable)
-    operator(Operator.ASSIGNMENT)
-    ref(Expression)
-}
-    .astTransformation { tokens ->
-        val targetExpression   = tokens.next() as Expression<*>
-        val assignmentOperator = tokens.next() as OperatorToken
-        val valueExpression    = tokens.next() as Expression<*>
-
-        AssignmentStatement(targetExpression, assignmentOperator, valueExpression)
-    }
-
 val LineOfCode = sequence {
     eitherOf {
         ref(VariableDeclaration)
-        ref(AssignmentStatement)
         ref(ReturnStatement)
         ref(Expression)
     }
@@ -91,7 +75,7 @@ val LineOfCode = sequence {
     }
 }
 
-val CodeChunk = sequence {
+val CodeChunk = sequence("a chunk of code") {
     optionalWhitespace()
     optional {
         ref(LineOfCode)

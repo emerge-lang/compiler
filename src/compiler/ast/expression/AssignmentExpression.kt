@@ -16,22 +16,21 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package compiler.ast
+package compiler.ast.expression
 
-import compiler.ast.expression.Expression
-import compiler.binding.BoundAssignmentStatement
+import compiler.binding.expression.BoundAssignmentExpression
 import compiler.binding.context.CTContext
 import compiler.lexer.OperatorToken
 
-class AssignmentStatement(
+class AssignmentExpression(
     val targetExpression: Expression<*>,
     val assignmentOperatorToken: OperatorToken,
     val valueExpression: Expression<*>
-) : Executable<BoundAssignmentStatement> {
+) : Expression<BoundAssignmentExpression> {
 
     override val sourceLocation = targetExpression.sourceLocation
 
-    override fun bindTo(context: CTContext) = BoundAssignmentStatement(
+    override fun bindTo(context: CTContext) = BoundAssignmentExpression(
             context,
             this,
             targetExpression.bindTo(context),

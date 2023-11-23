@@ -38,10 +38,7 @@ import compiler.lexer.NumericLiteralToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.TokenType
-import compiler.parser.ExpressionPostfix
-import compiler.parser.InvocationExpressionPostfix
-import compiler.parser.MemberAccessExpressionPostfix
-import compiler.parser.NotNullExpressionPostfix
+import compiler.parser.*
 import compiler.parser.grammar.dsl.*
 import compiler.parser.grammar.rule.Rule
 
@@ -154,19 +151,17 @@ val BinaryExpression = sequence("binary operator expression") {
         buildBinaryExpressionAst(tokens.remainingToList())
     }
 
-val BracedCodeOrSingleStatement = sequence("curly braced code or single statement") {
-    eitherOf {
-        sequence {
-            operator(Operator.CBRACE_OPEN)
-            optionalWhitespace()
-            optional {
-                ref(CodeChunk)
-            }
-            optionalWhitespace()
-            operator(Operator.CBRACE_CLOSE)
+val BracedCodeOrSingleStatement = eitherOf("curly braced code or single statement") {
+    sequence {
+        operator(Operator.CBRACE_OPEN)
+        optionalWhitespace()
+        optional {
+            ref(CodeChunk)
         }
-        ref(Expression)
+        optionalWhitespace()
+        operator(Operator.CBRACE_CLOSE)
     }
+    ref(Expression)
 }
     .astTransformation { tokens ->
         var next: Any? = tokens.next()
@@ -277,10 +272,19 @@ val ExpressionPostfixMemberAccess = sequence("member access") {
         MemberAccessExpressionPostfix(accessOperator, memberNameToken)
     }
 
+val ExpressionPostfixAssignment = sequence("assignment") {
+    operator(Operator.ASSIGNMENT)
+    ref(Expression)
+}
+    .astTransformation { tokens ->
+        AssignmentExpressionPostfix(tokens.next() as OperatorToken, tokens.next() as Expression<*>)
+    }
+
 val ExpressionPostfix = eitherOf {
     ref(ExpressionPostfixNotNull)
     ref(ExpressionPostfixInvocation)
     ref(ExpressionPostfixMemberAccess)
+    ref(ExpressionPostfixAssignment)
 }
     .mapResult { it as ExpressionPostfix<Expression<*>> }
 

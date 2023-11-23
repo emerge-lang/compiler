@@ -23,8 +23,23 @@ import compiler.ast.expression.IdentifierExpression
 /**
  * Reported when the identifier [expr] is used but it is not defined at that point.
  */
-class UndefinedIdentifierReporting(expr: IdentifierExpression, messageOverride: String? = null) : Reporting(
+class UndefinedIdentifierReporting(val expr: IdentifierExpression, messageOverride: String? = null) : Reporting(
     Level.ERROR,
-    messageOverride ?: "Identifier ${expr.identifier} is not defined.",
+    messageOverride ?: "${expr.identifier.value} is not defined",
     expr.sourceLocation
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as UndefinedIdentifierReporting
+
+        if (expr != other.expr) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return expr.hashCode()
+    }
+}

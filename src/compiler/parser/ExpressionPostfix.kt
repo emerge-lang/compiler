@@ -1,5 +1,6 @@
 package compiler.parser
 
+import compiler.ast.expression.AssignmentExpression
 import compiler.ast.expression.Expression
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
@@ -35,4 +36,17 @@ class MemberAccessExpressionPostfix(
     val memberName: IdentifierToken
 ) : ExpressionPostfix<MemberAccessExpression> {
     override fun modify(expr: Expression<*>) = MemberAccessExpression(expr, accessOperatorToken, memberName)
+}
+
+class AssignmentExpressionPostfix(
+    val assignmentOperator: OperatorToken,
+    val value: Expression<*>,
+) : ExpressionPostfix<AssignmentExpression> {
+    override fun modify(expr: Expression<*>): AssignmentExpression {
+        return AssignmentExpression(
+            expr,
+            assignmentOperator,
+            value,
+        )
+    }
 }

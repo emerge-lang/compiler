@@ -52,7 +52,7 @@ class RepeatingRule<T>(
 
                 if (lastResult.hasErrors && !lastResult.isAmbiguous) {
                     return MatchingResult(
-                        isAmbiguous = results.all { it.isAmbiguous },
+                        isAmbiguous = false,
                         marksEndOfAmbiguity = results.any { it.marksEndOfAmbiguity },
                         item = null,
                         reportings = lastResult.reportings
