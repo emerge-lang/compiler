@@ -15,8 +15,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 8. ~~Parser Refactoring~~
    1. ~~Execute rule on match, not on construction time for easier debugging~~
 9. ~~Reportings object model for accurate detection in tests~~
-10. Test suite for all existing code
-11. Parser Refactoring
+10. ~~Test suite for all existing code~~
+11. ~~Parser Refactoring~~
 12. fallbacks: define simple logic to parse until ... when a sub-rule fails; e.g.:
      * e.g. in ParameterList: when a parameter fails, construct a dummy parameter,
      report the error, go to the next Operator.COMMA and continue
