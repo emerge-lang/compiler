@@ -92,6 +92,27 @@ class FunctionErrors : FreeSpec({
             .shouldReport<UnknownTypeReporting>()
     }
 
+    "calling non-existent function overload" {
+        validateModule("""
+            fun foo(a: Int) {
+            }
+            
+            fun test() {
+                foo(true)
+            }
+        """.trimIndent())
+            .shouldReport<UnresolvableFunctionOverloadReporting>()
+    }
+
+    "calling a function that doesn't exist by name" {
+        validateModule("""
+            fun test() {
+                foo(true)
+            }
+        """.trimIndent())
+            .shouldReport<UnresolvableFunctionOverloadReporting>()
+    }
+
     "termination" - {
         "empty body in non-unit function" {
             validateModule("""

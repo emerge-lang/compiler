@@ -2,6 +2,7 @@ package compiler.negative
 
 import compiler.reportings.DuplicateStructMemberReporting
 import compiler.reportings.UnknownTypeReporting
+import compiler.reportings.UnresolvableConstructorReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forAll
 import io.kotest.matchers.collections.haveSize
@@ -32,5 +33,18 @@ class StructErrors : FreeSpec({
             }
         """.trimIndent())
             .shouldReport<UnknownTypeReporting>()
+    }
+
+    "calling non-existent constructor" {
+        validateModule("""
+            struct X {
+                a: Int
+            }
+            
+            fun foo() {
+                val x = X(true)
+            }
+        """.trimIndent())
+            .shouldReport<UnresolvableConstructorReporting>()
     }
 })
