@@ -73,7 +73,13 @@ class BoundDeclaredFunction(
         get() = if (isDeclaredReadonly || isDeclaredPure) true else isEffectivelyReadonly
 
     override val isGuaranteedToThrow: Boolean?
-        get() = code?.isGuaranteedToThrow
+        get() = try {
+                throwOnCycle(this) {
+                    return@throwOnCycle code?.isGuaranteedToThrow
+                }
+            } catch (ex: EarlyStackOverflowException) {
+                false
+            }
 
     private val onceAction = OnceAction()
 
@@ -142,7 +148,7 @@ class BoundDeclaredFunction(
                 if (this.code is BoundExpression<*>) {
                     this.returnType = this.code.type
                 } else {
-                    throw InternalCompilerError("Semantic analysis phase 1 did not determine return type of function; cannot infer in phase 2 because the functions code is not an expression.")
+                    reportings += Reporting.consecutive("Cannot infer return type because function body is not an expression", declaredAt)
                 }
             }
 

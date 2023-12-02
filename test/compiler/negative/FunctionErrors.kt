@@ -75,6 +75,23 @@ class FunctionErrors : FreeSpec({
             .shouldReport<ReturnTypeMismatchReporting>()
     }
 
+    "unknown declared return type" {
+        validateModule("""
+            fun a() -> Foo {
+                return 0
+            }
+        """.trimIndent())
+            .shouldReport<UnknownTypeReporting>()
+    }
+
+    "unknown declared receiver type" {
+        validateModule("""
+            fun Foo.a() {
+            }
+        """.trimIndent())
+            .shouldReport<UnknownTypeReporting>()
+    }
+
     "termination" - {
         "empty body in non-unit function" {
             validateModule("""

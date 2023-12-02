@@ -36,6 +36,13 @@ class VariableErrors : FreeSpec({
             """.trimIndent())
                 .shouldReport<ModifierErrorReporting>()
         }
+
+        "unknown declared type" {
+            validateModule("""
+                val foo: Foo
+            """.trimIndent())
+                .shouldReport<UnknownTypeReporting>()
+        }
     }
 
     "in function" - {
@@ -86,6 +93,15 @@ class VariableErrors : FreeSpec({
                 val x: Int = y
             """.trimIndent())
                 .shouldReport<UndefinedIdentifierReporting>()
+        }
+
+        "unknown declared type" {
+            validateModule("""
+                fun test() {
+                    val foo: Foo
+                }
+            """.trimIndent())
+                .shouldReport<UnknownTypeReporting>()
         }
     }
 })

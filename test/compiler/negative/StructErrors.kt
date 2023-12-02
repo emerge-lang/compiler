@@ -1,6 +1,7 @@
 package compiler.negative
 
 import compiler.reportings.DuplicateStructMemberReporting
+import compiler.reportings.UnknownTypeReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forAll
 import io.kotest.matchers.collections.haveSize
@@ -22,5 +23,14 @@ class StructErrors : FreeSpec({
                     it.name shouldBe "a"
                 }
             }
+    }
+
+    "unknown declared member type" {
+        validateModule("""
+            struct X {
+                a: Foo
+            }
+        """.trimIndent())
+            .shouldReport<UnknownTypeReporting>()
     }
 })
