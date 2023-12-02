@@ -33,9 +33,6 @@ class BoundReturnStatement(
 
     val expression = declaration.expression.bindTo(context)
 
-    var returnType: BaseTypeReference? = null
-        private set
-
     override val isGuaranteedToReturn = true // this is the core LoC that makes the property work big-scale
     override val mayReturn = true            // this is the core LoC that makes the property work big-scale
 
@@ -53,7 +50,8 @@ class BoundReturnStatement(
         val reportings = mutableSetOf<Reporting>()
         reportings += expression.semanticAnalysisPhase3()
 
-        val expectedReturnType = this.expectedReturnType ?: throw InternalCompilerError("Return type not specified - cannot validate")
+        val expectedReturnType = this.expectedReturnType
+            ?: return reportings + Reporting.consecutive("Cannot check return value type because the expected return type is not known", declaration.sourceLocation)
         val expressionType = expression.type
 
         if (expressionType != null) {
@@ -65,7 +63,7 @@ class BoundReturnStatement(
         return reportings
     }
 
-    override fun enforceReturnType(type: BaseTypeReference) {
+    override fun setExpectedReturnType(type: BaseTypeReference) {
         expectedReturnType = type
     }
 }

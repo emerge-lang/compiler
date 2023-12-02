@@ -57,7 +57,7 @@ class BoundCodeChunk(
             val boundStatement = astStatement.bindTo(currentContext)
 
             if (this.expectedReturnType != null) {
-                boundStatement.enforceReturnType(this.expectedReturnType!!)
+                boundStatement.setExpectedReturnType(this.expectedReturnType!!)
             }
 
             reportings += boundStatement.semanticAnalysisPhase1()
@@ -73,7 +73,7 @@ class BoundCodeChunk(
         return reportings
     }
 
-    override fun enforceReturnType(type: BaseTypeReference) {
+    override fun setExpectedReturnType(type: BaseTypeReference) {
         this.expectedReturnType = type
     }
 

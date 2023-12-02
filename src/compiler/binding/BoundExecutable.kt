@@ -60,5 +60,5 @@ interface BoundExecutable<out ASTType> : BoundElement<Executable<*>> {
      * been invoked the types evaluated for all [BoundReturnStatement]s within this executable must be assignable to that
      * given type; otherwise an appropriate reporting as to returned from [semanticAnalysisPhase3].
      */
-    fun enforceReturnType(type: BaseTypeReference) {}
+    fun setExpectedReturnType(type: BaseTypeReference) {}
 }

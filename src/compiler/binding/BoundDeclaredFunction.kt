@@ -156,7 +156,7 @@ class BoundDeclaredFunction(
 
             if (code != null) {
                 if (returnType != null) {
-                    code.enforceReturnType(returnType!!)
+                    code.setExpectedReturnType(returnType!!)
                 }
 
                 reportings += code.semanticAnalysisPhase3()
