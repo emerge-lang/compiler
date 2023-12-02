@@ -80,5 +80,12 @@ class VariableErrors : FreeSpec({
                     it.additionalDeclaration.name.value shouldBe "x"
                 }
         }
+
+        "accessing undeclared variable" {
+            validateModule("""
+                val x: Int = y
+            """.trimIndent())
+                .shouldReport<UndefinedIdentifierReporting>()
+        }
     }
 })
