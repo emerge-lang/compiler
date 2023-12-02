@@ -84,7 +84,30 @@ class FunctionErrors : FreeSpec({
                 .shouldReport<UncertainTerminationReporting>()
         }
 
-        // TODO: if where only one branch returns, one test for then and else each
+        "if where only then returns" {
+            validateModule("""
+                fun a(p: Boolean) -> Int {
+                    if p {
+                        return 0
+                    } else {
+                    }
+                }
+            """.trimIndent())
+                .shouldReport<UncertainTerminationReporting>()
+        }
+
+        "if where only else returns" {
+            validateModule("""
+                fun a(p: Boolean) -> Int {
+                    if p {
+                    } else {
+                        return 0
+                    }
+                }
+            """.trimIndent())
+                .shouldReport<UncertainTerminationReporting>()
+        }
+
         // TODO: if where only one branch throws, one test for then and else each
         // TODO: loop where the termination (return + throw) is in the loop body and the condition is not always true
     }
