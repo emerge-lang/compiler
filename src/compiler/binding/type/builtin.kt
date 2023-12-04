@@ -24,7 +24,6 @@ import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
 import compiler.binding.context.Module
 import compiler.binding.context.ModuleRootContext
-import compiler.binding.context.MutableCTContext
 import compiler.parseFromClasspath
 
 /*
@@ -59,10 +58,10 @@ val BuiltinBoolean = object : BuiltinType("Boolean", Any) {
 /**
  * A BuiltinType is defined in the ROOT package.
  */
-abstract class BuiltinType(override val simpleName: String, vararg superTypes: BaseType) : BaseType {
-    override final val fullyQualifiedName = "dotlin.lang.$simpleName"
+abstract class BuiltinType(final override val simpleName: String, vararg superTypes: BaseType) : BaseType {
+    final override val fullyQualifiedName = "$DEFAULT_MODULE_NAME_STRING.$simpleName"
 
-    override final val superTypes: Set<BaseType> = superTypes.toSet()
+    final override val superTypes: Set<BaseType> = superTypes.toSet()
 
     /**
      * BaseTypes do not define anything themselves. All of that is defined in source language in the
@@ -71,10 +70,13 @@ abstract class BuiltinType(override val simpleName: String, vararg superTypes: B
     final override fun resolveMemberFunction(name: String) = emptySet<FunctionDeclaration>()
 
     companion object {
-       private val stdlib: ASTModule = parseFromClasspath("builtin.dt")
+        val DEFAULT_MODULE_NAME = arrayOf("dotlin", "lang")
+        val DEFAULT_MODULE_NAME_STRING = DEFAULT_MODULE_NAME.joinToString(".")
+
+        private val stdlib: ASTModule = parseFromClasspath("builtin.dt")
         fun getNewModule(): Module {
             val moduleContext = ModuleRootContext()
-            val module = Module(arrayOf("dotlin", "lang"), moduleContext)
+            val module = Module(DEFAULT_MODULE_NAME, moduleContext)
 
             module.context.addBaseType(Any)
             module.context.addBaseType(Unit)
