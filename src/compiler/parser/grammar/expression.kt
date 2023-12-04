@@ -107,7 +107,7 @@ val ParanthesisedExpression: Rule<Expression<*>> = sequence("paranthesised expre
     }
 
 val UnaryExpression = sequence("unary expression") {
-    eitherOf(Operator.PLUS, Operator.MINUS, Operator.NEGATE)
+    eitherOf(Operator.PLUS, Operator.MINUS, Operator.EXCLAMATION_MARK)
     // TODO: tilde, ... what else?
 
     eitherOf {
