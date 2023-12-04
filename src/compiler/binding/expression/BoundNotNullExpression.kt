@@ -22,7 +22,7 @@ import compiler.ast.Executable
 import compiler.ast.expression.NotNullExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 
 class BoundNotNullExpression(
     override val context: CTContext,
@@ -31,7 +31,7 @@ class BoundNotNullExpression(
 ) : BoundExpression<NotNullExpression>, BoundExecutable<NotNullExpression> {
     // TODO: reporting on superfluous notnull when nullableExpression.type.nullable == false
 
-    override var type: BaseTypeReference? = null
+    override var type: ResolvedTypeReference? = null
         private set
 
     override val isGuaranteedToThrow = false // this MAY throw, but its not guaranteed to

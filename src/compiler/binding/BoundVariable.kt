@@ -25,7 +25,7 @@ import compiler.ast.VariableDeclaration
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
 import compiler.binding.expression.BoundExpression
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 import compiler.reportings.Reporting
 import compiler.throwOnCycle
 
@@ -48,7 +48,7 @@ class BoundVariable(
     /**
      * The base type reference; null if not determined yet or if it cannot be determined due to semantic errors.
      */
-    var type: BaseTypeReference? = null
+    var type: ResolvedTypeReference? = null
         private set
 
     override val isGuaranteedToThrow: Boolean?
@@ -87,7 +87,7 @@ class BoundVariable(
             }
 
             // cannot resolve declared type
-            val declaredType: BaseTypeReference? = resolveDeclaredType(context)
+            val declaredType: ResolvedTypeReference? = resolveDeclaredType(context)
             if (declaration.type != null && declaredType == null) {
                 reportings.add(Reporting.unknownType(declaration.type))
             }
@@ -183,7 +183,7 @@ class BoundVariable(
         return initializerExpression?.findWritesBeyond(boundary) ?: emptySet()
     }
 
-    private fun resolveDeclaredType(context: CTContext): BaseTypeReference? {
+    private fun resolveDeclaredType(context: CTContext): ResolvedTypeReference? {
         with(declaration) {
             if (type == null) return null
             val typeRef = if (typeModifier != null) type.modifiedWith(typeModifier) else type

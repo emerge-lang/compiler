@@ -19,8 +19,7 @@
 package compiler.ast.type
 
 import compiler.binding.context.ModuleRootContext
-import compiler.binding.context.MutableCTContext
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 
@@ -45,95 +44,95 @@ class BaseTypeReferenceTest : FreeSpec() { init {
 
         "the closest common ancestor of" - {
             "mutable B and mutable A is mutable A" {
-                BaseTypeReference.closestCommonAncestorOf(mutableA, mutableB) shouldBe mutableA
-                BaseTypeReference.closestCommonAncestorOf(mutableB, mutableA) shouldBe mutableA
+                ResolvedTypeReference.closestCommonAncestorOf(mutableA, mutableB) shouldBe mutableA
+                ResolvedTypeReference.closestCommonAncestorOf(mutableB, mutableA) shouldBe mutableA
             }
 
             "mutable B and readonly A is readonly A" {
-                BaseTypeReference.closestCommonAncestorOf(readonlyA, mutableB) shouldBe readonlyA
-                BaseTypeReference.closestCommonAncestorOf(mutableB, readonlyA) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(readonlyA, mutableB) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(mutableB, readonlyA) shouldBe readonlyA
             }
 
             "mutable B and immutable A is readonly A" {
-                BaseTypeReference.closestCommonAncestorOf(immutableA, mutableB) shouldBe readonlyA
-                BaseTypeReference.closestCommonAncestorOf(mutableB, immutableA) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(immutableA, mutableB) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(mutableB, immutableA) shouldBe readonlyA
             }
 
             "readonly B and mutable A is readonly A" {
-                BaseTypeReference.closestCommonAncestorOf(mutableA, readonlyB) shouldBe readonlyA
-                BaseTypeReference.closestCommonAncestorOf(readonlyB, mutableA) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(mutableA, readonlyB) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(readonlyB, mutableA) shouldBe readonlyA
             }
 
             "readonly B and readonly A is readonly A" {
-                BaseTypeReference.closestCommonAncestorOf(readonlyA, readonlyB) shouldBe readonlyA
-                BaseTypeReference.closestCommonAncestorOf(readonlyB, readonlyA) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(readonlyA, readonlyB) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(readonlyB, readonlyA) shouldBe readonlyA
             }
 
             "readonly B and immutable A is readonly A" {
-                BaseTypeReference.closestCommonAncestorOf(immutableA, readonlyB) shouldBe readonlyA
-                BaseTypeReference.closestCommonAncestorOf(readonlyB, immutableA) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(immutableA, readonlyB) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(readonlyB, immutableA) shouldBe readonlyA
             }
 
             "immutable B and mutable A is readonly A" {
-                BaseTypeReference.closestCommonAncestorOf(mutableA, immutableB) shouldBe readonlyA
-                BaseTypeReference.closestCommonAncestorOf(immutableB, mutableA) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(mutableA, immutableB) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(immutableB, mutableA) shouldBe readonlyA
             }
 
             "immutable B and readonly A is readonly A" {
-                BaseTypeReference.closestCommonAncestorOf(readonlyA, immutableB) shouldBe readonlyA
-                BaseTypeReference.closestCommonAncestorOf(immutableB, readonlyA) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(readonlyA, immutableB) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(immutableB, readonlyA) shouldBe readonlyA
             }
 
             "immutable B and immutable A is immutable A" {
-                BaseTypeReference.closestCommonAncestorOf(immutableA, immutableB) shouldBe immutableA
-                BaseTypeReference.closestCommonAncestorOf(immutableB, immutableA) shouldBe immutableA
+                ResolvedTypeReference.closestCommonAncestorOf(immutableA, immutableB) shouldBe immutableA
+                ResolvedTypeReference.closestCommonAncestorOf(immutableB, immutableA) shouldBe immutableA
             }
 
             //----
 
             "mutable B and mutable C is mutable A" {
-                BaseTypeReference.closestCommonAncestorOf(mutableC, mutableB) shouldBe mutableA
-                BaseTypeReference.closestCommonAncestorOf(mutableB, mutableC) shouldBe mutableA
+                ResolvedTypeReference.closestCommonAncestorOf(mutableC, mutableB) shouldBe mutableA
+                ResolvedTypeReference.closestCommonAncestorOf(mutableB, mutableC) shouldBe mutableA
             }
 
             "mutable B and readonly C is readonly A" {
-                BaseTypeReference.closestCommonAncestorOf(readonlyC, mutableB) shouldBe readonlyA
-                BaseTypeReference.closestCommonAncestorOf(mutableB, readonlyC) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(readonlyC, mutableB) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(mutableB, readonlyC) shouldBe readonlyA
             }
 
             "mutable B and immutable C is readonly A" {
-                BaseTypeReference.closestCommonAncestorOf(immutableC, mutableB) shouldBe readonlyA
-                BaseTypeReference.closestCommonAncestorOf(mutableB, immutableC) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(immutableC, mutableB) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(mutableB, immutableC) shouldBe readonlyA
             }
 
             "readonly B and mutable C is readonly A" {
-                BaseTypeReference.closestCommonAncestorOf(mutableC, readonlyB) shouldBe readonlyA
-                BaseTypeReference.closestCommonAncestorOf(readonlyB, mutableC) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(mutableC, readonlyB) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(readonlyB, mutableC) shouldBe readonlyA
             }
 
             "readonly B and readonly C is readonly A" {
-                BaseTypeReference.closestCommonAncestorOf(readonlyC, readonlyB) shouldBe readonlyA
-                BaseTypeReference.closestCommonAncestorOf(readonlyB, readonlyC) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(readonlyC, readonlyB) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(readonlyB, readonlyC) shouldBe readonlyA
             }
 
             "readonly B and immutable C is readonly A" {
-                BaseTypeReference.closestCommonAncestorOf(immutableC, readonlyB) shouldBe readonlyA
-                BaseTypeReference.closestCommonAncestorOf(readonlyB, immutableC) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(immutableC, readonlyB) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(readonlyB, immutableC) shouldBe readonlyA
             }
 
             "immutable B and mutable C is readonly A" {
-                BaseTypeReference.closestCommonAncestorOf(mutableC, immutableB) shouldBe readonlyA
-                BaseTypeReference.closestCommonAncestorOf(immutableB, mutableC) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(mutableC, immutableB) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(immutableB, mutableC) shouldBe readonlyA
             }
 
             "immutable B and readonly C is readonly A" {
-                BaseTypeReference.closestCommonAncestorOf(readonlyC, immutableB) shouldBe readonlyA
-                BaseTypeReference.closestCommonAncestorOf(immutableB, readonlyC) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(readonlyC, immutableB) shouldBe readonlyA
+                ResolvedTypeReference.closestCommonAncestorOf(immutableB, readonlyC) shouldBe readonlyA
             }
 
             "immutable B and immutable C is immutable A" {
-                BaseTypeReference.closestCommonAncestorOf(immutableC, immutableB) shouldBe immutableA
-                BaseTypeReference.closestCommonAncestorOf(immutableB, immutableC) shouldBe immutableA
+                ResolvedTypeReference.closestCommonAncestorOf(immutableC, immutableB) shouldBe immutableA
+                ResolvedTypeReference.closestCommonAncestorOf(immutableB, immutableC) shouldBe immutableA
             }
         }
     }

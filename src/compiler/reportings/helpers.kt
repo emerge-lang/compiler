@@ -19,12 +19,12 @@
 package compiler.reportings
 
 import compiler.ast.type.TypeModifier
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 
 /**
  * @return A description of why the types don't match. null if they match or the reason cannot be described / is unknown.
  */
-internal fun typeMismatchReason(targetType: BaseTypeReference, sourceType: BaseTypeReference): String? {
+internal fun typeMismatchReason(targetType: ResolvedTypeReference, sourceType: ResolvedTypeReference): String? {
     // type inheritance
     if (!(sourceType.baseType isSubtypeOf targetType.baseType)) {
         return "${sourceType.baseType.simpleName} is not a subtype of ${targetType.baseType.simpleName}"
@@ -45,8 +45,8 @@ internal fun typeMismatchReason(targetType: BaseTypeReference, sourceType: BaseT
     return null
 }
 
-internal fun List<BaseTypeReference?>.typeTupleToString(): String = joinToString(
+internal fun List<ResolvedTypeReference?>.typeTupleToString(): String = joinToString(
     prefix = "(",
-    transform = { it?.simpleName ?: "<unknown type>" },
+    transform = { it?.original?.simpleName ?: "<unknown type>" },
     postfix = ")",
 )

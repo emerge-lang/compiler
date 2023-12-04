@@ -39,14 +39,17 @@ interface BaseType {
     val fullyQualifiedName: String
         get() = simpleName
 
-    val baseReference: (CTContext) -> BaseTypeReference
-        get() = { ctx -> BaseTypeReference(TypeReference(simpleName, false, impliedModifier), ctx, this) }
+    val baseReference: (CTContext) -> ResolvedTypeReference
+        get() = { ctx -> ResolvedTypeReference(TypeReference(simpleName, TypeReference.Nullability.NOT_NULLABLE, impliedModifier), ctx, false, this) }
 
     val superTypes: Set<BaseType>
         get() = emptySet()
 
     val constructors: Set<BoundFunction>
         get() = emptySet()
+
+    val parameters: List<TypeReference>
+        get() = emptyList()
 
     /** @return Whether this type is the same as or a subtype of the given type. */
     infix fun isSubtypeOf(other: BaseType): Boolean {
@@ -56,7 +59,7 @@ interface BaseType {
     }
 
     /**
-     * Assumes this type is a the same as or a subtype of the given type (see [BaseType.isSubtypeOf] to
+     * Assumes this type is the same as or a subtype of the given type (see [BaseType.isSubtypeOf] to
      * assure that).
      * Returns how many steps in hierarchy are between this type and the given type.
      *
@@ -76,14 +79,12 @@ interface BaseType {
     fun hierarchicalDistanceTo(superType: BaseType, carry: Int = 0): Int {
         if (this == superType) return carry
 
-        if (this isSubtypeOf superType) {
-            return this.superTypes
-                .map { it.hierarchicalDistanceTo(superType, carry + 1) }
-                .sorted()
-                .first()
+        if (!(this isSubtypeOf superType)) {
+            throw IllegalArgumentException("The given type is not a supertype of the receiving type.")
         }
 
-        throw IllegalArgumentException("The given type is not a supertype of the receiving type.")
+
+        return this.superTypes.minOf { it.hierarchicalDistanceTo(superType, carry + 1) }
     }
 
     /** @return The member function overloads for the given name or an empty collection if no such member function is defined. */

@@ -18,7 +18,7 @@
 
 package compiler.reportings
 
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 import compiler.lexer.SourceLocation
 
 /**
@@ -27,10 +27,10 @@ import compiler.lexer.SourceLocation
  */
 open class TypeMismatchReporting(
     /** The type of the storage area a value is to be written to; in an assignment its the type of the target variable */
-    val targetType: BaseTypeReference,
+    val targetType: ResolvedTypeReference,
 
     /** The type of the value that is to be written; in an assignments its the type of the expression to be written to a variable */
-    val sourceType: BaseTypeReference,
+    val sourceType: ResolvedTypeReference,
 
     location: SourceLocation
 ) : Reporting(

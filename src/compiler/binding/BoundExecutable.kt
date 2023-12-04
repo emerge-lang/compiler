@@ -20,7 +20,7 @@ package compiler.binding
 
 import compiler.ast.Executable
 import compiler.binding.context.CTContext
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 
 interface BoundExecutable<out ASTType> : BoundElement<Executable<*>> {
     /**
@@ -60,5 +60,5 @@ interface BoundExecutable<out ASTType> : BoundElement<Executable<*>> {
      * been invoked the types evaluated for all [BoundReturnStatement]s within this executable must be assignable to that
      * given type; otherwise an appropriate reporting as to returned from [semanticAnalysisPhase3].
      */
-    fun setExpectedReturnType(type: BaseTypeReference) {}
+    fun setExpectedReturnType(type: ResolvedTypeReference) {}
 }

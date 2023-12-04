@@ -22,7 +22,7 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.type.FunctionModifier
 import compiler.binding.context.CTContext
 import compiler.binding.type.Any
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 import compiler.lexer.SourceLocation
 
 abstract class BoundFunction : SemanticallyAnalyzable {
@@ -33,7 +33,7 @@ abstract class BoundFunction : SemanticallyAnalyzable {
      * The type of the receiver. Is null if the declared function has no receiver or if the declared receiver type
      * could not be resolved. See [FunctionDeclaration.receiverType] to resolve the ambiguity.
      */
-    abstract val receiverType: BaseTypeReference?
+    abstract val receiverType: ResolvedTypeReference?
 
     abstract val name: String
     abstract val modifiers: Set<FunctionModifier>
@@ -62,10 +62,10 @@ abstract class BoundFunction : SemanticallyAnalyzable {
 
     abstract val parameters: BoundParameterList
 
-    val parameterTypes: List<BaseTypeReference?>
+    val parameterTypes: List<ResolvedTypeReference?>
         get() = parameters.parameters.map { it.type }
 
-    abstract val returnType: BaseTypeReference?
+    abstract val returnType: ResolvedTypeReference?
 
     val fullyQualifiedName: String
         get() = context.module.name.joinToString(".") + "." + name
@@ -74,11 +74,11 @@ abstract class BoundFunction : SemanticallyAnalyzable {
 /**
  * Given the invocation types `receiverType` and `parameterTypes` of an invocation site
  * returns the functions matching the types sorted by matching quality to the given
- * types (see [BaseTypeReference.isAssignableTo] and [BaseTypeReference.assignMatchQuality])
+ * types (see [ResolvedTypeReference.isAssignableTo] and [ResolvedTypeReference.assignMatchQuality])
  *
  * In essence, this function is the function dispatching algorithm of the language.
  */
-fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(receiverType: BaseTypeReference?, parameterTypes: Iterable<BaseTypeReference?>): List<BoundFunction> =
+fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(receiverType: ResolvedTypeReference?, parameterTypes: Iterable<ResolvedTypeReference?>): List<BoundFunction> =
     this
         // filter out the ones with incompatible receiver type
         .filter {

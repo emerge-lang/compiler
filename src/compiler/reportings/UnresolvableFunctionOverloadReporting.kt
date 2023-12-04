@@ -18,7 +18,7 @@
 
 package compiler.reportings
 
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 import compiler.lexer.IdentifierToken
 
 /**
@@ -26,8 +26,8 @@ import compiler.lexer.IdentifierToken
  */
 class UnresolvableFunctionOverloadReporting(
     val functionNameReference: IdentifierToken,
-    val receiverType: BaseTypeReference?,
-    val parameterTypes: List<BaseTypeReference?>,
+    val receiverType: ResolvedTypeReference?,
+    val parameterTypes: List<ResolvedTypeReference?>,
     val functionDeclaredAtAll: Boolean,
 ) : Reporting(
     Level.ERROR,

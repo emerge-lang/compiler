@@ -18,7 +18,7 @@
 
 package compiler.reportings
 
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 import compiler.lexer.SourceLocation
 
 /**
@@ -26,8 +26,8 @@ import compiler.lexer.SourceLocation
  * is expected and the types are not compatible.
  */
 class ReturnTypeMismatchReporting(
-    val expectedReturnType: BaseTypeReference,
-    val returnedType: BaseTypeReference,
+    val expectedReturnType: ResolvedTypeReference,
+    val returnedType: ResolvedTypeReference,
     location: SourceLocation
 ) : Reporting(
     Level.ERROR,

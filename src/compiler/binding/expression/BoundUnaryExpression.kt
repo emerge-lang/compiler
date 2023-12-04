@@ -25,7 +25,7 @@ import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.context.CTContext
 import compiler.binding.filterAndSortByMatchForInvocationTypes
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 import compiler.lexer.Operator
 import compiler.reportings.Reporting
 
@@ -35,7 +35,7 @@ class BoundUnaryExpression(
     val original: BoundExpression<*>
 ) : BoundExpression<UnaryExpression> {
 
-    override var type: BaseTypeReference? = null
+    override var type: ResolvedTypeReference? = null
         private set
 
     val operator = declaration.operator

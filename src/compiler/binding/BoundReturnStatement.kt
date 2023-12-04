@@ -21,7 +21,7 @@ package compiler.binding
 import compiler.InternalCompilerError
 import compiler.ast.ReturnStatement
 import compiler.binding.context.CTContext
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 import compiler.reportings.Reporting
 
 class BoundReturnStatement(
@@ -29,9 +29,12 @@ class BoundReturnStatement(
     override val declaration: ReturnStatement
 ) : BoundExecutable<ReturnStatement> {
 
-    private var expectedReturnType: BaseTypeReference? = null
+    private var expectedReturnType: ResolvedTypeReference? = null
 
     val expression = declaration.expression.bindTo(context)
+
+    var returnType: ResolvedTypeReference? = null
+        private set
 
     override val isGuaranteedToReturn = true // this is the core LoC that makes the property work big-scale
     override val mayReturn = true            // this is the core LoC that makes the property work big-scale
@@ -63,7 +66,7 @@ class BoundReturnStatement(
         return reportings
     }
 
-    override fun setExpectedReturnType(type: BaseTypeReference) {
+    override fun setExpectedReturnType(type: ResolvedTypeReference) {
         expectedReturnType = type
     }
 }

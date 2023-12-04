@@ -54,6 +54,9 @@ val BuiltinBoolean = object : BuiltinType("Boolean", Any) {
     override val impliedModifier = TypeModifier.IMMUTABLE
 }
 
+val BuiltinArray = object : BuiltinType("Array", Any) {
+    override val parameters = listOf(TypeReference("Item"))
+}
 
 /**
  * A BuiltinType is defined in the ROOT package.

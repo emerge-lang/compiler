@@ -28,29 +28,18 @@ import kotlinext.allEqual
 /**
  * A [TypeReference] with resolved [BaseType]
  */
-open class BaseTypeReference(
+open class ResolvedTypeReference(
     val original: TypeReference,
     open val context: CTContext,
-    val baseType: BaseType
-) : TypeReference(
-    original.simpleName,
-    original.isNullable,
-    original.modifier,
-    original.isInferred,
-    original.declaringNameToken
+    val isNullable: Boolean,
+    val baseType: BaseType,
 ) {
-    override val modifier: TypeModifier? = original.modifier ?: baseType.impliedModifier
+    val modifier: TypeModifier? = original.modifier ?: baseType.impliedModifier
 
-    override fun modifiedWith(modifier: TypeModifier): BaseTypeReference {
+    fun modifiedWith(modifier: TypeModifier): ResolvedTypeReference {
         // TODO: implement type modifiers
-        return BaseTypeReference(original.modifiedWith(modifier), context, baseType)
+        return ResolvedTypeReference(original.modifiedWith(modifier), context, isNullable, baseType)
     }
-
-    override fun nonNull(): BaseTypeReference = BaseTypeReference(original.nonNull(), context, baseType)
-
-    override fun nullable(): BaseTypeReference = BaseTypeReference(original.nullable(), context, baseType)
-
-    override fun asInferred(): BaseTypeReference = BaseTypeReference(original.asInferred(), context, baseType)
 
     /**
      * Validates the type reference.
@@ -78,7 +67,7 @@ open class BaseTypeReference(
     }
 
     /** @return Whether a value of this type can safely be referenced from a refence of the given type. */
-    infix fun isAssignableTo(other: BaseTypeReference): Boolean {
+    infix fun isAssignableTo(other: ResolvedTypeReference): Boolean {
         // this must be a subtype of other
         if (!(this.baseType isSubtypeOf other.baseType)) {
             return false
@@ -97,9 +86,11 @@ open class BaseTypeReference(
         // T?     T     true
         // T      T?    false
         // T?     T?    true
-        if (this.isNullable != other.isNullable && (this.isNullable && !other.isNullable)) {
+        // TODO: how to resolve nullability on references with bounds? How about class/struct-level parameters
+        // in methods (further limited / specified on the method level)?
+        /*if (this.isExplicitlyNullable != other.isExplicitlyNullable && (this.isExplicitlyNullable && !other.isExplicitlyNullable)) {
             return false
-        }
+        }*/
 
         // seems all fine
         return true
@@ -110,31 +101,40 @@ open class BaseTypeReference(
      * @return The hierarchic distance (see [BaseType.hierarchicalDistanceTo]) if the assignment is possible,
      *         null otherwise.
      */
-    fun assignMatchQuality(other: BaseTypeReference): Int? =
+    fun assignMatchQuality(other: ResolvedTypeReference): Int? =
         if (this isAssignableTo other)
             this.baseType.hierarchicalDistanceTo(other.baseType)
         else null
 
+    private lateinit var _string: String
     override fun toString(): String {
-        var str = ""
-        if (modifier != null) {
-            str += modifier!!.name.lowercase() + " "
+        if (!this::_string.isInitialized) {
+            var str = ""
+            if (modifier != null) {
+                str += modifier.name.lowercase() + " "
+            }
+
+            str += baseType.fullyQualifiedName.removePrefix(BuiltinType.DEFAULT_MODULE_NAME_STRING)
+
+            // TODO: parameters
+
+            when (original.nullability) {
+                TypeReference.Nullability.NULLABLE -> str += '?'
+                TypeReference.Nullability.NOT_NULLABLE -> str += '!'
+                TypeReference.Nullability.UNSPECIFIED -> {}
+            }
+
+            this._string = str
         }
 
-        str += baseType.fullyQualifiedName
-
-        if (isNullable) {
-            str += "?"
-        }
-
-        return str
+        return this._string
     }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
-        other as BaseTypeReference
+        other as ResolvedTypeReference
 
         if (baseType != other.baseType) return false
         if (modifier != other.modifier) return false
@@ -150,7 +150,7 @@ open class BaseTypeReference(
 
 
     companion object {
-        fun closestCommonAncestorOf(types: List<BaseTypeReference>): BaseTypeReference {
+        fun closestCommonAncestorOf(types: List<ResolvedTypeReference>): ResolvedTypeReference {
             if (types.size == 0) throw IllegalArgumentException("At least one type must be provided")
             if (types.size == 1) return types[0]
 
@@ -164,12 +164,12 @@ open class BaseTypeReference(
                 else -> modifier = TypeModifier.MUTABLE
             }
 
-            return BaseType.closestCommonAncestorOf(types.map(BaseTypeReference::baseType))
+            return BaseType.closestCommonAncestorOf(types.map(ResolvedTypeReference::baseType))
                 .baseReference(types[0].context)
                 .modifiedWith(modifier)
         }
 
-        fun closestCommonAncestorOf(vararg types: BaseTypeReference): BaseTypeReference {
+        fun closestCommonAncestorOf(vararg types: ResolvedTypeReference): ResolvedTypeReference {
             return closestCommonAncestorOf(types.asList())
         }
     }

@@ -27,7 +27,7 @@ import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
 import compiler.binding.struct.Struct
 import compiler.binding.type.BaseType
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 import compiler.lexer.IdentifierToken
 import java.util.*
 
@@ -88,7 +88,7 @@ open class MutableCTContext(
     }
 
     override fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean): BaseType? {
-        if (ref is BaseTypeReference) return ref.baseType
+        if (ref is ResolvedTypeReference) return ref.baseType
 
         _types.find { it.simpleName == ref.simpleName }?.let { return it }
 

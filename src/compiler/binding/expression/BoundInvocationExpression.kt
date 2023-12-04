@@ -26,7 +26,7 @@ import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.context.CTContext
 import compiler.binding.filterAndSortByMatchForInvocationTypes
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.reportings.Reporting
 
@@ -47,7 +47,7 @@ class BoundInvocationExpression(
     var dispatchedFunction: BoundFunction? = null
         private set
 
-    override val type: BaseTypeReference?
+    override val type: ResolvedTypeReference?
         get() = dispatchedFunction?.returnType
 
     override val isGuaranteedToThrow: Boolean?
@@ -67,9 +67,9 @@ class BoundInvocationExpression(
             parameterExpressions.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
 
             val parameterTypes = parameterExpressions.map(BoundExpression<*>::type)
-            val resolvedConstructors = if (receiverExpression != null) null else context.resolveType(TypeReference(functionNameToken, false))?.constructors
+            val resolvedConstructors = if (receiverExpression != null) null else context.resolveType(TypeReference(functionNameToken))?.constructors
             val resolvedFunctions = context.resolveFunction(functionNameToken.value)
-            val receiverType = receiverExpression?.let { it.type ?: compiler.binding.type.Any.baseReference(context).nullable() }
+            val receiverType = receiverExpression?.type
 
             if (resolvedConstructors.isNullOrEmpty() && resolvedFunctions.isEmpty()) {
                 reportings.add(Reporting.noMatchingFunctionOverload(functionNameToken, receiverType, parameterTypes, false))

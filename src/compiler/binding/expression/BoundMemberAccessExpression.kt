@@ -22,7 +22,7 @@ import compiler.ast.Executable
 import compiler.ast.expression.MemberAccessExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 import compiler.reportings.Reporting
 
 class BoundMemberAccessExpression(
@@ -36,7 +36,7 @@ class BoundMemberAccessExpression(
      * The type of this expression. Is null before semantic anylsis phase 2 is finished; afterwards is null if the
      * type could not be determined or [memberName] denotes a function.
      */
-    override var type: BaseTypeReference? = null
+    override var type: ResolvedTypeReference? = null
         private set
 
     override val isGuaranteedToThrow = false // member accessor CAN throw, but must not ALWAYS do so

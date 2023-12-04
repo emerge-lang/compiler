@@ -22,7 +22,7 @@ import compiler.ast.Executable
 import compiler.ast.expression.NullLiteralExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 import compiler.lexer.SourceLocation
 
 class BoundNullLiteralExpression(
@@ -30,7 +30,7 @@ class BoundNullLiteralExpression(
     override val declaration: NullLiteralExpression
 ) : BoundExpression<NullLiteralExpression>
 {
-    override val type: BaseTypeReference? = null
+    override val type: ResolvedTypeReference? = null
 
     override val isGuaranteedToThrow = null
 

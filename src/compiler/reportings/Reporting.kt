@@ -34,7 +34,7 @@ import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundInvocationExpression
 import compiler.binding.struct.Struct
 import compiler.binding.struct.StructMember
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.OperatorToken
 import compiler.lexer.SourceLocation
@@ -85,10 +85,10 @@ abstract class Reporting internal constructor(
         fun unsupported(message: String, location: SourceLocation)
             = UnsupportedFeatureReporting(message, location)
 
-        fun typeMismatch(targetType: BaseTypeReference, sourceType: BaseTypeReference, location: SourceLocation)
+        fun typeMismatch(targetType: ResolvedTypeReference, sourceType: ResolvedTypeReference, location: SourceLocation)
             = TypeMismatchReporting(targetType, sourceType, location)
 
-        fun returnTypeMismatch(expectedReturnType: BaseTypeReference, returnedType: BaseTypeReference, location: SourceLocation)
+        fun returnTypeMismatch(expectedReturnType: ResolvedTypeReference, returnedType: ResolvedTypeReference, location: SourceLocation)
             = ReturnTypeMismatchReporting(expectedReturnType, returnedType, location)
 
         fun undefinedIdentifier(expr: IdentifierExpression, messageOverride: String? = null)
@@ -122,10 +122,10 @@ abstract class Reporting internal constructor(
         fun inefficientModifiers(message: String, location: SourceLocation)
             = ModifierInefficiencyReporting(message, location)
 
-        fun noMatchingFunctionOverload(functionNameReference: IdentifierToken, receiverType: BaseTypeReference?, forTypes: List<BaseTypeReference?>, functionDeclaredAtAll: Boolean)
+        fun noMatchingFunctionOverload(functionNameReference: IdentifierToken, receiverType: ResolvedTypeReference?, forTypes: List<ResolvedTypeReference?>, functionDeclaredAtAll: Boolean)
             = UnresolvableFunctionOverloadReporting(functionNameReference, receiverType, forTypes, functionDeclaredAtAll)
 
-        fun unresolvableConstructor(nameToken: IdentifierToken, parameterTypes: List<BaseTypeReference?>, functionsWithNameAvailable: Boolean)
+        fun unresolvableConstructor(nameToken: IdentifierToken, parameterTypes: List<ResolvedTypeReference?>, functionsWithNameAvailable: Boolean)
             = UnresolvableConstructorReporting(nameToken, parameterTypes, functionsWithNameAvailable)
 
         fun typeDeductionError(message: String, location: SourceLocation)
@@ -143,7 +143,7 @@ abstract class Reporting internal constructor(
         /**
          * An expression is used in a way that requires it to be non-null but the type of the expression is nullable.
          * @param nullableExpression The expression that could evaluate to null and thus case an NPE
-         * @see BaseTypeReference.isNullable
+         * @see ResolvedTypeReference.isExplicitlyNullable
          */
         fun unsafeObjectTraversal(nullableExpression: BoundExpression<*>, faultyAccessOperator: OperatorToken)
             = UnsafeObjectTraversalException(nullableExpression, faultyAccessOperator)

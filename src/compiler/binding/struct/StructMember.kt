@@ -24,7 +24,7 @@ import compiler.binding.BoundElement
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 import compiler.reportings.Reporting
 
 class StructMember(
@@ -37,7 +37,7 @@ class StructMember(
     /**
      * The type of the member; is null if not yet determined or if it cannot be determined.
      */
-    var type: BaseTypeReference? = null
+    var type: ResolvedTypeReference? = null
         private set
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {

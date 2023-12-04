@@ -5,7 +5,7 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.type.FunctionModifier
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 import compiler.binding.type.Unit
 import compiler.reportings.Reporting
 
@@ -23,7 +23,7 @@ class BoundDeclaredFunction(
     override val declaredAt = declaration.declaredAt
     override val name: String = declaration.name.value
 
-    override var receiverType: BaseTypeReference? = null
+    override var receiverType: ResolvedTypeReference? = null
         private set
 
     /**
@@ -45,7 +45,7 @@ class BoundDeclaredFunction(
 
     override val modifiers = declaration.modifiers + impliedModifiers
 
-    override var returnType: BaseTypeReference? = null
+    override var returnType: ResolvedTypeReference? = null
         private set
 
     val isDeclaredPure: Boolean = FunctionModifier.PURE in declaration.modifiers

@@ -26,7 +26,7 @@ import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.FunctionModifier
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
@@ -51,7 +51,7 @@ class BoundBinaryExpression(
     )
             .bindTo(context)
 
-    override val type: BaseTypeReference?
+    override val type: ResolvedTypeReference?
         get() = hiddenInvocation.type
 
     override val isGuaranteedToThrow: Boolean?

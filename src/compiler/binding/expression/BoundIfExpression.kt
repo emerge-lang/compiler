@@ -22,7 +22,7 @@ import compiler.ast.expression.Expression
 import compiler.ast.expression.IfExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 import compiler.binding.type.BuiltinBoolean
 import compiler.binding.type.Unit
 import compiler.nullableAnd
@@ -48,7 +48,7 @@ class BoundIfExpression(
             }
         }
 
-    override var type: BaseTypeReference? = null
+    override var type: ResolvedTypeReference? = null
         private set
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
@@ -94,7 +94,7 @@ class BoundIfExpression(
         val elseType = if (elseCode is BoundExpression<*>) elseCode.type else Unit.baseReference(context)
 
         if (thenType != null && elseType != null) {
-            type = BaseTypeReference.closestCommonAncestorOf(thenType, elseType)
+            type = ResolvedTypeReference.closestCommonAncestorOf(thenType, elseType)
         }
 
         condition.findWritesBeyond(context).forEach { mutationInCondition ->
@@ -108,7 +108,7 @@ class BoundIfExpression(
         return reportings
     }
 
-    override fun setExpectedReturnType(type: BaseTypeReference) {
+    override fun setExpectedReturnType(type: ResolvedTypeReference) {
         thenCode.setExpectedReturnType(type)
         elseCode?.setExpectedReturnType(type)
     }

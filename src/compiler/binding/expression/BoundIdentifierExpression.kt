@@ -25,7 +25,7 @@ import compiler.binding.BoundExecutable
 import compiler.binding.BoundVariable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseType
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 import compiler.reportings.Reporting
 
 class BoundIdentifierExpression(
@@ -34,7 +34,7 @@ class BoundIdentifierExpression(
 ) : BoundExpression<IdentifierExpression> {
     val identifier: String = declaration.identifier.value
 
-    override val type: BaseTypeReference?
+    override val type: ResolvedTypeReference?
         get() = when(referredType) {
             ReferredType.VARIABLE -> referredVariable?.type
             ReferredType.TYPENAME -> referredBaseType?.baseReference?.invoke(context)
@@ -66,7 +66,7 @@ class BoundIdentifierExpression(
             referredVariable = variable
         } else {
             val type: BaseType? = context.resolveType(
-                TypeReference(declaration.identifier, false, modifier = null, isInferred = false)
+                TypeReference(declaration.identifier)
             )
 
             if (type == null) {
