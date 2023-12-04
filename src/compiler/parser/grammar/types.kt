@@ -137,7 +137,7 @@ val Type: Rule<TypeReference> = sequence("type") {
     }
 
     optional {
-        eitherOf(Operator.QUESTION_MARK, Operator.NOTNULL)
+        eitherOf(Operator.QUESTION_MARK, Operator.EXCLAMATION_MARK)
     }
 
     // TODO: function types
