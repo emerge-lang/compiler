@@ -52,10 +52,14 @@ enum class Keyword(val text: String)
 
     STRUCT_DEFINITION("struct"),
 
+    VARIANCE_IN("in"),
+    VARIANCE_OUT("out"),
+
     PRIVATE("private"),
     PROTECTED("protected"),
     INTERNAL("internal"),
-    EXPORT("export")
+    EXPORT("export"),
+    ;
 }
 
 enum class Operator(val text: String, private val _humanReadableName: String? = null)

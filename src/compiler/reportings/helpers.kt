@@ -37,10 +37,10 @@ internal fun typeMismatchReason(targetType: BaseTypeReference, sourceType: BaseT
         return "cannot assign ${validatedModifier.name.lowercase()} to ${targetModifier.name.lowercase()}"
     }
 
-    // void-safety
-    if (sourceType.isNullable && !targetType.isNullable) {
+    // TODO: void-safety
+    /*if (sourceType.isExplicitlyNullable && !targetType.isExplicitlyNullable) {
         return "cannot assign nullable value to non-null target"
-    }
+    }*/
 
     return null
 }

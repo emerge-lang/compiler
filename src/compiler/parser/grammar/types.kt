@@ -20,6 +20,7 @@ package compiler.parser.grammar
 
 import compiler.InternalCompilerError
 import compiler.ast.type.TypeModifier
+import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
@@ -28,8 +29,10 @@ import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
+import compiler.parser.grammar.dsl.isolateCyclicGrammar
 import compiler.parser.grammar.dsl.mapResult
 import compiler.parser.grammar.dsl.sequence
+import compiler.parser.grammar.rule.Rule
 
 val TypeModifier = eitherOf("type modifier") {
     keyword(Keyword.MUTABLE)
@@ -46,19 +49,100 @@ val TypeModifier = eitherOf("type modifier") {
         }
     }
 
-val Type = sequence("type") {
+private val ReferencingTypeParameter = sequence {
+    optional {
+        eitherOf {
+            keyword(Keyword.VARIANCE_IN)
+            keyword(Keyword.VARIANCE_OUT)
+        }
+    }
+    ref(Type)
+}
+    .astTransformation { tokens ->
+        val firstToken = tokens.next()
+        val variance: TypeReference.Variance
+        val typeReference: TypeReference
+
+        when (firstToken) {
+            is TypeReference -> {
+                variance = TypeReference.Variance.UNSPECIFIED
+                typeReference = firstToken
+            }
+            is KeywordToken -> {
+                variance = when(firstToken.keyword) {
+                    Keyword.VARIANCE_IN -> TypeReference.Variance.IN
+                    Keyword.VARIANCE_OUT -> TypeReference.Variance.OUT
+                    else -> throw InternalCompilerError("Unknown type variance $firstToken")
+                }
+                typeReference = tokens.next() as TypeReference
+            }
+            else -> throw InternalCompilerError("Unexpected token in referencing type parameter: $firstToken")
+        }
+
+        typeReference.withVariance(variance)
+    }
+
+private val ReferencingTypeParameters: Rule<TypeReferenceParameters> = sequence {
+    operator(Operator.LESS_THAN)
+    optional {
+        ref(ReferencingTypeParameter)
+        repeating {
+            operator(Operator.COMMA)
+            ref(ReferencingTypeParameter)
+        }
+    }
+    operator(Operator.GREATER_THAN)
+}
+    .astTransformation { tokens ->
+        // skip <
+        tokens.next()
+
+        val parameters = ArrayList<TypeReference>()
+        while (tokens.hasNext()) {
+            parameters.add(tokens.next() as TypeReference)
+            // skip , or >
+            tokens.next()
+        }
+
+        TypeReferenceParameters(parameters)
+    }
+
+val DeclaringTypeParameter = sequence {
+    ref(ReferencingTypeParameter)
+    optional {
+        operator(Operator.COLON)
+        ref(Type)
+    }
+}
+    .astTransformation { tokens ->
+        val type = tokens.next() as TypeReference
+        val bound = if (tokens.hasNext()) {
+            // skip :
+            tokens.next()
+            tokens.next() as TypeReference
+        } else null
+
+        TypeParameter(type, bound)
+    }
+
+val Type: Rule<TypeReference> = sequence("type") {
     optional {
         ref(TypeModifier)
     }
 
     identifier()
+
     optional {
-        operator(Operator.QUESTION_MARK)
+        ref(ReferencingTypeParameters)
+    }
+
+    optional {
+        eitherOf(Operator.QUESTION_MARK, Operator.NOTNULL)
     }
 
     // TODO: function types
-    // TODO: generics
 }
+    .isolateCyclicGrammar
     .astTransformation { tokens ->
         val nameOrModifier = tokens.next()!!
 
@@ -74,7 +158,34 @@ val Type = sequence("type") {
             nameToken = nameOrModifier as IdentifierToken
         }
 
-        val isNullable = tokens.hasNext() && tokens.next()!! == OperatorToken(Operator.QUESTION_MARK)
+        var next = tokens.next()
+        val parameters: List<TypeReference>
+        if (next is TypeReferenceParameters) {
+            parameters = next.parameters
+            next = tokens.next()
+        } else {
+            parameters = emptyList()
+        }
 
-        TypeReference(nameToken, isNullable, typeModifier)
+        val nullability = when (next) {
+            null -> TypeReference.Nullability.UNSPECIFIED
+            is OperatorToken -> when(next.operator) {
+                Operator.QUESTION_MARK -> TypeReference.Nullability.NULLABLE
+                Operator.NOTNULL -> TypeReference.Nullability.NOT_NULLABLE
+                else -> throw InternalCompilerError("Unknown type nullability marker: $next")
+            }
+            else -> throw InternalCompilerError("Unknown type nullability marker: $next")
+        }
+
+        TypeReference(
+            nameToken.value,
+            nullability,
+            typeModifier,
+            TypeReference.Variance.UNSPECIFIED,
+            nameToken,
+            parameters,
+        )
     }
+
+// needed because a bare List<*> doesn't survive the flatten()
+private class TypeReferenceParameters(val parameters: List<TypeReference>)

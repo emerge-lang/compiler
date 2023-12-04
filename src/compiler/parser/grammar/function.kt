@@ -27,7 +27,6 @@ import compiler.ast.expression.Expression
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeModifier
 import compiler.ast.type.TypeReference
-import compiler.binding.type.Unit
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
@@ -269,7 +268,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
                 receiverType,
                 name,
                 parameterList,
-                type ?: TypeReference("Unit", isNullable = false, isInferred = true),
+                type ?: TypeReference("Unit", nullability = TypeReference.Nullability.UNSPECIFIED),
                 code
             )
         }

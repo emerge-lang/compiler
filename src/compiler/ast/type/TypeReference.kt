@@ -19,33 +19,46 @@
 package compiler.ast.type
 
 import compiler.binding.context.CTContext
-import compiler.binding.type.BaseTypeReference
+import compiler.binding.type.ResolvedTypeReference
 import compiler.lexer.IdentifierToken
 
 open class TypeReference(
     val simpleName: String,
-    val isNullable: Boolean,
+    val nullability: Nullability = Nullability.UNSPECIFIED,
     open val modifier: TypeModifier? = null,
-    val isInferred: Boolean = false,
-    val declaringNameToken: IdentifierToken? = null
+    val variance: Variance = Variance.UNSPECIFIED,
+    val declaringNameToken: IdentifierToken? = null,
+    val parameters: List<TypeReference> = emptyList(),
 ) {
-    constructor(declaringNameToken: IdentifierToken, isNullable: Boolean, modifier: TypeModifier? = null, isInferred: Boolean = false)
-        : this(declaringNameToken.value, isNullable, modifier, isInferred, declaringNameToken)
+    constructor(simpleName: IdentifierToken) : this(simpleName.value, declaringNameToken = simpleName)
 
     open fun modifiedWith(modifier: TypeModifier): TypeReference {
         // TODO: implement type modifiers
-        return TypeReference(simpleName, isNullable, modifier)
+        return TypeReference(
+            simpleName,
+            nullability,
+            modifier,
+            variance,
+            declaringNameToken,
+            parameters,
+        )
     }
 
-    open fun nonNull(): TypeReference = TypeReference(simpleName, false, modifier, isInferred, declaringNameToken)
+    fun withVariance(variance: Variance): TypeReference {
+        check(this.variance == Variance.UNSPECIFIED)
+        return TypeReference(
+            simpleName,
+            nullability,
+            modifier,
+            variance,
+            declaringNameToken,
+            parameters,
+        )
+    }
 
-    open fun nullable(): TypeReference = TypeReference(simpleName, true, modifier, isInferred, declaringNameToken);
-
-    open fun asInferred(): TypeReference = TypeReference(simpleName, isNullable, modifier, true, declaringNameToken)
-
-    open fun resolveWithin(context: CTContext): BaseTypeReference? {
+    open fun resolveWithin(context: CTContext): ResolvedTypeReference? {
         val baseType = context.resolveType(this)
-        return if (baseType != null) BaseTypeReference(this, context, baseType) else null
+        return if (baseType != null) ResolvedTypeReference(this, context, TODO(), baseType) else null
     }
 
     private lateinit var _string: String
@@ -53,7 +66,10 @@ open class TypeReference(
         if (!this::_string.isInitialized) {
             val buffer = StringBuilder()
 
-            buffer.append("TypeReference[")
+            if (variance != Variance.UNSPECIFIED) {
+                buffer.append(variance.name.lowercase())
+                buffer.append(' ')
+            }
 
             modifier?.let {
                 buffer.append(it.name.lowercase())
@@ -66,16 +82,35 @@ open class TypeReference(
                 buffer.append(simpleName)
             }
 
-            if (isNullable) {
-                buffer.append('?')
+            if (parameters.isNotEmpty()) {
+                buffer.append(parameters.joinToString(
+                    prefix = "<",
+                    separator = ", ",
+                    postfix = ">"
+                ))
             }
 
-            buffer.append(", inferred=")
-            buffer.append(isInferred)
-            buffer.append(']')
+            when (nullability) {
+                Nullability.NOT_NULLABLE -> buffer.append('!')
+                Nullability.NULLABLE -> buffer.append('?')
+                Nullability.UNSPECIFIED -> {}
+            }
+
             _string = buffer.toString()
         }
 
         return this._string
+    }
+
+    enum class Nullability {
+        UNSPECIFIED,
+        NULLABLE,
+        NOT_NULLABLE,
+    }
+
+    enum class Variance {
+        UNSPECIFIED,
+        IN,
+        OUT
     }
 }
