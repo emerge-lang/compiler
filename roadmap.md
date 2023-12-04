@@ -89,6 +89,15 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 
 Small things to think about:
 
+* add Nothing type? 
+* syntax opinionation
+  * steal from rust
+    * use `fn` instead of `fun`?
+    * use `let` instead of `val`?
+      * drop `var` and do `let mut` then, too?
+    * numeric types: `i8`, `i16`, `i32`, `i64` instead of `Byte`, `Short`, `Int` and `Long`?
+    * use explicit parameter `self` in methods and functions with receiver to simplify
+      type constraints/modifications for the `self`/`this` argument
 * Function parameters that the function may not alter are declared as `readonly` and `immutable` with the
   exception of the receiver paramter: it can be declared readonly by declaring the function as `selector`:
   `struct X { selector fun foo() -> Unit }` in dotlin equals `struct X { void foo() const }` in D
