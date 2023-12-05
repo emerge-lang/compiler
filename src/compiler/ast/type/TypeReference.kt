@@ -18,19 +18,14 @@
 
 package compiler.ast.type
 
-import compiler.binding.context.CTContext
-import compiler.binding.type.ResolvedTypeReference
-import compiler.binding.type.RootResolvedTypeReference
-import compiler.binding.type.UnresolvedType
 import compiler.lexer.IdentifierToken
 
 open class TypeReference(
     val simpleName: String,
     val nullability: Nullability = Nullability.UNSPECIFIED,
     open val mutability: TypeMutability? = null,
-    val variance: Variance = Variance.UNSPECIFIED,
     val declaringNameToken: IdentifierToken? = null,
-    val parameters: List<TypeReference> = emptyList(),
+    val arguments: List<TypeArgument> = emptyList(),
 ) {
     constructor(simpleName: IdentifierToken) : this(simpleName.value, declaringNameToken = simpleName)
 
@@ -39,40 +34,15 @@ open class TypeReference(
             simpleName,
             nullability,
             mutability,
-            variance,
             declaringNameToken,
-            parameters,
+            arguments,
         )
-    }
-
-    fun withVariance(variance: Variance): TypeReference {
-        check(this.variance == Variance.UNSPECIFIED)
-        return TypeReference(
-            simpleName,
-            nullability,
-            mutability,
-            variance,
-            declaringNameToken,
-            parameters,
-        )
-    }
-
-    open fun resolveWithin(context: CTContext): ResolvedTypeReference {
-        val resolvedParameters = parameters.map { it.resolveWithin(context).defaultMutabilityTo(mutability) }
-        return context.resolveType(this)
-            ?.let { RootResolvedTypeReference(this, context, it, resolvedParameters) }
-            ?: UnresolvedType(context, this, resolvedParameters)
     }
 
     private lateinit var _string: String
     override fun toString(): String {
         if (!this::_string.isInitialized) {
             val buffer = StringBuilder()
-
-            if (variance != Variance.UNSPECIFIED) {
-                buffer.append(variance.name.lowercase())
-                buffer.append(' ')
-            }
 
             mutability?.let {
                 buffer.append(it.name.lowercase())
@@ -85,8 +55,8 @@ open class TypeReference(
                 buffer.append(simpleName)
             }
 
-            if (parameters.isNotEmpty()) {
-                buffer.append(parameters.joinToString(
+            if (arguments.isNotEmpty()) {
+                buffer.append(arguments.joinToString(
                     prefix = "<",
                     separator = ", ",
                     postfix = ">"
@@ -111,9 +81,4 @@ open class TypeReference(
         NOT_NULLABLE,
     }
 
-    enum class Variance {
-        UNSPECIFIED,
-        IN,
-        OUT
-    }
 }

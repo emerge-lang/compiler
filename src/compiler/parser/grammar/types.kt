@@ -19,9 +19,12 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
+import compiler.ast.TypeParameterBundle
+import compiler.ast.TypeArgumentBundle
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
@@ -49,46 +52,23 @@ val TypeMutability = eitherOf("type mutability") {
         }
     }
 
-private val ReferencingTypeParameter = sequence {
-    optional {
-        eitherOf {
-            keyword(Keyword.VARIANCE_IN)
-            keyword(Keyword.VARIANCE_OUT)
-        }
-    }
+private val TypeArgument = sequence {
+    ref(Variance)
     ref(Type)
 }
     .astTransformation { tokens ->
-        val firstToken = tokens.next()
-        val variance: TypeReference.Variance
-        val typeReference: TypeReference
-
-        when (firstToken) {
-            is TypeReference -> {
-                variance = TypeReference.Variance.UNSPECIFIED
-                typeReference = firstToken
-            }
-            is KeywordToken -> {
-                variance = when(firstToken.keyword) {
-                    Keyword.VARIANCE_IN -> TypeReference.Variance.IN
-                    Keyword.VARIANCE_OUT -> TypeReference.Variance.OUT
-                    else -> throw InternalCompilerError("Unknown type variance $firstToken")
-                }
-                typeReference = tokens.next() as TypeReference
-            }
-            else -> throw InternalCompilerError("Unexpected token in referencing type parameter: $firstToken")
-        }
-
-        typeReference.withVariance(variance)
+        val variance = tokens.next() as TypeVariance
+        val type = tokens.next() as TypeReference
+        type.withVariance(variance)
     }
 
-private val ReferencingTypeParameters: Rule<TypeReferenceParameters> = sequence {
+val BracedTypeArguments: Rule<TypeArgumentBundle> = sequence {
     operator(Operator.LESS_THAN)
     optional {
-        ref(ReferencingTypeParameter)
+        ref(TypeArgument)
         repeating {
             operator(Operator.COMMA)
-            ref(ReferencingTypeParameter)
+            ref(TypeArgument)
         }
     }
     operator(Operator.GREATER_THAN)
@@ -104,25 +84,68 @@ private val ReferencingTypeParameters: Rule<TypeReferenceParameters> = sequence 
             tokens.next()
         }
 
-        TypeReferenceParameters(parameters)
+        TypeArgumentBundle(parameters)
     }
 
-val DeclaringTypeParameter = sequence {
-    ref(ReferencingTypeParameter)
+val Variance: Rule<TypeVariance> = sequence("variance") {
+    optional {
+        eitherOf {
+            keyword(Keyword.VARIANCE_IN)
+            keyword(Keyword.VARIANCE_OUT)
+        }
+    }
+}
+    .astTransformation { tokens ->
+        when (val keyword = (tokens.next() as KeywordToken?)?.keyword) {
+            null -> TypeVariance.UNSPECIFIED
+            Keyword.VARIANCE_IN -> TypeVariance.IN
+            Keyword.VARIANCE_OUT -> TypeVariance.OUT
+            else -> throw InternalCompilerError("$keyword is not a type variance")
+        }
+    }
+
+val TypeParameter = sequence {
+    ref(Variance)
+    identifier()
     optional {
         operator(Operator.COLON)
         ref(Type)
     }
 }
     .astTransformation { tokens ->
-        val type = tokens.next() as TypeReference
+        val variance = tokens.next() as TypeVariance
+        val name = tokens.next() as IdentifierToken
         val bound = if (tokens.hasNext()) {
-            // skip :
-            tokens.next()
+            tokens.next() // skip colon
             tokens.next() as TypeReference
         } else null
 
-        TypeParameter(type, bound)
+        TypeParameter(variance, name, bound)
+    }
+
+val BracedTypeParameters = sequence {
+    operator(Operator.LESS_THAN)
+    optional {
+        ref(TypeParameter)
+        repeating {
+            operator(Operator.COMMA)
+            ref(TypeParameter)
+        }
+    }
+    operator(Operator.GREATER_THAN)
+}
+    .astTransformation { tokens ->
+        // skip <
+        tokens.next()
+
+        val parameters = ArrayList<TypeParameter>()
+        while (tokens.hasNext()) {
+            parameters.add(tokens.next() as TypeParameter)
+            // skip , or >
+            tokens.next()
+        }
+
+        TypeParameterBundle(parameters)
     }
 
 val Type: Rule<TypeReference> = sequence("type") {
@@ -133,7 +156,7 @@ val Type: Rule<TypeReference> = sequence("type") {
     identifier()
 
     optional {
-        ref(ReferencingTypeParameters)
+        ref(BracedTypeArguments)
     }
 
     optional {
@@ -160,7 +183,7 @@ val Type: Rule<TypeReference> = sequence("type") {
 
         var next = tokens.next()
         val parameters: List<TypeReference>
-        if (next is TypeReferenceParameters) {
+        if (next is TypeArgumentBundle) {
             parameters = next.parameters
             next = tokens.next()
         } else {
@@ -181,11 +204,8 @@ val Type: Rule<TypeReference> = sequence("type") {
             nameToken.value,
             nullability,
             typeMutability,
-            TypeReference.Variance.UNSPECIFIED,
             nameToken,
             parameters,
         )
     }
 
-// needed because a bare List<*> doesn't survive the flatten()
-private class TypeReferenceParameters(val parameters: List<TypeReference>)
