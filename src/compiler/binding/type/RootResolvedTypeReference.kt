@@ -25,6 +25,7 @@ class RootResolvedTypeReference private constructor(
 ) : ResolvedTypeReference {
     override val modifier: TypeModifier? = explicitModifier ?: original?.modifier ?: baseType.impliedModifier
     override val simpleName = original?.simpleName ?: baseType.simpleName
+    override val isMutable = modifier == null || modifier == TypeModifier.MUTABLE
 
     constructor(original: TypeReference, context: CTContext, baseType: BaseType, parameters: List<ResolvedTypeReference>) : this(
         original,
@@ -52,6 +53,17 @@ class RootResolvedTypeReference private constructor(
             isNullable,
             modifier,
             parameters.map { it.defaultMutabilityTo(modifier) },
+        )
+    }
+
+    override fun withCombinedMutability(mutability: TypeModifier?): ResolvedTypeReference {
+        val combinedMutability = modifier?.let { selfMutability -> mutability?.let { selfMutability.combinedWith(mutability) } ?: selfMutability } ?: mutability
+        return RootResolvedTypeReference(
+            context,
+            baseType,
+            isNullable,
+            combinedMutability,
+            parameters.map { it.defaultMutabilityTo(combinedMutability) },
         )
     }
 

@@ -28,6 +28,7 @@ import compiler.reportings.ValueNotAssignableReporting
 sealed interface ResolvedTypeReference {
     val context: CTContext
     val isNullable: Boolean
+    val isMutable: Boolean
     val simpleName: String?
 
     /**
@@ -36,6 +37,8 @@ sealed interface ResolvedTypeReference {
     val modifier: TypeModifier?
 
     fun modifiedWith(modifier: TypeModifier): ResolvedTypeReference
+
+    fun withCombinedMutability(mutability: TypeModifier?): ResolvedTypeReference
 
     /**
      * Validates the type reference.

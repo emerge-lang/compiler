@@ -22,6 +22,7 @@ import compiler.EarlyStackOverflowException
 import compiler.OnceAction
 import compiler.ast.Executable
 import compiler.ast.VariableDeclaration
+import compiler.ast.type.TypeModifier
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
 import compiler.binding.expression.BoundExpression
@@ -103,7 +104,6 @@ class BoundVariable(
             val reportings = mutableSetOf<Reporting>()
 
             if (initializerExpression != null) {
-
                 try {
                     throwOnCycle(this) {
                         reportings.addAll(initializerExpression.semanticAnalysisPhase2())
@@ -135,9 +135,24 @@ class BoundVariable(
             }
 
             // infer the type
-            if (type == null) {
-                val assignExprType = initializerExpression?.type
-                type = if (typeModifier == null) assignExprType else assignExprType?.modifiedWith(typeModifier)
+            val initializerType = initializerExpression?.type
+            if (type == null && initializerType != null) {
+                if (typeModifier != null) {
+                    if (initializerType.modifier != null) {
+                        if (!initializerType.modifier!!.isAssignableTo(typeModifier)) {
+                            reportings.add(Reporting.valueNotAssignable(
+                                initializerType.modifiedWith(typeModifier),
+                                initializerType,
+                                "Cannot assign a ${initializerType.modifier!!.name.lowercase()} value to a ${typeModifier.name.lowercase()} reference",
+                                initializerExpression!!.declaration.sourceLocation,
+                            ))
+                        }
+                    }
+                    type = initializerType.modifiedWith(typeModifier)
+                } else {
+                    val implicitMutability = if (isAssignable) TypeModifier.MUTABLE else TypeModifier.IMMUTABLE
+                    type = initializerType.withCombinedMutability(implicitMutability)
+                }
             }
 
             return@getResult reportings
