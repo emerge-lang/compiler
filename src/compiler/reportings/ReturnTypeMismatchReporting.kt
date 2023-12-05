@@ -18,27 +18,12 @@
 
 package compiler.reportings
 
-import compiler.binding.type.ResolvedTypeReference
-import compiler.lexer.SourceLocation
-
 /**
  * Reported when a value of type [returnedType] is returned from a context where a return type of [expectedReturnType]
  * is expected and the types are not compatible.
  */
-class ReturnTypeMismatchReporting(
-    val expectedReturnType: ResolvedTypeReference,
-    val returnedType: ResolvedTypeReference,
-    location: SourceLocation
-) : Reporting(
-    Level.ERROR,
-    run {
-        var message =
-            "Cannot return a value of type $returnedType from a context that is expected to return $expectedReturnType"
-        val reason = typeMismatchReason(expectedReturnType, returnedType)
-        if (reason != null) {
-            message += "; $reason"
-        }
-        message
-    },
-    location
+class ReturnTypeMismatchReporting(base: ValueNotAssignableReporting) : Reporting(
+    base.level,
+    "Cannot return a value of type ${base.sourceType} from a context that is expected to return ${base.targetType}: ${base.reason}",
+    base.sourceLocation,
 )

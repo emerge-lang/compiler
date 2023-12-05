@@ -85,11 +85,8 @@ abstract class Reporting internal constructor(
         fun unsupported(message: String, location: SourceLocation)
             = UnsupportedFeatureReporting(message, location)
 
-        fun typeMismatch(targetType: ResolvedTypeReference, sourceType: ResolvedTypeReference, location: SourceLocation)
-            = TypeMismatchReporting(targetType, sourceType, location)
-
-        fun returnTypeMismatch(expectedReturnType: ResolvedTypeReference, returnedType: ResolvedTypeReference, location: SourceLocation)
-            = ReturnTypeMismatchReporting(expectedReturnType, returnedType, location)
+        fun valueNotAssignable(targetType: ResolvedTypeReference, sourceType: ResolvedTypeReference, reason: String, assignmentLocation: SourceLocation)
+            = ValueNotAssignableReporting(targetType, sourceType, reason, assignmentLocation)
 
         fun undefinedIdentifier(expr: IdentifierExpression, messageOverride: String? = null)
             = UndefinedIdentifierReporting(expr, messageOverride)

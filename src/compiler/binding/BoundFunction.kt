@@ -23,6 +23,7 @@ import compiler.ast.type.FunctionModifier
 import compiler.binding.context.CTContext
 import compiler.binding.type.Any
 import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.isAssignableTo
 import compiler.lexer.SourceLocation
 
 abstract class BoundFunction : SemanticallyAnalyzable {
@@ -74,7 +75,7 @@ abstract class BoundFunction : SemanticallyAnalyzable {
 /**
  * Given the invocation types `receiverType` and `parameterTypes` of an invocation site
  * returns the functions matching the types sorted by matching quality to the given
- * types (see [ResolvedTypeReference.isAssignableTo] and [ResolvedTypeReference.assignMatchQuality])
+ * types (see [ResolvedTypeReference.evaluateAssignabilityTo] and [ResolvedTypeReference.assignMatchQuality])
  *
  * In essence, this function is the function dispatching algorithm of the language.
  */
@@ -91,7 +92,7 @@ fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(receiverType:
                 return@filter false
             }
 
-            return@filter receiverType.isAssignableTo(it.receiverType!!)
+            return@filter receiverType isAssignableTo it.receiverType!!
         }
         // filter by incompatible number of parameters
         .filter { it.parameters.parameters.size == parameterTypes.count() }
@@ -99,7 +100,7 @@ fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(receiverType:
         .filter { candidateFn ->
             parameterTypes.forEachIndexed { paramIndex, paramType ->
                 val candidateParamType = candidateFn.parameterTypes[paramIndex] ?: Any.baseReference(candidateFn.context)
-                if (paramType != null && !(paramType isAssignableTo candidateParamType)) {
+                if (paramType != null && !(paramType isAssignableTo  candidateParamType)) {
                     return@filter false
                 }
             }

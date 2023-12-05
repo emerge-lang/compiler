@@ -40,7 +40,10 @@ interface BaseType {
         get() = simpleName
 
     val baseReference: (CTContext) -> ResolvedTypeReference
-        get() = { ctx -> ResolvedTypeReference(TypeReference(simpleName, TypeReference.Nullability.NOT_NULLABLE, impliedModifier), ctx, false, this) }
+        get() = { ctx ->
+            // determine minimum bound for all type parameters
+            RootResolvedTypeReference(ctx, this, false, null, emptyList())
+        }
 
     val superTypes: Set<BaseType>
         get() = emptySet()
@@ -109,10 +112,10 @@ interface BaseType {
          * | C, A        | Any                    |
          * | AB, C       | Any                    |
          *
-         * @return The type to which all of the given types are assignable with the minimum
-         *         [hierachical distance](hierarchicalDistanceTo).
+         * @return The type to which all the given types are assignable with the minimum
+         * [BaseType.hierarchicalDistanceTo].
          */
-        fun closestCommonAncestorOf(types: List<BaseType>): BaseType {
+        fun closestCommonSupertypeOf(types: List<BaseType>): BaseType {
             if (types.isEmpty()) throw IllegalArgumentException("At least one type must be provided")
             if (types.size == 1) return types[0]
 
@@ -141,10 +144,10 @@ interface BaseType {
         }
 
         /**
-         * @see [closestCommonAncestorOf]
+         * @see [closestCommonSupertypeOf]
          */
-        fun closestCommonAncestorOf(vararg types: BaseType): BaseType {
-            return closestCommonAncestorOf(types.asList())
+        fun closestCommonSupertypeOf(vararg types: BaseType): BaseType {
+            return closestCommonSupertypeOf(types.asList())
         }
     }
 }

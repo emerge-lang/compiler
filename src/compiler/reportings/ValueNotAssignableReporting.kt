@@ -25,24 +25,18 @@ import compiler.lexer.SourceLocation
  * Reported when a value of tye [sourceType] is to be written to a storage of type [targetType] and the types
  * are not compatible.
  */
-open class TypeMismatchReporting(
+open class ValueNotAssignableReporting(
     /** The type of the storage area a value is to be written to; in an assignment its the type of the target variable */
     val targetType: ResolvedTypeReference,
 
     /** The type of the value that is to be written; in an assignments its the type of the expression to be written to a variable */
     val sourceType: ResolvedTypeReference,
 
-    location: SourceLocation
+    val reason: String,
+
+    assignmentLocation: SourceLocation
 ) : Reporting(
     Level.ERROR,
-    {
-        var message = "Cannot assign a value of type $sourceType to a target of type $targetType"
-        val reason = typeMismatchReason(targetType, sourceType)
-        if (reason != null) {
-            message += "; $reason"
-        }
-
-        message
-    }(),
-    location
+    "Cannot assign a value of type $sourceType to a target of type $targetType: $reason",
+    assignmentLocation
 )

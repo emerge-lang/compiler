@@ -26,6 +26,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.ResolvedTypeReference
 import compiler.reportings.Reporting
+import compiler.reportings.StructMemberDefaultValueNotAssignableReporting
 
 class StructMember(
     override val context: StructContext,
@@ -66,9 +67,10 @@ class StructMember(
 
             val defaultValueType = defaultValue.type
             if (defaultValueType != null && type != null) {
-                if (!(defaultValueType isAssignableTo type!!)) {
-                    reportings.add(Reporting.typeMismatch(type!!, defaultValueType, declaration.declaredAt))
-                }
+                defaultValueType.evaluateAssignabilityTo(type!!, this.declaration.declaredAt)
+                    ?.let {
+                        reportings.add(StructMemberDefaultValueNotAssignableReporting(this, it))
+                    }
             }
         }
 

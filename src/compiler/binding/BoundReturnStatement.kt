@@ -18,11 +18,11 @@
 
 package compiler.binding
 
-import compiler.InternalCompilerError
 import compiler.ast.ReturnStatement
 import compiler.binding.context.CTContext
 import compiler.binding.type.ResolvedTypeReference
 import compiler.reportings.Reporting
+import compiler.reportings.ReturnTypeMismatchReporting
 
 class BoundReturnStatement(
     override val context: CTContext,
@@ -58,9 +58,10 @@ class BoundReturnStatement(
         val expressionType = expression.type
 
         if (expressionType != null) {
-            if (!(expressionType isAssignableTo expectedReturnType)) {
-                reportings += Reporting.returnTypeMismatch(expectedReturnType, expressionType, declaration.sourceLocation)
-            }
+            expressionType.evaluateAssignabilityTo(expectedReturnType, declaration.sourceLocation)
+                ?.let {
+                    reportings.add(ReturnTypeMismatchReporting(it))
+                }
         }
 
         return reportings

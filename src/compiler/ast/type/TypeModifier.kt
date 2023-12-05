@@ -18,6 +18,9 @@
 
 package compiler.ast.type
 
+/**
+ * TODO: rename to TypeMutability
+ */
 enum class TypeModifier {
     MUTABLE,
     READONLY,
@@ -30,4 +33,25 @@ enum class TypeModifier {
             MUTABLE, IMMUTABLE -> targetModifier == READONLY
             READONLY -> false
         }
+
+    /**
+     * When multiple values can be assigned to one location, that multitude of options
+     * can be reasoned about by [Iterable.fold]ing the [TypeModifier] with this method.
+     *
+     * If both are identical, the same value will be returned. Otherwise, the return value is [READONLY],
+     * as it is makes the least guarantees about the value. Hence, this method is associative.
+     *
+     * |`this`     |[other]    |result     |
+     * |-----------|-----------|-----------|
+     * |`MUTABLE`  |`MUTABLE`  |`MUTABLE`  |
+     * |`MUTABLE`  |`READONLY` |`READONLY` |
+     * |`MUTABLE`  |`IMMUTABLE`|`READONLY` |
+     * |`READONLY` |`MUTABLE`  |`READONLY` |
+     * |`READONLY` |`READONLY` |`READONLY` |
+     * |`READONLY` |`IMMUTABLE`|`READONLY` |
+     * |`IMMUTABLE`|`MUTABLE`  |`READONLY` |
+     * |`IMMUTABLE`|`READONLY` |`READONLY` |
+     * |`IMMUTABLE`|`IMMUTABLE`|`IMMUTABLE`|
+     */
+    fun combinedWith(other: TypeModifier): TypeModifier = if (this == other) this else READONLY
 }

@@ -1,8 +1,10 @@
 package compiler.negative
 
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.reportings.*
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class VariableErrors : FreeSpec({
     "toplevel" - {
@@ -10,9 +12,9 @@ class VariableErrors : FreeSpec({
             validateModule("""
                 val foo: Int = false
             """.trimIndent())
-                .shouldReport<TypeMismatchReporting> {
-                    it.sourceType.baseType.fullyQualifiedName shouldBe "dotlin.lang.Boolean"
-                    it.targetType.baseType.fullyQualifiedName shouldBe "dotlin.lang.Int"
+                .shouldReport<ValueNotAssignableReporting> {
+                    it.sourceType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType.fullyQualifiedName shouldBe "dotlin.lang.Boolean"
+                    it.targetType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType.fullyQualifiedName shouldBe "dotlin.lang.Int"
                 }
         }
 

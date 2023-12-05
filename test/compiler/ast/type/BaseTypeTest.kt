@@ -82,28 +82,28 @@ class BaseTypeTest : FreeSpec() { init {
 
         "Then the closest common ancestor of" - {
             "B and A is A" {
-                BaseType.closestCommonAncestorOf(listOf(typeB, typeA)) shouldBe typeA
-                BaseType.closestCommonAncestorOf(listOf(typeA, typeB)) shouldBe typeA
+                BaseType.closestCommonSupertypeOf(listOf(typeB, typeA)) shouldBe typeA
+                BaseType.closestCommonSupertypeOf(listOf(typeA, typeB)) shouldBe typeA
             }
 
             "B and C is A" {
-                BaseType.closestCommonAncestorOf(listOf(typeB, typeC)) shouldBe typeA
-                BaseType.closestCommonAncestorOf(listOf(typeC, typeB)) shouldBe typeA
+                BaseType.closestCommonSupertypeOf(listOf(typeB, typeC)) shouldBe typeA
+                BaseType.closestCommonSupertypeOf(listOf(typeC, typeB)) shouldBe typeA
             }
 
             "D and E is B" {
-                BaseType.closestCommonAncestorOf(listOf(typeD, typeE)) shouldBe typeB
-                BaseType.closestCommonAncestorOf(listOf(typeE, typeD)) shouldBe typeB
+                BaseType.closestCommonSupertypeOf(listOf(typeD, typeE)) shouldBe typeB
+                BaseType.closestCommonSupertypeOf(listOf(typeE, typeD)) shouldBe typeB
             }
 
             "C and E is A" {
-                BaseType.closestCommonAncestorOf(listOf(typeC, typeE)) shouldBe typeA
-                BaseType.closestCommonAncestorOf(listOf(typeE, typeC)) shouldBe typeA
+                BaseType.closestCommonSupertypeOf(listOf(typeC, typeE)) shouldBe typeA
+                BaseType.closestCommonSupertypeOf(listOf(typeE, typeC)) shouldBe typeA
             }
 
             "F and G is Any" {
-                BaseType.closestCommonAncestorOf(listOf(typeF, typeG)) shouldBe Any
-                BaseType.closestCommonAncestorOf(listOf(typeG, typeF)) shouldBe Any
+                BaseType.closestCommonSupertypeOf(listOf(typeF, typeG)) shouldBe Any
+                BaseType.closestCommonSupertypeOf(listOf(typeG, typeF)) shouldBe Any
             }
         }
     }

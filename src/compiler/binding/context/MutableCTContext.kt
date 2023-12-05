@@ -88,8 +88,6 @@ open class MutableCTContext(
     }
 
     override fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean): BaseType? {
-        if (ref is ResolvedTypeReference) return ref.baseType
-
         _types.find { it.simpleName == ref.simpleName }?.let { return it }
 
         val fromImport = if (fromOwnModuleOnly) null else {

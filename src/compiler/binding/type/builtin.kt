@@ -87,6 +87,7 @@ abstract class BuiltinType(final override val simpleName: String, vararg superTy
             module.context.addBaseType(Float)
             module.context.addBaseType(Int)
             module.context.addBaseType(BuiltinBoolean)
+            module.context.addBaseType(BuiltinArray)
 
             stdlib.functions.forEach { module.context.addFunction(it) }
             stdlib.variables.forEach { module.context.addVariable(it) }

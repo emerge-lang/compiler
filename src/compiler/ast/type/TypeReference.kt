@@ -20,6 +20,8 @@ package compiler.ast.type
 
 import compiler.binding.context.CTContext
 import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.RootResolvedTypeReference
+import compiler.binding.type.UnresolvedType
 import compiler.lexer.IdentifierToken
 
 open class TypeReference(
@@ -56,9 +58,11 @@ open class TypeReference(
         )
     }
 
-    open fun resolveWithin(context: CTContext): ResolvedTypeReference? {
-        val baseType = context.resolveType(this)
-        return if (baseType != null) ResolvedTypeReference(this, context, TODO(), baseType) else null
+    open fun resolveWithin(context: CTContext): ResolvedTypeReference {
+        val resolvedParameters = parameters.map { it.resolveWithin(context).defaultMutabilityTo(modifier) }
+        return context.resolveType(this)
+            ?.let { RootResolvedTypeReference(this, context, it, resolvedParameters) }
+            ?: UnresolvedType(context, this, resolvedParameters)
     }
 
     private lateinit var _string: String

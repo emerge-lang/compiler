@@ -6,6 +6,7 @@ import compiler.ast.type.FunctionModifier
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.Unit
 import compiler.reportings.Reporting
 
@@ -205,9 +206,10 @@ class BoundDeclaredFunction(
                 val isGuaranteedToTerminate = code.isGuaranteedToReturn nullableOr code.isGuaranteedToThrow
 
                 if (!isGuaranteedToTerminate) {
+                    val localReturnType = returnType
                     // if the function is declared to return Unit a return of Unit is implied and should be inserted by backends
                     // if this is a single-expression function (fun a() = 3), return is implied
-                    if ((returnType == null || returnType!!.baseType !== Unit) && this.code !is BoundExpression<*>) {
+                    if (localReturnType == null || (localReturnType is RootResolvedTypeReference && localReturnType.baseType !== Unit && this.code !is BoundExpression<*>)) {
                         reportings.add(Reporting.uncertainTermination(this))
                     }
                 }

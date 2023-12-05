@@ -132,31 +132,12 @@ class BoundVariable(
 
                     // discrepancy between assign expression and declared type
                     if (initializerType != null) {
-                        if (!(initializerType isAssignableTo type!!)) {
-                            reportings.add(
-                                Reporting.typeMismatch(
-                                    type!!,
-                                    initializerType,
-                                    declaration.initializerExpression!!.sourceLocation
-                                )
-                            )
-                        }
+                        initializerType.evaluateAssignabilityTo(type!!, declaration.initializerExpression!!.sourceLocation)
+                            ?.let(reportings::add)
                     }
                 }
 
-                // discrepancy between implied modifiers of initializerExpression and type modifiers of this declaration
-                val assignExprBaseType = initializerExpression.type?.baseType
-                val assignExprTypeImpliedModifier = assignExprBaseType?.impliedModifier
-                if (typeModifier != null && assignExprTypeImpliedModifier != null) {
-                    if (!(assignExprTypeImpliedModifier isAssignableTo typeModifier)) {
-                        reportings.add(
-                            Reporting.modifierError(
-                                "Modifier $typeModifier not applicable to implied modifier $assignExprTypeImpliedModifier of $assignExprBaseType",
-                                declaration.declaredAt
-                            )
-                        )
-                    }
-                }
+                // TODO: discrepancy between implied modifiers of initializerExpression and type modifiers of this declaration
             }
 
             // infer the type
