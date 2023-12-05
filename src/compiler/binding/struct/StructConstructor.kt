@@ -3,6 +3,7 @@ package compiler.binding.struct
 import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
 import compiler.ast.type.FunctionModifier
+import compiler.ast.type.TypeModifier
 import compiler.binding.BoundFunction
 import compiler.binding.context.MutableCTContext
 import compiler.reportings.Reporting
@@ -33,7 +34,7 @@ class StructConstructor(
         }
     }
 
-    override val returnType = struct.baseReference(context)
+    override val returnType = struct.baseReference(context).modifiedWith(TypeModifier.EXCLUSIVE)
     override val isGuaranteedToThrow = false
     override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
     override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()

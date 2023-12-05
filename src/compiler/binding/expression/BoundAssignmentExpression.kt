@@ -82,7 +82,7 @@ class BoundAssignmentExpression(
         }
         else if (targetExpression is BoundMemberAccessExpression) {
             targetExpression.valueExpression.type?.let { memberOwnerType ->
-                if (!memberOwnerType.isMutable) {
+                if (!memberOwnerType.modifier.isMutable) {
                     reportings += Reporting.illegalAssignment("Cannot mutate a value of type $memberOwnerType", this)
                 }
             }

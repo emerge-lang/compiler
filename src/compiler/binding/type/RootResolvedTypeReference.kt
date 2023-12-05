@@ -23,9 +23,8 @@ class RootResolvedTypeReference private constructor(
      */
     val parameters: List<ResolvedTypeReference>,
 ) : ResolvedTypeReference {
-    override val modifier: TypeModifier? = explicitModifier ?: original?.modifier ?: baseType.impliedModifier
+    override val modifier = explicitModifier ?: original?.modifier ?: baseType.impliedModifier ?: TypeModifier.READONLY
     override val simpleName = original?.simpleName ?: baseType.simpleName
-    override val isMutable = modifier == null || modifier == TypeModifier.MUTABLE
 
     constructor(original: TypeReference, context: CTContext, baseType: BaseType, parameters: List<ResolvedTypeReference>) : this(
         original,
@@ -57,7 +56,7 @@ class RootResolvedTypeReference private constructor(
     }
 
     override fun withCombinedMutability(mutability: TypeModifier?): ResolvedTypeReference {
-        val combinedMutability = modifier?.let { selfMutability -> mutability?.let { selfMutability.combinedWith(mutability) } ?: selfMutability } ?: mutability
+        val combinedMutability = mutability?.let { modifier.combinedWith(it) } ?: modifier
         return RootResolvedTypeReference(
             context,
             baseType,
@@ -76,8 +75,8 @@ class RootResolvedTypeReference private constructor(
             context,
             baseType,
             isNullable,
-            mutability,
-            parameters.map { it -> it.defaultMutabilityTo(mutability) },
+            mutability.exceptExclusive,
+            parameters.map { it.defaultMutabilityTo(mutability) },
         )
     }
 
@@ -118,10 +117,8 @@ class RootResolvedTypeReference private constructor(
         }
 
         // the modifiers must be compatible
-        val thisModifier = modifier ?: TypeModifier.READONLY
-        val otherModifier = other.modifier ?: TypeModifier.READONLY
-        if (!(thisModifier isAssignableTo otherModifier)) {
-            return Reporting.valueNotAssignable(other, this, "cannot assign a ${thisModifier.name.lowercase()} value to a ${otherModifier.name.lowercase()} reference", assignmentLocation)
+        if (!(modifier isAssignableTo other.modifier)) {
+            return Reporting.valueNotAssignable(other, this, "cannot assign a ${modifier.name.lowercase()} value to a ${other.modifier.name.lowercase()} reference", assignmentLocation)
         }
 
         // void-safety:
@@ -167,7 +164,7 @@ class RootResolvedTypeReference private constructor(
                     context,
                     commonSupertype,
                     this.isNullable || other.isNullable,
-                    modifier?.let { selfModifier -> other.modifier?.let { otherModifier -> selfModifier.combinedWith(otherModifier) } ?: selfModifier },
+                    this.modifier.combinedWith(other.modifier),
                     emptyList(),
                 )
             }
@@ -177,10 +174,8 @@ class RootResolvedTypeReference private constructor(
     private lateinit var _string: String
     override fun toString(): String {
         if (!this::_string.isInitialized) {
-            var str = ""
-            modifier?.let {
-                str += it.name.lowercase() + " "
-            }
+            var str = modifier.name.lowercase()
+            str += " "
 
             str += baseType.fullyQualifiedName.removePrefix(BuiltinType.DEFAULT_MODULE_NAME_STRING + ".")
 
@@ -219,7 +214,7 @@ class RootResolvedTypeReference private constructor(
         var result = isNullable.hashCode()
         result = 31 * result + baseType.hashCode()
         result = 31 * result + parameters.hashCode()
-        result = 31 * result + (modifier?.hashCode() ?: 0)
+        result = 31 * result + modifier.hashCode()
         return result
     }
 }

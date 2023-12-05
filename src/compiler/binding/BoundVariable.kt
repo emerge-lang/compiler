@@ -138,15 +138,13 @@ class BoundVariable(
             val initializerType = initializerExpression?.type
             if (type == null && initializerType != null) {
                 if (typeModifier != null) {
-                    if (initializerType.modifier != null) {
-                        if (!initializerType.modifier!!.isAssignableTo(typeModifier)) {
-                            reportings.add(Reporting.valueNotAssignable(
-                                initializerType.modifiedWith(typeModifier),
-                                initializerType,
-                                "Cannot assign a ${initializerType.modifier!!.name.lowercase()} value to a ${typeModifier.name.lowercase()} reference",
-                                initializerExpression!!.declaration.sourceLocation,
-                            ))
-                        }
+                    if (!initializerType.modifier.isAssignableTo(typeModifier)) {
+                        reportings.add(Reporting.valueNotAssignable(
+                            initializerType.modifiedWith(typeModifier),
+                            initializerType,
+                            "Cannot assign a ${initializerType.modifier.name.lowercase()} value to a ${typeModifier.name.lowercase()} reference",
+                            initializerExpression!!.declaration.sourceLocation,
+                        ))
                     }
                     type = initializerType.modifiedWith(typeModifier)
                 } else {
