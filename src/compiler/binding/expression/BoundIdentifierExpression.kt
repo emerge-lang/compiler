@@ -35,23 +35,13 @@ class BoundIdentifierExpression(
     val identifier: String = declaration.identifier.value
 
     override val type: ResolvedTypeReference?
-        get() = when(referredType) {
-            ReferredType.VARIABLE -> referredVariable?.type
-            ReferredType.TYPENAME -> referredBaseType?.baseReference?.invoke(context)
+        get() = when(val localReferral = referral) {
+            is ReferringVariable -> localReferral.variable.type
+            is ReferringType -> localReferral.reference
             null -> null
         }
 
-    /** What this expression refers to; is null if not known */
-    var referredType: ReferredType? = null
-        private set
-
-    /** The variable this expression refers to, if it does (see [referredType]); otherwise null. */
-    var referredVariable: BoundVariable? = null
-        private set
-
-    /** The base type this expression referes to, if it does (see [referredType]); otherwise null. */
-    var referredBaseType: BaseType? = null
-        private set
+    private var referral: Referral? = null
 
     override var isGuaranteedToThrow = false
 
@@ -62,71 +52,26 @@ class BoundIdentifierExpression(
         val variable = context.resolveVariable(identifier)
 
         if (variable != null) {
-            referredType = ReferredType.VARIABLE
-            referredVariable = variable
+            referral = ReferringVariable(variable)
         } else {
-            val type: BaseType? = context.resolveType(
+            val type: ResolvedTypeReference? = context.resolveType(
                 TypeReference(declaration.identifier)
             )
 
             if (type == null) {
                 reportings.add(Reporting.undefinedIdentifier(declaration))
             } else {
-                this.referredBaseType = type
-                this.referredType = ReferredType.TYPENAME
+                referral = ReferringType(type)
             }
         }
 
         return reportings
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
-
-        when (this.referredType) {
-            null -> {
-                // attempt a variable
-                val variable = context.resolveVariable(identifier)
-                if (variable != null) {
-                    referredVariable = variable
-                    referredType = ReferredType.VARIABLE
-                }
-                else {
-                    // TODO: attempt to resolve type; expression becomes of type "Type/Class", ... whatever, still to be defined
-                    reportings.add(Reporting.undefinedIdentifier(declaration, "Cannot resolve variable $identifier"))
-                }
-            }
-            ReferredType.VARIABLE -> {
-                val variable = context.resolveVariable(identifier)
-                if (variable != null) {
-                    reportings.addAll(variable.semanticAnalysisPhase2())
-                    referredVariable = variable
-                }
-                else {
-                    reportings.add(Reporting.undefinedIdentifier(declaration, "Cannot resolve variable $identifier"))
-                }
-            }
-            ReferredType.TYPENAME -> {
-                // TODO: attempt to resolve type; expression becomes of type "Type/Class", ... whatever, still to be defined
-            }
-        }
-
-        return reportings
-    }
+    override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
-        if (referredType == ReferredType.VARIABLE) {
-            if (context.containsWithinBoundary(referredVariable!!, boundary)) {
-                return emptySet()
-            }
-            else {
-                return setOf(this)
-            }
-        }
-        else {
-            // TODO is reading type information of types declared outside the boundary considered impure?
-            return emptySet() // no violation
-        }
+        return referral?.findReadsBeyond(boundary) ?: emptySet()
     }
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
@@ -134,10 +79,23 @@ class BoundIdentifierExpression(
         return emptySet()
     }
 
-    /** The kinds of things an identifier can refer to. */
-    enum class ReferredType {
-        VARIABLE,
-        TYPENAME
+    private sealed interface Referral {
+        fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>>
+    }
+    private inner class ReferringVariable(val variable: BoundVariable) : Referral {
+        override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+            return if (context.containsWithinBoundary(variable, boundary)) {
+                emptySet()
+            } else {
+                setOf(this@BoundIdentifierExpression)
+            }
+        }
+    }
+    private inner class ReferringType(val reference: ResolvedTypeReference) : Referral {
+        override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+            // TODO is reading type information of types declared outside the boundary considered impure?
+            return emptySet()
+        }
     }
 }
 
