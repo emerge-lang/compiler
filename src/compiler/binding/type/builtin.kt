@@ -20,7 +20,7 @@ package compiler.binding.type
 
 import compiler.ast.ASTModule
 import compiler.ast.FunctionDeclaration
-import compiler.ast.type.TypeModifier
+import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.context.Module
 import compiler.binding.context.ModuleRootContext
@@ -39,19 +39,19 @@ val Any = object : BuiltinType("Any") {}
 val Unit = object : BuiltinType("Unit", Any) {}
 
 val Number = object : BuiltinType("Number", Any) {
-    override val impliedModifier = TypeModifier.IMMUTABLE
+    override val impliedMutability = TypeMutability.IMMUTABLE
 }
 
 val Float = object : BuiltinType("Float", Number) {
-    override val impliedModifier = TypeModifier.IMMUTABLE
+    override val impliedMutability = TypeMutability.IMMUTABLE
 }
 
 val Int = object : BuiltinType("Int", Number) {
-    override val impliedModifier = TypeModifier.IMMUTABLE
+    override val impliedMutability = TypeMutability.IMMUTABLE
 }
 
 val BuiltinBoolean = object : BuiltinType("Boolean", Any) {
-    override val impliedModifier = TypeModifier.IMMUTABLE
+    override val impliedMutability = TypeMutability.IMMUTABLE
 }
 
 val BuiltinArray = object : BuiltinType("Array", Any) {

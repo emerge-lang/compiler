@@ -18,8 +18,7 @@
 
 package compiler.binding.type
 
-import compiler.ast.type.TypeModifier
-import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeMutability
 import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
@@ -33,11 +32,11 @@ sealed interface ResolvedTypeReference {
     /**
      * TODO: rename to mutability
      */
-    val modifier: TypeModifier
+    val mutability: TypeMutability
 
-    fun modifiedWith(modifier: TypeModifier): ResolvedTypeReference
+    fun modifiedWith(modifier: TypeMutability): ResolvedTypeReference
 
-    fun withCombinedMutability(mutability: TypeModifier?): ResolvedTypeReference
+    fun withCombinedMutability(mutability: TypeMutability?): ResolvedTypeReference
 
     /**
      * Validates the type reference.
@@ -63,9 +62,9 @@ sealed interface ResolvedTypeReference {
     fun assignMatchQuality(other: ResolvedTypeReference): Int?
 
     /**
-     * @return `this` if the [modifier] set explicitly, a copy of `this` with the [modifier] set to [mutability] otherwise.
+     * @return `this` if the [mutability] set explicitly, a copy of `this` with the [mutability] set to [mutability] otherwise.
      */
-    fun defaultMutabilityTo(mutability: TypeModifier?): ResolvedTypeReference
+    fun defaultMutabilityTo(mutability: TypeMutability?): ResolvedTypeReference
 
     /**
      * Finds the "greatest common denominator" of this type and the [other] type.

@@ -25,7 +25,7 @@ import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
 import compiler.ast.expression.Expression
 import compiler.ast.type.FunctionModifier
-import compiler.ast.type.TypeModifier
+import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
@@ -40,7 +40,7 @@ import java.util.LinkedList
 val Parameter = sequence("parameter declaration") {
 
     optional {
-        ref(TypeModifier)
+        ref(TypeMutability)
     }
 
     optional {
@@ -64,7 +64,7 @@ val Parameter = sequence("parameter declaration") {
 }
     .astTransformation { tokens ->
         var declarationKeyword: Keyword? = null
-        var typeModifier: TypeModifier? = null
+        var typeMutability: TypeMutability? = null
         val name: IdentifierToken
         var type: TypeReference? = null
         var initializer: Expression<*>? = null
@@ -76,8 +76,8 @@ val Parameter = sequence("parameter declaration") {
             next = tokens.next()!!
         }
 
-        if (next is TypeModifier) {
-            typeModifier = next
+        if (next is TypeMutability) {
+            typeMutability = next
             next = tokens.next()!!
         }
 
@@ -95,7 +95,7 @@ val Parameter = sequence("parameter declaration") {
 
         VariableDeclaration(
             name.sourceLocation,
-            typeModifier,
+            typeMutability,
             name,
             type,
             declarationKeyword == Keyword.VAR,

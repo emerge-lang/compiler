@@ -128,14 +128,14 @@ One statement per line. `;` only used to separate multiple statements on one lin
 * Function-Types
 * `Any` and `Unit` instead of `void`
 
-### Type Modifiers
+### Reasoning about mutability
 
-#### Type modifiers (from D)
+#### Type mutabilities (inpsired from D)
 
-* no modifier => mutable as usual
-* readonly (called const in dlang)
+* no modifier => readonly
+* mutable
 * immutable
-* with braces as in dlang: `alias string = immutable(Char)[]`
+* for composite types can be specified granularly: `mutable Array<readonly Foo>`
 
 Those are transitive as in D; see below for variable declaration and aissgnments to variables.
 
@@ -149,8 +149,8 @@ Values of modified Types can be converterted to an other type according to this 
 
 ##### Syntax
 
-Type modifiers can be prefixed to variable declarations to apply the
-modifier to the inferred type (see below).
+Mutability modifiers can be prefixed to variable declarations to apply the
+mutability to the inferred type (see below).
 
 When declaring types elsewhere, these rules apply:
 

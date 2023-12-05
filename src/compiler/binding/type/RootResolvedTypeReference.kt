@@ -1,12 +1,11 @@
 package compiler.binding.type
 
-import compiler.ast.type.TypeModifier
+import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import compiler.reportings.ValueNotAssignableReporting
-import kotlin.math.exp
 
 /**
  * A [TypeReference] where the root type is resolved
@@ -15,7 +14,7 @@ class RootResolvedTypeReference private constructor(
     private val original: TypeReference?,
     override val context: CTContext,
     override val isNullable: Boolean,
-    private val explicitModifier: TypeModifier?,
+    private val explicitMutability: TypeMutability?,
     val baseType: BaseType,
 
     /**
@@ -23,19 +22,19 @@ class RootResolvedTypeReference private constructor(
      */
     val parameters: List<ResolvedTypeReference>,
 ) : ResolvedTypeReference {
-    override val modifier = explicitModifier ?: original?.modifier ?: baseType.impliedModifier ?: TypeModifier.READONLY
+    override val mutability = explicitMutability ?: original?.mutability ?: baseType.impliedMutability ?: TypeMutability.READONLY
     override val simpleName = original?.simpleName ?: baseType.simpleName
 
     constructor(original: TypeReference, context: CTContext, baseType: BaseType, parameters: List<ResolvedTypeReference>) : this(
         original,
         context,
         original.nullability == TypeReference.Nullability.NULLABLE,
-        original.modifier ?: baseType.impliedModifier,
+        original.mutability ?: baseType.impliedMutability,
         baseType,
         parameters,
     )
 
-    constructor(context: CTContext, baseType: BaseType, isNullable: Boolean, explicitModifier: TypeModifier?, parameters: List<ResolvedTypeReference>) : this(
+    constructor(context: CTContext, baseType: BaseType, isNullable: Boolean, explicitModifier: TypeMutability?, parameters: List<ResolvedTypeReference>) : this(
         null,
         context,
         isNullable,
@@ -44,7 +43,7 @@ class RootResolvedTypeReference private constructor(
         parameters,
     )
 
-    override fun modifiedWith(modifier: TypeModifier): RootResolvedTypeReference {
+    override fun modifiedWith(modifier: TypeMutability): RootResolvedTypeReference {
         // todo: how to handle projected mutability? readonly Array<Foo> == readonly Array<readonly Foo>
         return RootResolvedTypeReference(
             context,
@@ -55,8 +54,8 @@ class RootResolvedTypeReference private constructor(
         )
     }
 
-    override fun withCombinedMutability(mutability: TypeModifier?): ResolvedTypeReference {
-        val combinedMutability = mutability?.let { modifier.combinedWith(it) } ?: modifier
+    override fun withCombinedMutability(mutability: TypeMutability?): ResolvedTypeReference {
+        val combinedMutability = mutability?.let { this.mutability.combinedWith(it) } ?: this.mutability
         return RootResolvedTypeReference(
             context,
             baseType,
@@ -66,8 +65,8 @@ class RootResolvedTypeReference private constructor(
         )
     }
 
-    override fun defaultMutabilityTo(mutability: TypeModifier?): RootResolvedTypeReference {
-        if (mutability == null || original?.modifier != null || explicitModifier != null) {
+    override fun defaultMutabilityTo(mutability: TypeMutability?): RootResolvedTypeReference {
+        if (mutability == null || original?.mutability != null || explicitMutability != null) {
             return this
         }
 
@@ -84,10 +83,10 @@ class RootResolvedTypeReference private constructor(
         val reportings = mutableSetOf<Reporting>()
 
         // verify whether the modifier on the reference is compatible with the modifier on the type
-        if (original?.modifier != null && baseType.impliedModifier != null) {
-            if (!(original.modifier!! isAssignableTo baseType.impliedModifier!!)) {
-                val origMod = original.modifier?.toString()?.lowercase()
-                val baseMod = baseType.impliedModifier?.toString()?.lowercase()
+        if (original?.mutability != null && baseType.impliedMutability != null) {
+            if (!(original.mutability!! isAssignableTo baseType.impliedMutability!!)) {
+                val origMod = original.mutability?.toString()?.lowercase()
+                val baseMod = baseType.impliedMutability?.toString()?.lowercase()
 
                 reportings.add(
                     Reporting.modifierError(
@@ -117,8 +116,8 @@ class RootResolvedTypeReference private constructor(
         }
 
         // the modifiers must be compatible
-        if (!(modifier isAssignableTo other.modifier)) {
-            return Reporting.valueNotAssignable(other, this, "cannot assign a ${modifier.name.lowercase()} value to a ${other.modifier.name.lowercase()} reference", assignmentLocation)
+        if (!(mutability isAssignableTo other.mutability)) {
+            return Reporting.valueNotAssignable(other, this, "cannot assign a ${mutability.name.lowercase()} value to a ${other.mutability.name.lowercase()} reference", assignmentLocation)
         }
 
         // void-safety:
@@ -164,7 +163,7 @@ class RootResolvedTypeReference private constructor(
                     context,
                     commonSupertype,
                     this.isNullable || other.isNullable,
-                    this.modifier.combinedWith(other.modifier),
+                    this.mutability.combinedWith(other.mutability),
                     emptyList(),
                 )
             }
@@ -174,7 +173,7 @@ class RootResolvedTypeReference private constructor(
     private lateinit var _string: String
     override fun toString(): String {
         if (!this::_string.isInitialized) {
-            var str = modifier.name.lowercase()
+            var str = mutability.name.lowercase()
             str += " "
 
             str += baseType.fullyQualifiedName.removePrefix(BuiltinType.DEFAULT_MODULE_NAME_STRING + ".")
@@ -205,7 +204,7 @@ class RootResolvedTypeReference private constructor(
         if (isNullable != other.isNullable) return false
         if (baseType != other.baseType) return false
         if (parameters != other.parameters) return false
-        if (modifier != other.modifier) return false
+        if (mutability != other.mutability) return false
 
         return true
     }
@@ -214,7 +213,7 @@ class RootResolvedTypeReference private constructor(
         var result = isNullable.hashCode()
         result = 31 * result + baseType.hashCode()
         result = 31 * result + parameters.hashCode()
-        result = 31 * result + modifier.hashCode()
+        result = 31 * result + mutability.hashCode()
         return result
     }
 }

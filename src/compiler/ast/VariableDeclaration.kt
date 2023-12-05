@@ -19,7 +19,7 @@
 package compiler.ast
 
 import compiler.ast.expression.Expression
-import compiler.ast.type.TypeModifier
+import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundVariable
 import compiler.binding.context.CTContext
@@ -28,7 +28,7 @@ import compiler.lexer.SourceLocation
 
 open class VariableDeclaration(
     override val declaredAt: SourceLocation,
-    val typeModifier: TypeModifier?,
+    val typeMutability: TypeMutability?,
     val name: IdentifierToken,
     val type: TypeReference?,
     val isAssignable: Boolean,

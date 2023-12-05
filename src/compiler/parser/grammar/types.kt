@@ -19,7 +19,7 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
-import compiler.ast.type.TypeModifier
+import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
@@ -34,7 +34,7 @@ import compiler.parser.grammar.dsl.mapResult
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.grammar.rule.Rule
 
-val TypeModifier = eitherOf("type modifier") {
+val TypeMutability = eitherOf("type mutability") {
     keyword(Keyword.MUTABLE)
     keyword(Keyword.READONLY)
     keyword(Keyword.IMMUTABLE)
@@ -42,9 +42,9 @@ val TypeModifier = eitherOf("type modifier") {
     .mapResult { keywordToken ->
         keywordToken as KeywordToken
         when(keywordToken.keyword) {
-            Keyword.MUTABLE   -> compiler.ast.type.TypeModifier.MUTABLE
-            Keyword.READONLY  -> compiler.ast.type.TypeModifier.READONLY
-            Keyword.IMMUTABLE -> compiler.ast.type.TypeModifier.IMMUTABLE
+            Keyword.MUTABLE   -> compiler.ast.type.TypeMutability.MUTABLE
+            Keyword.READONLY  -> compiler.ast.type.TypeMutability.READONLY
+            Keyword.IMMUTABLE -> compiler.ast.type.TypeMutability.IMMUTABLE
             else -> throw InternalCompilerError("${keywordToken.keyword} is not a type modifier")
         }
     }
@@ -127,7 +127,7 @@ val DeclaringTypeParameter = sequence {
 
 val Type: Rule<TypeReference> = sequence("type") {
     optional {
-        ref(TypeModifier)
+        ref(TypeMutability)
     }
 
     identifier()
@@ -146,15 +146,15 @@ val Type: Rule<TypeReference> = sequence("type") {
     .astTransformation { tokens ->
         val nameOrModifier = tokens.next()!!
 
-        val typeModifier: TypeModifier?
+        val typeMutability: TypeMutability?
         val nameToken: IdentifierToken
 
-        if (nameOrModifier is TypeModifier) {
-            typeModifier = nameOrModifier
+        if (nameOrModifier is TypeMutability) {
+            typeMutability = nameOrModifier
             nameToken = tokens.next()!! as IdentifierToken
         }
         else {
-            typeModifier = null
+            typeMutability = null
             nameToken = nameOrModifier as IdentifierToken
         }
 
@@ -180,7 +180,7 @@ val Type: Rule<TypeReference> = sequence("type") {
         TypeReference(
             nameToken.value,
             nullability,
-            typeModifier,
+            typeMutability,
             TypeReference.Variance.UNSPECIFIED,
             nameToken,
             parameters,

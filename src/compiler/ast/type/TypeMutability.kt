@@ -21,7 +21,7 @@ package compiler.ast.type
 /**
  * TODO: rename to TypeMutability
  */
-enum class TypeModifier(
+enum class TypeMutability(
     val isMutable: Boolean,
 ) {
     MUTABLE(isMutable =true),
@@ -36,21 +36,21 @@ enum class TypeModifier(
     EXCLUSIVE(isMutable = true),
     ;
 
-    val exceptExclusive: TypeModifier
+    val exceptExclusive: TypeMutability
         get() = if (this == EXCLUSIVE) MUTABLE else this
 
-    infix fun isAssignableTo(targetModifier: TypeModifier): Boolean =
-        this == targetModifier
+    infix fun isAssignableTo(targetMutability: TypeMutability): Boolean =
+        this == targetMutability
             ||
         when (this) {
             EXCLUSIVE -> true
-            MUTABLE, IMMUTABLE -> targetModifier == READONLY
+            MUTABLE, IMMUTABLE -> targetMutability == READONLY
             READONLY -> false
         }
 
     /**
      * When multiple values can be assigned to one location, that multitude of options
-     * can be reasoned about by [Iterable.fold]ing the [TypeModifier] with this method.
+     * can be reasoned about by [Iterable.fold]ing the [TypeMutability] with this method.
      *
      * If both are identical, the same value will be returned. Otherwise, the return value is [READONLY],
      * as it is makes the least guarantees about the value. Hence, this method is associative.
@@ -70,7 +70,7 @@ enum class TypeModifier(
      * |`IMMUTABLE`|`IMMUTABLE`|`IMMUTABLE`|
      * |`IMMUTABLE`|`EXCLUSIVE`|`IMMUTABLE`|
      */
-    fun combinedWith(other: TypeModifier): TypeModifier = when {
+    fun combinedWith(other: TypeMutability): TypeMutability = when {
         this == other -> this
         this == EXCLUSIVE -> other
         other == EXCLUSIVE -> this

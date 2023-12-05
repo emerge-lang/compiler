@@ -19,7 +19,7 @@
 package compiler.binding.type
 
 import compiler.ast.FunctionDeclaration
-import compiler.ast.type.TypeModifier
+import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundFunction
 import compiler.binding.context.CTContext
@@ -29,7 +29,7 @@ import kotlinext.get
  * Base type are classes, interfaces, enums, built-in type
  */
 interface BaseType {
-    val impliedModifier: TypeModifier?
+    val impliedMutability: TypeMutability?
         get() = null
 
     val simpleName: String

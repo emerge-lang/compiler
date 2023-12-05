@@ -27,7 +27,7 @@ import compiler.ast.ProtectedASTVisibilityModifier
 import compiler.ast.QualifiedASTProtectedVisibilityModifier
 import compiler.ast.VariableDeclaration
 import compiler.ast.expression.Expression
-import compiler.ast.type.TypeModifier
+import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword.*
@@ -42,7 +42,7 @@ import compiler.parser.grammar.dsl.eitherOf
 val VariableDeclaration = sequence("variable declaration") {
 
     optional {
-        ref(TypeModifier)
+        ref(TypeMutability)
     }
 
     optionalWhitespace()
@@ -70,15 +70,15 @@ val VariableDeclaration = sequence("variable declaration") {
     .astTransformation { tokens ->
         val modifierOrKeyword = tokens.next()!!
 
-        val typeModifier: TypeModifier?
+        val typeMutability: TypeMutability?
         val declarationKeyword: KeywordToken
 
-        if (modifierOrKeyword is TypeModifier) {
-            typeModifier = modifierOrKeyword
+        if (modifierOrKeyword is TypeMutability) {
+            typeMutability = modifierOrKeyword
             declarationKeyword = tokens.next()!! as KeywordToken
         }
         else {
-            typeModifier = null
+            typeMutability = null
             declarationKeyword = modifierOrKeyword as KeywordToken
         }
 
@@ -103,7 +103,7 @@ val VariableDeclaration = sequence("variable declaration") {
 
         VariableDeclaration(
             declarationKeyword.sourceLocation,
-            typeModifier,
+            typeMutability,
             name,
             type,
             declarationKeyword.keyword == VAR,

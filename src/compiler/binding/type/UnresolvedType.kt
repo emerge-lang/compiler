@@ -1,6 +1,6 @@
 package compiler.binding.type
 
-import compiler.ast.type.TypeModifier
+import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
 import compiler.reportings.Reporting
@@ -24,7 +24,7 @@ class UnresolvedType private constructor(
 
     companion object {
         fun getReplacementType(context: CTContext): ResolvedTypeReference {
-            return Any.baseReference(context).modifiedWith(TypeModifier.READONLY)
+            return Any.baseReference(context).modifiedWith(TypeMutability.READONLY)
         }
     }
 }

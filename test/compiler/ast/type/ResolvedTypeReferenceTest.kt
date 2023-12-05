@@ -32,17 +32,17 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
         val typeB = fakeType("B", typeA)
         val typeC = fakeType("C", typeA)
 
-        val mutableA = typeA.baseReference(context).modifiedWith(TypeModifier.MUTABLE)
-        val readonlyA = mutableA.modifiedWith(TypeModifier.READONLY)
-        val immutableA = readonlyA.modifiedWith(TypeModifier.IMMUTABLE)
+        val mutableA = typeA.baseReference(context).modifiedWith(TypeMutability.MUTABLE)
+        val readonlyA = mutableA.modifiedWith(TypeMutability.READONLY)
+        val immutableA = readonlyA.modifiedWith(TypeMutability.IMMUTABLE)
 
-        val mutableB = typeB.baseReference(context).modifiedWith(TypeModifier.MUTABLE)
-        val readonlyB = mutableB.modifiedWith(TypeModifier.READONLY)
-        val immutableB = readonlyB.modifiedWith(TypeModifier.IMMUTABLE)
+        val mutableB = typeB.baseReference(context).modifiedWith(TypeMutability.MUTABLE)
+        val readonlyB = mutableB.modifiedWith(TypeMutability.READONLY)
+        val immutableB = readonlyB.modifiedWith(TypeMutability.IMMUTABLE)
 
-        val mutableC = typeC.baseReference(context).modifiedWith(TypeModifier.MUTABLE)
-        val readonlyC = mutableC.modifiedWith(TypeModifier.READONLY)
-        val immutableC = readonlyC.modifiedWith(TypeModifier.IMMUTABLE)
+        val mutableC = typeC.baseReference(context).modifiedWith(TypeMutability.MUTABLE)
+        val readonlyC = mutableC.modifiedWith(TypeMutability.READONLY)
+        val immutableC = readonlyC.modifiedWith(TypeMutability.IMMUTABLE)
 
         "the closest common ancestor of" - {
             "mutable B and mutable A is mutable A" {
@@ -145,13 +145,13 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
         context.addBaseType(BuiltinArray)
 
         "mutability projection" - {
-            for (outerMutability in TypeModifier.values()) {
-                val type = TypeReference("Array", modifier = outerMutability, parameters = listOf(TypeReference("Any")))
+            for (outerMutability in TypeMutability.values()) {
+                val type = TypeReference("Array", mutability = outerMutability, parameters = listOf(TypeReference("Any")))
                     .resolveWithin(context)
                         as RootResolvedTypeReference
 
                 "projects onto type parameters with $outerMutability" {
-                    type.parameters.single().modifier shouldBe outerMutability
+                    type.parameters.single().mutability shouldBe outerMutability
                 }
             }
         }

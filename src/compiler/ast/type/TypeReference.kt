@@ -27,19 +27,18 @@ import compiler.lexer.IdentifierToken
 open class TypeReference(
     val simpleName: String,
     val nullability: Nullability = Nullability.UNSPECIFIED,
-    open val modifier: TypeModifier? = null,
+    open val mutability: TypeMutability? = null,
     val variance: Variance = Variance.UNSPECIFIED,
     val declaringNameToken: IdentifierToken? = null,
     val parameters: List<TypeReference> = emptyList(),
 ) {
     constructor(simpleName: IdentifierToken) : this(simpleName.value, declaringNameToken = simpleName)
 
-    open fun modifiedWith(modifier: TypeModifier): TypeReference {
-        // TODO: implement type modifiers
+    open fun withMutability(mutability: TypeMutability): TypeReference {
         return TypeReference(
             simpleName,
             nullability,
-            modifier,
+            mutability,
             variance,
             declaringNameToken,
             parameters,
@@ -51,7 +50,7 @@ open class TypeReference(
         return TypeReference(
             simpleName,
             nullability,
-            modifier,
+            mutability,
             variance,
             declaringNameToken,
             parameters,
@@ -59,7 +58,7 @@ open class TypeReference(
     }
 
     open fun resolveWithin(context: CTContext): ResolvedTypeReference {
-        val resolvedParameters = parameters.map { it.resolveWithin(context).defaultMutabilityTo(modifier) }
+        val resolvedParameters = parameters.map { it.resolveWithin(context).defaultMutabilityTo(mutability) }
         return context.resolveType(this)
             ?.let { RootResolvedTypeReference(this, context, it, resolvedParameters) }
             ?: UnresolvedType(context, this, resolvedParameters)
@@ -75,7 +74,7 @@ open class TypeReference(
                 buffer.append(' ')
             }
 
-            modifier?.let {
+            mutability?.let {
                 buffer.append(it.name.lowercase())
                 buffer.append(' ')
             }
