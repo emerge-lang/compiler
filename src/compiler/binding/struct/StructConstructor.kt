@@ -4,13 +4,13 @@ import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
 import compiler.ast.type.FunctionModifier
 import compiler.binding.BoundFunction
-import compiler.binding.BoundParameterList
+import compiler.binding.context.MutableCTContext
 import compiler.reportings.Reporting
 
 class StructConstructor(
     val struct: Struct,
 ) : BoundFunction() {
-    override val context = struct.context
+    override val context = MutableCTContext(struct.context)
     override val declaredAt = struct.declaration.declaredAt
     override val receiverType = null
     override val name = struct.simpleName

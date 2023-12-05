@@ -40,7 +40,10 @@ class Struct(
 
     override val superTypes: Set<BaseType> = setOf(Any)
 
-    override val constructors: Set<BoundFunction> = setOf(StructConstructor(this))
+    // this can only be initialized in semanticAnalysisPhase1 because the types referenced in the members
+    // can be declared later than the struct
+    override lateinit var constructors: Set<BoundFunction>
+        private set
 
     override fun resolveMemberFunction(name: String): Collection<FunctionDeclaration> = emptySet()
 
@@ -55,6 +58,8 @@ class Struct(
         members.duplicatesBy(StructMember::name).forEach { (name, dupMembers) ->
             reportings.add(Reporting.duplicateTypeMembers(this, dupMembers))
         }
+
+        constructors = setOf(StructConstructor(this))
 
         return reportings
     }
