@@ -87,14 +87,8 @@ class BoundVariable(
             }
 
             // cannot resolve declared type
-            val declaredType: ResolvedTypeReference? = resolveDeclaredType(context)
-            if (declaration.type != null && declaredType == null) {
-                reportings.add(Reporting.unknownType(declaration.type))
-            }
-            if (declaredType != null) {
-                type = declaredType
-                reportings.addAll(declaredType.validate())
-            }
+            type = resolveDeclaredType(context)
+            type?.validate()?.let(reportings::addAll)
 
             if (initializerExpression != null) {
                 reportings.addAll(initializerExpression.semanticAnalysisPhase1())

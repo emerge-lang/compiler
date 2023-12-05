@@ -93,7 +93,7 @@ class RootResolvedTypeReference private constructor(
 
     override fun evaluateAssignabilityTo(other: ResolvedTypeReference, assignmentLocation: SourceLocation): ValueNotAssignableReporting? {
         if (other is UnresolvedType) {
-            return evaluateAssignabilityTo(Any.baseReference(other.context), assignmentLocation)
+            return evaluateAssignabilityTo(other.standInType, assignmentLocation)
         }
 
         if (other !is RootResolvedTypeReference) {
@@ -106,8 +106,8 @@ class RootResolvedTypeReference private constructor(
         }
 
         // the modifiers must be compatible
-        val thisModifier = modifier ?: TypeModifier.MUTABLE
-        val otherModifier = other.modifier ?: TypeModifier.MUTABLE
+        val thisModifier = modifier ?: TypeModifier.READONLY
+        val otherModifier = other.modifier ?: TypeModifier.READONLY
         if (!(thisModifier isAssignableTo otherModifier)) {
             return Reporting.valueNotAssignable(other, this, "cannot assign a ${thisModifier.name.lowercase()} value to a ${otherModifier.name.lowercase()} reference", assignmentLocation)
         }
