@@ -20,6 +20,7 @@ package compiler.ast.struct
 
 import compiler.ast.Bindable
 import compiler.ast.Declaration
+import compiler.ast.type.TypeParameter
 import compiler.binding.context.CTContext
 import compiler.binding.struct.Struct
 import compiler.binding.struct.StructContext
@@ -29,15 +30,17 @@ import compiler.lexer.SourceLocation
 class StructDeclaration(
     override val declaredAt: SourceLocation,
     val name: IdentifierToken,
-    val memberDeclarations: Set<StructMemberDeclaration>
+    val memberDeclarations: Set<StructMemberDeclaration>,
+    val typeParameters: List<TypeParameter>,
 ) : Declaration, Bindable<Struct> {
     override fun bindTo(context: CTContext): Struct {
-        val structContext = StructContext(context)
+        val structContext = StructContext(context, typeParameters)
 
         return Struct(
+            context,
             structContext,
             this,
-            memberDeclarations.map { it.bindTo(structContext) }.toSet()
+            memberDeclarations.map { it.bindTo(structContext) },
         )
     }
 }

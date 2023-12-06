@@ -19,9 +19,11 @@
 package compiler.parser.grammar
 
 import compiler.ast.ASTVisibilityModifier
+import compiler.ast.TypeParameterBundle
 import compiler.ast.expression.Expression
 import compiler.ast.struct.StructDeclaration
 import compiler.ast.struct.StructMemberDeclaration
+import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword.STRUCT_DEFINITION
@@ -82,12 +84,19 @@ val StructMemberDefinition = sequence("struct member declaration") {
 
 val StructDefinition = sequence("struct definition") {
     keyword(STRUCT_DEFINITION)
+
     optionalWhitespace()
+
     identifier()
+
     optionalWhitespace()
-    // TODO: add struct generics
+
+    optional {
+        ref(BracedTypeParameters)
+    }
 
     operator(CBRACE_OPEN)
+
     optionalWhitespace()
 
     optional {
@@ -106,11 +115,19 @@ val StructDefinition = sequence("struct definition") {
 
         val name = tokens.next()!! as IdentifierToken
 
-        tokens.next()!! as OperatorToken // CBRACE_OPEN
+        var next = tokens.next()!!
+        val typeParameters: List<TypeParameter>
+        if (next is TypeParameterBundle) {
+            typeParameters = next.parameters
+            next = tokens.next()!! // skip CBRACE_OPEN
+        } else {
+            check(next is OperatorToken)
+            typeParameters = emptyList()
+        }
 
         val memberDeclarations = mutableSetOf<StructMemberDeclaration>()
 
-        var next = tokens.next()!! // until CBRACE_CLOSE
+        next = tokens.next()!! // until CBRACE_CLOSE
         while (next is StructMemberDeclaration) {
             memberDeclarations += next
             next = tokens.next()!! as OperatorToken
@@ -123,6 +140,7 @@ val StructDefinition = sequence("struct definition") {
         StructDeclaration(
             declarationKeyword.sourceLocation,
             name,
-            memberDeclarations
+            memberDeclarations,
+            typeParameters,
         )
     }
