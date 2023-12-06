@@ -1,7 +1,5 @@
 package compiler.compiler.negative
 
-import compiler.ast.expression.IdentifierExpression
-import compiler.ast.expression.MemberAccessExpression
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundMemberAccessExpression
 import compiler.negative.shouldReport
@@ -59,6 +57,27 @@ class MutabilityErrors : FreeSpec({
                     val otherX: immutable X = myX
                 }
             """.trimIndent()) should beEmpty()
+        }
+    }
+
+    "mutability from use-site generics" - {
+        "prohibits writes to immutable element" {
+            validateModule("""
+                struct A {
+                    someVal: Int
+                }
+                struct B<T> {
+                    genericVal: T
+                }
+                fun test() {
+                    mutable val myB = B<immutable A>(A(3))
+                    myB.genericVal = A(2)
+                    myB.genericVal.someVal = 5
+                }
+            """.trimIndent())
+                .shouldReport<IllegalAssignmentReporting> {
+                    it.statement.targetExpression.shouldBeInstanceOf<BoundMemberAccessExpression>().memberName shouldBe "someVal"
+                }
         }
     }
 })

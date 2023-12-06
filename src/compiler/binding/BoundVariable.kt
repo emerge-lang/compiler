@@ -175,7 +175,7 @@ class BoundVariable(
         with(declaration) {
             if (type == null) return null
             val typeRef = if (typeMutability != null) type.withMutability(typeMutability) else type
-            return typeRef.resolveWithin(context)
+            return context.resolveType(typeRef)
         }
     }
 }

@@ -21,6 +21,7 @@ package compiler.parser.grammar
 import compiler.InternalCompilerError
 import compiler.ast.TypeParameterBundle
 import compiler.ast.TypeArgumentBundle
+import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
@@ -59,7 +60,7 @@ private val TypeArgument = sequence {
     .astTransformation { tokens ->
         val variance = tokens.next() as TypeVariance
         val type = tokens.next() as TypeReference
-        type.withVariance(variance)
+        TypeArgument(variance, type)
     }
 
 val BracedTypeArguments: Rule<TypeArgumentBundle> = sequence {
@@ -77,14 +78,14 @@ val BracedTypeArguments: Rule<TypeArgumentBundle> = sequence {
         // skip <
         tokens.next()
 
-        val parameters = ArrayList<TypeReference>()
+        val arguments = ArrayList<TypeArgument>()
         while (tokens.hasNext()) {
-            parameters.add(tokens.next() as TypeReference)
+            arguments.add(tokens.next() as TypeArgument)
             // skip , or >
             tokens.next()
         }
 
-        TypeArgumentBundle(parameters)
+        TypeArgumentBundle(arguments)
     }
 
 val Variance: Rule<TypeVariance> = sequence("variance") {
@@ -182,12 +183,12 @@ val Type: Rule<TypeReference> = sequence("type") {
         }
 
         var next = tokens.next()
-        val parameters: List<TypeReference>
+        val arguments: List<TypeArgument>
         if (next is TypeArgumentBundle) {
-            parameters = next.parameters
+            arguments = next.arguments
             next = tokens.next()
         } else {
-            parameters = emptyList()
+            arguments = emptyList()
         }
 
         val nullability = when (next) {
@@ -205,7 +206,7 @@ val Type: Rule<TypeReference> = sequence("type") {
             nullability,
             typeMutability,
             nameToken,
-            parameters,
+            arguments,
         )
     }
 

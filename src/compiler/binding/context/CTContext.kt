@@ -22,6 +22,7 @@ import compiler.ast.type.TypeReference
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
 import compiler.binding.type.BaseType
+import compiler.binding.type.ResolvedTypeReference
 
 /**
  * Compile-Time context. A compile-time context knows all available symbols (through imports and explicit definition).
@@ -72,7 +73,9 @@ interface CTContext
      */
     fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean
 
-    fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean = false): BaseType?
+    fun resolveBaseType(simpleName: String, fromOwnModuleOnly: Boolean = false): BaseType?
+
+    fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean = false): ResolvedTypeReference?
 
     fun resolveFunction(name: String, fromOwnModuleOnly: Boolean = false): Collection<BoundFunction>
 }

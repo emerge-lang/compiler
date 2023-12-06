@@ -43,7 +43,7 @@ class StructMember(
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
-        type = declaration.type.resolveWithin(context)
+        type = context.resolveType(declaration.type)
         reportings.addAll(type!!.validate())
 
         if (defaultValue != null) {

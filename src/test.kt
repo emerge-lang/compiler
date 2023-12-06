@@ -10,12 +10,13 @@ import java.time.Clock
 import java.time.Duration
 
 val testCode = """module testcode
-struct X {
-    a: Int
+struct X<T> {
+    someVal: T
 }
 
 fun foo() {
-    val myX = X(2)
+    val myX: X<Int> = X(2)
+    val magic = myX.someVal
 }
 """
 

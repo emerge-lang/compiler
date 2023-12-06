@@ -41,7 +41,8 @@ class BoundIdentifierExpression(
             null -> null
         }
 
-    private var referral: Referral? = null
+    var referral: Referral? = null
+        private set
 
     override var isGuaranteedToThrow = false
 
@@ -79,10 +80,10 @@ class BoundIdentifierExpression(
         return emptySet()
     }
 
-    private sealed interface Referral {
+    sealed interface Referral {
         fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>>
     }
-    private inner class ReferringVariable(val variable: BoundVariable) : Referral {
+    inner class ReferringVariable(val variable: BoundVariable) : Referral {
         override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
             return if (context.containsWithinBoundary(variable, boundary)) {
                 emptySet()
@@ -91,7 +92,7 @@ class BoundIdentifierExpression(
             }
         }
     }
-    private inner class ReferringType(val reference: ResolvedTypeReference) : Referral {
+    inner class ReferringType(val reference: ResolvedTypeReference) : Referral {
         override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
             // TODO is reading type information of types declared outside the boundary considered impure?
             return emptySet()

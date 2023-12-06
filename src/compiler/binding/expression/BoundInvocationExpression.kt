@@ -67,7 +67,7 @@ class BoundInvocationExpression(
             parameterExpressions.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
 
             val parameterTypes = parameterExpressions.map(BoundExpression<*>::type)
-            val resolvedConstructors = if (receiverExpression != null) null else context.resolveType(TypeReference(functionNameToken))?.constructors
+            val resolvedConstructors = if (receiverExpression != null) null else context.resolveBaseType(functionNameToken.value)?.constructors
             val resolvedFunctions = context.resolveFunction(functionNameToken.value)
             val receiverType = receiverExpression?.type
 

@@ -156,6 +156,9 @@ class RootResolvedTypeReference private constructor(
     override fun closestCommonSupertypeWith(other: ResolvedTypeReference): ResolvedTypeReference {
         return when (other) {
             is UnresolvedType -> other.closestCommonSupertypeWith(this)
+            is ConstrainedTypeReference -> TODO()
+            is ModifiedTypeReference -> TODO()
+            is VariantTypeReference -> other.closestCommonSupertypeWith(this)
             is RootResolvedTypeReference -> {
                 val commonSupertype = BaseType.closestCommonSupertypeOf(this.baseType, other.baseType)
                 check(commonSupertype.parameters.isEmpty()) { "Generic supertypes are not implemented, yet." }
@@ -178,7 +181,13 @@ class RootResolvedTypeReference private constructor(
 
             str += baseType.fullyQualifiedName.removePrefix(BuiltinType.DEFAULT_MODULE_NAME_STRING + ".")
 
-            // TODO: parameters
+            if (parameters.isNotEmpty()) {
+                str += parameters.joinToString(
+                    prefix = "<",
+                    separator = ", ",
+                    postfix = ">",
+                )
+            }
 
             val nullability = original?.nullability
                 ?: if (isNullable) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.UNSPECIFIED

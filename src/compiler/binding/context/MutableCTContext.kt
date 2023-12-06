@@ -22,12 +22,20 @@ import compiler.InternalCompilerError
 import compiler.ast.Bindable
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
+import compiler.ast.type.TypeArgument
+import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
 import compiler.binding.struct.Struct
 import compiler.binding.type.BaseType
+import compiler.binding.type.ConstrainedTypeReference
+import compiler.binding.type.ModifiedTypeReference
 import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.RootResolvedTypeReference
+import compiler.binding.type.UnresolvedType
+import compiler.binding.type.VariantTypeReference
 import compiler.lexer.IdentifierToken
 import java.util.*
 
@@ -39,6 +47,8 @@ open class MutableCTContext(
      * The context this one is derived off of
      */
     private val parentContext: CTContext,
+
+    typeParameters: List<TypeParameter> = emptyList(),
 ) : CTContext {
     private val imports: MutableSet<ImportDeclaration> = HashSet()
 
@@ -87,19 +97,49 @@ open class MutableCTContext(
         _structs.add(definition)
     }
 
-    override fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean): BaseType? {
-        _types.find { it.simpleName == ref.simpleName }?.let { return it }
+    private val rawTypeParameters: Map<String, TypeParameter> = typeParameters.associateBy { it.name.value }
+    private val resolvedTypeParameters = mutableMapOf<String, ConstrainedTypeReference>()
+
+    private fun resolveGenericType(simpleName: String): ConstrainedTypeReference? {
+        resolvedTypeParameters[simpleName]?.let { return it }
+        val typeParameter = rawTypeParameters[simpleName] ?: return null
+        val resolvedBound = typeParameter.bound?.let { resolveType(it, fromOwnModuleOnly = false) }
+        val result = ConstrainedTypeReference(this, resolvedBound)
+        resolvedTypeParameters[simpleName] = result
+        return result
+    }
+
+    override fun resolveBaseType(simpleName: String, fromOwnModuleOnly: Boolean): BaseType? {
+        _types.find { it.simpleName == simpleName }?.let { return it }
 
         val fromImport = if (fromOwnModuleOnly) null else {
-            val importedTypes = importsForSimpleName(ref.simpleName)
-                .map { it.resolveType(ref, fromOwnModuleOnly = true) }
-                .filterNotNull()
+            val importedTypes = importsForSimpleName(simpleName)
+                .mapNotNull { it.resolveBaseType(simpleName, fromOwnModuleOnly = true) }
 
             // TODO: if importedTypes.size is > 1 the reference is ambiguous; how to handle that?
             importedTypes.firstOrNull()
         }
 
-        return fromImport ?: parentContext.resolveType(ref, fromOwnModuleOnly)
+        return fromImport ?: parentContext.resolveBaseType(simpleName, fromOwnModuleOnly)
+    }
+
+    private fun resolveType(ref: TypeArgument): ResolvedTypeReference {
+        val typeWithoutVariance = resolveType(ref.type)
+        return when (ref.variance) {
+            TypeVariance.UNSPECIFIED -> typeWithoutVariance
+            else -> VariantTypeReference(typeWithoutVariance, ref.variance)
+        }
+    }
+
+    override fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean): ResolvedTypeReference {
+        resolveGenericType(ref.simpleName)?.let { genericType ->
+            return ModifiedTypeReference(this, genericType, ref)
+        }
+
+        val resolvedParameters = ref.arguments.map { resolveType(it).defaultMutabilityTo(ref.mutability) }
+        return resolveBaseType(ref.simpleName)
+            ?.let { RootResolvedTypeReference(ref, this,  it, resolvedParameters) }
+            ?: UnresolvedType(this, ref, resolvedParameters)
     }
 
     override fun resolveVariable(name: String, fromOwnModuleOnly: Boolean): BoundVariable? {

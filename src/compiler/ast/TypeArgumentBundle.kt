@@ -1,5 +1,5 @@
 package compiler.ast
 
-import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeArgument
 
-class TypeArgumentBundle(val parameters: List<TypeReference>)
+class TypeArgumentBundle(val arguments: List<TypeArgument>)

@@ -88,7 +88,7 @@ class BoundDeclaredFunction(
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
             val reportings = mutableSetOf<Reporting>()
 
-            receiverType = declaration.receiverType?.resolveWithin(context)
+            receiverType = declaration.receiverType?.let(context::resolveType)
             receiverType?.let(ResolvedTypeReference::validate)?.let(reportings::addAll)
 
             // modifiers
@@ -113,7 +113,7 @@ class BoundDeclaredFunction(
             reportings.addAll(parameters.semanticAnalysisPhase1(false))
 
             if (declaration.returnType != null) {
-                returnType = declaration.returnType.resolveWithin(context)
+                returnType = context.resolveType(declaration.returnType)
                 reportings.addAll(returnType!!.validate())
             }
 

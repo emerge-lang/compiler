@@ -21,6 +21,7 @@ package compiler.parser.grammar
 import compiler.InternalCompilerError
 import compiler.ast.CodeChunk
 import compiler.ast.Executable
+import compiler.ast.TypeArgumentBundle
 import compiler.ast.expression.BinaryExpression
 import compiler.ast.expression.BooleanLiteralExpression
 import compiler.ast.expression.Expression
@@ -29,6 +30,7 @@ import compiler.ast.expression.IfExpression
 import compiler.ast.expression.NumericLiteralExpression
 import compiler.ast.expression.ParenthesisedExpression
 import compiler.ast.expression.UnaryExpression
+import compiler.ast.type.TypeArgument
 import compiler.binding.expression.BoundExpression
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword.ELSE
@@ -229,6 +231,9 @@ val ExpressionPostfixNotNull = sequence(OperatorToken(Operator.NOTNULL).toString
     .astTransformation { NotNullExpressionPostfix(it.next()!! as OperatorToken) }
 
 val ExpressionPostfixInvocation = sequence("function invocation") {
+    optional {
+        ref(BracedTypeArguments)
+    }
     operator(Operator.PARANT_OPEN)
     optionalWhitespace()
 
@@ -247,8 +252,16 @@ val ExpressionPostfixInvocation = sequence("function invocation") {
     operator(Operator.PARANT_CLOSE)
 }
     .astTransformation { tokens ->
-        // skip PARANT_OPEN
-        tokens.next()!! as OperatorToken
+        val arguments: List<TypeArgument>
+        var next = tokens.next()!!
+        if (next is TypeArgumentBundle) {
+            arguments = next.arguments
+            // skip PARANT_OPEN
+            next = tokens.next() as OperatorToken
+        } else {
+            // skip PARANT_OPEN
+            next as OperatorToken
+        }
 
         val paramExpressions = mutableListOf<Expression<*>>()
         while (tokens.peek() is Expression<*>) {

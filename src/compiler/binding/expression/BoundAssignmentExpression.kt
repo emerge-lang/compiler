@@ -65,16 +65,16 @@ class BoundAssignmentExpression(
         // can or should be written to
         if (targetExpression is BoundIdentifierExpression) {
             reportings.addAll(targetExpression.semanticAnalysisPhase3())
-            when (targetExpression.referredType) {
-                BoundIdentifierExpression.ReferredType.VARIABLE -> {
+            when (val localReferral = targetExpression.referral) {
+                is BoundIdentifierExpression.ReferringVariable -> {
                     assignmentTargetType = AssignmentTargetType.VARIABLE
-                    targetVariable = targetExpression.referredVariable!!
+                    targetVariable = localReferral.variable
 
                     if (!targetVariable!!.isAssignable) {
                         reportings.add(Reporting.illegalAssignment("Cannot assign to value / final variable ${targetVariable!!.name}", this))
                     }
                 }
-                BoundIdentifierExpression.ReferredType.TYPENAME -> {
+                is BoundIdentifierExpression.ReferringType -> {
                     reportings += Reporting.illegalAssignment("Cannot assign a value to a type", this)
                 }
                 else -> {}

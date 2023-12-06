@@ -32,9 +32,10 @@ import compiler.reportings.Reporting
 import kotlinext.duplicatesBy
 
 class Struct(
-    override val context: StructContext,
+    override val context: CTContext,
+    private val structContext: StructContext,
     override val declaration: StructDeclaration,
-    val members: Set<StructMember>
+    val members: List<StructMember>
 ) : BaseType, BoundElement<StructDeclaration> {
     override val simpleName: String = declaration.name.value
 
@@ -49,6 +50,8 @@ class Struct(
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
+
+
 
         members.forEach {
             reportings.addAll(it.semanticAnalysisPhase1())

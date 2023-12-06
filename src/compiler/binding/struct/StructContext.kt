@@ -18,15 +18,23 @@
 
 package compiler.binding.struct
 
+import compiler.ast.type.TypeParameter
+import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
+import compiler.binding.type.BaseType
+import compiler.binding.type.ResolvedTypeReference
 
 /**
  * The context within a struct (where struct members are defined and where struct member default value
  * expressions are located)
  */
-class StructContext(moduleContext: CTContext) : MutableCTContext(moduleContext) {
-    fun registerMember(member: StructMember) {
+class StructContext(
+    moduleContext: CTContext,
+    typeParameters: List<TypeParameter>,
+) : MutableCTContext(moduleContext, typeParameters) {
 
+    fun registerMember(member: StructMember) {
+        // TODO?
     }
 }
