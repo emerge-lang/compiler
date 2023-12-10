@@ -2,6 +2,7 @@ package compiler.binding.type
 
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
@@ -171,6 +172,10 @@ class RootResolvedTypeReference private constructor(
                 )
             }
         }
+    }
+
+    override fun findMemberVariable(name: String): ObjectMember? {
+        TODO("Not yet implemented")
     }
 
     private lateinit var _string: String

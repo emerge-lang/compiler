@@ -22,6 +22,7 @@ import compiler.ast.Executable
 import compiler.ast.struct.StructMemberDeclaration
 import compiler.binding.BoundElement
 import compiler.binding.BoundExecutable
+import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.ResolvedTypeReference
@@ -32,13 +33,14 @@ class StructMember(
     override val context: StructContext,
     override val declaration: StructMemberDeclaration,
     val defaultValue: BoundExpression<*>?
-) : BoundElement<StructMemberDeclaration> {
-    val name: String = declaration.name.value
+) : BoundElement<StructMemberDeclaration>, ObjectMember {
+    override val name = declaration.name.value
+    override val isMutable = true
 
     /**
      * The type of the member; is null if not yet determined or if it cannot be determined.
      */
-    var type: ResolvedTypeReference? = null
+    override var type: ResolvedTypeReference? = null
         private set
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {

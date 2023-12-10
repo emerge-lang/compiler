@@ -2,6 +2,7 @@ package compiler.binding.type
 
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeVariance
+import compiler.binding.ObjectMember
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import compiler.reportings.ValueNotAssignableReporting
@@ -52,5 +53,9 @@ class VariantTypeReference(
     override fun closestCommonSupertypeWith(other: ResolvedTypeReference): ResolvedTypeReference {
         // TODO: how does variance affect this?
         return VariantTypeReference(type.closestCommonSupertypeWith(other), variance)
+    }
+
+    override fun findMemberVariable(name: String): ObjectMember? {
+        TODO("Not yet implemented")
     }
 }

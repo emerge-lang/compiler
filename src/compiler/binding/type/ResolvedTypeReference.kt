@@ -19,6 +19,7 @@
 package compiler.binding.type
 
 import compiler.ast.type.TypeMutability
+import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
@@ -73,6 +74,11 @@ sealed interface ResolvedTypeReference {
      * * `a.closestCommonAncestorWith(b).closestCommonAncestorWith(c) == b.closestCommonAncestorWith(c).closestCommonAncestorWith(a)`
      */
     fun closestCommonSupertypeWith(other: ResolvedTypeReference): ResolvedTypeReference
+
+    /**
+     * If this type has a member vof
+     */
+    fun findMemberVariable(name: String): ObjectMember?
 }
 
 infix fun ResolvedTypeReference.isAssignableTo(other: ResolvedTypeReference): Boolean {

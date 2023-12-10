@@ -2,6 +2,7 @@ package compiler.binding.type
 
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
@@ -60,5 +61,9 @@ class ModifiedTypeReference(
 
     override fun closestCommonSupertypeWith(other: ResolvedTypeReference): ResolvedTypeReference {
         return TODO()
+    }
+
+    override fun findMemberVariable(name: String): ObjectMember? {
+        TODO("Not yet implemented")
     }
 }
