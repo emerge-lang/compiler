@@ -18,9 +18,6 @@
 
 package compiler.ast.type
 
-/**
- * TODO: rename to TypeMutability
- */
 enum class TypeMutability(
     val isMutable: Boolean,
 ) {
