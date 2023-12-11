@@ -15,6 +15,7 @@ class StructConstructor(
     override val context = MutableCTContext(struct.context)
     override val declaredAt = struct.declaration.declaredAt
     override val receiverType = null
+    override val declaresReceiver = false
     override val name = struct.simpleName
     override val modifiers = setOf(FunctionModifier.PURE)
     override val isPure = true

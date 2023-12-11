@@ -18,13 +18,10 @@
 
 package compiler.binding
 
-import compiler.ast.FunctionDeclaration
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeParameter
 import compiler.binding.context.CTContext
-import compiler.binding.type.Any
 import compiler.binding.type.ResolvedTypeReference
-import compiler.binding.type.isAssignableTo
 import compiler.lexer.SourceLocation
 
 abstract class BoundFunction : SemanticallyAnalyzable {
@@ -33,9 +30,15 @@ abstract class BoundFunction : SemanticallyAnalyzable {
 
     /**
      * The type of the receiver. Is null if the declared function has no receiver or if the declared receiver type
-     * could not be resolved. See [FunctionDeclaration.receiverType] to resolve the ambiguity.
+     * could not be resolved. See [declaresReceiver] to resolve the ambiguity.
      */
     abstract val receiverType: ResolvedTypeReference?
+
+    /**
+     * Whether this function declares a receiver. This allows disambiguating the case of a function without receiver
+     * and a function with receiver whichs receiver type couldn't be resolved
+     */
+    abstract val declaresReceiver: Boolean
 
     abstract val name: String
     abstract val modifiers: Set<FunctionModifier>

@@ -24,9 +24,7 @@ import compiler.ast.expression.InvocationExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.context.CTContext
-import compiler.binding.type.Any
-import compiler.binding.type.ResolvedTypeReference
-import compiler.binding.type.isAssignableTo
+import compiler.binding.type.*
 import compiler.lexer.IdentifierToken
 import compiler.reportings.Reporting
 
@@ -47,8 +45,8 @@ class BoundInvocationExpression(
     var dispatchedFunction: BoundFunction? = null
         private set
 
-    override val type: ResolvedTypeReference?
-        get() = dispatchedFunction?.returnType
+    override var type: ResolvedTypeReference? = null
+        private set
 
     override val isGuaranteedToThrow: Boolean?
         get() = dispatchedFunction?.isGuaranteedToThrow
@@ -67,40 +65,64 @@ class BoundInvocationExpression(
             parameterExpressions.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
 
             val parameterTypes = parameterExpressions.map(BoundExpression<*>::type)
+            if (parameterTypes.any { it == null}) {
+                // resolving the overload does not make sense if not all parameter types can be deducted
+                // note that for erroneous type references, the parameter type will be a non-null UnresolvedType
+                // so in that case we can still continue
+                return@getResult reportings
+            }
+            parameterTypes as List<ResolvedTypeReference>
+
+            val receiverType = receiverExpression?.type
+            if (receiverExpression != null && receiverType == null) {
+                // same goes for the receiver
+                return@getResult reportings
+            }
+
             val resolvedConstructors = if (receiverExpression != null) null else context.resolveBaseType(functionNameToken.value)?.constructors
             val resolvedFunctions = context.resolveFunction(functionNameToken.value)
-            val receiverType = receiverExpression?.type
 
             if (resolvedConstructors.isNullOrEmpty() && resolvedFunctions.isEmpty()) {
                 reportings.add(Reporting.noMatchingFunctionOverload(functionNameToken, receiverType, parameterTypes, false))
                 return@getResult reportings
             }
 
-            if (resolvedConstructors != null) {
-                val matchingConstructor = resolvedConstructors
+            val matchingFunctions: List<Pair<BoundFunction, TypeUnification>> = if (resolvedConstructors != null) {
+                resolvedConstructors
                     .filterAndSortByMatchForInvocationTypes(null, parameterTypes)
-                    .firstOrNull()
-
-                if (matchingConstructor == null) {
-                    reportings.add(Reporting.unresolvableConstructor(functionNameToken, parameterTypes, resolvedFunctions.isNotEmpty()))
-                }
-
-                dispatchedFunction = matchingConstructor
             } else {
-                val matchingFunction = resolvedFunctions
+                resolvedFunctions
                     .filterAndSortByMatchForInvocationTypes(receiverType, parameterTypes)
-                    .firstOrNull()
-
-                if (matchingFunction == null) {
-                    reportings.add(Reporting.noMatchingFunctionOverload(functionNameToken, receiverType, parameterTypes, resolvedFunctions.isNotEmpty()))
-                }
-
-                dispatchedFunction = matchingFunction
             }
 
-            dispatchedFunction?.semanticAnalysisPhase2()?.let(reportings::addAll)
+            matchingFunctions.firstOrNull()?.let { (matchingFunction, typeUnification) ->
+                dispatchedFunction = matchingFunction
+                type = matchingFunction.returnType?.contextualize(typeUnification, TypeUnification::right)
+                type?.validate()?.let(reportings::addAll)
+            }
 
-            // TODO: determine type of invocation: static dispatch or dynamic dispatch
+            if (matchingFunctions.isEmpty()) {
+                if (resolvedConstructors != null) {
+                    reportings.add(
+                        Reporting.unresolvableConstructor(
+                            functionNameToken,
+                            parameterTypes,
+                            resolvedFunctions.isNotEmpty()
+                        )
+                    )
+                } else {
+                    reportings.add(
+                        Reporting.noMatchingFunctionOverload(
+                            functionNameToken,
+                            receiverType,
+                            parameterTypes,
+                            resolvedFunctions.isNotEmpty()
+                        )
+                    )
+                }
+            } else if (matchingFunctions.size > 1) {
+                reportings.add(Reporting.ambiguousInvocation(this, matchingFunctions.map { it.first }))
+            }
 
             return@getResult reportings
         }
@@ -165,53 +187,70 @@ class BoundInvocationExpression(
  * returns the functions matching the types sorted by matching quality to the given
  * types (see [ResolvedTypeReference.evaluateAssignabilityTo] and [ResolvedTypeReference.assignMatchQuality])
  *
- * In essence, this function is the function dispatching algorithm of the language.
+ * In essence, this function is the overload resolution algorithm of the language.
+ *
+ * @return a list of matching functions, along with the resolved generics. Use the TypeUnification::right with the
+ * returned function to determine the return type if that function were invoked.
+ * The list is sorted by best-match first, worst-match last. However, if the return value has more than one element,
+ * it has to be treated as an error because the invocation is ambiguous.
  */
-private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(receiverType: ResolvedTypeReference?, parameterTypes: Iterable<ResolvedTypeReference?>): List<BoundFunction> =
-    this
-        // filter out the ones with incompatible receiver type
-        .filter {
-            // both null -> don't bother about the receiverType for now
-            if (receiverType == null && it.receiverType == null) {
-                return@filter true
-            }
-            // both must be non-null
-            if (receiverType == null || it.receiverType == null) {
-                return@filter false
-            }
-
-            return@filter receiverType isAssignableTo it.receiverType!!
-        }
+private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(receiverType: ResolvedTypeReference?, parameterTypes: List<ResolvedTypeReference>): List<Pair<BoundFunction, TypeUnification>> {
+    val leftSideTypes = listOfNotNull(receiverType) + parameterTypes
+    return this
+        .asSequence()
         // filter by incompatible number of parameters
-        .filter { it.parameters.parameters.size == parameterTypes.count() }
-        // filter by incompatible parameters
-        .filter { candidateFn ->
-            parameterTypes.forEachIndexed { paramIndex, paramType ->
-                val candidateParamType = candidateFn.parameterTypes[paramIndex] ?: Any.baseReference(candidateFn.context)
-                if (paramType != null && !(paramType isAssignableTo  candidateParamType)) {
-                    return@filter false
-                }
+        .filter { it.parameters.parameters.size == parameterTypes.size }
+        // filter by (declared receiver)
+        .filter { (receiverType != null) == it.declaresReceiver }
+        .mapNotNull { candidateFn ->
+            if ((candidateFn.receiverType == null && candidateFn.declaresReceiver) || candidateFn.parameterTypes.any { it == null }) {
+                // types not fully resolve, don't consider
+                return@mapNotNull null
+            }
+            @Suppress("UNCHECKED_CAST") // the check is right above
+            val rightSideTypes = (listOfNotNull(candidateFn.receiverType) + candidateFn.parameterTypes) as List<ResolvedTypeReference>
+            check(leftSideTypes.size == rightSideTypes.size)
+
+            val unification = try {
+                leftSideTypes
+                    .zip(rightSideTypes)
+                    .fold(TypeUnification.EMPTY) { unification, (lhsType, rhsType) -> lhsType.unify(rhsType, unification) }
+            }
+            catch (ex: TypesNotUnifiableException) {
+                // type mismatch
+                return@mapNotNull null
             }
 
-            return@filter true
+            Pair(candidateFn, unification)
         }
-        // now we can sort
-        // by receiverType ASC, parameter... ASC
-        .sortedWith(
-            compareBy(
-                // receiver type
-                {
-                    receiverType?.assignMatchQuality(it.receiverType!!) ?: 0
-                },
-                // parameters
-                { candidateFn ->
-                    var value: Int = 0
-                    parameterTypes.forEachIndexed { paramIndex, paramType ->
-                        value = paramType?.assignMatchQuality(candidateFn.parameterTypes[paramIndex] ?: Any.baseReference(candidateFn.context)) ?: 0
-                        if (value != 0) return@forEachIndexed
-                    }
+        // TODO: at this point, if there are candidates from more than one source of overloads, we have to produce an error to prevent hijacking
+        .sortedBy {
+            /*
+            overload resolution must prioritize exact matches
 
-                    value
-                }
-            )
-        )
+            javas and kotlins overload resolutions are CONFUSING, e.g. given
+            fun main() {
+                a(2, 3)
+            }
+
+            you get an error on:
+            a(Int, Any)
+            a(Any, Int)
+
+            and it passes on
+            a(Int, Int).
+            a(Any, Int).
+
+            as one would expect because one overload is clearly more concrete. However, this is not okay??
+
+            a(Int, Number)
+            a(Any, Int)
+
+            in this language, overload resolution should be much simpler and tend to produce ambiguity errors
+            where java + kotlin would intransparently pick an overload
+
+            */
+            TODO("implement overload resolution")
+        }
+        .toList()
+}

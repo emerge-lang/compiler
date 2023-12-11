@@ -126,6 +126,9 @@ abstract class Reporting internal constructor(
         fun unresolvableMemberVariable(accessExpression: BoundMemberAccessExpression, hostType: ResolvedTypeReference)
             = UnresolvedMemberVariableReporting(accessExpression.declaration, hostType)
 
+        fun ambiguousInvocation(invocation: BoundInvocationExpression, candidates: List<BoundFunction>)
+            = AmbiguousInvocationReporting(invocation.declaration, candidates)
+
         fun typeDeductionError(message: String, location: SourceLocation)
             = TypeDeductionErrorReporting(message, location)
 

@@ -22,11 +22,8 @@ import compiler.ast.Executable
 import compiler.ast.expression.UnaryExpression
 import compiler.ast.type.FunctionModifier
 import compiler.binding.BoundExecutable
-import compiler.binding.BoundFunction
 import compiler.binding.context.CTContext
-import compiler.binding.filterAndSortByMatchForInvocationTypes
 import compiler.binding.type.ResolvedTypeReference
-import compiler.lexer.Operator
 import compiler.reportings.Reporting
 import compiler.reportings.UnresolvableFunctionOverloadReporting
 

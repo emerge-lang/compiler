@@ -29,6 +29,8 @@ class BoundDeclaredFunction(
     override var receiverType: ResolvedTypeReference? = null
         private set
 
+    override val declaresReceiver = declaration.receiverType != null
+
     /**
      * Implied modifiers. Operator functions often have an implied [FunctionModifier.READONLY]
      */
