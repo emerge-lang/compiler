@@ -21,9 +21,12 @@ package compiler.binding.type
 import compiler.ast.ASTModule
 import compiler.ast.FunctionDeclaration
 import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.context.Module
 import compiler.binding.context.ModuleRootContext
+import compiler.lexer.IdentifierToken
 import compiler.parseFromClasspath
 
 /*
@@ -55,7 +58,7 @@ val BuiltinBoolean = object : BuiltinType("Boolean", Any) {
 }
 
 val BuiltinArray = object : BuiltinType("Array", Any) {
-    override val parameters = listOf(TypeReference("Item"))
+    override val parameters = listOf(TypeParameter(variance = TypeVariance.UNSPECIFIED, IdentifierToken("Item"), null))
 }
 
 /**

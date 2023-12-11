@@ -41,7 +41,7 @@ interface BoundElement<out ASTType> : SemanticallyAnalyzable {
      * Use to find violations of purity.
      * @param boundary The boundary. The boundary context must be in the [CTContext.hierarchy] of `this`' context.
      * @return All the nested [BoundExecutable]s (or `this` if there are no nested ones) that read state that belongs
-     *         to context outside of the given boundary.
+     *         to context outside the given boundary.
      */
     fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet() // TODO remove default impl
 
@@ -49,7 +49,7 @@ interface BoundElement<out ASTType> : SemanticallyAnalyzable {
      * Use to find violations of readonlyness and/or purity.
      * @param boundary The boundary. The boundary context must be in the [CTContext.hierarchy] of `this`' context.
      * @return All the nested [BoundExecutable]s (or `this` if there are no nested ones) that write state that belongs
-     *         to context outside of the given boundary.
+     *         to context outside the given boundary.
      */
     fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet() // TODO remove default impl
 }

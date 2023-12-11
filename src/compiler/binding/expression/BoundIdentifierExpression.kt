@@ -26,6 +26,7 @@ import compiler.binding.BoundVariable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseType
 import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.UnresolvedType
 import compiler.reportings.Reporting
 
 class BoundIdentifierExpression(
@@ -57,7 +58,7 @@ class BoundIdentifierExpression(
         } else {
             val type: ResolvedTypeReference? = context.resolveType(
                 TypeReference(declaration.identifier)
-            )
+            ).takeUnless { it is UnresolvedType }
 
             if (type == null) {
                 reportings.add(Reporting.undefinedIdentifier(declaration))

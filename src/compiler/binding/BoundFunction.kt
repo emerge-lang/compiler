@@ -20,6 +20,7 @@ package compiler.binding
 
 import compiler.ast.FunctionDeclaration
 import compiler.ast.type.FunctionModifier
+import compiler.ast.type.TypeParameter
 import compiler.binding.context.CTContext
 import compiler.binding.type.Any
 import compiler.binding.type.ResolvedTypeReference
@@ -38,6 +39,8 @@ abstract class BoundFunction : SemanticallyAnalyzable {
 
     abstract val name: String
     abstract val modifiers: Set<FunctionModifier>
+
+    abstract val typeParameters: List<TypeParameter>
 
     /**
      * Whether this function should be considered pure by other code using it. This is true if the function is

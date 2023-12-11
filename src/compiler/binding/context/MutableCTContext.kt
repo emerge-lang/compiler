@@ -29,13 +29,7 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
 import compiler.binding.struct.Struct
-import compiler.binding.type.BaseType
-import compiler.binding.type.ConstrainedTypeReference
-import compiler.binding.type.ModifiedTypeReference
-import compiler.binding.type.ResolvedTypeReference
-import compiler.binding.type.RootResolvedTypeReference
-import compiler.binding.type.UnresolvedType
-import compiler.binding.type.VariantTypeReference
+import compiler.binding.type.*
 import compiler.lexer.IdentifierToken
 import java.util.*
 
@@ -98,13 +92,15 @@ open class MutableCTContext(
     }
 
     private val rawTypeParameters: Map<String, TypeParameter> = typeParameters.associateBy { it.name.value }
-    private val resolvedTypeParameters = mutableMapOf<String, ConstrainedTypeReference>()
+    private val resolvedTypeParameters = mutableMapOf<String, GenericTypeReference>()
 
-    private fun resolveGenericType(simpleName: String): ConstrainedTypeReference? {
+    private fun resolveGenericType(simpleName: String): GenericTypeReference? {
         resolvedTypeParameters[simpleName]?.let { return it }
         val typeParameter = rawTypeParameters[simpleName] ?: return null
-        val resolvedBound = typeParameter.bound?.let { resolveType(it, fromOwnModuleOnly = false) }
-        val result = ConstrainedTypeReference(this, resolvedBound)
+        val resolvedBound = typeParameter.bound
+            ?.let { resolveType(it, fromOwnModuleOnly = false) }
+            ?: Any.baseReference(this).withCombinedNullability(TypeReference.Nullability.NULLABLE)
+        val result = GenericTypeReference(this, typeParameter, resolvedBound)
         resolvedTypeParameters[simpleName] = result
         return result
     }
@@ -123,17 +119,13 @@ open class MutableCTContext(
         return fromImport ?: parentContext.resolveBaseType(simpleName, fromOwnModuleOnly)
     }
 
-    private fun resolveType(ref: TypeArgument): ResolvedTypeReference {
-        val typeWithoutVariance = resolveType(ref.type)
-        return when (ref.variance) {
-            TypeVariance.UNSPECIFIED -> typeWithoutVariance
-            else -> VariantTypeReference(typeWithoutVariance, ref.variance)
-        }
+    private fun resolveType(ref: TypeArgument): BoundTypeArgument {
+        return BoundTypeArgument(ref.variance, resolveType(ref.type))
     }
 
     override fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean): ResolvedTypeReference {
         resolveGenericType(ref.simpleName)?.let { genericType ->
-            return ModifiedTypeReference(this, genericType, ref)
+            return genericType.withCombinedMutability(ref.mutability).withCombinedNullability(ref.nullability)
         }
 
         val resolvedParameters = ref.arguments.map { resolveType(it).defaultMutabilityTo(ref.mutability) }

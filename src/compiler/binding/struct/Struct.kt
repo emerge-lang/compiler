@@ -25,6 +25,7 @@ import compiler.ast.type.TypeReference
 import compiler.binding.BoundElement
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
+import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
 import compiler.binding.type.Any
 import compiler.binding.type.BaseType
@@ -38,6 +39,7 @@ class Struct(
     val members: List<StructMember>
 ) : BaseType, BoundElement<StructDeclaration> {
     override val simpleName: String = declaration.name.value
+    override val parameters = structContext.typeParameters
 
     override val superTypes: Set<BaseType> = setOf(Any)
 
@@ -82,4 +84,6 @@ class Struct(
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
         return members.flatMap { it.findWritesBeyond(context) }
     }
+
+    override fun resolveMemberVariable(name: String): ObjectMember? = members.find { it.name == name }
 }

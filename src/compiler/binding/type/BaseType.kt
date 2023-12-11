@@ -19,9 +19,12 @@
 package compiler.binding.type
 
 import compiler.ast.FunctionDeclaration
+import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundFunction
+import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
 import kotlinext.get
 
@@ -42,7 +45,12 @@ interface BaseType {
     val baseReference: (CTContext) -> ResolvedTypeReference
         get() = { ctx ->
             // determine minimum bound for all type parameters
-            RootResolvedTypeReference(ctx, this, false, null, emptyList())
+            RootResolvedTypeReference(ctx, this, false, null, parameters.map {
+                BoundTypeArgument(
+                    it.variance,
+                    it.bound?.let(ctx::resolveType) ?: Any.baseReference(ctx).withCombinedNullability(TypeReference.Nullability.NULLABLE),
+                )
+            })
         }
 
     val superTypes: Set<BaseType>
@@ -51,7 +59,7 @@ interface BaseType {
     val constructors: Set<BoundFunction>
         get() = emptySet()
 
-    val parameters: List<TypeReference>
+    val parameters: List<TypeParameter>
         get() = emptyList()
 
     /** @return Whether this type is the same as or a subtype of the given type. */
@@ -92,6 +100,8 @@ interface BaseType {
 
     /** @return The member function overloads for the given name or an empty collection if no such member function is defined. */
     fun resolveMemberFunction(name: String): Collection<FunctionDeclaration> = emptySet()
+
+    fun resolveMemberVariable(name: String): ObjectMember? = null
 
     companion object {
         /**

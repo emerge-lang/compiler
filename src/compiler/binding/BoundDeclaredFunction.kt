@@ -3,6 +3,7 @@ package compiler.binding
 import compiler.*
 import compiler.ast.FunctionDeclaration
 import compiler.ast.type.FunctionModifier
+import compiler.ast.type.TypeParameter
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.ResolvedTypeReference
@@ -23,6 +24,7 @@ class BoundDeclaredFunction(
 ) : BoundFunction() {
     override val declaredAt = declaration.declaredAt
     override val name: String = declaration.name.value
+    override val typeParameters: List<TypeParameter> = emptyList() // TODO
 
     override var receiverType: ResolvedTypeReference? = null
         private set

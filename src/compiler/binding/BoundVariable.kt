@@ -27,6 +27,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.UnresolvedType
 import compiler.reportings.Reporting
 import compiler.throwOnCycle
 
@@ -117,6 +118,8 @@ class BoundVariable(
                     )
                 }
 
+                initializerExpression.type?.validate()?.let(reportings::addAll)
+
                 // verify compatibility declared type <-> initializer type
                 if (type != null) {
                     val initializerType = initializerExpression.type
@@ -126,8 +129,10 @@ class BoundVariable(
 
                     // discrepancy between assign expression and declared type
                     if (initializerType != null) {
-                        initializerType.evaluateAssignabilityTo(type!!, declaration.initializerExpression!!.sourceLocation)
-                            ?.let(reportings::add)
+                        if (initializerType !is UnresolvedType) {
+                            initializerType.evaluateAssignabilityTo(type!!, declaration.initializerExpression!!.sourceLocation)
+                                ?.let(reportings::add)
+                        }
                     }
                 }
 

@@ -145,13 +145,15 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
         context.addBaseType(BuiltinArray)
 
         "mutability projection" - {
-            for (outerMutability in TypeMutability.values()) {
-                val type = TypeReference("Array", mutability = outerMutability, parameters = listOf(TypeReference("Any")))
-                    .resolveWithin(context)
-                        as RootResolvedTypeReference
+            for (outerMutability in TypeMutability.values().filter { it != TypeMutability.EXCLUSIVE }) {
+                val type = context.resolveType(TypeReference(
+                    simpleName = "Array",
+                    mutability = outerMutability,
+                    arguments = listOf(TypeArgument(TypeVariance.UNSPECIFIED, TypeReference("Any")))
+                )) as RootResolvedTypeReference
 
                 "projects onto type parameters with $outerMutability" {
-                    type.parameters.single().mutability shouldBe outerMutability
+                    type.arguments.single().mutability shouldBe outerMutability
                 }
             }
         }

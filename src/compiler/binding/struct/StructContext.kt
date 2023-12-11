@@ -31,7 +31,7 @@ import compiler.binding.type.ResolvedTypeReference
  */
 class StructContext(
     moduleContext: CTContext,
-    typeParameters: List<TypeParameter>,
+    val typeParameters: List<TypeParameter>,
 ) : MutableCTContext(moduleContext, typeParameters) {
 
     fun registerMember(member: StructMember) {

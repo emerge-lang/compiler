@@ -4,6 +4,7 @@ import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeParameter
 import compiler.binding.BoundFunction
 import compiler.binding.context.MutableCTContext
 import compiler.reportings.Reporting
@@ -33,6 +34,8 @@ class StructConstructor(
             it.semanticAnalysisPhase1()
         }
     }
+
+    override val typeParameters: List<TypeParameter> = struct.parameters
 
     override val returnType = struct.baseReference(context).modifiedWith(TypeMutability.EXCLUSIVE)
     override val isGuaranteedToThrow = false

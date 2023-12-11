@@ -8,9 +8,9 @@ import compiler.reportings.Reporting
 class UnresolvedType private constructor(
     val standInType: ResolvedTypeReference,
     private val reference: TypeReference,
-    val parameters: List<ResolvedTypeReference>,
+    val parameters: List<BoundTypeArgument>,
 ) : ResolvedTypeReference by standInType {
-    constructor(context: CTContext, reference: TypeReference, parameters: List<ResolvedTypeReference>) : this(
+    constructor(context: CTContext, reference: TypeReference, parameters: List<BoundTypeArgument>) : this(
         getReplacementType(context),
         reference,
         parameters,
@@ -21,6 +21,8 @@ class UnresolvedType private constructor(
     override fun validate(): Collection<Reporting> {
         return parameters.flatMap { it.validate() } + setOf(Reporting.unknownType(reference))
     }
+
+    override fun toString() = simpleName
 
     companion object {
         fun getReplacementType(context: CTContext): ResolvedTypeReference {

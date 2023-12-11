@@ -21,8 +21,10 @@ package compiler.binding.expression
 import compiler.ast.Executable
 import compiler.ast.expression.MemberAccessExpression
 import compiler.binding.BoundExecutable
+import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
 import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.TypeUnification
 import compiler.reportings.Reporting
 
 class BoundMemberAccessExpression(
@@ -39,6 +41,8 @@ class BoundMemberAccessExpression(
     override var type: ResolvedTypeReference? = null
         private set
 
+    private var member: ObjectMember? = null
+
     override val isGuaranteedToThrow = false // member accessor CAN throw, but must not ALWAYS do so
 
     override fun semanticAnalysisPhase1() = valueExpression.semanticAnalysisPhase1()
@@ -46,8 +50,7 @@ class BoundMemberAccessExpression(
         val reportings = mutableSetOf<Reporting>()
         reportings.addAll(valueExpression.semanticAnalysisPhase2())
 
-        val valueType = valueExpression.type
-        if (valueType != null) {
+        valueExpression.type?.let { valueType ->
             if (valueType.isNullable && !isNullSafeAccess) {
                 reportings.add(Reporting.unsafeObjectTraversal(valueExpression, declaration.accessOperatorToken))
                 // TODO: set the type of this expression nullable
@@ -55,10 +58,14 @@ class BoundMemberAccessExpression(
             else if (!valueType.isNullable && isNullSafeAccess) {
                 reportings.add(Reporting.superfluousSafeObjectTraversal(valueExpression, declaration.accessOperatorToken))
             }
-        }
 
-        // TODO: resolve member
-        // TODO: what about FQNs?
+            valueType.findMemberVariable(memberName)?.let { member ->
+                this.member = member
+                this.type = member.type?.contextualize(valueType.inherentTypeBindings, TypeUnification::left)
+            } ?: run {
+                reportings.add(Reporting.unresolvableMemberVariable(this, valueType))
+            }
+        }
 
         return reportings
     }

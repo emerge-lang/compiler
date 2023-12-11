@@ -24,14 +24,12 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
 import compiler.ast.expression.Expression
 import compiler.ast.expression.IdentifierExpression
+import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeReference
-import compiler.binding.expression.BoundAssignmentExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
-import compiler.binding.expression.BoundExpression
-import compiler.binding.expression.BoundIdentifierExpression
-import compiler.binding.expression.BoundInvocationExpression
+import compiler.binding.expression.*
 import compiler.binding.struct.Struct
 import compiler.binding.struct.StructMember
 import compiler.binding.type.ResolvedTypeReference
@@ -124,6 +122,9 @@ abstract class Reporting internal constructor(
 
         fun unresolvableConstructor(nameToken: IdentifierToken, parameterTypes: List<ResolvedTypeReference?>, functionsWithNameAvailable: Boolean)
             = UnresolvableConstructorReporting(nameToken, parameterTypes, functionsWithNameAvailable)
+
+        fun unresolvableMemberVariable(accessExpression: BoundMemberAccessExpression, hostType: ResolvedTypeReference)
+            = UnresolvedMemberVariableReporting(accessExpression.declaration, hostType)
 
         fun typeDeductionError(message: String, location: SourceLocation)
             = TypeDeductionErrorReporting(message, location)

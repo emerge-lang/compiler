@@ -16,7 +16,7 @@ struct X<T> {
 
 fun foo() {
     val myX: X<Int> = X(2)
-    val magic = myX.someVal
+    val anInt: Int = myX.someVal
 }
 """
 

@@ -37,6 +37,6 @@ open class ValueNotAssignableReporting(
     assignmentLocation: SourceLocation
 ) : Reporting(
     Level.ERROR,
-    "Cannot assign a value of type $sourceType to a target of type $targetType: $reason",
+    "Cannot assign a value of type $sourceType to a reference of type $targetType: $reason",
     assignmentLocation
 )

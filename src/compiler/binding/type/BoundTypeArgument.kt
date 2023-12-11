@@ -19,12 +19,15 @@ class BoundTypeArgument(
         return type.validate()
     }
 
+    /**
+     * @see ResolvedTypeReference.evaluateAssignabilityTo
+     */
     fun evaluateAssignabilityTo(target: BoundTypeArgument, assignmentSourceLocation: SourceLocation): ValueNotAssignableReporting? {
         if (target.variance == TypeVariance.UNSPECIFIED) {
             // target needs to use the type in both IN and OUT fashion -> source must match exactly
             if (!this.type.hasSameBaseTypeAs(target.type)) {
                 // TODO: can we pass target and this with variance? probably when BoundTypeArgument : ResolvedTypeReference
-                return Reporting.valueNotAssignable(target.type, this.type, "The exact type ${target.type} is required", assignmentSourceLocation)
+                return Reporting.valueNotAssignable(target.type, this.type, "the exact type ${target.type} is required", assignmentSourceLocation)
             }
 
             // checks for mutability and nullability
@@ -38,7 +41,7 @@ class BoundTypeArgument(
 
             assert(this.variance == TypeVariance.IN)
             // TODO: can we pass target and this with variance? probably when BoundTypeArgument : ResolvedTypeReference
-            return Reporting.valueNotAssignable(target.type, this.type, "Cannot assign in-variant value to out-variant reference", assignmentSourceLocation)
+            return Reporting.valueNotAssignable(target.type, this.type, "cannot assign in-variant value to out-variant reference", assignmentSourceLocation)
         }
 
         assert(target.variance == TypeVariance.IN)
@@ -48,7 +51,27 @@ class BoundTypeArgument(
         }
 
         // TODO: can we pass target and this with variance? probably when BoundTypeArgument : ResolvedTypeReference
-        return Reporting.valueNotAssignable(target.type, this.type, "Cannot assign out-variant value to in-variant reference", assignmentSourceLocation)
+        return Reporting.valueNotAssignable(target.type, this.type, "cannot assign out-variant value to in-variant reference", assignmentSourceLocation)
+    }
+
+    /**
+     * @see ResolvedTypeReference.unify
+     */
+    fun unify(other: BoundTypeArgument, carry: TypeUnification): TypeUnification {
+        // TODO: get source location?
+        // TODO: pass type with variance to reporting? probably when BoundTypeArgument : ResolvedTypeReference
+        this.evaluateAssignabilityTo(other, SourceLocation.UNKNOWN)?.let {
+            throw TypesNotUnifiableException(this.type, other.type, it.reason)
+        }
+
+        return type.unify(other.type, carry)
+    }
+
+    /**
+     * @see ResolvedTypeReference.contextualize
+     */
+    fun contextualize(context: TypeUnification, side: (TypeUnification) -> Map<String, BoundTypeArgument>): BoundTypeArgument {
+        return BoundTypeArgument(variance, type.contextualize(context, side))
     }
 
     override fun toString(): String {
@@ -59,5 +82,3 @@ class BoundTypeArgument(
         return "${variance.name.lowercase()} $type"
     }
 }
-
-val s: Array<in Any> = TODO()
