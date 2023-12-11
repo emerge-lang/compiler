@@ -21,12 +21,12 @@ package compiler.binding.expression
 import compiler.OnceAction
 import compiler.ast.Executable
 import compiler.ast.expression.InvocationExpression
-import compiler.ast.type.TypeReference
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.context.CTContext
-import compiler.binding.filterAndSortByMatchForInvocationTypes
+import compiler.binding.type.Any
 import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.isAssignableTo
 import compiler.lexer.IdentifierToken
 import compiler.reportings.Reporting
 
@@ -158,3 +158,60 @@ class BoundInvocationExpression(
         return byReceiver + byParameters + bySelf
     }
 }
+
+
+/**
+ * Given the invocation types `receiverType` and `parameterTypes` of an invocation site
+ * returns the functions matching the types sorted by matching quality to the given
+ * types (see [ResolvedTypeReference.evaluateAssignabilityTo] and [ResolvedTypeReference.assignMatchQuality])
+ *
+ * In essence, this function is the function dispatching algorithm of the language.
+ */
+private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(receiverType: ResolvedTypeReference?, parameterTypes: Iterable<ResolvedTypeReference?>): List<BoundFunction> =
+    this
+        // filter out the ones with incompatible receiver type
+        .filter {
+            // both null -> don't bother about the receiverType for now
+            if (receiverType == null && it.receiverType == null) {
+                return@filter true
+            }
+            // both must be non-null
+            if (receiverType == null || it.receiverType == null) {
+                return@filter false
+            }
+
+            return@filter receiverType isAssignableTo it.receiverType!!
+        }
+        // filter by incompatible number of parameters
+        .filter { it.parameters.parameters.size == parameterTypes.count() }
+        // filter by incompatible parameters
+        .filter { candidateFn ->
+            parameterTypes.forEachIndexed { paramIndex, paramType ->
+                val candidateParamType = candidateFn.parameterTypes[paramIndex] ?: Any.baseReference(candidateFn.context)
+                if (paramType != null && !(paramType isAssignableTo  candidateParamType)) {
+                    return@filter false
+                }
+            }
+
+            return@filter true
+        }
+        // now we can sort
+        // by receiverType ASC, parameter... ASC
+        .sortedWith(
+            compareBy(
+                // receiver type
+                {
+                    receiverType?.assignMatchQuality(it.receiverType!!) ?: 0
+                },
+                // parameters
+                { candidateFn ->
+                    var value: Int = 0
+                    parameterTypes.forEachIndexed { paramIndex, paramType ->
+                        value = paramType?.assignMatchQuality(candidateFn.parameterTypes[paramIndex] ?: Any.baseReference(candidateFn.context)) ?: 0
+                        if (value != 0) return@forEachIndexed
+                    }
+
+                    value
+                }
+            )
+        )

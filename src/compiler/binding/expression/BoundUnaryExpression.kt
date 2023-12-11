@@ -28,80 +28,57 @@ import compiler.binding.filterAndSortByMatchForInvocationTypes
 import compiler.binding.type.ResolvedTypeReference
 import compiler.lexer.Operator
 import compiler.reportings.Reporting
+import compiler.reportings.UnresolvableFunctionOverloadReporting
 
 class BoundUnaryExpression(
     override val context: CTContext,
     override val declaration: UnaryExpression,
-    val original: BoundExpression<*>
+    private val hiddenInvocation: BoundInvocationExpression,
 ) : BoundExpression<UnaryExpression> {
 
     override var type: ResolvedTypeReference? = null
         private set
 
-    val operator = declaration.operator
+    override val isGuaranteedToThrow get() = hiddenInvocation.isGuaranteedToThrow
 
-    var operatorFunction: BoundFunction? = null
-        private set
-
-    override val isGuaranteedToThrow = original.isGuaranteedToThrow // the unary operator THEORETICALLY can always throw; not in this language, though
-
-    override fun semanticAnalysisPhase1() = original.semanticAnalysisPhase1()
+    override fun semanticAnalysisPhase1() = hiddenInvocation.semanticAnalysisPhase1()
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
-        reportings.addAll(original.semanticAnalysisPhase2())
+        hiddenInvocation.semanticAnalysisPhase2()
+            .map { hiddenReporting ->
+                if (hiddenReporting !is UnresolvableFunctionOverloadReporting) {
+                    return@map hiddenReporting
+                }
 
-        if (original.type == null) {
-            // failed to determine base type - cannot infer unary operator
-            return reportings
-        }
+                Reporting.operatorNotDeclared(
+                    "Unary operator ${declaration.operatorToken.operator} (function ${hiddenInvocation.functionNameToken.value}) not declared for type ${hiddenReporting.receiverType ?: "<unknown>"}",
+                    declaration,
+                )
+            }
+            .let(reportings::addAll)
 
-        val valueType = original.type!!
-
-        // determine operator function
-        val opFunName = operatorFunctionName(operator)
-
-        // functions with receiver
-        val receiverOperatorFuns =
-            context.resolveFunction(opFunName)
-                .filterAndSortByMatchForInvocationTypes(valueType, emptyList())
-                .sortedByDescending { FunctionModifier.OPERATOR in it.modifiers }
-
-        operatorFunction = receiverOperatorFuns.firstOrNull()
-
-        if (operatorFunction != null) {
-            if (FunctionModifier.OPERATOR !in operatorFunction!!.modifiers) {
+        hiddenInvocation.dispatchedFunction?.let { operatorFunction ->
+            if (FunctionModifier.OPERATOR !in operatorFunction.modifiers) {
                 reportings.add(
                     Reporting.functionIsMissingModifier(
-                        operatorFunction!!,
+                        operatorFunction,
                         this.declaration,
                         FunctionModifier.OPERATOR
                     )
                 )
             }
-        } else {
-            reportings.add(
-                Reporting.operatorNotDeclared(
-                    "Unary operator $operator (function $opFunName) not declared for type $valueType",
-                    declaration
-                )
-            )
         }
 
         return reportings
     }
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
-        return original.findReadsBeyond(boundary)
+        return hiddenInvocation.findReadsBeyond(boundary)
     }
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
-        return original.findWritesBeyond(boundary)
-
-        // unary operators are readonly by definition; the check for that happens inside the corresponding BoundFunction
+        return hiddenInvocation.findWritesBeyond(boundary)
     }
 }
 
-private fun operatorFunctionName(op: Operator): String = when(op) {
-    else -> "unary" + op.name[0].uppercase() + op.name.substring(1).lowercase()
-}

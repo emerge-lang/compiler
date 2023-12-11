@@ -20,15 +20,35 @@ package compiler.ast.expression
 
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundUnaryExpression
+import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
 
-class UnaryExpression(val operator: Operator, val valueExpression: Expression<*>): Expression<BoundUnaryExpression>
-{
+class UnaryExpression(
+    val operatorToken: OperatorToken,
+    val valueExpression: Expression<*>,
+): Expression<BoundUnaryExpression> {
     override val sourceLocation = valueExpression.sourceLocation
 
-    override fun bindTo(context: CTContext) = BoundUnaryExpression(
-        context,
-        this,
-        valueExpression.bindTo(context)
-    )
+    override fun bindTo(context: CTContext): BoundUnaryExpression {
+        val functionName = operatorFunctionName(operatorToken.operator)
+        val hiddenInvocation = InvocationExpression(
+            MemberAccessExpression(
+                valueExpression,
+                OperatorToken(Operator.DOT, operatorToken.sourceLocation),
+                IdentifierToken(functionName, operatorToken.sourceLocation),
+            ),
+            emptyList(),
+        )
+
+        return BoundUnaryExpression(
+            context,
+            this,
+            hiddenInvocation.bindTo(context),
+        )
+    }
+}
+
+private fun operatorFunctionName(op: Operator): String = when(op) {
+    else -> "unary" + op.name[0].uppercase() + op.name.substring(1).lowercase()
 }

@@ -119,7 +119,7 @@ val UnaryExpression = sequence("unary expression") {
     }
 }
     .astTransformation { tokens ->
-        val operator = (tokens.next()!! as OperatorToken).operator
+        val operator = (tokens.next()!! as OperatorToken)
         val expression = tokens.next()!! as Expression<*>
         UnaryExpression(operator, expression)
     }
