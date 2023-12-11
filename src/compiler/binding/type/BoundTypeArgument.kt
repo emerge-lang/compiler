@@ -30,6 +30,11 @@ class BoundTypeArgument(
                 return Reporting.valueNotAssignable(target.type, this.type, "the exact type ${target.type} is required", assignmentSourceLocation)
             }
 
+            if (this.variance != TypeVariance.UNSPECIFIED) {
+                // TODO: can we pass target and this with variance? probably when BoundTypeArgument : ResolvedTypeReference
+                return Reporting.valueNotAssignable(target.type, this.type, "cannot assign an in-variant value to an exact-variant reference", assignmentSourceLocation)
+            }
+
             // checks for mutability and nullability
             return this.type.evaluateAssignabilityTo(target.type, assignmentSourceLocation)
         }

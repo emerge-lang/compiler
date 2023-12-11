@@ -36,7 +36,6 @@ class StructConstructor(
     }
 
     override val typeParameters: List<TypeParameter> = struct.parameters
-
     override val returnType = struct.baseReference(context).modifiedWith(TypeMutability.EXCLUSIVE)
     override val isGuaranteedToThrow = false
     override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()

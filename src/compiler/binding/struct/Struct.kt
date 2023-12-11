@@ -33,7 +33,14 @@ import compiler.reportings.Reporting
 import kotlinext.duplicatesBy
 
 class Struct(
+    /**
+     * Context in which the struct lives
+     */
     override val context: CTContext,
+
+    /**
+     * context for the struct members
+     */
     private val structContext: StructContext,
     override val declaration: StructDeclaration,
     val members: List<StructMember>
@@ -52,8 +59,6 @@ class Struct(
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
-
-
 
         members.forEach {
             reportings.addAll(it.semanticAnalysisPhase1())
