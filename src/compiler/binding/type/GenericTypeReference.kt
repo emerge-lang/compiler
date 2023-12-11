@@ -62,7 +62,15 @@ class GenericTypeReference(
     }
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): ResolvedTypeReference {
-        TODO("Not yet implemented")
+        if (mutability == null) {
+            return this
+        }
+
+        return GenericTypeReference(
+            context,
+            parameter,
+            resolvedBound.defaultMutabilityTo(mutability),
+        )
     }
 
     override fun closestCommonSupertypeWith(other: ResolvedTypeReference): ResolvedTypeReference {

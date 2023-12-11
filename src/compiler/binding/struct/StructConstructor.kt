@@ -2,17 +2,16 @@ package compiler.binding.struct
 
 import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
-import compiler.ast.type.FunctionModifier
-import compiler.ast.type.TypeMutability
-import compiler.ast.type.TypeParameter
+import compiler.ast.type.*
 import compiler.binding.BoundFunction
 import compiler.binding.context.MutableCTContext
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.reportings.Reporting
 
 class StructConstructor(
     val struct: Struct,
 ) : BoundFunction() {
-    override val context = MutableCTContext(struct.context)
+    override val context = MutableCTContext(struct.context, struct.parameters)
     override val declaredAt = struct.declaration.declaredAt
     override val receiverType = null
     override val declaresReceiver = false
@@ -37,7 +36,15 @@ class StructConstructor(
     }
 
     override val typeParameters: List<TypeParameter> = struct.parameters
-    override val returnType = struct.baseReference(context).modifiedWith(TypeMutability.EXCLUSIVE)
+    override val returnType = context.resolveType(
+        TypeReference(
+            struct.simpleName,
+            TypeReference.Nullability.NOT_NULLABLE,
+            TypeMutability.EXCLUSIVE,
+            struct.declaration.name,
+            struct.parameters.map { TypeArgument(it.variance, TypeReference(it.name.value)) },
+        ),
+    )
     override val isGuaranteedToThrow = false
     override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
     override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()

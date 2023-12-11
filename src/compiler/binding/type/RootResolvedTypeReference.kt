@@ -2,6 +2,7 @@ package compiler.binding.type
 
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
@@ -208,7 +209,7 @@ class RootResolvedTypeReference private constructor(
             is UnresolvedType -> return unify(other.standInType, carry)
             is GenericTypeReference -> {
                 // TODO: handle modifier complications?
-                TODO()
+                return carry.plusRight(other.simpleName, BoundTypeArgument(TypeVariance.UNSPECIFIED, this))
             }
         }
     }
