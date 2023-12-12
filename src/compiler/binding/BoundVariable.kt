@@ -41,9 +41,8 @@ class BoundVariable(
     val initializerExpression: BoundExpression<*>?
 ) : BoundExecutable<VariableDeclaration>
 {
-    val typeModifier = declaration.typeMutability
-
     val isAssignable: Boolean = declaration.isAssignable
+    private val implicitMutability: TypeMutability = if (isAssignable) TypeMutability.MUTABLE else TypeMutability.IMMUTABLE
 
     val name: String = declaration.name.value
 
@@ -63,6 +62,10 @@ class BoundVariable(
     fun semanticAnalysisPhase1(selfType: String): Collection<Reporting> {
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
             val reportings = mutableSetOf<Reporting>()
+
+            if (declaration.typeMutability != null && declaration.type != null) {
+                reportings.add(Reporting.variableDeclaredWithSplitType(declaration))
+            }
 
             context.resolveVariable(this.name)
                 ?.takeUnless { it == this }
@@ -142,18 +145,17 @@ class BoundVariable(
             // infer the type
             val initializerType = initializerExpression?.type
             if (type == null && initializerType != null) {
-                if (typeModifier != null) {
-                    if (!initializerType.mutability.isAssignableTo(typeModifier)) {
+                if (declaration.typeMutability != null) {
+                    if (!initializerType.mutability.isAssignableTo(declaration.typeMutability)) {
                         reportings.add(Reporting.valueNotAssignable(
-                            initializerType.modifiedWith(typeModifier),
+                            initializerType.modifiedWith(declaration.typeMutability),
                             initializerType,
-                            "Cannot assign a ${initializerType.mutability.name.lowercase()} value to a ${typeModifier.name.lowercase()} reference",
+                            "Cannot assign a ${initializerType.mutability.name.lowercase()} value to a ${declaration.typeMutability.name.lowercase()} reference",
                             initializerExpression!!.declaration.sourceLocation,
                         ))
                     }
-                    type = initializerType.modifiedWith(typeModifier)
+                    type = initializerType.modifiedWith(declaration.typeMutability)
                 } else {
-                    val implicitMutability = if (isAssignable) TypeMutability.MUTABLE else TypeMutability.IMMUTABLE
                     type = initializerType.withCombinedMutability(implicitMutability)
                 }
             }
@@ -179,8 +181,7 @@ class BoundVariable(
     private fun resolveDeclaredType(context: CTContext): ResolvedTypeReference? {
         with(declaration) {
             if (type == null) return null
-            val typeRef = if (typeMutability != null) type.withMutability(typeMutability) else type
-            return context.resolveType(typeRef)
+            return context.resolveType(type)?.withCombinedMutability(implicitMutability)
         }
     }
 }

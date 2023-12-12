@@ -96,6 +96,9 @@ abstract class Reporting internal constructor(
         fun variableDeclaredMoreThanOnce(acceptedDeclaration: VariableDeclaration, additionalDeclaration: VariableDeclaration)
             = MultipleVariableDeclarationsReporting(acceptedDeclaration, additionalDeclaration)
 
+        fun variableDeclaredWithSplitType(declaration: VariableDeclaration)
+            = VariableDeclaredWithSplitTypeReporting(declaration)
+
         fun parameterDeclaredMoreThanOnce(firstDeclaration: VariableDeclaration, additionalDeclaration: VariableDeclaration)
             = MultipleParameterDeclarationsReporting(firstDeclaration, additionalDeclaration)
 
