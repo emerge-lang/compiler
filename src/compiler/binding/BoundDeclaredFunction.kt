@@ -152,6 +152,10 @@ class BoundDeclaredFunction(
                 }
             }
 
+            receiverType?.validate()?.let(reportings::addAll)
+            parameterTypes.forEach { it?.validate()?.let(reportings::addAll) }
+            returnType?.validate()?.let(reportings::addAll)
+
             return@getResult reportings
         }
     }

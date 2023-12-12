@@ -25,4 +25,17 @@ class UnknownTypeReporting(val erroneousReference: TypeReference) : Reporting(
     Level.ERROR,
     "Cannot resolve type ${erroneousReference.simpleName}",
     if (erroneousReference.declaringNameToken == null) SourceLocation.UNKNOWN else erroneousReference.declaringNameToken.sourceLocation
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as UnknownTypeReporting
+
+        return erroneousReference == other.erroneousReference
+    }
+
+    override fun hashCode(): Int {
+        return erroneousReference.hashCode()
+    }
+}

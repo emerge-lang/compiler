@@ -112,6 +112,8 @@ class RootResolvedTypeReference private constructor(
             }
         }
 
+        arguments.forEach { reportings.addAll(it.validate()) }
+
         // todo: report mismatch between type parameters and arguments
 
         return reportings

@@ -14,9 +14,8 @@ struct X<T> {
     someVal: T
 }
 
-fun foo() {
-    val myX = X(2)
-    val anInt: Boolean = myX.someVal
+fun foo(p: X<E>) {
+    val n = p.someVal
 }
 """
 
