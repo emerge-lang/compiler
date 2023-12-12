@@ -47,4 +47,15 @@ class StructErrors : FreeSpec({
         """.trimIndent())
             .shouldReport<UnresolvableConstructorReporting>()
     }
+
+    "generics" - {
+        "type parameter with unresolvable bound" {
+            validateModule("""
+                struct X<T : Bla> {}
+            """.trimIndent())
+                .shouldReport<UnknownTypeReporting> {
+                    it.erroneousReference.simpleName shouldBe "Bla"
+                }
+        }
+    }
 })

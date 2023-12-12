@@ -75,7 +75,9 @@ class Struct(
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return members.flatMap { it.semanticAnalysisPhase2() }
+        val reportings = members.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
+        parameters.forEach { it.bound?.let(context::resolveType)?.validate()?.let(reportings::addAll) }
+        return reportings
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
