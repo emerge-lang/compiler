@@ -19,9 +19,9 @@
 package compiler.ast
 
 import compiler.ast.type.FunctionModifier
+import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
-import compiler.binding.BoundFunction
 import compiler.binding.BoundParameterList
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
@@ -36,6 +36,7 @@ class FunctionDeclaration(
      */
     val receiverType: TypeReference?,
     val name: IdentifierToken,
+    val typeParameters: List<TypeParameter>,
     val parameters: ParameterList,
     parsedReturnType: TypeReference?,
     val code: Executable<*>?,
@@ -47,7 +48,7 @@ class FunctionDeclaration(
     val returnType: TypeReference? = parsedReturnType
 
     override fun bindTo(context: CTContext): BoundDeclaredFunction {
-        val functionContext = MutableCTContext(context)
+        val functionContext = MutableCTContext(context, typeParameters)
 
         val boundParams = parameters.parameters.map(functionContext::addVariable)
         val boundParamList = BoundParameterList(context, parameters, boundParams)

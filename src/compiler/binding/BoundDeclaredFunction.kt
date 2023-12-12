@@ -24,7 +24,7 @@ class BoundDeclaredFunction(
 ) : BoundFunction() {
     override val declaredAt = declaration.declaredAt
     override val name: String = declaration.name.value
-    override val typeParameters: List<TypeParameter> = emptyList() // TODO
+    override val typeParameters: List<TypeParameter> = declaration.typeParameters
 
     override var receiverType: ResolvedTypeReference? = null
         private set
@@ -155,6 +155,7 @@ class BoundDeclaredFunction(
             receiverType?.validate()?.let(reportings::addAll)
             parameterTypes.forEach { it?.validate()?.let(reportings::addAll) }
             returnType?.validate()?.let(reportings::addAll)
+            typeParameters.forEach { it.bound?.let(context::resolveType)?.validate()?.let(reportings::addAll) }
 
             return@getResult reportings
         }

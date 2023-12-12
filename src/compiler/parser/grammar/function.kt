@@ -22,10 +22,12 @@ import compiler.InternalCompilerError
 import compiler.ast.CodeChunk
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ParameterList
+import compiler.ast.TypeParameterBundle
 import compiler.ast.VariableDeclaration
 import compiler.ast.expression.Expression
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
@@ -194,6 +196,10 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
     optionalWhitespace()
     identifier()
     optionalWhitespace()
+    optional {
+        ref(BracedTypeParameters)
+    }
+    optionalWhitespace()
     ref(ParameterList)
     optionalWhitespace()
 
@@ -247,7 +253,17 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
         }
 
         val name = next as IdentifierToken
-        val parameterList = tokens.next()!! as ParameterList
+
+        next = tokens.next()!!
+        val typeParameters: List<TypeParameter>
+        if (next is TypeParameterBundle) {
+            typeParameters = next.parameters
+            next = tokens.next()!!
+        } else {
+            typeParameters = emptyList()
+        }
+
+        val parameterList = next as ParameterList
 
         next = tokens.next()!!
 
@@ -267,6 +283,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
                 modifiers,
                 receiverType,
                 name,
+                typeParameters,
                 parameterList,
                 type ?: TypeReference("Unit", nullability = TypeReference.Nullability.UNSPECIFIED),
                 code
@@ -281,6 +298,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
                 modifiers,
                 receiverType,
                 name,
+                typeParameters,
                 parameterList,
                 type,
                 singleExpression,
@@ -294,6 +312,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
                 modifiers,
                 receiverType,
                 name,
+                typeParameters,
                 parameterList,
                 type,
                 null

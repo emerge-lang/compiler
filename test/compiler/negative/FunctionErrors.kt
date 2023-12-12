@@ -149,4 +149,15 @@ class FunctionErrors : FreeSpec({
         // TODO: if where only one branch throws, one test for then and else each
         // TODO: loop where the termination (return + throw) is in the loop body and the condition is not always true
     }
+
+    "generics" - {
+        "unresolvable bound on type parameter" {
+            validateModule("""
+                fun foo<T : Bla>() {}
+            """.trimIndent())
+                .shouldReport<UnknownTypeReporting> {
+                    it.erroneousReference.simpleName shouldBe "Bla"
+                }
+        }
+    }
 })

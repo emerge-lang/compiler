@@ -55,8 +55,7 @@ import compiler.binding.type.ResolvedTypeReference
  * to convey that the context must not be modified to assure correct compilation, CTFE or interpretation. Much like
  * the `immutable` keyword in the language this program compiles.
  */
-interface CTContext
-{
+interface CTContext {
     val swCtx: SoftwareContext
 
     /** The module this context belongs to, right beneath the software context in the tree */
