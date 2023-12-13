@@ -34,9 +34,6 @@ sealed interface ResolvedTypeReference {
     val isNullable: Boolean
     val simpleName: String?
 
-    /**
-     * TODO: rename to mutability
-     */
     val mutability: TypeMutability
 
     fun modifiedWith(modifier: TypeMutability): ResolvedTypeReference

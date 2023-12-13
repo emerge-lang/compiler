@@ -99,7 +99,7 @@ open class MutableCTContext(
         val typeParameter = rawTypeParameters[simpleName] ?: return null
         val resolvedBound = typeParameter.bound
             ?.let { resolveType(it, fromOwnModuleOnly = false) }
-            ?: Any.baseReference(this).withCombinedNullability(TypeReference.Nullability.NULLABLE)
+            ?: UnresolvedType.getTypeParameterDefaultBound(this)
         val result = GenericTypeReference(this, typeParameter, resolvedBound)
         resolvedTypeParameters[simpleName] = result
         return result
@@ -120,7 +120,7 @@ open class MutableCTContext(
     }
 
     private fun resolveType(ref: TypeArgument): BoundTypeArgument {
-        return BoundTypeArgument(this, ref.variance, resolveType(ref.type))
+        return BoundTypeArgument(this, ref, ref.variance, resolveType(ref.type))
     }
 
     override fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean): ResolvedTypeReference {

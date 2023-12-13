@@ -13,7 +13,7 @@ import compiler.reportings.ValueNotAssignableReporting
  * A [TypeReference] where the root type is resolved
  */
 class RootResolvedTypeReference private constructor(
-    private val original: TypeReference?,
+    val original: TypeReference?,
     override val context: CTContext,
     override val isNullable: Boolean,
     private val explicitMutability: TypeMutability?,
@@ -97,8 +97,8 @@ class RootResolvedTypeReference private constructor(
 
         // verify whether the modifier on the reference is compatible with the modifier on the type
         if (original?.mutability != null && baseType.impliedMutability != null) {
-            if (!(original.mutability!! isAssignableTo baseType.impliedMutability!!)) {
-                val origMod = original.mutability?.toString()?.lowercase()
+            if (!(original.mutability isAssignableTo baseType.impliedMutability!!)) {
+                val origMod = original.mutability.toString()?.lowercase()
                 val baseMod = baseType.impliedMutability?.toString()?.lowercase()
 
                 reportings.add(
@@ -112,8 +112,32 @@ class RootResolvedTypeReference private constructor(
         }
 
         arguments.forEach { reportings.addAll(it.validate()) }
+        if (arguments.size == baseType.parameters.size) {
+            arguments.zip(baseType.parameters).forEach { (argument, parameter) ->
+                if (argument.variance != TypeVariance.UNSPECIFIED && parameter.variance != TypeVariance.UNSPECIFIED) {
+                    if (argument.variance != parameter.variance) {
+                        reportings.add(Reporting.typeArgumentVarianceMismatch(parameter, argument))
+                    } else {
+                        reportings.add(Reporting.typeArgumentVarianceSuperfluous(argument))
+                    }
+                }
 
-        // todo: report mismatch between type parameters and arguments
+                val variance = argument.variance.takeUnless { it == TypeVariance.UNSPECIFIED } ?: parameter.variance
+                val resolvedBound = parameter.bound?.let(context::resolveType) ?: UnresolvedType.getTypeParameterDefaultBound(context)
+                val boundError = when(variance) {
+                    TypeVariance.UNSPECIFIED,
+                    TypeVariance.OUT -> argument.evaluateAssignabilityTo(resolvedBound, argument.astNode?.sourceLocation ?: SourceLocation.UNKNOWN)?.let {
+                        Reporting.typeArgumentOutOfBounds(parameter, argument, it.reason)
+                    }
+                    TypeVariance.IN -> resolvedBound.evaluateAssignabilityTo(argument, argument.astNode?.sourceLocation ?: SourceLocation.UNKNOWN)?.let {
+                        Reporting.typeArgumentOutOfBounds(parameter, argument, "${argument.type} is not a supertype of $resolvedBound")
+                    }
+                }
+                boundError?.let(reportings::add)
+            }
+        } else {
+            reportings.add(Reporting.typeArgumentCountMismatch(this))
+        }
 
         return reportings
     }
@@ -143,7 +167,6 @@ class RootResolvedTypeReference private constructor(
                 // T?     T     true
                 // T      T?    false
                 // T?     T?    true
-                // TODO: how to resolve nullability on references with bounds? How about class/struct-level parameters
                 // in methods (further limited / specified on the method level)?
                 if (this.isNullable && !other.isNullable) {
                     return Reporting.valueNotAssignable(other, this, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
@@ -218,7 +241,7 @@ class RootResolvedTypeReference private constructor(
             is UnresolvedType -> return unify(other.standInType, carry)
             is GenericTypeReference -> {
                 // TODO: handle modifier complications?
-                return carry.plusRight(other.simpleName, BoundTypeArgument(this.context, TypeVariance.UNSPECIFIED, this))
+                return carry.plusRight(other.simpleName, BoundTypeArgument(this.context, null, TypeVariance.UNSPECIFIED, this))
             }
             is BoundTypeArgument -> {
                 if (other.variance != TypeVariance.UNSPECIFIED) {

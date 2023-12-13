@@ -48,8 +48,9 @@ interface BaseType {
             RootResolvedTypeReference(ctx, this, false, null, parameters.map {
                 BoundTypeArgument(
                     ctx,
+                    null,
                     it.variance,
-                    it.bound?.let(ctx::resolveType) ?: Any.baseReference(ctx).withCombinedNullability(TypeReference.Nullability.NULLABLE),
+                    it.bound?.let(ctx::resolveType) ?: UnresolvedType.getTypeParameterDefaultBound(ctx)
                 )
             })
         }

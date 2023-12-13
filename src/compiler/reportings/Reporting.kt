@@ -24,7 +24,6 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
 import compiler.ast.expression.Expression
 import compiler.ast.expression.IdentifierExpression
-import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
@@ -33,7 +32,9 @@ import compiler.binding.BoundFunction
 import compiler.binding.expression.*
 import compiler.binding.struct.Struct
 import compiler.binding.struct.StructMember
+import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.OperatorToken
 import compiler.lexer.SourceLocation
@@ -108,6 +109,18 @@ abstract class Reporting internal constructor(
 
         fun varianceOnFunctionTypeParameter(parameter: TypeParameter)
             = VarianceOnFunctionTypeParameterReporting(parameter)
+
+        fun typeArgumentCountMismatch(type: RootResolvedTypeReference)
+            = TypeArgumentCountMismatchReporting(type, type.baseType)
+
+        fun typeArgumentVarianceMismatch(parameter: TypeParameter, argument: BoundTypeArgument)
+            = TypeArgumentVarianceMismatchReporting(parameter, argument)
+
+        fun typeArgumentVarianceSuperfluous(argument: BoundTypeArgument)
+            = TypeArgumentVarianceSuperfluousReporting(argument)
+
+        fun typeArgumentOutOfBounds(parameter: TypeParameter, argument: BoundTypeArgument, reason: String)
+            = TypeArgumentOutOfBoundsReporting(parameter, argument, reason)
 
         fun erroneousLiteralExpression(message: String, location: SourceLocation)
             = ErroneousLiteralExpressionReporting(message, location)

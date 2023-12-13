@@ -1,5 +1,6 @@
 package compiler.binding.type
 
+import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
@@ -10,6 +11,7 @@ import compiler.reportings.ValueNotAssignableReporting
 
 class BoundTypeArgument(
     override val context: CTContext,
+    val astNode: TypeArgument?,
     val variance: TypeVariance,
     val type: ResolvedTypeReference,
 ) : ResolvedTypeReference {
@@ -20,6 +22,7 @@ class BoundTypeArgument(
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeArgument = BoundTypeArgument(
         context,
+        astNode,
         variance,
         type.defaultMutabilityTo(mutability),
     )
@@ -110,7 +113,7 @@ class BoundTypeArgument(
      * @see ResolvedTypeReference.contextualize
      */
     override fun contextualize(context: TypeUnification, side: (TypeUnification) -> Map<String, BoundTypeArgument>): BoundTypeArgument {
-        return BoundTypeArgument(this.context, variance, type.contextualize(context, side))
+        return BoundTypeArgument(this.context, astNode, variance, type.contextualize(context, side))
     }
 
     override fun modifiedWith(modifier: TypeMutability): ResolvedTypeReference {
@@ -120,6 +123,7 @@ class BoundTypeArgument(
 
         return BoundTypeArgument(
             context,
+            astNode,
             variance,
             type.modifiedWith(modifier),
         )
@@ -132,6 +136,7 @@ class BoundTypeArgument(
 
         return BoundTypeArgument(
             context,
+            astNode,
             variance,
             type.withCombinedMutability(mutability),
         )
@@ -140,6 +145,7 @@ class BoundTypeArgument(
     override fun withCombinedNullability(nullability: TypeReference.Nullability): ResolvedTypeReference {
         return BoundTypeArgument(
             context,
+            astNode,
             variance,
             type.withCombinedNullability(nullability),
         )
