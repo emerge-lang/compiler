@@ -26,6 +26,7 @@ import compiler.ast.expression.Expression
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.FunctionModifier
+import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
@@ -104,6 +105,9 @@ abstract class Reporting internal constructor(
 
         fun parameterTypeNotDeclared(declaration: VariableDeclaration)
             = MissingParameterTypeReporting(declaration)
+
+        fun varianceOnFunctionTypeParameter(parameter: TypeParameter)
+            = VarianceOnFunctionTypeParameterReporting(parameter)
 
         fun erroneousLiteralExpression(message: String, location: SourceLocation)
             = ErroneousLiteralExpressionReporting(message, location)

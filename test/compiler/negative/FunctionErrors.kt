@@ -159,5 +159,23 @@ class FunctionErrors : FreeSpec({
                     it.erroneousReference.simpleName shouldBe "Bla"
                 }
         }
+
+        "in variance on type parameter" {
+            validateModule("""
+                fun foo<in T : String>() {}
+            """.trimIndent())
+                .shouldReport<VarianceOnFunctionTypeParameterReporting> {
+                    it.parameter.name.value shouldBe "T"
+                }
+        }
+
+        "out variance on type parameter" {
+            validateModule("""
+                fun foo<out T : String>() {}
+            """.trimIndent())
+                .shouldReport<VarianceOnFunctionTypeParameterReporting> {
+                    it.parameter.name.value shouldBe "T"
+                }
+        }
     }
 })

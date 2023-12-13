@@ -4,6 +4,7 @@ import compiler.*
 import compiler.ast.FunctionDeclaration
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeParameter
+import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.ResolvedTypeReference
@@ -154,7 +155,13 @@ class BoundDeclaredFunction(
             receiverType?.validate()?.let(reportings::addAll)
             parameterTypes.forEach { it?.validate()?.let(reportings::addAll) }
             returnType?.validate()?.let(reportings::addAll)
-            typeParameters.forEach { it.bound?.let(context::resolveType)?.validate()?.let(reportings::addAll) }
+            typeParameters.forEach {
+                it.bound?.let(context::resolveType)?.validate()?.let(reportings::addAll)
+                if (it.variance != TypeVariance.UNSPECIFIED) {
+                    reportings.add(Reporting.varianceOnFunctionTypeParameter(it))
+                }
+            }
+
 
             return@getResult reportings
         }
