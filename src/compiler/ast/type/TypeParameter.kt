@@ -18,7 +18,7 @@ data class TypeParameter(
             str += " "
         }
 
-        str += name
+        str += name.value
 
         if (bound != null) {
             str += " : "
