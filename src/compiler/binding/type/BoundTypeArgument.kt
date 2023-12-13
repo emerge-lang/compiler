@@ -45,6 +45,9 @@ class BoundTypeArgument(
             is BoundTypeArgument -> {
                 if (target.variance == TypeVariance.UNSPECIFIED) {
                     // target needs to use the type in both IN and OUT fashion -> source must match exactly
+                    // TODO: this doesn't apply as widely as it is in effect here:
+                    // x: Array<Number> = y as Array<Int>     this must produce an error, by this check
+                    // (x as Array<Number>)[0] = y as Int     this is fine, but gets blocked by this check, too
                     if (!this.type.hasSameBaseTypeAs(target.type)) {
                         return Reporting.valueNotAssignable(target, this, "the exact type ${target.type} is required", assignmentSourceLocation)
                     }
@@ -91,9 +94,8 @@ class BoundTypeArgument(
             }
             is BoundTypeArgument -> {
                 // TODO: get source location?
-                // TODO: pass type with variance to reporting? probably when BoundTypeArgument : ResolvedTypeReference
                 this.evaluateAssignabilityTo(other, SourceLocation.UNKNOWN)?.let {
-                    throw TypesNotUnifiableException(this.type, other, it.reason)
+                    throw TypesNotUnifiableException(this, other, it.reason)
                 }
 
                 return type.unify(other, carry)
