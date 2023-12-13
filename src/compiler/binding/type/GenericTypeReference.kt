@@ -53,7 +53,26 @@ class GenericTypeReference(
         other: ResolvedTypeReference,
         assignmentLocation: SourceLocation
     ): ValueNotAssignableReporting? {
-        TODO("Not yet implemented")
+        val selfEffective = when(variance) {
+            TypeVariance.UNSPECIFIED,
+            TypeVariance.OUT -> bound
+            TypeVariance.IN -> return Reporting.valueNotAssignable(other, this, "Cannot assign an in-variant value, because it cannot be read", assignmentLocation)
+        }
+
+        return when (other) {
+            is RootResolvedTypeReference -> selfEffective.evaluateAssignabilityTo(other, assignmentLocation)
+            is BoundTypeArgument -> when(other.variance) {
+                TypeVariance.UNSPECIFIED,
+                TypeVariance.IN -> selfEffective.evaluateAssignabilityTo(other.type, assignmentLocation)
+                TypeVariance.OUT -> Reporting.valueNotAssignable(other, this, "Cannot assign to an out-variant reference", assignmentLocation)
+            }
+            is GenericTypeReference -> when(other.variance) {
+                TypeVariance.UNSPECIFIED,
+                TypeVariance.IN -> selfEffective.evaluateAssignabilityTo(other.bound, assignmentLocation)
+                TypeVariance.OUT -> Reporting.valueNotAssignable(other, this, "Cannot assign to an out-variant reference", assignmentLocation)
+            }
+            is UnresolvedType -> selfEffective.evaluateAssignabilityTo(other.standInType, assignmentLocation)
+        }
     }
 
     override fun hasSameBaseTypeAs(other: ResolvedTypeReference): Boolean {
@@ -77,7 +96,18 @@ class GenericTypeReference(
     }
 
     override fun closestCommonSupertypeWith(other: ResolvedTypeReference): ResolvedTypeReference {
-        TODO("Not yet implemented")
+        val selfEffective = when(variance) {
+            TypeVariance.UNSPECIFIED,
+            TypeVariance.OUT -> bound
+            TypeVariance.IN -> BuiltinNothing.baseReference(context)
+        }
+
+        return when (other) {
+            is RootResolvedTypeReference -> selfEffective.closestCommonSupertypeWith(other)
+            is GenericTypeReference -> selfEffective.closestCommonSupertypeWith(other)
+            is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
+            is UnresolvedType -> selfEffective.closestCommonSupertypeWith(other.standInType)
+        }
     }
 
     override fun contextualize(

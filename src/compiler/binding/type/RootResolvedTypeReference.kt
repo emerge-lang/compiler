@@ -195,7 +195,7 @@ class RootResolvedTypeReference private constructor(
                     emptyList(),
                 )
             }
-            is GenericTypeReference -> TODO()
+            is GenericTypeReference -> other.closestCommonSupertypeWith(this)
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
         }
     }
