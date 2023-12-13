@@ -86,7 +86,7 @@ class FunctionErrors : FreeSpec({
 
     "unknown declared receiver type" {
         validateModule("""
-            fun Foo.a() {
+            fun a(self: Foo) {
             }
         """.trimIndent())
             .shouldReport<UnknownTypeReporting>()

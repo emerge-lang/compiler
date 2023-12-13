@@ -26,10 +26,10 @@ class BoundDeclaredFunction(
     override val name: String = declaration.name.value
     override val typeParameters: List<TypeParameter> = declaration.typeParameters
 
-    override var receiverType: ResolvedTypeReference? = null
-        private set
+    override val receiverType: ResolvedTypeReference?
+        get() = parameters.declaredReceiver?.type
 
-    override val declaresReceiver = declaration.receiverType != null
+    override val declaresReceiver = parameters.declaredReceiver != null
 
     /**
      * Implied modifiers. Operator functions often have an implied [FunctionModifier.READONLY]
@@ -92,8 +92,7 @@ class BoundDeclaredFunction(
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
             val reportings = mutableSetOf<Reporting>()
 
-            receiverType = declaration.receiverType?.let(context::resolveType)
-            receiverType?.let(ResolvedTypeReference::validate)?.let(reportings::addAll)
+            reportings.addAll(parameters.semanticAnalysisPhase1())
 
             // modifiers
             if (FunctionModifier.EXTERNAL in modifiers) {

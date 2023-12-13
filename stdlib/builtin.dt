@@ -1,7 +1,7 @@
 module dotlin.lang
 
-external operator fun Int.unaryMinus() -> Int
+external operator fun unaryMinus(self: Int) -> Int
 
-external operator fun Int.opPlus(summand: Int) -> Int
+external operator fun opPlus(self: Int, summand: Int) -> Int
 
-external operator fun Int.opMinus(operand: Int) -> Int
+external operator fun opMinus(self: Int, operand: Int) -> Int

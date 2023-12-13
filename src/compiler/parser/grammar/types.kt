@@ -105,7 +105,7 @@ val Variance: Rule<TypeVariance> = sequence("variance") {
         }
     }
 
-val TypeParameter = sequence {
+val TypeParameter = sequence("type parameter") {
     ref(Variance)
     identifier()
     optional {

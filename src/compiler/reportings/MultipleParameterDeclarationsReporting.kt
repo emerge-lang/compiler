@@ -20,11 +20,13 @@ package compiler.reportings
 
 import compiler.ast.VariableDeclaration
 
-class MultipleParameterDeclarationsReporting(
+data class MultipleParameterDeclarationsReporting(
     val firstDeclaration: VariableDeclaration,
     val additionalDeclaration: VariableDeclaration
 ) : Reporting(
     Level.ERROR,
-    "Parameter ${additionalDeclaration.name} has already been declared in ${firstDeclaration.sourceLocation.fileLineColumnText}",
+    "Parameter ${additionalDeclaration.name.value} has already been declared in ${firstDeclaration.sourceLocation.fileLineColumnText}",
     additionalDeclaration.declaredAt
-)
+) {
+    override fun toString() = super.toString()
+}

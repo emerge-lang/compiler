@@ -198,17 +198,17 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(recei
     val leftSideTypes = listOfNotNull(receiverType) + parameterTypes
     return this
         .asSequence()
-        // filter by incompatible number of parameters
-        .filter { it.parameters.parameters.size == parameterTypes.size }
         // filter by (declared receiver)
         .filter { (receiverType != null) == it.declaresReceiver }
+        // filter by incompatible number of parameters
+        .filter { it.parameters.parameters.size == leftSideTypes.size }
         .mapNotNull { candidateFn ->
-            if ((candidateFn.receiverType == null && candidateFn.declaresReceiver) || candidateFn.parameterTypes.any { it == null }) {
+            if (candidateFn.parameterTypes.any { it == null }) {
                 // types not fully resolve, don't consider
                 return@mapNotNull null
             }
             @Suppress("UNCHECKED_CAST") // the check is right above
-            val rightSideTypes = (listOfNotNull(candidateFn.receiverType) + candidateFn.parameterTypes) as List<ResolvedTypeReference>
+            val rightSideTypes = candidateFn.parameterTypes as List<ResolvedTypeReference>
             check(leftSideTypes.size == rightSideTypes.size)
 
             val unification = try {

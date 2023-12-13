@@ -20,8 +20,10 @@ package compiler.reportings
 
 import compiler.ast.VariableDeclaration
 
-class MissingParameterTypeReporting(val parameter: VariableDeclaration) : Reporting(
+data class MissingParameterTypeReporting(val parameter: VariableDeclaration) : Reporting(
     Level.ERROR,
-    "The type of parameter ${parameter.name} must be explicitly declared.",
+    "The type of parameter ${parameter.name.value} must be explicitly declared.",
     parameter.sourceLocation
-)
+) {
+    override fun toString() = super.toString()
+}

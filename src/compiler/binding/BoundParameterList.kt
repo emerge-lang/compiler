@@ -27,7 +27,10 @@ class BoundParameterList(
     val declaration: ParameterList,
     val parameters: List<BoundParameter>
 ) {
-    fun semanticAnalysisPhase1(allowUntyped: Boolean = true): Collection<Reporting> {
+    val declaredReceiver: BoundParameter?
+        get() = parameters.firstOrNull()?.takeIf { it.name == RECEIVER_PARAMETER_NAME }
+
+    fun semanticAnalysisPhase1(allowUntypedReceiver: Boolean = false): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
 
         parameters.forEachIndexed { index, parameter ->
@@ -39,6 +42,7 @@ class BoundParameterList(
                 }
             }
 
+            val allowUntyped = allowUntypedReceiver && index == 0 && parameter.name == RECEIVER_PARAMETER_NAME
             if (!allowUntyped && parameter.declaration.type == null) {
                 reportings.add(Reporting.parameterTypeNotDeclared(parameter.declaration))
             }
@@ -48,6 +52,10 @@ class BoundParameterList(
         }
 
         return reportings
+    }
+
+    companion object {
+        const val RECEIVER_PARAMETER_NAME = "self"
     }
 }
 

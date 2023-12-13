@@ -188,11 +188,6 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
 
     keyword(Keyword.FUNCTION)
 
-    optional {
-        ref(Type)
-        operator(Operator.DOT)
-    }
-
     optionalWhitespace()
     identifier()
     optionalWhitespace()
@@ -239,20 +234,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
 
         val declarationKeyword = next as KeywordToken
 
-        val receiverType: TypeReference?
-        next = tokens.next()!!
-        if (next is TypeReference) {
-            receiverType = next
-            // skip DOT
-            tokens.next()
-
-            next = tokens.next()!!
-        }
-        else {
-            receiverType = null
-        }
-
-        val name = next as IdentifierToken
+        val name = tokens.next() as IdentifierToken
 
         next = tokens.next()!!
         val typeParameters: List<TypeParameter>
@@ -281,7 +263,6 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
             return@astTransformation FunctionDeclaration(
                 declarationKeyword.sourceLocation,
                 modifiers,
-                receiverType,
                 name,
                 typeParameters,
                 parameterList,
@@ -296,7 +277,6 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
             return@astTransformation FunctionDeclaration(
                 declarationKeyword.sourceLocation,
                 modifiers,
-                receiverType,
                 name,
                 typeParameters,
                 parameterList,
@@ -310,7 +290,6 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
             return@astTransformation FunctionDeclaration(
                 declarationKeyword.sourceLocation,
                 modifiers,
-                receiverType,
                 name,
                 typeParameters,
                 parameterList,
