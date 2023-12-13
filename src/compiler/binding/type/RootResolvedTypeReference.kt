@@ -8,7 +8,6 @@ import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import compiler.reportings.ValueNotAssignableReporting
-import java.util.IdentityHashMap
 
 /**
  * A [TypeReference] where the root type is resolved
@@ -21,7 +20,7 @@ class RootResolvedTypeReference private constructor(
     val baseType: BaseType,
     val arguments: List<BoundTypeArgument>,
 ) : ResolvedTypeReference {
-    override val mutability = explicitMutability ?: original?.mutability ?: baseType.impliedMutability ?: TypeMutability.READONLY
+    override val mutability = explicitMutability ?: original?.mutability ?: baseType.impliedMutability ?: TypeMutability.MUTABLE
     override val simpleName = original?.simpleName ?: baseType.simpleName
 
     constructor(original: TypeReference, context: CTContext, baseType: BaseType, parameters: List<BoundTypeArgument>) : this(
@@ -120,47 +119,54 @@ class RootResolvedTypeReference private constructor(
     }
 
     override fun evaluateAssignabilityTo(other: ResolvedTypeReference, assignmentLocation: SourceLocation): ValueNotAssignableReporting? {
-        if (other is UnresolvedType) {
-            return evaluateAssignabilityTo(other.standInType, assignmentLocation)
-        }
-
-        if (other !is RootResolvedTypeReference) {
-            TODO("implement for ${other::class.simpleName}")
-        }
-
-        // this must be a subtype of other
-        if (!(this.baseType isSubtypeOf other.baseType)) {
-            return Reporting.valueNotAssignable(other, this, "${this.baseType.simpleName} is not a subtype of ${other.baseType.simpleName}", assignmentLocation)
-        }
-
-        // the modifiers must be compatible
-        if (!(mutability isAssignableTo other.mutability)) {
-            return Reporting.valueNotAssignable(other, this, "cannot assign a ${mutability.name.lowercase()} value to a ${other.mutability.name.lowercase()} reference", assignmentLocation)
-        }
-
-        // void-safety:
-        // other  this  isCompatible
-        // T      T     true
-        // T?     T     true
-        // T      T?    false
-        // T?     T?    true
-        // TODO: how to resolve nullability on references with bounds? How about class/struct-level parameters
-        // in methods (further limited / specified on the method level)?
-        if (this.isNullable && !other.isNullable) {
-            return Reporting.valueNotAssignable(other, this, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
-        }
-
-        check(arguments.size == other.arguments.size)
-        arguments.asSequence()
-            .zip(other.arguments.asSequence()) { thisParam, otherParam ->
-                thisParam.evaluateAssignabilityTo(otherParam, assignmentLocation)
+        when(other) {
+            is UnresolvedType -> return evaluateAssignabilityTo(other.standInType, assignmentLocation)
+            is GenericTypeReference -> return when (other.variance) {
+                TypeVariance.UNSPECIFIED,
+                TypeVariance.IN -> evaluateAssignabilityTo(other.bound, assignmentLocation)
+                TypeVariance.OUT -> Reporting.valueNotAssignable(other, this, "Cannot assign to an out-variant reference", assignmentLocation)
             }
-            .filterNotNull()
-            .firstOrNull()
-            ?.let { return it }
+            is RootResolvedTypeReference -> {
+                // this must be a subtype of other
+                if (!(this.baseType isSubtypeOf other.baseType)) {
+                    return Reporting.valueNotAssignable(other, this, "${this.baseType.simpleName} is not a subtype of ${other.baseType.simpleName}", assignmentLocation)
+                }
 
-        // seems all fine
-        return null
+                // the modifiers must be compatible
+                if (!(mutability isAssignableTo other.mutability)) {
+                    return Reporting.valueNotAssignable(other, this, "cannot assign a ${mutability.name.lowercase()} value to a ${other.mutability.name.lowercase()} reference", assignmentLocation)
+                }
+
+                // void-safety:
+                // other  this  isCompatible
+                // T      T     true
+                // T?     T     true
+                // T      T?    false
+                // T?     T?    true
+                // TODO: how to resolve nullability on references with bounds? How about class/struct-level parameters
+                // in methods (further limited / specified on the method level)?
+                if (this.isNullable && !other.isNullable) {
+                    return Reporting.valueNotAssignable(other, this, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
+                }
+
+                check(arguments.size == other.arguments.size)
+                arguments.asSequence()
+                    .zip(other.arguments.asSequence()) { thisParam, otherParam ->
+                        thisParam.evaluateAssignabilityTo(otherParam, assignmentLocation)
+                    }
+                    .filterNotNull()
+                    .firstOrNull()
+                    ?.let { return it }
+
+                // seems all fine
+                return null
+            }
+            is BoundTypeArgument -> return when (other.variance) {
+                TypeVariance.UNSPECIFIED,
+                TypeVariance.IN -> evaluateAssignabilityTo(other.type, assignmentLocation)
+                TypeVariance.OUT -> Reporting.valueNotAssignable(other, this, "cannot assign to an out-variant reference", assignmentLocation)
+            }
+        }
     }
 
     override fun hasSameBaseTypeAs(other: ResolvedTypeReference): Boolean {
@@ -190,6 +196,7 @@ class RootResolvedTypeReference private constructor(
                 )
             }
             is GenericTypeReference -> TODO()
+            is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
         }
     }
 
@@ -211,7 +218,14 @@ class RootResolvedTypeReference private constructor(
             is UnresolvedType -> return unify(other.standInType, carry)
             is GenericTypeReference -> {
                 // TODO: handle modifier complications?
-                return carry.plusRight(other.simpleName, BoundTypeArgument(TypeVariance.UNSPECIFIED, this))
+                return carry.plusRight(other.simpleName, BoundTypeArgument(this.context, TypeVariance.UNSPECIFIED, this))
+            }
+            is BoundTypeArgument -> {
+                if (other.variance != TypeVariance.UNSPECIFIED) {
+                    throw TypesNotUnifiableException(this, other, "Cannot unify concrete type with variant-type")
+                }
+
+                return unify(other.type, carry)
             }
         }
     }

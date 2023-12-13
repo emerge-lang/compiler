@@ -47,6 +47,7 @@ interface BaseType {
             // determine minimum bound for all type parameters
             RootResolvedTypeReference(ctx, this, false, null, parameters.map {
                 BoundTypeArgument(
+                    ctx,
                     it.variance,
                     it.bound?.let(ctx::resolveType) ?: Any.baseReference(ctx).withCombinedNullability(TypeReference.Nullability.NULLABLE),
                 )

@@ -31,9 +31,9 @@ class AssignmentExpression(
     override val sourceLocation = targetExpression.sourceLocation
 
     override fun bindTo(context: CTContext) = BoundAssignmentExpression(
-            context,
-            this,
-            targetExpression.bindTo(context),
-            valueExpression.bindTo(context)
+        context,
+        this,
+        targetExpression.bindTo(context),
+        valueExpression.bindTo(context)
     )
 }

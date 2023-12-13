@@ -18,9 +18,9 @@ class VarianceErrors : FreeSpec({
     val Child = BuiltinIntType
     val context = ModuleRootContext()
 
-    fun varIn(t: BaseType) = BoundTypeArgument(IN, t.baseReference(context))
-    fun varOut(t: BaseType) = BoundTypeArgument(OUT, t.baseReference(context))
-    fun varExact(t: BaseType) = BoundTypeArgument(UNSPECIFIED, t.baseReference(context))
+    fun varIn(t: BaseType) = BoundTypeArgument(context, IN, t.baseReference(context))
+    fun varOut(t: BaseType) = BoundTypeArgument(context, OUT, t.baseReference(context))
+    fun varExact(t: BaseType) = BoundTypeArgument(context, UNSPECIFIED, t.baseReference(context))
 
     fun arrayOf(element: BoundTypeArgument): ResolvedTypeReference = RootResolvedTypeReference(
         context,

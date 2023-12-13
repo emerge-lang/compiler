@@ -3,6 +3,7 @@ package compiler.binding.type
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
@@ -11,17 +12,19 @@ import compiler.reportings.ValueNotAssignableReporting
 class GenericTypeReference(
     override val context: CTContext,
     private val parameter: TypeParameter,
-    private val resolvedBound: ResolvedTypeReference,
+    val bound: ResolvedTypeReference,
 ) : ResolvedTypeReference {
     override val simpleName get() = parameter.name.value
-    override val isNullable get() = resolvedBound.isNullable
-    override val mutability get() = resolvedBound.mutability
+    override val isNullable get() = bound.isNullable
+    override val mutability get() = bound.mutability
+
+    val variance: TypeVariance get() = parameter.variance
 
     override fun modifiedWith(modifier: TypeMutability): ResolvedTypeReference {
         return GenericTypeReference(
             context,
             parameter,
-            resolvedBound.modifiedWith(modifier),
+            bound.modifiedWith(modifier),
         )
     }
 
@@ -29,7 +32,7 @@ class GenericTypeReference(
         return GenericTypeReference(
             context,
             parameter,
-            resolvedBound.withCombinedMutability(mutability),
+            bound.withCombinedMutability(mutability),
         )
     }
 
@@ -37,7 +40,7 @@ class GenericTypeReference(
         return GenericTypeReference(
             context,
             parameter,
-            resolvedBound.withCombinedNullability(nullability),
+            bound.withCombinedNullability(nullability),
         )
     }
 
@@ -69,7 +72,7 @@ class GenericTypeReference(
         return GenericTypeReference(
             context,
             parameter,
-            resolvedBound.defaultMutabilityTo(mutability),
+            bound.defaultMutabilityTo(mutability),
         )
     }
 
@@ -84,11 +87,11 @@ class GenericTypeReference(
         val resolvedSelf = side(context)[this.simpleName] ?: return GenericTypeReference(
             this.context,
             parameter,
-            resolvedBound.contextualize(context, side),
+            bound.contextualize(context, side),
         )
 
-        return resolvedSelf.type.contextualize(context, side)
+        return resolvedSelf.contextualize(context, side)
     }
 
-    override fun toString() = "${parameter.name.value} : $resolvedBound"
+    override fun toString() = "${parameter.name.value} : $bound"
 }

@@ -63,32 +63,44 @@ class BoundAssignmentExpression(
         // TODO
         // reject if the targetExpression does not point to something that
         // can or should be written to
-        if (targetExpression is BoundIdentifierExpression) {
-            reportings.addAll(targetExpression.semanticAnalysisPhase3())
-            when (val localReferral = targetExpression.referral) {
-                is BoundIdentifierExpression.ReferringVariable -> {
-                    assignmentTargetType = AssignmentTargetType.VARIABLE
-                    targetVariable = localReferral.variable
+        when (targetExpression) {
+            is BoundIdentifierExpression -> {
+                reportings.addAll(targetExpression.semanticAnalysisPhase3())
+                when (val localReferral = targetExpression.referral) {
+                    is BoundIdentifierExpression.ReferringVariable -> {
+                        assignmentTargetType = AssignmentTargetType.VARIABLE
+                        targetVariable = localReferral.variable
 
-                    if (!targetVariable!!.isAssignable) {
-                        reportings.add(Reporting.illegalAssignment("Cannot assign to value / final variable ${targetVariable!!.name}", this))
+                        if (!targetVariable!!.isAssignable) {
+                            reportings.add(Reporting.illegalAssignment("Cannot assign to value / final variable ${targetVariable!!.name}", this))
+                        }
+                        localReferral.variable.type?.let { targetType ->
+                            valueExpression.type?.evaluateAssignabilityTo(targetType, valueExpression.declaration.sourceLocation)
+                                ?.let(reportings::add)
+                        }
+                    }
+                    is BoundIdentifierExpression.ReferringType -> {
+                        reportings += Reporting.illegalAssignment("Cannot assign a value to a type", this)
+                    }
+                    null -> {}
+                }
+            }
+
+            is BoundMemberAccessExpression -> {
+                targetExpression.valueExpression.type?.let { memberOwnerType ->
+                    if (!memberOwnerType.mutability.isMutable) {
+                        reportings += Reporting.illegalAssignment("Cannot mutate a value of type $memberOwnerType", this)
                     }
                 }
-                is BoundIdentifierExpression.ReferringType -> {
-                    reportings += Reporting.illegalAssignment("Cannot assign a value to a type", this)
-                }
-                else -> {}
-            }
-        }
-        else if (targetExpression is BoundMemberAccessExpression) {
-            targetExpression.valueExpression.type?.let { memberOwnerType ->
-                if (!memberOwnerType.mutability.isMutable) {
-                    reportings += Reporting.illegalAssignment("Cannot mutate a value of type $memberOwnerType", this)
+                targetExpression.type?.let { targetType ->
+                    valueExpression.type?.evaluateAssignabilityTo(targetType, valueExpression.declaration.sourceLocation)
+                        ?.let(reportings::add)
                 }
             }
-        }
-        else {
-            reportings += Reporting.illegalAssignment("Cannot assign to this target", this)
+
+            else -> {
+                reportings += Reporting.illegalAssignment("Cannot assign to this target", this)
+            }
         }
 
         return reportings

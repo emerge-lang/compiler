@@ -120,7 +120,7 @@ open class MutableCTContext(
     }
 
     private fun resolveType(ref: TypeArgument): BoundTypeArgument {
-        return BoundTypeArgument(ref.variance, resolveType(ref.type))
+        return BoundTypeArgument(this, ref.variance, resolveType(ref.type))
     }
 
     override fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean): ResolvedTypeReference {
