@@ -66,6 +66,7 @@ interface BaseType {
     /** @return Whether this type is the same as or a subtype of the given type. */
     infix fun isSubtypeOf(other: BaseType): Boolean {
         if (other === this) return true
+        if (other === BuiltinNothing) return false
 
         return superTypes.map { it.isSubtypeOf(other) }.fold(false, Boolean::or)
     }
@@ -128,10 +129,17 @@ interface BaseType {
          */
         fun closestCommonSupertypeOf(types: List<BaseType>): BaseType {
             if (types.isEmpty()) throw IllegalArgumentException("At least one type must be provided")
-            if (types.size == 1) return types[0]
 
-            var pivot = types[0]
-            for (_type in types[1..types.size - 1]) {
+            val typesExcludingNothing = types.filter { it !== BuiltinNothing }
+            if (typesExcludingNothing.isEmpty()) {
+                return BuiltinNothing
+            }
+            if (typesExcludingNothing.size == 1) {
+                return typesExcludingNothing[0]
+            }
+
+            var pivot = typesExcludingNothing[0]
+            for (_type in typesExcludingNothing[1..<typesExcludingNothing.size]) {
                 var type = _type
                 var swapped = false
                 while (!(type isSubtypeOf pivot)) {

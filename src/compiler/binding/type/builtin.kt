@@ -39,6 +39,10 @@ import compiler.parseFromClasspath
 
 val Any = object : BuiltinType("Any") {}
 
+val BuiltinNothing = object : BuiltinType("Nothing") {
+    override fun isSubtypeOf(other: BaseType) = true
+}
+
 val Unit = object : BuiltinType("Unit", Any) {}
 
 val Number = object : BuiltinType("Number", Any) {
@@ -75,6 +79,20 @@ abstract class BuiltinType(final override val simpleName: String, vararg superTy
      */
     final override fun resolveMemberFunction(name: String) = emptySet<FunctionDeclaration>()
 
+    private val _string by lazy {
+        var str = simpleName
+        if (parameters.isNotEmpty()) {
+            str += parameters.joinToString(
+                prefix = "<",
+                separator = ", ",
+                postfix = ">",
+            )
+        }
+
+        str
+    }
+    override fun toString() = _string
+
     companion object {
         val DEFAULT_MODULE_NAME = arrayOf("dotlin", "lang")
         val DEFAULT_MODULE_NAME_STRING = DEFAULT_MODULE_NAME.joinToString(".")
@@ -91,6 +109,7 @@ abstract class BuiltinType(final override val simpleName: String, vararg superTy
             module.context.addBaseType(Int)
             module.context.addBaseType(BuiltinBoolean)
             module.context.addBaseType(BuiltinArray)
+            module.context.addBaseType(BuiltinNothing)
 
             stdlib.functions.forEach { module.context.addFunction(it) }
             stdlib.variables.forEach { module.context.addVariable(it) }
