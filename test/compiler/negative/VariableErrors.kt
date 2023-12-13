@@ -36,7 +36,7 @@ class VariableErrors : FreeSpec({
             validateModule("""
                 mutable val foo: immutable Int
             """.trimIndent())
-                .shouldReport<ModifierErrorReporting>()
+                .shouldReport<VariableDeclaredWithSplitTypeReporting>()
         }
 
         "unknown declared type" {

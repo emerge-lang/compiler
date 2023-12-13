@@ -91,9 +91,11 @@ class BoundVariable(
                 )
             }
 
-            // cannot resolve declared type
-            type = resolveDeclaredType(context)
-            type?.validate()?.let(reportings::addAll)
+            declaration.type?.let { declaredType ->
+                val resolvedDeclaredType = context.resolveType(declaredType)
+                resolvedDeclaredType?.validate()?.let(reportings::addAll)
+                type = resolvedDeclaredType?.withCombinedMutability(implicitMutability)
+            }
 
             if (initializerExpression != null) {
                 reportings.addAll(initializerExpression.semanticAnalysisPhase1())
@@ -176,12 +178,5 @@ class BoundVariable(
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
         return initializerExpression?.findWritesBeyond(boundary) ?: emptySet()
-    }
-
-    private fun resolveDeclaredType(context: CTContext): ResolvedTypeReference? {
-        with(declaration) {
-            if (type == null) return null
-            return context.resolveType(type)?.withCombinedMutability(implicitMutability)
-        }
     }
 }
