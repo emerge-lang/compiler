@@ -158,7 +158,7 @@ class RootResolvedTypeReference private constructor(
 
                 // the modifiers must be compatible
                 if (!(mutability isAssignableTo other.mutability)) {
-                    return Reporting.valueNotAssignable(other, this, "cannot assign a ${mutability.name.lowercase()} value to a ${other.mutability.name.lowercase()} reference", assignmentLocation)
+                    return Reporting.valueNotAssignable(other, this, "cannot assign a $mutability value to a ${other.mutability} reference", assignmentLocation)
                 }
 
                 // void-safety:
@@ -267,7 +267,7 @@ class RootResolvedTypeReference private constructor(
     private lateinit var _string: String
     override fun toString(): String {
         if (!this::_string.isInitialized) {
-            var str = mutability.name.lowercase()
+            var str = mutability.toString()
             str += " "
 
             str += baseType.fullyQualifiedName.removePrefix(BuiltinType.DEFAULT_MODULE_NAME_STRING + ".")

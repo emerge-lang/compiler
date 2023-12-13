@@ -172,6 +172,6 @@ class BoundTypeArgument(
             return type.toString()
         }
 
-        return "${variance.name.lowercase()} $type"
+        return "$variance $type"
     }
 }

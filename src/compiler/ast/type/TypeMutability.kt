@@ -73,4 +73,6 @@ enum class TypeMutability(
         other == EXCLUSIVE -> this
         else -> READONLY
     }
+
+    override fun toString() = name.lowercase()
 }
