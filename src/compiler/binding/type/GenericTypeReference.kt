@@ -87,6 +87,15 @@ class GenericTypeReference(
         TODO("Not yet implemented")
     }
 
+    override fun unify(other: ResolvedTypeReference, carry: TypeUnification): TypeUnification {
+        return when (other) {
+            is RootResolvedTypeReference,
+            is UnresolvedType -> carry.plusLeft(simpleName, BoundTypeArgument(context, null, TypeVariance.UNSPECIFIED, other))
+            is BoundTypeArgument -> carry.plusLeft(simpleName, other)
+            is GenericTypeReference -> TODO("namespace conflict :(")
+        }
+    }
+
     override fun defaultMutabilityTo(mutability: TypeMutability?): ResolvedTypeReference {
         if (mutability == null) {
             return this

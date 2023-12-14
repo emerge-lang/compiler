@@ -19,7 +19,6 @@
 package compiler.binding.type
 
 import compiler.ast.type.TypeMutability
-import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
@@ -121,9 +120,7 @@ sealed interface ResolvedTypeReference {
      *              one can carry the context/result between the unifications.
      * @throws TypesNotUnifiableException If two types are disjoint / their conjunction is empty (e.g. Boolean and Int)
      */
-    fun unify(other: ResolvedTypeReference, carry: TypeUnification): TypeUnification {
-        TODO()
-    }
+    fun unify(other: ResolvedTypeReference, carry: TypeUnification): TypeUnification
 
     /**
      * Adds the generic type information from [context] to this type, e.g.:
@@ -170,9 +167,3 @@ sealed interface ResolvedTypeReference {
 infix fun ResolvedTypeReference.isAssignableTo(other: ResolvedTypeReference): Boolean {
     return evaluateAssignabilityTo(other, SourceLocation.UNKNOWN) == null
 }
-
-class TypesNotUnifiableException(
-    val left: ResolvedTypeReference,
-    val right: ResolvedTypeReference,
-    val reason: String
-) : RuntimeException("Type $left cannot be unified with $right: $reason")
