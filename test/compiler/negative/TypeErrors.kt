@@ -8,6 +8,7 @@ import compiler.reportings.TypeArgumentVarianceMismatchReporting
 import compiler.reportings.TypeArgumentVarianceSuperfluousReporting
 import compiler.reportings.ValueNotAssignableReporting
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.shouldBe
 
 class TypeErrors : FreeSpec({
     "generics" - {
@@ -91,12 +92,19 @@ class TypeErrors : FreeSpec({
             """.trimIndent())
                 .shouldReport<TypeArgumentVarianceSuperfluousReporting>()
         }
+
+        "generic inference involving multiple values of different types" {
+            validateModule("""
+                struct A<T> {
+                    propOne: T
+                    propTwo: T
+                }
+                val x: A<Int> = A(2, false)
+            """.trimIndent())
+                .shouldReport<ValueNotAssignableReporting> {
+                    it.sourceType.toString() shouldBe "immutable Any"
+                    it.targetType.toString() shouldBe "immutable Int"
+                }
+        }
     }
-
 })
-/*
-class X<in T : Number>
-fun foo() {
-    val myX: X<Any>
-
-}*/

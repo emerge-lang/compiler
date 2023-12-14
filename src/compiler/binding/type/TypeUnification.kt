@@ -1,5 +1,6 @@
 package compiler.binding.type
 
+import compiler.ast.type.TypeVariance
 import java.util.IdentityHashMap
 
 class TypeUnification private constructor (
@@ -10,20 +11,22 @@ class TypeUnification private constructor (
     val right: Map<String, BoundTypeArgument> = _right
 
     fun plusLeft(param: String, type: BoundTypeArgument): TypeUnification {
-        val clone = clone()
-        check(clone._left.putIfAbsent(param, type) == null) {
-            "Double binding(right) for the type parameter $param"
-        }
-
+        @Suppress("UNCHECKED_CAST")
+        val clone = TypeUnification(
+            _left.clone() as IdentityHashMap<String, BoundTypeArgument>,
+            _right, // doesn't get modified here
+        )
+        bindInPlace(clone._left, param, type)
         return clone
     }
 
     fun plusRight(param: String, type: BoundTypeArgument): TypeUnification {
-        val clone = clone()
-        check(clone._right.putIfAbsent(param, type) == null) {
-            "Double binding(right) for the type parameter $param"
-        }
-
+        @Suppress("UNCHECKED_CAST")
+        val clone = TypeUnification(
+            _left, // doesn't get modified here
+            _right.clone() as IdentityHashMap<String, BoundTypeArgument>,
+        )
+        bindInPlace(clone._right, param, type)
         return clone
     }
 
@@ -42,11 +45,6 @@ class TypeUnification private constructor (
         return "Left:${sideToString(left)} Right:${sideToString(right)}"
     }
 
-    private fun clone() = TypeUnification(
-        IdentityHashMap(left),
-        IdentityHashMap(right),
-    )
-
     companion object {
         val EMPTY = TypeUnification(IdentityHashMap(), IdentityHashMap())
 
@@ -57,6 +55,16 @@ class TypeUnification private constructor (
                 }.toMap(IdentityHashMap()),
                 _right = IdentityHashMap(),
             )
+        }
+
+        private fun bindInPlace(map: IdentityHashMap<String, BoundTypeArgument>, param: String, type: BoundTypeArgument) {
+            map.compute(param) { _, previousBinding ->
+                previousBinding?.closestCommonSupertypeWith(type)
+                    ?.let {
+                        if (it is BoundTypeArgument) it else BoundTypeArgument(it.context, null, TypeVariance.UNSPECIFIED, it)
+                    }
+                    ?: type
+            }
         }
     }
 }
