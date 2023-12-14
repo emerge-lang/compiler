@@ -27,6 +27,21 @@ class TypeUnification private constructor (
         return clone
     }
 
+    override fun toString(): String {
+        if (left.isEmpty() && right.isEmpty()) {
+            return "EMPTY"
+        }
+
+        fun sideToString(side: Map<String, BoundTypeArgument>) = side.entries.joinToString(
+            prefix = "[",
+            transform = { (name, value) -> "$name = $value" },
+            separator = ", ",
+            postfix = "]",
+        )
+
+        return "Left:${sideToString(left)} Right:${sideToString(right)}"
+    }
+
     private fun clone() = TypeUnification(
         IdentityHashMap(left),
         IdentityHashMap(right),

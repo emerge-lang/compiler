@@ -147,7 +147,7 @@ class RootResolvedTypeReference private constructor(
             is UnresolvedType -> return evaluateAssignabilityTo(other.standInType, assignmentLocation)
             is GenericTypeReference -> return when (other.variance) {
                 TypeVariance.UNSPECIFIED,
-                TypeVariance.IN -> evaluateAssignabilityTo(other.bound, assignmentLocation)
+                TypeVariance.IN -> evaluateAssignabilityTo(other.effectiveBound, assignmentLocation)
                 TypeVariance.OUT -> Reporting.valueNotAssignable(other, this, "Cannot assign to an out-variant reference", assignmentLocation)
             }
             is RootResolvedTypeReference -> {
@@ -264,36 +264,27 @@ class RootResolvedTypeReference private constructor(
         )
     }
 
-    private lateinit var _string: String
-    override fun toString(): String {
-        if (!this::_string.isInitialized) {
-            var str = mutability.toString()
-            str += " "
+    private val _string: String by lazy {
+        var str = mutability.toString()
+        str += " "
 
-            str += baseType.fullyQualifiedName.removePrefix(BuiltinType.DEFAULT_MODULE_NAME_STRING + ".")
+        str += baseType.fullyQualifiedName.removePrefix(BuiltinType.DEFAULT_MODULE_NAME_STRING + ".")
 
-            if (arguments.isNotEmpty()) {
-                str += arguments.joinToString(
-                    prefix = "<",
-                    separator = ", ",
-                    postfix = ">",
-                )
-            }
-
-            val nullability = original?.nullability
-                ?: if (isNullable) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.UNSPECIFIED
-
-            when (nullability) {
-                TypeReference.Nullability.NULLABLE -> str += '?'
-                TypeReference.Nullability.NOT_NULLABLE -> str += '!'
-                TypeReference.Nullability.UNSPECIFIED -> {}
-            }
-
-            this._string = str
+        if (arguments.isNotEmpty()) {
+            str += arguments.joinToString(
+                prefix = "<",
+                separator = ", ",
+                postfix = ">",
+            )
         }
 
-        return this._string
+        if (isNullable) {
+            str += '?'
+        }
+
+        str
     }
+    override fun toString(): String = _string
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
