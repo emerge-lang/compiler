@@ -19,6 +19,7 @@
 package compiler.ast.type
 
 import compiler.lexer.IdentifierToken
+import compiler.lexer.SourceLocation
 
 class TypeReference(
     val simpleName: String,
@@ -29,6 +30,8 @@ class TypeReference(
 ) {
     constructor(simpleName: IdentifierToken) : this(simpleName.value, declaringNameToken = simpleName)
 
+    val sourceLocation: SourceLocation? = declaringNameToken?.sourceLocation
+
     fun withMutability(mutability: TypeMutability): TypeReference {
         return TypeReference(
             simpleName,
@@ -38,8 +41,6 @@ class TypeReference(
             arguments,
         )
     }
-
-
 
     private lateinit var _string: String
     override fun toString(): String {

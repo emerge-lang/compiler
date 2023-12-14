@@ -8,7 +8,7 @@ class TypeArgumentVarianceSuperfluousReporting(
 ) : Reporting(
     Level.WARNING,
     "Superfluous variance on type argument. The parameter is already declared as ${argument.variance.name.lowercase()}",
-    argument.astNode?.sourceLocation ?: SourceLocation.UNKNOWN,
+    argument.sourceLocation ?: SourceLocation.UNKNOWN,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -16,12 +16,12 @@ class TypeArgumentVarianceSuperfluousReporting(
 
         other as TypeArgumentVarianceSuperfluousReporting
 
-        return argument == other.argument && argument.astNode?.sourceLocation == other.argument.astNode?.sourceLocation
+        return argument == other.argument && argument.sourceLocation == other.argument.sourceLocation
     }
 
     override fun hashCode(): Int {
         var result = argument.hashCode()
-        result = result * 31 + argument.astNode?.sourceLocation.hashCode()
+        result = result * 31 + argument.sourceLocation.hashCode()
         return result
     }
 }

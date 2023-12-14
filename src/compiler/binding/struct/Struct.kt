@@ -21,7 +21,6 @@ package compiler.binding.struct
 import compiler.ast.Executable
 import compiler.ast.FunctionDeclaration
 import compiler.ast.struct.StructDeclaration
-import compiler.ast.type.TypeReference
 import compiler.binding.BoundElement
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
@@ -29,6 +28,7 @@ import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
 import compiler.binding.type.Any
 import compiler.binding.type.BaseType
+import compiler.binding.type.TypeUseSite
 import compiler.reportings.Reporting
 import kotlinext.duplicatesBy
 
@@ -69,7 +69,7 @@ class Struct(
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = members.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
-        parameters.forEach { it.bound?.let(context::resolveType)?.validate()?.let(reportings::addAll) }
+        parameters.forEach { it.bound?.let(context::resolveType)?.validate(TypeUseSite.Irrelevant)?.let(reportings::addAll) }
         return reportings
     }
 

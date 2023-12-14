@@ -22,6 +22,7 @@ class RootResolvedTypeReference private constructor(
 ) : ResolvedTypeReference {
     override val mutability = explicitMutability ?: original?.mutability ?: baseType.impliedMutability ?: TypeMutability.MUTABLE
     override val simpleName = original?.simpleName ?: baseType.simpleName
+    override val sourceLocation = original?.declaringNameToken?.sourceLocation
 
     constructor(original: TypeReference, context: CTContext, baseType: BaseType, parameters: List<BoundTypeArgument>) : this(
         original,
@@ -92,7 +93,7 @@ class RootResolvedTypeReference private constructor(
         )
     }
 
-    override fun validate(): Collection<Reporting> {
+    override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
 
         // verify whether the modifier on the reference is compatible with the modifier on the type
@@ -111,7 +112,7 @@ class RootResolvedTypeReference private constructor(
             }
         }
 
-        arguments.forEach { reportings.addAll(it.validate()) }
+        arguments.forEach { reportings.addAll(it.validate(TypeUseSite.Irrelevant)) }
         if (arguments.size == baseType.parameters.size) {
             arguments.zip(baseType.parameters).forEach { (argument, parameter) ->
                 if (argument.variance != TypeVariance.UNSPECIFIED && parameter.variance != TypeVariance.UNSPECIFIED) {
@@ -126,10 +127,10 @@ class RootResolvedTypeReference private constructor(
                 val resolvedBound = parameter.bound?.let(context::resolveType) ?: UnresolvedType.getTypeParameterDefaultBound(context)
                 val boundError = when(variance) {
                     TypeVariance.UNSPECIFIED,
-                    TypeVariance.OUT -> argument.evaluateAssignabilityTo(resolvedBound, argument.astNode?.sourceLocation ?: SourceLocation.UNKNOWN)?.let {
+                    TypeVariance.OUT -> argument.evaluateAssignabilityTo(resolvedBound, argument.sourceLocation ?: SourceLocation.UNKNOWN)?.let {
                         Reporting.typeArgumentOutOfBounds(parameter, argument, it.reason)
                     }
-                    TypeVariance.IN -> resolvedBound.evaluateAssignabilityTo(argument, argument.astNode?.sourceLocation ?: SourceLocation.UNKNOWN)?.let {
+                    TypeVariance.IN -> resolvedBound.evaluateAssignabilityTo(argument, argument.sourceLocation ?: SourceLocation.UNKNOWN)?.let {
                         Reporting.typeArgumentOutOfBounds(parameter, argument, "${argument.type} is not a supertype of $resolvedBound")
                     }
                 }

@@ -6,6 +6,7 @@ import compiler.reportings.TypeArgumentCountMismatchReporting
 import compiler.reportings.TypeArgumentOutOfBoundsReporting
 import compiler.reportings.TypeArgumentVarianceMismatchReporting
 import compiler.reportings.TypeArgumentVarianceSuperfluousReporting
+import compiler.reportings.UnsupportedTypeUsageVarianceReporting
 import compiler.reportings.ValueNotAssignableReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
@@ -105,6 +106,26 @@ class TypeErrors : FreeSpec({
                     it.sourceType.toString() shouldBe "immutable Any"
                     it.targetType.toString() shouldBe "immutable Int"
                 }
+        }
+
+        "use-site variance errors" - {
+            "out type at struct member" {
+                validateModule("""
+                    struct X<out T> {
+                        prop: T
+                    }
+                """.trimIndent())
+                    .shouldReport<UnsupportedTypeUsageVarianceReporting>()
+            }
+
+            "in type at struct member" {
+                validateModule("""
+                    struct X<in T> {
+                        prop: T
+                    }
+                """.trimIndent())
+                    .shouldReport<UnsupportedTypeUsageVarianceReporting>()
+            }
         }
     }
 })

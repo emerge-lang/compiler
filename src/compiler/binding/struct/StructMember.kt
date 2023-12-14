@@ -26,6 +26,7 @@ import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.TypeUseSite
 import compiler.reportings.Reporting
 import compiler.reportings.StructMemberDefaultValueNotAssignableReporting
 
@@ -46,7 +47,7 @@ class StructMember(
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
         type = context.resolveType(declaration.type)
-        reportings.addAll(type!!.validate())
+        reportings.addAll(type!!.validate(TypeUseSite.InvariantUsage(declaration.type.sourceLocation ?: declaration.declaredAt)))
 
         if (defaultValue != null) {
             reportings.addAll(defaultValue.semanticAnalysisPhase1())

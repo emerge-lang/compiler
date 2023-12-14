@@ -124,7 +124,7 @@ val TypeParameter = sequence("type parameter") {
         TypeParameter(variance, name, bound)
     }
 
-val BracedTypeParameters = sequence {
+val BracedTypeParameters = sequence("braced type parameters") {
     operator(Operator.LESS_THAN)
     optional {
         ref(TypeParameter)

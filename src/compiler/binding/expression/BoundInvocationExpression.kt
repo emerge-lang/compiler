@@ -98,7 +98,7 @@ class BoundInvocationExpression(
             matchingFunctions.firstOrNull()?.let { (matchingFunction, typeUnification) ->
                 dispatchedFunction = matchingFunction
                 type = matchingFunction.returnType?.contextualize(typeUnification, TypeUnification::right)
-                type?.validate()?.let(reportings::addAll)
+                type?.validate(TypeUseSite.Irrelevant)?.let(reportings::addAll)
             }
 
             if (matchingFunctions.isEmpty()) {

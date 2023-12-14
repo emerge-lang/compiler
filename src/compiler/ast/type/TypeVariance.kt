@@ -1,6 +1,7 @@
 package compiler.ast.type
 
 enum class TypeVariance {
+    /** rename to invariant? */
     UNSPECIFIED,
     IN,
     OUT,

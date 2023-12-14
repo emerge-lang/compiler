@@ -23,9 +23,10 @@ class UnresolvedType private constructor(
     override val context get() = standInType.context
     override val isNullable get() = standInType.isNullable
     override val mutability get() = standInType.mutability
+    override val sourceLocation = reference.declaringNameToken?.sourceLocation
 
-    override fun validate(): Collection<Reporting> {
-        return parameters.flatMap { it.validate() } + setOf(Reporting.unknownType(reference))
+    override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
+        return parameters.flatMap { it.validate(TypeUseSite.Irrelevant) } + setOf(Reporting.unknownType(reference))
     }
 
     override fun modifiedWith(modifier: TypeMutability): ResolvedTypeReference {

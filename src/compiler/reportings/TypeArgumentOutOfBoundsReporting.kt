@@ -11,7 +11,7 @@ class TypeArgumentOutOfBoundsReporting(
 ) : Reporting(
     Level.ERROR,
     "Argument for type parameter ${parameter.name.value} is not within the bound: $reason",
-    argument.astNode?.sourceLocation ?: SourceLocation.UNKNOWN,
+    argument.sourceLocation ?: SourceLocation.UNKNOWN,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -21,7 +21,7 @@ class TypeArgumentOutOfBoundsReporting(
 
         if (parameter != other.parameter) return false
         if (argument != other.argument) return false
-        if (argument.astNode?.sourceLocation != other.argument.astNode?.sourceLocation) return false
+        if (argument.sourceLocation != other.argument.sourceLocation) return false
 
         return true
     }
@@ -29,7 +29,7 @@ class TypeArgumentOutOfBoundsReporting(
     override fun hashCode(): Int {
         var result = parameter.hashCode()
         result = 31 * result + argument.hashCode()
-        result = 31 * result + argument.astNode?.sourceLocation.hashCode()
+        result = 31 * result + argument.sourceLocation.hashCode()
         return result
     }
 }

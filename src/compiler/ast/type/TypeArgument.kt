@@ -10,7 +10,7 @@ data class TypeArgument(
     val variance: TypeVariance,
     val type: TypeReference,
 ) {
-    val sourceLocation: SourceLocation? = type.declaringNameToken?.sourceLocation
+    val sourceLocation: SourceLocation? = type.sourceLocation
 
     override fun toString(): String {
         var str = ""

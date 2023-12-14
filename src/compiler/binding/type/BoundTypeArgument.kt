@@ -17,8 +17,8 @@ class BoundTypeArgument(
 ) : ResolvedTypeReference {
     override val isNullable get() = type.isNullable
     override val mutability get() = type.mutability
-
     override val simpleName get() = toString()
+    override val sourceLocation get() = astNode?.sourceLocation
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeArgument = BoundTypeArgument(
         context,
@@ -27,8 +27,8 @@ class BoundTypeArgument(
         type.defaultMutabilityTo(mutability),
     )
 
-    override fun validate(): Collection<Reporting> {
-        return type.validate()
+    override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
+        return setOfNotNull(forUsage.validateForTypeVariance(variance)) + type.validate(TypeUseSite.Irrelevant)
     }
 
     /**

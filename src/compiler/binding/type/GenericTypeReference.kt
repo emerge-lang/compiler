@@ -18,7 +18,7 @@ class GenericTypeReference(
     override val simpleName get() = parameter.name.value
     override val isNullable get() = effectiveBound.isNullable
     override val mutability get() = effectiveBound.mutability
-
+    override val sourceLocation get() = original.declaringNameToken?.sourceLocation
     val variance: TypeVariance get() = parameter.variance
 
     override fun modifiedWith(modifier: TypeMutability): ResolvedTypeReference {
@@ -48,9 +48,9 @@ class GenericTypeReference(
         )
     }
 
-    override fun validate(): Collection<Reporting> {
-        // TODO
-        return emptySet()
+    override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
+        // TODO: variance misatches?
+        return effectiveBound.validate(forUsage) + setOfNotNull(forUsage.validateForTypeVariance(variance))
     }
 
     override fun evaluateAssignabilityTo(

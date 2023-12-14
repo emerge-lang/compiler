@@ -27,6 +27,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
 import compiler.reportings.Reporting
 import compiler.throwOnCycle
@@ -93,7 +94,7 @@ class BoundVariable(
 
             declaration.type?.let { declaredType ->
                 val resolvedDeclaredType = context.resolveType(declaredType)
-                resolvedDeclaredType?.validate()?.let(reportings::addAll)
+                resolvedDeclaredType?.validate(TypeUseSite.Irrelevant)?.let(reportings::addAll)
                 type = resolvedDeclaredType?.withCombinedMutability(implicitMutability)
             }
 
@@ -123,7 +124,7 @@ class BoundVariable(
                     )
                 }
 
-                initializerExpression.type?.validate()?.let(reportings::addAll)
+                initializerExpression.type?.validate(TypeUseSite.Irrelevant)?.let(reportings::addAll)
 
                 // verify compatibility declared type <-> initializer type
                 if (type != null) {

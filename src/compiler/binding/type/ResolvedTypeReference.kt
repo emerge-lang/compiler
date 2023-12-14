@@ -34,6 +34,7 @@ sealed interface ResolvedTypeReference {
     val simpleName: String?
 
     val mutability: TypeMutability
+    val sourceLocation: SourceLocation?
 
     fun modifiedWith(modifier: TypeMutability): ResolvedTypeReference
 
@@ -46,7 +47,7 @@ sealed interface ResolvedTypeReference {
      *
      * @return Any reportings on the validated code
      */
-    fun validate(): Collection<Reporting>
+    fun validate(forUsage: TypeUseSite): Collection<Reporting>
 
     /**
      * Determines whether a value of type `this` can be assigned to a variable

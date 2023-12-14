@@ -10,7 +10,7 @@ class TypeArgumentVarianceMismatchReporting(
 ) : Reporting(
     Level.ERROR,
     "The variance in the type argument conflicts with the variance on the declaration of ${parameter.name.sourceLocation} (declared as ${parameter.variance.name.lowercase()})",
-    argument.astNode?.sourceLocation ?: SourceLocation.UNKNOWN,
+    argument.sourceLocation ?: SourceLocation.UNKNOWN,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

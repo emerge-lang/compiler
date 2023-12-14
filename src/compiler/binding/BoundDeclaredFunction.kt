@@ -9,7 +9,9 @@ import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.ResolvedTypeReference
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.binding.type.TypeUseSite
 import compiler.binding.type.Unit
+import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 
 /**
@@ -118,7 +120,10 @@ class BoundDeclaredFunction(
 
             if (declaration.returnType != null) {
                 returnType = context.resolveType(declaration.returnType)
-                reportings.addAll(returnType!!.validate())
+                val returnTypeUseSite = TypeUseSite.OutUsage(
+                    declaration.returnType.declaringNameToken?.sourceLocation
+                )
+                reportings.addAll(returnType!!.validate(returnTypeUseSite))
             }
 
             this.code?.semanticAnalysisPhase1()?.let(reportings::addAll)
@@ -152,11 +157,17 @@ class BoundDeclaredFunction(
                 }
             }
 
-            receiverType?.validate()?.let(reportings::addAll)
-            parameterTypes.forEach { it?.validate()?.let(reportings::addAll) }
-            returnType?.validate()?.let(reportings::addAll)
+            receiverType?.let {
+                it.validate(TypeUseSite.InUsage(it.sourceLocation)).let(reportings::addAll)
+            }
+            parameterTypes.forEach {
+                it?.validate(TypeUseSite.InUsage(it.sourceLocation))?.let(reportings::addAll)
+            }
+            returnType?.let {
+                it.validate(TypeUseSite.OutUsage(it.sourceLocation)).let(reportings::addAll)
+            }
             typeParameters.forEach {
-                it.bound?.let(context::resolveType)?.validate()?.let(reportings::addAll)
+                it.bound?.let(context::resolveType)?.validate(TypeUseSite.Irrelevant)?.let(reportings::addAll)
                 if (it.variance != TypeVariance.UNSPECIFIED) {
                     reportings.add(Reporting.varianceOnFunctionTypeParameter(it))
                 }
