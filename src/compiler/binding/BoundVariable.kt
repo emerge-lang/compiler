@@ -95,7 +95,7 @@ class BoundVariable(
             declaration.type?.let { declaredType ->
                 val resolvedDeclaredType = context.resolveType(declaredType)
                 resolvedDeclaredType?.validate(TypeUseSite.Irrelevant)?.let(reportings::addAll)
-                type = resolvedDeclaredType?.withCombinedMutability(implicitMutability)
+                type = resolvedDeclaredType?.defaultMutabilityTo(implicitMutability)
             }
 
             if (initializerExpression != null) {

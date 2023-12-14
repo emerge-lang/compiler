@@ -49,7 +49,7 @@ class GenericTypeReference(
     }
 
     override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
-        // TODO: variance misatches?
+        // TODO: variance mismatches?
         return effectiveBound.validate(forUsage) + setOfNotNull(forUsage.validateForTypeVariance(variance))
     }
 
