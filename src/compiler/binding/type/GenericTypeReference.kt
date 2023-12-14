@@ -11,36 +11,40 @@ import compiler.reportings.ValueNotAssignableReporting
 
 class GenericTypeReference(
     override val context: CTContext,
+    private val original: TypeReference,
     private val parameter: TypeParameter,
-    val bound: ResolvedTypeReference,
+    val effectiveBound: ResolvedTypeReference,
 ) : ResolvedTypeReference {
     override val simpleName get() = parameter.name.value
-    override val isNullable get() = bound.isNullable
-    override val mutability get() = bound.mutability
+    override val isNullable get() = effectiveBound.isNullable
+    override val mutability get() = effectiveBound.mutability
 
     val variance: TypeVariance get() = parameter.variance
 
     override fun modifiedWith(modifier: TypeMutability): ResolvedTypeReference {
         return GenericTypeReference(
             context,
+            original,
             parameter,
-            bound.modifiedWith(modifier),
+            effectiveBound.modifiedWith(modifier),
         )
     }
 
     override fun withCombinedMutability(mutability: TypeMutability?): ResolvedTypeReference {
         return GenericTypeReference(
             context,
+            original,
             parameter,
-            bound.withCombinedMutability(mutability),
+            effectiveBound.withCombinedMutability(mutability),
         )
     }
 
     override fun withCombinedNullability(nullability: TypeReference.Nullability): ResolvedTypeReference {
         return GenericTypeReference(
             context,
+            original,
             parameter,
-            bound.withCombinedNullability(nullability),
+            effectiveBound.withCombinedNullability(nullability),
         )
     }
 
@@ -55,7 +59,7 @@ class GenericTypeReference(
     ): ValueNotAssignableReporting? {
         val selfEffective = when(variance) {
             TypeVariance.UNSPECIFIED,
-            TypeVariance.OUT -> bound
+            TypeVariance.OUT -> effectiveBound
             TypeVariance.IN -> return Reporting.valueNotAssignable(other, this, "Cannot assign an in-variant value, because it cannot be read", assignmentLocation)
         }
 
@@ -68,7 +72,7 @@ class GenericTypeReference(
             }
             is GenericTypeReference -> when(other.variance) {
                 TypeVariance.UNSPECIFIED,
-                TypeVariance.IN -> selfEffective.evaluateAssignabilityTo(other.bound, assignmentLocation)
+                TypeVariance.IN -> selfEffective.evaluateAssignabilityTo(other.effectiveBound, assignmentLocation)
                 TypeVariance.OUT -> Reporting.valueNotAssignable(other, this, "Cannot assign to an out-variant reference", assignmentLocation)
             }
             is UnresolvedType -> selfEffective.evaluateAssignabilityTo(other.standInType, assignmentLocation)
@@ -90,15 +94,16 @@ class GenericTypeReference(
 
         return GenericTypeReference(
             context,
+            original,
             parameter,
-            bound.defaultMutabilityTo(mutability),
+            effectiveBound.defaultMutabilityTo(mutability),
         )
     }
 
     override fun closestCommonSupertypeWith(other: ResolvedTypeReference): ResolvedTypeReference {
         val selfEffective = when(variance) {
             TypeVariance.UNSPECIFIED,
-            TypeVariance.OUT -> bound
+            TypeVariance.OUT -> effectiveBound
             TypeVariance.IN -> BuiltinNothing.baseReference(context)
         }
 
@@ -116,12 +121,24 @@ class GenericTypeReference(
     ): ResolvedTypeReference {
         val resolvedSelf = side(context)[this.simpleName] ?: return GenericTypeReference(
             this.context,
+            original,
             parameter,
-            bound.contextualize(context, side),
+            effectiveBound.contextualize(context, side),
         )
 
         return resolvedSelf.contextualize(context, side)
     }
 
-    override fun toString() = parameter.name.value
+    override fun toString(): String {
+        var str = parameter.name.value
+        if (!isNullable) {
+            if (original.nullability == TypeReference.Nullability.NOT_NULLABLE) {
+                str += "!"
+            }
+        } else if (original.nullability == TypeReference.Nullability.NULLABLE) {
+            str += "?"
+        }
+
+        return str
+    }
 }

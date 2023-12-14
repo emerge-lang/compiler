@@ -22,6 +22,7 @@ import compiler.ast.type.TypeReference
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
 import compiler.binding.type.BaseType
+import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.ResolvedTypeReference
 
 /**
@@ -71,6 +72,8 @@ interface CTContext {
      *         given `boundary` will be searched.
      */
     fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean
+
+    fun resolveGenericType(ref: TypeReference): GenericTypeReference?
 
     fun resolveBaseType(simpleName: String, fromOwnModuleOnly: Boolean = false): BaseType?
 

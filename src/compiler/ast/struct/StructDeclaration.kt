@@ -35,9 +35,7 @@ class StructDeclaration(
 ) : Declaration, Bindable<Struct> {
     override fun bindTo(context: CTContext): Struct {
         val structContext = StructContext(context, typeParameters)
-
         return Struct(
-            context,
             structContext,
             this,
             memberDeclarations.map { it.bindTo(structContext) },

@@ -33,18 +33,11 @@ import compiler.reportings.Reporting
 import kotlinext.duplicatesBy
 
 class Struct(
-    /**
-     * Context in which the struct lives
-     */
-    override val context: CTContext,
-
-    /**
-     * context for the struct members
-     */
     private val structContext: StructContext,
     override val declaration: StructDeclaration,
     val members: List<StructMember>
 ) : BaseType, BoundElement<StructDeclaration> {
+    override val context: CTContext = structContext
     override val simpleName: String = declaration.name.value
     override val parameters = structContext.typeParameters
 

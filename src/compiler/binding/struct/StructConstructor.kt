@@ -11,7 +11,7 @@ import compiler.reportings.Reporting
 class StructConstructor(
     val struct: Struct,
 ) : BoundFunction() {
-    override val context = MutableCTContext(struct.context, struct.parameters)
+    override val context = MutableCTContext(struct.context)
     override val declaredAt = struct.declaration.declaredAt
     override val receiverType = null
     override val declaresReceiver = false

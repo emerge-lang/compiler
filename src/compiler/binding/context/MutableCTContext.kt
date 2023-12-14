@@ -94,14 +94,14 @@ open class MutableCTContext(
     private val rawTypeParameters: Map<String, TypeParameter> = typeParameters.associateBy { it.name.value }
     private val resolvedTypeParameters = mutableMapOf<String, GenericTypeReference>()
 
-    private fun resolveGenericType(simpleName: String): GenericTypeReference? {
-        resolvedTypeParameters[simpleName]?.let { return it }
-        val typeParameter = rawTypeParameters[simpleName] ?: return null
+    override fun resolveGenericType(ref: TypeReference): GenericTypeReference? {
+        resolvedTypeParameters[ref.simpleName]?.let { return it }
+        val typeParameter = rawTypeParameters[ref.simpleName] ?: return parentContext.resolveGenericType(ref)
         val resolvedBound = typeParameter.bound
             ?.let { resolveType(it, fromOwnModuleOnly = false) }
             ?: UnresolvedType.getTypeParameterDefaultBound(this)
-        val result = GenericTypeReference(this, typeParameter, resolvedBound)
-        resolvedTypeParameters[simpleName] = result
+        val result = GenericTypeReference(this, ref, typeParameter, resolvedBound)
+        resolvedTypeParameters[ref.simpleName] = result
         return result
     }
 
@@ -124,7 +124,7 @@ open class MutableCTContext(
     }
 
     override fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean): ResolvedTypeReference {
-        resolveGenericType(ref.simpleName)?.let { genericType ->
+        resolveGenericType(ref)?.let { genericType ->
             return genericType.withCombinedMutability(ref.mutability).withCombinedNullability(ref.nullability)
         }
 

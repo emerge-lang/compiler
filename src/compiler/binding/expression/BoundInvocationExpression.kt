@@ -107,7 +107,7 @@ class BoundInvocationExpression(
                         Reporting.unresolvableConstructor(
                             functionNameToken,
                             parameterTypes,
-                            resolvedFunctions.isNotEmpty()
+                            resolvedFunctions.isNotEmpty(),
                         )
                     )
                 } else {
@@ -116,7 +116,7 @@ class BoundInvocationExpression(
                             functionNameToken,
                             receiverType,
                             parameterTypes,
-                            resolvedFunctions.isNotEmpty()
+                            resolvedFunctions.isNotEmpty(),
                         )
                     )
                 }
