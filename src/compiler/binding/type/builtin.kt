@@ -45,21 +45,12 @@ val BuiltinNothing = object : BuiltinType("Nothing") {
 
 val Unit = object : BuiltinType("Unit", Any) {}
 
-val Number = object : BuiltinType("Number", Any) {
-    override val impliedMutability = TypeMutability.IMMUTABLE
-}
+val Number = object : BuiltinType("Number", Any) {}
 
-val Float = object : BuiltinType("Float", Number) {
-    override val impliedMutability = TypeMutability.IMMUTABLE
-}
+val Float = object : BuiltinType("Float", Number) {}
+val Int = object : BuiltinType("Int", Number) {}
 
-val Int = object : BuiltinType("Int", Number) {
-    override val impliedMutability = TypeMutability.IMMUTABLE
-}
-
-val BuiltinBoolean = object : BuiltinType("Boolean", Any) {
-    override val impliedMutability = TypeMutability.IMMUTABLE
-}
+val BuiltinBoolean = object : BuiltinType("Boolean", Any) {}
 
 val BuiltinArray = object : BuiltinType("Array", Any) {
     override val parameters = listOf(TypeParameter(variance = TypeVariance.UNSPECIFIED, IdentifierToken("Item"), null))

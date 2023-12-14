@@ -20,7 +20,7 @@ class RootResolvedTypeReference private constructor(
     val baseType: BaseType,
     val arguments: List<BoundTypeArgument>,
 ) : ResolvedTypeReference {
-    override val mutability = explicitMutability ?: original?.mutability ?: baseType.impliedMutability ?: TypeMutability.MUTABLE
+    override val mutability = explicitMutability ?: original?.mutability ?: TypeMutability.MUTABLE
     override val simpleName = original?.simpleName ?: baseType.simpleName
     override val sourceLocation = original?.declaringNameToken?.sourceLocation
 
@@ -28,7 +28,7 @@ class RootResolvedTypeReference private constructor(
         original,
         context,
         original.nullability == TypeReference.Nullability.NULLABLE,
-        original.mutability ?: baseType.impliedMutability,
+        original.mutability,
         baseType,
         parameters,
     )
@@ -95,22 +95,6 @@ class RootResolvedTypeReference private constructor(
 
     override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
-
-        // verify whether the modifier on the reference is compatible with the modifier on the type
-        if (original?.mutability != null && baseType.impliedMutability != null) {
-            if (!(original.mutability isAssignableTo baseType.impliedMutability!!)) {
-                val origMod = original.mutability.toString()?.lowercase()
-                val baseMod = baseType.impliedMutability?.toString()?.lowercase()
-
-                reportings.add(
-                    Reporting.modifierError(
-                        "Cannot reference ${baseType.fullyQualifiedName} as $origMod; " +
-                                "modifier $origMod is not assignable to the implied modifier $baseMod of ${baseType.simpleName}",
-                        original.declaringNameToken?.sourceLocation ?: SourceLocation.UNKNOWN
-                    )
-                )
-            }
-        }
 
         arguments.forEach { reportings.addAll(it.validate(TypeUseSite.Irrelevant)) }
         if (arguments.size == baseType.parameters.size) {

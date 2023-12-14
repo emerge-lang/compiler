@@ -25,13 +25,6 @@ class VariableErrors : FreeSpec({
                 .shouldReport<TypeDeductionErrorReporting>()
         }
 
-        "implicit modifier conflict" {
-            validateModule("""
-                val foo: mutable Int
-            """.trimIndent())
-                .shouldReport<ModifierErrorReporting>()
-        }
-
         "explicit modifier conflict" {
             validateModule("""
                 mutable val foo: immutable Int

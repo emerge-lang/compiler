@@ -32,9 +32,6 @@ import kotlinext.get
  * Base type are classes, interfaces, enums, built-in type
  */
 interface BaseType {
-    val impliedMutability: TypeMutability?
-        get() = null
-
     val simpleName: String
         get() = javaClass.simpleName
 
