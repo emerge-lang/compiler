@@ -123,5 +123,5 @@ class GenericTypeReference(
         return resolvedSelf.contextualize(context, side)
     }
 
-    override fun toString() = "${parameter.name.value} : $bound"
+    override fun toString() = parameter.name.value
 }
