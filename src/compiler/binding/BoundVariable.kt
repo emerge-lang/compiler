@@ -126,6 +126,16 @@ class BoundVariable(
 
                 initializerExpression.type?.validate(TypeUseSite.Irrelevant)?.let(reportings::addAll)
 
+                // if declaration doesn't mention mutability, try to infer it from the initializer
+                // instead of using the default mutability
+                if (declaration.typeMutability == null && declaration.type?.mutability == null) {
+                    type?.let { resolvedDeclaredType ->
+                        initializerExpression.type?.let { initializerType ->
+                            type = resolvedDeclaredType.modifiedWith(initializerType.mutability)
+                        }
+                    }
+                }
+
                 // verify compatibility declared type <-> initializer type
                 type?.let { resolvedDeclaredType ->
                     initializerExpression.type?.let { initializerType ->

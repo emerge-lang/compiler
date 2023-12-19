@@ -9,6 +9,7 @@ import compiler.reportings.TypeArgumentVarianceSuperfluousReporting
 import compiler.reportings.UnsupportedTypeUsageVarianceReporting
 import compiler.reportings.ValueNotAssignableReporting
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 
 class TypeErrors : FreeSpec({
@@ -25,6 +26,15 @@ class TypeErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting>()
+        }
+
+        "assignment to generic variable" {
+            validateModule("""
+                fun foo<T>(p: T) {
+                    val x: Any? = p
+                }
+            """.trimIndent())
+                .shouldBeEmpty()
         }
 
         "reference to generic type with arguments out of bounds" - {

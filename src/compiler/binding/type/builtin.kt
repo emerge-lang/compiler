@@ -41,16 +41,27 @@ val Any = object : BuiltinType("Any") {}
 
 val BuiltinNothing = object : BuiltinType("Nothing") {
     override fun isSubtypeOf(other: BaseType) = true
+    override val isAtomic = true
 }
 
-val Unit = object : BuiltinType("Unit", Any) {}
+val Unit = object : BuiltinType("Unit", Any) {
+    override val isAtomic = true
+}
 
-val Number = object : BuiltinType("Number", Any) {}
+val Number = object : BuiltinType("Number", Any) {
+    override val isAtomic = true
+}
 
-val Float = object : BuiltinType("Float", Number) {}
-val Int = object : BuiltinType("Int", Number) {}
+val Float = object : BuiltinType("Float", Number) {
+    override val isAtomic = true
+}
+val Int = object : BuiltinType("Int", Number) {
+    override val isAtomic = true
+}
 
-val BuiltinBoolean = object : BuiltinType("Boolean", Any) {}
+val BuiltinBoolean = object : BuiltinType("Boolean", Any) {
+    override val isAtomic = true
+}
 
 val BuiltinArray = object : BuiltinType("Array", Any) {
     override val parameters = listOf(TypeParameter(variance = TypeVariance.UNSPECIFIED, IdentifierToken("Item"), null))
