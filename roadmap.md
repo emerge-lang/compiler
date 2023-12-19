@@ -26,7 +26,15 @@ This file describes the Items that are next on the TODO list. **This list is NOT
         * Kotlin `GenericType<modifier TypeParameter>`
         * D `GenericType!TypeParameter` and `GenericType!(modifier TypeParameter)`
     * Decide whether to support vararg type parameters
-    * The `readonly` and `immutable` type modifiers force `out` variance on all type parameters
+    * ~~The `readonly` and `immutable` type modifiers force `out` variance on all type parameters~~
+      * Impossible, because the generic parameter can still occur in as a parameter on a readonly/pure
+        member function. The compiler could do make type parameters `out` on readonly/immutable if the
+        type only occurs in out locations. But if that happens automagically, adding the generic type in
+        an invariant or in location becomes a breaking API change. Not good. Hence: Given a type T<E> where
+        `E` only occurs in out-variant locations and the program mentions the type `(readonly|immutable) T<...>`
+        then the compiler should produce a warning that the type parameter can be `out`. If the referring code
+        then changes the type to `T<out ...>` the breaking-API-change problem is avoided. If the referring code
+        sticks to the non-out type, its obvious that variance is not in effect.
 14. Array type 
 15. String type, based on array
     * default encoding? -> unicode / utf-8?
