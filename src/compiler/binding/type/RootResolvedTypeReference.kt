@@ -20,7 +20,7 @@ class RootResolvedTypeReference private constructor(
     val baseType: BaseType,
     val arguments: List<BoundTypeArgument>,
 ) : ResolvedTypeReference {
-    override val mutability = explicitMutability ?: original?.mutability ?: TypeMutability.MUTABLE
+    override val mutability = explicitMutability ?: original?.mutability ?: TypeMutability.IMMUTABLE
     override val simpleName = original?.simpleName ?: baseType.simpleName
     override val sourceLocation = original?.declaringNameToken?.sourceLocation
 
