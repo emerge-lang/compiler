@@ -70,11 +70,14 @@ class Struct(
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = members.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
         parameters.forEach { it.bound?.let(context::resolveType)?.validate(TypeUseSite.Irrelevant)?.let(reportings::addAll) }
+        constructors.map(BoundFunction::semanticAnalysisPhase2).forEach(reportings::addAll)
         return reportings
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return members.flatMap { it.semanticAnalysisPhase3() }
+        val reportings = members.flatMap { it.semanticAnalysisPhase3() }.toMutableList()
+        constructors.map(BoundFunction::semanticAnalysisPhase3).forEach(reportings::addAll)
+        return reportings
     }
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {

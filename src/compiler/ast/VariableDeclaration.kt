@@ -36,5 +36,12 @@ open class VariableDeclaration(
 ) : Declaration, Executable<BoundVariable> {
     override val sourceLocation get() = declaredAt
 
-    override fun bindTo(context: CTContext): BoundVariable = BoundVariable(context, this, initializerExpression?.bindTo(context))
+    override fun bindTo(context: CTContext): BoundVariable = bindTo(context, BoundVariable.Kind.VARIABLE)
+    fun bindToAsParameter(context: CTContext): BoundVariable = bindTo(context, BoundVariable.Kind.PARAMETER)
+    private fun bindTo(context: CTContext, kind: BoundVariable.Kind): BoundVariable = BoundVariable(
+        context,
+        this,
+        initializerExpression?.bindTo(context),
+        kind,
+    )
 }

@@ -46,7 +46,11 @@ class FunctionDeclaration(
     override fun bindTo(context: CTContext): BoundDeclaredFunction {
         val functionContext = MutableCTContext(context, typeParameters)
 
-        val boundParams = parameters.parameters.map(functionContext::addVariable)
+        val boundParams = parameters.parameters.map {
+            val bound = it.bindToAsParameter(functionContext)
+            functionContext.addVariable(bound)
+            bound
+        }
         val boundParamList = BoundParameterList(context, parameters, boundParams)
 
         return BoundDeclaredFunction(

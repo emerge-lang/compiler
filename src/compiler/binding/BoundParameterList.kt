@@ -48,7 +48,7 @@ class BoundParameterList(
             }
 
             // etc.
-            reportings.addAll(parameter.semanticAnalysisPhase1("parameter"))
+            reportings.addAll(parameter.semanticAnalysisPhase1())
         }
 
         return reportings

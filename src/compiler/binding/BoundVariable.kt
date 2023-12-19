@@ -39,7 +39,8 @@ import compiler.throwOnCycle
 class BoundVariable(
     override val context: CTContext,
     override val declaration: VariableDeclaration,
-    val initializerExpression: BoundExpression<*>?
+    val initializerExpression: BoundExpression<*>?,
+    val kind: BoundVariable.Kind,
 ) : BoundExecutable<VariableDeclaration>
 {
     val isAssignable: Boolean = declaration.isAssignable
@@ -58,9 +59,7 @@ class BoundVariable(
 
     private val onceAction = OnceAction()
 
-    override fun semanticAnalysisPhase1() = semanticAnalysisPhase1("variable")
-
-    fun semanticAnalysisPhase1(selfType: String): Collection<Reporting> {
+    override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
             val reportings = mutableSetOf<Reporting>()
 
@@ -86,17 +85,18 @@ class BoundVariable(
             if (declaration.initializerExpression == null && declaration.type == null) {
                 reportings.add(
                     Reporting.typeDeductionError(
-                        "Cannot determine type of $selfType $name; neither type nor initializer is specified.",
+                        "Cannot determine type of $kind $name; neither type nor initializer is specified.",
                         declaration.declaredAt
                     )
                 )
             }
 
-            declaration.type?.let { declaredType ->
-                val resolvedDeclaredType = context.resolveType(declaredType)
-                resolvedDeclaredType?.validate(TypeUseSite.Irrelevant)?.let(reportings::addAll)
-                type = resolvedDeclaredType?.defaultMutabilityTo(implicitMutability)
+            type = declaration.type?.let(context::resolveType)
+            val useSite = when(kind) {
+                Kind.VARIABLE -> TypeUseSite.Irrelevant
+                Kind.PARAMETER -> TypeUseSite.InUsage(declaration.sourceLocation)
             }
+            type?.validate(useSite)?.let(reportings::addAll)
 
             if (initializerExpression != null) {
                 reportings.addAll(initializerExpression.semanticAnalysisPhase1())
@@ -127,19 +127,17 @@ class BoundVariable(
                 initializerExpression.type?.validate(TypeUseSite.Irrelevant)?.let(reportings::addAll)
 
                 // verify compatibility declared type <-> initializer type
-                if (type != null) {
-                    val initializerType = initializerExpression.type
-
-                    // if the initializer type cannot be resolved the reporting is already done and
-                    // should have returned it; so: we don't care :)
-
-                    // discrepancy between assign expression and declared type
-                    if (initializerType != null) {
+                type?.let { resolvedDeclaredType ->
+                    initializerExpression.type?.let { initializerType ->
+                        // discrepancy between assign expression and declared type
                         if (initializerType !is UnresolvedType) {
-                            initializerType.evaluateAssignabilityTo(type!!, declaration.initializerExpression!!.sourceLocation)
+                            initializerType.evaluateAssignabilityTo(resolvedDeclaredType, declaration.initializerExpression!!.sourceLocation)
                                 ?.let(reportings::add)
                         }
                     }
+
+                    // if the initializer type cannot be resolved the reporting is already done and
+                    // should have returned it; so: we don't care :)
                 }
 
                 // TODO: discrepancy between implied modifiers of initializerExpression and type modifiers of this declaration
@@ -179,5 +177,13 @@ class BoundVariable(
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
         return initializerExpression?.findWritesBeyond(boundary) ?: emptySet()
+    }
+
+    enum class Kind {
+        VARIABLE,
+        PARAMETER,
+        ;
+
+        override fun toString() = name.lowercase()
     }
 }
