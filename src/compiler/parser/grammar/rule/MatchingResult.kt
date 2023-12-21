@@ -51,4 +51,6 @@ class MatchingResult<out ItemType>(
     /** Whether one of the reportings is of level [Reporting.Level.ERROR] or higher */
     val hasErrors: Boolean
         get() = this.reportings.find { it.level >= Reporting.Level.ERROR } != null
+
+    override fun toString() = "MatchingResult[item ${if (item == null) "not " else ""}present, ambiguous=$isAmbiguous, marksEndOfAmbiguity=$marksEndOfAmbiguity, hasErrors=$hasErrors]"
 }

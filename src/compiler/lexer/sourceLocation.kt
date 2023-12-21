@@ -48,6 +48,9 @@ abstract class SourceContentAwareSourceDescriptor : SourceDescriptor
 
 /**
  * Describes a location within a source text (line + column)
+ *
+ * TODO: refactor to include a range of input chars, not just one
+ * TODO: rename to Span, naming stolen from rust nom
  */
 open class SourceLocation(
         open val sD: SourceDescriptor,
