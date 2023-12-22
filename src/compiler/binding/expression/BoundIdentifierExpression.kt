@@ -81,6 +81,10 @@ class BoundIdentifierExpression(
         return emptySet()
     }
 
+    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+        // nothing to do. identifiers must always be unambiguous so there is no use for this information
+    }
+
     sealed interface Referral {
         fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>>
     }

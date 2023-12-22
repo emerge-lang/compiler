@@ -24,6 +24,12 @@ class OnceAction {
         }
     }
 
+    fun requireActionNotDone(action: ActionToken<*>) {
+        if (actionResults.containsKey(action)) {
+            throw InternalCompilerError("Action ${action.javaClass.simpleName} must not have been executed yed.")
+        }
+    }
+
     interface ActionToken<Result>
     object SemanticAnalysisPhase1 : ActionToken<Collection<Reporting>>
     object SemanticAnalysisPhase2 : ActionToken<Collection<Reporting>>

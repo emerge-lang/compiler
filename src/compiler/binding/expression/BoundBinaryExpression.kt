@@ -81,6 +81,12 @@ class BoundBinaryExpression(
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
         return hiddenInvocation.findWritesBeyond(boundary)
     }
+
+    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+        // nothing to do, as one could only correlate this with the return value
+        // of the operator function. But overload resolution based on return type
+        // is not a thing in this language
+    }
 }
 
 private fun operatorFunctionName(op: Operator): String = when(op) {

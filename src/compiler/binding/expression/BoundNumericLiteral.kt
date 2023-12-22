@@ -44,6 +44,10 @@ open class BoundNumericLiteral(
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
+
+    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+        // nothing to do there, the type of numeric literals is always predetermined by their specification in source
+    }
 }
 
 class BoundIntegerLiteral(

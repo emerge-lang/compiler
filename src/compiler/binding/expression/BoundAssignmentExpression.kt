@@ -130,6 +130,10 @@ class BoundAssignmentExpression(
         }
     }
 
+    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+        // nothing to do because assignments are not expressions
+    }
+
     enum class AssignmentTargetType {
         VARIABLE,
         OBJECT_MEMBER

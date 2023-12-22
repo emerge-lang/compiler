@@ -24,23 +24,12 @@ enum class TypeMutability(
     MUTABLE(isMutable =true),
     READONLY(isMutable = false),
     IMMUTABLE(isMutable = false),
-
-    /**
-     * Cannot be mentioned in source explicitly. Constructors have the return type exlcusive T
-     * to carry the information that there is no other reference to the value, and it can safely
-     * be assigned any of the other mutabilities.
-     */
-    EXCLUSIVE(isMutable = true),
     ;
-
-    val exceptExclusive: TypeMutability
-        get() = if (this == EXCLUSIVE) MUTABLE else this
 
     infix fun isAssignableTo(targetMutability: TypeMutability): Boolean =
         this == targetMutability
             ||
         when (this) {
-            EXCLUSIVE -> true
             MUTABLE, IMMUTABLE -> targetMutability == READONLY
             READONLY -> false
         }
@@ -57,20 +46,15 @@ enum class TypeMutability(
      * |`MUTABLE`  |`MUTABLE`  |`MUTABLE`  |
      * |`MUTABLE`  |`READONLY` |`READONLY` |
      * |`MUTABLE`  |`IMMUTABLE`|`READONLY` |
-     * |`MUTABLE`  |`EXCLUSIVE`|`MUTABLE`  |
      * |`READONLY` |`MUTABLE`  |`READONLY` |
      * |`READONLY` |`READONLY` |`READONLY` |
      * |`READONLY` |`IMMUTABLE`|`READONLY` |
-     * |`READONLY` |`EXCLUSIVE`|`READONLY` |
      * |`IMMUTABLE`|`MUTABLE`  |`READONLY` |
      * |`IMMUTABLE`|`READONLY` |`READONLY` |
      * |`IMMUTABLE`|`IMMUTABLE`|`IMMUTABLE`|
-     * |`IMMUTABLE`|`EXCLUSIVE`|`IMMUTABLE`|
      */
     fun combinedWith(other: TypeMutability): TypeMutability = when {
         this == other -> this
-        this == EXCLUSIVE -> other
-        other == EXCLUSIVE -> this
         else -> READONLY
     }
 

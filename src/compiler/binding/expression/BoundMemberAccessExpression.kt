@@ -77,4 +77,8 @@ class BoundMemberAccessExpression(
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
         return valueExpression.findWritesBeyond(boundary)
     }
+
+    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+        // nothing to do, the type of any object member is predetermined
+    }
 }

@@ -23,6 +23,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.ResolvedTypeReference
 import compiler.reportings.Reporting
 import compiler.reportings.ReturnTypeMismatchReporting
+import kotlin.math.exp
 
 class BoundReturnStatement(
     override val context: CTContext,
@@ -69,5 +70,6 @@ class BoundReturnStatement(
 
     override fun setExpectedReturnType(type: ResolvedTypeReference) {
         expectedReturnType = type
+        expression.setExpectedEvaluationResultType(type)
     }
 }

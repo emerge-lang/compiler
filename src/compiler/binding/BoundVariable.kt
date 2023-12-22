@@ -23,9 +23,11 @@ import compiler.OnceAction
 import compiler.ast.Executable
 import compiler.ast.VariableDeclaration
 import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
 import compiler.binding.expression.BoundExpression
+import compiler.binding.type.Any
 import compiler.binding.type.ResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
@@ -44,7 +46,8 @@ class BoundVariable(
 ) : BoundExecutable<VariableDeclaration>
 {
     val isAssignable: Boolean = declaration.isAssignable
-    private val implicitMutability: TypeMutability = if (isAssignable) TypeMutability.MUTABLE else TypeMutability.IMMUTABLE
+    private val implicitMutability: TypeMutability = declaration.typeMutability
+        ?: if (isAssignable) TypeMutability.MUTABLE else TypeMutability.IMMUTABLE
 
     val name: String = declaration.name.value
 
@@ -53,6 +56,8 @@ class BoundVariable(
      */
     var type: ResolvedTypeReference? = null
         private set
+
+    private var resolvedDeclaredType: ResolvedTypeReference? = null
 
     override val isGuaranteedToThrow: Boolean?
         get() = initializerExpression?.isGuaranteedToThrow
@@ -91,12 +96,25 @@ class BoundVariable(
                 )
             }
 
-            type = declaration.type?.let(context::resolveType)
-            val useSite = when(kind) {
-                Kind.VARIABLE -> TypeUseSite.Irrelevant
-                Kind.PARAMETER -> TypeUseSite.InUsage(declaration.sourceLocation)
-            }
-            type?.validate(useSite)?.let(reportings::addAll)
+            declaration.type
+                ?.let(context::resolveType)
+                ?.modifiedWith(implicitMutability)
+                ?.let { resolvedDeclaredType ->
+                    this.resolvedDeclaredType = resolvedDeclaredType
+
+                    val useSite = when(kind) {
+                        Kind.VARIABLE -> TypeUseSite.Irrelevant
+                        Kind.PARAMETER -> TypeUseSite.InUsage(declaration.sourceLocation)
+                    }
+                    resolvedDeclaredType.validate(useSite).let(reportings::addAll)
+                    type = resolvedDeclaredType
+                }
+
+            initializerExpression?.setExpectedEvaluationResultType(
+                this.resolvedDeclaredType ?: Any.baseReference(context)
+                    .withCombinedNullability(TypeReference.Nullability.NULLABLE)
+                    .modifiedWith(implicitMutability)
+            )
 
             if (initializerExpression != null) {
                 reportings.addAll(initializerExpression.semanticAnalysisPhase1())
@@ -137,7 +155,7 @@ class BoundVariable(
                 }
 
                 // verify compatibility declared type <-> initializer type
-                type?.let { resolvedDeclaredType ->
+                resolvedDeclaredType?.let { resolvedDeclaredType ->
                     initializerExpression.type?.let { initializerType ->
                         // discrepancy between assign expression and declared type
                         if (initializerType !is UnresolvedType) {
@@ -169,6 +187,10 @@ class BoundVariable(
                 } else {
                     type = initializerType.withCombinedMutability(implicitMutability)
                 }
+            }
+
+            if (type == null) {
+                type = resolvedDeclaredType
             }
 
             return@getResult reportings

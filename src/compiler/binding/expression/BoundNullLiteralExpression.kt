@@ -20,17 +20,25 @@ package compiler.binding.expression
 
 import compiler.ast.Executable
 import compiler.ast.expression.NullLiteralExpression
+import compiler.ast.type.TypeReference
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
 import compiler.binding.type.ResolvedTypeReference
 import compiler.lexer.SourceLocation
+import kotlin.math.exp
 
 class BoundNullLiteralExpression(
     override val context: CTContext,
     override val declaration: NullLiteralExpression
 ) : BoundExpression<NullLiteralExpression>
 {
-    override val type: ResolvedTypeReference? = null
+    private var expectedType: ResolvedTypeReference? = null
+    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+        expectedType = type
+    }
+
+    override val type: ResolvedTypeReference?
+        get() = expectedType?.withCombinedNullability(TypeReference.Nullability.NULLABLE)
 
     override val isGuaranteedToThrow = null
 

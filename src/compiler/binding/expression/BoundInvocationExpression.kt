@@ -99,6 +99,14 @@ class BoundInvocationExpression(
                 dispatchedFunction = matchingFunction
                 type = matchingFunction.returnType?.contextualize(typeUnification, TypeUnification::right)
                 type?.validate(TypeUseSite.Irrelevant)?.let(reportings::addAll)
+                if (resolvedConstructors != null && expectedReturnType != null) {
+                    // we are calling a constructor. This is the only place in the entire language where one value
+                    // can be legally assigned to both a mutable or an immutable reference, because at this stage
+                    // there cannot be any other reference to that value
+                    // this is solved by adjusting the return type of the constructor invocation according to the
+                    // type needed by the larger context
+                    type = type?.modifiedWith(expectedReturnType!!.mutability)
+                }
             }
 
             if (matchingFunctions.isEmpty()) {
@@ -178,6 +186,13 @@ class BoundInvocationExpression(
         val bySelf: Collection<BoundExecutable<Executable<*>>> = if (thisExpressionIsReadonly) emptySet() else setOf(this)
 
         return byReceiver + byParameters + bySelf
+    }
+
+    private var expectedReturnType: ResolvedTypeReference? = null
+
+    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+        onceAction.requireActionNotDone(OnceAction.SemanticAnalysisPhase2)
+        expectedReturnType = type
     }
 }
 

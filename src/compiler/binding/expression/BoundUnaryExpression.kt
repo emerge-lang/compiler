@@ -77,5 +77,10 @@ class BoundUnaryExpression(
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
         return hiddenInvocation.findWritesBeyond(boundary)
     }
+
+    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+        // nothing to do here: the only way to use this information would be the return type of the operator function
+        // overload resolution based on return type is not a thing in this language
+    }
 }
 

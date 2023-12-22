@@ -31,4 +31,8 @@ class BoundBooleanLiteralExpression(
     override val type: ResolvedTypeReference = BuiltinBoolean.baseReference(context)
 
     override val isGuaranteedToThrow: Boolean = false
+
+    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+        // nothing to do: this expression can only ever have one type
+    }
 }

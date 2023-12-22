@@ -145,7 +145,7 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
         context.addBaseType(BuiltinArray)
 
         "mutability projection" - {
-            for (outerMutability in TypeMutability.values().filter { it != TypeMutability.EXCLUSIVE }) {
+            for (outerMutability in TypeMutability.entries) {
                 val type = context.resolveType(TypeReference(
                     simpleName = "Array",
                     mutability = outerMutability,

@@ -30,11 +30,12 @@ class BoundNotNullExpression(
     val nullableExpression: BoundExpression<*>
 ) : BoundExpression<NotNullExpression>, BoundExecutable<NotNullExpression> {
     // TODO: reporting on superfluous notnull when nullableExpression.type.nullable == false
+    // TODO: obtain type from nullableExpression and remove nullability from the type
 
     override var type: ResolvedTypeReference? = null
         private set
 
-    override val isGuaranteedToThrow = false // this MAY throw, but its not guaranteed to
+    override val isGuaranteedToThrow = false // this MAY throw, but it's not guaranteed to
 
     override fun semanticAnalysisPhase1() = super<BoundExpression>.semanticAnalysisPhase1()
     override fun semanticAnalysisPhase2() = super<BoundExpression>.semanticAnalysisPhase2()
@@ -45,4 +46,9 @@ class BoundNotNullExpression(
     }
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
+
+    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+        // TODO: do we need to change nullability here before passing it on?
+        nullableExpression.setExpectedEvaluationResultType(type)
+    }
 }

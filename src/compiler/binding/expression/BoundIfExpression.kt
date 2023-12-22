@@ -113,4 +113,12 @@ class BoundIfExpression(
         thenCode.setExpectedReturnType(type)
         elseCode?.setExpectedReturnType(type)
     }
+
+    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+        // TODO: do we need to care about widening here?
+        // e.g. consider: val x: Any = if (cond) true else false
+        // do we get into trouble because Any != Boolean?
+        thenCode.setExpectedReturnType(type)
+        elseCode?.setExpectedReturnType(type)
+    }
 }

@@ -88,7 +88,7 @@ class RootResolvedTypeReference private constructor(
             context,
             baseType,
             isNullable,
-            mutability.exceptExclusive,
+            mutability,
             arguments.map { it.defaultMutabilityTo(mutability) },
         )
     }

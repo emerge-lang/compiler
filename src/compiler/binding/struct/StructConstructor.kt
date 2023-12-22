@@ -40,7 +40,7 @@ class StructConstructor(
         TypeReference(
             struct.simpleName,
             TypeReference.Nullability.NOT_NULLABLE,
-            TypeMutability.EXCLUSIVE,
+            TypeMutability.IMMUTABLE,
             struct.declaration.name,
             struct.parameters.map { TypeArgument(it.variance, TypeReference(it.name.value)) },
         ),
