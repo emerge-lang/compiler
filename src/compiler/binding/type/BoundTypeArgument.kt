@@ -96,8 +96,7 @@ class BoundTypeArgument(
                 return type.unify(other, carry)
             }
             is BoundTypeArgument -> {
-                // TODO: get source location?
-                this.evaluateAssignabilityTo(other, SourceLocation.UNKNOWN)?.let {
+                this.evaluateAssignabilityTo(other, sourceLocation ?: other.sourceLocation ?: SourceLocation.UNKNOWN)?.let {
                     throw TypesNotUnifiableException(this, other, it.reason)
                 }
 
