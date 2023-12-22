@@ -120,7 +120,7 @@ class BoundInvocationExpression(
                     // there cannot be any other reference to that value
                     // this is solved by adjusting the return type of the constructor invocation according to the
                     // type needed by the larger context
-                    type = type?.modifiedWith(expectedReturnType!!.mutability)
+                    type = type?.withMutability(expectedReturnType!!.mutability)
                 }
             }
 

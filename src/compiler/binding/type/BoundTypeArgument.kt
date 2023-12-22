@@ -20,6 +20,9 @@ class BoundTypeArgument(
     override val simpleName get() = toString()
     override val sourceLocation get() = astNode?.sourceLocation
 
+    override val inherentTypeBindings: TypeUnification
+        get() = TypeUnification.EMPTY
+
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeArgument = BoundTypeArgument(
         context,
         astNode,
@@ -116,7 +119,7 @@ class BoundTypeArgument(
         return BoundTypeArgument(this.context, astNode, variance, type.contextualize(context, side))
     }
 
-    override fun modifiedWith(modifier: TypeMutability): ResolvedTypeReference {
+    override fun withMutability(modifier: TypeMutability): ResolvedTypeReference {
         if (type.mutability == modifier) {
             return this
         }
@@ -125,7 +128,7 @@ class BoundTypeArgument(
             context,
             astNode,
             variance,
-            type.modifiedWith(modifier),
+            type.withMutability(modifier),
         )
     }
 

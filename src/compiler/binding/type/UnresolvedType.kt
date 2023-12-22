@@ -24,14 +24,15 @@ class UnresolvedType private constructor(
     override val isNullable get() = standInType.isNullable
     override val mutability get() = standInType.mutability
     override val sourceLocation = reference.declaringNameToken?.sourceLocation
+    override val inherentTypeBindings = TypeUnification.EMPTY
 
     override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
         return parameters.flatMap { it.validate(TypeUseSite.Irrelevant) } + setOf(Reporting.unknownType(reference))
     }
 
-    override fun modifiedWith(modifier: TypeMutability): ResolvedTypeReference {
+    override fun withMutability(modifier: TypeMutability): ResolvedTypeReference {
         return UnresolvedType(
-            standInType.modifiedWith(modifier),
+            standInType.withMutability(modifier),
             reference,
             parameters.map { it.defaultMutabilityTo(modifier) },
         )
@@ -93,11 +94,11 @@ class UnresolvedType private constructor(
 
     companion object {
         fun getReplacementType(context: CTContext): ResolvedTypeReference {
-            return Any.baseReference(context).modifiedWith(TypeMutability.READONLY)
+            return Any.baseReference(context).withMutability(TypeMutability.READONLY)
         }
 
         fun getTypeParameterDefaultBound(context: CTContext): ResolvedTypeReference {
-            return Any.baseReference(context).modifiedWith(TypeMutability.READONLY).withCombinedNullability(TypeReference.Nullability.NULLABLE)
+            return Any.baseReference(context).withMutability(TypeMutability.READONLY).withCombinedNullability(TypeReference.Nullability.NULLABLE)
         }
     }
 }

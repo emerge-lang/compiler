@@ -19,14 +19,15 @@ class GenericTypeReference(
     override val isNullable get() = effectiveBound.isNullable
     override val mutability get() = effectiveBound.mutability
     override val sourceLocation get() = original.declaringNameToken?.sourceLocation
+    override val inherentTypeBindings = TypeUnification.EMPTY
     val variance: TypeVariance get() = parameter.variance
 
-    override fun modifiedWith(modifier: TypeMutability): ResolvedTypeReference {
+    override fun withMutability(modifier: TypeMutability): ResolvedTypeReference {
         return GenericTypeReference(
             context,
             original,
             parameter,
-            effectiveBound.modifiedWith(modifier),
+            effectiveBound.withMutability(modifier),
         )
     }
 

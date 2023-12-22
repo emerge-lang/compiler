@@ -32,17 +32,17 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
         val typeB = fakeType("B", typeA)
         val typeC = fakeType("C", typeA)
 
-        val mutableA = typeA.baseReference(context).modifiedWith(TypeMutability.MUTABLE)
-        val readonlyA = mutableA.modifiedWith(TypeMutability.READONLY)
-        val immutableA = readonlyA.modifiedWith(TypeMutability.IMMUTABLE)
+        val mutableA = typeA.baseReference(context).withMutability(TypeMutability.MUTABLE)
+        val readonlyA = mutableA.withMutability(TypeMutability.READONLY)
+        val immutableA = readonlyA.withMutability(TypeMutability.IMMUTABLE)
 
-        val mutableB = typeB.baseReference(context).modifiedWith(TypeMutability.MUTABLE)
-        val readonlyB = mutableB.modifiedWith(TypeMutability.READONLY)
-        val immutableB = readonlyB.modifiedWith(TypeMutability.IMMUTABLE)
+        val mutableB = typeB.baseReference(context).withMutability(TypeMutability.MUTABLE)
+        val readonlyB = mutableB.withMutability(TypeMutability.READONLY)
+        val immutableB = readonlyB.withMutability(TypeMutability.IMMUTABLE)
 
-        val mutableC = typeC.baseReference(context).modifiedWith(TypeMutability.MUTABLE)
-        val readonlyC = mutableC.modifiedWith(TypeMutability.READONLY)
-        val immutableC = readonlyC.modifiedWith(TypeMutability.IMMUTABLE)
+        val mutableC = typeC.baseReference(context).withMutability(TypeMutability.MUTABLE)
+        val readonlyC = mutableC.withMutability(TypeMutability.READONLY)
+        val immutableC = readonlyC.withMutability(TypeMutability.IMMUTABLE)
 
         "the closest common ancestor of" - {
             "mutable B and mutable A is mutable A" {

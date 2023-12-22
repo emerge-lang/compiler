@@ -42,7 +42,7 @@ class RootResolvedTypeReference private constructor(
         parameters,
     )
 
-    override fun modifiedWith(modifier: TypeMutability): RootResolvedTypeReference {
+    override fun withMutability(modifier: TypeMutability): RootResolvedTypeReference {
         // todo: how to handle projected mutability? readonly Array<Foo> == readonly Array<readonly Foo>
         return RootResolvedTypeReference(
             context,
@@ -146,12 +146,6 @@ class RootResolvedTypeReference private constructor(
                     return Reporting.valueNotAssignable(other, this, "cannot assign a $mutability value to a ${other.mutability} reference", assignmentLocation)
                 }
 
-                // void-safety:
-                // other  this  isCompatible
-                // T      T     true
-                // T?     T     true
-                // T      T?    false
-                // T?     T?    true
                 // in methods (further limited / specified on the method level)?
                 if (this.isNullable && !other.isNullable) {
                     return Reporting.valueNotAssignable(other, this, "cannot assign a possibly null value to a non-null reference", assignmentLocation)

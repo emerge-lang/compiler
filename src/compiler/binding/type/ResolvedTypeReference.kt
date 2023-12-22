@@ -36,10 +36,28 @@ sealed interface ResolvedTypeReference {
     val mutability: TypeMutability
     val sourceLocation: SourceLocation?
 
-    fun modifiedWith(modifier: TypeMutability): ResolvedTypeReference
+    /**
+     * @return this type, with the given mutability if it doesn't explicitly have one.
+     */
+    fun defaultMutabilityTo(mutability: TypeMutability?): ResolvedTypeReference
 
+    /**
+     * @return this type with the given [mutability], defaulting ([defaultMutabilityTo])
+     * the mutability of type arguments to the given mutablility.
+     */
+    fun withMutability(modifier: TypeMutability): ResolvedTypeReference
+
+    /**
+     * @return this type but the mutability is the result of [TypeMutability.combinedWith] of the
+     * existing mutability and the given one. Type parameters will be defaulted ([defaultMutabilityTo])
+     * to the resulting mutability.
+     */
     fun withCombinedMutability(mutability: TypeMutability?): ResolvedTypeReference
 
+    /**
+     * @return this type but [isNullable] is according to the nullability given for this invocation. If that is
+     * [TypeReference.Nullability.UNSPECIFIED], the existing value will be reused.
+     */
     fun withCombinedNullability(nullability: TypeReference.Nullability): ResolvedTypeReference
 
     /**
@@ -59,11 +77,6 @@ sealed interface ResolvedTypeReference {
     fun evaluateAssignabilityTo(other: ResolvedTypeReference, assignmentLocation: SourceLocation): ValueNotAssignableReporting?
 
     /**
-     * @return `this` if the [mutability] set explicitly, a copy of `this` with the [mutability] set to [mutability] otherwise.
-     */
-    fun defaultMutabilityTo(mutability: TypeMutability?): ResolvedTypeReference
-
-    /**
      * Finds the "greatest common denominator" of this type and the [other] type.
      * This method is associative:
      * * `a.closestCommonAncestorWith(b) == b.closestCommonAncestorWith(a)`
@@ -72,7 +85,7 @@ sealed interface ResolvedTypeReference {
     fun closestCommonSupertypeWith(other: ResolvedTypeReference): ResolvedTypeReference
 
     /**
-     * If this type has a member vof
+     * @return a possible directly declared member variable of the type. Does not look for extension variables.
      */
     fun findMemberVariable(name: String): ObjectMember? = null
 
@@ -83,10 +96,10 @@ sealed interface ResolvedTypeReference {
      *       prop: T
      *     }
      *
-     *     val myS: S<Int> = ...
+     *     val myS: S<Int> = S(2)
      *     val foo = myS.prop // here, unify is used to derive that `foo` is an `Int` now
      *
-     * This is achieved by the mechanism that is copied from prolog:
+     * This is achieved by the mechanism of unification that is copied from prolog (or logic programming in general):
      *
      * let `this` be `S<T>`
      * let `other` be `S<Int>`
@@ -155,7 +168,6 @@ sealed interface ResolvedTypeReference {
      * `T => Int` in [TypeUnification.left]
      */
     val inherentTypeBindings: TypeUnification
-        get() = TODO()
 }
 
 infix fun ResolvedTypeReference.isAssignableTo(other: ResolvedTypeReference): Boolean {

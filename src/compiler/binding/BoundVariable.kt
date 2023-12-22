@@ -98,7 +98,7 @@ class BoundVariable(
 
             declaration.type
                 ?.let(context::resolveType)
-                ?.modifiedWith(implicitMutability)
+                ?.withMutability(implicitMutability)
                 ?.let { resolvedDeclaredType ->
                     this.resolvedDeclaredType = resolvedDeclaredType
 
@@ -113,7 +113,7 @@ class BoundVariable(
             initializerExpression?.setExpectedEvaluationResultType(
                 this.resolvedDeclaredType ?: Any.baseReference(context)
                     .withCombinedNullability(TypeReference.Nullability.NULLABLE)
-                    .modifiedWith(implicitMutability)
+                    .withMutability(implicitMutability)
             )
 
             if (initializerExpression != null) {
@@ -151,7 +151,7 @@ class BoundVariable(
                 if (declaration.typeMutability == null && declaration.type?.mutability == null) {
                     type?.let { resolvedDeclaredType ->
                         initializerExpression.type?.let { initializerType ->
-                            type = resolvedDeclaredType.modifiedWith(initializerType.mutability)
+                            type = resolvedDeclaredType.withMutability(initializerType.mutability)
                         }
                     }
                 }
@@ -177,13 +177,13 @@ class BoundVariable(
                 if (declaration.typeMutability != null) {
                     if (!initializerType.mutability.isAssignableTo(declaration.typeMutability)) {
                         reportings.add(Reporting.valueNotAssignable(
-                            initializerType.modifiedWith(declaration.typeMutability),
+                            initializerType.withMutability(declaration.typeMutability),
                             initializerType,
                             "Cannot assign a ${initializerType.mutability.name.lowercase()} value to a ${declaration.typeMutability.name.lowercase()} reference",
                             initializerExpression!!.declaration.sourceLocation,
                         ))
                     }
-                    type = initializerType.modifiedWith(declaration.typeMutability)
+                    type = initializerType.withMutability(declaration.typeMutability)
                 } else {
                     type = initializerType.withCombinedMutability(implicitMutability)
                 }
