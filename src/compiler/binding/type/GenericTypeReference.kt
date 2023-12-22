@@ -83,10 +83,6 @@ class GenericTypeReference(
         return other is GenericTypeReference && this.parameter === other.parameter
     }
 
-    override fun assignMatchQuality(other: ResolvedTypeReference): Int? {
-        TODO("Not yet implemented")
-    }
-
     override fun unify(other: ResolvedTypeReference, carry: TypeUnification): TypeUnification {
         return when (other) {
             is RootResolvedTypeReference,

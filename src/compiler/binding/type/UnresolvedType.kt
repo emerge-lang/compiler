@@ -60,10 +60,6 @@ class UnresolvedType private constructor(
         return standInType.evaluateAssignabilityTo(other, assignmentLocation)
     }
 
-    override fun assignMatchQuality(other: ResolvedTypeReference): Int? {
-        return standInType.assignMatchQuality(other)
-    }
-
     override fun unify(other: ResolvedTypeReference, carry: TypeUnification): TypeUnification {
         return when(other) {
             is RootResolvedTypeReference -> standInType.unify(other, carry)

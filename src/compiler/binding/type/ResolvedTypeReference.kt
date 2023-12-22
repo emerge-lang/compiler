@@ -59,13 +59,6 @@ sealed interface ResolvedTypeReference {
     fun evaluateAssignabilityTo(other: ResolvedTypeReference, assignmentLocation: SourceLocation): ValueNotAssignableReporting?
 
     /**
-     * Compares the two types when a value of this type should be referenced by the given type.
-     * @return The hierarchic distance (see [BaseType.hierarchicalDistanceTo]) if the assignment is possible,
-     *         null otherwise.
-     */
-    fun assignMatchQuality(other: ResolvedTypeReference): Int?
-
-    /**
      * @return `this` if the [mutability] set explicitly, a copy of `this` with the [mutability] set to [mutability] otherwise.
      */
     fun defaultMutabilityTo(mutability: TypeMutability?): ResolvedTypeReference

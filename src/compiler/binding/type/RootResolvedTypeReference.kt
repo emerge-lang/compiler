@@ -181,14 +181,6 @@ class RootResolvedTypeReference private constructor(
         return other is RootResolvedTypeReference && this.baseType == other.baseType
     }
 
-    override fun assignMatchQuality(other: ResolvedTypeReference): Int? =
-        when (other) {
-            is RootResolvedTypeReference -> if (this isAssignableTo other) {
-                this.baseType.hierarchicalDistanceTo(other.baseType)
-            } else null
-            else -> null
-        }
-
     override fun closestCommonSupertypeWith(other: ResolvedTypeReference): ResolvedTypeReference {
         return when (other) {
             is UnresolvedType -> other.closestCommonSupertypeWith(this)

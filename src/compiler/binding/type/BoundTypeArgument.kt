@@ -151,10 +151,6 @@ class BoundTypeArgument(
         )
     }
 
-    override fun assignMatchQuality(other: ResolvedTypeReference): Int? {
-        TODO("probably will be integrated into evaluateAssignabilityTo")
-    }
-
     override fun closestCommonSupertypeWith(other: ResolvedTypeReference): ResolvedTypeReference {
         return when (variance) {
             TypeVariance.UNSPECIFIED,

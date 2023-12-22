@@ -51,25 +51,6 @@ class BaseTypeTest : FreeSpec() { init {
         "Then C is a subtype of C" {
             typeA.isSubtypeOf(typeA)
         }
-
-        "Then distance between A and A is 0" {
-            typeA.hierarchicalDistanceTo(typeA) shouldBe 0
-        }
-        "Then distance between B and A is 1" {
-            typeB.hierarchicalDistanceTo(typeA) shouldBe 1
-        }
-        "Then distance between C and A is 2" {
-            typeC.hierarchicalDistanceTo(typeA) shouldBe 2
-        }
-        "Then distance between C and B is 1" {
-            typeC.hierarchicalDistanceTo(typeB) shouldBe 1
-        }
-
-        "Then distance between A and C is undefined" {
-            shouldThrow<IllegalArgumentException> {
-                typeA.hierarchicalDistanceTo(typeB)
-            }
-        }
     }
     
     "Given a class hierarchy Z; A; B : A; C : A, D : B, E : B, F : A, Z; G: A, Z" - {
