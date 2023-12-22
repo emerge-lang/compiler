@@ -94,11 +94,11 @@ class UnresolvedType private constructor(
 
     companion object {
         fun getReplacementType(context: CTContext): ResolvedTypeReference {
-            return Any.baseReference(context).withMutability(TypeMutability.READONLY)
+            return BuiltinAny.baseReference(context).withMutability(TypeMutability.READONLY)
         }
 
         fun getTypeParameterDefaultBound(context: CTContext): ResolvedTypeReference {
-            return Any.baseReference(context).withMutability(TypeMutability.READONLY).withCombinedNullability(TypeReference.Nullability.NULLABLE)
+            return BuiltinAny.baseReference(context).withMutability(TypeMutability.READONLY).withCombinedNullability(TypeReference.Nullability.NULLABLE)
         }
     }
 }

@@ -18,11 +18,10 @@
 
 package compiler.ast.type
 
-import compiler.binding.type.Any
+import compiler.binding.type.BuiltinAny
 import compiler.binding.type.BaseType
 import compiler.binding.type.BuiltinNothing
 import compiler.binding.type.BuiltinType
-import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 
@@ -85,8 +84,8 @@ class BaseTypeTest : FreeSpec() { init {
             }
 
             "F and G is Any" {
-                BaseType.closestCommonSupertypeOf(listOf(typeF, typeG)) shouldBe Any
-                BaseType.closestCommonSupertypeOf(listOf(typeG, typeF)) shouldBe Any
+                BaseType.closestCommonSupertypeOf(listOf(typeF, typeG)) shouldBe BuiltinAny
+                BaseType.closestCommonSupertypeOf(listOf(typeG, typeF)) shouldBe BuiltinAny
             }
         }
     }

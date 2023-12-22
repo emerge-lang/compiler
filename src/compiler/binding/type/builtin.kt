@@ -20,9 +20,7 @@ package compiler.binding.type
 
 import compiler.ast.ASTModule
 import compiler.ast.FunctionDeclaration
-import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
-import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.context.Module
 import compiler.binding.context.ModuleRootContext
@@ -37,33 +35,33 @@ import compiler.parseFromClasspath
  * package.
  */
 
-val Any = object : BuiltinType("Any") {}
+val BuiltinAny = object : BuiltinType("Any") {}
 
 val BuiltinNothing = object : BuiltinType("Nothing") {
     override fun isSubtypeOf(other: BaseType) = true
     override val isAtomic = true
 }
 
-val Unit = object : BuiltinType("Unit", Any) {
+val BuiltinUnit = object : BuiltinType("Unit", BuiltinAny) {
     override val isAtomic = true
 }
 
-val Number = object : BuiltinType("Number", Any) {
+val BuiltinNumber = object : BuiltinType("Number", BuiltinAny) {
     override val isAtomic = true
 }
 
-val Float = object : BuiltinType("Float", Number) {
+val BuiltinFloat = object : BuiltinType("Float", BuiltinNumber) {
     override val isAtomic = true
 }
-val Int = object : BuiltinType("Int", Number) {
-    override val isAtomic = true
-}
-
-val BuiltinBoolean = object : BuiltinType("Boolean", Any) {
+val BuiltinInt = object : BuiltinType("Int", BuiltinNumber) {
     override val isAtomic = true
 }
 
-val BuiltinArray = object : BuiltinType("Array", Any) {
+val BuiltinBoolean = object : BuiltinType("Boolean", BuiltinAny) {
+    override val isAtomic = true
+}
+
+val BuiltinArray = object : BuiltinType("Array", BuiltinAny) {
     override val parameters = listOf(TypeParameter(variance = TypeVariance.UNSPECIFIED, IdentifierToken("Item"), null))
 }
 
@@ -104,11 +102,11 @@ abstract class BuiltinType(final override val simpleName: String, vararg superTy
             val moduleContext = ModuleRootContext()
             val module = Module(DEFAULT_MODULE_NAME, moduleContext)
 
-            module.context.addBaseType(Any)
-            module.context.addBaseType(Unit)
-            module.context.addBaseType(Number)
-            module.context.addBaseType(Float)
-            module.context.addBaseType(Int)
+            module.context.addBaseType(BuiltinAny)
+            module.context.addBaseType(BuiltinUnit)
+            module.context.addBaseType(BuiltinNumber)
+            module.context.addBaseType(BuiltinFloat)
+            module.context.addBaseType(BuiltinInt)
             module.context.addBaseType(BuiltinBoolean)
             module.context.addBaseType(BuiltinArray)
             module.context.addBaseType(BuiltinNothing)

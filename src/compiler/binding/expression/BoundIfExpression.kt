@@ -24,7 +24,7 @@ import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
 import compiler.binding.type.ResolvedTypeReference
 import compiler.binding.type.BuiltinBoolean
-import compiler.binding.type.Unit
+import compiler.binding.type.BuiltinUnit
 import compiler.binding.type.isAssignableTo
 import compiler.nullableAnd
 import compiler.reportings.Reporting
@@ -91,8 +91,8 @@ class BoundIfExpression(
             }
         }
 
-        val thenType = if (thenCode is BoundExpression<*>) thenCode.type else Unit.baseReference(context)
-        val elseType = if (elseCode is BoundExpression<*>) elseCode.type else Unit.baseReference(context)
+        val thenType = if (thenCode is BoundExpression<*>) thenCode.type else BuiltinUnit.baseReference(context)
+        val elseType = if (elseCode is BoundExpression<*>) elseCode.type else BuiltinUnit.baseReference(context)
 
         if (thenType != null && elseType != null) {
             type = thenType.closestCommonSupertypeWith(elseType)

@@ -27,7 +27,7 @@ import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
 import compiler.binding.expression.BoundExpression
-import compiler.binding.type.Any
+import compiler.binding.type.BuiltinAny
 import compiler.binding.type.ResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
@@ -111,7 +111,7 @@ class BoundVariable(
                 }
 
             initializerExpression?.setExpectedEvaluationResultType(
-                this.resolvedDeclaredType ?: Any.baseReference(context)
+                this.resolvedDeclaredType ?: BuiltinAny.baseReference(context)
                     .withCombinedNullability(TypeReference.Nullability.NULLABLE)
                     .withMutability(implicitMutability)
             )

@@ -19,10 +19,7 @@
 package compiler.binding.type
 
 import compiler.ast.FunctionDeclaration
-import compiler.ast.type.TypeArgument
-import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
-import compiler.ast.type.TypeReference
 import compiler.binding.BoundFunction
 import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
@@ -118,10 +115,10 @@ interface BaseType {
                 var type = _type
                 var swapped = false
                 while (!(type isSubtypeOf pivot)) {
-                    if (pivot.superTypes.isEmpty()) return Any
+                    if (pivot.superTypes.isEmpty()) return BuiltinAny
                     if (pivot.superTypes.size > 1) {
                         if (swapped) {
-                            return Any
+                            return BuiltinAny
                         }
                         val temp = pivot
                         pivot = type

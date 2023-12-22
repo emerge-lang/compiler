@@ -41,7 +41,7 @@ class BoundTypeArgument(
         val selfEffectiveType = when (variance) {
             TypeVariance.UNSPECIFIED,
             TypeVariance.OUT -> type
-            TypeVariance.IN -> Any.baseReference(this.context)
+            TypeVariance.IN -> BuiltinAny.baseReference(this.context)
         }
 
         when (target) {
@@ -158,7 +158,7 @@ class BoundTypeArgument(
         return when (variance) {
             TypeVariance.UNSPECIFIED,
             TypeVariance.OUT -> type.closestCommonSupertypeWith(other)
-            TypeVariance.IN -> Any.baseReference(context).closestCommonSupertypeWith(other)
+            TypeVariance.IN -> BuiltinAny.baseReference(context).closestCommonSupertypeWith(other)
         }
     }
 

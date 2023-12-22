@@ -19,7 +19,7 @@
 package compiler.ast.type
 
 import compiler.binding.context.ModuleRootContext
-import compiler.binding.type.Any
+import compiler.binding.type.BuiltinAny
 import compiler.binding.type.BuiltinArray
 import compiler.binding.type.RootResolvedTypeReference
 import io.kotest.core.spec.style.FreeSpec
@@ -141,7 +141,7 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
 
     "generics" - {
         val context = ModuleRootContext()
-        context.addBaseType(Any)
+        context.addBaseType(BuiltinAny)
         context.addBaseType(BuiltinArray)
 
         "mutability projection" - {

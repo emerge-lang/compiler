@@ -26,7 +26,7 @@ import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
-import compiler.binding.type.Any
+import compiler.binding.type.BuiltinAny
 import compiler.binding.type.BaseType
 import compiler.binding.type.TypeUseSite
 import compiler.reportings.Reporting
@@ -41,7 +41,7 @@ class Struct(
     override val simpleName: String = declaration.name.value
     override val parameters = structContext.typeParameters
 
-    override val superTypes: Set<BaseType> = setOf(Any)
+    override val superTypes: Set<BaseType> = setOf(BuiltinAny)
 
     // this can only be initialized in semanticAnalysisPhase1 because the types referenced in the members
     // can be declared later than the struct

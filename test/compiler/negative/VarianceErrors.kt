@@ -5,8 +5,8 @@ import compiler.binding.context.ModuleRootContext
 import compiler.binding.type.*
 import compiler.lexer.SourceLocation
 import io.kotest.core.spec.style.FreeSpec
-import compiler.binding.type.Number as BuiltinNumberType
-import compiler.binding.type.Int as BuiltinIntType
+import compiler.binding.type.BuiltinNumber as BuiltinNumberType
+import compiler.binding.type.BuiltinInt as BuiltinIntType
 import io.kotest.matchers.Matcher
 import io.kotest.matchers.MatcherResult
 import io.kotest.matchers.should
