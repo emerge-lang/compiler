@@ -223,34 +223,24 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(recei
 
             Pair(candidateFn, unification)
         }
-        // TODO: at this point, if there are candidates from more than one source of overloads, we have to produce an error to prevent hijacking
+        /*
+        The following idea seems good after some thought:
+        * A set of BaseTypes are "disjoint" if none of them is Any and their closestCommonSupertype is Any
+          This means that two overloads of the same function that use disjoint types for the same parameter
+          it is possible to disambiguate/choose the overload using that parameter only.
+          This makes it impossible to overload a function for a more specific type. That is intentional, as it
+          also removes the confusing behavior of runtime vs compile time overload resolution. Runtime overload
+          resolution/multiple dispatch by-the-language (see groovy) seems unattractive. Its also easily implemented
+          using a when { is } construct where needed. explicit is better than magic.
+        * To be validated on the overloading declaration: for any set of overloads there must be at least one parameter
+          whose types across all overloads are disjoint. That way, this parameter can disambiguate any call to that function
+          instantly.
+          This is aided by the fact that function parameter types must always be stated explicitly, so they are fully
+          resolved after semanticAnalysisPhase1. That allows us to do overload resolution in phase 2 and thus infer types
+          from overloaded invocations.
+         */
         .sortedBy {
-            /*
-            overload resolution must prioritize exact matches
-
-            javas and kotlins overload resolutions are CONFUSING, e.g. given
-            fun main() {
-                a(2, 3)
-            }
-
-            you get an error on:
-            a(Int, Any)
-            a(Any, Int)
-
-            and it passes on
-            a(Int, Int).
-            a(Any, Int).
-
-            as one would expect because one overload is clearly more concrete. However, this is not okay??
-
-            a(Int, Number)
-            a(Any, Int)
-
-            in this language, overload resolution should be much simpler and tend to produce ambiguity errors
-            where java + kotlin would intransparently pick an overload
-
-            */
-            TODO("implement overload resolution")
+            TODO("overload resolution is not yet implemented. For now you can only have one function per name, sorry.")
         }
         .toList()
 }
