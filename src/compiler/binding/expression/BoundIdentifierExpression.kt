@@ -70,7 +70,13 @@ class BoundIdentifierExpression(
         return reportings
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
+    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        if (type == null) {
+            (referral as? ReferringVariable)?.variable?.semanticAnalysisPhase2()
+        }
+
+        return emptySet()
+    }
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
         return referral?.findReadsBeyond(boundary) ?: emptySet()

@@ -10,11 +10,12 @@ import java.time.Clock
 import java.time.Duration
 
 val testCode = """module testcode
-struct X {
-    a: Int
+struct X<T> {
+    a: T
+    b: T
 }
 
-val foo = X(2)
+val foo: X<Any> = X(2, false)
 
 """
 

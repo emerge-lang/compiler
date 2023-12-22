@@ -4,10 +4,19 @@ import compiler.reportings.TypeDeductionErrorReporting
 import io.kotest.core.spec.style.FreeSpec
 
 class TypeInferenceErrors : FreeSpec({
-    "cyclic inference in variables" {
+    "cyclic inference in variables (2)" {
         validateModule("""
             val x = y
             val y = x
+        """.trimIndent())
+            .shouldReport<TypeDeductionErrorReporting>()
+    }
+
+    "cyclic inference in variables (3)" {
+        validateModule("""
+            val x = y
+            val y = z
+            val z = x
         """.trimIndent())
             .shouldReport<TypeDeductionErrorReporting>()
     }

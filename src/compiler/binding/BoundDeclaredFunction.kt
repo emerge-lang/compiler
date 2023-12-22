@@ -141,6 +141,8 @@ class BoundDeclaredFunction(
                     this.code?.semanticAnalysisPhase2()?.let(reportings::addAll)
                 }
             } catch (ex: EarlyStackOverflowException) {
+                throw CyclicTypeInferenceException()
+            } catch (ex: CyclicTypeInferenceException) {
                 reportings.add(
                     Reporting.typeDeductionError(
                         "Cannot infer the return type of function $name because the type inference is cyclic here. Specify the type of one element explicitly.",

@@ -18,15 +18,18 @@
 
 package compiler.binding.expression
 
+import compiler.EarlyStackOverflowException
 import compiler.OnceAction
 import compiler.ast.Executable
 import compiler.ast.expression.InvocationExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
+import compiler.binding.CyclicTypeInferenceException
 import compiler.binding.context.CTContext
 import compiler.binding.type.*
 import compiler.lexer.IdentifierToken
 import compiler.reportings.Reporting
+import compiler.throwOnCycle
 
 class BoundInvocationExpression(
     override val context: CTContext,
@@ -97,6 +100,18 @@ class BoundInvocationExpression(
 
             matchingFunctions.firstOrNull()?.let { (matchingFunction, typeUnification) ->
                 dispatchedFunction = matchingFunction
+                try {
+                    throwOnCycle(this) {
+                        matchingFunction.semanticAnalysisPhase2()
+                    }
+                } catch (ex: EarlyStackOverflowException) {
+                    throw CyclicTypeInferenceException()
+                } catch (ex: CyclicTypeInferenceException) {
+                    reportings.add(Reporting.typeDeductionError(
+                        "Cannot infer return type of the call to function ${matchingFunction.name} because the inference is cyclic here. Specify the return type explicitly.",
+                        declaration.sourceLocation,
+                    ))
+                }
                 type = matchingFunction.returnType?.contextualize(typeUnification, TypeUnification::right)
                 type?.validate(TypeUseSite.Irrelevant)?.let(reportings::addAll)
                 if (resolvedConstructors != null && expectedReturnType != null) {

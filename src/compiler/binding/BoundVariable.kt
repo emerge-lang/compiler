@@ -42,7 +42,7 @@ class BoundVariable(
     override val context: CTContext,
     override val declaration: VariableDeclaration,
     val initializerExpression: BoundExpression<*>?,
-    val kind: BoundVariable.Kind,
+    val kind: Kind,
 ) : BoundExecutable<VariableDeclaration>
 {
     val isAssignable: Boolean = declaration.isAssignable
@@ -134,6 +134,8 @@ class BoundVariable(
                         reportings.addAll(initializerExpression.semanticAnalysisPhase2())
                     }
                 } catch (ex: EarlyStackOverflowException) {
+                    throw CyclicTypeInferenceException()
+                } catch (ex: CyclicTypeInferenceException) {
                     reportings.add(
                         Reporting.typeDeductionError(
                             "Cannot infer the type of variable $name because the type inference is cyclic here. Specify the type of one element explicitly.",
@@ -167,8 +169,6 @@ class BoundVariable(
                     // if the initializer type cannot be resolved the reporting is already done and
                     // should have returned it; so: we don't care :)
                 }
-
-                // TODO: discrepancy between implied modifiers of initializerExpression and type modifiers of this declaration
             }
 
             // infer the type
