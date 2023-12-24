@@ -11,14 +11,14 @@ import compiler.reportings.ValueNotAssignableReporting
 
 class BoundTypeArgument(
     override val context: CTContext,
-    val astNode: TypeArgument?,
+    val astNode: TypeArgument,
     val variance: TypeVariance,
     val type: ResolvedTypeReference,
 ) : ResolvedTypeReference {
     override val isNullable get() = type.isNullable
     override val mutability get() = type.mutability
     override val simpleName get() = toString()
-    override val sourceLocation get() = astNode?.sourceLocation
+    override val sourceLocation get() = astNode.sourceLocation
 
     override val inherentTypeBindings: TypeUnification
         get() = TypeUnification.EMPTY
@@ -114,7 +114,7 @@ class BoundTypeArgument(
     /**
      * @see ResolvedTypeReference.contextualize
      */
-    override fun contextualize(context: TypeUnification, side: (TypeUnification) -> Map<String, BoundTypeArgument>): BoundTypeArgument {
+    override fun contextualize(context: TypeUnification, side: (TypeUnification) -> Map<String, ResolvedTypeReference>): BoundTypeArgument {
         return BoundTypeArgument(this.context, astNode, variance, type.contextualize(context, side))
     }
 

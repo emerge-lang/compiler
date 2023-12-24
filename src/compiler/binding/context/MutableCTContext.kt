@@ -142,7 +142,7 @@ open class MutableCTContext(
                 .map { it.resolveVariable(name, fromOwnModuleOnly = true) }
                 .filterNotNull()
 
-            // TODO: if importedVars.size is > 1 the name is ambigous; how to handle that?
+            // TODO: if importedVars.size is > 1 the name is ambiguous; how to handle that?
             importedVars.firstOrNull()
         }
 

@@ -153,7 +153,7 @@ sealed interface ResolvedTypeReference {
      *
      * @param context the type of the parent context, e.g. `Array<Int>`
      */
-    fun contextualize(context: TypeUnification, side: (TypeUnification) -> Map<String, BoundTypeArgument> = TypeUnification::left) = this
+    fun contextualize(context: TypeUnification, side: (TypeUnification) -> Map<String, ResolvedTypeReference> = TypeUnification::left) = this
 
     /**
      * @return whether both types refer to the same base type or generic type parameter

@@ -42,7 +42,7 @@ class StructConstructor(
             TypeReference.Nullability.NOT_NULLABLE,
             TypeMutability.IMMUTABLE,
             struct.declaration.name,
-            struct.parameters.map { TypeArgument(it.variance, TypeReference(it.name.value)) },
+            struct.parameters.map { TypeArgument(it.variance, TypeReference(it.name)) },
         ),
     )
     override val isGuaranteedToThrow = false

@@ -86,7 +86,7 @@ class GenericTypeReference(
     override fun unify(other: ResolvedTypeReference, carry: TypeUnification): TypeUnification {
         return when (other) {
             is RootResolvedTypeReference,
-            is UnresolvedType -> carry.plusLeft(simpleName, BoundTypeArgument(context, null, TypeVariance.UNSPECIFIED, other))
+            is UnresolvedType -> carry.plusLeft(simpleName, other)
             is BoundTypeArgument -> carry.plusLeft(simpleName, other)
             is GenericTypeReference -> TODO("namespace conflict :(")
         }
@@ -122,7 +122,7 @@ class GenericTypeReference(
 
     override fun contextualize(
         context: TypeUnification,
-        side: (TypeUnification) -> Map<String, BoundTypeArgument>,
+        side: (TypeUnification) -> Map<String, ResolvedTypeReference>,
     ): ResolvedTypeReference {
         val resolvedSelf = side(context)[this.simpleName] ?: return GenericTypeReference(
             this.context,

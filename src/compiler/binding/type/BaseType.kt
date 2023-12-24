@@ -19,7 +19,9 @@
 package compiler.binding.type
 
 import compiler.ast.FunctionDeclaration
+import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeParameter
+import compiler.ast.type.TypeReference
 import compiler.binding.BoundFunction
 import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
@@ -42,7 +44,10 @@ interface BaseType {
             RootResolvedTypeReference(ctx, this, false, null, parameters.map {
                 BoundTypeArgument(
                     ctx,
-                    null,
+                    TypeArgument(
+                        it.variance,
+                        TypeReference("_"),
+                    ),
                     it.variance,
                     it.bound?.let(ctx::resolveType) ?: UnresolvedType.getTypeParameterDefaultBound(ctx)
                 )

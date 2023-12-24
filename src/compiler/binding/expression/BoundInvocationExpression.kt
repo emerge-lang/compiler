@@ -255,7 +255,9 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(recei
         }
         /*
         The following idea seems good after some thought:
-        * A set of BaseTypes are "disjoint" if none of them is Any and their closestCommonSupertype is Any
+        * A set of BaseTypes are "disjoint" if there is no value other than Nothing that can be assigned to
+          both types. Put differently: if none of them is Any and their closestCommonSupertype is Any.
+
           This means that two overloads of the same function that use disjoint types for the same parameter
           it is possible to disambiguate/choose the overload using that parameter only.
           This makes it impossible to overload a function for a more specific type. That is intentional, as it

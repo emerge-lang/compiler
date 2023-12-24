@@ -212,7 +212,7 @@ class RootResolvedTypeReference private constructor(
             is UnresolvedType -> return unify(other.standInType, carry)
             is GenericTypeReference -> {
                 // TODO: handle modifier complications?
-                return carry.plusRight(other.simpleName, BoundTypeArgument(this.context, null, TypeVariance.UNSPECIFIED, this))
+                return carry.plusRight(other.simpleName, this)
             }
             is BoundTypeArgument -> {
                 if (other.variance != TypeVariance.UNSPECIFIED) {
@@ -224,7 +224,7 @@ class RootResolvedTypeReference private constructor(
         }
     }
 
-    override fun contextualize(context: TypeUnification, side: (TypeUnification) -> Map<String, BoundTypeArgument>): ResolvedTypeReference {
+    override fun contextualize(context: TypeUnification, side: (TypeUnification) -> Map<String, ResolvedTypeReference>): ResolvedTypeReference {
         return RootResolvedTypeReference(
             original,
             this.context,

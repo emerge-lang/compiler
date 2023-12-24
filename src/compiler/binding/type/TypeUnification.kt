@@ -1,32 +1,37 @@
 package compiler.binding.type
 
-import compiler.ast.type.TypeVariance
 import java.util.IdentityHashMap
 
 class TypeUnification private constructor (
-    private val _left: IdentityHashMap<String, BoundTypeArgument>,
-    private val _right: IdentityHashMap<String, BoundTypeArgument>,
+    private val _left: IdentityHashMap<String, ResolvedTypeReference>,
+    private val _right: IdentityHashMap<String, ResolvedTypeReference>,
 ) {
-    val left: Map<String, BoundTypeArgument> = _left
-    val right: Map<String, BoundTypeArgument> = _right
+    val left: Map<String, ResolvedTypeReference> = _left
+    val right: Map<String, ResolvedTypeReference> = _right
 
-    fun plusLeft(param: String, type: BoundTypeArgument): TypeUnification {
+    fun plusLeft(
+        param: String,
+        binding: ResolvedTypeReference,
+    ): TypeUnification {
         @Suppress("UNCHECKED_CAST")
         val clone = TypeUnification(
-            _left.clone() as IdentityHashMap<String, BoundTypeArgument>,
+            _left.clone() as IdentityHashMap<String, ResolvedTypeReference>,
             _right, // doesn't get modified here
         )
-        bindInPlace(clone._left, param, type)
+        bindInPlace(clone._left, param, binding)
         return clone
     }
 
-    fun plusRight(param: String, type: BoundTypeArgument): TypeUnification {
+    fun plusRight(
+        param: String,
+        binding: ResolvedTypeReference,
+    ): TypeUnification {
         @Suppress("UNCHECKED_CAST")
         val clone = TypeUnification(
             _left, // doesn't get modified here
-            _right.clone() as IdentityHashMap<String, BoundTypeArgument>,
+            _right.clone() as IdentityHashMap<String, ResolvedTypeReference>,
         )
-        bindInPlace(clone._right, param, type)
+        bindInPlace(clone._right, param, binding)
         return clone
     }
 
@@ -35,7 +40,7 @@ class TypeUnification private constructor (
             return "EMPTY"
         }
 
-        fun sideToString(side: Map<String, BoundTypeArgument>) = side.entries.joinToString(
+        fun sideToString(side: Map<String, ResolvedTypeReference>) = side.entries.joinToString(
             prefix = "[",
             transform = { (name, value) -> "$name = $value" },
             separator = ", ",
@@ -57,13 +62,17 @@ class TypeUnification private constructor (
             )
         }
 
-        private fun bindInPlace(map: IdentityHashMap<String, BoundTypeArgument>, param: String, type: BoundTypeArgument) {
+        private fun bindInPlace(
+            map: IdentityHashMap<String, ResolvedTypeReference>,
+            param: String,
+            binding: ResolvedTypeReference,
+        ) {
             map.compute(param) { _, previousBinding ->
-                previousBinding?.closestCommonSupertypeWith(type)
-                    ?.let {
-                        if (it is BoundTypeArgument) it else BoundTypeArgument(it.context, null, TypeVariance.UNSPECIFIED, it)
-                    }
-                    ?: type
+                when {
+                    previousBinding is BoundTypeArgument -> previousBinding
+                    binding is BoundTypeArgument -> binding
+                    else -> previousBinding?.closestCommonSupertypeWith(binding) ?: binding
+                }
             }
         }
     }

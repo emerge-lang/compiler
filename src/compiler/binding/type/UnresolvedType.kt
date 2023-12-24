@@ -2,7 +2,6 @@ package compiler.binding.type
 
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
@@ -65,7 +64,7 @@ class UnresolvedType private constructor(
         return when(other) {
             is RootResolvedTypeReference -> standInType.unify(other, carry)
             is UnresolvedType -> standInType.unify(other.standInType, carry)
-            is GenericTypeReference -> carry.plusRight(other.simpleName, BoundTypeArgument(other.context, null, TypeVariance.UNSPECIFIED, other))
+            is GenericTypeReference -> TODO("this should only really happen when a value argument is matched against a type parameter??")
             is BoundTypeArgument -> standInType.unify(other, carry)
         }
     }

@@ -11,6 +11,7 @@ import io.kotest.matchers.Matcher
 import io.kotest.matchers.MatcherResult
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldNot
+import io.mockk.mockk
 
 
 class VarianceErrors : FreeSpec({
@@ -18,9 +19,9 @@ class VarianceErrors : FreeSpec({
     val Child = BuiltinIntType
     val context = ModuleRootContext()
 
-    fun varIn(t: BaseType) = BoundTypeArgument(context, null, IN, t.baseReference(context))
-    fun varOut(t: BaseType) = BoundTypeArgument(context, null, OUT, t.baseReference(context))
-    fun varExact(t: BaseType) = BoundTypeArgument(context, null, UNSPECIFIED, t.baseReference(context))
+    fun varIn(t: BaseType) = BoundTypeArgument(context, mockk(), IN, t.baseReference(context))
+    fun varOut(t: BaseType) = BoundTypeArgument(context, mockk(), OUT, t.baseReference(context))
+    fun varExact(t: BaseType) = BoundTypeArgument(context, mockk(), UNSPECIFIED, t.baseReference(context))
 
     fun arrayOf(element: BoundTypeArgument): ResolvedTypeReference = RootResolvedTypeReference(
         context,

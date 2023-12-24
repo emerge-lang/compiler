@@ -1,5 +1,8 @@
 package compiler.compiler.negative
 
+import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeReference
+import compiler.binding.type.BuiltinInt
 import compiler.negative.shouldReport
 import compiler.negative.validateModule
 import compiler.reportings.TypeArgumentCountMismatchReporting
@@ -11,6 +14,7 @@ import compiler.reportings.ValueNotAssignableReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
+import io.mockk.mockk
 
 class TypeErrors : FreeSpec({
     "generics" - {
@@ -103,6 +107,34 @@ class TypeErrors : FreeSpec({
             """.trimIndent())
                 .shouldReport<TypeArgumentVarianceSuperfluousReporting>()
         }
+
+        "reference to generic type with incompatible type argument mutability" - {
+            "declaration-site" {
+                validateModule("""
+                    struct A<T : mutable Any> {
+                        prop: T
+                    }
+                    fun foo(p: A<immutable Int>) {}
+                """.trimIndent())
+                    .shouldReport<TypeArgumentOutOfBoundsReporting> {
+                        it.argument.astNode.type shouldBe TypeReference("Int", TypeReference.Nullability.UNSPECIFIED, TypeMutability.IMMUTABLE)
+                    }
+            }
+
+            "use-site" {
+                validateModule("""
+                    struct A<T : mutable Any> {
+                        prop: T
+                    }
+                    val x = A(2)
+                """.trimIndent())
+                    .shouldReport<ValueNotAssignableReporting> {
+                        it.sourceType.hasSameBaseTypeAs(BuiltinInt.baseReference(mockk())) shouldBe true
+                    }
+            }
+        }
+
+
 
         "generic inference involving multiple values of different types" {
             validateModule("""
