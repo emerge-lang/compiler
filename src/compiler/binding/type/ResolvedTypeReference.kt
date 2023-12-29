@@ -21,6 +21,7 @@ package compiler.binding.type
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.ObjectMember
+import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
@@ -45,7 +46,7 @@ sealed interface ResolvedTypeReference {
      * @return this type with the given [mutability], defaulting ([defaultMutabilityTo])
      * the mutability of type arguments to the given mutablility.
      */
-    fun withMutability(modifier: TypeMutability): ResolvedTypeReference
+    fun withMutability(modifier: TypeMutability?): ResolvedTypeReference
 
     /**
      * @return this type but the mutability is the result of [TypeMutability.combinedWith] of the
@@ -61,7 +62,7 @@ sealed interface ResolvedTypeReference {
     fun withCombinedNullability(nullability: TypeReference.Nullability): ResolvedTypeReference
 
     /**
-     * Validates the type reference.
+     * Validates the type reference. Must be invoked after [SemanticallyAnalyzable.semanticAnalysisPhase1].
      *
      * @return Any reportings on the validated code
      */

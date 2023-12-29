@@ -32,7 +32,7 @@ class TypeErrors : FreeSpec({
                 .shouldReport<ValueNotAssignableReporting>()
         }
 
-        "assignment to generic variable" {
+        "assignment of generically typed value to directly typed variable" {
             validateModule("""
                 fun foo<T>(p: T) {
                     val x: Any? = p
@@ -128,8 +128,8 @@ class TypeErrors : FreeSpec({
                     }
                     val x = A(2)
                 """.trimIndent())
-                    .shouldReport<ValueNotAssignableReporting> {
-                        it.sourceType.hasSameBaseTypeAs(BuiltinInt.baseReference(mockk())) shouldBe true
+                    .shouldReport<TypeArgumentOutOfBoundsReporting> {
+                        it.argument.astNode.type shouldBe TypeReference("Int", TypeReference.Nullability.UNSPECIFIED, TypeMutability.IMMUTABLE)
                     }
             }
         }

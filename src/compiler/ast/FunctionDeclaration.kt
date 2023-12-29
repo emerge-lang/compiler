@@ -44,7 +44,8 @@ class FunctionDeclaration(
     val returnType: TypeReference? = parsedReturnType
 
     override fun bindTo(context: CTContext): BoundDeclaredFunction {
-        val functionContext = MutableCTContext(context, typeParameters)
+        val functionContext = MutableCTContext(context)
+        val boundTypeParams = typeParameters.map(functionContext::addTypeParameter)
 
         val boundParams = parameters.parameters.map {
             val bound = it.bindToAsParameter(functionContext)
@@ -56,6 +57,7 @@ class FunctionDeclaration(
         return BoundDeclaredFunction(
             functionContext,
             this,
+            boundTypeParams,
             boundParamList,
             code?.bindTo(functionContext)
         )

@@ -21,6 +21,7 @@ package compiler.binding.struct
 import compiler.ast.Executable
 import compiler.ast.FunctionDeclaration
 import compiler.ast.struct.StructDeclaration
+import compiler.ast.type.TypeParameter
 import compiler.binding.BoundElement
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
@@ -28,6 +29,8 @@ import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
 import compiler.binding.type.BuiltinAny
 import compiler.binding.type.BaseType
+import compiler.binding.type.BoundTypeParameter
+import compiler.binding.type.ResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.reportings.Reporting
 import kotlinext.duplicatesBy
@@ -39,8 +42,7 @@ class Struct(
 ) : BaseType, BoundElement<StructDeclaration> {
     override val context: CTContext = structContext
     override val simpleName: String = declaration.name.value
-    override val parameters = structContext.typeParameters
-
+    override val typeParameters: List<BoundTypeParameter> = structContext.typeParameters
     override val superTypes: Set<BaseType> = setOf(BuiltinAny)
 
     // this can only be initialized in semanticAnalysisPhase1 because the types referenced in the members
@@ -52,6 +54,8 @@ class Struct(
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
+
+        typeParameters.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
 
         members.forEach {
             reportings.addAll(it.semanticAnalysisPhase1())
@@ -69,23 +73,31 @@ class Struct(
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = members.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
-        parameters.forEach { it.bound?.let(context::resolveType)?.validate(TypeUseSite.Irrelevant)?.let(reportings::addAll) }
         constructors.map(BoundFunction::semanticAnalysisPhase2).forEach(reportings::addAll)
+        typeParameters.map(BoundTypeParameter::semanticAnalysisPhase2).forEach(reportings::addAll)
         return reportings
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         val reportings = members.flatMap { it.semanticAnalysisPhase3() }.toMutableList()
         constructors.map(BoundFunction::semanticAnalysisPhase3).forEach(reportings::addAll)
+        typeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
         return reportings
     }
 
+    /*
+        TODO: why are these two methods needed on a BaseType?
+        Structs don't read/write, their member functions do. The member functions purity is validated
+        against the struct boundary, not any other. These two methods shouldn't be returning anythin
+        other than empty(), should they? Instead, the semanticAnalysisPhase3() needs to verify the
+        purity of all member functions against the struct boundary.
+         */
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
-        return members.flatMap { it.findReadsBeyond(context) }
+        return members.flatMap { it.findReadsBeyond(boundary) }
     }
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
-        return members.flatMap { it.findWritesBeyond(context) }
+        return members.flatMap { it.findWritesBeyond(boundary) }
     }
 
     override fun resolveMemberVariable(name: String): ObjectMember? = members.find { it.name == name }

@@ -42,7 +42,7 @@ class RootResolvedTypeReference private constructor(
         parameters,
     )
 
-    override fun withMutability(modifier: TypeMutability): RootResolvedTypeReference {
+    override fun withMutability(modifier: TypeMutability?): RootResolvedTypeReference {
         // todo: how to handle projected mutability? readonly Array<Foo> == readonly Array<readonly Foo>
         return RootResolvedTypeReference(
             context,
@@ -97,8 +97,8 @@ class RootResolvedTypeReference private constructor(
         val reportings = mutableSetOf<Reporting>()
 
         arguments.forEach { reportings.addAll(it.validate(TypeUseSite.Irrelevant)) }
-        if (arguments.size == baseType.parameters.size) {
-            arguments.zip(baseType.parameters).forEach { (argument, parameter) ->
+        if (arguments.size == baseType.typeParameters.size) {
+            arguments.zip(baseType.typeParameters).forEach { (argument, parameter) ->
                 if (argument.variance != TypeVariance.UNSPECIFIED && parameter.variance != TypeVariance.UNSPECIFIED) {
                     if (argument.variance != parameter.variance) {
                         reportings.add(Reporting.typeArgumentVarianceMismatch(parameter, argument))
@@ -108,14 +108,13 @@ class RootResolvedTypeReference private constructor(
                 }
 
                 val variance = argument.variance.takeUnless { it == TypeVariance.UNSPECIFIED } ?: parameter.variance
-                val resolvedBound = parameter.bound?.let(context::resolveType) ?: UnresolvedType.getTypeParameterDefaultBound(context)
                 val boundError = when(variance) {
                     TypeVariance.UNSPECIFIED,
-                    TypeVariance.OUT -> argument.evaluateAssignabilityTo(resolvedBound, argument.sourceLocation ?: SourceLocation.UNKNOWN)?.let {
+                    TypeVariance.OUT -> argument.evaluateAssignabilityTo(parameter.bound, argument.sourceLocation ?: SourceLocation.UNKNOWN)?.let {
                         Reporting.typeArgumentOutOfBounds(parameter, argument, it.reason)
                     }
-                    TypeVariance.IN -> resolvedBound.evaluateAssignabilityTo(argument, argument.sourceLocation ?: SourceLocation.UNKNOWN)?.let {
-                        Reporting.typeArgumentOutOfBounds(parameter, argument, "${argument.type} is not a supertype of $resolvedBound")
+                    TypeVariance.IN -> parameter.bound.evaluateAssignabilityTo(argument, argument.sourceLocation ?: SourceLocation.UNKNOWN)?.let {
+                        Reporting.typeArgumentOutOfBounds(parameter, argument, "${argument.type} is not a supertype of ${parameter.bound}")
                     }
                 }
                 boundError?.let(reportings::add)
@@ -180,7 +179,7 @@ class RootResolvedTypeReference private constructor(
             is UnresolvedType -> other.closestCommonSupertypeWith(this)
             is RootResolvedTypeReference -> {
                 val commonSupertype = BaseType.closestCommonSupertypeOf(this.baseType, other.baseType)
-                check(commonSupertype.parameters.isEmpty()) { "Generic supertypes are not implemented, yet." }
+                check(commonSupertype.typeParameters.isEmpty()) { "Generic supertypes are not implemented, yet." }
                 RootResolvedTypeReference(
                     context,
                     commonSupertype,

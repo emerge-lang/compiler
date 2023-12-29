@@ -3,10 +3,10 @@ package compiler.binding
 import compiler.*
 import compiler.ast.FunctionDeclaration
 import compiler.ast.type.FunctionModifier
-import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
+import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.ResolvedTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
@@ -21,12 +21,12 @@ import compiler.reportings.Reporting
 class BoundDeclaredFunction(
     override val context: CTContext,
     val declaration: FunctionDeclaration,
+    override val typeParameters: List<BoundTypeParameter>,
     override val parameters: BoundParameterList,
     val code: BoundExecutable<*>?
 ) : BoundFunction() {
     override val declaredAt = declaration.declaredAt
     override val name: String = declaration.name.value
-    override val typeParameters: List<TypeParameter> = declaration.typeParameters
 
     override val receiverType: ResolvedTypeReference?
         get() = parameters.declaredReceiver?.type
@@ -114,15 +114,11 @@ class BoundDeclaredFunction(
                 )
             }
 
-            // parameters
+            typeParameters.map(BoundTypeParameter::semanticAnalysisPhase1).forEach(reportings::addAll)
             reportings.addAll(parameters.semanticAnalysisPhase1(false))
 
             if (declaration.returnType != null) {
                 returnType = context.resolveType(declaration.returnType)
-                val returnTypeUseSite = TypeUseSite.OutUsage(
-                    declaration.returnType.declaringNameToken?.sourceLocation
-                )
-                reportings.addAll(returnType!!.validate(returnTypeUseSite))
             }
 
             this.code?.semanticAnalysisPhase1()?.let(reportings::addAll)
@@ -165,10 +161,14 @@ class BoundDeclaredFunction(
                 it?.validate(TypeUseSite.InUsage(it.sourceLocation))?.let(reportings::addAll)
             }
             returnType?.let {
-                it.validate(TypeUseSite.OutUsage(it.sourceLocation)).let(reportings::addAll)
+                val returnTypeUseSite = TypeUseSite.OutUsage(
+                    declaration.returnType?.declaringNameToken?.sourceLocation
+                        ?: this.declaredAt
+                )
+                reportings.addAll(it.validate(returnTypeUseSite))
             }
             typeParameters.forEach {
-                it.bound?.let(context::resolveType)?.validate(TypeUseSite.Irrelevant)?.let(reportings::addAll)
+                reportings.addAll(it.semanticAnalysisPhase2())
                 if (it.variance != TypeVariance.UNSPECIFIED) {
                     reportings.add(Reporting.varianceOnFunctionTypeParameter(it))
                 }
@@ -182,6 +182,8 @@ class BoundDeclaredFunction(
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
             val reportings = mutableSetOf<Reporting>()
+
+            typeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
 
             if (code != null) {
                 if (returnType != null) {

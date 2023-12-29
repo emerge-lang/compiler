@@ -62,7 +62,12 @@ val BuiltinBoolean = object : BuiltinType("Boolean", BuiltinAny) {
 }
 
 val BuiltinArray = object : BuiltinType("Array", BuiltinAny) {
-    override val parameters = listOf(TypeParameter(variance = TypeVariance.UNSPECIFIED, IdentifierToken("Item"), null))
+    override val typeParameters = listOf(
+        BoundTypeParameter(
+            astNode = TypeParameter(variance = TypeVariance.UNSPECIFIED, IdentifierToken("Item"), bound = null),
+            context = ModuleRootContext(),
+        )
+    )
 }
 
 /**
@@ -81,9 +86,10 @@ abstract class BuiltinType(final override val simpleName: String, vararg superTy
 
     private val _string by lazy {
         var str = simpleName
-        if (parameters.isNotEmpty()) {
-            str += parameters.joinToString(
+        if (typeParameters.isNotEmpty()) {
+            str += typeParameters.joinToString(
                 prefix = "<",
+                transform = { it.astNode.toString() },
                 separator = ", ",
                 postfix = ">",
             )

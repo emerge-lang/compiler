@@ -55,8 +55,8 @@ class TypeUnification private constructor (
 
         fun fromInherent(type: RootResolvedTypeReference): TypeUnification {
             return TypeUnification(
-                _left = type.baseType.parameters.zip(type.arguments) { parameter, argument ->
-                    parameter.name.value to argument
+                _left = type.baseType.typeParameters.zip(type.arguments) { parameter, argument ->
+                    parameter.name to argument
                 }.toMap(IdentityHashMap()),
                 _right = IdentityHashMap(),
             )

@@ -118,7 +118,7 @@ class BoundTypeArgument(
         return BoundTypeArgument(this.context, astNode, variance, type.contextualize(context, side))
     }
 
-    override fun withMutability(modifier: TypeMutability): ResolvedTypeReference {
+    override fun withMutability(modifier: TypeMutability?): ResolvedTypeReference {
         if (type.mutability == modifier) {
             return this
         }

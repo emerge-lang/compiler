@@ -5,7 +5,7 @@ import compiler.ast.VariableDeclaration
 import compiler.ast.type.*
 import compiler.binding.BoundFunction
 import compiler.binding.context.MutableCTContext
-import compiler.binding.type.RootResolvedTypeReference
+import compiler.binding.type.BoundTypeParameter
 import compiler.reportings.Reporting
 
 class StructConstructor(
@@ -35,14 +35,21 @@ class StructConstructor(
         }
     }
 
-    override val typeParameters: List<TypeParameter> = struct.parameters
+    override val typeParameters: List<BoundTypeParameter>
+        get() = struct.typeParameters
+
     override val returnType = context.resolveType(
         TypeReference(
             struct.simpleName,
             TypeReference.Nullability.NOT_NULLABLE,
             TypeMutability.IMMUTABLE,
             struct.declaration.name,
-            struct.parameters.map { TypeArgument(it.variance, TypeReference(it.name)) },
+            struct.typeParameters.map {
+                TypeArgument(
+                    TypeVariance.UNSPECIFIED,
+                    TypeReference(it.astNode.name),
+                )
+            },
         ),
     )
     override val isGuaranteedToThrow = false

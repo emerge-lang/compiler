@@ -25,7 +25,6 @@ import compiler.ast.ImportDeclaration
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
-import compiler.ast.type.TypeVariance
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
 import compiler.binding.struct.Struct
@@ -41,8 +40,6 @@ open class MutableCTContext(
      * The context this one is derived off of
      */
     private val parentContext: CTContext,
-
-    typeParameters: List<TypeParameter> = emptyList(),
 ) : CTContext {
     private val imports: MutableSet<ImportDeclaration> = HashSet()
 
@@ -91,18 +88,19 @@ open class MutableCTContext(
         _structs.add(definition)
     }
 
-    private val rawTypeParameters: Map<String, TypeParameter> = typeParameters.associateBy { it.name.value }
-    private val resolvedTypeParameters = mutableMapOf<String, GenericTypeReference>()
+    private val typeParameters = HashMap<String, BoundTypeParameter>()
 
-    override fun resolveGenericType(ref: TypeReference): GenericTypeReference? {
-        resolvedTypeParameters[ref.simpleName]?.let { return it }
-        val typeParameter = rawTypeParameters[ref.simpleName] ?: return parentContext.resolveGenericType(ref)
-        val resolvedBound = typeParameter.bound
-            ?.let { resolveType(it, fromOwnModuleOnly = false) }
-            ?: UnresolvedType.getTypeParameterDefaultBound(this)
-        val result = GenericTypeReference(this, ref, typeParameter, resolvedBound)
-        resolvedTypeParameters[ref.simpleName] = result
-        return result
+    open fun addTypeParameter(parameter: TypeParameter): BoundTypeParameter {
+        check(parameter.name.value !in typeParameters) {
+            "Duplicate type parameter in context: $parameter"
+        }
+        val bound = parameter.bindTo(this)
+        typeParameters[parameter.name.value] = bound
+        return bound
+    }
+
+    override fun resolveTypeParameter(simpleName: String): BoundTypeParameter? {
+        return typeParameters[simpleName] ?: parentContext.resolveTypeParameter(simpleName)
     }
 
     override fun resolveBaseType(simpleName: String, fromOwnModuleOnly: Boolean): BaseType? {
@@ -124,8 +122,12 @@ open class MutableCTContext(
     }
 
     override fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean): ResolvedTypeReference {
-        resolveGenericType(ref)?.let { genericType ->
-            return genericType.withCombinedMutability(ref.mutability).withCombinedNullability(ref.nullability)
+        resolveTypeParameter(ref.simpleName)?.let { parameter ->
+            return GenericTypeReference(
+                this,
+                ref,
+                parameter
+            )
         }
 
         val resolvedParameters = ref.arguments.map { resolveType(it).defaultMutabilityTo(ref.mutability) }

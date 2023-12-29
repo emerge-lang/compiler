@@ -47,7 +47,6 @@ class StructMember(
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
         type = context.resolveType(declaration.type)
-        reportings.addAll(type!!.validate(TypeUseSite.InvariantUsage(declaration.type.sourceLocation ?: declaration.declaredAt)))
 
         if (defaultValue != null) {
             reportings.addAll(defaultValue.semanticAnalysisPhase1())
@@ -57,7 +56,10 @@ class StructMember(
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return defaultValue?.semanticAnalysisPhase2() ?: emptySet()
+        val reportings = mutableSetOf<Reporting>()
+        reportings.addAll(type!!.validate(TypeUseSite.InvariantUsage(declaration.type.sourceLocation ?: declaration.declaredAt)))
+        defaultValue?.semanticAnalysisPhase2()?.let(reportings::addAll)
+        return reportings
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {

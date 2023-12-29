@@ -9,7 +9,7 @@ class TypeArgumentCountMismatchReporting(
     val baseType: BaseType,
 ) : Reporting(
     Level.ERROR,
-    "Type ${baseType.simpleName} requires ${baseType.parameters.size} type parameters, got ${erroneousRef.arguments.size}",
+    "Type ${baseType.simpleName} requires ${baseType.typeParameters.size} type parameters, got ${erroneousRef.arguments.size}",
     erroneousRef.original?.declaringNameToken?.sourceLocation ?: SourceLocation.UNKNOWN,
 ) {
     override fun equals(other: Any?): Boolean {

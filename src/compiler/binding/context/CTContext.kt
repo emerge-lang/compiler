@@ -18,10 +18,12 @@
 
 package compiler.binding.context
 
+import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
 import compiler.binding.type.BaseType
+import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.ResolvedTypeReference
 
@@ -73,11 +75,11 @@ interface CTContext {
      */
     fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean
 
-    fun resolveGenericType(ref: TypeReference): GenericTypeReference?
-
     fun resolveBaseType(simpleName: String, fromOwnModuleOnly: Boolean = false): BaseType?
 
-    fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean = false): ResolvedTypeReference?
+    fun resolveTypeParameter(simpleName: String): BoundTypeParameter?
+
+    fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean = false): ResolvedTypeReference
 
     fun resolveFunction(name: String, fromOwnModuleOnly: Boolean = false): Collection<BoundFunction>
 }

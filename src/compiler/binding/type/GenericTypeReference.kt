@@ -1,7 +1,6 @@
 package compiler.binding.type
 
 import compiler.ast.type.TypeMutability
-import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
@@ -9,44 +8,28 @@ import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import compiler.reportings.ValueNotAssignableReporting
 
-class GenericTypeReference(
-    override val context: CTContext,
-    private val original: TypeReference,
-    private val parameter: TypeParameter,
-    val effectiveBound: ResolvedTypeReference,
-) : ResolvedTypeReference {
-    override val simpleName get() = parameter.name.value
+sealed class GenericTypeReference : ResolvedTypeReference {
+    abstract val original: TypeReference
+    abstract val parameter: BoundTypeParameter
+    abstract val effectiveBound: ResolvedTypeReference
+
+    override val simpleName get() = parameter.name
     override val isNullable get() = effectiveBound.isNullable
     override val mutability get() = effectiveBound.mutability
     override val sourceLocation get() = original.declaringNameToken?.sourceLocation
     override val inherentTypeBindings = TypeUnification.EMPTY
     val variance: TypeVariance get() = parameter.variance
 
-    override fun withMutability(modifier: TypeMutability): ResolvedTypeReference {
-        return GenericTypeReference(
-            context,
-            original,
-            parameter,
-            effectiveBound.withMutability(modifier),
-        )
+    override fun withMutability(modifier: TypeMutability?): GenericTypeReference {
+        return mapEffectiveBound { it.withMutability(modifier) }
     }
 
-    override fun withCombinedMutability(mutability: TypeMutability?): ResolvedTypeReference {
-        return GenericTypeReference(
-            context,
-            original,
-            parameter,
-            effectiveBound.withCombinedMutability(mutability),
-        )
+    override fun withCombinedMutability(mutability: TypeMutability?): GenericTypeReference {
+        return mapEffectiveBound { it.withCombinedMutability(mutability) }
     }
 
-    override fun withCombinedNullability(nullability: TypeReference.Nullability): ResolvedTypeReference {
-        return GenericTypeReference(
-            context,
-            original,
-            parameter,
-            effectiveBound.withCombinedNullability(nullability),
-        )
+    override fun withCombinedNullability(nullability: TypeReference.Nullability): GenericTypeReference {
+        return mapEffectiveBound { it.withCombinedNullability(nullability) }
     }
 
     override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
@@ -92,17 +75,8 @@ class GenericTypeReference(
         }
     }
 
-    override fun defaultMutabilityTo(mutability: TypeMutability?): ResolvedTypeReference {
-        if (mutability == null) {
-            return this
-        }
-
-        return GenericTypeReference(
-            context,
-            original,
-            parameter,
-            effectiveBound.defaultMutabilityTo(mutability),
-        )
+    override fun defaultMutabilityTo(mutability: TypeMutability?): GenericTypeReference {
+        return mapEffectiveBound { it.defaultMutabilityTo(mutability) }
     }
 
     override fun closestCommonSupertypeWith(other: ResolvedTypeReference): ResolvedTypeReference {
@@ -124,7 +98,7 @@ class GenericTypeReference(
         context: TypeUnification,
         side: (TypeUnification) -> Map<String, ResolvedTypeReference>,
     ): ResolvedTypeReference {
-        val resolvedSelf = side(context)[this.simpleName] ?: return GenericTypeReference(
+        val resolvedSelf = side(context)[this.simpleName] ?: return ResolvedBoundGenericTypeReference(
             this.context,
             original,
             parameter,
@@ -134,8 +108,12 @@ class GenericTypeReference(
         return resolvedSelf.contextualize(context, side)
     }
 
+    private fun mapEffectiveBound(mapper: (ResolvedTypeReference) -> ResolvedTypeReference): MappedEffectiveBoundGenericTypeReference {
+        return MappedEffectiveBoundGenericTypeReference(this, mapper)
+    }
+
     override fun toString(): String {
-        var str = parameter.name.value
+        var str = parameter.name
         if (!isNullable) {
             if (original.nullability == TypeReference.Nullability.NOT_NULLABLE) {
                 str += "!"
@@ -145,5 +123,41 @@ class GenericTypeReference(
         }
 
         return str
+    }
+
+    companion object {
+        operator fun invoke(context: CTContext, original: TypeReference, parameter: BoundTypeParameter): GenericTypeReference {
+            return NakedGenericTypeReference(context, original, parameter)
+                .withMutability(original.mutability)
+                .withCombinedNullability(original.nullability)
+        }
+    }
+}
+
+private class NakedGenericTypeReference(
+    override val context: CTContext,
+    override val original: TypeReference,
+    override val parameter: BoundTypeParameter,
+) : GenericTypeReference() {
+    override val effectiveBound: ResolvedTypeReference
+        get() = parameter.bound
+}
+
+private class ResolvedBoundGenericTypeReference(
+    override val context: CTContext,
+    override val original: TypeReference,
+    override val parameter: BoundTypeParameter,
+    override val effectiveBound: ResolvedTypeReference,
+) : GenericTypeReference()
+
+private class MappedEffectiveBoundGenericTypeReference(
+    private val delegate: GenericTypeReference,
+    private val mapper: (ResolvedTypeReference) -> ResolvedTypeReference,
+) : GenericTypeReference() {
+    override val context = delegate.context
+    override val original = delegate.original
+    override val parameter = delegate.parameter
+    override val effectiveBound by lazy {
+        mapper(delegate.effectiveBound)
     }
 }

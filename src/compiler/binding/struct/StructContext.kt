@@ -19,11 +19,9 @@
 package compiler.binding.struct
 
 import compiler.ast.type.TypeParameter
-import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
-import compiler.binding.type.BaseType
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeParameter
 
 /**
  * The context within a struct (where struct members are defined and where struct member default value
@@ -31,8 +29,14 @@ import compiler.binding.type.ResolvedTypeReference
  */
 class StructContext(
     moduleContext: CTContext,
-    val typeParameters: List<TypeParameter>,
-) : MutableCTContext(moduleContext, typeParameters) {
+    typeParameters: List<TypeParameter>,
+) : MutableCTContext(moduleContext) {
+
+    val typeParameters: List<BoundTypeParameter>
+
+    init {
+        this.typeParameters = typeParameters.map(this::addTypeParameter)
+    }
 
     fun registerMember(member: StructMember) {
         // TODO?

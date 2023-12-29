@@ -6,8 +6,11 @@ import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
 import compiler.binding.struct.Struct
 import compiler.binding.type.BaseType
+import compiler.binding.type.BoundTypeArgument
+import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.UnresolvedType
 
 class ModuleRootContext : MutableCTContext(
     EMPTY,
@@ -30,9 +33,13 @@ class ModuleRootContext : MutableCTContext(
 
             override fun resolveVariable(name: String, fromOwnModuleOnly: Boolean): BoundVariable? = null
             override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean = false
-            override fun resolveGenericType(ref: TypeReference): GenericTypeReference? = null
+            override fun resolveTypeParameter(simpleName: String): BoundTypeParameter? = null
             override fun resolveBaseType(simpleName: String, fromOwnModuleOnly: Boolean): BaseType? = null
-            override fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean): ResolvedTypeReference? = null
+            override fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean): ResolvedTypeReference = UnresolvedType(
+                this,
+                ref,
+                ref.arguments.map { BoundTypeArgument(this, it, it.variance, this.resolveType(it.type)) },
+            )
             override fun resolveFunction(name: String, fromOwnModuleOnly: Boolean): Collection<BoundFunction> = emptySet()
         }
     }

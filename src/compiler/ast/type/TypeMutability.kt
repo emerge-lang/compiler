@@ -24,6 +24,7 @@ enum class TypeMutability(
     MUTABLE(isMutable =true),
     READONLY(isMutable = false),
     IMMUTABLE(isMutable = false),
+    // TODO: do we need a UNSPECIFIED placeholder here?
     ;
 
     infix fun isAssignableTo(targetMutability: TypeMutability): Boolean =
@@ -53,8 +54,8 @@ enum class TypeMutability(
      * |`IMMUTABLE`|`READONLY` |`READONLY` |
      * |`IMMUTABLE`|`IMMUTABLE`|`IMMUTABLE`|
      */
-    fun combinedWith(other: TypeMutability): TypeMutability = when {
-        this == other -> this
+    fun combinedWith(other: TypeMutability?): TypeMutability = when(other) {
+        null, this -> this
         else -> READONLY
     }
 

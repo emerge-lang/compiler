@@ -22,6 +22,7 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.BoundFunction
 import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
@@ -41,15 +42,15 @@ interface BaseType {
     val baseReference: (CTContext) -> ResolvedTypeReference
         get() = { ctx ->
             // determine minimum bound for all type parameters
-            RootResolvedTypeReference(ctx, this, false, null, parameters.map {
+            RootResolvedTypeReference(ctx, this, false, null, typeParameters.map {
                 BoundTypeArgument(
                     ctx,
                     TypeArgument(
-                        it.variance,
+                        TypeVariance.UNSPECIFIED,
                         TypeReference("_"),
                     ),
                     it.variance,
-                    it.bound?.let(ctx::resolveType) ?: UnresolvedType.getTypeParameterDefaultBound(ctx)
+                    it.bound,
                 )
             })
         }
@@ -60,7 +61,7 @@ interface BaseType {
     val constructors: Set<BoundFunction>
         get() = emptySet()
 
-    val parameters: List<TypeParameter>
+    val typeParameters: List<BoundTypeParameter>
         get() = emptyList()
 
     /**

@@ -101,13 +101,7 @@ class BoundVariable(
                 ?.withMutability(implicitMutability)
                 ?.let { resolvedDeclaredType ->
                     this.resolvedDeclaredType = resolvedDeclaredType
-
-                    val useSite = when(kind) {
-                        Kind.VARIABLE -> TypeUseSite.Irrelevant
-                        Kind.PARAMETER -> TypeUseSite.InUsage(declaration.sourceLocation)
-                    }
-                    resolvedDeclaredType.validate(useSite).let(reportings::addAll)
-                    type = resolvedDeclaredType
+                    this.type = resolvedDeclaredType
                 }
 
             initializerExpression?.setExpectedEvaluationResultType(
@@ -191,6 +185,14 @@ class BoundVariable(
 
             if (type == null) {
                 type = resolvedDeclaredType
+            }
+
+            if (resolvedDeclaredType != null) {
+                val useSite = when (kind) {
+                    Kind.VARIABLE -> TypeUseSite.Irrelevant
+                    Kind.PARAMETER -> TypeUseSite.InUsage(declaration.sourceLocation)
+                }
+                resolvedDeclaredType!!.validate(useSite).let(reportings::addAll)
             }
 
             return@getResult reportings

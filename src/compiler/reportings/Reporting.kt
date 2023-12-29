@@ -25,7 +25,6 @@ import compiler.ast.VariableDeclaration
 import compiler.ast.expression.Expression
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.FunctionModifier
-import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundExecutable
@@ -34,6 +33,7 @@ import compiler.binding.expression.*
 import compiler.binding.struct.Struct
 import compiler.binding.struct.StructMember
 import compiler.binding.type.BoundTypeArgument
+import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.ResolvedTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
@@ -109,20 +109,20 @@ abstract class Reporting internal constructor(
         fun parameterTypeNotDeclared(declaration: VariableDeclaration)
             = MissingParameterTypeReporting(declaration)
 
-        fun varianceOnFunctionTypeParameter(parameter: TypeParameter)
-            = VarianceOnFunctionTypeParameterReporting(parameter)
+        fun varianceOnFunctionTypeParameter(parameter: BoundTypeParameter)
+            = VarianceOnFunctionTypeParameterReporting(parameter.astNode)
 
         fun typeArgumentCountMismatch(type: RootResolvedTypeReference)
             = TypeArgumentCountMismatchReporting(type, type.baseType)
 
-        fun typeArgumentVarianceMismatch(parameter: TypeParameter, argument: BoundTypeArgument)
-            = TypeArgumentVarianceMismatchReporting(parameter, argument)
+        fun typeArgumentVarianceMismatch(parameter: BoundTypeParameter, argument: BoundTypeArgument)
+            = TypeArgumentVarianceMismatchReporting(parameter.astNode, argument)
 
         fun typeArgumentVarianceSuperfluous(argument: BoundTypeArgument)
             = TypeArgumentVarianceSuperfluousReporting(argument)
 
-        fun typeArgumentOutOfBounds(parameter: TypeParameter, argument: BoundTypeArgument, reason: String)
-            = TypeArgumentOutOfBoundsReporting(parameter, argument, reason)
+        fun typeArgumentOutOfBounds(parameter: BoundTypeParameter, argument: BoundTypeArgument, reason: String)
+            = TypeArgumentOutOfBoundsReporting(parameter.astNode, argument, reason)
 
         fun unsupportedTypeUsageVariance(useSite: TypeUseSite, erroneousVariance: TypeVariance)
             = UnsupportedTypeUsageVarianceReporting(useSite, erroneousVariance)

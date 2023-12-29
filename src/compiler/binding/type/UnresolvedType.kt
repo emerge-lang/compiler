@@ -29,7 +29,7 @@ class UnresolvedType private constructor(
         return parameters.flatMap { it.validate(TypeUseSite.Irrelevant) } + setOf(Reporting.unknownType(reference))
     }
 
-    override fun withMutability(modifier: TypeMutability): ResolvedTypeReference {
+    override fun withMutability(modifier: TypeMutability?): ResolvedTypeReference {
         return UnresolvedType(
             standInType.withMutability(modifier),
             reference,
@@ -94,10 +94,6 @@ class UnresolvedType private constructor(
     companion object {
         fun getReplacementType(context: CTContext): ResolvedTypeReference {
             return BuiltinAny.baseReference(context).withMutability(TypeMutability.READONLY)
-        }
-
-        fun getTypeParameterDefaultBound(context: CTContext): ResolvedTypeReference {
-            return BuiltinAny.baseReference(context).withMutability(TypeMutability.READONLY).withCombinedNullability(TypeReference.Nullability.NULLABLE)
         }
     }
 }
