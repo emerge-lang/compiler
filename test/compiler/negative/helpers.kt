@@ -15,12 +15,16 @@ import io.kotest.inspectors.forOne
 import io.kotest.matchers.types.shouldBeInstanceOf
 import java.math.MathContext
 
-fun lexCode(code: String, addModuleDeclaration: Boolean = true): TokenSequence {
-    return lexCodeInternal(code, addModuleDeclaration)
+fun lexCode(
+    code: String,
+    addModuleDeclaration: Boolean = true,
+    initialSourceLocation: SourceLocation = getInvokedFromAsSourceLocationForParameterDefaultValue(),
+): TokenSequence {
+    return lexCodeInternal(code, addModuleDeclaration, initialSourceLocation)
 }
 
-private fun getInvokedFromAsSourceLocation(additionalStackOffset: Int = 0): SourceLocation {
-    val invokedFrom = Thread.currentThread().stackTrace[4 + additionalStackOffset]
+fun getInvokedFromAsSourceLocationForParameterDefaultValue(): SourceLocation {
+    val invokedFrom = Thread.currentThread().stackTrace[3]
     return SourceLocation(
         object : SourceDescriptor {
             override val sourceLocation = invokedFrom.fileName
@@ -30,17 +34,19 @@ private fun getInvokedFromAsSourceLocation(additionalStackOffset: Int = 0): Sour
     )
 }
 
-private fun lexCodeInternal(code: String, addModuleDeclaration: Boolean): TokenSequence {
-    val initialSourceLocation = getInvokedFromAsSourceLocation(1)
-
-    var moduleCode = code
-    var nEmptyLinesToPrepend = initialSourceLocation.sourceLine
-    if (addModuleDeclaration) {
-        moduleCode = "module testmodule\n$code"
-        nEmptyLinesToPrepend--
+private fun lexCodeInternal(
+    code: String,
+    addModuleDeclaration: Boolean,
+    initialSourceLocation: SourceLocation,
+): TokenSequence {
+    val moduleCode = if (addModuleDeclaration) {
+        require(initialSourceLocation.sourceLine > 1) {
+            "Test code is declared at line 1, cannot both add a module declaration AND keep the source line numbers in sync"
+        }
+        "module testmodule\n" + "\n".repeat(initialSourceLocation.sourceLine - 1) + code
+    } else {
+        code
     }
-
-    moduleCode = "\n".repeat(nEmptyLinesToPrepend.coerceAtLeast(0)) + moduleCode
 
     val sourceDescriptor = object : SourceContentAwareSourceDescriptor() {
         override val sourceLocation = initialSourceLocation.sD.sourceLocation
@@ -60,8 +66,12 @@ private fun lexCodeInternal(code: String, addModuleDeclaration: Boolean): TokenS
  * """.trimMargin())
  * ```
  */
-fun validateModule(code: String, addModuleDeclaration: Boolean = true): Collection<Reporting> {
-    val tokens = lexCodeInternal(code.assureEndsWith('\n'), addModuleDeclaration)
+fun validateModule(
+    code: String,
+    addModuleDeclaration: Boolean = true,
+    initialSourceLocation: SourceLocation = getInvokedFromAsSourceLocationForParameterDefaultValue(),
+): Collection<Reporting> {
+    val tokens = lexCodeInternal(code.assureEndsWith('\n'), addModuleDeclaration, initialSourceLocation)
     val result = Module.match(MatchingContext.None, tokens)
     if (result.item == null) {
         val error = result.reportings.maxBy { it.level }
