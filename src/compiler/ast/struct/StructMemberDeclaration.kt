@@ -40,12 +40,10 @@ class StructMemberDeclaration(
     override fun bindTo(context: CTContext): StructMember {
         if (context !is StructContext) throw InternalCompilerError(null)
 
-        val member = StructMember(
+        return StructMember(
             context,
             this,
             defaultValue?.bindTo(context)
         )
-        context.registerMember(member)
-        return member
     }
 }

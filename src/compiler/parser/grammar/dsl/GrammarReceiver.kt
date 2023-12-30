@@ -68,49 +68,47 @@ interface GrammarReceiver {
 class RuleCollectingGrammarReceiver private constructor() : GrammarReceiver {
     private val rules = mutableListOf<Rule<*>>()
 
-    private fun addRule(rule: Rule<*>, asRef: Boolean) {
+    private fun addRule(rule: Rule<*>) {
         rules.add(rule)
     }
 
     override fun tokenEqualTo(equalTo: Token) {
-        addRule(SingleTokenByEqualityRule(equalTo), false)
+        addRule(SingleTokenByEqualityRule(equalTo))
     }
 
     override fun tokenOfType(type: TokenType) {
-        addRule(SingleTokenByTypeRule(type), false)
+        addRule(SingleTokenByTypeRule(type))
     }
 
     override fun ref(rule: Rule<*>) {
-        addRule(rule, true)
+        addRule(rule)
     }
 
     override fun sequence(grammar: Grammar) {
-        addRule(collect(grammar, ::SequenceRule), false)
+        addRule(collect(grammar, ::SequenceRule))
     }
 
     override fun eitherOf(grammar: Grammar) {
-        addRule(collect(grammar, ::EitherOfRule), false)
+        addRule(collect(grammar, ::EitherOfRule))
     }
 
     override fun repeating(grammar: Grammar) {
-        addRule(RepeatingRule(collect(grammar, ::SequenceRule), requireAtLeastOnce = false), false)
+        addRule(RepeatingRule(collect(grammar, ::SequenceRule), requireAtLeastOnce = false))
     }
 
     override fun repeatingAtLeastOnce(grammar: Grammar) {
-        addRule(RepeatingRule(collect(grammar, ::SequenceRule), requireAtLeastOnce = true), false)
+        addRule(RepeatingRule(collect(grammar, ::SequenceRule), requireAtLeastOnce = true))
     }
 
     override fun identifier(acceptedOperators: Collection<Operator>, acceptedKeywords: Collection<Keyword>) {
         addRule(
             IdentifierRule(acceptedOperators.toSet(), acceptedKeywords.toSet()),
-            false,
         )
     }
 
     override fun optional(grammar: Grammar) {
         addRule(
             RepeatingRule(collect(grammar, ::SequenceRule), requireAtLeastOnce = false, maxRepeats = 1),
-            false,
         )
     }
 

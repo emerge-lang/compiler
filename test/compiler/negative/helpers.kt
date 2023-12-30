@@ -78,7 +78,7 @@ fun validateModule(
         throw AssertionError("Failed to parse code: ${error.message} in ${error.sourceLocation}")
     }
     val lexicalReportings = result.reportings
-    val nTopLevelDeclarations = result.item.let { module ->
+    val nTopLevelDeclarations = result.item!!.let { module ->
         module.functions.size + module.structs.size + module.variables.size
     }
     check(nTopLevelDeclarations > 0) { "Found no top-level declarations in the test source. Very likely a parsing bug." }

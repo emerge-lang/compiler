@@ -62,7 +62,7 @@ class Struct(
         }
 
         // duplicate members
-        members.duplicatesBy(StructMember::name).forEach { (name, dupMembers) ->
+        members.duplicatesBy(StructMember::name).forEach { (_, dupMembers) ->
             reportings.add(Reporting.duplicateTypeMembers(this, dupMembers))
         }
 

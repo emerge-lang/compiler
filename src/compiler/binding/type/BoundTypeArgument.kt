@@ -37,7 +37,7 @@ class BoundTypeArgument(
     /**
      * @see ResolvedTypeReference.evaluateAssignabilityTo
      */
-    override fun evaluateAssignabilityTo(target: ResolvedTypeReference, assignmentSourceLocation: SourceLocation): ValueNotAssignableReporting? {
+    override fun evaluateAssignabilityTo(target: ResolvedTypeReference, assignmentLocation: SourceLocation): ValueNotAssignableReporting? {
         val selfEffectiveType = when (variance) {
             TypeVariance.UNSPECIFIED,
             TypeVariance.OUT -> type
@@ -45,40 +45,40 @@ class BoundTypeArgument(
         }
 
         when (target) {
-            is RootResolvedTypeReference -> return selfEffectiveType.evaluateAssignabilityTo(target, assignmentSourceLocation)
-            is GenericTypeReference -> return selfEffectiveType.evaluateAssignabilityTo(target, assignmentSourceLocation)
-            is UnresolvedType -> return selfEffectiveType.evaluateAssignabilityTo(target.standInType, assignmentSourceLocation)
+            is RootResolvedTypeReference -> return selfEffectiveType.evaluateAssignabilityTo(target, assignmentLocation)
+            is GenericTypeReference -> return selfEffectiveType.evaluateAssignabilityTo(target, assignmentLocation)
+            is UnresolvedType -> return selfEffectiveType.evaluateAssignabilityTo(target.standInType, assignmentLocation)
             is BoundTypeArgument -> {
                 if (target.variance == TypeVariance.UNSPECIFIED) {
                     // target needs to use the type in both IN and OUT fashion -> source must match exactly
                     if (!this.type.hasSameBaseTypeAs(target.type)) {
-                        return Reporting.valueNotAssignable(target, this, "the exact type ${target.type} is required", assignmentSourceLocation)
+                        return Reporting.valueNotAssignable(target, this, "the exact type ${target.type} is required", assignmentLocation)
                     }
 
                     if (this.variance != TypeVariance.UNSPECIFIED) {
-                        return Reporting.valueNotAssignable(target, this, "cannot assign an in-variant value to an exact-variant reference", assignmentSourceLocation)
+                        return Reporting.valueNotAssignable(target, this, "cannot assign an in-variant value to an exact-variant reference", assignmentLocation)
                     }
 
                     // checks for mutability and nullability
-                    return this.type.evaluateAssignabilityTo(target.type, assignmentSourceLocation)
+                    return this.type.evaluateAssignabilityTo(target.type, assignmentLocation)
                 }
 
                 if (target.variance == TypeVariance.OUT) {
                     if (this.variance == TypeVariance.OUT || this.variance == TypeVariance.UNSPECIFIED) {
-                        return this.type.evaluateAssignabilityTo(target.type, assignmentSourceLocation)
+                        return this.type.evaluateAssignabilityTo(target.type, assignmentLocation)
                     }
 
                     assert(this.variance == TypeVariance.IN)
-                    return Reporting.valueNotAssignable(target, this, "cannot assign in-variant value to out-variant reference", assignmentSourceLocation)
+                    return Reporting.valueNotAssignable(target, this, "cannot assign in-variant value to out-variant reference", assignmentLocation)
                 }
 
                 assert(target.variance == TypeVariance.IN)
                 if (this.variance == TypeVariance.IN || this.variance == TypeVariance.UNSPECIFIED) {
                     // IN variance reverses the hierarchy direction
-                    return target.type.evaluateAssignabilityTo(this.type, assignmentSourceLocation)
+                    return target.type.evaluateAssignabilityTo(this.type, assignmentLocation)
                 }
 
-                return Reporting.valueNotAssignable(target, this, "cannot assign out-variant value to in-variant reference", assignmentSourceLocation)
+                return Reporting.valueNotAssignable(target, this, "cannot assign out-variant value to in-variant reference", assignmentLocation)
             }
         }
     }

@@ -16,7 +16,7 @@ struct A<T> {
 val x = A::<Int>(false)
 """
 
-fun main(args: Array<String>) {
+fun main() {
     // setup context
     val measureClock = Clock.systemUTC()
     val startedAt = measureClock.instant()

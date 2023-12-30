@@ -41,11 +41,11 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
             val tokens = lexCode("external operator nothrow fun", addModuleDeclaration = false)
             val result = grammar.match(MatchingContext.None, tokens)
 
-            result.item.shouldBeInstanceOf<List<out Any>>()
-            (result.item as List<out Any>)[0] shouldBe KeywordToken(Keyword.EXTERNAL)
-            (result.item as List<out Any>)[1] shouldBe KeywordToken(Keyword.OPERATOR)
-            (result.item as List<out Any>)[2] shouldBe KeywordToken(Keyword.NOTHROW)
-            (result.item as List<out Any>)[3] shouldBe KeywordToken(Keyword.FUNCTION)
+            result.item.shouldBeInstanceOf<List<Any>>()
+            (result.item as List<Any>)[0] shouldBe KeywordToken(Keyword.EXTERNAL)
+            (result.item as List<Any>)[1] shouldBe KeywordToken(Keyword.OPERATOR)
+            (result.item as List<Any>)[2] shouldBe KeywordToken(Keyword.NOTHROW)
+            (result.item as List<Any>)[3] shouldBe KeywordToken(Keyword.FUNCTION)
             result.reportings should beEmpty()
             result.isAmbiguous shouldBe false
         }
@@ -54,11 +54,11 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
             val tokens = lexCode("external operator readonly val", addModuleDeclaration = false)
             val result = grammar.match(MatchingContext.None, tokens)
 
-            result.item.shouldBeInstanceOf<List<out Any>>()
-            (result.item as List<out Any>)[0] shouldBe KeywordToken(Keyword.EXTERNAL)
-            (result.item as List<out Any>)[1] shouldBe KeywordToken(Keyword.OPERATOR)
-            (result.item as List<out Any>)[2] shouldBe KeywordToken(Keyword.READONLY)
-            (result.item as List<out Any>)[3] shouldBe KeywordToken(Keyword.VAL)
+            result.item.shouldBeInstanceOf<List<Any>>()
+            (result.item as List<Any>)[0] shouldBe KeywordToken(Keyword.EXTERNAL)
+            (result.item as List<Any>)[1] shouldBe KeywordToken(Keyword.OPERATOR)
+            (result.item as List<Any>)[2] shouldBe KeywordToken(Keyword.READONLY)
+            (result.item as List<Any>)[3] shouldBe KeywordToken(Keyword.VAL)
             result.reportings should beEmpty()
             result.isAmbiguous shouldBe false
         }

@@ -26,33 +26,32 @@ import compiler.binding.BoundFunction
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundInvocationExpression
 
-abstract class PurityViolationReporting protected constructor(val violation: BoundExecutable<Executable<*>>, function: BoundFunction, message: String)
+abstract class PurityViolationReporting protected constructor(
+    val violation: BoundExecutable<Executable<*>>,
+    message: String
+)
     : Reporting(Level.ERROR, message, violation.declaration.sourceLocation)
 
 data class ReadInPureContextReporting internal constructor(val readingExpression: BoundIdentifierExpression, val function: BoundFunction) : PurityViolationReporting(
     readingExpression,
-    function,
     "pure function ${function.name} cannot read ${readingExpression.identifier} (is not within the pure boundary)"
 )
 
 data class ImpureInvocationInPureContextReporting internal constructor(val invcExpr: BoundInvocationExpression, val function: BoundFunction) : PurityViolationReporting(
     invcExpr,
-    function,
     "pure function ${function.name} cannot invoke impure function ${invcExpr.dispatchedFunction!!.name}"
 )
 
 data class ModifyingInvocationInReadonlyContextReporting internal constructor(val invcExpr: BoundInvocationExpression, val function: BoundFunction) : PurityViolationReporting(
     invcExpr,
-    function,
     "readonly function ${function.name} cannot invoke modifying function ${invcExpr.dispatchedFunction!!.name}"
 )
 
 data class StateModificationOutsideOfPurityBoundaryReporting internal constructor(val assignment: BoundAssignmentExpression, val function: BoundFunction) : PurityViolationReporting(
     assignment,
-    function,
     {
         val functionType = if (FunctionModifier.PURE in function.modifiers) FunctionModifier.PURE else FunctionModifier.READONLY
-        val functionTypeAsString = functionType.name[0].toUpperCase() + functionType.name.substring(1).toLowerCase()
+        val functionTypeAsString = functionType.name[0].uppercaseChar() + functionType.name.substring(1).lowercase()
         val boundaryType = if (functionType == FunctionModifier.PURE) "purity" else "readonlyness"
 
         "$functionTypeAsString function ${function.name} cannot assign state outside of its $boundaryType boundary"

@@ -133,6 +133,7 @@ val VisibilityModifier : Rule<ASTVisibilityModifier> = eitherOf("visibility modi
             EXPORT -> ExportASTVisibilityModifier.INSTANCE
             PROTECTED -> if (tokens.hasNext()) {
                 tokens.next()!! as OperatorToken // PARANT_OPEN
+                @Suppress("UNCHECKED_CAST") // ModuleName is a Rule<Array<String>>
                 val qualifier = tokens.next()!! as Array<String>
                 tokens.next()!! as OperatorToken // PARANT_CLOSE
                 QualifiedASTProtectedVisibilityModifier(qualifier)

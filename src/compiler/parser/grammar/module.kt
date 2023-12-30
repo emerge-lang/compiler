@@ -74,6 +74,7 @@ val ModuleDeclaration = sequence("module declaration") {
 }
     .astTransformation { tokens ->
         val keyword = tokens.next()!! as KeywordToken
+        @Suppress("UNCHECKED_CAST") // ModuleName is a Rule<Array<String>>
         val moduleName = tokens.next()!! as Array<String>
 
         ModuleDeclaration(keyword.sourceLocation, moduleName)

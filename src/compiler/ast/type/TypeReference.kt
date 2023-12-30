@@ -105,9 +105,5 @@ class TypeReference(
         NULLABLE,
         NOT_NULLABLE,
         ;
-
-        fun combinedWith(other: Nullability) {
-
-        }
     }
 }

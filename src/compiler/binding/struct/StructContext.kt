@@ -37,8 +37,4 @@ class StructContext(
     init {
         this.typeParameters = typeParameters.map(this::addTypeParameter)
     }
-
-    fun registerMember(member: StructMember) {
-        // TODO?
-    }
 }

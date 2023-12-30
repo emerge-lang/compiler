@@ -206,6 +206,7 @@ val IfExpression = sequence("if-expression") {
     .astTransformation { tokens ->
         val ifKeyword = tokens.next() as KeywordToken
 
+        @Suppress("UNCHECKED_CAST")
         val condition = tokens.next() as Expression<BoundExpression<Expression<*>>>
         val thenCode: Executable<*> = tokens.next() as Executable<*>
         val elseCode: Executable<*>? = if (tokens.hasNext()) {
@@ -277,7 +278,7 @@ val ExpressionPostfixInvocation = sequence("function invocation") {
         if (next is TypeArgumentBundle) {
             typeArguments = next.arguments
             // skip PARANT_OPEN
-            next = tokens.next() as OperatorToken
+            tokens.next() as OperatorToken
         } else {
             typeArguments = emptyList()
             // skip PARANT_OPEN
@@ -387,6 +388,7 @@ private fun buildBinaryExpressionAst(rawExpression: List<OperatorOrExpression>):
         return rawExpression[0] as? Expression<*> ?: throw InternalCompilerError("List with one item that is not an expression.. bug!")
     }
 
+    @Suppress("UNCHECKED_CAST") // the type check is in the filter {}
     val operatorsWithIndex = rawExpression
         .mapIndexed { index, item -> Pair(index, item) }
         .filter { it.second is OperatorToken } as List<Pair<Int, OperatorToken>>

@@ -119,7 +119,7 @@ val StructDefinition = sequence("struct definition") {
         val typeParameters: List<TypeParameter>
         if (next is TypeParameterBundle) {
             typeParameters = next.parameters
-            next = tokens.next()!! // skip CBRACE_OPEN
+            tokens.next()!! // skip CBRACE_OPEN
         } else {
             check(next is OperatorToken)
             typeParameters = emptyList()
