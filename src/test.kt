@@ -10,19 +10,10 @@ import java.time.Clock
 import java.time.Duration
 
 val testCode = """module testcode
-struct Subject {
-    dummy: Int
+struct A<T> {
+    prop: T
 }
-struct A<T : Subject> {
-    propA: T
-}
-struct Unifier<F> {
-    propU1: F
-    propU2: F
-}
-val iSubject = Subject(0)
-var mSubject = Subject(1)
-val unifies = Unifier(A(iSubject), A(mSubject))
+val x = A::<Int>(false)
 """
 
 fun main(args: Array<String>) {

@@ -1,6 +1,7 @@
 package compiler.binding.context
 
 import compiler.InternalCompilerError
+import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable

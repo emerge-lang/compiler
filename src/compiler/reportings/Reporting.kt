@@ -115,6 +115,12 @@ abstract class Reporting internal constructor(
         fun typeArgumentCountMismatch(type: RootResolvedTypeReference)
             = TypeArgumentCountMismatchReporting(type, type.baseType)
 
+        fun missingTypeArgument(parameter: BoundTypeParameter, lastSuppliedTypeArgument: BoundTypeArgument)
+            = MissingTypeArgumentReporting(parameter.astNode, lastSuppliedTypeArgument.astNode)
+
+        fun superfluousTypeArguments(nExpectedArguments: Int, firstSuperfluousArgument: BoundTypeArgument)
+            = SuperfluousTypeArgumentsReporting(nExpectedArguments, firstSuperfluousArgument.astNode)
+
         fun typeArgumentVarianceMismatch(parameter: BoundTypeParameter, argument: BoundTypeArgument)
             = TypeArgumentVarianceMismatchReporting(parameter.astNode, argument)
 
@@ -142,11 +148,11 @@ abstract class Reporting internal constructor(
         fun inefficientModifiers(message: String, location: SourceLocation)
             = ModifierInefficiencyReporting(message, location)
 
-        fun noMatchingFunctionOverload(functionNameReference: IdentifierToken, receiverType: ResolvedTypeReference?, forTypes: List<ResolvedTypeReference?>, functionDeclaredAtAll: Boolean)
-            = UnresolvableFunctionOverloadReporting(functionNameReference, receiverType, forTypes, functionDeclaredAtAll)
+        fun noMatchingFunctionOverload(functionNameReference: IdentifierToken, receiverType: ResolvedTypeReference?, valueArguments: List<BoundExpression<*>>, functionDeclaredAtAll: Boolean)
+            = UnresolvableFunctionOverloadReporting(functionNameReference, receiverType, valueArguments.map { it.type }, functionDeclaredAtAll)
 
-        fun unresolvableConstructor(nameToken: IdentifierToken, parameterTypes: List<ResolvedTypeReference?>, functionsWithNameAvailable: Boolean)
-            = UnresolvableConstructorReporting(nameToken, parameterTypes, functionsWithNameAvailable)
+        fun unresolvableConstructor(nameToken: IdentifierToken, valueArguments: List<BoundExpression<*>>, functionsWithNameAvailable: Boolean)
+            = UnresolvableConstructorReporting(nameToken, valueArguments.map { it.type }, functionsWithNameAvailable)
 
         fun unresolvableMemberVariable(accessExpression: BoundMemberAccessExpression, hostType: ResolvedTypeReference)
             = UnresolvedMemberVariableReporting(accessExpression.declaration, hostType)

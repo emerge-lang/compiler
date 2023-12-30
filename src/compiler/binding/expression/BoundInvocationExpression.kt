@@ -37,7 +37,7 @@ class BoundInvocationExpression(
     /** The receiver expression; is null if not specified in the source */
     val receiverExpression: BoundExpression<*>?,
     val functionNameToken: IdentifierToken,
-    val parameterExpressions: List<BoundExpression<*>>
+    val valueArguments: List<BoundExpression<*>>
 ) : BoundExpression<InvocationExpression>, BoundExecutable<InvocationExpression> {
 
     private val onceAction = OnceAction()
@@ -51,13 +51,19 @@ class BoundInvocationExpression(
     override var type: ResolvedTypeReference? = null
         private set
 
+    lateinit var typeArguments: List<BoundTypeArgument>
+        private set
+
     override val isGuaranteedToThrow: Boolean?
         get() = dispatchedFunction?.isGuaranteedToThrow
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> =
         onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
-            (receiverExpression?.semanticAnalysisPhase1()
-                ?: emptySet()) + parameterExpressions.flatMap(BoundExpression<*>::semanticAnalysisPhase1)
+            val reportings = mutableSetOf<Reporting>()
+            receiverExpression?.semanticAnalysisPhase1()?.let(reportings::addAll)
+            valueArguments.map(BoundExpression<*>::semanticAnalysisPhase1).forEach(reportings::addAll)
+            typeArguments = declaration.typeArguments.map(context::resolveType)
+            reportings
         }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
@@ -65,90 +71,108 @@ class BoundInvocationExpression(
             val reportings = mutableSetOf<Reporting>()
 
             receiverExpression?.semanticAnalysisPhase2()?.let(reportings::addAll)
-            parameterExpressions.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
+            typeArguments.forEach { reportings.addAll(it.validate(TypeUseSite.Irrelevant)) }
+            valueArguments.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
 
-            val parameterTypes = parameterExpressions.map(BoundExpression<*>::type)
-            if (parameterTypes.any { it == null}) {
-                // resolving the overload does not make sense if not all parameter types can be deducted
-                // note that for erroneous type references, the parameter type will be a non-null UnresolvedType
-                // so in that case we can still continue
-                return@getResult reportings
-            }
-            parameterTypes as List<ResolvedTypeReference>
+            val chosenOverload = selectOverload(reportings) ?: return@getResult reportings
 
-            val receiverType = receiverExpression?.type
-            if (receiverExpression != null && receiverType == null) {
-                // same goes for the receiver
-                return@getResult reportings
-            }
-
-            val resolvedConstructors = if (receiverExpression != null) null else context.resolveBaseType(functionNameToken.value)?.constructors
-            val resolvedFunctions = context.resolveFunction(functionNameToken.value)
-
-            if (resolvedConstructors.isNullOrEmpty() && resolvedFunctions.isEmpty()) {
-                reportings.add(Reporting.noMatchingFunctionOverload(functionNameToken, receiverType, parameterTypes, false))
-                return@getResult reportings
-            }
-
-            val matchingFunctions: List<Pair<BoundFunction, TypeUnification>> = if (resolvedConstructors != null) {
-                resolvedConstructors
-                    .filterAndSortByMatchForInvocationTypes(null, parameterTypes)
-            } else {
-                resolvedFunctions
-                    .filterAndSortByMatchForInvocationTypes(receiverType, parameterTypes)
-            }
-
-            matchingFunctions.firstOrNull()?.let { (matchingFunction, typeUnification) ->
-                dispatchedFunction = matchingFunction
-                try {
-                    throwOnCycle(this) {
-                        matchingFunction.semanticAnalysisPhase2()
-                    }
-                } catch (ex: EarlyStackOverflowException) {
-                    throw CyclicTypeInferenceException()
-                } catch (ex: CyclicTypeInferenceException) {
-                    reportings.add(Reporting.typeDeductionError(
-                        "Cannot infer return type of the call to function ${matchingFunction.name} because the inference is cyclic here. Specify the return type explicitly.",
-                        declaration.sourceLocation,
-                    ))
+            dispatchedFunction = chosenOverload.candidate
+            try {
+                throwOnCycle(this) {
+                    chosenOverload.candidate.semanticAnalysisPhase2()
                 }
-                type = matchingFunction.returnType?.contextualize(typeUnification, TypeUnification::right)
-                type?.validate(TypeUseSite.Irrelevant)?.let(reportings::addAll)
-                if (resolvedConstructors != null && expectedReturnType != null) {
-                    // we are calling a constructor. This is the only place in the entire language where one value
-                    // can be legally assigned to both a mutable or an immutable reference, because at this stage
-                    // there cannot be any other reference to that value
-                    // this is solved by adjusting the return type of the constructor invocation according to the
-                    // type needed by the larger context
-                    type = type?.withMutability(expectedReturnType!!.mutability)
-                }
+            } catch (ex: EarlyStackOverflowException) {
+                throw CyclicTypeInferenceException()
+            } catch (ex: CyclicTypeInferenceException) {
+                reportings.add(Reporting.typeDeductionError(
+                    "Cannot infer return type of the call to function ${functionNameToken.value} because the inference is cyclic here. Specify the return type explicitly.",
+                    declaration.sourceLocation,
+                ))
             }
-
-            if (matchingFunctions.isEmpty()) {
-                if (resolvedConstructors != null) {
-                    reportings.add(
-                        Reporting.unresolvableConstructor(
-                            functionNameToken,
-                            parameterTypes,
-                            resolvedFunctions.isNotEmpty(),
-                        )
-                    )
-                } else {
-                    reportings.add(
-                        Reporting.noMatchingFunctionOverload(
-                            functionNameToken,
-                            receiverType,
-                            parameterTypes,
-                            resolvedFunctions.isNotEmpty(),
-                        )
-                    )
-                }
-            } else if (matchingFunctions.size > 1) {
-                reportings.add(Reporting.ambiguousInvocation(this, matchingFunctions.map { it.first }))
+            type = chosenOverload.candidate.returnType?.contextualize(chosenOverload.unification, TypeUnification::right)
+            type?.validate(TypeUseSite.Irrelevant)?.let(reportings::addAll)
+            if (chosenOverload.candidate.returnsExclusiveValue && expectedReturnType != null) {
+                // this is solved by adjusting the return type of the constructor invocation according to the
+                // type needed by the larger context
+                type = type?.withMutability(expectedReturnType!!.mutability)
             }
 
             return@getResult reportings
         }
+    }
+
+    /**
+     * Selects one of the given overloads, including ones that are not a legal match if there are no legal alternatives.
+     * Also performs the following checks and reports accordingly:
+     * * absolutely no candidate available to evaluate
+     * * of the evaluated constructors or functions, none match
+     * * if there is only one overload to pick from, forwards any reportings from evaluating that candidate
+     */
+    private fun selectOverload(reportings: MutableCollection<in Reporting>): OverloadCandidateEvaluation? {
+        if (valueArguments.any { it.type == null}) {
+            // resolving the overload does not make sense if not all parameter types can be deducted
+            // note that for erroneous type references, the parameter type will be a non-null UnresolvedType
+            // so in that case we can still continue
+            return null
+        }
+
+        if (receiverExpression != null && receiverExpression.type == null) {
+            // same goes for the receiver
+            return null
+        }
+
+        val candidateConstructors = if (receiverExpression != null) null else context.resolveBaseType(functionNameToken.value)?.constructors
+        val candidateFunctions = context.resolveFunction(functionNameToken.value)
+
+        if (candidateConstructors.isNullOrEmpty() && candidateFunctions.isEmpty()) {
+            reportings.add(Reporting.noMatchingFunctionOverload(functionNameToken, receiverExpression?.type, valueArguments, false))
+            return null
+        }
+
+        val evaluations: List<OverloadCandidateEvaluation> = if (candidateConstructors != null) {
+            candidateConstructors
+                .filterAndSortByMatchForInvocationTypes(null, valueArguments, typeArguments)
+        } else {
+            candidateFunctions
+                .filterAndSortByMatchForInvocationTypes(receiverExpression, valueArguments, typeArguments)
+        }
+
+        if (evaluations.isEmpty()) {
+            // TODO: pass on the mismatch reason for all candidates?
+            if (candidateConstructors != null) {
+                reportings.add(
+                    Reporting.unresolvableConstructor(
+                        functionNameToken,
+                        valueArguments,
+                        candidateFunctions.isNotEmpty(),
+                    )
+                )
+            } else {
+                reportings.add(
+                    Reporting.noMatchingFunctionOverload(
+                        functionNameToken,
+                        receiverExpression?.type,
+                        valueArguments,
+                        candidateFunctions.isNotEmpty(),
+                    )
+                )
+            }
+        }
+
+        val legalMatches = evaluations.filter { !it.hasErrors }
+        if (legalMatches.size > 1) {
+            reportings.add(Reporting.ambiguousInvocation(this, evaluations.map { it.candidate }))
+        }
+        if (legalMatches.isEmpty()) {
+            // if there is only a single candidate, the errors found in validating are 100% applicable to be shown to the user
+            evaluations
+                .singleOrNull()
+                ?.unification
+                ?.reportings
+                ?.let(reportings::addAll)
+        }
+
+        return legalMatches.firstOrNull() ?: evaluations.firstOrNull()
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
@@ -159,7 +183,7 @@ class BoundInvocationExpression(
                 reportings += receiverExpression.semanticAnalysisPhase3()
             }
 
-            reportings += parameterExpressions.flatMap { it.semanticAnalysisPhase3() }
+            reportings += valueArguments.flatMap { it.semanticAnalysisPhase3() }
 
             return@getResult reportings
         }
@@ -170,7 +194,7 @@ class BoundInvocationExpression(
         onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase2)
 
         val byReceiver = receiverExpression?.findReadsBeyond(boundary) ?: emptySet()
-        val byParameters = parameterExpressions.flatMap { it.findReadsBeyond(boundary) }
+        val byParameters = valueArguments.flatMap { it.findReadsBeyond(boundary) }
 
         if (dispatchedFunction != null) {
             if (dispatchedFunction!!.isPure == null) {
@@ -189,7 +213,7 @@ class BoundInvocationExpression(
         onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase2)
 
         val byReceiver = receiverExpression?.findWritesBeyond(boundary) ?: emptySet()
-        val byParameters = parameterExpressions.flatMap { it.findWritesBeyond(boundary) }
+        val byParameters = valueArguments.flatMap { it.findWritesBeyond(boundary) }
 
         if (dispatchedFunction != null) {
             if (dispatchedFunction!!.isReadonly == null) {
@@ -224,39 +248,48 @@ class BoundInvocationExpression(
  * The list is sorted by best-match first, worst-match last. However, if the return value has more than one element,
  * it has to be treated as an error because the invocation is ambiguous.
  */
-private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(receiverType: ResolvedTypeReference?, parameterTypes: List<ResolvedTypeReference>): List<Pair<BoundFunction, TypeUnification>> {
-    val leftSideTypes = listOfNotNull(receiverType) + parameterTypes
+private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(
+    receiver: BoundExpression<*>?,
+    valueArguments: List<BoundExpression<*>>,
+    typeArguments: List<BoundTypeArgument>,
+): List<OverloadCandidateEvaluation> {
+    check((receiver != null) xor (receiver?.type == null))
+    val receiverType = receiver?.type
+    val argumentsIncludingReceiver = listOfNotNull(receiver) + valueArguments
     return this
         .asSequence()
         // filter by (declared receiver)
         .filter { (receiverType != null) == it.declaresReceiver }
         // filter by incompatible number of parameters
-        .filter { it.parameters.parameters.size == leftSideTypes.size }
+        .filter { it.parameters.parameters.size == argumentsIncludingReceiver.size }
         .mapNotNull { candidateFn ->
             if (candidateFn.parameterTypes.any { it == null }) {
                 // types not fully resolve, don't consider
                 return@mapNotNull null
             }
+
+            val initialUnification = TypeUnification.fromRightExplicit(candidateFn.typeParameters, typeArguments)
+
             @Suppress("UNCHECKED_CAST") // the check is right above
-            val rightSideTypes = candidateFn.parameterTypes as List<ResolvedTypeReference>
-            check(leftSideTypes.size == rightSideTypes.size)
+            val rightSideTypes = (candidateFn.parameterTypes as List<ResolvedTypeReference>)
+                .map { it.contextualize(initialUnification, TypeUnification::right) }
+            check(rightSideTypes.size == argumentsIncludingReceiver.size)
 
-            val unification = try {
-                leftSideTypes
-                    .zip(rightSideTypes)
-                    .fold(TypeUnification.EMPTY) { unification, (lhsType, rhsType) -> lhsType.unify(rhsType, unification) }
-            }
-            catch (ex: TypesNotUnifiableException) {
-                // type mismatch
-                return@mapNotNull null
-            }
+            val unification = argumentsIncludingReceiver
+                .zip(rightSideTypes)
+                .fold(initialUnification) { unification, (argument, parameterType) ->
+                    parameterType.unify(argument.type!!, argument.declaration.sourceLocation, unification)
+                }
 
-            Pair(candidateFn, unification)
+            OverloadCandidateEvaluation(
+                candidateFn,
+                unification,
+            )
         }
         /*
         The following idea seems good after some thought:
-        * A set of BaseTypes are "disjoint" if there is no value other than Nothing that can be assigned to
-          both types. Put differently: if none of them is Any and their closestCommonSupertype is Any.
+        * A set of Types are "disjoint" if there is no value other than Nothing that can be assigned to
+          all types. Put differently: if none of them is Any and their closestCommonSupertype is Any.
 
           This means that two overloads of the same function that use disjoint types for the same parameter
           it is possible to disambiguate/choose the overload using that parameter only.
@@ -275,4 +308,11 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(recei
             TODO("overload resolution is not yet implemented. For now you can only have one function per name, sorry.")
         }
         .toList()
+}
+
+private data class OverloadCandidateEvaluation(
+    val candidate: BoundFunction,
+    val unification: TypeUnification,
+) {
+    val hasErrors = unification.reportings.any { it.level >= Reporting.Level.ERROR }
 }

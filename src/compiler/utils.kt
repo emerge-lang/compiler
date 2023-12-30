@@ -139,3 +139,5 @@ fun <T : Any> Sequence<Sequence<T>>.pivot(): Sequence<List<T?>> {
         }
     }
 }
+
+infix fun <Input, Intermediate, Result> ((Input) -> Intermediate).andThen(other: (Intermediate) -> Result): (Input) -> Result = { other(this(it)) }

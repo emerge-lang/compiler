@@ -23,6 +23,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.ResolvedTypeReference
 import compiler.lexer.SourceLocation
+import compiler.ast.type.TypeMutability
 
 abstract class BoundFunction : SemanticallyAnalyzable {
     abstract val context: CTContext
@@ -73,6 +74,12 @@ abstract class BoundFunction : SemanticallyAnalyzable {
         get() = parameters.parameters.map { it.type }
 
     abstract val returnType: ResolvedTypeReference?
+
+    /**
+     * If true, this function returns a value with no references to it. This is only possible for constructors.
+     * Knowing this allows assigning that value to all [TypeMutability]s, something impossible otherwise.
+     */
+    open val returnsExclusiveValue: Boolean = false
 
     val fullyQualifiedName: String
         get() = context.module.name.joinToString(".") + "." + name

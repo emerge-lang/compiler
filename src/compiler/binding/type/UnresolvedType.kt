@@ -60,12 +60,12 @@ class UnresolvedType private constructor(
         return standInType.evaluateAssignabilityTo(other, assignmentLocation)
     }
 
-    override fun unify(other: ResolvedTypeReference, carry: TypeUnification): TypeUnification {
-        return when(other) {
-            is RootResolvedTypeReference -> standInType.unify(other, carry)
-            is UnresolvedType -> standInType.unify(other.standInType, carry)
+    override fun unify(assigneeType: ResolvedTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
+        return when(assigneeType) {
+            is RootResolvedTypeReference -> standInType.unify(assigneeType, assignmentLocation, carry)
+            is UnresolvedType -> standInType.unify(assigneeType.standInType, assignmentLocation, carry)
             is GenericTypeReference -> TODO("this should only really happen when a value argument is matched against a type parameter??")
-            is BoundTypeArgument -> standInType.unify(other, carry)
+            is BoundTypeArgument -> standInType.unify(assigneeType, assignmentLocation, carry)
         }
     }
 

@@ -78,7 +78,7 @@ fun validateModule(
         throw AssertionError("Failed to parse code: ${error.message} in ${error.sourceLocation}")
     }
     val lexicalReportings = result.reportings
-    val nTopLevelDeclarations = result.item!!.let { module ->
+    val nTopLevelDeclarations = result.item.let { module ->
         module.functions.size + module.structs.size + module.variables.size
     }
     check(nTopLevelDeclarations > 0) { "Found no top-level declarations in the test source. Very likely a parsing bug." }
@@ -95,6 +95,8 @@ fun validateModule(
     return (lexicalReportings + semanticReportings).toSet()
 }
 
+// TODO: most test cases expect EXACTLY one reporting, extra reportings are out-of-spec. This one lets extra reportings pass :(
+// the trick is finding the test that actually want more than one reporting and adapting that test code
 inline fun <reified T : Reporting> Collection<Reporting>.shouldReport(additional: (T) -> Unit = {}) {
     this.forOne {
         it.shouldBeInstanceOf<T>()

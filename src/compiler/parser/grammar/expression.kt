@@ -230,9 +230,29 @@ val ExpressionPostfixNotNull = sequence(OperatorToken(Operator.NOTNULL).toString
 }
     .astTransformation { NotNullExpressionPostfix(it.next()!! as OperatorToken) }
 
+val InvocationTypeArguments = sequence {
+    /* this is the turbofish, stolen from Rust. Without the two COLONs, this source has two valid parse trees:
+    A<Int>(false)
+
+    Option 1:
+    Binary(A, <, Binary(Int, >, Parenthesized(false)))
+
+    Option 2:
+    Invocation(name=A, typeArgs=[Int], args=[false])
+    */
+    operator(Operator.COLON)
+    operator(Operator.COLON)
+    ref(BracedTypeArguments)
+}
+    .astTransformation { tokens ->
+        tokens.next()
+        tokens.next()
+        tokens.next() as TypeArgumentBundle
+    }
+
 val ExpressionPostfixInvocation = sequence("function invocation") {
     optional {
-        ref(BracedTypeArguments)
+        ref(InvocationTypeArguments)
     }
     operator(Operator.PARANT_OPEN)
     optionalWhitespace()
@@ -252,26 +272,27 @@ val ExpressionPostfixInvocation = sequence("function invocation") {
     operator(Operator.PARANT_CLOSE)
 }
     .astTransformation { tokens ->
-        val arguments: List<TypeArgument>
+        val typeArguments: List<TypeArgument>
         var next = tokens.next()!!
         if (next is TypeArgumentBundle) {
-            arguments = next.arguments
+            typeArguments = next.arguments
             // skip PARANT_OPEN
             next = tokens.next() as OperatorToken
         } else {
+            typeArguments = emptyList()
             // skip PARANT_OPEN
             next as OperatorToken
         }
 
-        val paramExpressions = mutableListOf<Expression<*>>()
+        val valueArguments = mutableListOf<Expression<*>>()
         while (tokens.peek() is Expression<*>) {
-            paramExpressions.add(tokens.next()!! as Expression<*>)
+            valueArguments.add(tokens.next()!! as Expression<*>)
 
             // skip COMMA or PARANT_CLOSE
             tokens.next()!! as OperatorToken
         }
 
-        InvocationExpressionPostfix(paramExpressions)
+        InvocationExpressionPostfix(typeArguments, valueArguments)
     }
 
 val ExpressionPostfixMemberAccess = sequence("member access") {

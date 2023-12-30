@@ -75,7 +75,12 @@ sealed interface ResolvedTypeReference {
      * @return `null` if the assignment is allowed, a reporting of level [Reporting.Level.ERROR] describing the
      * problem with the assignment in case it is not possible
      */
-    fun evaluateAssignabilityTo(other: ResolvedTypeReference, assignmentLocation: SourceLocation): ValueNotAssignableReporting?
+    fun evaluateAssignabilityTo(other: ResolvedTypeReference, assignmentLocation: SourceLocation): ValueNotAssignableReporting? {
+        // TODO: this could even become the default implementation for all types?
+        // or maybe its not needed after all the logic has been moved to unify?
+        val unification = other.unify(this, assignmentLocation, TypeUnification.EMPTY)
+        return unification.reportings.firstOrNull { it.level >= Reporting.Level.ERROR } as ValueNotAssignableReporting?
+    }
 
     /**
      * Finds the "greatest common denominator" of this type and the [other] type.
@@ -124,11 +129,17 @@ sealed interface ResolvedTypeReference {
      * `foo<Int>(myF).prop`, one has to unify `S<T>` with `S<T>` with the two Ts being distinct. To handle this correctly,
      * this method works with [IdentityHashMap] on the `T`s.
      *
+     * If two disjoint ([isDisjointWith]) types are to be unified the final type will remain with the first-come-first-serve
+     * type and a [ValueNotAssignableReporting] will be added to the [TypeUnification].
+     *
+     * The [Reporting]s added to [carry] will refer to `this` as the type being assigned to (member variable, function
+     * parameter, ...) and [assigneeType] as the type of the value being assigned.
+     *
+     * @param assignmentLocation Used to properly locate errors, also for forwarding to [evaluateAssignabilityTo]
      * @param carry When multiple types have to be found at the same time (a function invocation with more than one parameter),
-     *              one can carry the context/result between the unifications.
-     * @throws TypesNotUnifiableException If two types are disjoint / their conjunction is empty (e.g. Boolean and Int)
+     *              one can carry the context/result between the unifications).
      */
-    fun unify(other: ResolvedTypeReference, carry: TypeUnification): TypeUnification
+    fun unify(assigneeType: ResolvedTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification
 
     /**
      * Adds the generic type information from [context] to this type, e.g.:
@@ -160,6 +171,11 @@ sealed interface ResolvedTypeReference {
      * @return whether both types refer to the same base type or generic type parameter
      */
     fun hasSameBaseTypeAs(other: ResolvedTypeReference): Boolean
+
+    /**
+     * @return `true` iff the only value that [isAssignableTo] both `this` and [other] is [BuiltinNothing].
+     */
+    fun isDisjointWith(other: ResolvedTypeReference): Boolean = TODO("only present right now for reference in comments currently")
 
     /**
      * For parameterized types contains the bindings already resulting from that parameterization

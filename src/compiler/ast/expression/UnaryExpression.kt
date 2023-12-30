@@ -39,6 +39,7 @@ class UnaryExpression(
                 IdentifierToken(functionName, operatorToken.sourceLocation),
             ),
             emptyList(),
+            emptyList(),
         )
 
         return BoundUnaryExpression(

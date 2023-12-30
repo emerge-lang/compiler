@@ -83,30 +83,24 @@ class BoundTypeArgument(
         }
     }
 
-    /**
-     * @see ResolvedTypeReference.unify
-     */
-    override fun unify(other: ResolvedTypeReference, carry: TypeUnification): TypeUnification {
-        when (other) {
+    override fun unify(assigneeType: ResolvedTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
+        when (assigneeType) {
             is RootResolvedTypeReference -> {
-                if (variance != TypeVariance.UNSPECIFIED) {
-                    throw TypesNotUnifiableException(this, other, "Cannot unify concrete type with variant-type")
-                }
-
-                return type.unify(other, carry)
+                // TODO: is variance important here?
+                return type.unify(assigneeType, assignmentLocation, carry)
             }
             is BoundTypeArgument -> {
-                this.evaluateAssignabilityTo(other, sourceLocation ?: other.sourceLocation ?: SourceLocation.UNKNOWN)?.let {
-                    throw TypesNotUnifiableException(this, other, it.reason)
+                this.evaluateAssignabilityTo(assigneeType, sourceLocation ?: assigneeType.sourceLocation ?: SourceLocation.UNKNOWN)?.let {
+                    return carry.plusReporting(it)
                 }
 
-                return type.unify(other, carry)
+                return type.unify(assigneeType, assignmentLocation, carry)
             }
             is GenericTypeReference -> {
-                return carry.plusRight(other.simpleName, this)
+                return carry.plusRight(assigneeType.simpleName, this)
             }
             is UnresolvedType -> {
-                return unify(other.standInType, carry)
+                return unify(assigneeType.standInType, assignmentLocation, carry)
             }
         }
     }

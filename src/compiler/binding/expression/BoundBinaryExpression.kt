@@ -47,8 +47,9 @@ class BoundBinaryExpression(
                     OperatorToken(Operator.DOT, declaration.op.sourceLocation),
                     IdentifierToken(operatorFunctionName(operator), declaration.op.sourceLocation)
             ),
-            listOf(rightHandSide.declaration as Expression<*>)
-    )
+            emptyList(),
+            listOf(rightHandSide.declaration as Expression<*>),
+        )
             .bindTo(context)
 
     override val type: ResolvedTypeReference?

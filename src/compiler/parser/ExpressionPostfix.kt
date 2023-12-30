@@ -5,6 +5,7 @@ import compiler.ast.expression.Expression
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.expression.NotNullExpression
+import compiler.ast.type.TypeArgument
 import compiler.lexer.IdentifierToken
 import compiler.lexer.OperatorToken
 
@@ -25,9 +26,10 @@ class NotNullExpressionPostfix(
 }
 
 class InvocationExpressionPostfix(
-    val parameterExpressions: List<Expression<*>>
+    val typeArguments: List<TypeArgument>,
+    val valueParameterExpressions: List<Expression<*>>
 ) : ExpressionPostfix<InvocationExpression> {
-    override fun modify(expr: Expression<*>) = InvocationExpression(expr, parameterExpressions)
+    override fun modify(expr: Expression<*>) = InvocationExpression(expr, typeArguments, valueParameterExpressions)
 }
 
 class MemberAccessExpressionPostfix(

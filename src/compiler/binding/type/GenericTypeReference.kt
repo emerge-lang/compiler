@@ -5,6 +5,7 @@ import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
+import compiler.andThen
 import compiler.reportings.Reporting
 import compiler.reportings.ValueNotAssignableReporting
 
@@ -18,7 +19,6 @@ sealed class GenericTypeReference : ResolvedTypeReference {
     override val mutability get() = effectiveBound.mutability
     override val sourceLocation get() = original.declaringNameToken?.sourceLocation
     override val inherentTypeBindings = TypeUnification.EMPTY
-    val variance: TypeVariance get() = parameter.variance
 
     override fun withMutability(modifier: TypeMutability?): GenericTypeReference {
         return mapEffectiveBound { it.withMutability(modifier) }
@@ -33,44 +33,25 @@ sealed class GenericTypeReference : ResolvedTypeReference {
     }
 
     override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
-        return effectiveBound.validate(forUsage) + setOfNotNull(forUsage.validateForTypeVariance(variance))
-    }
-
-    override fun evaluateAssignabilityTo(
-        other: ResolvedTypeReference,
-        assignmentLocation: SourceLocation
-    ): ValueNotAssignableReporting? {
-        val selfEffective = when(variance) {
-            TypeVariance.UNSPECIFIED,
-            TypeVariance.OUT -> effectiveBound
-            TypeVariance.IN -> return Reporting.valueNotAssignable(other, this, "Cannot assign an in-variant value, because it cannot be read", assignmentLocation)
-        }
-
-        return when (other) {
-            is RootResolvedTypeReference -> selfEffective.evaluateAssignabilityTo(other, assignmentLocation)
-            is BoundTypeArgument -> when(other.variance) {
-                TypeVariance.UNSPECIFIED,
-                TypeVariance.IN -> selfEffective.evaluateAssignabilityTo(other.type, assignmentLocation)
-                TypeVariance.OUT -> Reporting.valueNotAssignable(other, this, "Cannot assign to an out-variant reference", assignmentLocation)
-            }
-            is GenericTypeReference -> when(other.variance) {
-                TypeVariance.UNSPECIFIED,
-                TypeVariance.IN -> selfEffective.evaluateAssignabilityTo(other.effectiveBound, assignmentLocation)
-                TypeVariance.OUT -> Reporting.valueNotAssignable(other, this, "Cannot assign to an out-variant reference", assignmentLocation)
-            }
-            is UnresolvedType -> selfEffective.evaluateAssignabilityTo(other.standInType, assignmentLocation)
-        }
+        return effectiveBound.validate(forUsage) + setOfNotNull(forUsage.validateForTypeVariance(parameter.variance))
     }
 
     override fun hasSameBaseTypeAs(other: ResolvedTypeReference): Boolean {
         return other is GenericTypeReference && this.parameter === other.parameter
     }
 
-    override fun unify(other: ResolvedTypeReference, carry: TypeUnification): TypeUnification {
-        return when (other) {
-            is RootResolvedTypeReference,
-            is UnresolvedType -> carry.plusLeft(simpleName, other)
-            is BoundTypeArgument -> carry.plusLeft(simpleName, other)
+    override fun unify(assigneeType: ResolvedTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
+        return when (assigneeType) {
+            is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
+            is RootResolvedTypeReference -> {
+                when (parameter.variance) {
+                    TypeVariance.UNSPECIFIED,
+                    TypeVariance.IN -> effectiveBound.unify(assigneeType, assignmentLocation, carry)
+                    TypeVariance.OUT -> Reporting.valueNotAssignable(this, assigneeType, "Cannot assign to an out-variant reference", assignmentLocation)
+                }
+                carry.plusLeft(simpleName, assigneeType)
+            }
+            is BoundTypeArgument -> TODO("What do do here? carry.plusLeft(simpleName, assigneeType) ?")
             is GenericTypeReference -> TODO("namespace conflict :(")
         }
     }
@@ -80,7 +61,7 @@ sealed class GenericTypeReference : ResolvedTypeReference {
     }
 
     override fun closestCommonSupertypeWith(other: ResolvedTypeReference): ResolvedTypeReference {
-        val selfEffective = when(variance) {
+        val selfEffective = when(parameter.variance) {
             TypeVariance.UNSPECIFIED,
             TypeVariance.OUT -> effectiveBound
             TypeVariance.IN -> BuiltinNothing.baseReference(context)
@@ -150,7 +131,7 @@ private class ResolvedBoundGenericTypeReference(
     override val effectiveBound: ResolvedTypeReference,
 ) : GenericTypeReference()
 
-private class MappedEffectiveBoundGenericTypeReference(
+private class MappedEffectiveBoundGenericTypeReference private constructor(
     private val delegate: GenericTypeReference,
     private val mapper: (ResolvedTypeReference) -> ResolvedTypeReference,
 ) : GenericTypeReference() {
@@ -159,5 +140,21 @@ private class MappedEffectiveBoundGenericTypeReference(
     override val parameter = delegate.parameter
     override val effectiveBound by lazy {
         mapper(delegate.effectiveBound)
+    }
+
+    companion object {
+        operator fun invoke(delegate: GenericTypeReference, mapper: (ResolvedTypeReference) -> ResolvedTypeReference): MappedEffectiveBoundGenericTypeReference {
+            if (delegate is MappedEffectiveBoundGenericTypeReference) {
+                return MappedEffectiveBoundGenericTypeReference(
+                    delegate.delegate,
+                    delegate.mapper andThen mapper
+                )
+            } else {
+                return MappedEffectiveBoundGenericTypeReference(
+                    delegate,
+                    mapper,
+                )
+            }
+        }
     }
 }

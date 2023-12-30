@@ -97,77 +97,9 @@ class RootResolvedTypeReference private constructor(
         val reportings = mutableSetOf<Reporting>()
 
         arguments.forEach { reportings.addAll(it.validate(TypeUseSite.Irrelevant)) }
-        if (arguments.size == baseType.typeParameters.size) {
-            arguments.zip(baseType.typeParameters).forEach { (argument, parameter) ->
-                if (argument.variance != TypeVariance.UNSPECIFIED && parameter.variance != TypeVariance.UNSPECIFIED) {
-                    if (argument.variance != parameter.variance) {
-                        reportings.add(Reporting.typeArgumentVarianceMismatch(parameter, argument))
-                    } else {
-                        reportings.add(Reporting.typeArgumentVarianceSuperfluous(argument))
-                    }
-                }
-
-                val variance = argument.variance.takeUnless { it == TypeVariance.UNSPECIFIED } ?: parameter.variance
-                val boundError = when(variance) {
-                    TypeVariance.UNSPECIFIED,
-                    TypeVariance.OUT -> argument.evaluateAssignabilityTo(parameter.bound, argument.sourceLocation ?: SourceLocation.UNKNOWN)?.let {
-                        Reporting.typeArgumentOutOfBounds(parameter, argument, it.reason)
-                    }
-                    TypeVariance.IN -> parameter.bound.evaluateAssignabilityTo(argument, argument.sourceLocation ?: SourceLocation.UNKNOWN)?.let {
-                        Reporting.typeArgumentOutOfBounds(parameter, argument, "${argument.type} is not a supertype of ${parameter.bound}")
-                    }
-                }
-                boundError?.let(reportings::add)
-            }
-        } else {
-            reportings.add(Reporting.typeArgumentCountMismatch(this))
-        }
+        reportings.addAll(inherentTypeBindings.reportings)
 
         return reportings
-    }
-
-    override fun evaluateAssignabilityTo(other: ResolvedTypeReference, assignmentLocation: SourceLocation): ValueNotAssignableReporting? {
-        when(other) {
-            is UnresolvedType -> return evaluateAssignabilityTo(other.standInType, assignmentLocation)
-            is GenericTypeReference -> return when (other.variance) {
-                TypeVariance.UNSPECIFIED,
-                TypeVariance.IN -> evaluateAssignabilityTo(other.effectiveBound, assignmentLocation)
-                TypeVariance.OUT -> Reporting.valueNotAssignable(other, this, "Cannot assign to an out-variant reference", assignmentLocation)
-            }
-            is RootResolvedTypeReference -> {
-                // this must be a subtype of other
-                if (!(this.baseType isSubtypeOf other.baseType)) {
-                    return Reporting.valueNotAssignable(other, this, "${this.baseType.simpleName} is not a subtype of ${other.baseType.simpleName}", assignmentLocation)
-                }
-
-                // the modifiers must be compatible
-                if (!(mutability isAssignableTo other.mutability)) {
-                    return Reporting.valueNotAssignable(other, this, "cannot assign a $mutability value to a ${other.mutability} reference", assignmentLocation)
-                }
-
-                // in methods (further limited / specified on the method level)?
-                if (this.isNullable && !other.isNullable) {
-                    return Reporting.valueNotAssignable(other, this, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
-                }
-
-                check(arguments.size == other.arguments.size)
-                arguments.asSequence()
-                    .zip(other.arguments.asSequence()) { thisParam, otherParam ->
-                        thisParam.evaluateAssignabilityTo(otherParam, assignmentLocation)
-                    }
-                    .filterNotNull()
-                    .firstOrNull()
-                    ?.let { return it }
-
-                // seems all fine
-                return null
-            }
-            is BoundTypeArgument -> return when (other.variance) {
-                TypeVariance.UNSPECIFIED,
-                TypeVariance.IN -> evaluateAssignabilityTo(other.type, assignmentLocation)
-                TypeVariance.OUT -> Reporting.valueNotAssignable(other, this, "cannot assign to an out-variant reference", assignmentLocation)
-            }
-        }
     }
 
     override fun hasSameBaseTypeAs(other: ResolvedTypeReference): Boolean {
@@ -196,29 +128,55 @@ class RootResolvedTypeReference private constructor(
     override fun findMemberVariable(name: String): ObjectMember? = baseType.resolveMemberVariable(name)
 
     override val inherentTypeBindings by lazy {
-        TypeUnification.fromInherent(this)
+        TypeUnification.fromLeftExplicit(baseType.typeParameters, this.arguments)
     }
 
-    override fun unify(other: ResolvedTypeReference, carry: TypeUnification): TypeUnification {
-        when (other) {
+    override fun unify(assigneeType: ResolvedTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
+        when (assigneeType) {
             is RootResolvedTypeReference -> {
-                if (other.baseType == this.baseType) {
-                    return arguments.asSequence()
-                        .zip(other.arguments.asSequence())
-                        .fold(carry) { innerCarry, (left, right) -> left.unify(right, innerCarry) }
-                } else throw TypesNotUnifiableException(this, other, "Different concrete types")
-            }
-            is UnresolvedType -> return unify(other.standInType, carry)
-            is GenericTypeReference -> {
-                // TODO: handle modifier complications?
-                return carry.plusRight(other.simpleName, this)
-            }
-            is BoundTypeArgument -> {
-                if (other.variance != TypeVariance.UNSPECIFIED) {
-                    throw TypesNotUnifiableException(this, other, "Cannot unify concrete type with variant-type")
+                // this must be a subtype of other
+                if (!(assigneeType.baseType isSubtypeOf this.baseType)) {
+                    return carry.plusReporting(
+                        Reporting.valueNotAssignable(this, assigneeType, "${assigneeType.baseType.simpleName} is not a subtype of ${this.baseType.simpleName}", assignmentLocation)
+                    )
                 }
 
-                return unify(other.type, carry)
+                // the modifiers must be compatible
+                if (!(assigneeType.mutability isAssignableTo this.mutability)) {
+                    return carry.plusReporting(
+                        Reporting.valueNotAssignable(this, assigneeType, "cannot assign a ${assigneeType.mutability} value to a ${this.mutability} reference", assignmentLocation)
+                    )
+                }
+
+                if (!this.isNullable && assigneeType.isNullable) {
+                    return carry.plusReporting(
+                        Reporting.valueNotAssignable(this, assigneeType, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
+                    )
+                }
+
+                return this.arguments
+                    .zip(assigneeType.arguments)
+                    .fold(carry) { innerCarry, (targetArg, sourceArg) ->
+                        targetArg.unify(sourceArg, assignmentLocation, innerCarry)
+                    }
+            }
+            is UnresolvedType -> return unify(assigneeType.standInType, assignmentLocation, carry)
+            is GenericTypeReference -> {
+                carry.right[assigneeType.simpleName]?.let { resolved ->
+                    return this.unify(resolved, assignmentLocation, carry)
+                }
+
+                return unify(
+                    assigneeType.effectiveBound,
+                    assignmentLocation,
+                    carry.plusRight(assigneeType.simpleName, this)
+                )
+            }
+            is BoundTypeArgument -> {
+                // this branch is PROBABLY only taken when verifying the bound of a type parameter against an argument
+                // in this case this is the bound and assigneeType is the argument
+                // variance is not important in that scenario because type arguments must be subtypes of the parameters bounds
+                return unify(assigneeType.type, assignmentLocation, carry)
             }
         }
     }

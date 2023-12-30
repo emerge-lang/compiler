@@ -20,6 +20,7 @@ package compiler.ast.expression
 
 import compiler.InternalCompilerError
 import compiler.ast.Executable
+import compiler.ast.type.TypeArgument
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundInvocationExpression
 import compiler.lexer.SourceLocation
@@ -31,7 +32,8 @@ class InvocationExpression(
      * * `obj.doStuff()` => `MemberAccessExpression(obj, doStuff)`
      */
     val targetExpression: Expression<*>,
-    val parameterExprs: List<Expression<*>>
+    val typeArguments: List<TypeArgument>,
+    val valueArgumentExpressions: List<Expression<*>>
 ) : Expression<BoundInvocationExpression>, Executable<BoundInvocationExpression> {
     override val sourceLocation: SourceLocation = when(targetExpression) {
         is MemberAccessExpression -> targetExpression.memberName.sourceLocation
@@ -40,15 +42,15 @@ class InvocationExpression(
 
     override fun bindTo(context: CTContext): BoundInvocationExpression {
         // bind all the parameters
-        val boundParameterValueExprs = parameterExprs.map { it.bindTo(context) }
+        val boundParameterValueExprs = valueArgumentExpressions.map { it.bindTo(context) }
 
         if (targetExpression is MemberAccessExpression) {
             return BoundInvocationExpression(
-                    context,
-                    this,
-                    targetExpression.valueExpression.bindTo(context),
-                    targetExpression.memberName,
-                    boundParameterValueExprs
+                context,
+                this,
+                targetExpression.valueExpression.bindTo(context),
+                targetExpression.memberName,
+                boundParameterValueExprs
             )
         }
         else if (targetExpression is IdentifierExpression) {

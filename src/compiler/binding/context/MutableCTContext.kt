@@ -117,7 +117,7 @@ open class MutableCTContext(
         return fromImport ?: parentContext.resolveBaseType(simpleName, fromOwnModuleOnly)
     }
 
-    private fun resolveType(ref: TypeArgument): BoundTypeArgument {
+    override fun resolveType(ref: TypeArgument): BoundTypeArgument {
         return BoundTypeArgument(this, ref, ref.variance, resolveType(ref.type))
     }
 

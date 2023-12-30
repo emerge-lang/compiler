@@ -70,7 +70,7 @@ class MutabilityErrors : FreeSpec({
                     genericVal: T
                 }
                 fun test() {
-                    mutable val myB = B<immutable A>(A(3))
+                    mutable val myB = B::<immutable A>(A(3))
                     myB.genericVal = A(2)
                     myB.genericVal.someVal = 5
                 }
