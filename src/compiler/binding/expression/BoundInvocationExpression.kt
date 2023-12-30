@@ -28,6 +28,7 @@ import compiler.binding.CyclicTypeInferenceException
 import compiler.binding.context.CTContext
 import compiler.binding.type.*
 import compiler.lexer.IdentifierToken
+import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import compiler.throwOnCycle
 
@@ -131,10 +132,10 @@ class BoundInvocationExpression(
 
         val evaluations: List<OverloadCandidateEvaluation> = if (candidateConstructors != null) {
             candidateConstructors
-                .filterAndSortByMatchForInvocationTypes(null, valueArguments, typeArguments)
+                .filterAndSortByMatchForInvocationTypes(null, valueArguments, typeArguments, expectedReturnType)
         } else {
             candidateFunctions
-                .filterAndSortByMatchForInvocationTypes(receiverExpression, valueArguments, typeArguments)
+                .filterAndSortByMatchForInvocationTypes(receiverExpression, valueArguments, typeArguments, expectedReturnType)
         }
 
         if (evaluations.isEmpty()) {
@@ -252,6 +253,7 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(
     receiver: BoundExpression<*>?,
     valueArguments: List<BoundExpression<*>>,
     typeArguments: List<BoundTypeArgument>,
+    expectedReturnType: ResolvedTypeReference?,
 ): List<OverloadCandidateEvaluation> {
     check((receiver != null) xor (receiver?.type == null))
     val receiverType = receiver?.type
@@ -268,16 +270,22 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(
                 return@mapNotNull null
             }
 
-            val initialUnification = TypeUnification.fromRightExplicit(candidateFn.typeParameters, typeArguments)
+            var unification = TypeUnification.fromRightExplicit(candidateFn.typeParameters, typeArguments)
+            candidateFn.returnType?.let { candidateReturnType ->
+                if (expectedReturnType != null) {
+                    unification = expectedReturnType.unify(candidateReturnType, SourceLocation.UNKNOWN, unification.ignoringReportings())
+                        .savingReportings()
+                }
+            }
 
             @Suppress("UNCHECKED_CAST") // the check is right above
             val rightSideTypes = (candidateFn.parameterTypes as List<ResolvedTypeReference>)
-                .map { it.contextualize(initialUnification, TypeUnification::right) }
+                .map { it.contextualize(unification, TypeUnification::right) }
             check(rightSideTypes.size == argumentsIncludingReceiver.size)
 
-            val unification = argumentsIncludingReceiver
+            unification = argumentsIncludingReceiver
                 .zip(rightSideTypes)
-                .fold(initialUnification) { unification, (argument, parameterType) ->
+                .fold(unification) { unification, (argument, parameterType) ->
                     parameterType.unify(argument.type!!, argument.declaration.sourceLocation, unification)
                 }
 

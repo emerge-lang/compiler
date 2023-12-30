@@ -1,5 +1,6 @@
 package compiler.binding.type
 
+import compiler.InternalCompilerError
 import compiler.ast.type.TypeVariance
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
@@ -8,7 +9,8 @@ import java.util.IdentityHashMap
 class TypeUnification private constructor (
     private val _left: IdentityHashMap<String, ResolvedTypeReference>,
     private val _right: IdentityHashMap<String, ResolvedTypeReference>,
-    private var _reportings: Set<Reporting>,
+    private val _reportings: Set<Reporting>,
+    private val saveReportings: Boolean,
 ) {
     val left: Map<String, ResolvedTypeReference> = _left
     val right: Map<String, ResolvedTypeReference> = _right
@@ -23,6 +25,7 @@ class TypeUnification private constructor (
             _left.clone() as IdentityHashMap<String, ResolvedTypeReference>,
             _right, // doesn't get modified here,
             _reportings,
+            saveReportings,
         )
         bindInPlace(clone._left, param, binding)
         return clone
@@ -37,20 +40,46 @@ class TypeUnification private constructor (
             _left, // doesn't get modified here
             _right.clone() as IdentityHashMap<String, ResolvedTypeReference>,
             _reportings,
+            saveReportings,
         )
         bindInPlace(clone._right, param, binding)
         return clone
     }
 
     fun plusReporting(reporting: Reporting): TypeUnification {
-        return TypeUnification(_left, _right, _reportings + listOf(reporting))
+        if (!saveReportings) {
+            return this
+        }
+
+        return TypeUnification(_left, _right, _reportings + listOf(reporting), true)
     }
 
     /**
      * TODO: docs
      */
     fun mirrored(): TypeUnification {
-        return TypeUnification(_right, _left, _reportings)
+        return TypeUnification(_right, _left, _reportings, saveReportings)
+    }
+
+    /**
+     * @return a copy of this, except that any calls to [plusReporting] on the returned [TypeUnification] will be ignored.
+     */
+    fun ignoringReportings(): TypeUnification {
+        check(saveReportings) {
+            throw InternalCompilerError("Cannot nest ignoringReportings unifications, this one already ignores")
+        }
+        return TypeUnification(_left, _right, _reportings, false)
+    }
+
+    /**
+     * @return a copy of this, making sure that reportings given to [plusReporting] will be reflected in [reportings],
+     * effectively reversing [saveReportings].
+     */
+    fun savingReportings(): TypeUnification {
+        check(!saveReportings) {
+            throw InternalCompilerError("Cannot nest savingReportings unifications, this one already saves")
+        }
+        return TypeUnification(_left, _right, _reportings, true)
     }
 
     fun getErrorsNotIn(previous: TypeUnification): Sequence<Reporting> {
@@ -76,7 +105,7 @@ class TypeUnification private constructor (
     }
 
     companion object {
-        val EMPTY = TypeUnification(IdentityHashMap(), IdentityHashMap(), emptySet())
+        val EMPTY = TypeUnification(IdentityHashMap(), IdentityHashMap(), emptySet(), true)
 
         fun fromRightExplicit(typeParameters: List<BoundTypeParameter>, arguments: List<BoundTypeArgument>): TypeUnification {
             return fromLeftExplicit(typeParameters, arguments).mirrored()

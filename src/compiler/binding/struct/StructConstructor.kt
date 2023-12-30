@@ -19,6 +19,7 @@ class StructConstructor(
     override val modifiers = setOf(FunctionModifier.PURE)
     override val isPure = true
     override val isReadonly = true
+    override val returnsExclusiveValue = true
     override val parameters = run {
         val astParameterList = ParameterList(struct.members.map { member ->
             VariableDeclaration(

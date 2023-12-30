@@ -49,36 +49,7 @@ class BoundTypeArgument(
             is GenericTypeReference -> return selfEffectiveType.evaluateAssignabilityTo(target, assignmentLocation)
             is UnresolvedType -> return selfEffectiveType.evaluateAssignabilityTo(target.standInType, assignmentLocation)
             is BoundTypeArgument -> {
-                if (target.variance == TypeVariance.UNSPECIFIED) {
-                    // target needs to use the type in both IN and OUT fashion -> source must match exactly
-                    if (!this.type.hasSameBaseTypeAs(target.type)) {
-                        return Reporting.valueNotAssignable(target, this, "the exact type ${target.type} is required", assignmentLocation)
-                    }
-
-                    if (this.variance != TypeVariance.UNSPECIFIED) {
-                        return Reporting.valueNotAssignable(target, this, "cannot assign an in-variant value to an exact-variant reference", assignmentLocation)
-                    }
-
-                    // checks for mutability and nullability
-                    return this.type.evaluateAssignabilityTo(target.type, assignmentLocation)
-                }
-
-                if (target.variance == TypeVariance.OUT) {
-                    if (this.variance == TypeVariance.OUT || this.variance == TypeVariance.UNSPECIFIED) {
-                        return this.type.evaluateAssignabilityTo(target.type, assignmentLocation)
-                    }
-
-                    assert(this.variance == TypeVariance.IN)
-                    return Reporting.valueNotAssignable(target, this, "cannot assign in-variant value to out-variant reference", assignmentLocation)
-                }
-
-                assert(target.variance == TypeVariance.IN)
-                if (this.variance == TypeVariance.IN || this.variance == TypeVariance.UNSPECIFIED) {
-                    // IN variance reverses the hierarchy direction
-                    return target.type.evaluateAssignabilityTo(this.type, assignmentLocation)
-                }
-
-                return Reporting.valueNotAssignable(target, this, "cannot assign out-variant value to in-variant reference", assignmentLocation)
+                TODO("moved to unify")
             }
         }
     }
@@ -90,11 +61,40 @@ class BoundTypeArgument(
                 return type.unify(assigneeType, assignmentLocation, carry)
             }
             is BoundTypeArgument -> {
-                this.evaluateAssignabilityTo(assigneeType, sourceLocation ?: assigneeType.sourceLocation ?: SourceLocation.UNKNOWN)?.let {
-                    return carry.plusReporting(it)
+                if (this.variance == TypeVariance.UNSPECIFIED) {
+                    // target needs to use the type in both IN and OUT fashion -> source must match exactly
+                    if (assigneeType.type !is GenericTypeReference && !assigneeType.type.hasSameBaseTypeAs(this.type)) {
+                        return carry.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "the exact type ${this.type} is required", assignmentLocation))
+                    }
+
+                    if (assigneeType.variance != TypeVariance.UNSPECIFIED) {
+                        return carry.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "cannot assign an in-variant value to an exact-variant reference", assignmentLocation))
+                    }
+
+                    // checks for mutability and nullability
+                    return this.type.unify(assigneeType.type, assignmentLocation, carry)
                 }
 
-                return type.unify(assigneeType, assignmentLocation, carry)
+                if (this.variance == TypeVariance.OUT) {
+                    if (assigneeType.variance == TypeVariance.OUT || assigneeType.variance == TypeVariance.UNSPECIFIED) {
+                        return this.type.unify(assigneeType.type, assignmentLocation, carry)
+                    }
+
+                    check(this.variance == TypeVariance.IN)
+                    return carry.plusReporting(
+                        Reporting.valueNotAssignable(this, assigneeType, "cannot assign in-variant value to out-variant reference", assignmentLocation)
+                    )
+                }
+
+                check(this.variance == TypeVariance.IN)
+                if (assigneeType.variance == TypeVariance.IN || assigneeType.variance == TypeVariance.UNSPECIFIED) {
+                    // IN variance reverses the hierarchy direction
+                    return this.type.unify(assigneeType.type, assignmentLocation, carry)
+                }
+
+                return carry.plusReporting(
+                    Reporting.valueNotAssignable(this, assigneeType, "cannot assign out-variant value to in-variant reference", assignmentLocation)
+                )
             }
             is GenericTypeReference -> {
                 return carry.plusRight(assigneeType.simpleName, this)
