@@ -69,7 +69,8 @@ class BoundTypeArgument(
                 check(this.variance == TypeVariance.IN)
                 if (assigneeType.variance == TypeVariance.IN || assigneeType.variance == TypeVariance.UNSPECIFIED) {
                     // IN variance reverses the hierarchy direction
-                    return this.type.unify(assigneeType.type, assignmentLocation, carry)
+                    return assigneeType.type.unify(this.type, assignmentLocation, carry.mirrored())
+                        .mirrored()
                 }
 
                 return carry.plusReporting(

@@ -132,20 +132,9 @@ class TypeUnification private constructor (
                     }
                 }
 
-                val variance = argument.variance.takeUnless { it == TypeVariance.UNSPECIFIED } ?: parameter.variance
-                when(variance) {
-                    TypeVariance.UNSPECIFIED,
-                    TypeVariance.OUT -> {
-                        // this collects type mismatch errors
-                        val nextUnification = parameter.bound.unify(argument, argument.sourceLocation ?: SourceLocation.UNKNOWN, unification)
-                        val hadErrors = nextUnification.getErrorsNotIn(unification).any()
-                        unification = nextUnification.plusLeft(parameter.name, if (!hadErrors) argument else parameter.bound)
-                    }
-                    TypeVariance.IN -> {
-                        unification = argument.unify(parameter.bound, argument.sourceLocation ?: SourceLocation.UNKNOWN, unification.mirrored())
-                            .mirrored()
-                    }
-                }
+                val nextUnification = parameter.bound.unify(argument, argument.sourceLocation ?: SourceLocation.UNKNOWN, unification)
+                val hadErrors = nextUnification.getErrorsNotIn(unification).any()
+                unification = nextUnification.plusLeft(parameter.name, if (!hadErrors) argument else parameter.bound)
             }
 
             for (i in arguments.size..typeParameters.lastIndex) {
