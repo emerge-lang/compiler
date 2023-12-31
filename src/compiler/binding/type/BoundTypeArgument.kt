@@ -60,7 +60,7 @@ class BoundTypeArgument(
                         return this.type.unify(assigneeType.type, assignmentLocation, carry)
                     }
 
-                    check(this.variance == TypeVariance.IN)
+                    check(assigneeType.variance == TypeVariance.IN)
                     return carry.plusReporting(
                         Reporting.valueNotAssignable(this, assigneeType, "cannot assign in-variant value to out-variant reference", assignmentLocation)
                     )
