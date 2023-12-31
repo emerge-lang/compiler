@@ -25,13 +25,15 @@ import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundFunction
 import compiler.binding.ObjectMember
+import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
+import compiler.reportings.Reporting
 import kotlinext.get
 
 /**
  * Base type are classes, interfaces, enums, built-in type
  */
-interface BaseType {
+interface BaseType : SemanticallyAnalyzable {
     val simpleName: String
         get() = javaClass.simpleName
 
@@ -83,6 +85,18 @@ interface BaseType {
     fun resolveMemberFunction(name: String): Collection<FunctionDeclaration> = emptySet()
 
     fun resolveMemberVariable(name: String): ObjectMember? = null
+
+    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+        return typeParameters.flatMap { it.semanticAnalysisPhase1() }
+    }
+
+    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        return typeParameters.flatMap { it.semanticAnalysisPhase2() }
+    }
+
+    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+        return typeParameters.flatMap { it.semanticAnalysisPhase3() }
+    }
 
     companion object {
         /**
