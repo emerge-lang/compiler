@@ -34,26 +34,6 @@ class BoundTypeArgument(
         return setOfNotNull(forUsage.validateForTypeVariance(variance)) + type.validate(TypeUseSite.Irrelevant)
     }
 
-    /**
-     * @see ResolvedTypeReference.evaluateAssignabilityTo
-     */
-    override fun evaluateAssignabilityTo(target: ResolvedTypeReference, assignmentLocation: SourceLocation): ValueNotAssignableReporting? {
-        val selfEffectiveType = when (variance) {
-            TypeVariance.UNSPECIFIED,
-            TypeVariance.OUT -> type
-            TypeVariance.IN -> BuiltinAny.baseReference(this.context)
-        }
-
-        when (target) {
-            is RootResolvedTypeReference -> return selfEffectiveType.evaluateAssignabilityTo(target, assignmentLocation)
-            is GenericTypeReference -> return selfEffectiveType.evaluateAssignabilityTo(target, assignmentLocation)
-            is UnresolvedType -> return selfEffectiveType.evaluateAssignabilityTo(target.standInType, assignmentLocation)
-            is BoundTypeArgument -> {
-                TODO("moved to unify")
-            }
-        }
-    }
-
     override fun unify(assigneeType: ResolvedTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
         when (assigneeType) {
             is RootResolvedTypeReference -> {

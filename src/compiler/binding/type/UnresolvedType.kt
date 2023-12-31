@@ -53,13 +53,6 @@ class UnresolvedType private constructor(
         )
     }
 
-    override fun evaluateAssignabilityTo(
-        other: ResolvedTypeReference,
-        assignmentLocation: SourceLocation
-    ): ValueNotAssignableReporting? {
-        return standInType.evaluateAssignabilityTo(other, assignmentLocation)
-    }
-
     override fun unify(assigneeType: ResolvedTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
         return when(assigneeType) {
             is RootResolvedTypeReference -> standInType.unify(assigneeType, assignmentLocation, carry)
