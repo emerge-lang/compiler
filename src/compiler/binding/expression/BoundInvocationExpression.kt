@@ -261,7 +261,17 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(
     return this
         .asSequence()
         // filter by (declared receiver)
-        .filter { (receiverType != null) == it.declaresReceiver }
+        .filter { candidateFn ->
+            if ((receiverType != null) != candidateFn.declaresReceiver) {
+                return@filter false
+            }
+
+            if (receiverType == null) {
+                return@filter true
+            }
+
+            return@filter receiverType.isAssignableTo(candidateFn.receiverType!!)
+        }
         // filter by incompatible number of parameters
         .filter { it.parameters.parameters.size == argumentsIncludingReceiver.size }
         .mapNotNull { candidateFn ->
