@@ -166,11 +166,12 @@ class RootResolvedTypeReference private constructor(
                     return this.unify(resolved, assignmentLocation, carry)
                 }
 
-                return unify(
-                    assigneeType.effectiveBound,
-                    assignmentLocation,
-                    carry.plusRight(assigneeType.simpleName, this)
-                )
+                val boundError = this.evaluateAssignabilityTo(assigneeType.effectiveBound, assignmentLocation)
+                if (boundError == null) {
+                    return carry.plusRight(assigneeType.simpleName, this)
+                } else {
+                    return carry.plusReporting(boundError)
+                }
             }
             is BoundTypeArgument -> {
                 // this branch is PROBABLY only taken when verifying the bound of a type parameter against an argument

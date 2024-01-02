@@ -135,8 +135,6 @@ class TypeErrors : FreeSpec({
             }
         }
 
-
-
         "generic inference involving multiple values of different types" {
             validateModule("""
                 struct A<T> {

@@ -35,9 +35,11 @@ class BoundTypeArgument(
     }
 
     override fun unify(assigneeType: ResolvedTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
+        if (assigneeType !is BoundTypeArgument && this.variance == TypeVariance.OUT) {
+            return carry.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "Cannot assign to an out-variant reference", assignmentLocation))
+        }
         when (assigneeType) {
             is RootResolvedTypeReference -> {
-                // TODO: is variance important here?
                 return type.unify(assigneeType, assignmentLocation, carry)
             }
             is BoundTypeArgument -> {
@@ -69,8 +71,9 @@ class BoundTypeArgument(
                 check(this.variance == TypeVariance.IN)
                 if (assigneeType.variance == TypeVariance.IN || assigneeType.variance == TypeVariance.UNSPECIFIED) {
                     // IN variance reverses the hierarchy direction
-                    return assigneeType.type.unify(this.type, assignmentLocation, carry.mirrored())
-                        .mirrored()
+                    return carry.doWithMirrored { mirroredCarry ->
+                        assigneeType.type.unify(this.type, assignmentLocation, mirroredCarry)
+                    }
                 }
 
                 return carry.plusReporting(

@@ -283,8 +283,9 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(
             var unification = TypeUnification.fromRightExplicit(candidateFn.typeParameters, typeArguments)
             candidateFn.returnType?.let { candidateReturnType ->
                 if (expectedReturnType != null) {
-                    unification = expectedReturnType.unify(candidateReturnType, SourceLocation.UNKNOWN, unification.ignoringReportings())
-                        .savingReportings()
+                    unification = unification.doWithIgnoringReportings { obliviousUnification ->
+                        expectedReturnType.unify(candidateReturnType, SourceLocation.UNKNOWN, obliviousUnification)
+                    }
                 }
             }
 
