@@ -64,7 +64,7 @@ class TypeErrors : FreeSpec({
                 validateModule("""
                     struct X<in T : Number> {}
                     
-                    val x: X<Int>
+                    val x: X<Any>
                 """.trimIndent())
                         .shouldReport<TypeArgumentOutOfBoundsReporting>()
             }
