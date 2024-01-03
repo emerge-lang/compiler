@@ -173,19 +173,7 @@ class DefaultTypeUnification private constructor(
     }
 
     override fun toString(): String {
-        val bindingsStr = if (left.isEmpty() && right.isEmpty()) "EMPTY" else {
-            fun sideToString(side: Map<String, ResolvedTypeReference>) = side.entries.joinToString(
-                prefix = "[",
-                transform = { (name, value) -> "$name = $value" },
-                separator = ", ",
-                postfix = "]",
-            )
-
-            "Left:${sideToString(left)} Right:${sideToString(right)}"
-        }
-
-        val nErrors = _reportings.count { it.level >= Reporting.Level.ERROR }
-        return "$bindingsStr Errors:$nErrors"
+        return toString(_left, _right, _reportings)
     }
 
     companion object {
@@ -230,15 +218,19 @@ private class MirroredTypeUnification(
     override val reportings: Set<Reporting> get() = undecorated.reportings
 
     override fun plusLeft(param: String, binding: ResolvedTypeReference): MirroredTypeUnification {
-        return MirroredTypeUnification(undecorated.plusLeft(param, binding))
+        return MirroredTypeUnification(undecorated.plusRight(param, binding))
     }
 
     override fun plusRight(param: String, binding: ResolvedTypeReference): MirroredTypeUnification {
-        return MirroredTypeUnification(undecorated.plusRight(param, binding))
+        return MirroredTypeUnification(undecorated.plusLeft(param, binding))
     }
 
     override fun plusReporting(reporting: Reporting): TypeUnification {
         return MirroredTypeUnification(undecorated.plusReporting(reporting))
+    }
+
+    override fun toString(): String {
+        return toString(undecorated.right, undecorated.left, undecorated.reportings)
     }
 }
 
@@ -286,4 +278,20 @@ private class ValueNotAssignableAsArgumentOutOfBounds(
     override fun plusRight(param: String, binding: ResolvedTypeReference): ValueNotAssignableAsArgumentOutOfBounds {
         return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plusRight(param, binding), parameter, argument)
     }
+}
+
+private fun toString(left: Map<String, ResolvedTypeReference>, right: Map<String, ResolvedTypeReference>, reportings: Collection<Reporting>): String {
+    val bindingsStr = if (left.isEmpty() && right.isEmpty()) "EMPTY" else {
+        fun sideToString(side: Map<String, ResolvedTypeReference>) = side.entries.joinToString(
+            prefix = "[",
+            transform = { (name, value) -> "$name = $value" },
+            separator = ", ",
+            postfix = "]",
+        )
+
+        "Left:${sideToString(left)} Right:${sideToString(right)}"
+    }
+
+    val nErrors = reportings.count { it.level >= Reporting.Level.ERROR }
+    return "$bindingsStr Errors:$nErrors"
 }
