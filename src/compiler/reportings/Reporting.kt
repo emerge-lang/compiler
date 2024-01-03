@@ -115,8 +115,8 @@ abstract class Reporting internal constructor(
         fun typeArgumentCountMismatch(type: RootResolvedTypeReference)
             = TypeArgumentCountMismatchReporting(type, type.baseType)
 
-        fun missingTypeArgument(parameter: BoundTypeParameter, lastSuppliedTypeArgument: BoundTypeArgument)
-            = MissingTypeArgumentReporting(parameter.astNode, lastSuppliedTypeArgument.astNode)
+        fun missingTypeArgument(parameter: BoundTypeParameter, sourceLocation: SourceLocation)
+            = MissingTypeArgumentReporting(parameter.astNode, sourceLocation)
 
         fun superfluousTypeArguments(nExpectedArguments: Int, firstSuperfluousArgument: BoundTypeArgument)
             = SuperfluousTypeArgumentsReporting(nExpectedArguments, firstSuperfluousArgument.astNode)

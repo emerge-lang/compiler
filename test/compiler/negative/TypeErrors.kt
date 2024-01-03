@@ -5,6 +5,8 @@ import compiler.ast.type.TypeReference
 import compiler.binding.type.BuiltinInt
 import compiler.negative.shouldReport
 import compiler.negative.validateModule
+import compiler.reportings.MissingTypeArgumentReporting
+import compiler.reportings.SuperfluousTypeArgumentsReporting
 import compiler.reportings.TypeArgumentCountMismatchReporting
 import compiler.reportings.TypeArgumentOutOfBoundsReporting
 import compiler.reportings.TypeArgumentVarianceMismatchReporting
@@ -75,7 +77,9 @@ class TypeErrors : FreeSpec({
                 struct X<T> {}
                 val x: X
             """.trimIndent())
-                .shouldReport<TypeArgumentCountMismatchReporting>()
+                .shouldReport<MissingTypeArgumentReporting> {
+                    it.parameter.name.value shouldBe "T"
+                }
         }
 
         "reference to generic type with too many type arguments when they are required" {
@@ -83,7 +87,10 @@ class TypeErrors : FreeSpec({
                 struct X<T> {}
                 val x: X<Int, Int, Boolean>
             """.trimIndent())
-                .shouldReport<TypeArgumentCountMismatchReporting>()
+                .shouldReport<SuperfluousTypeArgumentsReporting> {
+                    it.nExpected shouldBe 1
+                    it.firstSuperfluousArgument.type.simpleName shouldBe "Int"
+                }
         }
 
         "reference to generic type with mismatching parameter variance" {

@@ -33,22 +33,14 @@ class RootResolvedTypeReference private constructor(
         parameters,
     )
 
-    constructor(context: CTContext, baseType: BaseType, isNullable: Boolean, explicitModifier: TypeMutability?, parameters: List<BoundTypeArgument>) : this(
-        null,
-        context,
-        isNullable,
-        explicitModifier,
-        baseType,
-        parameters,
-    )
-
     override fun withMutability(modifier: TypeMutability?): RootResolvedTypeReference {
         // todo: how to handle projected mutability? readonly Array<Foo> == readonly Array<readonly Foo>
         return RootResolvedTypeReference(
+            original,
             context,
-            baseType,
             isNullable,
             if (baseType.isAtomic) TypeMutability.IMMUTABLE else modifier,
+            baseType,
             arguments.map { it.defaultMutabilityTo(modifier) },
         )
     }
@@ -56,10 +48,11 @@ class RootResolvedTypeReference private constructor(
     override fun withCombinedMutability(mutability: TypeMutability?): RootResolvedTypeReference {
         val combinedMutability = mutability?.let { this.mutability.combinedWith(it) } ?: this.mutability
         return RootResolvedTypeReference(
+            original,
             context,
-            baseType,
             isNullable,
             combinedMutability,
+            baseType,
             arguments.map { it.defaultMutabilityTo(combinedMutability) },
         )
     }
@@ -85,10 +78,11 @@ class RootResolvedTypeReference private constructor(
         }
 
         return RootResolvedTypeReference(
+            original,
             context,
-            baseType,
             isNullable,
             mutability,
+            baseType,
             arguments.map { it.defaultMutabilityTo(mutability) },
         )
     }
@@ -113,10 +107,11 @@ class RootResolvedTypeReference private constructor(
                 val commonSupertype = BaseType.closestCommonSupertypeOf(this.baseType, other.baseType)
                 check(commonSupertype.typeParameters.isEmpty()) { "Generic supertypes are not implemented, yet." }
                 RootResolvedTypeReference(
+                    null,
                     context,
-                    commonSupertype,
                     this.isNullable || other.isNullable,
                     this.mutability.combinedWith(other.mutability),
+                    commonSupertype,
                     emptyList(),
                 )
             }
@@ -128,7 +123,7 @@ class RootResolvedTypeReference private constructor(
     override fun findMemberVariable(name: String): ObjectMember? = baseType.resolveMemberVariable(name)
 
     override val inherentTypeBindings by lazy {
-        TypeUnification.fromLeftExplicit(baseType.typeParameters, this.arguments)
+        TypeUnification.fromLeftExplicit(baseType.typeParameters, arguments, sourceLocation ?: SourceLocation.UNKNOWN)
     }
 
     override fun unify(assigneeType: ResolvedTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {

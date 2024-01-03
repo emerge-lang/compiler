@@ -44,7 +44,7 @@ interface BaseType : SemanticallyAnalyzable {
     val baseReference: (CTContext) -> ResolvedTypeReference
         get() = { ctx ->
             // determine minimum bound for all type parameters
-            RootResolvedTypeReference(ctx, this, false, null, typeParameters.map {
+            RootResolvedTypeReference(TypeReference(this.simpleName), ctx, this, typeParameters.map {
                 BoundTypeArgument(
                     ctx,
                     TypeArgument(

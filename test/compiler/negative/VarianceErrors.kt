@@ -1,5 +1,6 @@
 package compiler.compiler.negative
 
+import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance.*
 import compiler.binding.context.ModuleRootContext
 import compiler.binding.type.*
@@ -24,10 +25,9 @@ class VarianceErrors : FreeSpec({
     fun varExact(t: BaseType) = BoundTypeArgument(context, mockk(), UNSPECIFIED, t.baseReference(context))
 
     fun arrayOf(element: BoundTypeArgument): ResolvedTypeReference = RootResolvedTypeReference(
+        TypeReference("Array"),
         context,
         BuiltinArray,
-        false,
-        null,
         listOf(element),
     )
 

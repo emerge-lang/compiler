@@ -50,28 +50,28 @@ abstract class TypeUnification {
     companion object {
         val EMPTY: TypeUnification = DefaultTypeUnification.EMPTY
 
-        fun fromRightExplicit(typeParameters: List<BoundTypeParameter>, arguments: List<BoundTypeArgument>): TypeUnification {
-            return MirroredTypeUnification(fromLeftExplicit(typeParameters, arguments))
+        fun fromRightExplicit(
+            typeParameters: List<BoundTypeParameter>,
+            arguments: List<BoundTypeArgument>,
+            typeLocation: SourceLocation,
+        ): TypeUnification {
+            return MirroredTypeUnification(fromLeftExplicit(typeParameters, arguments, typeLocation))
         }
 
         fun fromLeftExplicit(
             typeParameters: List<BoundTypeParameter>,
             arguments: List<BoundTypeArgument>,
+            typeLocation: SourceLocation,
         ): TypeUnification {
-            if (arguments.isEmpty()) {
-                return EMPTY
-            }
-
             var unification = EMPTY
-            val reportings = mutableSetOf<Reporting>()
             for (i in 0..typeParameters.lastIndex.coerceAtMost(arguments.lastIndex)) {
                 val parameter = typeParameters[i]
                 val argument = arguments[i]
                 if (argument.variance != TypeVariance.UNSPECIFIED && parameter.variance != TypeVariance.UNSPECIFIED) {
                     if (argument.variance != parameter.variance) {
-                        reportings.add(Reporting.typeArgumentVarianceMismatch(parameter, argument))
+                        unification = unification.plusReporting(Reporting.typeArgumentVarianceMismatch(parameter, argument))
                     } else {
-                        reportings.add(Reporting.typeArgumentVarianceSuperfluous(argument))
+                        unification = unification.plusReporting(Reporting.typeArgumentVarianceSuperfluous(argument))
                     }
                 }
 
@@ -83,13 +83,17 @@ abstract class TypeUnification {
             }
 
             for (i in arguments.size..typeParameters.lastIndex) {
-                reportings.add(Reporting.missingTypeArgument(typeParameters[i], arguments.last()))
+                unification = unification.plusReporting(
+                    Reporting.missingTypeArgument(typeParameters[i], arguments.lastOrNull()?.sourceLocation ?: typeLocation)
+                )
             }
             if (arguments.size > typeParameters.size) {
-                reportings.add(Reporting.superfluousTypeArguments(
-                    typeParameters.size,
-                    arguments[typeParameters.size],
-                ))
+                unification = unification.plusReporting(
+                    Reporting.superfluousTypeArguments(
+                        typeParameters.size,
+                        arguments[typeParameters.size],
+                    )
+                )
             }
 
             return unification
