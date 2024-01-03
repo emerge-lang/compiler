@@ -51,7 +51,7 @@ class Module(
      * collects the results and returns them.
      */
     fun semanticAnalysisPhase2(): Collection<Reporting> =
-        context.types.flatMap(BaseType::semanticAnalysisPhase1) +
+        context.types.flatMap(BaseType::semanticAnalysisPhase2) +
         context.variables.flatMap(BoundVariable::semanticAnalysisPhase2) +
         context.functions.flatMap(BoundFunction::semanticAnalysisPhase2) +
         context.structs.flatMap(Struct::semanticAnalysisPhase2)
@@ -61,7 +61,7 @@ class Module(
      * collects the results and returns them.
      */
     fun semanticAnalysisPhase3(): Collection<Reporting> =
-        context.types.flatMap(BaseType::semanticAnalysisPhase1) +
+        context.types.flatMap(BaseType::semanticAnalysisPhase3) +
         context.variables.flatMap(BoundVariable::semanticAnalysisPhase3) +
         context.functions.flatMap(BoundFunction::semanticAnalysisPhase3) +
         context.structs.flatMap(Struct::semanticAnalysisPhase3)

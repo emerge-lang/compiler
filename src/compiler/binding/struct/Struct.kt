@@ -18,6 +18,7 @@
 
 package compiler.binding.struct
 
+import compiler.OnceAction
 import compiler.ast.Executable
 import compiler.ast.FunctionDeclaration
 import compiler.ast.struct.StructDeclaration
@@ -40,6 +41,8 @@ class Struct(
     override val declaration: StructDeclaration,
     val members: List<StructMember>
 ) : BaseType, BoundElement<StructDeclaration> {
+    private val onceAction = OnceAction()
+
     override val context: CTContext = structContext
     override val simpleName: String = declaration.name.value
     override val typeParameters: List<BoundTypeParameter> = structContext.typeParameters
@@ -53,36 +56,42 @@ class Struct(
     override fun resolveMemberFunction(name: String): Collection<FunctionDeclaration> = emptySet()
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
+        return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
+            val reportings = mutableSetOf<Reporting>()
 
-        typeParameters.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
+            typeParameters.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
 
-        members.forEach {
-            reportings.addAll(it.semanticAnalysisPhase1())
+            members.forEach {
+                reportings.addAll(it.semanticAnalysisPhase1())
+            }
+
+            // duplicate members
+            members.duplicatesBy(StructMember::name).forEach { (_, dupMembers) ->
+                reportings.add(Reporting.duplicateTypeMembers(this, dupMembers))
+            }
+
+            constructors = setOf(StructConstructor(this))
+
+            return@getResult reportings
         }
-
-        // duplicate members
-        members.duplicatesBy(StructMember::name).forEach { (_, dupMembers) ->
-            reportings.add(Reporting.duplicateTypeMembers(this, dupMembers))
-        }
-
-        constructors = setOf(StructConstructor(this))
-
-        return reportings
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = members.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
-        constructors.map(BoundFunction::semanticAnalysisPhase2).forEach(reportings::addAll)
-        typeParameters.map(BoundTypeParameter::semanticAnalysisPhase2).forEach(reportings::addAll)
-        return reportings
+        return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
+            val reportings = members.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
+            constructors.map(BoundFunction::semanticAnalysisPhase2).forEach(reportings::addAll)
+            typeParameters.map(BoundTypeParameter::semanticAnalysisPhase2).forEach(reportings::addAll)
+            return@getResult reportings
+        }
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = members.flatMap { it.semanticAnalysisPhase3() }.toMutableList()
-        constructors.map(BoundFunction::semanticAnalysisPhase3).forEach(reportings::addAll)
-        typeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
-        return reportings
+        return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
+            val reportings = members.flatMap { it.semanticAnalysisPhase3() }.toMutableList()
+            constructors.map(BoundFunction::semanticAnalysisPhase3).forEach(reportings::addAll)
+            typeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
+            return@getResult reportings
+        }
     }
 
     /*
