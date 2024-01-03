@@ -50,19 +50,45 @@ abstract class TypeUnification {
     companion object {
         val EMPTY: TypeUnification = DefaultTypeUnification.EMPTY
 
+        /**
+         * see [fromLeftExplicit], except that the instantiations will go into [TypeUnification.right] instead of
+         * [left].
+         */
         fun fromRightExplicit(
             typeParameters: List<BoundTypeParameter>,
             arguments: List<BoundTypeArgument>,
-            typeLocation: SourceLocation,
+            argumentsLocation: SourceLocation,
+            allowZeroTypeArguments: Boolean = false,
         ): TypeUnification {
-            return MirroredTypeUnification(fromLeftExplicit(typeParameters, arguments, typeLocation))
+            return MirroredTypeUnification(fromLeftExplicit(typeParameters, arguments, argumentsLocation, allowZeroTypeArguments))
         }
 
+        /**
+         * For a type reference or function call, builds a [TypeUnification] that contains the explicit type arguments
+         * given in [TypeUnification.left]. E.g.:
+         *
+         *     struct X<E, T> {}
+         *
+         *     val foo: X<Int, Boolean>
+         *
+         * Then you would call `fromLeftExplicit(<params of base type X>, <int ant boolean type args>, ...)`
+         * and the return value would be `Left:[E = Int, T = Boolean] Right:[] Errors: 0`
+         *
+         * @param argumentsLocation Location of where the type arguments are being supplied. Used as a fallback
+         * for reportings if there are no type arguments and [allowZeroTypeArguments] is false
+         * @param allowZeroTypeArguments Whether 0 type arguments is valid even if [ŧypeParameters] is non-empty.
+         * This is the case for function invocations, but type references always need to specify all type args.
+         */
         fun fromLeftExplicit(
             typeParameters: List<BoundTypeParameter>,
             arguments: List<BoundTypeArgument>,
-            typeLocation: SourceLocation,
+            argumentsLocation: SourceLocation,
+            allowZeroTypeArguments: Boolean = false,
         ): TypeUnification {
+            if (arguments.isEmpty() && allowZeroTypeArguments) {
+                return EMPTY
+            }
+
             var unification = EMPTY
             for (i in 0..typeParameters.lastIndex.coerceAtMost(arguments.lastIndex)) {
                 val parameter = typeParameters[i]
@@ -84,7 +110,7 @@ abstract class TypeUnification {
 
             for (i in arguments.size..typeParameters.lastIndex) {
                 unification = unification.plusReporting(
-                    Reporting.missingTypeArgument(typeParameters[i], arguments.lastOrNull()?.sourceLocation ?: typeLocation)
+                    Reporting.missingTypeArgument(typeParameters[i], arguments.lastOrNull()?.sourceLocation ?: argumentsLocation)
                 )
             }
             if (arguments.size > typeParameters.size) {
@@ -101,7 +127,7 @@ abstract class TypeUnification {
     }
 }
 
-class DefaultTypeUnification private constructor (
+class DefaultTypeUnification private constructor(
     private val _left: IdentityHashMap<String, ResolvedTypeReference>,
     private val _right: IdentityHashMap<String, ResolvedTypeReference>,
     private val _reportings: Set<Reporting>,

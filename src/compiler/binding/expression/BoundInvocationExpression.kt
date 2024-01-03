@@ -91,7 +91,6 @@ class BoundInvocationExpression(
                 ))
             }
             type = chosenOverload.candidate.returnType?.contextualize(chosenOverload.unification, TypeUnification::right)
-            type?.validate(TypeUseSite.Irrelevant)?.let(reportings::addAll)
             if (chosenOverload.candidate.returnsExclusiveValue && expectedReturnType != null) {
                 // this is solved by adjusting the return type of the constructor invocation according to the
                 // type needed by the larger context
@@ -280,7 +279,8 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(
                 return@mapNotNull null
             }
 
-            var unification = TypeUnification.fromRightExplicit(candidateFn.typeParameters, typeArguments, SourceLocation.UNKNOWN) // TODO
+            // TODO: source location
+            var unification = TypeUnification.fromRightExplicit(candidateFn.typeParameters, typeArguments, SourceLocation.UNKNOWN, allowZeroTypeArguments = true)
             candidateFn.returnType?.let { candidateReturnType ->
                 if (expectedReturnType != null) {
                     unification = unification.doWithIgnoringReportings { obliviousUnification ->

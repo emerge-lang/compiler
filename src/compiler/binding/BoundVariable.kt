@@ -98,7 +98,7 @@ class BoundVariable(
 
             declaration.type
                 ?.let(context::resolveType)
-                ?.withMutability(implicitMutability)
+                ?.defaultMutabilityTo(implicitMutability)
                 ?.let { resolvedDeclaredType ->
                     this.resolvedDeclaredType = resolvedDeclaredType
                     this.type = resolvedDeclaredType
@@ -137,8 +137,6 @@ class BoundVariable(
                         )
                     )
                 }
-
-                initializerExpression.type?.validate(TypeUseSite.Irrelevant)?.let(reportings::addAll)
 
                 // if declaration doesn't mention mutability, try to infer it from the initializer
                 // instead of using the default mutability

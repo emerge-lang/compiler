@@ -35,6 +35,7 @@ class BoundDeclaredFunction(
 
     /**
      * Implied modifiers. Operator functions often have an implied [FunctionModifier.READONLY]
+     * TODO: yeet, these modifiers can go into the stdlib sources
      */
     val impliedModifiers: Set<FunctionModifier> = run {
         // only operator functions have implied modifiers

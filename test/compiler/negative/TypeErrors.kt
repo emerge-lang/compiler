@@ -2,12 +2,10 @@ package compiler.compiler.negative
 
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.type.BuiltinInt
 import compiler.negative.shouldReport
 import compiler.negative.validateModule
 import compiler.reportings.MissingTypeArgumentReporting
 import compiler.reportings.SuperfluousTypeArgumentsReporting
-import compiler.reportings.TypeArgumentCountMismatchReporting
 import compiler.reportings.TypeArgumentOutOfBoundsReporting
 import compiler.reportings.TypeArgumentVarianceMismatchReporting
 import compiler.reportings.TypeArgumentVarianceSuperfluousReporting
@@ -16,7 +14,6 @@ import compiler.reportings.ValueNotAssignableReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
-import io.mockk.mockk
 
 class TypeErrors : FreeSpec({
     "generics" - {
@@ -135,9 +132,10 @@ class TypeErrors : FreeSpec({
                     }
                     val x = A(2)
                 """.trimIndent())
-                    .shouldReport<TypeArgumentOutOfBoundsReporting>() {
-                        // TODO: this reports the problem at the location of the type parameter in A
-                        // but it must be reported as a type mismatch in the constructor invocation
+                    .shouldReport<ValueNotAssignableReporting> {
+                        it.sourceType.toString() shouldBe "immutable Int"
+                        it.targetType.toString() shouldBe "mutable Any"
+                        it.reason shouldBe "cannot assign a immutable value to a mutable reference"
                     }
             }
         }

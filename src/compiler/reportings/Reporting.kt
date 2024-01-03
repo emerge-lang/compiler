@@ -112,9 +112,6 @@ abstract class Reporting internal constructor(
         fun varianceOnFunctionTypeParameter(parameter: BoundTypeParameter)
             = VarianceOnFunctionTypeParameterReporting(parameter.astNode)
 
-        fun typeArgumentCountMismatch(type: RootResolvedTypeReference)
-            = TypeArgumentCountMismatchReporting(type, type.baseType)
-
         fun missingTypeArgument(parameter: BoundTypeParameter, sourceLocation: SourceLocation)
             = MissingTypeArgumentReporting(parameter.astNode, sourceLocation)
 

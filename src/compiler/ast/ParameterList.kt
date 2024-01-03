@@ -31,6 +31,6 @@ class ParameterList (
     override fun bindTo(context: CTContext) = BoundParameterList(
         context,
         this,
-        parameters.map { it.bindTo(context) }
+        parameters.map { it.bindToAsParameter(context) }
     )
 }

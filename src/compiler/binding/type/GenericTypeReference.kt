@@ -44,12 +44,12 @@ sealed class GenericTypeReference : ResolvedTypeReference {
         return when (assigneeType) {
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
             is RootResolvedTypeReference -> {
-                when (parameter.variance) {
+                val newCarry = when (parameter.variance) {
                     TypeVariance.UNSPECIFIED,
                     TypeVariance.IN -> effectiveBound.unify(assigneeType, assignmentLocation, carry)
-                    TypeVariance.OUT -> Reporting.valueNotAssignable(this, assigneeType, "Cannot assign to an out-variant reference", assignmentLocation)
+                    TypeVariance.OUT -> carry.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "Cannot assign to an out-variant reference", assignmentLocation))
                 }
-                carry.plusLeft(simpleName, assigneeType)
+                newCarry.plusLeft(simpleName, assigneeType)
             }
             is BoundTypeArgument -> TODO("What do do here? carry.plusLeft(simpleName, assigneeType) ?")
             is GenericTypeReference -> TODO("namespace conflict :(")
