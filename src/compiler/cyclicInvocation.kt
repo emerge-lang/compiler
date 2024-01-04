@@ -23,20 +23,43 @@ private class ContextAtStackFrame(
     override fun toString() = "$context at $stackFrame"
 }
 
-class EarlyStackOverflowException() : RuntimeException("Stack overflow")
+private class EarlyStackOverflowException(val context: ContextAtStackFrame? = null) : RuntimeException("Stack overflow") {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is EarlyStackOverflowException) return false
+
+        if (context != other.context) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return context?.hashCode() ?: 0
+    }
+}
 
 private val contexts: ThreadLocal<MutableSet<ContextAtStackFrame>> = ThreadLocal.withInitial(::HashSet)
 
-fun <R> throwOnCycle(context: Any, action: () -> R): R {
+fun <R> handleCyclicInvocation(
+    context: Any,
+    action: () -> R,
+    onCycle: () -> R,
+): R {
     val invocationContext = ContextAtStackFrame(context, getInvocationStackFrame())
     val threadContexts = contexts.get()
     if (invocationContext in threadContexts) {
-        throw EarlyStackOverflowException()
+        throw EarlyStackOverflowException(invocationContext)
     }
     threadContexts.add(invocationContext)
 
     return try {
         action()
+    } catch (ex: EarlyStackOverflowException) {
+        if (ex.context == invocationContext) {
+            return onCycle()
+        }
+
+        throw ex
     } finally {
         threadContexts.remove(invocationContext)
         if (threadContexts.isEmpty()) {

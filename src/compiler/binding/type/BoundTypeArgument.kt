@@ -7,7 +7,6 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
-import compiler.reportings.ValueNotAssignableReporting
 
 class BoundTypeArgument(
     override val context: CTContext,

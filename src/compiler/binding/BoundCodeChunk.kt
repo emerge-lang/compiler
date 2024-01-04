@@ -18,14 +18,13 @@
 
 package compiler.binding
 
-import compiler.EarlyStackOverflowException
 import compiler.InternalCompilerError
 import compiler.ast.CodeChunk
 import compiler.ast.Executable
 import compiler.binding.context.CTContext
 import compiler.binding.type.ResolvedTypeReference
 import compiler.reportings.Reporting
-import compiler.throwOnCycle
+import compiler.handleCyclicInvocation
 
 class BoundCodeChunk(
     /**
@@ -81,11 +80,11 @@ class BoundCodeChunk(
         if (statements == null) throw InternalCompilerError("Illegal state: invoke this function after semantic analysis phase 3 is completed.")
 
         return statements!!.flatMap {
-            try {
-                throwOnCycle(this) { it.findReadsBeyond(boundary) }
-            } catch (ex: EarlyStackOverflowException) {
-                emptySet()
-            }
+            handleCyclicInvocation(
+                context = this,
+                action =  { it.findReadsBeyond(boundary) },
+                onCycle = ::emptySet,
+            )
         }
     }
 
@@ -93,11 +92,11 @@ class BoundCodeChunk(
         if (statements == null) throw InternalCompilerError("Illegal state: invoke this function after semantic analysis phase 3 is completed.")
 
         return statements!!.flatMap {
-            try {
-                throwOnCycle(this) { it.findWritesBeyond(boundary) }
-            } catch (ex: EarlyStackOverflowException) {
-                emptySet()
-            }
+            handleCyclicInvocation(
+                context = this,
+                action = { it.findWritesBeyond(boundary) },
+                onCycle = ::emptySet,
+            )
         }
     }
 }

@@ -18,7 +18,6 @@
 
 package compiler.binding
 
-import compiler.EarlyStackOverflowException
 import compiler.OnceAction
 import compiler.ast.Executable
 import compiler.ast.VariableDeclaration
@@ -32,7 +31,7 @@ import compiler.binding.type.ResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
 import compiler.reportings.Reporting
-import compiler.throwOnCycle
+import compiler.handleCyclicInvocation
 
 /**
  * Describes the presence/avaiability of a (class member) variable or (class member) value in a context.
@@ -123,20 +122,20 @@ class BoundVariable(
             val reportings = mutableSetOf<Reporting>()
 
             if (initializerExpression != null) {
-                try {
-                    throwOnCycle(this) {
+                handleCyclicInvocation(
+                    context = this,
+                    action = {
                         reportings.addAll(initializerExpression.semanticAnalysisPhase2())
-                    }
-                } catch (ex: EarlyStackOverflowException) {
-                    throw CyclicTypeInferenceException()
-                } catch (ex: CyclicTypeInferenceException) {
-                    reportings.add(
-                        Reporting.typeDeductionError(
-                            "Cannot infer the type of variable $name because the type inference is cyclic here. Specify the type of one element explicitly.",
-                            initializerExpression.declaration.sourceLocation
+                    },
+                    onCycle = {
+                        reportings.add(
+                            Reporting.typeDeductionError(
+                                "Cannot infer the type of variable $name because the type inference is cyclic here. Specify the type of one element explicitly.",
+                                initializerExpression.declaration.sourceLocation
+                            )
                         )
-                    )
-                }
+                    },
+                )
 
                 // if declaration doesn't mention mutability, try to infer it from the initializer
                 // instead of using the default mutability

@@ -81,13 +81,11 @@ class BoundDeclaredFunction(
         get() = if (isDeclaredReadonly || isDeclaredPure) true else isEffectivelyReadonly
 
     override val isGuaranteedToThrow: Boolean?
-        get() = try {
-                throwOnCycle(this) {
-                    return@throwOnCycle code?.isGuaranteedToThrow
-                }
-            } catch (ex: EarlyStackOverflowException) {
-                false
-            }
+        get() = handleCyclicInvocation(
+                    context = this,
+                    action = { code?.isGuaranteedToThrow },
+                    onCycle = { false },
+                )
 
     private val onceAction = OnceAction()
 
@@ -132,20 +130,16 @@ class BoundDeclaredFunction(
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
             val reportings = mutableSetOf<Reporting>()
 
-            try {
-                throwOnCycle(this) {
-                    this.code?.semanticAnalysisPhase2()?.let(reportings::addAll)
-                }
-            } catch (ex: EarlyStackOverflowException) {
-                throw CyclicTypeInferenceException()
-            } catch (ex: CyclicTypeInferenceException) {
-                reportings.add(
+            handleCyclicInvocation(
+                context = this,
+                action = { this.code?.semanticAnalysisPhase2()?.let(reportings::addAll) },
+                onCycle = {
                     Reporting.typeDeductionError(
                         "Cannot infer the return type of function $name because the type inference is cyclic here. Specify the type of one element explicitly.",
                         declaredAt
                     )
-                )
-            }
+                }
+            )
 
             if (returnType == null) {
                 if (this.code is BoundExpression<*>) {
@@ -174,7 +168,7 @@ class BoundDeclaredFunction(
                     reportings.add(Reporting.varianceOnFunctionTypeParameter(it))
                 }
             }
-
+            code?.semanticAnalysisPhase2()?.let(reportings::addAll)
 
             return@getResult reportings
         }
@@ -194,20 +188,16 @@ class BoundDeclaredFunction(
                 reportings += code.semanticAnalysisPhase3()
 
                 // readonly and purity checks
-                val statementsReadingBeyondFunctionContext = try {
-                    throwOnCycle(this) {
-                        code.findReadsBeyond(context)
-                    }
-                } catch (ex: EarlyStackOverflowException) {
-                    emptySet()
-                }
-                val statementsWritingBeyondFunctionContext = try {
-                    throwOnCycle(this) {
-                        code.findWritesBeyond(context)
-                    }
-                } catch (ex: EarlyStackOverflowException) {
-                    emptySet()
-                }
+                val statementsReadingBeyondFunctionContext = handleCyclicInvocation(
+                    context = this,
+                    action = { code.findReadsBeyond(context) },
+                    onCycle = ::emptySet,
+                )
+                val statementsWritingBeyondFunctionContext = handleCyclicInvocation(
+                    context = this,
+                    action = { code.findWritesBeyond(context) },
+                    onCycle = ::emptySet,
+                )
 
                 isEffectivelyReadonly = statementsWritingBeyondFunctionContext.isEmpty()
                 isEffectivelyPure = isEffectivelyReadonly!! && statementsReadingBeyondFunctionContext.isEmpty()

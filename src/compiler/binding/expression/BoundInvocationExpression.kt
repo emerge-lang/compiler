@@ -18,19 +18,17 @@
 
 package compiler.binding.expression
 
-import compiler.EarlyStackOverflowException
 import compiler.OnceAction
 import compiler.ast.Executable
 import compiler.ast.expression.InvocationExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
-import compiler.binding.CyclicTypeInferenceException
 import compiler.binding.context.CTContext
 import compiler.binding.type.*
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
-import compiler.throwOnCycle
+import compiler.handleCyclicInvocation
 
 class BoundInvocationExpression(
     override val context: CTContext,
@@ -78,18 +76,17 @@ class BoundInvocationExpression(
             val chosenOverload = selectOverload(reportings) ?: return@getResult reportings
 
             dispatchedFunction = chosenOverload.candidate
-            try {
-                throwOnCycle(this) {
-                    chosenOverload.candidate.semanticAnalysisPhase2()
+            handleCyclicInvocation(
+                context = this,
+                action = { chosenOverload.candidate.semanticAnalysisPhase2() },
+                onCycle = {
+                    reportings.add(Reporting.typeDeductionError(
+                        "Cannot infer return type of the call to function ${functionNameToken.value} because the inference is cyclic here. Specify the return type explicitly.",
+                        declaration.sourceLocation,
+                    ))
                 }
-            } catch (ex: EarlyStackOverflowException) {
-                throw CyclicTypeInferenceException()
-            } catch (ex: CyclicTypeInferenceException) {
-                reportings.add(Reporting.typeDeductionError(
-                    "Cannot infer return type of the call to function ${functionNameToken.value} because the inference is cyclic here. Specify the return type explicitly.",
-                    declaration.sourceLocation,
-                ))
-            }
+            )
+
             type = chosenOverload.candidate.returnType?.contextualize(chosenOverload.unification, TypeUnification::right)
             if (chosenOverload.candidate.returnsExclusiveValue && expectedReturnType != null) {
                 // this is solved by adjusting the return type of the constructor invocation according to the
