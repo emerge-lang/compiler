@@ -49,7 +49,7 @@ sealed class GenericTypeReference : ResolvedTypeReference {
                     TypeVariance.IN -> effectiveBound.unify(assigneeType, assignmentLocation, carry)
                     TypeVariance.OUT -> carry.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "Cannot assign to an out-variant reference", assignmentLocation))
                 }
-                newCarry.plusLeft(simpleName, assigneeType)
+                newCarry.plusRight(simpleName, assigneeType)
             }
             is BoundTypeArgument -> TODO("What do do here? carry.plusLeft(simpleName, assigneeType) ?")
             is GenericTypeReference -> TODO("namespace conflict :(")

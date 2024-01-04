@@ -80,7 +80,7 @@ class BoundTypeArgument(
                 )
             }
             is GenericTypeReference -> {
-                return carry.plusRight(assigneeType.simpleName, this)
+                return carry.plusLeft(assigneeType.simpleName, this)
             }
             is UnresolvedType -> {
                 return unify(assigneeType.standInType, assignmentLocation, carry)

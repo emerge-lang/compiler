@@ -108,7 +108,7 @@ sealed interface ResolvedTypeReference {
      * This is achieved by the mechanism of unification that is copied from prolog (or logic programming in general):
      *
      * let `this` be `S<T>`
-     * let `other` be `S<Int>`
+     * let `assigneeType` be `S<Int>`
      *
      * Then the two `S` will match, and the type arguments will be aligned with each other, associating the
      * `T` type parameter with the `Int` type argument: the result is `mapOf(T to Int)`
@@ -134,6 +134,9 @@ sealed interface ResolvedTypeReference {
      *
      * The [Reporting]s added to [carry] will refer to `this` as the type being assigned to (member variable, function
      * parameter, ...) and [assigneeType] as the type of the value being assigned.
+     *
+     * References to generic types found in [assigneeType] will be put into [TypeUnification.left], and references to
+     * generic types found in `this` will be put into [TypeUnification.right].
      *
      * @param assignmentLocation Used to properly locate errors, also for forwarding to [evaluateAssignabilityTo]
      * @param carry When multiple types have to be found at the same time (a function invocation with more than one parameter),

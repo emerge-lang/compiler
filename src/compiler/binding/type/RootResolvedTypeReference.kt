@@ -163,7 +163,7 @@ class RootResolvedTypeReference private constructor(
 
                 val boundError = this.evaluateAssignabilityTo(assigneeType.effectiveBound, assignmentLocation)
                 if (boundError == null) {
-                    return carry.plusRight(assigneeType.simpleName, this)
+                    return carry.plusLeft(assigneeType.simpleName, this)
                 } else {
                     return carry.plusReporting(boundError)
                 }

@@ -17,6 +17,7 @@ abstract class TypeUnification {
     abstract val left: Map<String, ResolvedTypeReference>
     abstract val right: Map<String, ResolvedTypeReference>
     abstract val reportings: Set<Reporting>
+
     abstract fun plusLeft(
         param: String,
         binding: ResolvedTypeReference,
