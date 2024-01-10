@@ -79,7 +79,8 @@ class TypeVariable(
         carry: TypeUnification
     ): TypeUnification {
         when (assigneeType) {
-            is RootResolvedTypeReference -> {
+            is RootResolvedTypeReference,
+            is GenericTypeReference -> {
                 val newCarry = carry.plus(this, assigneeType, assignmentLocation)
                 val selfBinding = newCarry.bindings[this] ?: return newCarry
                 return selfBinding.unify(assigneeType, assignmentLocation, newCarry)

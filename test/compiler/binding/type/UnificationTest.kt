@@ -47,4 +47,18 @@ class UnificationTest : FreeSpec({
                 }
         }
     }
+
+    "Type variable isolation / name confusion" {
+        /* TODO: define a recursive invocation that instantiates the type parameter for the invocation to something
+           incompatible to the generic type T of the outer scope. The compiler must not confuse the two for each other,
+           even though they are called T and both originate from the same source location of type parameter.
+         */
+        validateModule("""
+            fun <T, E> foo(p1: T, p2: E): T {
+                return foo(p2, p1)
+            }
+        """.trimIndent())
+            .shouldReport<ValueNotAssignableReporting> {
+            }
+    }
 })
