@@ -24,6 +24,10 @@ class RootResolvedTypeReference private constructor(
     override val simpleName = original?.simpleName ?: baseType.simpleName
     override val sourceLocation = original?.declaringNameToken?.sourceLocation
 
+    override val inherentTypeBindings by lazy {
+        TypeUnification.fromExplicit(baseType.typeParameters, arguments, sourceLocation ?: SourceLocation.UNKNOWN)
+    }
+
     constructor(original: TypeReference, context: CTContext, baseType: BaseType, parameters: List<BoundTypeArgument>) : this(
         original,
         context,
@@ -117,13 +121,21 @@ class RootResolvedTypeReference private constructor(
             }
             is GenericTypeReference -> other.closestCommonSupertypeWith(this)
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
+            is TypeVariable -> TODO("this should be an illegal operation")
         }
     }
 
     override fun findMemberVariable(name: String): ObjectMember? = baseType.resolveMemberVariable(name)
 
-    override val inherentTypeBindings by lazy {
-        TypeUnification.fromLeftExplicit(baseType.typeParameters, arguments, sourceLocation ?: SourceLocation.UNKNOWN)
+    override fun withTypeVariables(variables: List<BoundTypeParameter>): ResolvedTypeReference {
+        return RootResolvedTypeReference(
+            original,
+            context,
+            isNullable,
+            explicitMutability,
+            baseType,
+            arguments.map { it.withTypeVariables(variables) },
+        )
     }
 
     override fun unify(assigneeType: ResolvedTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
@@ -156,35 +168,25 @@ class RootResolvedTypeReference private constructor(
                     }
             }
             is UnresolvedType -> return unify(assigneeType.standInType, assignmentLocation, carry)
-            is GenericTypeReference -> {
-                carry.right[assigneeType.simpleName]?.let { resolved ->
-                    return this.unify(resolved, assignmentLocation, carry)
-                }
-
-                val boundError = this.evaluateAssignabilityTo(assigneeType.effectiveBound, assignmentLocation)
-                if (boundError == null) {
-                    return carry.plusLeft(assigneeType.simpleName, this)
-                } else {
-                    return carry.plusReporting(boundError)
-                }
-            }
+            is GenericTypeReference -> return unify(assigneeType.effectiveBound, assignmentLocation, carry)
             is BoundTypeArgument -> {
                 // this branch is PROBABLY only taken when verifying the bound of a type parameter against an argument
                 // in this case this is the bound and assigneeType is the argument
                 // variance is not important in that scenario because type arguments must be subtypes of the parameters bounds
                 return unify(assigneeType.type, assignmentLocation, carry)
             }
+            is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
         }
     }
 
-    override fun contextualize(context: TypeUnification, side: (TypeUnification) -> Map<String, ResolvedTypeReference>): ResolvedTypeReference {
+    override fun contextualize(context: TypeUnification): ResolvedTypeReference {
         return RootResolvedTypeReference(
             original,
             this.context,
             isNullable,
             explicitMutability,
             baseType,
-            arguments.map { it.contextualize(context, side) },
+            arguments.map { it.contextualize(context) },
         )
     }
 

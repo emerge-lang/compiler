@@ -13,33 +13,19 @@ import java.util.IdentityHashMap
  * operation done now
  */
 
-abstract class TypeUnification {
-    abstract val left: Map<String, ResolvedTypeReference>
-    abstract val right: Map<String, ResolvedTypeReference>
-    abstract val reportings: Set<Reporting>
+interface TypeUnification {
+    val bindings: Map<TypeVariable, ResolvedTypeReference>
+    val reportings: Set<Reporting>
 
-    abstract fun plusLeft(
-        param: String,
-        binding: ResolvedTypeReference,
-    ): TypeUnification
+    fun plus(variable: TypeVariable, binding: ResolvedTypeReference, assignmentLocation: SourceLocation): TypeUnification
+    fun plusReporting(reporting: Reporting): TypeUnification
 
-    abstract fun plusRight(
-        param: String,
-        binding: ResolvedTypeReference,
-    ): TypeUnification
-
-    abstract fun plusReporting(reporting: Reporting): TypeUnification
-
-    fun doWithMirrored(action: (TypeUnification) -> TypeUnification): TypeUnification {
-        return DecoratingTypeUnification.doWithDecorated(MirroredTypeUnification(this), action)
+    fun doTreatingNonUnifiableAsOutOfBounds(parameter: BoundTypeParameter, argument: BoundTypeArgument, action: (TypeUnification) -> TypeUnification): TypeUnification {
+        return DecoratingTypeUnification.doWithDecorated(ValueNotAssignableAsArgumentOutOfBounds(this, parameter, argument), action)
     }
 
     fun doWithIgnoringReportings(action: (TypeUnification) -> TypeUnification): TypeUnification {
         return DecoratingTypeUnification.doWithDecorated(IgnoreReportingsUnification(this), action)
-    }
-
-    fun doTreatingNonUnifiableAsOutOfBounds(parameter: BoundTypeParameter, argument: BoundTypeArgument, action: (TypeUnification) -> TypeUnification): TypeUnification {
-        return DecoratingTypeUnification.doWithDecorated(ValueNotAssignableAsArgumentOutOfBounds(this, parameter, argument), action)
     }
 
     fun getErrorsNotIn(previous: TypeUnification): Sequence<Reporting> {
@@ -52,35 +38,21 @@ abstract class TypeUnification {
         val EMPTY: TypeUnification = DefaultTypeUnification.EMPTY
 
         /**
-         * see [fromLeftExplicit], except that the instantiations will go into [TypeUnification.right] instead of
-         * [left].
-         */
-        fun fromRightExplicit(
-            typeParameters: List<BoundTypeParameter>,
-            arguments: List<BoundTypeArgument>,
-            argumentsLocation: SourceLocation,
-            allowZeroTypeArguments: Boolean = false,
-        ): TypeUnification {
-            return MirroredTypeUnification(fromLeftExplicit(typeParameters, arguments, argumentsLocation, allowZeroTypeArguments))
-        }
-
-        /**
-         * For a type reference or function call, builds a [TypeUnification] that contains the explicit type arguments
-         * given in [TypeUnification.left]. E.g.:
+         * For a type reference or function call, builds a [TypeUnification] that contains the explicit type arguments. E.g.:
          *
          *     struct X<E, T> {}
          *
          *     val foo: X<Int, Boolean>
          *
-         * Then you would call `fromLeftExplicit(<params of base type X>, <int ant boolean type args>, ...)`
-         * and the return value would be `Left:[E = Int, T = Boolean] Right:[] Errors: 0`
+         * Then you would call `fromExplicit(<params of base type X>, <int ant boolean type args>, ...)`
+         * and the return value would be `[E = Int, T = Boolean] Errors: 0`
          *
          * @param argumentsLocation Location of where the type arguments are being supplied. Used as a fallback
-         * for reportings if there are no type arguments and [allowZeroTypeArguments] is false
-         * @param allowZeroTypeArguments Whether 0 type arguments is valid even if [ŧypeParameters] is non-empty.
+         * for [Reporting]s if there are no type arguments and [allowZeroTypeArguments] is false
+         * @param allowZeroTypeArguments Whether 0 type arguments is valid even if [typeParameters] is non-empty.
          * This is the case for function invocations, but type references always need to specify all type args.
          */
-        fun fromLeftExplicit(
+        fun fromExplicit(
             typeParameters: List<BoundTypeParameter>,
             arguments: List<BoundTypeArgument>,
             argumentsLocation: SourceLocation,
@@ -106,7 +78,7 @@ abstract class TypeUnification {
                     parameter.bound.unify(argument, argument.sourceLocation ?: SourceLocation.UNKNOWN, subUnification)
                 }
                 val hadErrors = nextUnification.getErrorsNotIn(unification).any()
-                unification = nextUnification.plusLeft(parameter.name, if (!hadErrors) argument else parameter.bound)
+                unification = nextUnification.plus(TypeVariable(parameter), if (!hadErrors) argument else parameter.bound, argument.sourceLocation ?: SourceLocation.UNKNOWN)
             }
 
             for (i in arguments.size..typeParameters.lastIndex) {
@@ -128,80 +100,54 @@ abstract class TypeUnification {
     }
 }
 
-class DefaultTypeUnification private constructor(
-    private val _left: IdentityHashMap<String, ResolvedTypeReference>,
-    private val _right: IdentityHashMap<String, ResolvedTypeReference>,
-    private val _reportings: Set<Reporting>,
-) : TypeUnification() {
-    override val left: Map<String, ResolvedTypeReference> = _left
-    override val right: Map<String, ResolvedTypeReference> = _right
-    override val reportings: Set<Reporting> = _reportings
-
-    override fun plusLeft(
-        param: String,
-        binding: ResolvedTypeReference,
-    ): TypeUnification {
-        @Suppress("UNCHECKED_CAST")
-        val clone = DefaultTypeUnification(
-            _left.clone() as IdentityHashMap<String, ResolvedTypeReference>,
-            _right, // doesn't get modified here,
-            _reportings,
-        )
-        bindInPlace(clone._left, param, binding)
-        return clone
-    }
-
-    override fun plusRight(
-        param: String,
-        binding: ResolvedTypeReference,
-    ): TypeUnification {
-        @Suppress("UNCHECKED_CAST")
-        val clone = DefaultTypeUnification(
-            _left, // doesn't get modified here
-            _right.clone() as IdentityHashMap<String, ResolvedTypeReference>,
-            _reportings,
-        )
-        bindInPlace(clone._right, param, binding)
-        return clone
-    }
-
+private class DefaultTypeUnification private constructor(
+    override val bindings: Map<TypeVariable, ResolvedTypeReference>,
+    override val reportings: Set<Reporting>,
+) : TypeUnification {
     override fun plusReporting(reporting: Reporting): TypeUnification {
-        return DefaultTypeUnification(
-            _left,
-            _right,
-            _reportings + setOf(reporting),
+        return DefaultTypeUnification(bindings, reportings + setOf(reporting))
+    }
+
+    override fun plus(variable: TypeVariable, binding: ResolvedTypeReference, assignmentLocation: SourceLocation): TypeUnification {
+        val previousBinding = bindings[variable]
+        if (previousBinding is BoundTypeArgument) {
+            // type has been fixed explicitly -> no rebinding
+            return this
+        }
+
+        val newBinding = when {
+            binding is BoundTypeArgument -> binding
+            else -> previousBinding?.closestCommonSupertypeWith(binding) ?: binding
+        }
+
+        return variable.parameter.bound.unify(
+            newBinding,
+            assignmentLocation,
+            DefaultTypeUnification(bindings.plus(variable to newBinding), reportings),
         )
     }
 
     override fun toString(): String {
-        return toString(_left, _right, _reportings)
+        val bindingsStr = bindings.entries.joinToString(
+            prefix = "[",
+            transform = { (key, value) -> "$key = $value" },
+            separator = ", ",
+            postfix = "]",
+        )
+        val nErrors = reportings.count { it.level >= Reporting.Level.ERROR }
+
+        return "$bindingsStr Errors:$nErrors"
     }
 
     companion object {
-        val EMPTY = DefaultTypeUnification(IdentityHashMap(), IdentityHashMap(), emptySet())
-
-        private fun bindInPlace(
-            map: IdentityHashMap<String, ResolvedTypeReference>,
-            param: String,
-            binding: ResolvedTypeReference,
-        ) {
-            map.compute(param) { _, previousBinding ->
-                when {
-                    previousBinding is BoundTypeArgument -> previousBinding
-                    binding is BoundTypeArgument -> binding
-                    else -> previousBinding?.closestCommonSupertypeWith(binding) ?: binding
-                }
-            }
-        }
+        val EMPTY = DefaultTypeUnification(emptyMap(), emptySet())
     }
 }
 
-private abstract class DecoratingTypeUnification<Self : DecoratingTypeUnification<Self>> : TypeUnification() {
+private abstract class DecoratingTypeUnification<Self : DecoratingTypeUnification<Self>> : TypeUnification {
     abstract val undecorated: TypeUnification
 
-    abstract override fun plusLeft(param: String, binding: ResolvedTypeReference): Self
-
-    abstract override fun plusRight(param: String, binding: ResolvedTypeReference): Self
+    abstract override fun plus(variable: TypeVariable, binding: ResolvedTypeReference, assignmentLocation: SourceLocation): Self
 
     companion object {
         inline fun <reified T : DecoratingTypeUnification<*>> doWithDecorated(modified: T, action: (TypeUnification) -> TypeUnification): TypeUnification {
@@ -211,43 +157,14 @@ private abstract class DecoratingTypeUnification<Self : DecoratingTypeUnificatio
     }
 }
 
-private class MirroredTypeUnification(
-    override val undecorated: TypeUnification,
-) : DecoratingTypeUnification<MirroredTypeUnification>() {
-    override val left: Map<String, ResolvedTypeReference> get() = undecorated.right
-    override val right: Map<String, ResolvedTypeReference> get() = undecorated.left
-    override val reportings: Set<Reporting> get() = undecorated.reportings
-
-    override fun plusLeft(param: String, binding: ResolvedTypeReference): MirroredTypeUnification {
-        return MirroredTypeUnification(undecorated.plusRight(param, binding))
-    }
-
-    override fun plusRight(param: String, binding: ResolvedTypeReference): MirroredTypeUnification {
-        return MirroredTypeUnification(undecorated.plusLeft(param, binding))
-    }
-
-    override fun plusReporting(reporting: Reporting): TypeUnification {
-        return MirroredTypeUnification(undecorated.plusReporting(reporting))
-    }
-
-    override fun toString(): String {
-        return toString(undecorated.right, undecorated.left, undecorated.reportings)
-    }
-}
-
 private class IgnoreReportingsUnification(
     override val undecorated: TypeUnification,
 ) : DecoratingTypeUnification<IgnoreReportingsUnification>() {
-    override val left: Map<String, ResolvedTypeReference> get() = undecorated.left
-    override val right: Map<String, ResolvedTypeReference> get() = undecorated.right
+    override val bindings get() = undecorated.bindings
     override val reportings: Set<Reporting> get() = undecorated.reportings
 
-    override fun plusLeft(param: String, binding: ResolvedTypeReference): IgnoreReportingsUnification {
-        return IgnoreReportingsUnification(undecorated.plusLeft(param, binding))
-    }
-
-    override fun plusRight(param: String, binding: ResolvedTypeReference): IgnoreReportingsUnification {
-        return IgnoreReportingsUnification(undecorated.plusRight(param, binding))
+    override fun plus(variable: TypeVariable, binding: ResolvedTypeReference, assignmentLocation: SourceLocation): IgnoreReportingsUnification {
+        return IgnoreReportingsUnification(undecorated.plus(variable, binding, assignmentLocation))
     }
 
     override fun plusReporting(reporting: Reporting): TypeUnification {
@@ -260,9 +177,8 @@ private class ValueNotAssignableAsArgumentOutOfBounds(
     private val parameter: BoundTypeParameter,
     private val argument: BoundTypeArgument,
 ) : DecoratingTypeUnification<ValueNotAssignableAsArgumentOutOfBounds>() {
-    override val left: Map<String, ResolvedTypeReference> get() = undecorated.left
-    override val right: Map<String, ResolvedTypeReference> get() = undecorated.left
-    override val reportings: Set<Reporting> get() = undecorated.reportings
+    override val bindings get() = undecorated.bindings
+    override val reportings get() = undecorated.reportings
 
     override fun plusReporting(reporting: Reporting): TypeUnification {
         val reportingToAdd = if (reporting !is ValueNotAssignableReporting) reporting else {
@@ -272,27 +188,7 @@ private class ValueNotAssignableAsArgumentOutOfBounds(
         return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plusReporting(reportingToAdd), parameter, argument)
     }
 
-    override fun plusLeft(param: String, binding: ResolvedTypeReference): ValueNotAssignableAsArgumentOutOfBounds {
-        return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plusLeft(param, binding), parameter, argument)
+    override fun plus(variable: TypeVariable, binding: ResolvedTypeReference, assignmentLocation: SourceLocation): ValueNotAssignableAsArgumentOutOfBounds {
+        return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plus(variable, binding, assignmentLocation), parameter, argument)
     }
-
-    override fun plusRight(param: String, binding: ResolvedTypeReference): ValueNotAssignableAsArgumentOutOfBounds {
-        return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plusRight(param, binding), parameter, argument)
-    }
-}
-
-private fun toString(left: Map<String, ResolvedTypeReference>, right: Map<String, ResolvedTypeReference>, reportings: Collection<Reporting>): String {
-    val bindingsStr = if (left.isEmpty() && right.isEmpty()) "EMPTY" else {
-        fun sideToString(side: Map<String, ResolvedTypeReference>) = side.entries.joinToString(
-            prefix = "[",
-            transform = { (name, value) -> "$name = $value" },
-            separator = ", ",
-            postfix = "]",
-        )
-
-        "Left:${sideToString(left)} Right:${sideToString(right)}"
-    }
-
-    val nErrors = reportings.count { it.level >= Reporting.Level.ERROR }
-    return "$bindingsStr Errors:$nErrors"
 }

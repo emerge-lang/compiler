@@ -33,15 +33,28 @@ class BoundTypeArgument(
         return setOfNotNull(forUsage.validateForTypeVariance(variance)) + type.validate(TypeUseSite.Irrelevant)
     }
 
+    override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeArgument {
+        return BoundTypeArgument(context, astNode, variance, type.withTypeVariables(variables))
+    }
+
     override fun unify(assigneeType: ResolvedTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
         if (assigneeType !is BoundTypeArgument && this.variance == TypeVariance.OUT) {
-            return carry.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "Cannot assign to an out-variant reference", assignmentLocation))
+            return carry.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "Cannot assign to a reference of an out-variant type", assignmentLocation))
         }
+
+        if (this.type is TypeVariable) {
+            return this.type.unify(assigneeType, assignmentLocation, carry)
+        }
+
         when (assigneeType) {
             is RootResolvedTypeReference -> {
                 return type.unify(assigneeType, assignmentLocation, carry)
             }
             is BoundTypeArgument -> {
+                if (assigneeType.type is TypeVariable) {
+                    return type.unify(assigneeType.type, assignmentLocation, carry)
+                }
+
                 if (this.variance == TypeVariance.UNSPECIFIED) {
                     // target needs to use the type in both IN and OUT fashion -> source must match exactly
                     if (assigneeType.type !is GenericTypeReference && !assigneeType.type.hasSameBaseTypeAs(this.type)) {
@@ -70,9 +83,7 @@ class BoundTypeArgument(
                 check(this.variance == TypeVariance.IN)
                 if (assigneeType.variance == TypeVariance.IN || assigneeType.variance == TypeVariance.UNSPECIFIED) {
                     // IN variance reverses the hierarchy direction
-                    return carry.doWithMirrored { mirroredCarry ->
-                        assigneeType.type.unify(this.type, assignmentLocation, mirroredCarry)
-                    }
+                    return assigneeType.type.unify(this.type, assignmentLocation, carry)
                 }
 
                 return carry.plusReporting(
@@ -80,19 +91,20 @@ class BoundTypeArgument(
                 )
             }
             is GenericTypeReference -> {
-                return carry.plusLeft(assigneeType.simpleName, this)
+                return unify(assigneeType.effectiveBound, assignmentLocation, carry)
             }
             is UnresolvedType -> {
                 return unify(assigneeType.standInType, assignmentLocation, carry)
             }
+            is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
         }
     }
 
     /**
      * @see ResolvedTypeReference.contextualize
      */
-    override fun contextualize(context: TypeUnification, side: (TypeUnification) -> Map<String, ResolvedTypeReference>): BoundTypeArgument {
-        return BoundTypeArgument(this.context, astNode, variance, type.contextualize(context, side))
+    override fun contextualize(context: TypeUnification,): BoundTypeArgument {
+        return BoundTypeArgument(this.context, astNode, variance, type.contextualize(context))
     }
 
     override fun withMutability(modifier: TypeMutability?): ResolvedTypeReference {

@@ -2,6 +2,7 @@ package compiler.compiler.negative
 
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.binding.type.GenericTypeReference
 import compiler.negative.shouldReport
 import compiler.negative.validateModule
 import compiler.reportings.MissingTypeArgumentReporting
@@ -14,6 +15,7 @@ import compiler.reportings.ValueNotAssignableReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class TypeErrors : FreeSpec({
     "generics" - {
@@ -38,6 +40,18 @@ class TypeErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldBeEmpty()
+        }
+
+        "assignment of directly typed value to generically typed variable" {
+            validateModule("""
+                fun foo<T>() {
+                    val x: T = false
+                }
+            """.trimIndent())
+                .shouldReport<ValueNotAssignableReporting> {
+                    it.sourceType.simpleName shouldBe "Boolean"
+                    it.targetType.shouldBeInstanceOf<GenericTypeReference>().simpleName shouldBe "T"
+                }
         }
 
         "reference to generic type with arguments out of bounds" - {
@@ -140,7 +154,7 @@ class TypeErrors : FreeSpec({
             }
         }
 
-        "generic inference involving multiple values of different types" {
+        "generic validation involving multiple values of different types" {
             validateModule("""
                 struct A<T> {
                     propOne: T

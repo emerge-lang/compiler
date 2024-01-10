@@ -87,7 +87,7 @@ class BoundInvocationExpression(
                 }
             )
 
-            type = chosenOverload.candidate.returnType?.contextualize(chosenOverload.unification, TypeUnification::right)
+            type = chosenOverload.returnType
             if (chosenOverload.candidate.returnsExclusiveValue && expectedReturnType != null) {
                 // this is solved by adjusting the return type of the constructor invocation according to the
                 // type needed by the larger context
@@ -277,18 +277,20 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(
             }
 
             // TODO: source location
-            var unification = TypeUnification.fromRightExplicit(candidateFn.typeParameters, typeArguments, SourceLocation.UNKNOWN, allowZeroTypeArguments = true)
-            candidateFn.returnType?.let { candidateReturnType ->
+            val returnTypeWithVariables = candidateFn.returnType?.withTypeVariables(candidateFn.typeParameters)
+            var unification = TypeUnification.fromExplicit(candidateFn.typeParameters, typeArguments, SourceLocation.UNKNOWN, allowZeroTypeArguments = true)
+            if (returnTypeWithVariables != null) {
                 if (expectedReturnType != null) {
                     unification = unification.doWithIgnoringReportings { obliviousUnification ->
-                        expectedReturnType.unify(candidateReturnType, SourceLocation.UNKNOWN, obliviousUnification)
+                        expectedReturnType.unify(returnTypeWithVariables, SourceLocation.UNKNOWN, obliviousUnification)
                     }
                 }
             }
 
             @Suppress("UNCHECKED_CAST") // the check is right above
             val rightSideTypes = (candidateFn.parameterTypes as List<ResolvedTypeReference>)
-                .map { it.contextualize(unification, TypeUnification::right) }
+                .map { it.withTypeVariables(candidateFn.typeParameters) }
+                .map { it.contextualize(unification) }
             check(rightSideTypes.size == argumentsIncludingReceiver.size)
 
             unification = argumentsIncludingReceiver
@@ -300,6 +302,7 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(
             OverloadCandidateEvaluation(
                 candidateFn,
                 unification,
+                returnTypeWithVariables?.contextualize(unification),
             )
         }
         /*
@@ -329,6 +332,7 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(
 private data class OverloadCandidateEvaluation(
     val candidate: BoundFunction,
     val unification: TypeUnification,
+    val returnType: ResolvedTypeReference?,
 ) {
     val hasErrors = unification.reportings.any { it.level >= Reporting.Level.ERROR }
 }

@@ -53,12 +53,17 @@ class UnresolvedType private constructor(
         )
     }
 
+    override fun withTypeVariables(variables: List<BoundTypeParameter>): ResolvedTypeReference {
+        return UnresolvedType(standInType.withTypeVariables(variables), reference, parameters.map { it.withTypeVariables(variables) })
+    }
+
     override fun unify(assigneeType: ResolvedTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
         return when(assigneeType) {
             is RootResolvedTypeReference -> standInType.unify(assigneeType, assignmentLocation, carry)
             is UnresolvedType -> standInType.unify(assigneeType.standInType, assignmentLocation, carry)
             is GenericTypeReference -> TODO("this should only really happen when a value argument is matched against a type parameter??")
             is BoundTypeArgument -> standInType.unify(assigneeType, assignmentLocation, carry)
+            is TypeVariable -> assigneeType.flippedUnify(this.standInType, assignmentLocation, carry)
         }
     }
 

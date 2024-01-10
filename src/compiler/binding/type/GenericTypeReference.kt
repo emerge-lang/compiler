@@ -43,14 +43,13 @@ sealed class GenericTypeReference : ResolvedTypeReference {
     override fun unify(assigneeType: ResolvedTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
         return when (assigneeType) {
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
-            is RootResolvedTypeReference -> {
-                val newCarry = when (parameter.variance) {
-                    TypeVariance.UNSPECIFIED,
-                    TypeVariance.IN -> effectiveBound.unify(assigneeType, assignmentLocation, carry)
-                    TypeVariance.OUT -> carry.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "Cannot assign to an out-variant reference", assignmentLocation))
-                }
-                newCarry.plusRight(simpleName, assigneeType)
-            }
+            is RootResolvedTypeReference -> carry.plusReporting(Reporting.valueNotAssignable(
+                this,
+                assigneeType,
+                "the value of type parameter ${this.parameter.name} is not known at this point, cannot assign to references of type $simpleName",
+                assignmentLocation,
+            ))
+            is TypeVariable -> assigneeType.flippedUnify(this, assignmentLocation, carry)
             is BoundTypeArgument -> TODO("What do do here? carry.plusLeft(simpleName, assigneeType) ?")
             is GenericTypeReference -> TODO("namespace conflict :(")
         }
@@ -71,22 +70,21 @@ sealed class GenericTypeReference : ResolvedTypeReference {
             is RootResolvedTypeReference -> selfEffective.closestCommonSupertypeWith(other)
             is GenericTypeReference -> selfEffective.closestCommonSupertypeWith(other)
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
+            is TypeVariable -> TODO()
             is UnresolvedType -> selfEffective.closestCommonSupertypeWith(other.standInType)
         }
     }
 
-    override fun contextualize(
-        context: TypeUnification,
-        side: (TypeUnification) -> Map<String, ResolvedTypeReference>,
-    ): ResolvedTypeReference {
-        val resolvedSelf = side(context)[this.simpleName] ?: return ResolvedBoundGenericTypeReference(
-            this.context,
-            original,
-            parameter,
-            effectiveBound.contextualize(context, side),
-        )
+    override fun contextualize(context: TypeUnification): ResolvedTypeReference {
+        return this
+    }
 
-        return resolvedSelf.contextualize(context, side)
+    override fun withTypeVariables(variables: List<BoundTypeParameter>): ResolvedTypeReference {
+        if (this.parameter in variables) {
+            return TypeVariable(this)
+        }
+
+        return this
     }
 
     private fun mapEffectiveBound(mapper: (ResolvedTypeReference) -> ResolvedTypeReference): MappedEffectiveBoundGenericTypeReference {

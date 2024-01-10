@@ -96,6 +96,13 @@ sealed interface ResolvedTypeReference {
     fun findMemberVariable(name: String): ObjectMember? = null
 
     /**
+     * @return a recursive copy of this type where all [GenericTypeReference]s that reference one of the [variables]
+     * are wrapped in a [TypeVariable] instance. This makes the resulting type subject to inferring generic types
+     * in a call to [unify].
+     */
+    fun withTypeVariables(variables: List<BoundTypeParameter>): ResolvedTypeReference
+
+    /**
      * Used to derive information about generic types in concrete situations, so e.g.:
      *
      *     struct S<T> {
@@ -135,7 +142,7 @@ sealed interface ResolvedTypeReference {
      * The [Reporting]s added to [carry] will refer to `this` as the type being assigned to (member variable, function
      * parameter, ...) and [assigneeType] as the type of the value being assigned.
      *
-     * References to generic types found in [assigneeType] will be put into [TypeUnification.left], and references to
+     * References to generic types found in [assigneeType] will be put into [TypeUnification.bindings], and references to
      * generic types found in `this` will be put into [TypeUnification.right].
      *
      * @param assignmentLocation Used to properly locate errors, also for forwarding to [evaluateAssignabilityTo]
@@ -168,7 +175,7 @@ sealed interface ResolvedTypeReference {
      *
      * @param context the type of the parent context, e.g. `Array<Int>`
      */
-    fun contextualize(context: TypeUnification, side: (TypeUnification) -> Map<String, ResolvedTypeReference> = TypeUnification::left) = this
+    fun contextualize(context: TypeUnification) = this
 
     /**
      * @return whether both types refer to the same base type or generic type parameter
