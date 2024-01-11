@@ -77,18 +77,20 @@ sealed class GenericTypeReference : ResolvedTypeReference {
     }
 
     override fun closestCommonSupertypeWith(other: ResolvedTypeReference): ResolvedTypeReference {
-        val selfEffective = when(parameter.variance) {
-            TypeVariance.UNSPECIFIED,
-            TypeVariance.OUT -> effectiveBound
-            TypeVariance.IN -> BuiltinNothing.baseReference(context)
-        }
-
         return when (other) {
-            is RootResolvedTypeReference -> selfEffective.closestCommonSupertypeWith(other)
-            is GenericTypeReference -> selfEffective.closestCommonSupertypeWith(other)
+            is RootResolvedTypeReference,
+            is UnresolvedType-> effectiveBound.closestCommonSupertypeWith(other)
+            is GenericTypeReference -> {
+                if (this.isSubtypeOf(other)) {
+                    other
+                } else if (other.isSubtypeOf(this)) {
+                    this
+                } else {
+                    effectiveBound.closestCommonSupertypeWith(other.effectiveBound)
+                }
+            }
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
             is TypeVariable -> TODO()
-            is UnresolvedType -> selfEffective.closestCommonSupertypeWith(other.standInType)
         }
     }
 
