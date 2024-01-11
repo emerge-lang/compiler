@@ -22,10 +22,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
      report the error, go to the next Operator.COMMA and continue
 13. Generics / Templates
     * \*sigh\* this is gonna be a huuuge thing... no idea how to go about this, yet
-    * decide on the syntax:
+    * ~~decide on the syntax:~~
         * Kotlin `GenericType<modifier TypeParameter>`
         * D `GenericType!TypeParameter` and `GenericType!(modifier TypeParameter)`
-    * Decide whether to support vararg type parameters
+    * ~~Decide whether to support vararg type parameters~~ -> no
     * ~~The `readonly` and `immutable` type modifiers force `out` variance on all type parameters~~
       * Impossible, because the generic parameter can still occur in as a parameter on a readonly/pure
         member function. The compiler could do make type parameters `out` on readonly/immutable if the
