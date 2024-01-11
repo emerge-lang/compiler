@@ -290,7 +290,6 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(
             @Suppress("UNCHECKED_CAST") // the check is right above
             val rightSideTypes = (candidateFn.parameterTypes as List<ResolvedTypeReference>)
                 .map { it.withTypeVariables(candidateFn.typeParameters) }
-                .map { it.instantiateVariables(unification) }
             check(rightSideTypes.size == argumentsIncludingReceiver.size)
 
             unification = argumentsIncludingReceiver

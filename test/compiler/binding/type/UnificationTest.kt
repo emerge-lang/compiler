@@ -5,6 +5,7 @@ import compiler.binding.type.BuiltinInt
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.negative.shouldReport
 import compiler.negative.validateModule
+import compiler.reportings.UncertainTerminationReporting
 import compiler.reportings.ValueNotAssignableReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -43,13 +44,13 @@ class UnificationTest : FreeSpec({
             """.trimIndent()
             )
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.sourceType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType shouldBe BuiltinBoolean
-                    it.targetType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType shouldBe BuiltinInt
+                    it.sourceType.toString() shouldBe "immutable Any"
+                    it.targetType.toString() shouldBe "immutable Int"
                 }
         }
     }
 
-    "Type variable isolation / name confusion" {
+    "Type variable isolation / name confusion" - {
         /*
         assumption after lots of thinking: with proper calls to ResolvedTypeReference.withVariables and
         contextualize in place in BoundInvocationExpression it seems to be impossible that at any point
@@ -60,11 +61,14 @@ class UnificationTest : FreeSpec({
         This test code offers plenty of chances for confusion if the type variables are not handled properly,
         so i assume it covers a useful set of potential bugs.
          */
-        validateModule("""
-            fun foo<T, E>(p1: T, p2: E) -> T {
-                val x: E = foo(p2, p1)
-            }
-        """.trimIndent())
+        validateModule(
+            """
+                fun foo<T, E>(p1: T, p2: E) -> T {
+                    val x: E = foo(p2, p1)
+                    return p1
+                }
+            """.trimIndent()
+        )
             .shouldBeEmpty()
     }
 

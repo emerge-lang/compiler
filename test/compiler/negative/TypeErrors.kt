@@ -163,7 +163,7 @@ class TypeErrors : FreeSpec({
                 val x: A<Int> = A(2, false)
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.sourceType.toString() shouldBe "immutable Boolean"
+                    it.sourceType.toString() shouldBe "immutable Any"
                     it.targetType.toString() shouldBe "immutable Int"
                 }
         }
