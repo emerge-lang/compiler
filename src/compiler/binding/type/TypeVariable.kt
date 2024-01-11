@@ -1,5 +1,6 @@
 package compiler.binding.type
 
+import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
@@ -46,27 +47,27 @@ class TypeVariable(
     override val inherentTypeBindings = TypeUnification.EMPTY
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): ResolvedTypeReference {
-        TODO("Not yet implemented")
+        throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 
     override fun withMutability(modifier: TypeMutability?): ResolvedTypeReference {
-        TODO("Not yet implemented")
+        throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 
     override fun withCombinedMutability(mutability: TypeMutability?): ResolvedTypeReference {
-        TODO("Not yet implemented")
+        throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 
     override fun withCombinedNullability(nullability: TypeReference.Nullability): ResolvedTypeReference {
-        TODO("Not yet implemented")
+        throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 
     override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
-        TODO("Not yet implemented")
+        throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 
     override fun closestCommonSupertypeWith(other: ResolvedTypeReference): ResolvedTypeReference {
-        TODO("Not yet implemented")
+        throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 
     override fun withTypeVariables(variables: List<BoundTypeParameter>): ResolvedTypeReference {
@@ -78,14 +79,16 @@ class TypeVariable(
         assignmentLocation: SourceLocation,
         carry: TypeUnification
     ): TypeUnification {
-        when (assigneeType) {
+        return when (assigneeType) {
             is RootResolvedTypeReference,
-            is GenericTypeReference -> {
+            is GenericTypeReference,
+            is BoundTypeArgument -> {
                 val newCarry = carry.plus(this, assigneeType, assignmentLocation)
                 val selfBinding = newCarry.bindings[this] ?: return newCarry
-                return selfBinding.unify(assigneeType, assignmentLocation, newCarry)
+                selfBinding.unify(assigneeType, assignmentLocation, newCarry)
             }
-            else -> TODO()
+            is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
+            is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
         }
     }
 

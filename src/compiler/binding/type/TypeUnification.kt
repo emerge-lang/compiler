@@ -4,7 +4,6 @@ import compiler.ast.type.TypeVariance
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import compiler.reportings.ValueNotAssignableReporting
-import java.util.IdentityHashMap
 
 /* TODO: optimization potential
  * Have a custom collection class that optimized the get-a-copy-plus-one-element use-case

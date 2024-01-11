@@ -1,5 +1,6 @@
 package compiler.binding.type
 
+import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
@@ -90,7 +91,7 @@ sealed class GenericTypeReference : ResolvedTypeReference {
                 }
             }
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
-            is TypeVariable -> TODO()
+            is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
         }
     }
 

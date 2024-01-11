@@ -76,8 +76,6 @@ sealed interface ResolvedTypeReference {
      * problem with the assignment in case it is not possible
      */
     fun evaluateAssignabilityTo(other: ResolvedTypeReference, assignmentLocation: SourceLocation): ValueNotAssignableReporting? {
-        // TODO: this could even become the default implementation for all types?
-        // or maybe its not needed after all the logic has been moved to unify?
         val unification = other.unify(this, assignmentLocation, TypeUnification.EMPTY)
         return unification.reportings.firstOrNull { it.level >= Reporting.Level.ERROR } as ValueNotAssignableReporting?
     }

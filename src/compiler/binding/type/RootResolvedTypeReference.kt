@@ -1,5 +1,6 @@
 package compiler.binding.type
 
+import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.ObjectMember
@@ -36,7 +37,6 @@ class RootResolvedTypeReference private constructor(
     )
 
     override fun withMutability(modifier: TypeMutability?): RootResolvedTypeReference {
-        // todo: how to handle projected mutability? readonly Array<Foo> == readonly Array<readonly Foo>
         return RootResolvedTypeReference(
             original,
             context,
@@ -119,7 +119,7 @@ class RootResolvedTypeReference private constructor(
             }
             is GenericTypeReference -> other.closestCommonSupertypeWith(this)
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
-            is TypeVariable -> TODO("this should be an illegal operation")
+            is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
         }
     }
 
