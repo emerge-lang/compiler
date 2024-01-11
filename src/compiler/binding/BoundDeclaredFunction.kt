@@ -224,8 +224,11 @@ class BoundDeclaredFunction(
                     val localReturnType = returnType
                     // if the function is declared to return Unit a return of Unit is implied and should be inserted by backends
                     // if this is a single-expression function (fun a() = 3), return is implied
-                    if (localReturnType == null || (localReturnType is RootResolvedTypeReference && localReturnType.baseType !== BuiltinUnit && this.code !is BoundExpression<*>)) {
-                        reportings.add(Reporting.uncertainTermination(this))
+                    if (localReturnType == null || this.code !is BoundExpression<*>) {
+                        val isImplicitUnitReturn = localReturnType is RootResolvedTypeReference && localReturnType.baseType === BuiltinUnit
+                        if (!isImplicitUnitReturn) {
+                            reportings.add(Reporting.uncertainTermination(this))
+                        }
                     }
                 }
             }

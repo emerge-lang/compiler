@@ -28,4 +28,17 @@ class UncertainTerminationReporting(val function: BoundFunction) : Reporting(
     Level.ERROR,
     "Function ${function.fullyQualifiedName} does not terminate (return or throw) on all possible execution paths.",
     function.declaredAt
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is UncertainTerminationReporting) return false
+
+        if (function != other.function) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return function.hashCode()
+    }
+}
