@@ -51,7 +51,21 @@ sealed class GenericTypeReference : ResolvedTypeReference {
             ))
             is TypeVariable -> assigneeType.flippedUnify(this, assignmentLocation, carry)
             is BoundTypeArgument -> TODO("What do do here? carry.plusLeft(simpleName, assigneeType) ?")
-            is GenericTypeReference -> TODO("namespace conflict :(")
+            is GenericTypeReference -> {
+                // current assumption: confusing two distinct generics with the same name is not possible, given
+                // that it is forbidden to shadow type variables (e.g. class A<T> { fun foo<T>() {} })
+                // TODO: generic type inheritance, e.g. <A, B : A> and assigning a B to an A
+                if (assigneeType.parameter == this.parameter) {
+                    return carry
+                } else {
+                    return carry.plusReporting(Reporting.valueNotAssignable(
+                        this,
+                        assigneeType,
+                        "The values of type parameters cannot possibly be known, so this assignment cannot be proven to be valid in all cases.",
+                        assignmentLocation,
+                    ))
+                }
+            }
         }
     }
 
