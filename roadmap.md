@@ -39,27 +39,31 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 15. String type, based on array
     * default encoding? -> unicode / utf-8?
     * string is a wrapper around an `Array<Byte>`
-15. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
+16. Variable handling improvements
+    * decide on shadowing rules (e.g. rust does it WAY differently than Kotlin), **and implement**
+    * track assignment status of variables. It should be possible to split declaration and assignment, even on
+      `val`s.
+17. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
     1. index access can always throw IndexOutOfBounds; work out a nothrow alternative. Maybe `.safeGet(index)` returning `Either`? 
-16. object model
+18. object model
     1. class definition
     2. struct definition
     3. reference counting vs garbage collection
-17. extend InvocationExpression
+19. extend InvocationExpression
     1. handle constructors
     2. when checking `objRef.method()` error if `method` is a property  
       (will be implemented with function types later on)
-18. exceptions
+20. exceptions
     1. `throw` statement
     2. NOTHROW scope modifier
     3. try+catch+finally
-19. Stdlib Collections
+21. Stdlib Collections
     * Iterables: java.util.Iterable, D Ranges or sth. else?
-20. All operator overloads, including
+22. All operator overloads, including
     * contains(T): Boolean
     * <E : Iterable> rangeTo(T): E
-21. Decision on compile target architecture (native/vm with pointers VS JVM)
-22. for each control structure:
+23. Decision on compile target architecture (native/vm with pointers VS JVM)
+24. for each control structure:
     ```
     for each item in iterable { /* ... */ }
     // is actually
@@ -73,10 +77,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     // gets rewritten to
     for i in 0.rangeTo(10) { /* ... */ }
     ```
-23. while / do-while
-24. Jump targets for return, break and continue like in Kotlin
-25. Typealiases
-27. Function types
+25. while / do-while
+26. Jump targets for return, break and continue like in Kotlin
+27. Typealiases
+28. Function types
     1. `operator fun invoke`: `obj(param)` to `obj.invoke(param)`
     2. Regular functions: `(T1, T2) -> R`
     3. Functions w/ receiver: `O.(T1, T2) -> R` that can be invoked on objects
@@ -86,11 +90,11 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        val obj: O = ...
        obj.fn(param1, param2)
        ```
-28. CTFE
-29. smart casts
-30. deferred statements
+29. CTFE
+30. smart casts
+31. deferred statements
     * `scope(exit) {stmt}`, `scope(success) {stmt}` and `scope(fail) {stmt}`
-31. ...
+32. ...
 
 
 -----
