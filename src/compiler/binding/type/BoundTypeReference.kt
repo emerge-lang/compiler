@@ -148,9 +148,9 @@ sealed interface BoundTypeReference {
 
     /**
      * Replaces [TypeVariable] in this type with their bindings from [context].
-     * This does **not** replace [GenericTypeReference], use [contextualize] for that!
+     * This does **not** replace [GenericTypeReference], use [instantiateAllParameters] for that!
      */
-    fun instantiateVariables(context: TypeUnification): BoundTypeReference = this
+    fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference = this
 
     /**
      * Adds the generic type information from [context] to this type, e.g.:
@@ -176,7 +176,7 @@ sealed interface BoundTypeReference {
      *
      * @param context the type of the parent context, e.g. `Array<Int>`
      */
-    fun contextualize(context: TypeUnification): BoundTypeReference
+    fun instantiateAllParameters(context: TypeUnification): BoundTypeReference
 
     /**
      * @return whether both types refer to the same base type or generic type parameter

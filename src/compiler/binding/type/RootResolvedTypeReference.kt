@@ -168,23 +168,23 @@ class RootResolvedTypeReference private constructor(
         }
     }
 
-    override fun instantiateVariables(context: TypeUnification): BoundTypeReference {
+    override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
         return RootResolvedTypeReference(
             original,
             isNullable,
             explicitMutability,
             baseType,
-            arguments.map { it.instantiateVariables(context) },
+            arguments.map { it.instantiateFreeVariables(context) },
         )
     }
 
-    override fun contextualize(context: TypeUnification): BoundTypeReference {
+    override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
         return RootResolvedTypeReference(
             original,
             isNullable,
             explicitMutability,
             baseType,
-            arguments.map { it.contextualize(context) },
+            arguments.map { it.instantiateAllParameters(context) },
         )
     }
 

@@ -60,7 +60,7 @@ class BoundMemberAccessExpression(
 
             valueType.findMemberVariable(memberName)?.let { member ->
                 this.member = member
-                this.type = member.type?.contextualize(valueType.inherentTypeBindings)
+                this.type = member.type?.instantiateAllParameters(valueType.inherentTypeBindings)
             } ?: run {
                 reportings.add(Reporting.unresolvableMemberVariable(this, valueType))
             }

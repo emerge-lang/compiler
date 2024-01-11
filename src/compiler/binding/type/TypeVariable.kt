@@ -94,12 +94,12 @@ class TypeVariable(
         return targetType.unify(selfBinding, assignmentLocation, newCarry)
     }
 
-    override fun instantiateVariables(context: TypeUnification): BoundTypeReference {
+    override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
         return context.bindings[this] ?: this
     }
 
-    override fun contextualize(context: TypeUnification): BoundTypeReference {
-        return instantiateVariables(context)
+    override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
+        return instantiateFreeVariables(context)
     }
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {

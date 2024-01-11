@@ -80,17 +80,17 @@ class UnresolvedType private constructor(
         )
     }
 
-    override fun instantiateVariables(context: TypeUnification): BoundTypeReference {
+    override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
         return UnresolvedType(
-            standInType.instantiateVariables(context),
+            standInType.instantiateFreeVariables(context),
             reference,
             emptyList(),
         )
     }
 
-    override fun contextualize(context: TypeUnification): BoundTypeReference {
+    override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
         return UnresolvedType(
-            standInType.contextualize(context),
+            standInType.instantiateAllParameters(context),
             reference,
             emptyList(),
         )

@@ -301,7 +301,7 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(
             OverloadCandidateEvaluation(
                 candidateFn,
                 unification,
-                returnTypeWithVariables?.instantiateVariables(unification),
+                returnTypeWithVariables?.instantiateFreeVariables(unification),
             )
         }
         /*

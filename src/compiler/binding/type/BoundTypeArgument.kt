@@ -98,14 +98,14 @@ class BoundTypeArgument(
     }
 
     /**
-     * @see BoundTypeReference.instantiateVariables
+     * @see BoundTypeReference.instantiateFreeVariables
      */
-    override fun instantiateVariables(context: TypeUnification,): BoundTypeArgument {
-        return BoundTypeArgument(astNode, variance, type.instantiateVariables(context))
+    override fun instantiateFreeVariables(context: TypeUnification,): BoundTypeArgument {
+        return BoundTypeArgument(astNode, variance, type.instantiateFreeVariables(context))
     }
 
-    override fun contextualize(context: TypeUnification): BoundTypeArgument {
-        return BoundTypeArgument(astNode, variance, type.contextualize(context))
+    override fun instantiateAllParameters(context: TypeUnification): BoundTypeArgument {
+        return BoundTypeArgument(astNode, variance, type.instantiateAllParameters(context))
     }
 
     override fun withMutability(modifier: TypeMutability?): BoundTypeReference {

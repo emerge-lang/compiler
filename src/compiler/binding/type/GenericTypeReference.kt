@@ -93,11 +93,11 @@ sealed class GenericTypeReference : BoundTypeReference {
         }
     }
 
-    override fun instantiateVariables(context: TypeUnification): BoundTypeReference {
+    override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
         return this
     }
 
-    override fun contextualize(context: TypeUnification): BoundTypeReference {
+    override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
         // TODO: this linear search is super inefficient, optimize
         val binding = context.bindings.entries.find { it.key.parameter == this.parameter }
         return binding?.value ?: this
