@@ -54,14 +54,13 @@ sealed class GenericTypeReference : ResolvedTypeReference {
             is GenericTypeReference -> {
                 // current assumption: confusing two distinct generics with the same name is not possible, given
                 // that it is forbidden to shadow type variables (e.g. class A<T> { fun foo<T>() {} })
-                // TODO: generic type inheritance, e.g. <A, B : A> and assigning a B to an A
-                if (assigneeType.parameter == this.parameter) {
+                if (assigneeType.isSubtypeOf(this)) {
                     return carry
                 } else {
                     return carry.plusReporting(Reporting.valueNotAssignable(
                         this,
                         assigneeType,
-                        "The values of type parameters cannot possibly be known, so this assignment cannot be proven to be valid in all cases.",
+                        "${assigneeType.simpleName} cannot be proven to be a subtype of $simpleName",
                         assignmentLocation,
                     ))
                 }
@@ -99,6 +98,19 @@ sealed class GenericTypeReference : ResolvedTypeReference {
         }
 
         return this
+    }
+
+    private fun isSubtypeOf(other: GenericTypeReference): Boolean {
+        if (this.parameter == other.parameter) {
+            return true
+        }
+
+        val bound = this.effectiveBound
+        if (bound !is GenericTypeReference){
+            return false
+        }
+
+        return bound.isSubtypeOf(other)
     }
 
     private fun mapEffectiveBound(mapper: (ResolvedTypeReference) -> ResolvedTypeReference): MappedEffectiveBoundGenericTypeReference {

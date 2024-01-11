@@ -67,4 +67,41 @@ class UnificationTest : FreeSpec({
         """.trimIndent())
             .shouldBeEmpty()
     }
+
+    "generic bound as supertype" - {
+        "positive" {
+            validateModule("""
+                fun foo<A, B : A>(someA: A, someB: B) {
+                    val otherA: A = someB
+                }
+            """.trimIndent())
+                .shouldBeEmpty()
+        }
+
+        "negative A" {
+            // as compared to the positive case, B does not have A as the bound, so the assignment becomes illegal
+            validateModule("""
+                fun foo<A, B>(someA: A, someB: B) {
+                    val otherA: A = someB
+                }
+            """.trimIndent())
+                .shouldReport<ValueNotAssignableReporting> {
+                    it.sourceType.simpleName shouldBe "B"
+                    it.targetType.simpleName shouldBe "A"
+                }
+        }
+
+        "subtyping direction is correct" {
+            // as compared to the positive case, the type hierarchy is flipped, also making the assignment illegal
+            validateModule("""
+                fun foo<A : B, B>(someA: A, someB: B) {
+                    val otherA: A = someB
+                }
+            """.trimIndent())
+                .shouldReport<ValueNotAssignableReporting> {
+                    it.sourceType.simpleName shouldBe "B"
+                    it.targetType.simpleName shouldBe "A"
+                }
+        }
+    }
 })
