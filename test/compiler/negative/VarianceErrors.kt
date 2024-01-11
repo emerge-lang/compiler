@@ -5,12 +5,16 @@ import compiler.ast.type.TypeVariance.*
 import compiler.binding.context.ModuleRootContext
 import compiler.binding.type.*
 import compiler.lexer.SourceLocation
+import compiler.negative.shouldReport
+import compiler.negative.validateModule
+import compiler.reportings.ValueNotAssignableReporting
 import io.kotest.core.spec.style.FreeSpec
 import compiler.binding.type.BuiltinNumber as BuiltinNumberType
 import compiler.binding.type.BuiltinInt as BuiltinIntType
 import io.kotest.matchers.Matcher
 import io.kotest.matchers.MatcherResult
 import io.kotest.matchers.should
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNot
 import io.mockk.mockk
 
@@ -156,5 +160,22 @@ class VarianceErrors : FreeSpec({
         "out Parent to out Child" {
             varOut(Parent) shouldNot beAssignableTo(varOut(Child))
         }
+    }
+
+    "in-variant type argument assumes type readonly Any? in out-position" {
+        validateModule("""
+                struct A<T : Number> {
+                    p: T
+                }
+                fun test<T : Number>() {
+                    val a: A<in Int> = A(2)
+                    var x: T
+                    x = a.p
+                }
+            """.trimIndent())
+            .shouldReport<ValueNotAssignableReporting> {
+                it.sourceType.toString() shouldBe "readonly Any?"
+                it.targetType.toString() shouldBe "T"
+            }
     }
 })

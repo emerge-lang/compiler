@@ -46,11 +46,15 @@ sealed class GenericTypeReference : ResolvedTypeReference {
             is RootResolvedTypeReference -> carry.plusReporting(Reporting.valueNotAssignable(
                 this,
                 assigneeType,
-                "the value of type parameter ${this.parameter.name} is not known at this point, cannot assign to references of type $simpleName",
+                "$assigneeType cannot be proven to be a subtype of $simpleName",
                 assignmentLocation,
             ))
             is TypeVariable -> assigneeType.flippedUnify(this, assignmentLocation, carry)
-            is BoundTypeArgument -> TODO("What do do here? carry.plusLeft(simpleName, assigneeType) ?")
+            is BoundTypeArgument -> when (assigneeType.variance) {
+                TypeVariance.OUT,
+                TypeVariance.UNSPECIFIED -> unify(assigneeType.type, assignmentLocation, carry)
+                TypeVariance.IN -> unify(BoundTypeParameter.getTypeParameterDefaultBound(assigneeType.context), assignmentLocation, carry)
+            }
             is GenericTypeReference -> {
                 // current assumption: confusing two distinct generics with the same name is not possible, given
                 // that it is forbidden to shadow type variables (e.g. class A<T> { fun foo<T>() {} })

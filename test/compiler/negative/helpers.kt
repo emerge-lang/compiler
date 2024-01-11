@@ -13,7 +13,6 @@ import compiler.parser.toTransactional
 import compiler.reportings.Reporting
 import io.kotest.inspectors.forOne
 import io.kotest.matchers.types.shouldBeInstanceOf
-import java.math.MathContext
 
 fun lexCode(
     code: String,
@@ -97,11 +96,12 @@ fun validateModule(
 
 // TODO: most test cases expect EXACTLY one reporting, extra reportings are out-of-spec. This one lets extra reportings pass :(
 // the trick is finding the test that actually want more than one reporting and adapting that test code
-inline fun <reified T : Reporting> Collection<Reporting>.shouldReport(additional: (T) -> Unit = {}) {
+inline fun <reified T : Reporting> Collection<Reporting>.shouldReport(additional: (T) -> Unit = {}): Collection<Reporting> {
     this.forOne {
         it.shouldBeInstanceOf<T>()
         additional(it)
     }
+    return this
 }
 
 private fun String.assureEndsWith(suffix: Char): String {
