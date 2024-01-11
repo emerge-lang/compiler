@@ -83,6 +83,22 @@ class UnresolvedType private constructor(
         )
     }
 
+    override fun instantiateVariables(context: TypeUnification): ResolvedTypeReference {
+        return UnresolvedType(
+            standInType.instantiateVariables(context),
+            reference,
+            emptyList(),
+        )
+    }
+
+    override fun contextualize(context: TypeUnification): ResolvedTypeReference {
+        return UnresolvedType(
+            standInType.contextualize(context),
+            reference,
+            emptyList(),
+        )
+    }
+
     override fun hasSameBaseTypeAs(other: ResolvedTypeReference): Boolean {
         return standInType.hasSameBaseTypeAs(other)
     }

@@ -101,9 +101,13 @@ class BoundTypeArgument(
     }
 
     /**
-     * @see ResolvedTypeReference.contextualize
+     * @see ResolvedTypeReference.instantiateVariables
      */
-    override fun contextualize(context: TypeUnification,): BoundTypeArgument {
+    override fun instantiateVariables(context: TypeUnification,): BoundTypeArgument {
+        return BoundTypeArgument(this.context, astNode, variance, type.instantiateVariables(context))
+    }
+
+    override fun contextualize(context: TypeUnification): BoundTypeArgument {
         return BoundTypeArgument(this.context, astNode, variance, type.contextualize(context))
     }
 

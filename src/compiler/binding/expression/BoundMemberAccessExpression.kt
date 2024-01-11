@@ -24,7 +24,6 @@ import compiler.binding.BoundExecutable
 import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
 import compiler.binding.type.ResolvedTypeReference
-import compiler.binding.type.TypeUnification
 import compiler.reportings.Reporting
 
 class BoundMemberAccessExpression(

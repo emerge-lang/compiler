@@ -95,8 +95,12 @@ class TypeVariable(
         return targetType.unify(selfBinding, assignmentLocation, newCarry)
     }
 
-    override fun contextualize(context: TypeUnification): ResolvedTypeReference {
+    override fun instantiateVariables(context: TypeUnification): ResolvedTypeReference {
         return context.bindings[this] ?: this
+    }
+
+    override fun contextualize(context: TypeUnification): ResolvedTypeReference {
+        return instantiateVariables(context)
     }
 
     override fun hasSameBaseTypeAs(other: ResolvedTypeReference): Boolean {

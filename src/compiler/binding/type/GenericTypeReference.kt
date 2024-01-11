@@ -88,8 +88,14 @@ sealed class GenericTypeReference : ResolvedTypeReference {
         }
     }
 
-    override fun contextualize(context: TypeUnification): ResolvedTypeReference {
+    override fun instantiateVariables(context: TypeUnification): ResolvedTypeReference {
         return this
+    }
+
+    override fun contextualize(context: TypeUnification): ResolvedTypeReference {
+        // TODO: this linear search is super inefficient, optimize
+        val binding = context.bindings.entries.find { it.key.parameter == this.parameter }
+        return binding?.value ?: this
     }
 
     override fun withTypeVariables(variables: List<BoundTypeParameter>): ResolvedTypeReference {

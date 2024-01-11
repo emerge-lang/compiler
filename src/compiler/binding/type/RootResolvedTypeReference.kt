@@ -2,12 +2,10 @@ package compiler.binding.type
 
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.ast.type.TypeVariance
 import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
-import compiler.reportings.ValueNotAssignableReporting
 
 /**
  * A [TypeReference] where the root type is resolved
@@ -177,6 +175,17 @@ class RootResolvedTypeReference private constructor(
             }
             is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
         }
+    }
+
+    override fun instantiateVariables(context: TypeUnification): ResolvedTypeReference {
+        return RootResolvedTypeReference(
+            original,
+            this.context,
+            isNullable,
+            explicitMutability,
+            baseType,
+            arguments.map { it.instantiateVariables(context) },
+        )
     }
 
     override fun contextualize(context: TypeUnification): ResolvedTypeReference {

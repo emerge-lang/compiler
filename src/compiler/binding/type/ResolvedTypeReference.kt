@@ -152,6 +152,12 @@ sealed interface ResolvedTypeReference {
     fun unify(assigneeType: ResolvedTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification
 
     /**
+     * Replaces [TypeVariable] in this type with their bindings from [context].
+     * This does **not** replace [GenericTypeReference], use [contextualize] for that!
+     */
+    fun instantiateVariables(context: TypeUnification): ResolvedTypeReference = this
+
+    /**
      * Adds the generic type information from [context] to this type, e.g.:
      *
      * * `this`: `Int`
@@ -175,7 +181,7 @@ sealed interface ResolvedTypeReference {
      *
      * @param context the type of the parent context, e.g. `Array<Int>`
      */
-    fun contextualize(context: TypeUnification) = this
+    fun contextualize(context: TypeUnification): ResolvedTypeReference
 
     /**
      * @return whether both types refer to the same base type or generic type parameter
