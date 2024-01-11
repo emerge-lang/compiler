@@ -34,12 +34,11 @@ import compiler.reportings.Reporting
  * can infer that `someX` in the lambda is of type `Int`.
  */
 class TypeVariable(
-    override val context: CTContext,
     val parameter: BoundTypeParameter,
     override val sourceLocation: SourceLocation?,
 ) : ResolvedTypeReference {
-    constructor(ref: GenericTypeReference) : this(ref.context, ref.parameter, ref.sourceLocation)
-    constructor(parameter: BoundTypeParameter) : this(parameter.context, parameter, parameter.astNode.name.sourceLocation)
+    constructor(ref: GenericTypeReference) : this(ref.parameter, ref.sourceLocation)
+    constructor(parameter: BoundTypeParameter) : this(parameter, parameter.astNode.name.sourceLocation)
 
     override val isNullable get() = parameter.bound.isNullable
     override val simpleName get() = parameter.name

@@ -28,7 +28,7 @@ class BoundBooleanLiteralExpression(
     override val declaration: BooleanLiteralExpression,
     val value: Boolean
 ) : BoundExpression<BooleanLiteralExpression> {
-    override val type: ResolvedTypeReference = BuiltinBoolean.baseReference(context)
+    override val type: ResolvedTypeReference = BuiltinBoolean.baseReference
 
     override val isGuaranteedToThrow: Boolean = false
 

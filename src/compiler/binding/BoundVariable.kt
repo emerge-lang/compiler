@@ -104,7 +104,7 @@ class BoundVariable(
                 }
 
             initializerExpression?.setExpectedEvaluationResultType(
-                this.resolvedDeclaredType ?: BuiltinAny.baseReference(context)
+                this.resolvedDeclaredType ?: BuiltinAny.baseReference
                     .withCombinedNullability(TypeReference.Nullability.NULLABLE)
                     .withMutability(implicitMutability)
             )

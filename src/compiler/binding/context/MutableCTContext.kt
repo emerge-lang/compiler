@@ -118,22 +118,18 @@ open class MutableCTContext(
     }
 
     override fun resolveType(ref: TypeArgument): BoundTypeArgument {
-        return BoundTypeArgument(this, ref, ref.variance, resolveType(ref.type))
+        return BoundTypeArgument(ref, ref.variance, resolveType(ref.type))
     }
 
     override fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean): ResolvedTypeReference {
         resolveTypeParameter(ref.simpleName)?.let { parameter ->
-            return GenericTypeReference(
-                this,
-                ref,
-                parameter
-            )
+            return GenericTypeReference(ref, parameter)
         }
 
         val resolvedParameters = ref.arguments.map { resolveType(it).defaultMutabilityTo(ref.mutability) }
         return resolveBaseType(ref.simpleName)
-            ?.let { RootResolvedTypeReference(ref, this,  it, resolvedParameters) }
-            ?: UnresolvedType(this, ref, resolvedParameters)
+            ?.let { RootResolvedTypeReference(ref, it, resolvedParameters) }
+            ?: UnresolvedType(ref, resolvedParameters)
     }
 
     override fun resolveVariable(name: String, fromOwnModuleOnly: Boolean): BoundVariable? {

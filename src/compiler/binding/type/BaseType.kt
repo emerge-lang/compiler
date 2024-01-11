@@ -41,12 +41,9 @@ interface BaseType : SemanticallyAnalyzable {
     val fullyQualifiedName: String
         get() = simpleName
 
-    val baseReference: (CTContext) -> ResolvedTypeReference
-        get() = { ctx ->
-            // determine minimum bound for all type parameters
-            RootResolvedTypeReference(TypeReference(this.simpleName), ctx, this, typeParameters.map {
+    val baseReference: ResolvedTypeReference
+        get() = RootResolvedTypeReference(TypeReference(this.simpleName), this, typeParameters.map {
                 BoundTypeArgument(
-                    ctx,
                     TypeArgument(
                         TypeVariance.UNSPECIFIED,
                         TypeReference("_"),
@@ -55,7 +52,6 @@ interface BaseType : SemanticallyAnalyzable {
                     it.bound,
                 )
             })
-        }
 
     val superTypes: Set<BaseType>
         get() = emptySet()

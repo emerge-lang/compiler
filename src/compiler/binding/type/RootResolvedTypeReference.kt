@@ -13,7 +13,6 @@ import compiler.reportings.Reporting
  */
 class RootResolvedTypeReference private constructor(
     val original: TypeReference?,
-    override val context: CTContext,
     override val isNullable: Boolean,
     private val explicitMutability: TypeMutability?,
     val baseType: BaseType,
@@ -27,9 +26,8 @@ class RootResolvedTypeReference private constructor(
         TypeUnification.fromExplicit(baseType.typeParameters, arguments, sourceLocation ?: SourceLocation.UNKNOWN)
     }
 
-    constructor(original: TypeReference, context: CTContext, baseType: BaseType, parameters: List<BoundTypeArgument>) : this(
+    constructor(original: TypeReference, baseType: BaseType, parameters: List<BoundTypeArgument>) : this(
         original,
-        context,
         original.nullability == TypeReference.Nullability.NULLABLE,
         original.mutability,
         baseType,
@@ -39,7 +37,6 @@ class RootResolvedTypeReference private constructor(
     override fun withMutability(modifier: TypeMutability?): RootResolvedTypeReference {
         return RootResolvedTypeReference(
             original,
-            context,
             isNullable,
             if (baseType.isAtomic) TypeMutability.IMMUTABLE else modifier,
             baseType,
@@ -51,7 +48,6 @@ class RootResolvedTypeReference private constructor(
         val combinedMutability = mutability?.let { this.mutability.combinedWith(it) } ?: this.mutability
         return RootResolvedTypeReference(
             original,
-            context,
             isNullable,
             combinedMutability,
             baseType,
@@ -62,7 +58,6 @@ class RootResolvedTypeReference private constructor(
     override fun withCombinedNullability(nullability: TypeReference.Nullability): RootResolvedTypeReference {
         return RootResolvedTypeReference(
             original,
-            context,
             when(nullability) {
                 TypeReference.Nullability.NULLABLE -> true
                 TypeReference.Nullability.NOT_NULLABLE -> false
@@ -81,7 +76,6 @@ class RootResolvedTypeReference private constructor(
 
         return RootResolvedTypeReference(
             original,
-            context,
             isNullable,
             mutability,
             baseType,
@@ -110,7 +104,6 @@ class RootResolvedTypeReference private constructor(
                 check(commonSupertype.typeParameters.isEmpty()) { "Generic supertypes are not implemented, yet." }
                 RootResolvedTypeReference(
                     null,
-                    context,
                     this.isNullable || other.isNullable,
                     this.mutability.combinedWith(other.mutability),
                     commonSupertype,
@@ -128,7 +121,6 @@ class RootResolvedTypeReference private constructor(
     override fun withTypeVariables(variables: List<BoundTypeParameter>): ResolvedTypeReference {
         return RootResolvedTypeReference(
             original,
-            context,
             isNullable,
             explicitMutability,
             baseType,
@@ -180,7 +172,6 @@ class RootResolvedTypeReference private constructor(
     override fun instantiateVariables(context: TypeUnification): ResolvedTypeReference {
         return RootResolvedTypeReference(
             original,
-            this.context,
             isNullable,
             explicitMutability,
             baseType,
@@ -191,7 +182,6 @@ class RootResolvedTypeReference private constructor(
     override fun contextualize(context: TypeUnification): ResolvedTypeReference {
         return RootResolvedTypeReference(
             original,
-            this.context,
             isNullable,
             explicitMutability,
             baseType,

@@ -2,24 +2,21 @@ package compiler.binding.type
 
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
-import compiler.reportings.ValueNotAssignableReporting
 
 class UnresolvedType private constructor(
     val standInType: ResolvedTypeReference,
     private val reference: TypeReference,
     val parameters: List<BoundTypeArgument>,
 ) : ResolvedTypeReference {
-    constructor(context: CTContext, reference: TypeReference, parameters: List<BoundTypeArgument>) : this(
-        getReplacementType(context),
+    constructor(reference: TypeReference, parameters: List<BoundTypeArgument>) : this(
+        STAND_IN_TYPE,
         reference,
         parameters,
     )
 
     override val simpleName = "<ERROR>"
-    override val context get() = standInType.context
     override val isNullable get() = standInType.isNullable
     override val mutability get() = standInType.mutability
     override val sourceLocation = reference.declaringNameToken?.sourceLocation
@@ -106,8 +103,8 @@ class UnresolvedType private constructor(
     override fun toString() = simpleName
 
     companion object {
-        fun getReplacementType(context: CTContext): ResolvedTypeReference {
-            return BuiltinAny.baseReference(context).withMutability(TypeMutability.READONLY)
-        }
+        val STAND_IN_TYPE: ResolvedTypeReference = BuiltinAny.baseReference
+            .withMutability(TypeMutability.READONLY)
+            .withCombinedNullability(TypeReference.Nullability.NULLABLE)
     }
 }

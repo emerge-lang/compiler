@@ -22,15 +22,13 @@ import io.mockk.mockk
 class VarianceErrors : FreeSpec({
     val Parent = BuiltinNumberType
     val Child = BuiltinIntType
-    val context = ModuleRootContext()
 
-    fun varIn(t: BaseType) = BoundTypeArgument(context, mockk(), IN, t.baseReference(context))
-    fun varOut(t: BaseType) = BoundTypeArgument(context, mockk(), OUT, t.baseReference(context))
-    fun varExact(t: BaseType) = BoundTypeArgument(context, mockk(), UNSPECIFIED, t.baseReference(context))
+    fun varIn(t: BaseType) = BoundTypeArgument(mockk(), IN, t.baseReference)
+    fun varOut(t: BaseType) = BoundTypeArgument(mockk(), OUT, t.baseReference)
+    fun varExact(t: BaseType) = BoundTypeArgument(mockk(), UNSPECIFIED, t.baseReference)
 
     fun arrayOf(element: BoundTypeArgument): ResolvedTypeReference = RootResolvedTypeReference(
         TypeReference("Array"),
-        context,
         BuiltinArray,
         listOf(element),
     )

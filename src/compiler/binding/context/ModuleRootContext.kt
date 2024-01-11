@@ -37,9 +37,8 @@ class ModuleRootContext : MutableCTContext(
             override fun resolveTypeParameter(simpleName: String): BoundTypeParameter? = null
             override fun resolveBaseType(simpleName: String, fromOwnModuleOnly: Boolean): BaseType? = null
             override fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean): ResolvedTypeReference = UnresolvedType(
-                this,
                 ref,
-                ref.arguments.map { BoundTypeArgument(this, it, it.variance, this.resolveType(it.type)) },
+                ref.arguments.map { BoundTypeArgument(it, it.variance, this.resolveType(it.type)) },
             )
             override fun resolveFunction(name: String, fromOwnModuleOnly: Boolean): Collection<BoundFunction> = emptySet()
         }

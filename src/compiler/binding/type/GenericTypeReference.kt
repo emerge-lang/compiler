@@ -54,7 +54,7 @@ sealed class GenericTypeReference : ResolvedTypeReference {
             is BoundTypeArgument -> when (assigneeType.variance) {
                 TypeVariance.OUT,
                 TypeVariance.UNSPECIFIED -> unify(assigneeType.type, assignmentLocation, carry)
-                TypeVariance.IN -> unify(BoundTypeParameter.getTypeParameterDefaultBound(assigneeType.context), assignmentLocation, carry)
+                TypeVariance.IN -> unify(BoundTypeParameter.TYPE_PARAMETER_DEFAULT_BOUND, assignmentLocation, carry)
             }
             is GenericTypeReference -> {
                 // current assumption: confusing two distinct generics with the same name is not possible, given
@@ -144,8 +144,8 @@ sealed class GenericTypeReference : ResolvedTypeReference {
     }
 
     companion object {
-        operator fun invoke(context: CTContext, original: TypeReference, parameter: BoundTypeParameter): GenericTypeReference {
-            return NakedGenericTypeReference(context, original, parameter)
+        operator fun invoke(original: TypeReference, parameter: BoundTypeParameter): GenericTypeReference {
+            return NakedGenericTypeReference(original, parameter)
                 .withMutability(original.mutability)
                 .withCombinedNullability(original.nullability)
         }
@@ -153,7 +153,6 @@ sealed class GenericTypeReference : ResolvedTypeReference {
 }
 
 private class NakedGenericTypeReference(
-    override val context: CTContext,
     override val original: TypeReference,
     override val parameter: BoundTypeParameter,
 ) : GenericTypeReference() {
@@ -162,7 +161,6 @@ private class NakedGenericTypeReference(
 }
 
 private class ResolvedBoundGenericTypeReference(
-    override val context: CTContext,
     override val original: TypeReference,
     override val parameter: BoundTypeParameter,
     override val effectiveBound: ResolvedTypeReference,
@@ -172,7 +170,6 @@ private class MappedEffectiveBoundGenericTypeReference private constructor(
     private val delegate: GenericTypeReference,
     private val mapper: (ResolvedTypeReference) -> ResolvedTypeReference,
 ) : GenericTypeReference() {
-    override val context = delegate.context
     override val original = delegate.original
     override val parameter = delegate.parameter
     override val effectiveBound by lazy {

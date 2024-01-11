@@ -27,20 +27,19 @@ import io.kotest.matchers.shouldBe
 
 class ResolvedTypeReferenceTest : FreeSpec() { init {
     "Given a type hierarchy A; B : A; C : A, Z; D : A, Z; E : A, Z" - {
-        val context = ModuleRootContext()
         val typeA = fakeType("A")
         val typeB = fakeType("B", typeA)
         val typeC = fakeType("C", typeA)
 
-        val mutableA = typeA.baseReference(context).withMutability(TypeMutability.MUTABLE)
+        val mutableA = typeA.baseReference.withMutability(TypeMutability.MUTABLE)
         val readonlyA = mutableA.withMutability(TypeMutability.READONLY)
         val immutableA = readonlyA.withMutability(TypeMutability.IMMUTABLE)
 
-        val mutableB = typeB.baseReference(context).withMutability(TypeMutability.MUTABLE)
+        val mutableB = typeB.baseReference.withMutability(TypeMutability.MUTABLE)
         val readonlyB = mutableB.withMutability(TypeMutability.READONLY)
         val immutableB = readonlyB.withMutability(TypeMutability.IMMUTABLE)
 
-        val mutableC = typeC.baseReference(context).withMutability(TypeMutability.MUTABLE)
+        val mutableC = typeC.baseReference.withMutability(TypeMutability.MUTABLE)
         val readonlyC = mutableC.withMutability(TypeMutability.READONLY)
         val immutableC = readonlyC.withMutability(TypeMutability.IMMUTABLE)
 

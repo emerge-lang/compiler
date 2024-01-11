@@ -86,13 +86,13 @@ class BoundIfExpression(
 
         if (condition.type != null) {
             val conditionType = condition.type!!
-            if (!conditionType.isAssignableTo(BuiltinBoolean.baseReference(context))) {
+            if (!conditionType.isAssignableTo(BuiltinBoolean.baseReference)) {
                 reportings.add(Reporting.conditionIsNotBoolean(condition, condition.declaration.sourceLocation))
             }
         }
 
-        val thenType = if (thenCode is BoundExpression<*>) thenCode.type else BuiltinUnit.baseReference(context)
-        val elseType = if (elseCode is BoundExpression<*>) elseCode.type else BuiltinUnit.baseReference(context)
+        val thenType = if (thenCode is BoundExpression<*>) thenCode.type else BuiltinUnit.baseReference
+        val elseType = if (elseCode is BoundExpression<*>) elseCode.type else BuiltinUnit.baseReference
 
         if (thenType != null && elseType != null) {
             type = thenType.closestCommonSupertypeWith(elseType)

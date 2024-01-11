@@ -82,7 +82,7 @@ interface CTContext {
     fun resolveTypeParameter(simpleName: String): BoundTypeParameter?
 
     fun resolveType(ref: TypeArgument): BoundTypeArgument {
-        return BoundTypeArgument(this, ref, ref.variance, resolveType(ref))
+        return BoundTypeArgument(ref, ref.variance, resolveType(ref))
     }
 
     fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean = false): ResolvedTypeReference

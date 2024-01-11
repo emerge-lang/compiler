@@ -23,7 +23,7 @@ import compiler.binding.type.BuiltinBoolean
 import compiler.lexer.SourceLocation
 
 internal class ConditionNotBooleanReporting(val condition: BoundExpression<*>, location: SourceLocation)
-    : ValueNotAssignableReporting(BuiltinBoolean.baseReference(condition.context), condition.type!!, "", location)
+    : ValueNotAssignableReporting(BuiltinBoolean.baseReference, condition.type!!, "", location)
 {
     override val message: String = "The condition must evaluate to Boolean, got ${condition.type!!}"
 }

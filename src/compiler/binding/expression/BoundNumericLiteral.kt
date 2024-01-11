@@ -56,7 +56,7 @@ class BoundIntegerLiteral(
     val integer: BigInteger,
     reportings: Collection<Reporting>
 ) : BoundNumericLiteral(context, declaration, reportings) {
-    override val type = compiler.binding.type.BuiltinInt.baseReference(context)
+    override val type = compiler.binding.type.BuiltinInt.baseReference
 }
 
 class BoundFloatingPointLiteral(
@@ -65,5 +65,5 @@ class BoundFloatingPointLiteral(
     val floatingPointNumber: BigDecimal,
     reportings: Collection<Reporting>
 ) : BoundNumericLiteral(context, declaration, reportings) {
-    override val type = compiler.binding.type.BuiltinFloat.baseReference(context)
+    override val type = compiler.binding.type.BuiltinFloat.baseReference
 }

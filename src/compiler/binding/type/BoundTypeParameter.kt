@@ -22,7 +22,7 @@ data class BoundTypeParameter(
         private set
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        bound = astNode.bound?.let(context::resolveType) ?: getTypeParameterDefaultBound(context)
+        bound = astNode.bound?.let(context::resolveType) ?: TYPE_PARAMETER_DEFAULT_BOUND
         return emptySet()
     }
 
@@ -49,10 +49,8 @@ data class BoundTypeParameter(
     }
 
     companion object {
-        fun getTypeParameterDefaultBound(context: CTContext): ResolvedTypeReference {
-            return BuiltinAny.baseReference(context)
-                .withMutability(TypeMutability.READONLY)
-                .withCombinedNullability(TypeReference.Nullability.NULLABLE)
-        }
+        val TYPE_PARAMETER_DEFAULT_BOUND: ResolvedTypeReference = BuiltinAny.baseReference
+            .withMutability(TypeMutability.READONLY)
+            .withCombinedNullability(TypeReference.Nullability.NULLABLE)
     }
 }

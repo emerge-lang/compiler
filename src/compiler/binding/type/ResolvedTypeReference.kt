@@ -29,8 +29,6 @@ import compiler.reportings.ValueNotAssignableReporting
 import java.util.IdentityHashMap
 
 sealed interface ResolvedTypeReference {
-    // TODO: remove, is unused
-    val context: CTContext
     val isNullable: Boolean
     val simpleName: String?
 
