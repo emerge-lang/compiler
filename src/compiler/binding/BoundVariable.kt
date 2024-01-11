@@ -27,7 +27,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BuiltinAny
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
 import compiler.reportings.Reporting
@@ -53,10 +53,10 @@ class BoundVariable(
     /**
      * The base type reference; null if not determined yet or if it cannot be determined due to semantic errors.
      */
-    var type: ResolvedTypeReference? = null
+    var type: BoundTypeReference? = null
         private set
 
-    private var resolvedDeclaredType: ResolvedTypeReference? = null
+    private var resolvedDeclaredType: BoundTypeReference? = null
 
     override val isGuaranteedToThrow: Boolean?
         get() = initializerExpression?.isGuaranteedToThrow

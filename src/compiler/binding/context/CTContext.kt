@@ -19,15 +19,13 @@
 package compiler.binding.context
 
 import compiler.ast.type.TypeArgument
-import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
-import compiler.binding.type.GenericTypeReference
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 
 /**
  * Compile-Time context. A compile-time context knows all available symbols (through imports and explicit definition).
@@ -85,7 +83,7 @@ interface CTContext {
         return BoundTypeArgument(ref, ref.variance, resolveType(ref))
     }
 
-    fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean = false): ResolvedTypeReference
+    fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean = false): BoundTypeReference
 
     fun resolveFunction(name: String, fromOwnModuleOnly: Boolean = false): Collection<BoundFunction>
 }

@@ -121,7 +121,7 @@ open class MutableCTContext(
         return BoundTypeArgument(ref, ref.variance, resolveType(ref.type))
     }
 
-    override fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean): ResolvedTypeReference {
+    override fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean): BoundTypeReference {
         resolveTypeParameter(ref.simpleName)?.let { parameter ->
             return GenericTypeReference(ref, parameter)
         }

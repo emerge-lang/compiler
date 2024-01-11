@@ -20,13 +20,11 @@ package compiler.binding.type
 
 import compiler.ast.FunctionDeclaration
 import compiler.ast.type.TypeArgument
-import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundFunction
 import compiler.binding.ObjectMember
 import compiler.binding.SemanticallyAnalyzable
-import compiler.binding.context.CTContext
 import compiler.reportings.Reporting
 import kotlinext.get
 
@@ -41,7 +39,7 @@ interface BaseType : SemanticallyAnalyzable {
     val fullyQualifiedName: String
         get() = simpleName
 
-    val baseReference: ResolvedTypeReference
+    val baseReference: BoundTypeReference
         get() = RootResolvedTypeReference(TypeReference(this.simpleName), this, typeParameters.map {
                 BoundTypeArgument(
                     TypeArgument(

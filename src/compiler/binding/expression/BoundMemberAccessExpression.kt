@@ -23,7 +23,7 @@ import compiler.ast.expression.MemberAccessExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
 
 class BoundMemberAccessExpression(
@@ -37,7 +37,7 @@ class BoundMemberAccessExpression(
      * The type of this expression. Is null before semantic anylsis phase 2 is finished; afterwards is null if the
      * type could not be determined or [memberName] denotes a function.
      */
-    override var type: ResolvedTypeReference? = null
+    override var type: BoundTypeReference? = null
         private set
 
     private var member: ObjectMember? = null
@@ -77,7 +77,7 @@ class BoundMemberAccessExpression(
         return valueExpression.findWritesBeyond(boundary)
     }
 
-    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // nothing to do, the type of any object member is predetermined
     }
 }

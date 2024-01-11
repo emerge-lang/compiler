@@ -22,7 +22,7 @@ import compiler.ast.Executable
 import compiler.ast.expression.NumericLiteralExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
 import java.math.BigDecimal
 import java.math.BigInteger
@@ -37,7 +37,7 @@ open class BoundNumericLiteral(
     private val reportings: Collection<Reporting>
 ) : BoundExpression<NumericLiteralExpression> {
     override fun semanticAnalysisPhase1() = reportings
-    override val type: ResolvedTypeReference? = null // unknown
+    override val type: BoundTypeReference? = null // unknown
 
     override val isGuaranteedToThrow = false
 
@@ -45,7 +45,7 @@ open class BoundNumericLiteral(
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
 
-    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // nothing to do there, the type of numeric literals is always predetermined by their specification in source
     }
 }

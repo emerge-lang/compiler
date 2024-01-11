@@ -22,7 +22,6 @@ import compiler.OnceAction
 import compiler.ast.Executable
 import compiler.ast.FunctionDeclaration
 import compiler.ast.struct.StructDeclaration
-import compiler.ast.type.TypeParameter
 import compiler.binding.BoundElement
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
@@ -31,8 +30,6 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.BuiltinAny
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeParameter
-import compiler.binding.type.ResolvedTypeReference
-import compiler.binding.type.TypeUseSite
 import compiler.reportings.Reporting
 import kotlinext.duplicatesBy
 

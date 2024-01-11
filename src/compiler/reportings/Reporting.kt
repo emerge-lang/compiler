@@ -34,8 +34,7 @@ import compiler.binding.struct.Struct
 import compiler.binding.struct.StructMember
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
-import compiler.binding.type.ResolvedTypeReference
-import compiler.binding.type.RootResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.lexer.IdentifierToken
 import compiler.lexer.OperatorToken
@@ -87,7 +86,7 @@ abstract class Reporting internal constructor(
         fun unsupported(message: String, location: SourceLocation)
             = UnsupportedFeatureReporting(message, location)
 
-        fun valueNotAssignable(targetType: ResolvedTypeReference, sourceType: ResolvedTypeReference, reason: String, assignmentLocation: SourceLocation)
+        fun valueNotAssignable(targetType: BoundTypeReference, sourceType: BoundTypeReference, reason: String, assignmentLocation: SourceLocation)
             = ValueNotAssignableReporting(targetType, sourceType, reason, assignmentLocation)
 
         fun undefinedIdentifier(expr: IdentifierExpression, messageOverride: String? = null)
@@ -145,13 +144,13 @@ abstract class Reporting internal constructor(
         fun inefficientModifiers(message: String, location: SourceLocation)
             = ModifierInefficiencyReporting(message, location)
 
-        fun noMatchingFunctionOverload(functionNameReference: IdentifierToken, receiverType: ResolvedTypeReference?, valueArguments: List<BoundExpression<*>>, functionDeclaredAtAll: Boolean)
+        fun noMatchingFunctionOverload(functionNameReference: IdentifierToken, receiverType: BoundTypeReference?, valueArguments: List<BoundExpression<*>>, functionDeclaredAtAll: Boolean)
             = UnresolvableFunctionOverloadReporting(functionNameReference, receiverType, valueArguments.map { it.type }, functionDeclaredAtAll)
 
         fun unresolvableConstructor(nameToken: IdentifierToken, valueArguments: List<BoundExpression<*>>, functionsWithNameAvailable: Boolean)
             = UnresolvableConstructorReporting(nameToken, valueArguments.map { it.type }, functionsWithNameAvailable)
 
-        fun unresolvableMemberVariable(accessExpression: BoundMemberAccessExpression, hostType: ResolvedTypeReference)
+        fun unresolvableMemberVariable(accessExpression: BoundMemberAccessExpression, hostType: BoundTypeReference)
             = UnresolvedMemberVariableReporting(accessExpression.declaration, hostType)
 
         fun ambiguousInvocation(invocation: BoundInvocationExpression, candidates: List<BoundFunction>)
@@ -172,7 +171,7 @@ abstract class Reporting internal constructor(
         /**
          * An expression is used in a way that requires it to be non-null but the type of the expression is nullable.
          * @param nullableExpression The expression that could evaluate to null and thus case an NPE
-         * @see ResolvedTypeReference.isExplicitlyNullable
+         * @see BoundTypeReference.isExplicitlyNullable
          */
         fun unsafeObjectTraversal(nullableExpression: BoundExpression<*>, faultyAccessOperator: OperatorToken)
             = UnsafeObjectTraversalException(nullableExpression, faultyAccessOperator)

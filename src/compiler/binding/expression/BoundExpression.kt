@@ -19,14 +19,14 @@
 package compiler.binding.expression
 
 import compiler.binding.BoundExecutable
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 
 interface BoundExpression<out ASTType> : BoundExecutable<ASTType> {
     /**
      * The type of this expression when evaluated If the type could not be determined due to semantic errors,
      * this might be a close guess or null.
      */
-    val type: ResolvedTypeReference?
+    val type: BoundTypeReference?
 
     /**
      * To be called before [BoundExecutable.semanticAnalysisPhase2]. Information from the desired type
@@ -37,5 +37,5 @@ interface BoundExpression<out ASTType> : BoundExecutable<ASTType> {
      * * lambda functions need to know the type of their parameters to be validated. That information comes from the
      *   called function declaration, through this method.
      */
-    fun setExpectedEvaluationResultType(type: ResolvedTypeReference)
+    fun setExpectedEvaluationResultType(type: BoundTypeReference)
 }

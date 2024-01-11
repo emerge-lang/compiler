@@ -18,7 +18,7 @@
 
 package compiler.reportings
 
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 import compiler.lexer.SourceLocation
 
 /**
@@ -27,10 +27,10 @@ import compiler.lexer.SourceLocation
  */
 open class ValueNotAssignableReporting(
     /** The type of the storage area a value is to be written to; in an assignment its the type of the target variable */
-    val targetType: ResolvedTypeReference,
+    val targetType: BoundTypeReference,
 
     /** The type of the value that is to be written; in an assignments its the type of the expression to be written to a variable */
-    val sourceType: ResolvedTypeReference,
+    val sourceType: BoundTypeReference,
 
     val reason: String,
 

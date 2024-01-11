@@ -22,7 +22,7 @@ import compiler.InternalCompilerError
 import compiler.ast.CodeChunk
 import compiler.ast.Executable
 import compiler.binding.context.CTContext
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
 import compiler.handleCyclicInvocation
 
@@ -35,7 +35,7 @@ class BoundCodeChunk(
     override val declaration: CodeChunk
 ) : BoundExecutable<CodeChunk> {
 
-    private var expectedReturnType: ResolvedTypeReference? = null
+    private var expectedReturnType: BoundTypeReference? = null
 
     /** The bound statements of this code; must not be null after semantic analysis is done */
     var statements: List<BoundExecutable<*>>? = null
@@ -72,7 +72,7 @@ class BoundCodeChunk(
         return reportings
     }
 
-    override fun setExpectedReturnType(type: ResolvedTypeReference) {
+    override fun setExpectedReturnType(type: BoundTypeReference) {
         this.expectedReturnType = type
     }
 

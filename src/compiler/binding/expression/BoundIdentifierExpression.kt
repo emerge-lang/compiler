@@ -24,8 +24,7 @@ import compiler.ast.type.TypeReference
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundVariable
 import compiler.binding.context.CTContext
-import compiler.binding.type.BaseType
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.reportings.Reporting
 
@@ -35,7 +34,7 @@ class BoundIdentifierExpression(
 ) : BoundExpression<IdentifierExpression> {
     val identifier: String = declaration.identifier.value
 
-    override val type: ResolvedTypeReference?
+    override val type: BoundTypeReference?
         get() = when(val localReferral = referral) {
             is ReferringVariable -> localReferral.variable.type
             is ReferringType -> localReferral.reference
@@ -56,7 +55,7 @@ class BoundIdentifierExpression(
         if (variable != null) {
             referral = ReferringVariable(variable)
         } else {
-            val type: ResolvedTypeReference? = context.resolveType(
+            val type: BoundTypeReference? = context.resolveType(
                 TypeReference(declaration.identifier)
             ).takeUnless { it is UnresolvedType }
 
@@ -87,7 +86,7 @@ class BoundIdentifierExpression(
         return emptySet()
     }
 
-    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // nothing to do. identifiers must always be unambiguous so there is no use for this information
     }
 
@@ -103,7 +102,7 @@ class BoundIdentifierExpression(
             }
         }
     }
-    inner class ReferringType(val reference: ResolvedTypeReference) : Referral {
+    inner class ReferringType(val reference: BoundTypeReference) : Referral {
         override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
             // TODO is reading type information of types declared outside the boundary considered impure?
             return emptySet()

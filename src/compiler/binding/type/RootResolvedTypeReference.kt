@@ -4,7 +4,6 @@ import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.ObjectMember
-import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 
@@ -17,7 +16,7 @@ class RootResolvedTypeReference private constructor(
     private val explicitMutability: TypeMutability?,
     val baseType: BaseType,
     val arguments: List<BoundTypeArgument>,
-) : ResolvedTypeReference {
+) : BoundTypeReference {
     override val mutability = if (baseType.isAtomic) TypeMutability.IMMUTABLE else (explicitMutability ?: original?.mutability ?: TypeMutability.READONLY)
     override val simpleName = original?.simpleName ?: baseType.simpleName
     override val sourceLocation = original?.declaringNameToken?.sourceLocation
@@ -92,11 +91,11 @@ class RootResolvedTypeReference private constructor(
         return reportings
     }
 
-    override fun hasSameBaseTypeAs(other: ResolvedTypeReference): Boolean {
+    override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
         return other is RootResolvedTypeReference && this.baseType == other.baseType
     }
 
-    override fun closestCommonSupertypeWith(other: ResolvedTypeReference): ResolvedTypeReference {
+    override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
         return when (other) {
             is UnresolvedType -> other.closestCommonSupertypeWith(this)
             is RootResolvedTypeReference -> {
@@ -118,7 +117,7 @@ class RootResolvedTypeReference private constructor(
 
     override fun findMemberVariable(name: String): ObjectMember? = baseType.resolveMemberVariable(name)
 
-    override fun withTypeVariables(variables: List<BoundTypeParameter>): ResolvedTypeReference {
+    override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeReference {
         return RootResolvedTypeReference(
             original,
             isNullable,
@@ -128,7 +127,7 @@ class RootResolvedTypeReference private constructor(
         )
     }
 
-    override fun unify(assigneeType: ResolvedTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
+    override fun unify(assigneeType: BoundTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
         when (assigneeType) {
             is RootResolvedTypeReference -> {
                 // this must be a subtype of other
@@ -169,7 +168,7 @@ class RootResolvedTypeReference private constructor(
         }
     }
 
-    override fun instantiateVariables(context: TypeUnification): ResolvedTypeReference {
+    override fun instantiateVariables(context: TypeUnification): BoundTypeReference {
         return RootResolvedTypeReference(
             original,
             isNullable,
@@ -179,7 +178,7 @@ class RootResolvedTypeReference private constructor(
         )
     }
 
-    override fun contextualize(context: TypeUnification): ResolvedTypeReference {
+    override fun contextualize(context: TypeUnification): BoundTypeReference {
         return RootResolvedTypeReference(
             original,
             isNullable,

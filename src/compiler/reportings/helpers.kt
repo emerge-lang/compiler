@@ -18,9 +18,9 @@
 
 package compiler.reportings
 
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 
-internal fun List<ResolvedTypeReference?>.typeTupleToString(): String = joinToString(
+internal fun List<BoundTypeReference?>.typeTupleToString(): String = joinToString(
     prefix = "(",
     transform = { it?.simpleName ?: "<unknown type>" },
     postfix = ")",

@@ -1,6 +1,6 @@
 package compiler.binding
 
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 import compiler.ast.type.TypeMutability
 
 interface ObjectMember {
@@ -8,10 +8,10 @@ interface ObjectMember {
 
     /**
      * The type of this member in the context of the hosting data structure. It still needs to
-     * be [ResolvedTypeReference.contextualize]d with the type of the variable used to access
+     * be [BoundTypeReference.contextualize]d with the type of the variable used to access
      * the hosting data structure.
      */
-    val type: ResolvedTypeReference?
+    val type: BoundTypeReference?
 
     /**
      * Whether the member is inherently mutable. Even if this is `true` it still has to

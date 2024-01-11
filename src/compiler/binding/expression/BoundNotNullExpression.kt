@@ -22,7 +22,7 @@ import compiler.ast.Executable
 import compiler.ast.expression.NotNullExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 
 class BoundNotNullExpression(
     override val context: CTContext,
@@ -32,7 +32,7 @@ class BoundNotNullExpression(
     // TODO: reporting on superfluous notnull when nullableExpression.type.nullable == false
     // TODO: obtain type from nullableExpression and remove nullability from the type
 
-    override var type: ResolvedTypeReference? = null
+    override var type: BoundTypeReference? = null
         private set
 
     override val isGuaranteedToThrow = false // this MAY throw, but it's not guaranteed to
@@ -47,7 +47,7 @@ class BoundNotNullExpression(
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
 
-    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // TODO: do we need to change nullability here before passing it on?
         nullableExpression.setExpectedEvaluationResultType(type)
     }

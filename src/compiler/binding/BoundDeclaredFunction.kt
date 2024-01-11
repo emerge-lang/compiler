@@ -7,7 +7,7 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeParameter
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.BuiltinUnit
@@ -28,7 +28,7 @@ class BoundDeclaredFunction(
     override val declaredAt = declaration.declaredAt
     override val name: String = declaration.name.value
 
-    override val receiverType: ResolvedTypeReference?
+    override val receiverType: BoundTypeReference?
         get() = parameters.declaredReceiver?.type
 
     override val declaresReceiver = parameters.declaredReceiver != null
@@ -53,7 +53,7 @@ class BoundDeclaredFunction(
 
     override val modifiers = declaration.modifiers + impliedModifiers
 
-    override var returnType: ResolvedTypeReference? = null
+    override var returnType: BoundTypeReference? = null
         private set
 
     val isDeclaredPure: Boolean = FunctionModifier.PURE in declaration.modifiers

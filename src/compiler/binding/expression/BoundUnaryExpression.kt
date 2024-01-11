@@ -23,7 +23,7 @@ import compiler.ast.expression.UnaryExpression
 import compiler.ast.type.FunctionModifier
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
 import compiler.reportings.UnresolvableFunctionOverloadReporting
 
@@ -33,7 +33,7 @@ class BoundUnaryExpression(
     private val hiddenInvocation: BoundInvocationExpression,
 ) : BoundExpression<UnaryExpression> {
 
-    override var type: ResolvedTypeReference? = null
+    override var type: BoundTypeReference? = null
         private set
 
     override val isGuaranteedToThrow get() = hiddenInvocation.isGuaranteedToThrow
@@ -78,7 +78,7 @@ class BoundUnaryExpression(
         return hiddenInvocation.findWritesBeyond(boundary)
     }
 
-    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // nothing to do here: the only way to use this information would be the return type of the operator function
         // overload resolution based on return type is not a thing in this language
     }

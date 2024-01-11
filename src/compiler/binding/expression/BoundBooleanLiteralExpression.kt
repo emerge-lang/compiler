@@ -20,7 +20,7 @@ package compiler.binding.expression
 
 import compiler.ast.expression.BooleanLiteralExpression
 import compiler.binding.context.CTContext
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.BuiltinBoolean
 
 class BoundBooleanLiteralExpression(
@@ -28,11 +28,11 @@ class BoundBooleanLiteralExpression(
     override val declaration: BooleanLiteralExpression,
     val value: Boolean
 ) : BoundExpression<BooleanLiteralExpression> {
-    override val type: ResolvedTypeReference = BuiltinBoolean.baseReference
+    override val type: BoundTypeReference = BuiltinBoolean.baseReference
 
     override val isGuaranteedToThrow: Boolean = false
 
-    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // nothing to do: this expression can only ever have one type
     }
 }

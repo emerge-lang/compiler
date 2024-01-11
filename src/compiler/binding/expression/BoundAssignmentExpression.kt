@@ -24,7 +24,7 @@ import compiler.ast.Executable
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundVariable
 import compiler.binding.context.CTContext
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 import compiler.nullableOr
 import compiler.reportings.Reporting
 
@@ -47,7 +47,7 @@ class BoundAssignmentExpression(
     var targetVariable: BoundVariable? = null
         private set
 
-    override val type: ResolvedTypeReference?
+    override val type: BoundTypeReference?
         get() = valueExpression.type ?: targetExpression.type
 
     override val isGuaranteedToThrow: Boolean?
@@ -130,7 +130,7 @@ class BoundAssignmentExpression(
         }
     }
 
-    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // nothing to do because assignments are not expressions
     }
 

@@ -2,10 +2,7 @@ package compiler.binding.type
 
 import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
-import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
-import compiler.ast.type.TypeVariance
-import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 
@@ -36,7 +33,7 @@ import compiler.reportings.Reporting
 class TypeVariable(
     val parameter: BoundTypeParameter,
     override val sourceLocation: SourceLocation?,
-) : ResolvedTypeReference {
+) : BoundTypeReference {
     constructor(ref: GenericTypeReference) : this(ref.parameter, ref.sourceLocation)
     constructor(parameter: BoundTypeParameter) : this(parameter, parameter.astNode.name.sourceLocation)
 
@@ -45,19 +42,19 @@ class TypeVariable(
     override val mutability get() = parameter.bound.mutability
     override val inherentTypeBindings = TypeUnification.EMPTY
 
-    override fun defaultMutabilityTo(mutability: TypeMutability?): ResolvedTypeReference {
+    override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference {
         throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 
-    override fun withMutability(modifier: TypeMutability?): ResolvedTypeReference {
+    override fun withMutability(modifier: TypeMutability?): BoundTypeReference {
         throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 
-    override fun withCombinedMutability(mutability: TypeMutability?): ResolvedTypeReference {
+    override fun withCombinedMutability(mutability: TypeMutability?): BoundTypeReference {
         throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 
-    override fun withCombinedNullability(nullability: TypeReference.Nullability): ResolvedTypeReference {
+    override fun withCombinedNullability(nullability: TypeReference.Nullability): BoundTypeReference {
         throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 
@@ -65,16 +62,16 @@ class TypeVariable(
         throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 
-    override fun closestCommonSupertypeWith(other: ResolvedTypeReference): ResolvedTypeReference {
+    override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
         throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 
-    override fun withTypeVariables(variables: List<BoundTypeParameter>): ResolvedTypeReference {
+    override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeReference {
         return this
     }
 
     override fun unify(
-        assigneeType: ResolvedTypeReference,
+        assigneeType: BoundTypeReference,
         assignmentLocation: SourceLocation,
         carry: TypeUnification
     ): TypeUnification {
@@ -91,21 +88,21 @@ class TypeVariable(
         }
     }
 
-    fun flippedUnify(targetType: ResolvedTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
+    fun flippedUnify(targetType: BoundTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
         val newCarry = carry.plus(this, targetType, assignmentLocation)
         val selfBinding = carry.bindings[this] ?: return newCarry
         return targetType.unify(selfBinding, assignmentLocation, newCarry)
     }
 
-    override fun instantiateVariables(context: TypeUnification): ResolvedTypeReference {
+    override fun instantiateVariables(context: TypeUnification): BoundTypeReference {
         return context.bindings[this] ?: this
     }
 
-    override fun contextualize(context: TypeUnification): ResolvedTypeReference {
+    override fun contextualize(context: TypeUnification): BoundTypeReference {
         return instantiateVariables(context)
     }
 
-    override fun hasSameBaseTypeAs(other: ResolvedTypeReference): Boolean {
+    override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
         return other == this
     }
 

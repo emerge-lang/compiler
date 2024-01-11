@@ -20,21 +20,20 @@ package compiler.binding
 
 import compiler.ast.ReturnStatement
 import compiler.binding.context.CTContext
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
 import compiler.reportings.ReturnTypeMismatchReporting
-import kotlin.math.exp
 
 class BoundReturnStatement(
     override val context: CTContext,
     override val declaration: ReturnStatement
 ) : BoundExecutable<ReturnStatement> {
 
-    private var expectedReturnType: ResolvedTypeReference? = null
+    private var expectedReturnType: BoundTypeReference? = null
 
     val expression = declaration.expression.bindTo(context)
 
-    var returnType: ResolvedTypeReference? = null
+    var returnType: BoundTypeReference? = null
         private set
 
     override val isGuaranteedToReturn = true // this is the core LoC that makes the property work big-scale
@@ -68,7 +67,7 @@ class BoundReturnStatement(
         return reportings
     }
 
-    override fun setExpectedReturnType(type: ResolvedTypeReference) {
+    override fun setExpectedReturnType(type: BoundTypeReference) {
         expectedReturnType = type
         expression.setExpectedEvaluationResultType(type)
     }

@@ -25,7 +25,7 @@ import compiler.binding.BoundExecutable
 import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.reportings.Reporting
 import compiler.reportings.StructMemberDefaultValueNotAssignableReporting
@@ -41,7 +41,7 @@ class StructMember(
     /**
      * The type of the member; is null if not yet determined or if it cannot be determined.
      */
-    override var type: ResolvedTypeReference? = null
+    override var type: BoundTypeReference? = null
         private set
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {

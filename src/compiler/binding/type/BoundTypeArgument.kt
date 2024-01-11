@@ -4,15 +4,14 @@ import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
-import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 
 class BoundTypeArgument(
     val astNode: TypeArgument,
     val variance: TypeVariance,
-    val type: ResolvedTypeReference,
-) : ResolvedTypeReference {
+    val type: BoundTypeReference,
+) : BoundTypeReference {
     override val isNullable get() = type.isNullable
     override val mutability get() = type.mutability
     override val simpleName get() = toString()
@@ -35,7 +34,7 @@ class BoundTypeArgument(
         return BoundTypeArgument(astNode, variance, type.withTypeVariables(variables))
     }
 
-    override fun unify(assigneeType: ResolvedTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
+    override fun unify(assigneeType: BoundTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
         if (assigneeType !is BoundTypeArgument && this.variance == TypeVariance.OUT) {
             return carry.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "Cannot assign to a reference of an out-variant type", assignmentLocation))
         }
@@ -99,7 +98,7 @@ class BoundTypeArgument(
     }
 
     /**
-     * @see ResolvedTypeReference.instantiateVariables
+     * @see BoundTypeReference.instantiateVariables
      */
     override fun instantiateVariables(context: TypeUnification,): BoundTypeArgument {
         return BoundTypeArgument(astNode, variance, type.instantiateVariables(context))
@@ -109,7 +108,7 @@ class BoundTypeArgument(
         return BoundTypeArgument(astNode, variance, type.contextualize(context))
     }
 
-    override fun withMutability(modifier: TypeMutability?): ResolvedTypeReference {
+    override fun withMutability(modifier: TypeMutability?): BoundTypeReference {
         if (type.mutability == modifier) {
             return this
         }
@@ -121,7 +120,7 @@ class BoundTypeArgument(
         )
     }
 
-    override fun withCombinedMutability(mutability: TypeMutability?): ResolvedTypeReference {
+    override fun withCombinedMutability(mutability: TypeMutability?): BoundTypeReference {
         if (mutability == null || type.mutability == mutability) {
             return this
         }
@@ -133,7 +132,7 @@ class BoundTypeArgument(
         )
     }
 
-    override fun withCombinedNullability(nullability: TypeReference.Nullability): ResolvedTypeReference {
+    override fun withCombinedNullability(nullability: TypeReference.Nullability): BoundTypeReference {
         return BoundTypeArgument(
             astNode,
             variance,
@@ -141,7 +140,7 @@ class BoundTypeArgument(
         )
     }
 
-    override fun closestCommonSupertypeWith(other: ResolvedTypeReference): ResolvedTypeReference {
+    override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
         return when (variance) {
             TypeVariance.UNSPECIFIED,
             TypeVariance.OUT -> type.closestCommonSupertypeWith(other)
@@ -149,7 +148,7 @@ class BoundTypeArgument(
         }
     }
 
-    override fun hasSameBaseTypeAs(other: ResolvedTypeReference): Boolean {
+    override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
         return type.hasSameBaseTypeAs(other)
     }
 

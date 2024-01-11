@@ -1,11 +1,11 @@
 package compiler.reportings
 
 import compiler.ast.expression.MemberAccessExpression
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 
 class UnresolvedMemberVariableReporting(
     val accessExpression: MemberAccessExpression,
-    val hostType: ResolvedTypeReference,
+    val hostType: BoundTypeReference,
 ) : Reporting(
     Level.ERROR,
     // TODO: find similarly named members (edit distance) and suggest. "Did you mean ... ?"

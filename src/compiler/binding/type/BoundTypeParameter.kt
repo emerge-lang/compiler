@@ -18,7 +18,7 @@ data class BoundTypeParameter(
     /**
      * Available after [semanticAnalysisPhase1].
      */
-    lateinit var bound: ResolvedTypeReference
+    lateinit var bound: BoundTypeReference
         private set
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
@@ -49,7 +49,7 @@ data class BoundTypeParameter(
     }
 
     companion object {
-        val TYPE_PARAMETER_DEFAULT_BOUND: ResolvedTypeReference = BuiltinAny.baseReference
+        val TYPE_PARAMETER_DEFAULT_BOUND: BoundTypeReference = BuiltinAny.baseReference
             .withMutability(TypeMutability.READONLY)
             .withCombinedNullability(TypeReference.Nullability.NULLABLE)
     }

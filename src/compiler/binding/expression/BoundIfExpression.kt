@@ -22,7 +22,7 @@ import compiler.ast.expression.Expression
 import compiler.ast.expression.IfExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.BuiltinBoolean
 import compiler.binding.type.BuiltinUnit
 import compiler.binding.type.isAssignableTo
@@ -49,7 +49,7 @@ class BoundIfExpression(
             }
         }
 
-    override var type: ResolvedTypeReference? = null
+    override var type: BoundTypeReference? = null
         private set
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
@@ -109,12 +109,12 @@ class BoundIfExpression(
         return reportings
     }
 
-    override fun setExpectedReturnType(type: ResolvedTypeReference) {
+    override fun setExpectedReturnType(type: BoundTypeReference) {
         thenCode.setExpectedReturnType(type)
         elseCode?.setExpectedReturnType(type)
     }
 
-    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // TODO: do we need to care about widening here?
         // e.g. consider: val x: Any = if (cond) true else false
         // do we get into trouble because Any != Boolean?

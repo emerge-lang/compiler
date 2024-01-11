@@ -13,10 +13,10 @@ import compiler.reportings.ValueNotAssignableReporting
  */
 
 interface TypeUnification {
-    val bindings: Map<TypeVariable, ResolvedTypeReference>
+    val bindings: Map<TypeVariable, BoundTypeReference>
     val reportings: Set<Reporting>
 
-    fun plus(variable: TypeVariable, binding: ResolvedTypeReference, assignmentLocation: SourceLocation): TypeUnification
+    fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: SourceLocation): TypeUnification
     fun plusReporting(reporting: Reporting): TypeUnification
 
     fun doTreatingNonUnifiableAsOutOfBounds(parameter: BoundTypeParameter, argument: BoundTypeArgument, action: (TypeUnification) -> TypeUnification): TypeUnification {
@@ -100,14 +100,14 @@ interface TypeUnification {
 }
 
 private class DefaultTypeUnification private constructor(
-    override val bindings: Map<TypeVariable, ResolvedTypeReference>,
+    override val bindings: Map<TypeVariable, BoundTypeReference>,
     override val reportings: Set<Reporting>,
 ) : TypeUnification {
     override fun plusReporting(reporting: Reporting): TypeUnification {
         return DefaultTypeUnification(bindings, reportings + setOf(reporting))
     }
 
-    override fun plus(variable: TypeVariable, binding: ResolvedTypeReference, assignmentLocation: SourceLocation): TypeUnification {
+    override fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: SourceLocation): TypeUnification {
         val previousBinding = bindings[variable]
         if (previousBinding is BoundTypeArgument) {
             // type has been fixed explicitly -> no rebinding
@@ -146,7 +146,7 @@ private class DefaultTypeUnification private constructor(
 private abstract class DecoratingTypeUnification<Self : DecoratingTypeUnification<Self>> : TypeUnification {
     abstract val undecorated: TypeUnification
 
-    abstract override fun plus(variable: TypeVariable, binding: ResolvedTypeReference, assignmentLocation: SourceLocation): Self
+    abstract override fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: SourceLocation): Self
 
     companion object {
         inline fun <reified T : DecoratingTypeUnification<*>> doWithDecorated(modified: T, action: (TypeUnification) -> TypeUnification): TypeUnification {
@@ -162,7 +162,7 @@ private class IgnoreReportingsUnification(
     override val bindings get() = undecorated.bindings
     override val reportings: Set<Reporting> get() = undecorated.reportings
 
-    override fun plus(variable: TypeVariable, binding: ResolvedTypeReference, assignmentLocation: SourceLocation): IgnoreReportingsUnification {
+    override fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: SourceLocation): IgnoreReportingsUnification {
         return IgnoreReportingsUnification(undecorated.plus(variable, binding, assignmentLocation))
     }
 
@@ -187,7 +187,7 @@ private class ValueNotAssignableAsArgumentOutOfBounds(
         return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plusReporting(reportingToAdd), parameter, argument)
     }
 
-    override fun plus(variable: TypeVariable, binding: ResolvedTypeReference, assignmentLocation: SourceLocation): ValueNotAssignableAsArgumentOutOfBounds {
+    override fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: SourceLocation): ValueNotAssignableAsArgumentOutOfBounds {
         return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plus(variable, binding, assignmentLocation), parameter, argument)
     }
 }

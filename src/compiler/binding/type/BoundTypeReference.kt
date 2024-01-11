@@ -22,13 +22,12 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.ObjectMember
 import compiler.binding.SemanticallyAnalyzable
-import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import compiler.reportings.ValueNotAssignableReporting
 import java.util.IdentityHashMap
 
-sealed interface ResolvedTypeReference {
+sealed interface BoundTypeReference {
     val isNullable: Boolean
     val simpleName: String?
 
@@ -38,26 +37,26 @@ sealed interface ResolvedTypeReference {
     /**
      * @return this type, with the given mutability if it doesn't explicitly have one.
      */
-    fun defaultMutabilityTo(mutability: TypeMutability?): ResolvedTypeReference
+    fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference
 
     /**
      * @return this type with the given [mutability], defaulting ([defaultMutabilityTo])
      * the mutability of type arguments to the given mutablility.
      */
-    fun withMutability(modifier: TypeMutability?): ResolvedTypeReference
+    fun withMutability(modifier: TypeMutability?): BoundTypeReference
 
     /**
      * @return this type but the mutability is the result of [TypeMutability.combinedWith] of the
      * existing mutability and the given one. Type parameters will be defaulted ([defaultMutabilityTo])
      * to the resulting mutability.
      */
-    fun withCombinedMutability(mutability: TypeMutability?): ResolvedTypeReference
+    fun withCombinedMutability(mutability: TypeMutability?): BoundTypeReference
 
     /**
      * @return this type but [isNullable] is according to the nullability given for this invocation. If that is
      * [TypeReference.Nullability.UNSPECIFIED], the existing value will be reused.
      */
-    fun withCombinedNullability(nullability: TypeReference.Nullability): ResolvedTypeReference
+    fun withCombinedNullability(nullability: TypeReference.Nullability): BoundTypeReference
 
     /**
      * Validates the type reference. Must be invoked after [SemanticallyAnalyzable.semanticAnalysisPhase1].
@@ -73,7 +72,7 @@ sealed interface ResolvedTypeReference {
      * @return `null` if the assignment is allowed, a reporting of level [Reporting.Level.ERROR] describing the
      * problem with the assignment in case it is not possible
      */
-    fun evaluateAssignabilityTo(other: ResolvedTypeReference, assignmentLocation: SourceLocation): ValueNotAssignableReporting? {
+    fun evaluateAssignabilityTo(other: BoundTypeReference, assignmentLocation: SourceLocation): ValueNotAssignableReporting? {
         val unification = other.unify(this, assignmentLocation, TypeUnification.EMPTY)
         return unification.reportings.firstOrNull { it.level >= Reporting.Level.ERROR } as ValueNotAssignableReporting?
     }
@@ -84,7 +83,7 @@ sealed interface ResolvedTypeReference {
      * * `a.closestCommonAncestorWith(b) == b.closestCommonAncestorWith(a)`
      * * `a.closestCommonAncestorWith(b).closestCommonAncestorWith(c) == b.closestCommonAncestorWith(c).closestCommonAncestorWith(a)`
      */
-    fun closestCommonSupertypeWith(other: ResolvedTypeReference): ResolvedTypeReference
+    fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference
 
     /**
      * @return a possible directly declared member variable of the type. Does not look for extension variables.
@@ -96,7 +95,7 @@ sealed interface ResolvedTypeReference {
      * are wrapped in a [TypeVariable] instance. This makes the resulting type subject to inferring generic types
      * in a call to [unify].
      */
-    fun withTypeVariables(variables: List<BoundTypeParameter>): ResolvedTypeReference
+    fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeReference
 
     /**
      * Used to derive information about generic types in concrete situations, so e.g.:
@@ -145,13 +144,13 @@ sealed interface ResolvedTypeReference {
      * @param carry When multiple types have to be found at the same time (a function invocation with more than one parameter),
      *              one can carry the context/result between the unifications).
      */
-    fun unify(assigneeType: ResolvedTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification
+    fun unify(assigneeType: BoundTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification
 
     /**
      * Replaces [TypeVariable] in this type with their bindings from [context].
      * This does **not** replace [GenericTypeReference], use [contextualize] for that!
      */
-    fun instantiateVariables(context: TypeUnification): ResolvedTypeReference = this
+    fun instantiateVariables(context: TypeUnification): BoundTypeReference = this
 
     /**
      * Adds the generic type information from [context] to this type, e.g.:
@@ -177,28 +176,28 @@ sealed interface ResolvedTypeReference {
      *
      * @param context the type of the parent context, e.g. `Array<Int>`
      */
-    fun contextualize(context: TypeUnification): ResolvedTypeReference
+    fun contextualize(context: TypeUnification): BoundTypeReference
 
     /**
      * @return whether both types refer to the same base type or generic type parameter
      */
-    fun hasSameBaseTypeAs(other: ResolvedTypeReference): Boolean
+    fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean
 
     /**
      * @return `true` iff the only value that [isAssignableTo] both `this` and [other] is [BuiltinNothing].
      */
-    fun isDisjointWith(other: ResolvedTypeReference): Boolean = TODO("only present right now for reference in comments currently")
+    fun isDisjointWith(other: BoundTypeReference): Boolean = TODO("only present right now for reference in comments currently")
 
     /**
      * For parameterized types contains the bindings already resulting from that parameterization
      * in the [TypeUnification.left] part:
      *
-     * given a `struct S<T>` [BaseType] and a `S<Int>` [ResolvedTypeReference], returns
+     * given a `struct S<T>` [BaseType] and a `S<Int>` [BoundTypeReference], returns
      * `T => Int` in [TypeUnification.left]
      */
     val inherentTypeBindings: TypeUnification
 }
 
-infix fun ResolvedTypeReference.isAssignableTo(other: ResolvedTypeReference): Boolean {
+infix fun BoundTypeReference.isAssignableTo(other: BoundTypeReference): Boolean {
     return evaluateAssignabilityTo(other, SourceLocation.UNKNOWN) == null
 }

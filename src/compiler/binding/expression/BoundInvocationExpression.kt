@@ -47,7 +47,7 @@ class BoundInvocationExpression(
     var dispatchedFunction: BoundFunction? = null
         private set
 
-    override var type: ResolvedTypeReference? = null
+    override var type: BoundTypeReference? = null
         private set
 
     lateinit var typeArguments: List<BoundTypeArgument>
@@ -224,9 +224,9 @@ class BoundInvocationExpression(
         return byReceiver + byParameters + bySelf
     }
 
-    private var expectedReturnType: ResolvedTypeReference? = null
+    private var expectedReturnType: BoundTypeReference? = null
 
-    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         onceAction.requireActionNotDone(OnceAction.SemanticAnalysisPhase2)
         expectedReturnType = type
     }
@@ -236,7 +236,7 @@ class BoundInvocationExpression(
 /**
  * Given the invocation types `receiverType` and `parameterTypes` of an invocation site
  * returns the functions matching the types sorted by matching quality to the given
- * types (see [ResolvedTypeReference.evaluateAssignabilityTo] and [ResolvedTypeReference.assignMatchQuality])
+ * types (see [BoundTypeReference.evaluateAssignabilityTo] and [BoundTypeReference.assignMatchQuality])
  *
  * In essence, this function is the overload resolution algorithm of the language.
  *
@@ -249,7 +249,7 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(
     receiver: BoundExpression<*>?,
     valueArguments: List<BoundExpression<*>>,
     typeArguments: List<BoundTypeArgument>,
-    expectedReturnType: ResolvedTypeReference?,
+    expectedReturnType: BoundTypeReference?,
 ): List<OverloadCandidateEvaluation> {
     check((receiver != null) xor (receiver?.type == null))
     val receiverType = receiver?.type
@@ -288,7 +288,7 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(
             }
 
             @Suppress("UNCHECKED_CAST") // the check is right above
-            val rightSideTypes = (candidateFn.parameterTypes as List<ResolvedTypeReference>)
+            val rightSideTypes = (candidateFn.parameterTypes as List<BoundTypeReference>)
                 .map { it.withTypeVariables(candidateFn.typeParameters) }
             check(rightSideTypes.size == argumentsIncludingReceiver.size)
 
@@ -331,7 +331,7 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(
 private data class OverloadCandidateEvaluation(
     val candidate: BoundFunction,
     val unification: TypeUnification,
-    val returnType: ResolvedTypeReference?,
+    val returnType: BoundTypeReference?,
 ) {
     val hasErrors = unification.reportings.any { it.level >= Reporting.Level.ERROR }
 }

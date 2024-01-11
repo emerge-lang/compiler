@@ -4,16 +4,14 @@ import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
-import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.andThen
 import compiler.reportings.Reporting
-import compiler.reportings.ValueNotAssignableReporting
 
-sealed class GenericTypeReference : ResolvedTypeReference {
+sealed class GenericTypeReference : BoundTypeReference {
     abstract val original: TypeReference
     abstract val parameter: BoundTypeParameter
-    abstract val effectiveBound: ResolvedTypeReference
+    abstract val effectiveBound: BoundTypeReference
 
     override val simpleName get() = parameter.name
     override val isNullable get() = effectiveBound.isNullable
@@ -37,11 +35,11 @@ sealed class GenericTypeReference : ResolvedTypeReference {
         return effectiveBound.validate(forUsage) + setOfNotNull(forUsage.validateForTypeVariance(parameter.variance))
     }
 
-    override fun hasSameBaseTypeAs(other: ResolvedTypeReference): Boolean {
+    override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
         return other is GenericTypeReference && this.parameter === other.parameter
     }
 
-    override fun unify(assigneeType: ResolvedTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
+    override fun unify(assigneeType: BoundTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
         return when (assigneeType) {
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
             is RootResolvedTypeReference -> carry.plusReporting(Reporting.valueNotAssignable(
@@ -77,7 +75,7 @@ sealed class GenericTypeReference : ResolvedTypeReference {
         return mapEffectiveBound { it.defaultMutabilityTo(mutability) }
     }
 
-    override fun closestCommonSupertypeWith(other: ResolvedTypeReference): ResolvedTypeReference {
+    override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
         return when (other) {
             is RootResolvedTypeReference,
             is UnresolvedType-> effectiveBound.closestCommonSupertypeWith(other)
@@ -95,17 +93,17 @@ sealed class GenericTypeReference : ResolvedTypeReference {
         }
     }
 
-    override fun instantiateVariables(context: TypeUnification): ResolvedTypeReference {
+    override fun instantiateVariables(context: TypeUnification): BoundTypeReference {
         return this
     }
 
-    override fun contextualize(context: TypeUnification): ResolvedTypeReference {
+    override fun contextualize(context: TypeUnification): BoundTypeReference {
         // TODO: this linear search is super inefficient, optimize
         val binding = context.bindings.entries.find { it.key.parameter == this.parameter }
         return binding?.value ?: this
     }
 
-    override fun withTypeVariables(variables: List<BoundTypeParameter>): ResolvedTypeReference {
+    override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeReference {
         if (this.parameter in variables) {
             return TypeVariable(this)
         }
@@ -126,7 +124,7 @@ sealed class GenericTypeReference : ResolvedTypeReference {
         return bound.isSubtypeOf(other)
     }
 
-    private fun mapEffectiveBound(mapper: (ResolvedTypeReference) -> ResolvedTypeReference): MappedEffectiveBoundGenericTypeReference {
+    private fun mapEffectiveBound(mapper: (BoundTypeReference) -> BoundTypeReference): MappedEffectiveBoundGenericTypeReference {
         return MappedEffectiveBoundGenericTypeReference(this, mapper)
     }
 
@@ -156,19 +154,19 @@ private class NakedGenericTypeReference(
     override val original: TypeReference,
     override val parameter: BoundTypeParameter,
 ) : GenericTypeReference() {
-    override val effectiveBound: ResolvedTypeReference
+    override val effectiveBound: BoundTypeReference
         get() = parameter.bound
 }
 
 private class ResolvedBoundGenericTypeReference(
     override val original: TypeReference,
     override val parameter: BoundTypeParameter,
-    override val effectiveBound: ResolvedTypeReference,
+    override val effectiveBound: BoundTypeReference,
 ) : GenericTypeReference()
 
 private class MappedEffectiveBoundGenericTypeReference private constructor(
     private val delegate: GenericTypeReference,
-    private val mapper: (ResolvedTypeReference) -> ResolvedTypeReference,
+    private val mapper: (BoundTypeReference) -> BoundTypeReference,
 ) : GenericTypeReference() {
     override val original = delegate.original
     override val parameter = delegate.parameter
@@ -177,7 +175,7 @@ private class MappedEffectiveBoundGenericTypeReference private constructor(
     }
 
     companion object {
-        operator fun invoke(delegate: GenericTypeReference, mapper: (ResolvedTypeReference) -> ResolvedTypeReference): MappedEffectiveBoundGenericTypeReference {
+        operator fun invoke(delegate: GenericTypeReference, mapper: (BoundTypeReference) -> BoundTypeReference): MappedEffectiveBoundGenericTypeReference {
             if (delegate is MappedEffectiveBoundGenericTypeReference) {
                 return MappedEffectiveBoundGenericTypeReference(
                     delegate.delegate,

@@ -21,7 +21,7 @@ package compiler.binding
 import compiler.ast.type.FunctionModifier
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 import compiler.lexer.SourceLocation
 import compiler.ast.type.TypeMutability
 
@@ -33,7 +33,7 @@ abstract class BoundFunction : SemanticallyAnalyzable {
      * The type of the receiver. Is null if the declared function has no receiver or if the declared receiver type
      * could not be resolved. See [declaresReceiver] to resolve the ambiguity.
      */
-    abstract val receiverType: ResolvedTypeReference?
+    abstract val receiverType: BoundTypeReference?
 
     /**
      * Whether this function declares a receiver. This allows disambiguating the case of a function without receiver
@@ -70,10 +70,10 @@ abstract class BoundFunction : SemanticallyAnalyzable {
 
     abstract val parameters: BoundParameterList
 
-    val parameterTypes: List<ResolvedTypeReference?>
+    val parameterTypes: List<BoundTypeReference?>
         get() = parameters.parameters.map { it.type }
 
-    abstract val returnType: ResolvedTypeReference?
+    abstract val returnType: BoundTypeReference?
 
     /**
      * If true, this function returns a value with no references to it. This is only possible for constructors.

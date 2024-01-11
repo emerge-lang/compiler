@@ -26,7 +26,7 @@ import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.FunctionModifier
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
@@ -52,7 +52,7 @@ class BoundBinaryExpression(
         )
             .bindTo(context)
 
-    override val type: ResolvedTypeReference?
+    override val type: BoundTypeReference?
         get() = hiddenInvocation.type
 
     override val isGuaranteedToThrow: Boolean?
@@ -83,7 +83,7 @@ class BoundBinaryExpression(
         return hiddenInvocation.findWritesBeyond(boundary)
     }
 
-    override fun setExpectedEvaluationResultType(type: ResolvedTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // nothing to do, as one could only correlate this with the return value
         // of the operator function. But overload resolution based on return type
         // is not a thing in this language

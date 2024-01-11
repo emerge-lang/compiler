@@ -1,11 +1,11 @@
 package compiler.reportings
 
-import compiler.binding.type.ResolvedTypeReference
+import compiler.binding.type.BoundTypeReference
 import compiler.lexer.IdentifierToken
 
 class UnresolvableConstructorReporting(
     val typeName: IdentifierToken,
-    val parameterTypes: List<ResolvedTypeReference?>,
+    val parameterTypes: List<BoundTypeReference?>,
     val functionsWithSameNameAvailable: Boolean,
 ) : Reporting(
     Level.ERROR,
