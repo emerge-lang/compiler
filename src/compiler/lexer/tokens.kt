@@ -86,8 +86,6 @@ enum class Operator(val text: String, private val _humanReadableName: String? = 
     LESS_THAN_OR_EQUALS   ("<="),
     GREATER_THAN          (">"),
     LESS_THAN             ("<"),
-    TRYCAST               ("as?", "safe cast"),
-    CAST                  ("as", "cast"),
     ELVIS                 ("?:", "elvis operator"),
     QUESTION_MARK         ("?"),
     NOTNULL               ("!!"), // find a better name for this...

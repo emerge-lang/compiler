@@ -32,14 +32,8 @@ import compiler.ast.expression.ParenthesisedExpression
 import compiler.ast.expression.UnaryExpression
 import compiler.ast.type.TypeArgument
 import compiler.binding.expression.BoundExpression
-import compiler.lexer.IdentifierToken
-import compiler.lexer.Keyword.ELSE
-import compiler.lexer.Keyword.IF
-import compiler.lexer.KeywordToken
-import compiler.lexer.NumericLiteralToken
-import compiler.lexer.Operator
-import compiler.lexer.OperatorToken
-import compiler.lexer.TokenType
+import compiler.lexer.*
+import compiler.lexer.Keyword.*
 import compiler.parser.*
 import compiler.parser.grammar.dsl.*
 import compiler.parser.grammar.rule.Rule
@@ -131,7 +125,7 @@ val binaryOperators = arrayOf(
     Operator.EQUALS, Operator.GREATER_THAN, Operator.LESS_THAN, Operator.GREATER_THAN_OR_EQUALS, Operator.LESS_THAN_OR_EQUALS,
     Operator.IDENTITY_EQ, Operator.IDENTITY_NEQ,
     // MISC
-    Operator.CAST, Operator.TRYCAST, Operator.ELVIS
+    Operator.ELVIS
 )
 
 val BinaryExpression = sequence("binary operator expression") {
@@ -141,7 +135,7 @@ val BinaryExpression = sequence("binary operator expression") {
         ref(ParanthesisedExpression)
     }
     repeatingAtLeastOnce {
-        eitherOf(*binaryOperators) // TODO: arbitrary infix ops
+        eitherOf(*binaryOperators)
         eitherOf {
             ref(UnaryExpression)
             ref(ValueExpression)
@@ -343,9 +337,6 @@ private val Operator.priority: Int
 
         Operator.TIMES,
         Operator.DIVIDE -> 40
-
-        Operator.CAST,
-        Operator.TRYCAST -> 60
         else -> throw InternalCompilerError("$this is not a binary operator")
     }
 

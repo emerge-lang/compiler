@@ -61,6 +61,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        1. implement generic supertypes - yey, another logic monstrosity
        2. class extends class will not be a thing! composition all the way. Probably needs some boilerplate-reduction
           tools, like Kotlins `by`, but more powerful
+       3. add the cast operation
     3. add `sealed` interfaces as in Kotlin 
 22. extend InvocationExpression
     1. ~~handle constructors~~
