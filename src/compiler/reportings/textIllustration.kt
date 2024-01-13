@@ -34,7 +34,7 @@ fun getIllustrationForHighlightedLines(
         throw IllegalArgumentException("No locations given to highlight")
     }
 
-    highlights.find { it.fromSourceLineNumber != it.toSourceLineNumber }?.let {
+    highlights.find { it.fromLineNumber != it.toLineNumber }?.let {
         throw NotImplementedError("Cannot highlight source locations that span multiple lines: $it")
     }
 
@@ -43,12 +43,12 @@ fun getIllustrationForHighlightedLines(
     }
     val sourceLines = source.content.split('\n')
 
-    highlights.find { it.fromSourceLineNumber > sourceLines.size.toUInt() }?.let {
+    highlights.find { it.fromLineNumber > sourceLines.size.toUInt() }?.let {
         throw IllegalArgumentException("Source lines out of range: $it")
     }
 
     val highlightedColumnsByLine: Map<UInt, List<UInt>> = highlights
-        .groupBy { it.fromSourceLineNumber }
+        .groupBy { it.fromLineNumber }
         .mapValues { (_, highlights) -> highlights.map { it.fromColumnNumber .. it.toColumnNumber }.toSet().flatten().sorted() }
 
     val lineNumbersToOutput = mutableSetOf<UInt>()

@@ -13,10 +13,10 @@ class StringLiteralExpression(
 ) : Expression<BoundStringLiteralExpression> {
     override val sourceLocation = SourceLocation(
         startingDelimiter.sourceLocation.file,
-        startingDelimiter.sourceLocation.fromSourceLineNumber,
+        startingDelimiter.sourceLocation.fromLineNumber,
         startingDelimiter.sourceLocation.fromColumnNumber,
-        startingDelimiter.sourceLocation.toSourceLineNumber,
-        startingDelimiter.sourceLocation.toColumnNumber,
+        endingDelimiter.sourceLocation.toLineNumber,
+        endingDelimiter.sourceLocation.toColumnNumber,
     )
 
     override fun bindTo(context: CTContext): BoundStringLiteralExpression {

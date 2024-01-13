@@ -24,7 +24,6 @@ import java.nio.charset.Charset
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.stream.Collectors
-import javax.xml.transform.Source
 import kotlin.io.path.*
 
 /**
@@ -108,9 +107,9 @@ class MemorySourceFile(
  */
 data class SourceLocation(
     val file: SourceFile,
-    val fromSourceLineNumber: UInt,
+    val fromLineNumber: UInt,
     val fromColumnNumber: UInt,
-    val toSourceLineNumber: UInt,
+    val toLineNumber: UInt,
     val toColumnNumber: UInt,
 ) {
     constructor(sourceFile: SourceFile, start: SourceSpot, end: SourceSpot) : this(
@@ -123,7 +122,7 @@ data class SourceLocation(
 
     override fun toString() = "$file:\n${getIllustrationForHighlightedLines(setOf(this))}"
 
-    val fileLineColumnText: String get() = "$file on line $fromSourceLineNumber at column $fromColumnNumber"
+    val fileLineColumnText: String get() = "$file on line $fromLineNumber at column $fromColumnNumber"
 
     companion object {
         val UNKNOWN = SourceLocation(MemorySourceFile("UNKNOWN", ""), 1u, 1u, 1u, 1u)

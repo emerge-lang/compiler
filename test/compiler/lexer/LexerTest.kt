@@ -38,7 +38,7 @@ class LexerTest : FreeSpec() {init {
             result[0] should beInstanceOf(KeywordToken::class)
             (result[0] as KeywordToken).keyword shouldBe Keyword.MODULE
             (result[0] as KeywordToken).sourceText shouldBe "module"
-            (result[0] as KeywordToken).sourceLocation.fromSourceLineNumber shouldBe 1u
+            (result[0] as KeywordToken).sourceLocation.fromLineNumber shouldBe 1u
             (result[0] as KeywordToken).sourceLocation.fromColumnNumber shouldBe 4u
         }
 

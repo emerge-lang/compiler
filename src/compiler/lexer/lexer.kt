@@ -157,9 +157,9 @@ private fun PositionTrackingCodePointTransactionalSequence.tryMatchNumericLitera
             return NumericLiteralToken(
                 SourceLocation(
                     sourceFile,
-                    firstIntegerStringLocation.fromSourceLineNumber,
+                    firstIntegerStringLocation.fromLineNumber,
                     firstIntegerStringLocation.toColumnNumber,
-                    fractionalStringLocation.toSourceLineNumber,
+                    fractionalStringLocation.toLineNumber,
                     fractionalStringLocation.toColumnNumber,
                 ),
                 floatBuilder.toString(),
