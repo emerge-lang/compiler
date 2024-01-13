@@ -41,7 +41,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 15. String type, based on array
     * default encoding? -> unicode / utf-8?
     * string is a wrapper around an `Array<Byte>`
-16. Decision on compile target architecture (native/vm with pointers VS JVM)
+16. ~~Decision on compile target architecture (native/vm with pointers VS JVM)~~
+    -> llvm to native, because thats interesting for me
 17. implement enough backend code to have a "Hello World" execute
 18. Variable handling improvements
     * decide on shadowing rules (e.g. rust does it WAY differently than Kotlin), **and implement**
