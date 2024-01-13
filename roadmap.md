@@ -41,31 +41,40 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 15. String type, based on array
     * default encoding? -> unicode / utf-8?
     * string is a wrapper around an `Array<Byte>`
-16. Variable handling improvements
+16. Decision on compile target architecture (native/vm with pointers VS JVM)
+17. implement enough backend code to have a "Hello World" execute
+18. Variable handling improvements
     * decide on shadowing rules (e.g. rust does it WAY differently than Kotlin), **and implement**
     * track assignment status of variables. It should be possible to split declaration and assignment, even on
       `val`s.
-17. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
-    1. index access can always throw IndexOutOfBounds; work out a nothrow alternative. Maybe `.safeGet(index)` returning `Either`? 
-18. object model
-    1. class definition
-    2. struct definition
-    3. reference counting vs garbage collection
-19. extend InvocationExpression
-    1. handle constructors
+19. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
+    1. index access can always throw IndexOutOfBounds; work out a nothrow alternative. Maybe `.safeGet(index)` returning `Either`?
+20. implement overload resolution algorithm, marked with TODOs
+21. object model
+    1. ditch struct for class: there is no use for a struct that a `data`/`record` modifier as in Kotlin/Java couldn't
+       do; especially because closed-world optimization will produce identically optimal code for a struct and a
+       class with just accessors.
+       1. add member methods
+       2. implement visibility
+    2. add interfaces and inheritance class impls interface
+       1. implement generic supertypes - yey, another logic monstrosity
+       2. class extends class will not be a thing! composition all the way. Probably needs some boilerplate-reduction
+          tools, like Kotlins `by`, but more powerful
+    3. add `sealed` interfaces as in Kotlin 
+22. extend InvocationExpression
+    1. ~~handle constructors~~
     2. when checking `objRef.method()` error if `method` is a property  
       (will be implemented with function types later on)
-20. exceptions
+23. exceptions
     1. `throw` statement
     2. NOTHROW scope modifier
     3. try+catch+finally
-21. Stdlib Collections
+24. Stdlib Collections
     * Iterables: java.util.Iterable, D Ranges or sth. else?
-22. All operator overloads, including
+25. All operator overloads, including
     * contains(T): Boolean
     * <E : Iterable> rangeTo(T): E
-23. Decision on compile target architecture (native/vm with pointers VS JVM)
-24. for each control structure:
+26. for each control structure:
     ```
     for each item in iterable { /* ... */ }
     // is actually
@@ -79,10 +88,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     // gets rewritten to
     for i in 0.rangeTo(10) { /* ... */ }
     ```
-25. while / do-while
-26. Jump targets for return, break and continue like in Kotlin
-27. Typealiases
-28. Function types
+27. while / do-while
+28. Jump targets for return, break and continue like in Kotlin
+29. Typealiases
+30. Function types
     1. `operator fun invoke`: `obj(param)` to `obj.invoke(param)`
     2. Regular functions: `(T1, T2) -> R`
     3. Functions w/ receiver: `O.(T1, T2) -> R` that can be invoked on objects
@@ -92,11 +101,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        val obj: O = ...
        obj.fn(param1, param2)
        ```
-29. CTFE
-30. smart casts
-31. deferred statements
+31. smart casts
+32. deferred statements
     * `scope(exit) {stmt}`, `scope(success) {stmt}` and `scope(fail) {stmt}`
-32. ...
+33. ...
 
 
 -----
