@@ -37,7 +37,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
         sticks to the non-out type, its obvious that variance is not in effect.
       * consequently, if `T<out X>` only leaves member functions with `readonly self` or `immutable self` receivers
         then the compiler should warn that `T<out X>` should be referenced as `readonly T<out X>`.
-14. Array type 
+14. ~~Array type~~ 
 15. String type, based on array
     * default encoding? -> unicode / utf-8?
     * string is a wrapper around an `Array<Byte>`

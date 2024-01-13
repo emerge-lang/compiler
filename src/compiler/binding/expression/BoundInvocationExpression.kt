@@ -266,7 +266,8 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(
                 return@filter true
             }
 
-            return@filter receiverType.isAssignableTo(candidateFn.receiverType!!)
+            val receiverTypeUnification = candidateFn.receiverType!!.withTypeVariables(candidateFn.typeParameters).unify(receiverType, SourceLocation.UNKNOWN, TypeUnification.EMPTY)
+            receiverTypeUnification.reportings.none { it.level >= Reporting.Level.ERROR }
         }
         // filter by incompatible number of parameters
         .filter { it.parameters.parameters.size == argumentsIncludingReceiver.size }

@@ -10,10 +10,8 @@ import java.time.Clock
 import java.time.Duration
 
 val testCode = """module testcode
-struct A<T : mutable Any> {
-    prop: T
-}
-val x = A(2)
+var x: Array<Int>
+val y: Boolean = x.size()
 """
 
 fun main() {
