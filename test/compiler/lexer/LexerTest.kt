@@ -20,12 +20,14 @@ package compiler.lexer
 
 import compiler.negative.lexCode
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.comparables.beGreaterThan
 import io.kotest.matchers.comparables.beGreaterThanOrEqualTo
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNot
 import io.kotest.matchers.types.beInstanceOf
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class LexerTest : FreeSpec() {init {
     "keywords" - {
@@ -145,6 +147,59 @@ class LexerTest : FreeSpec() {init {
             result[1] should beInstanceOf(OperatorToken::class)
             (result[1] as OperatorToken).operator shouldBe Operator.NEWLINE
         }
+
+        "identifiers can include keywords" - {
+            "beginning" {
+                val result = lexCode("asddd", addModuleDeclaration = false).tokens
+                result.shouldBeSingleton().single().shouldBeInstanceOf<IdentifierToken>().value shouldBe "asddd"
+            }
+
+            "middle" {
+                val result = lexCode("basd", addModuleDeclaration = false).tokens
+
+                result.shouldBeSingleton().single().shouldBeInstanceOf<IdentifierToken>().value shouldBe "basd"
+            }
+
+            "ending" {
+                val result = lexCode("das", addModuleDeclaration = false).tokens
+
+                result.shouldBeSingleton().single().shouldBeInstanceOf<IdentifierToken>().value shouldBe "das"
+            }
+        }
+    }
+
+    "string literals" {
+        val code = """
+            fun "some {test} data" "{some} test data" "some test {data}"
+        """.trimIndent()
+        val tokens = lexCode(code, false).tokens
+
+        tokens.size shouldBe 10
+        tokens[0].shouldBeInstanceOf<KeywordToken>().keyword shouldBe Keyword.FUNCTION
+
+        tokens[1].shouldBeInstanceOf<OperatorToken>().let {
+            it.operator shouldBe Operator.STRING_DELIMITER
+            it.sourceLocation.fromColumnNumber shouldBe 5u
+            it.sourceLocation.toColumnNumber shouldBe 5u
+        }
+        tokens[2].shouldBeInstanceOf<StringLiteralContentToken>().let {
+            it.content shouldBe "some {test} data"
+            it.sourceLocation.fromColumnNumber shouldBe 6u
+            it.sourceLocation.toColumnNumber shouldBe 21u
+        }
+        tokens[3].shouldBeInstanceOf<OperatorToken>().let {
+            it.operator shouldBe Operator.STRING_DELIMITER
+            it.sourceLocation.fromColumnNumber shouldBe 22u
+            it.sourceLocation.toColumnNumber shouldBe 22u
+        }
+
+        tokens[4].shouldBeInstanceOf<OperatorToken>().operator shouldBe Operator.STRING_DELIMITER
+        tokens[5].shouldBeInstanceOf<StringLiteralContentToken>().content shouldBe "{some} test data"
+        tokens[6].shouldBeInstanceOf<OperatorToken>().operator shouldBe Operator.STRING_DELIMITER
+
+        tokens[7].shouldBeInstanceOf<OperatorToken>().operator shouldBe Operator.STRING_DELIMITER
+        tokens[8].shouldBeInstanceOf<StringLiteralContentToken>().content shouldBe "some test {data}"
+        tokens[9].shouldBeInstanceOf<OperatorToken>().operator shouldBe Operator.STRING_DELIMITER
     }
 
     "combo test with code" {

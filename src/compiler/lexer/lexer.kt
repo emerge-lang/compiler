@@ -20,31 +20,44 @@ package compiler.lexer
 
 import compiler.parser.TokenSequence
 
-fun SourceFile.lex(): TokenSequence {
-    val iterator = PositionTrackingCodePointTransactionalSequence(this@lex.content.codePoints().toArray())
-    val initialSourceLocation = SourceLocation(this@lex, iterator.currentPosition, iterator.currentPosition)
+fun lex(sourceFile: SourceFile): TokenSequence {
+    val iterator = PositionTrackingCodePointTransactionalSequence(sourceFile.content.codePoints().toArray())
+    val initialSourceLocation = SourceLocation(sourceFile, iterator.currentPosition, iterator.currentPosition)
 
     val generator = sequence {
-        tokenLoop@while (iterator.hasNext) {
+        tokenLoop@ while (iterator.hasNext) {
             iterator.skipWhitespace()
             if (!iterator.hasNext) {
                 return@sequence
             }
 
-            val operator = iterator.tryMatchOperator(this@lex)
-            if (operator != null) {
-                yield(operator)
+            val operatorToken = iterator.tryMatchOperator(sourceFile)
+            if (operatorToken != null) {
+                yield(operatorToken)
+
+                if (operatorToken.operator != Operator.STRING_DELIMITER) {
+                    continue@tokenLoop
+                }
+
+                val (content, contentLocation) = iterator.collectStringContent(sourceFile)
+                yield(StringLiteralContentToken(contentLocation, content))
+                if (!iterator.hasNext) {
+                    return@sequence
+                }
+                val endDelimiter = iterator.tryMatchOperator(sourceFile)
+                check(endDelimiter != null && endDelimiter.operator == Operator.STRING_DELIMITER)
+                yield(endDelimiter)
                 continue@tokenLoop
             }
 
-            val numeric = iterator.tryMatchNumericLiteral(this@lex)
-            if (numeric != null) {
-                yield(numeric)
+            val numericLiteralToken = iterator.tryMatchNumericLiteral(sourceFile)
+            if (numericLiteralToken != null) {
+                yield(numericLiteralToken)
                 continue@tokenLoop
             }
 
             // IDENTIFIER or KEYWORD
-            val text = iterator.collectUntilOperatorOrWhitespace(this@lex)
+            val text = iterator.collectUntilOperatorOrWhitespace(sourceFile)
 
             // check against keywords
             val keyword = Keyword.values().firstOrNull { it.text.equals(text.first, true) }
@@ -69,28 +82,30 @@ private fun PositionTrackingCodePointTransactionalSequence.skipWhitespace() {
 }
 
 // TODO: rename to nextCodePointsAsString
-private fun PositionTrackingCodePointTransactionalSequence.nextChars(n: Int): String? {
+private fun PositionTrackingCodePointTransactionalSequence.nextChars(sourceFile: SourceFile, n: Int): Pair<String, SourceLocation>? {
+    check(n > 0)
     if (nCodePointsRemaining < n) {
         return null
     }
 
     val buf = StringBuffer(n)
-    repeat(n) {
+    buf.appendCodePoint(nextOrThrow().value)
+    val start = currentPosition
+    repeat(n - 1) {
         buf.appendCodePoint(nextOrThrow().value)
     }
 
-    return buf.toString()
+    return Pair(buf.toString(), SourceLocation(sourceFile, start, currentPosition))
 }
 
 private fun PositionTrackingCodePointTransactionalSequence.tryMatchOperator(sourceFile: SourceFile, doCommit: Boolean = true): OperatorToken? {
     for (operator in Operator.valuesSortedForLexing) {
         mark()
 
-        val start = currentPosition
-        val nextText = nextChars(operator.text.length)
-        if (nextText != null && nextText == operator.text) {
+        val nextText = nextChars(sourceFile, operator.text.length)
+        if (nextText != null && nextText.first == operator.text) {
             if (doCommit) commit() else rollback()
-            return OperatorToken(operator, SourceLocation(sourceFile, start, currentPosition))
+            return OperatorToken(operator, nextText.second)
         }
 
         rollback()
@@ -160,4 +175,35 @@ private fun PositionTrackingCodePointTransactionalSequence.tryMatchNumericLitera
     }
 
     return NumericLiteralToken(firstIntegerStringLocation, firstIntegerString)
+}
+
+private fun PositionTrackingCodePointTransactionalSequence.collectStringContent(sourceFile: SourceFile): Pair<String, SourceLocation> {
+    val data = StringBuilder()
+    var start: SourceSpot? = null
+    while (true) {
+        val peeked = peek() ?: break
+
+        if (peeked == STRING_ESCAPE_CHAR) {
+            nextOrThrow()
+            val escapeStart = currentPosition
+            val next = try {
+                nextOrThrow() // consume
+            } catch (ex: NoSuchElementException) {
+                throw IllegalEscapeSequenceException(SourceLocation(sourceFile, escapeStart, currentPosition), "Unexpected EOF in escape sequence", ex)
+            }
+            data.appendCodePoint(next.value)
+            continue
+        }
+
+        if (peeked == STRING_DELIMITER) {
+            // ending delimiter will be processed by the caller
+            break
+        }
+
+        nextOrThrow() // consume
+        start = start ?: currentPosition
+        data.appendCodePoint(peeked.value)
+    }
+
+    return Pair(data.toString(), SourceLocation(sourceFile, start ?: currentPosition, currentPosition))
 }

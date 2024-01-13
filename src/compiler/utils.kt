@@ -36,7 +36,7 @@ fun parseFromClasspath(path: Path): ASTModule {
         ClassLoader.getSystemResource(path.toString())!!.readText(),
     )
 
-    val matchResult = Module.match(MatchingContext.None, sourceFile.lex())
+    val matchResult = Module.match(MatchingContext.None, lex(sourceFile))
 
     if (matchResult.hasErrors) {
         System.err.println()

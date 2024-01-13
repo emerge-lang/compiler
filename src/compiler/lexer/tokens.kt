@@ -25,7 +25,8 @@ enum class TokenType(val description: String)
     KEYWORD("keyword"),
     IDENTIFIER("identifier"),
     NUMERIC_LITERAL("numeric literal"),
-    OPERATOR("operator")
+    OPERATOR("operator"),
+    STRING_LITERAL_CONTENT("string"),
 }
 
 enum class Keyword(val text: String)
@@ -89,18 +90,24 @@ enum class Operator(val text: String, private val _humanReadableName: String? = 
     ELVIS                 ("?:", "elvis operator"),
     QUESTION_MARK         ("?"),
     NOTNULL               ("!!"), // find a better name for this...
-    EXCLAMATION_MARK      ("!", "exclamation mark");
+    EXCLAMATION_MARK      ("!", "exclamation mark"),
+    STRING_DELIMITER      (Char(compiler.lexer.STRING_DELIMITER.value).toString()),
+    ;
 
     override fun toString() = this._humanReadableName ?: "operator $text"
 
     companion object {
-        val valuesSortedForLexing: List<Operator> = values().toList().sortedTopologically { depender, dependency ->
-            dependency.text.startsWith(depender.text)
-        }
+        val valuesSortedForLexing: List<Operator> = values()
+            .toList()
+            .sortedTopologically { depender, dependency ->
+                dependency.text.startsWith(depender.text)
+            }
     }
 }
 
 val DECIMAL_SEPARATOR = CodePoint('.'.code)
+val STRING_ESCAPE_CHAR = CodePoint('\\'.code)
+val STRING_DELIMITER = CodePoint('"'.code)
 
 abstract class Token
 {
@@ -207,4 +214,15 @@ class NumericLiteralToken(
         val stringContent: String
 ): Token() {
     override val type = TokenType.NUMERIC_LITERAL
+}
+
+/**
+ * String contents without the delimiters. Having the delimiters as separate tokens hopefully
+ * helps the parser ambiguity detection
+ */
+class StringLiteralContentToken(
+    override val sourceLocation: SourceLocation,
+    val content: String,
+) : Token() {
+    override val type = TokenType.STRING_LITERAL_CONTENT
 }

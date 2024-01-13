@@ -56,7 +56,9 @@ val BuiltinFloat = object : BuiltinType("Float", BuiltinNumber) {
 val BuiltinInt = object : BuiltinType("Int", BuiltinNumber) {
     override val isAtomic = true
 }
-
+val BuiltinByte = object : BuiltinType("Byte", BuiltinNumber) {
+    override val isAtomic = true
+}
 val BuiltinBoolean = object : BuiltinType("Boolean", BuiltinAny) {
     override val isAtomic = true
 }
@@ -116,9 +118,11 @@ abstract class BuiltinType(final override val simpleName: String, vararg superTy
             module.context.addBaseType(BuiltinBoolean)
             module.context.addBaseType(BuiltinArray)
             module.context.addBaseType(BuiltinNothing)
+            module.context.addBaseType(BuiltinByte)
 
-            stdlib.functions.forEach { module.context.addFunction(it) }
-            stdlib.variables.forEach { module.context.addVariable(it) }
+            stdlib.functions.forEach(module.context::addFunction)
+            stdlib.variables.forEach(module.context::addVariable)
+            stdlib.structs.forEach(module.context::addStruct)
 
             return module
         }

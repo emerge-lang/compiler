@@ -22,14 +22,7 @@ import compiler.InternalCompilerError
 import compiler.ast.CodeChunk
 import compiler.ast.Executable
 import compiler.ast.TypeArgumentBundle
-import compiler.ast.expression.BinaryExpression
-import compiler.ast.expression.BooleanLiteralExpression
-import compiler.ast.expression.Expression
-import compiler.ast.expression.IdentifierExpression
-import compiler.ast.expression.IfExpression
-import compiler.ast.expression.NumericLiteralExpression
-import compiler.ast.expression.ParenthesisedExpression
-import compiler.ast.expression.UnaryExpression
+import compiler.ast.expression.*
 import compiler.ast.type.TypeArgument
 import compiler.binding.expression.BoundExpression
 import compiler.lexer.*
@@ -58,16 +51,29 @@ val Expression: Rule<Expression<*>> = sequence("expression") {
             .fold(expression) { expr, postfix -> (postfix as ExpressionPostfix<*>).modify(expr) }
     }
 
+val StringLiteralExpression = sequence("string literal") {
+    operator(Operator.STRING_DELIMITER)
+    tokenOfType(TokenType.STRING_LITERAL_CONTENT)
+    operator(Operator.STRING_DELIMITER)
+}
+    .astTransformation { tokens ->
+        val startDelimiter = tokens.next() as OperatorToken
+        val content = tokens.next() as StringLiteralContentToken
+        val endDelimiter = tokens.next() as OperatorToken
+
+        StringLiteralExpression(startDelimiter, content, endDelimiter)
+    }
+
 val LiteralExpression = sequence("literal") {
     eitherOf {
         tokenOfType(TokenType.NUMERIC_LITERAL)
-        // TODO: string literal, function literal
-        // literals that the lexer treats as identifiers (booleans, ...?) are handled in ValueExpression
+        ref(StringLiteralExpression)
     }
 }
     .astTransformation { tokens ->
         when (val valueToken = tokens.next()!!) {
             is NumericLiteralToken -> NumericLiteralExpression(valueToken)
+            is StringLiteralExpression -> valueToken
             else -> throw InternalCompilerError("Unsupported literal value $valueToken")
         }
     }

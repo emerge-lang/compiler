@@ -18,6 +18,7 @@
 
 package compiler.lexer
 
+import compiler.reportings.getIllustrationForHighlightedLines
 import org.apache.commons.io.input.BOMInputStream
 import java.nio.charset.Charset
 import java.nio.file.Files
@@ -120,7 +121,7 @@ data class SourceLocation(
         end.columnNumber,
     )
 
-    override fun toString() = "$file $fromSourceLineNumber:$fromColumnNumber to $toSourceLineNumber:$toColumnNumber"
+    override fun toString() = "$file:\n${getIllustrationForHighlightedLines(setOf(this))}"
 
     val fileLineColumnText: String get() = "$file on line $fromSourceLineNumber at column $fromColumnNumber"
 

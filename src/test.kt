@@ -1,17 +1,15 @@
 import compiler.binding.context.SoftwareContext
 import compiler.binding.type.BuiltinType
-import compiler.lexer.ClasspathSourceFile
+import compiler.lexer.MemorySourceFile
 import compiler.lexer.lex
 import compiler.parser.grammar.Module
 import compiler.parser.grammar.rule.MatchingContext
 import compiler.reportings.Reporting
-import java.nio.file.Path
 import java.time.Clock
 import java.time.Duration
 
 val testCode = """module testcode
-var x: Array<Int>
-val y: Boolean = x.size()
+val y: Boolean = "Hello, World!"
 """
 
 fun main() {
@@ -24,8 +22,8 @@ fun main() {
     builtinsModule.context.swCtx = swCtx
     swCtx.addModule(builtinsModule)
 
-    val sourceFile = ClasspathSourceFile(Path.of("testcode"), testCode)
-    val tokens = sourceFile.lex()
+    val sourceFile = MemorySourceFile("testcode", testCode)
+    val tokens = lex(sourceFile)
 
     val sourceInMemoryAt = measureClock.instant()
     println("Source in memory after ${Duration.between(startedAt, sourceInMemoryAt)}")

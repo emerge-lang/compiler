@@ -22,6 +22,7 @@ import compiler.InternalCompilerError
 import compiler.ast.Bindable
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
+import compiler.ast.struct.StructDeclaration
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
@@ -83,9 +84,11 @@ open class MutableCTContext(
         if (type is Struct) _structs.add(type)
     }
 
-    open fun addStruct(definition: Struct) {
-        _types.add(definition)
-        _structs.add(definition)
+    open fun addStruct(definition: StructDeclaration): Struct {
+        val bound = definition.bindTo(this)
+        _types.add(bound)
+        _structs.add(bound)
+        return bound
     }
 
     private val typeParameters = HashMap<String, BoundTypeParameter>()

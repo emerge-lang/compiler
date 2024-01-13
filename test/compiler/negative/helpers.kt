@@ -3,7 +3,6 @@ package compiler.negative
 import compiler.binding.context.SoftwareContext
 import compiler.binding.type.BuiltinType
 import compiler.lexer.MemorySourceFile
-import compiler.lexer.SourceLocation
 import compiler.lexer.lex
 import compiler.parser.TokenSequence
 import compiler.parser.grammar.Module
@@ -27,7 +26,7 @@ fun lexCode(
     }
 
     val sourceFile = MemorySourceFile(invokedFrom.fileName!!, moduleCode)
-    return sourceFile.lex()
+    return lex(sourceFile)
 }
 
 /**
