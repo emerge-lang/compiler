@@ -117,13 +117,6 @@ open class SourceContentAwareSourceLocation(
     override fun illustrate() = sD.sourceLocation + "\n" + sD.getIllustrationForHighlightedLines(listOf(this))
 }
 
-class PathSourceDescriptor(val path: Path) : SourceContentAwareSourceDescriptor()
-{
-    override val sourceLocation = path.toString()
-
-    override val sourceLines: List<String> by lazy { Files.readAllLines(path) }
-}
-
 class SimpleSourceDescriptor(val sourceFileName: String) : SourceDescriptor {
     override val sourceLocation: String
         get() = sourceFileName

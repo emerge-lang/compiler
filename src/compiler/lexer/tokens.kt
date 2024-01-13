@@ -18,8 +18,6 @@
 
 package compiler.lexer
 
-import compiler.parser.grammar.ParameterList
-import compiler.parser.grammar.VariableDeclaration
 import compiler.sortedTopologically
 
 enum class TokenType(val description: String)
