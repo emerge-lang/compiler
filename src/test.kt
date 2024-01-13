@@ -9,7 +9,11 @@ import java.time.Clock
 import java.time.Duration
 
 val testCode = """module testcode
-val y: Boolean = "Hello, World!"
+    
+fun main() {
+    val greeting = "Hello, World!"
+    println(greeting)
+}
 """
 
 fun main() {
