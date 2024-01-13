@@ -39,5 +39,3 @@ class TokenSequence(val tokens: List<Token>, val initialSourceLocation: SourceLo
 
     override fun copyOfPosition(position: Position): Position = Position(position.sourceIndex)
 }
-
-fun Sequence<Token>.toTransactional(initialSourceLocation: SourceLocation): TokenSequence = TokenSequence(toList(), initialSourceLocation)

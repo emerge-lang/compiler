@@ -18,6 +18,7 @@
 
 package compiler.lexer
 
+import compiler.negative.lexCode
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.comparables.beGreaterThan
 import io.kotest.matchers.comparables.beGreaterThanOrEqualTo
@@ -27,22 +28,20 @@ import io.kotest.matchers.shouldNot
 import io.kotest.matchers.types.beInstanceOf
 
 class LexerTest : FreeSpec() {init {
-
-    val testSource = SimpleSourceDescriptor("test source code")
-
     "keywords" - {
         "default" {
-            val result = Lexer("   module   ", testSource).remainingTokens().toList()
+            val result = lexCode("   module   ", false).tokens
 
             result.size shouldBe 1
             result[0] should beInstanceOf(KeywordToken::class)
             (result[0] as KeywordToken).keyword shouldBe Keyword.MODULE
             (result[0] as KeywordToken).sourceText shouldBe "module"
-            (result[0] as KeywordToken).sourceLocation shouldBe SourceLocation(testSource, 1, 4)
+            (result[0] as KeywordToken).sourceLocation.fromSourceLineNumber shouldBe 1u
+            (result[0] as KeywordToken).sourceLocation.fromColumnNumber shouldBe 4u
         }
 
         "should be case insensitive" {
-            val result = Lexer(" MoDulE ", testSource).remainingTokens().toList()
+            val result = lexCode(" MoDulE ", false).tokens
 
             result.size should beGreaterThanOrEqualTo(1)
             result[0] should beInstanceOf(KeywordToken::class)
@@ -51,7 +50,7 @@ class LexerTest : FreeSpec() {init {
     }
 
     "newlines are semantic" {
-        val result = Lexer("  \n  \n  \n", testSource).remainingTokens().toList()
+        val result = lexCode("  \n  \n  \n", false).tokens
 
         result.size shouldBe 3
         result[0] should beInstanceOf(OperatorToken::class)
@@ -63,7 +62,7 @@ class LexerTest : FreeSpec() {init {
 
     "integers" - {
         "single digit" {
-            val result = Lexer("7", testSource).remainingTokens().toList()
+            val result = lexCode("7", false).tokens
 
             result.size shouldBe 1
             result[0] should beInstanceOf(NumericLiteralToken::class)
@@ -71,7 +70,7 @@ class LexerTest : FreeSpec() {init {
         }
 
         "multiple digit" {
-            val result = Lexer("21498743", testSource).remainingTokens().toList()
+            val result = lexCode("21498743", false).tokens
 
             result.size shouldBe 1
             result[0] should beInstanceOf(NumericLiteralToken::class)
@@ -81,7 +80,7 @@ class LexerTest : FreeSpec() {init {
 
     "decimals" - {
         "simple decimal" {
-            val result = Lexer("312.1232", testSource).remainingTokens().toList()
+            val result = lexCode("312.1232", false).tokens
 
             result.size shouldBe 1
             result[0] should beInstanceOf(NumericLiteralToken::class)
@@ -89,14 +88,14 @@ class LexerTest : FreeSpec() {init {
         }
 
         "without leading digit it's not a decimal" {
-            val result = Lexer(".25", testSource).remainingTokens().toList()
+            val result = lexCode(".25", false).tokens
 
             result.size should beGreaterThan(1)
             result[0] shouldNot beInstanceOf(NumericLiteralToken::class)
         }
 
         "invocation on integer literal" {
-            val result = Lexer("312.toLong()", testSource).remainingTokens().toList()
+            val result = lexCode("312.toLong()", false).tokens
 
             result.size should beGreaterThan(3)
             result[0] should beInstanceOf(NumericLiteralToken::class)
@@ -112,7 +111,7 @@ class LexerTest : FreeSpec() {init {
 
     "identifiers" - {
         "identifier stops at space" {
-            val result = Lexer("foo bar", testSource).remainingTokens().toList()
+            val result = lexCode("foo bar", false).tokens
 
             result.size shouldBe 2
 
@@ -124,7 +123,7 @@ class LexerTest : FreeSpec() {init {
         }
 
         "identifier stops at operator" {
-            val result = Lexer("baz*", testSource).remainingTokens().toList()
+            val result = lexCode("baz*", false).tokens
 
             result.size shouldBe 2
 
@@ -136,7 +135,7 @@ class LexerTest : FreeSpec() {init {
         }
 
         "identifier stops at newline" {
-            val result = Lexer("cat\n", testSource).remainingTokens().toList()
+            val result = lexCode("cat\n", false).tokens
 
             result.size shouldBe 2
 
@@ -149,9 +148,9 @@ class LexerTest : FreeSpec() {init {
     }
 
     "combo test with code" {
-        val result = Lexer("""module foo
+        val result = lexCode("""module foo
             fun foobar(val x: Int = 24) = return (142.12)?.toLong() == x
-        """, testSource).remainingTokens().toList()
+        """, false).tokens
 
         result.size shouldBe 25
 

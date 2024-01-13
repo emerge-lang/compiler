@@ -18,188 +18,146 @@
 
 package compiler.lexer
 
-import compiler.transact.SourceFileReader
-import compiler.transact.TransactionalSequence
-import java.util.*
+import compiler.parser.TokenSequence
 
-class Lexer(code: String, private val sourceDescriptor: SourceDescriptor)
-{
-    private val sourceTxSequence = SourceFileReader(code)
+fun SourceFile.lex(): TokenSequence {
+    val iterator = PositionTrackingCodePointTransactionalSequence(this@lex.content.codePoints().toArray())
+    val initialSourceLocation = SourceLocation(this@lex, iterator.currentPosition, iterator.currentPosition)
 
-    /**
-     * @return The nextToken token from the input or `null` if there are no more tokens.
-     */
-    @Synchronized
-    fun nextToken(): Token?
-    {
-        skipWhitespace()
-
-        if (!hasNext) return null
-
-        // try to match an operator
-        val operator = tryMatchOperator()
-        if (operator != null) return operator
-
-        if (!hasNext) return null
-
-        if (sourceTxSequence.peek()!!.isDigit()) {
-            // NUMERIC_LITERAL
-            var numericStr = collectUntilOperatorOrWhitespace()
-            sourceTxSequence.mark()
-            if (sourceTxSequence.peek() == DECIMAL_SEPARATOR) {
-                // skip the dot
-                sourceTxSequence.next()
-
-                if (sourceTxSequence.peek()?.isDigit() ?: true) {
-                    // <DIGIT, ...> <DOT> <DIGIT, ...> => Floating point literal
-                    sourceTxSequence.commit()
-                    // floating point literal
-                    numericStr += DECIMAL_SEPARATOR + collectUntilOperatorOrWhitespace()
-
-                    // return numericStr later
-                }
-                else {
-                    // <DIGIT, ...> <DOT> <!DIGIT, ...> => member access on numeric literal
-                    // rollback before the ., so that the next invocation yields an OperatorToken
-                    sourceTxSequence.rollback()
-
-                    // return numericStr later
-                }
+    val generator = sequence {
+        tokenLoop@while (iterator.hasNext) {
+            iterator.skipWhitespace()
+            if (!iterator.hasNext) {
+                return@sequence
             }
 
-            return NumericLiteralToken(currentSL.minusChars(numericStr.length), numericStr)
-        }
-        else {
+            val operator = iterator.tryMatchOperator(this@lex)
+            if (operator != null) {
+                yield(operator)
+                continue@tokenLoop
+            }
+
+            val numeric = iterator.tryMatchNumericLiteral(this@lex)
+            if (numeric != null) {
+                yield(numeric)
+                continue@tokenLoop
+            }
+
             // IDENTIFIER or KEYWORD
-            val text = collectUntilOperatorOrWhitespace()
+            val text = iterator.collectUntilOperatorOrWhitespace(this@lex)
 
             // check against keywords
-            val keyword = Keyword.values().firstOrNull { it.text.equals(text, true) }
+            val keyword = Keyword.values().firstOrNull { it.text.equals(text.first, true) }
 
-            if (keyword != null) return KeywordToken(keyword, text, currentSL.minusChars(text.length))
+            if (keyword != null) {
+                yield(KeywordToken(keyword, text.first, text.second))
+                continue@tokenLoop
+            }
 
-            return IdentifierToken(text, currentSL.minusChars(text.length))
+            yield(IdentifierToken(text.first, text.second))
         }
     }
 
-    private val hasNext: Boolean
-        get() = sourceTxSequence.hasNext()
+    return TokenSequence(generator.toList(), initialSourceLocation)
+}
 
-    private fun nextChar(): Char? = sourceTxSequence.next()
-
-    private fun nextChars(n: Int): String? = sourceTxSequence.next(n)
-
-    private fun <T> transact(txCode: TransactionalSequence<Char, SourceFileReader.SourceLocation>.TransactionReceiver.() -> T): T? = sourceTxSequence.transact(txCode)
-
-    /**
-     * Collects chars from the input as long as they fulfill [pred]. If a character is encountered that does not
-     * fulfill the predicate, the collecting is stopped and the characters collected so far are returned. The character
-     * causing the break can then be obtained using [nextChar].
-     */
-    private fun collectWhile(pred: (Char) -> Boolean): String?
+private fun PositionTrackingCodePointTransactionalSequence.skipWhitespace() {
+    while (peek()?.isWhitespace == true)
     {
-        var buf = StringBuilder()
-
-        var char: Char?
-        while (true)
-        {
-            sourceTxSequence.mark()
-            char = sourceTxSequence.next()
-            if (char != null && pred(char)) {
-                buf.append(char)
-                sourceTxSequence.commit()
-            }
-            else {
-                sourceTxSequence.rollback()
-                break
-            }
-        }
-
-        return buf.toString()
+        nextOrThrow()
     }
+}
 
-    private fun collectUntilOperatorOrWhitespace(): String {
-        var buf = StringBuilder()
-
-        while (sourceTxSequence.hasNext()) {
-            val operator = tryMatchOperator(false)
-            if (operator != null) break
-
-            if (IsWhitespace(sourceTxSequence.peek()!!)) break
-            buf.append(sourceTxSequence.next()!!)
-        }
-
-        return buf.toString()
-    }
-
-    private fun tryMatchOperator(doCommit: Boolean = true): OperatorToken? {
-        for (operator in Operator.valuesSortedForLexing)
-        {
-            sourceTxSequence.mark()
-
-            val nextText = nextChars(operator.text.length)
-            if (nextText != null && nextText == operator.text) {
-                if (doCommit) sourceTxSequence.commit() else sourceTxSequence.rollback()
-                return OperatorToken(operator, currentSL.minusChars(nextText.length))
-            }
-
-            sourceTxSequence.rollback()
-        }
-
+// TODO: rename to nextCodePointsAsString
+private fun PositionTrackingCodePointTransactionalSequence.nextChars(n: Int): String? {
+    if (nCodePointsRemaining < n) {
         return null
     }
 
-    /** Skips whitespace according to [IsWhitespace]. Equals `collectWhile(IsWhitespace)` */
-    private fun skipWhitespace() {
-        collectWhile(IsWhitespace)
+    val buf = StringBuffer(n)
+    repeat(n) {
+        buf.appendCodePoint(nextOrThrow().value)
     }
 
-    private val currentSL: SourceLocation
-        get() = sourceDescriptor.toLocation(
-                sourceTxSequence.currentPosition.lineNumber,
-                sourceTxSequence.currentPosition.columnNumber
-        )
+    return buf.toString()
 }
 
-/**
- * Lexes the given code. The resulting tokens use the given [SourceDescriptor] to refer to their location in the
- * source.
- */
-public fun lex(code: String, sD: SourceDescriptor): Sequence<Token> {
-    val lexer = Lexer(code, sD)
+private fun PositionTrackingCodePointTransactionalSequence.tryMatchOperator(sourceFile: SourceFile, doCommit: Boolean = true): OperatorToken? {
+    for (operator in Operator.valuesSortedForLexing) {
+        mark()
 
-    return lexer.remainingTokens()
-}
-
-/**
- * Lexes the given code.
- */
-public fun lex(source: SourceContentAwareSourceDescriptor): Sequence<Token> {
-    val code = source.sourceLines.joinToString("\n")
-
-    val lexer = Lexer(code, source)
-
-    return lexer.remainingTokens()
-}
-
-/**
- * Collects all the remaining tokens of the compiler.lexer into a collection and returns it.
- */
-public fun Lexer.remainingTokens(): Sequence<Token> {
-    val tokens = LinkedList<Token>()
-
-    while (true)
-    {
-        val token = nextToken()
-        if (token != null)
-        {
-            tokens.add(token)
+        val start = currentPosition
+        val nextText = nextChars(operator.text.length)
+        if (nextText != null && nextText == operator.text) {
+            if (doCommit) commit() else rollback()
+            return OperatorToken(operator, SourceLocation(sourceFile, start, currentPosition))
         }
-        else
-        {
+
+        rollback()
+    }
+
+    return null
+}
+
+private fun PositionTrackingCodePointTransactionalSequence.collectUntilOperatorOrWhitespace(sourceFile: SourceFile): Pair<String, SourceLocation> {
+    val buf = StringBuilder()
+    var start: SourceSpot? = null
+
+    while (hasNext) {
+        val operator = tryMatchOperator(sourceFile, false)
+        if (operator != null) break
+
+        if (peek()!!.isWhitespace) {
             break
         }
+
+        buf.appendCodePoint(nextOrThrow().value)
+        start = start ?: currentPosition
     }
 
-    return tokens.asSequence()
+    return Pair(buf.toString(), SourceLocation(sourceFile, start ?: currentPosition, currentPosition))
+}
+
+private fun PositionTrackingCodePointTransactionalSequence.tryMatchNumericLiteral(sourceFile: SourceFile): NumericLiteralToken? {
+    if (peek()?.isDigit == false) {
+        return null
+    }
+    // NUMERIC_LITERAL
+    val (firstIntegerString, firstIntegerStringLocation) = collectUntilOperatorOrWhitespace(sourceFile)
+    mark()
+    if (peek() == DECIMAL_SEPARATOR) {
+        // skip the dot
+        nextOrThrow()
+
+        if (peek()?.isDigit != false) {
+            // <DIGIT, ...> <DOT> <DIGIT, ...> => Floating point literal
+            commit()
+            // floating point literal
+            val floatBuilder = StringBuilder(firstIntegerString)
+            floatBuilder.appendCodePoint(DECIMAL_SEPARATOR.value)
+            val (fractionalString, fractionalStringLocation) = collectUntilOperatorOrWhitespace(sourceFile)
+            floatBuilder.append(fractionalString)
+
+            // return numericStr later
+            return NumericLiteralToken(
+                SourceLocation(
+                    sourceFile,
+                    firstIntegerStringLocation.fromSourceLineNumber,
+                    firstIntegerStringLocation.toColumnNumber,
+                    fractionalStringLocation.toSourceLineNumber,
+                    fractionalStringLocation.toColumnNumber,
+                ),
+                floatBuilder.toString(),
+            )
+        }
+        else {
+            // <DIGIT, ...> <DOT> <!DIGIT, ...> => member access on numeric literal
+            // rollback before the ., so that the next invocation yields an OperatorToken
+            rollback()
+
+            // return numericStr later
+        }
+    }
+
+    return NumericLiteralToken(firstIntegerStringLocation, firstIntegerString)
 }

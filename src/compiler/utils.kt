@@ -19,9 +19,8 @@
 package compiler
 
 import compiler.ast.ASTModule
-import compiler.lexer.SourceContentAwareSourceDescriptor
+import compiler.lexer.ClasspathSourceFile
 import compiler.lexer.lex
-import compiler.parser.TokenSequence
 import compiler.parser.grammar.Module
 import compiler.parser.grammar.rule.MatchingContext
 import java.nio.file.Path
@@ -32,13 +31,12 @@ import kotlin.NoSuchElementException
 fun parseFromClasspath(path: String): ASTModule = parseFromClasspath(Paths.get(path))
 
 fun parseFromClasspath(path: Path): ASTModule {
-    val sourceode = ClassLoader.getSystemResource(path.toString())!!.readText().lines()
+    val sourceFile = ClasspathSourceFile(
+        path,
+        ClassLoader.getSystemResource(path.toString())!!.readText(),
+    )
 
-    val sourceDescriptor = object : SourceContentAwareSourceDescriptor() {
-        override val sourceLocation = "classpath:" + path
-        override val sourceLines = sourceode
-    }
-    val matchResult = Module.match(MatchingContext.None, TokenSequence(lex(sourceDescriptor).toList(), sourceDescriptor.toLocation(1, 1)))
+    val matchResult = Module.match(MatchingContext.None, sourceFile.lex())
 
     if (matchResult.hasErrors) {
         System.err.println()

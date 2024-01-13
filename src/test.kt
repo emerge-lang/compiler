@@ -1,11 +1,11 @@
 import compiler.binding.context.SoftwareContext
 import compiler.binding.type.BuiltinType
-import compiler.lexer.SourceContentAwareSourceDescriptor
+import compiler.lexer.ClasspathSourceFile
 import compiler.lexer.lex
 import compiler.parser.grammar.Module
 import compiler.parser.grammar.rule.MatchingContext
-import compiler.parser.toTransactional
 import compiler.reportings.Reporting
+import java.nio.file.Path
 import java.time.Clock
 import java.time.Duration
 
@@ -24,17 +24,13 @@ fun main() {
     builtinsModule.context.swCtx = swCtx
     swCtx.addModule(builtinsModule)
 
-    val source = object : SourceContentAwareSourceDescriptor() {
-        override val sourceLocation = "testcode"
-        override val sourceLines = testCode.split("\n")
-    }
+    val sourceFile = ClasspathSourceFile(Path.of("testcode"), testCode)
+    val tokens = sourceFile.lex()
 
-    val tokens = lex(testCode, source)
-    val transactionalTokenSequence = tokens.toTransactional(source.toLocation(1, 1))
     val sourceInMemoryAt = measureClock.instant()
     println("Source in memory after ${Duration.between(startedAt, sourceInMemoryAt)}")
 
-    val matched = Module.match(MatchingContext.None, transactionalTokenSequence)
+    val matched = Module.match(MatchingContext.None, tokens)
     val lexicalCompleteAt = measureClock.instant()
     println("Lexical analysis complete after ${Duration.between(startedAt, lexicalCompleteAt)}"
         + " (took ${Duration.between(sourceInMemoryAt, lexicalCompleteAt)})")

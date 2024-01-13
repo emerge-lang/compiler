@@ -20,7 +20,6 @@ package compiler.reportings
 
 import compiler.binding.struct.Struct
 import compiler.binding.struct.StructMember
-import compiler.lexer.SourceContentAwareSourceDescriptor
 import textutils.indentByFromSecondLine
 
 class DuplicateStructMemberReporting(
@@ -32,17 +31,11 @@ class DuplicateStructMemberReporting(
     struct.declaration.declaredAt
 ) {
     override fun toString(): String {
-        var txt = "($level) $message\n\nin ${struct.declaration.declaredAt.sD.sourceLocation}\n"
+        var txt = "($level) $message\n\nin ${struct.declaration.declaredAt}\n"
 
-        if (struct.declaration.declaredAt.sD is SourceContentAwareSourceDescriptor) {
-            txt += (struct.declaration.declaredAt.sD as SourceContentAwareSourceDescriptor).getIllustrationForHighlightedLines(
-                duplicates.map { it.declaration.declaredAt },
-            )
-        }
-        else for (dup in duplicates) {
-            val dupLocation = dup.declaration.declaredAt
-            txt += "- line ${dupLocation.sourceLine}, column ${dupLocation.sourceColumn}\n"
-        }
+        txt += getIllustrationForHighlightedLines(
+            duplicates.map { it.declaration.declaredAt },
+        )
 
         return txt.trimEnd()
     }

@@ -2,14 +2,12 @@ package compiler.negative
 
 import compiler.binding.context.SoftwareContext
 import compiler.binding.type.BuiltinType
-import compiler.lexer.SourceContentAwareSourceDescriptor
-import compiler.lexer.SourceDescriptor
+import compiler.lexer.MemorySourceFile
 import compiler.lexer.SourceLocation
 import compiler.lexer.lex
 import compiler.parser.TokenSequence
 import compiler.parser.grammar.Module
 import compiler.parser.grammar.rule.MatchingContext
-import compiler.parser.toTransactional
 import compiler.reportings.Reporting
 import io.kotest.inspectors.forOne
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -17,43 +15,19 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 fun lexCode(
     code: String,
     addModuleDeclaration: Boolean = true,
-    initialSourceLocation: SourceLocation = getInvokedFromAsSourceLocationForParameterDefaultValue(),
-): TokenSequence {
-    return lexCodeInternal(code, addModuleDeclaration, initialSourceLocation)
-}
-
-fun getInvokedFromAsSourceLocationForParameterDefaultValue(): SourceLocation {
-    val invokedFrom = Thread.currentThread().stackTrace[3]
-    return SourceLocation(
-        object : SourceDescriptor {
-            override val sourceLocation = invokedFrom.fileName
-        },
-        invokedFrom.lineNumber,
-        1,
-    )
-}
-
-private fun lexCodeInternal(
-    code: String,
-    addModuleDeclaration: Boolean,
-    initialSourceLocation: SourceLocation,
+    invokedFrom: StackTraceElement = Thread.currentThread().stackTrace[2],
 ): TokenSequence {
     val moduleCode = if (addModuleDeclaration) {
-        require(initialSourceLocation.sourceLine > 1) {
+        require(invokedFrom.lineNumber > 1) {
             "Test code is declared at line 1, cannot both add a module declaration AND keep the source line numbers in sync"
         }
-        "module testmodule\n" + "\n".repeat(initialSourceLocation.sourceLine - 1) + code
+        "module testmodule\n" + "\n".repeat(invokedFrom.lineNumber - 1) + code
     } else {
         code
     }
 
-    val sourceDescriptor = object : SourceContentAwareSourceDescriptor() {
-        override val sourceLocation = initialSourceLocation.sD.sourceLocation
-        override val sourceLines = moduleCode.split("\n")
-    }
-    val initialSourceLocationWithCode = SourceLocation(sourceDescriptor, initialSourceLocation.sourceLine, initialSourceLocation.sourceColumn)
-
-    return lex(moduleCode, sourceDescriptor).toTransactional(initialSourceLocationWithCode)
+    val sourceFile = MemorySourceFile(invokedFrom.fileName!!, moduleCode)
+    return sourceFile.lex()
 }
 
 /**
@@ -68,9 +42,9 @@ private fun lexCodeInternal(
 fun validateModule(
     code: String,
     addModuleDeclaration: Boolean = true,
-    initialSourceLocation: SourceLocation = getInvokedFromAsSourceLocationForParameterDefaultValue(),
+    invokedFrom: StackTraceElement = Thread.currentThread().stackTrace[2],
 ): Collection<Reporting> {
-    val tokens = lexCodeInternal(code.assureEndsWith('\n'), addModuleDeclaration, initialSourceLocation)
+    val tokens = lexCode(code.assureEndsWith('\n'), addModuleDeclaration, invokedFrom)
     val result = Module.match(MatchingContext.None, tokens)
     if (result.item == null) {
         val error = result.reportings.maxBy { it.level }

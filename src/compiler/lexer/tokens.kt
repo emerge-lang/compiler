@@ -102,7 +102,7 @@ enum class Operator(val text: String, private val _humanReadableName: String? = 
     }
 }
 
-val DECIMAL_SEPARATOR: Char = '.'
+val DECIMAL_SEPARATOR = CodePoint('.'.code)
 
 abstract class Token
 {
@@ -110,10 +110,11 @@ abstract class Token
     abstract val sourceLocation: SourceLocation
 
     override fun toString(): String {
-        if (sourceLocation === SourceLocation.UNKNOWN)
+        if (sourceLocation === SourceLocation.UNKNOWN) {
             return toStringWithoutLocation()
-        else
-            return toStringWithoutLocation() + " in " + sourceLocation.fileLineColumnText
+        }
+
+        return toStringWithoutLocation() + " in " + sourceLocation
     }
 
     open fun toStringWithoutLocation(): String = type.description

@@ -18,106 +18,113 @@
 
 package compiler.lexer
 
-import compiler.reportings.getIllustrationForHighlightedLines
+import org.apache.commons.io.input.BOMInputStream
+import java.nio.charset.Charset
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.stream.Collectors
+import javax.xml.transform.Source
+import kotlin.io.path.*
 
 /**
- * Describes a source text (usually from a file, but ya never know!)
+ * A set of sources that are compiled together. This is usually one project / codebase, or
+ * a module if it in case it's a modularized large codebase (compare maven reactor build)
  */
-interface SourceDescriptor
-{
-    val sourceLocation: String
+class SourceSet(
+    val path: Path,
+) {
+    init {
+        require(path.isAbsolute) { "SourceSet path must be absolute" }
+        require(path.exists()) { "SourceSet directory does not exist" }
+        require(path.isDirectory()) { "SourceSet must a directory" }
+    }
 
-    fun toLocation(sourceLine: Int, sourceColumn: Int): SourceLocation = SourceLocation(this, sourceLine, sourceColumn)
+    companion object {
+        fun load(sourceSetPath: Path): Collection<SourceFile> {
+            val sourceSet = SourceSet(sourceSetPath)
+
+            return Files.walk(sourceSetPath)
+                .parallel()
+                .map { sourceFilePath ->
+                    val content = BOMInputStream.builder()
+                        .setInputStream(sourceFilePath.inputStream())
+                        .get()
+                        .use { inStream ->
+                            val charset = inStream.bom?.charsetName?.let(Charset::forName) ?: Charsets.UTF_8
+                            inStream.reader(charset).readText()
+                        }
+
+                    DiskSourceFile(
+                        sourceSet,
+                        sourceFilePath.relativeTo(sourceSetPath),
+                        content,
+                    )
+                }
+                .collect(Collectors.toList())
+        }
+    }
+}
+
+interface SourceFile {
+    val content: String
+}
+
+class ClasspathSourceFile(
+    val pathOnClasspath: Path,
+    override val content: String,
+) : SourceFile {
+    override fun toString() = "classpath:/$pathOnClasspath"
+}
+
+class DiskSourceFile(
+    val sourceSet: SourceSet,
+    val sourceFilePath: Path,
+    override val content: String,
+) : SourceFile {
+    val pathRelativeToSourceSet: Path = try {
+        sourceFilePath.relativeTo(sourceSet.path)
+    } catch (ex: IllegalArgumentException) {
+        throw IllegalArgumentException("Source file is not located in the given source-set!", ex)
+    }
+
+    override fun toString(): String = pathRelativeToSourceSet.toString()
 }
 
 /**
- * A [SourceDescriptor] that is aware of the source text. That awareness can be used to create error messages that
- * cite erroneous parts of the code.
+ * This is not actually a source file, its code from in memory.
  */
-abstract class SourceContentAwareSourceDescriptor : SourceDescriptor
-{
-    abstract val sourceLines: List<String>
-
-    override fun toLocation(sourceLine: Int, sourceColumn: Int): SourceLocation
-    {
-        return SourceContentAwareSourceLocation(this, sourceLine, sourceColumn)
-    }
+class MemorySourceFile(
+    val name: String,
+    override val content: String
+) : SourceFile {
+    override fun toString() = "memory:$name"
 }
 
 /**
  * Describes a location within a source text (line + column)
  *
- * TODO: refactor to include a range of input chars, not just one
  * TODO: rename to Span, naming stolen from rust nom
  */
-open class SourceLocation(
-        open val sD: SourceDescriptor,
-        open val sourceLine: Int,
-        open val sourceColumn: Int
+data class SourceLocation(
+    val file: SourceFile,
+    val fromSourceLineNumber: UInt,
+    val fromColumnNumber: UInt,
+    val toSourceLineNumber: UInt,
+    val toColumnNumber: UInt,
 ) {
-    /** A string with source location, line number and column number */
-    open val fileLineColumnText: String
-        get() = "${sD.sourceLocation} on line $sourceLine, column $sourceColumn"
+    constructor(sourceFile: SourceFile, start: SourceSpot, end: SourceSpot) : this(
+        sourceFile,
+        start.lineNumber,
+        start.columnNumber,
+        end.lineNumber,
+        end.columnNumber,
+    )
 
-    /** @return a nice text representation of the source location */
-    open fun illustrate() = fileLineColumnText
+    override fun toString() = "$file $fromSourceLineNumber:$fromColumnNumber to $toSourceLineNumber:$toColumnNumber"
 
-    /**
-     * Returns a copy of this [SourceLocation] with the sourceColumn reduced by `n - 1`
-     */
-    open fun minusChars(n: Int): SourceLocation = SourceLocation(sD, sourceLine, sourceColumn - n + 1)
-
-    override fun toString() = illustrate()
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is SourceLocation) return false
-
-        if (sD != other.sD) return false
-        if (sourceLine != other.sourceLine) return false
-        if (sourceColumn != other.sourceColumn) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = sD.hashCode()
-        result = 31 * result + sourceLine
-        result = 31 * result + sourceColumn
-        return result
-    }
-
+    val fileLineColumnText: String get() = "$file on line $fromSourceLineNumber at column $fromColumnNumber"
 
     companion object {
-        val UNKNOWN: SourceLocation = object : SourceLocation(
-            object : SourceDescriptor {
-                override val sourceLocation = "UNKNOWN FILE"
-            },
-            -1,
-            -1
-        ) {
-            override val fileLineColumnText = "UNKNOWN FILE"
-            override fun minusChars(n: Int): SourceLocation = this
-        }
+        val UNKNOWN = SourceLocation(MemorySourceFile("UNKNOWN", ""), 1u, 1u, 1u, 1u)
     }
-}
-
-/**
- * Implements the pretty-print of erroneous source code (like the java compiler does, e.g.)
- */
-open class SourceContentAwareSourceLocation(
-        override val sD: SourceContentAwareSourceDescriptor,
-        sourceLine: Int,
-        sourceColumn: Int
-): SourceLocation(sD, sourceLine, sourceColumn)
-{
-    override fun minusChars(n: Int): SourceLocation = SourceContentAwareSourceLocation(sD, sourceLine, sourceColumn - n + 1)
-
-    override fun illustrate() = sD.sourceLocation + "\n" + sD.getIllustrationForHighlightedLines(listOf(this))
-}
-
-class SimpleSourceDescriptor(val sourceFileName: String) : SourceDescriptor {
-    override val sourceLocation: String
-        get() = sourceFileName
 }

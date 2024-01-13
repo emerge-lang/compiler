@@ -18,7 +18,6 @@
 
 package compiler.reportings
 
-import compiler.lexer.SourceContentAwareSourceDescriptor
 import compiler.lexer.SourceLocation
 import kotlin.math.min
 
@@ -27,33 +26,39 @@ import kotlin.math.min
  * @param nLinesContext Around each line obtained from [highlights], this number of lines will additionally be shown
  * above and below. So e.g. `nLinesOfContext == 1` and line 5 has a highlight then lines 4 and 6 will also be shown.
  */
-fun SourceContentAwareSourceDescriptor.getIllustrationForHighlightedLines(
+fun getIllustrationForHighlightedLines(
     highlights: Collection<SourceLocation>,
-    nLinesContext: Int = 1,
+    nLinesContext: UInt = 1u,
 ): String {
     if (highlights.isEmpty()) {
         throw IllegalArgumentException("No locations given to highlight")
     }
 
-    highlights.find { it.sourceLine < 1 || it.sourceLine > sourceLines.size }?.let {
+    highlights.find { it.fromSourceLineNumber != it.toSourceLineNumber }?.let {
+        throw NotImplementedError("Cannot highlight source locations that span multiple lines: $it")
+    }
+
+    val source = highlights.map { it.file }.distinct().singleOrNull() ?: run {
+        throw IllegalArgumentException("Got locations from different source files")
+    }
+    val sourceLines = source.content.split('\n')
+
+    highlights.find { it.fromSourceLineNumber > sourceLines.size.toUInt() }?.let {
         throw IllegalArgumentException("Source lines out of range: $it")
     }
-    highlights.find { it.sD is SourceContentAwareSourceDescriptor && it.sD !== this }?.let {
-        throw IllegalArgumentException("All locations-to-highlight must be from the same ${SourceContentAwareSourceDescriptor::class.simpleName}, this one isn't: $it")
-    }
 
-    val highlightedColumnsByLine: Map<Int, List<Int>> = highlights
-        .groupBy { it.sourceLine }
-        .mapValues { (_, highlights) -> highlights.map { it.sourceColumn }.toSet().sorted() }
+    val highlightedColumnsByLine: Map<UInt, List<UInt>> = highlights
+        .groupBy { it.fromSourceLineNumber }
+        .mapValues { (_, highlights) -> highlights.map { it.fromColumnNumber .. it.toColumnNumber }.toSet().flatten().sorted() }
 
-    val lineNumbersToOutput = mutableSetOf<Int>()
+    val lineNumbersToOutput = mutableSetOf<UInt>()
     for (desiredLine in highlightedColumnsByLine.keys) {
         lineNumbersToOutput.add(desiredLine)
-        for (i in 1 .. nLinesContext) {
-            if (desiredLine > 2) {
+        for (i in 1u .. nLinesContext) {
+            if (desiredLine > 2u) {
                 lineNumbersToOutput.add(desiredLine - i)
             }
-            if (desiredLine < sourceLines.size) {
+            if (desiredLine < sourceLines.size.toUInt()) {
                 lineNumbersToOutput.add(desiredLine + i)
             }
         }
@@ -62,8 +67,8 @@ fun SourceContentAwareSourceDescriptor.getIllustrationForHighlightedLines(
     val lineNumbersToOutputSorted = lineNumbersToOutput.sorted()
     val lineCounterLength = min(3, lineNumbersToOutputSorted.max().toString(10).length)
 
-    val linesToOutputWithNormalizedTabs: Map<Int, String> = lineNumbersToOutputSorted.associateWith {
-        sourceLines[it - 1].replace("\t", "    ")
+    val linesToOutputWithNormalizedTabs: Map<UInt, String> = lineNumbersToOutputSorted.associateWith {
+        sourceLines[(it - 1u).toInt()].replace("\t", "    ")
     }
 
     val commonNumberOfLeadingSpaces =
@@ -89,8 +94,8 @@ fun SourceContentAwareSourceDescriptor.getIllustrationForHighlightedLines(
         out.append("\n")
         highlightedColumnsByLine[lineNumber]?.let { colsToHighlight ->
             out.appendUnnumberedLinePrefix()
-            colsToHighlight.fold(commonNumberOfLeadingSpaces) { previousCol: Int, col: Int ->
-                repeat(col - previousCol - 1) {
+            colsToHighlight.fold(commonNumberOfLeadingSpaces.toUInt()) { previousCol: UInt, col: UInt ->
+                repeat((col - previousCol - 1u).toInt()) {
                     out.append(' ')
                 }
                 out.append('^')
@@ -101,7 +106,7 @@ fun SourceContentAwareSourceDescriptor.getIllustrationForHighlightedLines(
 
         if (index != lineNumbersToOutputSorted.lastIndex) {
             val nextLineNumber = lineNumbersToOutputSorted[index + 1]
-            if (lineNumber + 1 != nextLineNumber) {
+            if (lineNumber + 1u != nextLineNumber) {
                 // we are skipping some lines
                 out.append(lineSkippingIndicatorLine)
             }
