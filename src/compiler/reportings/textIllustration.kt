@@ -35,7 +35,7 @@ fun getIllustrationForHighlightedLines(
     }
 
     highlights.find { it.fromLineNumber != it.toLineNumber }?.let {
-        throw NotImplementedError("Cannot highlight source locations that span multiple lines: $it")
+        throw NotImplementedError("Cannot highlight source locations that span multiple lines: ${it.fileLineColumnText}")
     }
 
     val source = highlights.map { it.file }.distinct().singleOrNull() ?: run {

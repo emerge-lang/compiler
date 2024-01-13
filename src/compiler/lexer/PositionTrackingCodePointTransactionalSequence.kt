@@ -37,7 +37,6 @@ class PositionTrackingCodePointTransactionalSequence(
         require(initialColumnNumber >= 1u)
     }
 
-    var previousWasLinefeed: Boolean = false
     var currentPosition = SourceSpot(-1, initialLineNumber, initialColumnNumber - 1u)
         private set
     private val marks = Stack<SourceSpot>()
@@ -53,14 +52,13 @@ class PositionTrackingCodePointTransactionalSequence(
 
         val nextLineNumber: UInt
         val nextColumnNumber: UInt
-        if (previousWasLinefeed) {
+        if (nextIndex > 0 && CodePoint(codePoints[nextIndex - 1]).isLinefeed) {
             nextLineNumber = currentPosition.lineNumber + 1u
             nextColumnNumber = 1u
         } else {
             nextLineNumber = currentPosition.lineNumber
             nextColumnNumber = currentPosition.columnNumber + 1u
         }
-        previousWasLinefeed = nextCodePoint.isLinefeed
 
         currentPosition = SourceSpot(nextIndex, nextLineNumber, nextColumnNumber)
         return nextCodePoint
