@@ -188,4 +188,62 @@ class TypeErrors : FreeSpec({
             }
         }
     }
+
+    "array literal" - {
+        "with no elements is Array<Any>" {
+            validateModule("""
+                val x = []
+                val y: Array<String> = x
+            """.trimIndent())
+                .shouldReport<ValueNotAssignableReporting> {
+                    it.sourceType.toString() shouldBe "immutable Any"
+                    it.targetType.toString() shouldBe "immutable String"
+                }
+        }
+
+        "infers array type from elements" - {
+            "all the same" {
+                validateModule("""
+                    val x = [1, 2, 3]
+                    val y: Array<String> = x
+                """.trimIndent())
+                    .shouldReport<ValueNotAssignableReporting> {
+                        it.sourceType.toString() shouldBe "immutable Int"
+                        it.targetType.toString() shouldBe "immutable String"
+                    }
+            }
+
+            "different types" {
+                validateModule("""
+                    val x = [1, 1.2, 2, 2.5]
+                    val y: Array<String> = x
+                """.trimIndent())
+                    .shouldReport<ValueNotAssignableReporting> {
+                        it.sourceType.toString() shouldBe "immutable Number"
+                        it.targetType.toString() shouldBe "immutable String"
+                    }
+            }
+        }
+
+        "uses element type from expected return" {
+            validateModule("""
+                val x: Array<Number> = [1, 2, 3, 4]
+                val y: Array<String> = x
+            """.trimIndent())
+                .shouldReport<ValueNotAssignableReporting> {
+                    it.sourceType.toString() shouldBe "immutable Number"
+                    it.targetType.toString() shouldBe "immutable String"
+                }
+        }
+
+        "validates expected return element type against elements" {
+            validateModule("""
+                val x: Array<Int> = [1, 2, 3, "4"]
+            """.trimIndent())
+                .shouldReport<ValueNotAssignableReporting> {
+                    it.sourceType.toString() shouldBe "immutable String"
+                    it.targetType.toString() shouldBe "immutable Int"
+                }
+        }
+    }
 })

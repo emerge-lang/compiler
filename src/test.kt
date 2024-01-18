@@ -11,8 +11,8 @@ import java.time.Duration
 val testCode = """module testcode
     
 fun main() {
-    val greeting = "Hello, World!"
-    println(greeting)
+    val x = []
+    val y: Array<in String> = x
 }
 """
 

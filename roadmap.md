@@ -38,7 +38,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       * consequently, if `T<out X>` only leaves member functions with `readonly self` or `immutable self` receivers
         then the compiler should warn that `T<out X>` should be referenced as `readonly T<out X>`.
 14. ~~Array type~~
-15. Including an array literal syntax. I really like Kotlins way of avaoiding list/set/array literals,
+15. ~~Including an array literal syntax.~~ I really like Kotlins way of avoiding list/set/array literals,
     but it requires varargs. And these complicate the overload resolution EVEN more than it already is.
     So **no varargs**. The cool thing is that a concise array literal syntax can fill the role of varargs
     almost seamlessly: Kotlin `setOf(1, 2, 3)` vs this language `Set([1, 2, 3])`.

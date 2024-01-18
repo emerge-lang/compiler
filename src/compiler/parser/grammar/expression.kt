@@ -64,6 +64,40 @@ val StringLiteralExpression = sequence("string literal") {
         StringLiteralExpression(startDelimiter, content, endDelimiter)
     }
 
+val ArrayLiteralExpression = sequence("array literal") {
+    operator(Operator.SBRACE_OPEN)
+    optional {
+        ref(Expression)
+        repeating {
+            operator(Operator.COMMA)
+            ref(Expression)
+        }
+    }
+    operator(Operator.SBRACE_CLOSE)
+}
+    .astTransformation { tokens ->
+        val openingBracket = tokens.next() as OperatorToken
+        val elements = mutableListOf<Expression<*>>()
+        var next = tokens.next()
+        while (next is Expression<*>) {
+            elements.add(next)
+            next = tokens.next()
+            check(next is OperatorToken)
+            if (next.operator == Operator.SBRACE_CLOSE) {
+                break
+            }
+            check(next.operator == Operator.COMMA)
+            next = tokens.next()
+        }
+        val closingBracket = next as OperatorToken
+
+        ArrayLiteralExpression(
+            openingBracket,
+            elements,
+            closingBracket,
+        )
+    }
+
 val LiteralExpression = sequence("literal") {
     eitherOf {
         tokenOfType(TokenType.NUMERIC_LITERAL)
@@ -94,6 +128,7 @@ val IdentifierExpression = sequence("identifier") {
 val ValueExpression = eitherOf("value expression") {
     ref(LiteralExpression)
     ref(IdentifierExpression)
+    ref(ArrayLiteralExpression)
 }
 
 val ParanthesisedExpression: Rule<Expression<*>> = sequence("paranthesised expression") {

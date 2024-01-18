@@ -67,6 +67,8 @@ enum class Operator(val text: String, private val _humanReadableName: String? = 
     PARANT_CLOSE          (")", "right parenthesis"),
     CBRACE_OPEN           ("{", "left curly brace"),
     CBRACE_CLOSE          ("}", "right curly brace"),
+    SBRACE_OPEN           ("[", "left square brace"),
+    SBRACE_CLOSE          ("]", "right square brace"),
     DOT                   (".", "dot"),
     SAFEDOT               ("?."),
     TIMES                 ("*"),

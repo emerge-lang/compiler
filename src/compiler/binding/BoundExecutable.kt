@@ -47,7 +47,7 @@ interface BoundExecutable<out ASTType> : BoundElement<Executable<*>> {
     val isGuaranteedToThrow: Boolean?
 
     /**
-     * A context derviced from the one bound to ([context]), containing all the changes the [Executable] applies
+     * A context derived from the one bound to ([context]), containing all the changes the [Executable] applies
      * to its enclosing scope (e.g. a variable declaration add a new variable)
      */
     val modifiedContext: CTContext
