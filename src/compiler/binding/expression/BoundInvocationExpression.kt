@@ -308,7 +308,7 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(
         /*
         The following idea seems good after some thought:
         * A set of Types are "disjoint" if there is no value other than Nothing that can be assigned to
-          all types. Put differently: if none of them is Any and their closestCommonSupertype is Any.
+          all types. Put differently: if their closestCommonSupertype does not equal any of the input types
 
           This means that two overloads of the same function that use disjoint types for the same parameter
           it is possible to disambiguate/choose the overload using that parameter only.
@@ -322,6 +322,14 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(
           This is aided by the fact that function parameter types must always be stated explicitly, so they are fully
           resolved after semanticAnalysisPhase1. That allows us to do overload resolution in phase 2 and thus infer types
           from overloaded invocations.
+        * lambda literals with untyped parameters cannot contribute to overload resolution because they can change
+          their output based on the input, making the whole unification complex an order of magnitude more complicated.
+          It should still be possible for function types to be disambiguators (see above). In that case there should be
+          a warning, though, saying that the disambiguation on a function type prevents users from passing a lambda
+          literal argument to that function.
+        * optional parameters: once they are added, the overload validation has to consider them, too. In that case
+          the disjoint parameter constraint only applies within the set of overload that has the same amount of
+          required parameters.
          */
         .sortedBy {
             TODO("overload resolution is not yet implemented. For now you can only have one function per name, sorry.")
