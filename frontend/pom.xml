@@ -127,11 +127,5 @@
             <version>1.12.5</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>com.natpryce</groupId>
-            <artifactId>hamkrest</artifactId>
-            <version>1.8.0.1</version>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 </project>
