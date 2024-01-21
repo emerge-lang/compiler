@@ -20,7 +20,9 @@ package compiler.binding.context
 
 import compiler.PackageName
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import java.util.*
+import compiler.InternalCompilerError
 
 /**
  * Bundles all modules that are part of a piece of software (e.g. an application), so it also
@@ -62,5 +64,14 @@ class SoftwareContext {
     fun doSemanticAnalysis(): Collection<Reporting> {
         return modules.flatMap { it.doSemanticAnalysis() }
             .toSet()
+    }
+
+    /**
+     * @returns the IR representation of this software for the backend to process.
+     * @throws InternalCompilerError if this software is not valid (semantic analysis not done, or it produced errors)
+     */
+    fun toBackendIr(): IrSoftwareContext {
+        // TODO
+        return IrSoftwareContext()
     }
 }

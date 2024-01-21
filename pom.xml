@@ -9,10 +9,16 @@
 
     <modules>
         <module>frontend</module>
+        <module>backend-api</module>
     </modules>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>backend-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <dependency>
                 <groupId>io.kotest</groupId>
                 <artifactId>kotest-bom</artifactId>
