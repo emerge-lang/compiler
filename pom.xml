@@ -29,8 +29,8 @@
     <name>tmarsteel/Dotlin Compiler</name>
 
     <build>
-        <sourceDirectory>src</sourceDirectory>
-        <testSourceDirectory>test</testSourceDirectory>
+        <sourceDirectory>src/main</sourceDirectory>
+        <testSourceDirectory>src/test</testSourceDirectory>
         <resources>
             <resource>
                 <directory>stdlib</directory>
