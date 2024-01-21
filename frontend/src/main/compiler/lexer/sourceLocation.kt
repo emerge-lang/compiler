@@ -22,6 +22,7 @@ import compiler.reportings.getIllustrationForHighlightedLines
 import org.apache.commons.io.input.BOMInputStream
 import java.nio.charset.Charset
 import java.nio.file.Files
+import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.util.stream.Collectors
 import kotlin.io.path.*
@@ -45,6 +46,8 @@ class SourceSet(
 
             return Files.walk(sourceSetPath)
                 .parallel()
+                .filter { it.isRegularFile(LinkOption.NOFOLLOW_LINKS) }
+                .filter { it.extension == SourceFile.EXTENSION }
                 .map { sourceFilePath ->
                     val content = BOMInputStream.builder()
                         .setInputStream(sourceFilePath.inputStream())
@@ -56,7 +59,7 @@ class SourceSet(
 
                     DiskSourceFile(
                         sourceSet,
-                        sourceFilePath.relativeTo(sourceSetPath),
+                        sourceFilePath,
                         content,
                     )
                 }
@@ -67,6 +70,10 @@ class SourceSet(
 
 interface SourceFile {
     val content: String
+
+    companion object {
+        const val EXTENSION = "em"
+    }
 }
 
 class ClasspathSourceFile(
