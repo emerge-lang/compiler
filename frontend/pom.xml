@@ -18,13 +18,14 @@
 
 <project>
     <modelVersion>4.0.0</modelVersion>
-    <groupId>io.github.tmarsteel.emerge-lang</groupId>
     <artifactId>frontend</artifactId>
-    <version>0.1.0</version>
     <packaging>jar</packaging>
-    <properties>
-        <kotlin.version>1.9.20</kotlin.version>
-    </properties>
+
+    <parent>
+        <groupId>io.github.tmarsteel.emerge-lang</groupId>
+        <artifactId>parent</artifactId>
+        <version>0.1.0</version>
+    </parent>
 
     <name>Emerge Lang Compiler Frontend</name>
 
@@ -40,7 +41,6 @@
             <plugin>
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <groupId>org.jetbrains.kotlin</groupId>
-                <version>${kotlin.version}</version>
 
                 <executions>
                     <execution>
@@ -83,28 +83,14 @@
         </plugins>
     </build>
 
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>io.kotest</groupId>
-                <artifactId>kotest-bom</artifactId>
-                <version>5.8.0</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
-
     <dependencies>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-stdlib</artifactId>
-            <version>${kotlin.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-reflect</artifactId>
-            <version>${kotlin.version}</version>
         </dependency>
         <dependency>
             <groupId>commons-io</groupId>
@@ -124,7 +110,6 @@
         <dependency>
             <groupId>io.mockk</groupId>
             <artifactId>mockk</artifactId>
-            <version>1.12.5</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
