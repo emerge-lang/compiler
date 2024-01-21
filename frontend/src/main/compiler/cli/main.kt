@@ -1,18 +1,14 @@
+package compiler.cli
+
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.types.path
 import compiler.CoreIntrinsicsModule
 import compiler.PackageName
 import compiler.binding.context.SoftwareContext
-import compiler.binding.type.BuiltinType
-import compiler.cli.packageName
-import compiler.lexer.MemorySourceFile
 import compiler.lexer.SourceSet
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
-import compiler.parser.grammar.ModuleOrPackageName
-import compiler.parser.grammar.SourceFileGrammar
-import compiler.parser.grammar.rule.MatchingContext
 import compiler.reportings.Reporting
 import java.nio.file.Path
 import java.time.Clock
