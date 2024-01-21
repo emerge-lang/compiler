@@ -5,7 +5,7 @@ import compiler.binding.type.BuiltinType
 import compiler.lexer.MemorySourceFile
 import compiler.lexer.lex
 import compiler.parser.TokenSequence
-import compiler.parser.grammar.Module
+import compiler.parser.grammar.SourceFileGrammar
 import compiler.parser.grammar.rule.MatchingContext
 import compiler.reportings.Reporting
 import io.kotest.inspectors.forOne
@@ -44,7 +44,7 @@ fun validateModule(
     invokedFrom: StackTraceElement = Thread.currentThread().stackTrace[2],
 ): Collection<Reporting> {
     val tokens = lexCode(code.assureEndsWith('\n'), addModuleDeclaration, invokedFrom)
-    val result = Module.match(MatchingContext.None, tokens)
+    val result = SourceFileGrammar.match(MatchingContext.None, tokens)
     if (result.item == null) {
         val error = result.reportings.maxBy { it.level }
         throw AssertionError("Failed to parse code: ${error.message} in ${error.sourceLocation}")
@@ -57,11 +57,11 @@ fun validateModule(
 
     val swCtxt = SoftwareContext()
 
-    swCtxt.addModule(result.item!!.bindTo(swCtxt))
+    swCtxt.addSourceFile(result.item!!.bindTo(swCtxt))
 
-    val builtinsModule = BuiltinType.getNewModule()
+    val builtinsModule = BuiltinType.getNewSourceFile()
     builtinsModule.context.swCtx = swCtxt
-    swCtxt.addModule(builtinsModule)
+    swCtxt.addSourceFile(builtinsModule)
 
     val semanticReportings = swCtxt.doSemanticAnalysis()
     return (lexicalReportings + semanticReportings).toSet()

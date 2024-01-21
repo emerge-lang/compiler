@@ -24,20 +24,20 @@ import compiler.binding.struct.Struct
 import compiler.binding.type.BaseType
 import compiler.reportings.Reporting
 
-class Module(
-    val name: Array<String>,
-    val context: ModuleRootContext,
+class SourceFile(
+    val packageName: Array<String>,
+    val context: SourceFileRootContext,
     /** [Reporting]s generated at bind-time: double declarations, ... */
     val bindTimeReportings: Collection<Reporting> = emptySet()
 ) {
     init {
-        context.module = this
+        context.sourceFile = this
     }
 
     /**
-     * Delegates to semantic analysis phase 1 of all components that make up this module;
+     * Delegates to semantic analysis phase 1 of all components that make up this file;
      * collects the results and returns them. Also returns the [Reporting]s found when binding
-     * elements to the module (such as doubly declared variables).
+     * elements to the file (such as doubly declared variables).
      */
     fun semanticAnalysisPhase1(): Collection<Reporting> =
         bindTimeReportings +
@@ -47,7 +47,7 @@ class Module(
         context.structs.flatMap(Struct::semanticAnalysisPhase1)
 
     /**
-     * Delegates to semantic analysis phase 2 of all components that make up this module;
+     * Delegates to semantic analysis phase 2 of all components that make up this file;
      * collects the results and returns them.
      */
     fun semanticAnalysisPhase2(): Collection<Reporting> =
@@ -57,7 +57,7 @@ class Module(
         context.structs.flatMap(Struct::semanticAnalysisPhase2)
 
     /**
-     * Delegates to semantic analysis phase 3 of all components that make up this module;
+     * Delegates to semantic analysis phase 3 of all components that make up this file;
      * collects the results and returns them.
      */
     fun semanticAnalysisPhase3(): Collection<Reporting> =

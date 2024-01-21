@@ -5,7 +5,7 @@ import compiler.binding.context.SoftwareContext
 import compiler.binding.type.BuiltinType
 import compiler.lexer.SourceSet
 import compiler.lexer.lex
-import compiler.parser.grammar.Module
+import compiler.parser.grammar.SourceFileGrammar
 import compiler.parser.grammar.rule.MatchingContext
 import compiler.reportings.Reporting
 import java.nio.file.Path
@@ -19,9 +19,9 @@ object CompileCommand : CliktCommand() {
     override fun run() {
         // setup context
         val swCtx = SoftwareContext()
-        val builtinsModule = BuiltinType.getNewModule()
+        val builtinsModule = BuiltinType.getNewSourceFile()
         builtinsModule.context.swCtx = swCtx
-        swCtx.addModule(builtinsModule)
+        swCtx.addSourceFile(builtinsModule)
 
         val measureClock = Clock.systemUTC()
         val startedAt = measureClock.instant()
@@ -32,7 +32,7 @@ object CompileCommand : CliktCommand() {
                 sourceInMemoryAt = measureClock.instant()
             }
             .map {
-                Module.match(MatchingContext.None, lex(it))
+                SourceFileGrammar.match(MatchingContext.None, lex(it))
             }
 
         val lexicalCompleteAt = measureClock.instant()

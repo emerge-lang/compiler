@@ -92,7 +92,7 @@ class BaseTypeTest : FreeSpec() { init {
 
     "Nothing" - {
         "is a subtype of all builtin types, including itself" - {
-            BuiltinType.getNewModule().context.types.forEach { builtinType ->
+            BuiltinType.getNewSourceFile().context.types.forEach { builtinType ->
                 "Nothing is subtype of $builtinType" {
                     BuiltinNothing.isSubtypeOf(builtinType) shouldBe true
                 }
@@ -100,7 +100,7 @@ class BaseTypeTest : FreeSpec() { init {
         }
 
         "is not a subtype of all other builtin types" - {
-            BuiltinType.getNewModule().context.types.except(BuiltinNothing).forEach { builtinType ->
+            BuiltinType.getNewSourceFile().context.types.except(BuiltinNothing).forEach { builtinType ->
                 "$builtinType is not a subtype of Nothing" {
                     builtinType.isSubtypeOf(BuiltinNothing) shouldBe false
                 }
@@ -108,7 +108,7 @@ class BaseTypeTest : FreeSpec() { init {
         }
 
         "closest common supertype of any builtin type and Nothing is that builtin type" - {
-            BuiltinType.getNewModule().context.types.except(BuiltinNothing).forEach { builtinType ->
+            BuiltinType.getNewSourceFile().context.types.except(BuiltinNothing).forEach { builtinType ->
                 "closest common supertype of Nothing and $builtinType is $builtinType" {
                     BaseType.closestCommonSupertypeOf(BuiltinNothing, builtinType) shouldBe builtinType
                     BaseType.closestCommonSupertypeOf(builtinType, BuiltinNothing) shouldBe builtinType

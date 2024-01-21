@@ -192,7 +192,7 @@ class RootResolvedTypeReference private constructor(
         var str = mutability.toString()
         str += " "
 
-        str += baseType.fullyQualifiedName.removePrefix(BuiltinType.DEFAULT_MODULE_NAME_STRING + ".")
+        str += baseType.fullyQualifiedName.removePrefix(BuiltinType.DEFAULT_PACKAGE_NAME_STRING + ".")
 
         if (arguments.isNotEmpty()) {
             str += arguments.joinToString(

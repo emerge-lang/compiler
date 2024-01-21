@@ -35,7 +35,7 @@ interface BaseType : SemanticallyAnalyzable {
     val simpleName: String
         get() = javaClass.simpleName
 
-    // TODO: infer this from declaring module and simpleName
+    // TODO: infer this from declaring package and simpleName
     val fullyQualifiedName: String
         get() = simpleName
 

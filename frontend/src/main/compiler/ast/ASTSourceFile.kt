@@ -19,16 +19,16 @@
 package compiler.ast
 
 import compiler.ast.struct.StructDeclaration
-import compiler.binding.context.Module
-import compiler.binding.context.ModuleRootContext
+import compiler.binding.context.SourceFile
+import compiler.binding.context.SourceFileRootContext
 import compiler.binding.context.SoftwareContext
 import compiler.reportings.Reporting
 
 /**
- * AST representation of a module
+ * AST representation of a source file
  */
-class ASTModule {
-    var selfDeclaration: ModuleDeclaration? = null
+class ASTSourceFile {
+    var selfDeclaration: PackageDeclaration? = null
 
     val imports: MutableList<ImportDeclaration> = mutableListOf()
 
@@ -42,20 +42,20 @@ class ASTModule {
      * Works by the same principle as [Bindable.bindTo]; but since binds to a [SoftwareContext] (rather than a
      * [CTContext]) this has its own signature.
      */
-    fun bindTo(context: SoftwareContext): Module {
-        val moduleContext = ModuleRootContext()
-        moduleContext.swCtx = context
+    fun bindTo(context: SoftwareContext): SourceFile {
+        val fileContext = SourceFileRootContext()
+        fileContext.swCtx = context
         val reportings = mutableSetOf<Reporting>()
 
-        imports.forEach(moduleContext::addImport)
-        functions.forEach(moduleContext::addFunction)
-        structs.forEach(moduleContext::addStruct)
+        imports.forEach(fileContext::addImport)
+        functions.forEach(fileContext::addFunction)
+        structs.forEach(fileContext::addStruct)
 
         variables.forEach { declaredVariable ->
             // check double declare
-            val existingVariable = moduleContext.resolveVariable(declaredVariable.name.value, true)
+            val existingVariable = fileContext.resolveVariable(declaredVariable.name.value, true)
             if (existingVariable == null || existingVariable.declaration === declaredVariable) {
-                moduleContext.addVariable(declaredVariable)
+                fileContext.addVariable(declaredVariable)
             }
             else {
                 // variable double-declared
@@ -63,6 +63,6 @@ class ASTModule {
             }
         }
 
-        return Module(selfDeclaration?.name ?: emptyArray(), moduleContext, reportings)
+        return SourceFile(selfDeclaration?.name ?: emptyArray(), fileContext, reportings)
     }
 }

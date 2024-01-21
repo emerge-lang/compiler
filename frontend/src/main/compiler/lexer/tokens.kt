@@ -31,7 +31,7 @@ enum class TokenType(val description: String)
 
 enum class Keyword(val text: String)
 {
-    MODULE("module"),
+    PACKAGE("package"),
     IMPORT("import"),
 
     FUNCTION("fun"),

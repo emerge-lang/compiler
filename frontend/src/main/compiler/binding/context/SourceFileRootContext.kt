@@ -11,11 +11,11 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.UnresolvedType
 
-class ModuleRootContext : MutableCTContext(
+class SourceFileRootContext : MutableCTContext(
     EMPTY,
 ) {
     override lateinit var swCtx: SoftwareContext
-    override lateinit var module: Module
+    override lateinit var sourceFile: SourceFile
 
     val variables: Collection<BoundVariable> = _variables.values
     val functions: Collection<BoundFunction> = _functions
@@ -27,18 +27,18 @@ class ModuleRootContext : MutableCTContext(
             override val swCtx: SoftwareContext
                 get() = throw InternalCompilerError("${SoftwareContext::class.simpleName} not initialized yet")
 
-            override val module: Module
-                get() = throw InternalCompilerError("module not initialized yet")
+            override val sourceFile: SourceFile
+                get() = throw InternalCompilerError("file not initialized yet")
 
-            override fun resolveVariable(name: String, fromOwnModuleOnly: Boolean): BoundVariable? = null
+            override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? = null
             override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean = false
             override fun resolveTypeParameter(simpleName: String): BoundTypeParameter? = null
-            override fun resolveBaseType(simpleName: String, fromOwnModuleOnly: Boolean): BaseType? = null
-            override fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean): BoundTypeReference = UnresolvedType(
+            override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BaseType? = null
+            override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference = UnresolvedType(
                 ref,
                 ref.arguments.map { BoundTypeArgument(it, it.variance, this.resolveType(it.type)) },
             )
-            override fun resolveFunction(name: String, fromOwnModuleOnly: Boolean): Collection<BoundFunction> = emptySet()
+            override fun resolveFunction(name: String, fromOwnFileOnly: Boolean): Collection<BoundFunction> = emptySet()
         }
     }
 }

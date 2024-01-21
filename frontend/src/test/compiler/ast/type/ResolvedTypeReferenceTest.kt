@@ -22,7 +22,7 @@ import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
-import compiler.binding.context.ModuleRootContext
+import compiler.binding.context.SourceFileRootContext
 import compiler.binding.type.BuiltinAny
 import compiler.binding.type.BuiltinArray
 import compiler.binding.type.RootResolvedTypeReference
@@ -143,7 +143,7 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
     }
 
     "generics" - {
-        val context = ModuleRootContext()
+        val context = SourceFileRootContext()
         context.addBaseType(BuiltinAny)
         context.addBaseType(BuiltinArray)
 

@@ -19,11 +19,11 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
-import compiler.ast.ASTModule
+import compiler.ast.ASTSourceFile
 import compiler.ast.Declaration
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
-import compiler.ast.ModuleDeclaration
+import compiler.ast.PackageDeclaration
 import compiler.ast.VariableDeclaration
 import compiler.ast.struct.StructDeclaration
 import compiler.lexer.IdentifierToken
@@ -43,7 +43,7 @@ import compiler.reportings.Reporting
 import java.util.ArrayList
 import java.util.HashSet
 
-val ModuleName = sequence("module or package name") {
+val ModuleOrPackageName = sequence("module or package name") {
     identifier()
 
     repeating {
@@ -65,19 +65,19 @@ val ModuleName = sequence("module or package name") {
         identifiers.toTypedArray()
     }
 
-val ModuleDeclaration = sequence("module declaration") {
-    keyword(Keyword.MODULE)
+val PackageDeclaration = sequence("package declaration") {
+    keyword(Keyword.PACKAGE)
 
-    ref(ModuleName)
+    ref(ModuleOrPackageName)
 
     operator(Operator.NEWLINE)
 }
     .astTransformation { tokens ->
         val keyword = tokens.next()!! as KeywordToken
-        @Suppress("UNCHECKED_CAST") // ModuleName is a Rule<Array<String>>
-        val moduleName = tokens.next()!! as Array<String>
+        @Suppress("UNCHECKED_CAST") // ModuleOrPackageName is a Rule<Array<String>>
+        val packageName = tokens.next()!! as Array<String>
 
-        ModuleDeclaration(keyword.sourceLocation, moduleName)
+        PackageDeclaration(keyword.sourceLocation, packageName)
     }
 
 val ImportDeclaration = sequence("import declaration") {
@@ -93,7 +93,7 @@ val ImportDeclaration = sequence("import declaration") {
     .enhanceErrors(
         { it is ParsingMismatchReporting && it.expected == "operator dot" && it.actual == "operator newline" },
         {
-            Reporting.parsingError("${it.message}; To import all exports of the module write module.*", it.sourceLocation)
+            Reporting.parsingError("${it.message}; To import all exports of the package write some_package.*", it.sourceLocation)
         }
     )
     .astTransformation { tokens ->
@@ -112,12 +112,12 @@ val ImportDeclaration = sequence("import declaration") {
         ImportDeclaration(keyword.sourceLocation, identifiers)
     }
 
-val Module: Rule<ASTModule> = sequence("module") {
+val SourceFileGrammar: Rule<ASTSourceFile> = sequence("source file") {
     repeatingAtLeastOnce {
         optionalWhitespace()
         eitherOf {
             endOfInput()
-            ref(ModuleDeclaration)
+            ref(PackageDeclaration)
             ref(ImportDeclaration)
             ref(VariableDeclaration)
             ref(StandaloneFunctionDeclaration)
@@ -129,43 +129,43 @@ val Module: Rule<ASTModule> = sequence("module") {
     .flatten()
     .map { inResult ->
         @Suppress("UNCHECKED_CAST")
-        val input = inResult.item ?: return@map inResult as MatchingResult<ASTModule> // null can haz any type that i want :)
+        val input = inResult.item ?: return@map inResult as MatchingResult<ASTSourceFile> // null can haz any type that i want :)
 
         val reportings: MutableSet<Reporting> = HashSet()
-        val astModule = ASTModule()
+        val astSourceFile = ASTSourceFile()
 
         input.forEachRemainingIndexed { index, declaration ->
             declaration as? Declaration ?: throw InternalCompilerError("What tha heck went wrong here?!")
 
-            if (declaration is ModuleDeclaration) {
-                if (astModule.selfDeclaration == null) {
+            if (declaration is PackageDeclaration) {
+                if (astSourceFile.selfDeclaration == null) {
                     if (index != 0) {
                         reportings.add(Reporting.parsingError(
-                            "The module declaration must be the first declaration in the source file",
+                            "The package declaration must be the first declaration in the source file",
                             declaration.declaredAt
                         ))
                     }
 
-                    astModule.selfDeclaration = declaration
+                    astSourceFile.selfDeclaration = declaration
                 }
                 else {
                     reportings.add(Reporting.parsingError(
-                        "Duplicate module declaration",
+                        "Duplicate package declaration",
                         declaration.declaredAt
                     ))
                 }
             }
             else if (declaration is ImportDeclaration) {
-                astModule.imports.add(declaration)
+                astSourceFile.imports.add(declaration)
             }
             else if (declaration is VariableDeclaration) {
-                astModule.variables.add(declaration)
+                astSourceFile.variables.add(declaration)
             }
             else if (declaration is FunctionDeclaration) {
-                astModule.functions.add(declaration)
+                astSourceFile.functions.add(declaration)
             }
             else if (declaration is StructDeclaration) {
-                astModule.structs.add(declaration)
+                astSourceFile.structs.add(declaration)
             }
             else {
                 reportings.add(Reporting.unsupported(
@@ -175,12 +175,12 @@ val Module: Rule<ASTModule> = sequence("module") {
             }
         }
 
-        if (astModule.selfDeclaration == null) {
-            reportings.add(Reporting.parsingError("No module declaration found.", (input.items.getOrNull(0) as Declaration?)?.declaredAt ?: SourceLocation.UNKNOWN))
+        if (astSourceFile.selfDeclaration == null) {
+            reportings.add(Reporting.parsingError("No package declaration found.", (input.items.getOrNull(0) as Declaration?)?.declaredAt ?: SourceLocation.UNKNOWN))
         }
 
         // default import emerge.lang.*
-        astModule.imports.add(ImportDeclaration(
+        astSourceFile.imports.add(ImportDeclaration(
             SourceLocation.UNKNOWN, listOf(
             IdentifierToken("emerge"),
             IdentifierToken("lang"),
@@ -190,7 +190,7 @@ val Module: Rule<ASTModule> = sequence("module") {
         MatchingResult(
             isAmbiguous = false,
             marksEndOfAmbiguity = inResult.marksEndOfAmbiguity,
-            item = astModule,
+            item = astSourceFile,
             reportings = inResult.reportings.plus(reportings)
         )
     }

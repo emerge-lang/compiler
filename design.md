@@ -4,111 +4,36 @@
 
 ## Separating Software
 
-In Emerge, software is split up into modules. Every file is one module can contain an
-arbitrary number of declarations. The name of a module is derived from its relativ path
-to its source root:
+Logically, declarations in Emerge are grouped into packages, just as in Java and Kotlin.
+The smallest unit of sourcecode the emerge compiler looks is a directory-tree full of
+`.em` files. This is called a `module`. A module is identified with a name just like a package.
+It acts as a prefix for the packages in that module. So a module can only declare
+elements inside its own namespace.
+Each source-file must declare its package for clarity, but the package is pre-determined
+by the module name and the location of the source-file in the directory structure,
+just as in Java and Kotlin.
 
-    src/
-        moduleOne.dt
-          declaration Foo
-          declaration Bar
-        moduleTwo.dt
-          declaration FooBar
-      
-Results in two modules `moduleOne` and `moduleTwo` declaring these symbols:
- 
-* `moduleOne.Foo`
-* `moduleOne.Bar`
-* `moduleTwo.FooBar`
-
----
-
-Every file must have a `module` statement at the very top. That must match the module
-name derived from the directory structure. The purpose of this is not to assist the
- compiler (since it can unambiguously derive the name) but to support programmers;
- i assume it is easier to hit `Ctrl + Home` and read that line than to look through the
- directory structure; especially outside of an IDE.
- 
-In the file `src/package/module1.dt` these contents produce distinct results:
+In the file `src/package/module1.em` these contents produce distinct results:
 
 ```
-    module package.module1
+    package package.module1
     
     fun XY() = 3 // FQN = package.module1.XY 
     
     // -> compiles
 ```
 ```
-    module package.someOtherModule
+    package package.someOtherModule
     
     // ERROR: module declration in file does not match file location
 ```
 ```
     fun XY() = 3
 
-    module package.module1
+    package package.module1
     
     // ERROR: module declaration must be the first statement in a file
 ```
-
----
-
-Directory names contribute to the module name as well:
-
-    src/
-        package/
-            moduleOne.dt
-              declaration FooBar
-          
-Results in a module `package.moduleOne` declaring the symbol `package.moduleOne.FooBar`
-
----
-
-Multiple modules can be grouped to a package. This is creating a file with the name
-`package.dt` within the directory that contains all the modules that are to be included.  
-Within that file, all the included modules are referenced using a `public import`:
-
-```
-    src/
-        package/
-            package.dt
-            moduleOne.dt
-              declaration Foo
-              declaration Bar
-            moduleTwo.dt
-              declaration FooBar
-```
-```
-// package.dt
-public import moduleTwo.*
-public import moduleOne.Foo
-```
-
-Results in these symbols being defined
-
-    package.moduleOne.Foo
-    package.moduleOne.Bar
-    package.moduleTwo.FooBar
-    package
-    
-When other modules import from `package`, the names are attempted to be resolved
- within all the publicly imported modules:
- 
-* `import package.Foo` resolves to FQN `package.moduleOne.Foo`
-* `import package.Foobar` resolves to FQN `package.moduleTwo.FooBar`
-* `import package.Bar` errors, because `package.moduleOne.Bar` is not a public import of
-  the package
-  
----
-
-Source roots may not contain a file named `package.dt`:
-
-    src/
-        package.dt // ERROR
-        subdir/
-            package.dt // OK
-
-Files named `package.dt` may contain only public imports.
 
 ## Basics
 
@@ -126,7 +51,7 @@ One statement per line. `;` only used to separate multiple statements on one lin
 * Statically typed
 * All types first-class citizens as in Kotlin and Scala, no native/non-native differentiation
 * Function-Types
-* `Any` and `Unit` instead of `void`
+* `Any` as the common supertype, `Unit` instead of `void`, `Nothing` as the bottom-type
 
 ### Reasoning about mutability
 

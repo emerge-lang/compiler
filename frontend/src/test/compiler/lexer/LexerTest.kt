@@ -43,7 +43,7 @@ class LexerTest : FreeSpec() {init {
 
             result.size shouldBe 1
             result[0] should beInstanceOf(KeywordToken::class)
-            (result[0] as KeywordToken).keyword shouldBe Keyword.MODULE
+            (result[0] as KeywordToken).keyword shouldBe Keyword.PACKAGE
             (result[0] as KeywordToken).sourceText shouldBe "module"
             (result[0] as KeywordToken).sourceLocation.fromLineNumber shouldBe 1u
             (result[0] as KeywordToken).sourceLocation.fromColumnNumber shouldBe 4u
@@ -54,7 +54,7 @@ class LexerTest : FreeSpec() {init {
 
             result.size should beGreaterThanOrEqualTo(1)
             result[0] should beInstanceOf(KeywordToken::class)
-            (result[0] as KeywordToken).keyword shouldBe Keyword.MODULE
+            (result[0] as KeywordToken).keyword shouldBe Keyword.PACKAGE
         }
     }
 
@@ -217,7 +217,7 @@ class LexerTest : FreeSpec() {init {
         result.size shouldBe 25
 
         result[0] should beInstanceOf(KeywordToken::class)
-        (result[0] as KeywordToken).keyword shouldBe Keyword.MODULE
+        (result[0] as KeywordToken).keyword shouldBe Keyword.PACKAGE
 
         result[1] should beInstanceOf(IdentifierToken::class)
         (result[1] as IdentifierToken).value shouldBe "foo"

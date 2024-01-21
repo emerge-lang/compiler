@@ -28,9 +28,9 @@ import compiler.binding.type.BoundTypeParameter
  * expressions are located)
  */
 class StructContext(
-    moduleContext: CTContext,
+    fileContext: CTContext,
     typeParameters: List<TypeParameter>,
-) : MutableCTContext(moduleContext) {
+) : MutableCTContext(fileContext) {
 
     val typeParameters: List<BoundTypeParameter>
 

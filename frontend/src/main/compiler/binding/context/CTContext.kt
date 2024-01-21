@@ -61,13 +61,13 @@ import compiler.binding.type.BoundTypeReference
 interface CTContext {
     val swCtx: SoftwareContext
 
-    /** The module this context belongs to, right beneath the software context in the tree */
-    val module: Module
+    /** The file this context belongs to, right beneath the software context in the tree */
+    val sourceFile: SourceFile
 
     /**
      * @return The variable accessible under the given name, shadowing included.
      */
-    fun resolveVariable(name: String, fromOwnModuleOnly: Boolean = false): BoundVariable?
+    fun resolveVariable(name: String, fromOwnFileOnly: Boolean = false): BoundVariable?
 
     /**
      * @return Whether this context contains the given variable. Only parent contexts up to and including the
@@ -75,7 +75,7 @@ interface CTContext {
      */
     fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean
 
-    fun resolveBaseType(simpleName: String, fromOwnModuleOnly: Boolean = false): BaseType?
+    fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean = false): BaseType?
 
     fun resolveTypeParameter(simpleName: String): BoundTypeParameter?
 
@@ -83,7 +83,7 @@ interface CTContext {
         return BoundTypeArgument(ref, ref.variance, resolveType(ref))
     }
 
-    fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean = false): BoundTypeReference
+    fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean = false): BoundTypeReference
 
-    fun resolveFunction(name: String, fromOwnModuleOnly: Boolean = false): Collection<BoundFunction>
+    fun resolveFunction(name: String, fromOwnFileOnly: Boolean = false): Collection<BoundFunction>
 }

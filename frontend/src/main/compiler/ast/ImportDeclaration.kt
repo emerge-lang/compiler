@@ -26,7 +26,7 @@ import compiler.lexer.SourceLocation
  */
 class ImportDeclaration(
     override val declaredAt: SourceLocation,
-    /** The identifiers in order of the source: `import module1.module2.component` => `[module1, module2, component]` */
+    /** The identifiers in order of the source: `import pkg1.pkg2.component` => `[pkg1, pkg2, component]` */
     val identifiers: List<IdentifierToken>
 ) : Declaration {
 

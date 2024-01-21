@@ -18,12 +18,12 @@
 
 package compiler.binding.type
 
-import compiler.ast.ASTModule
+import compiler.ast.ASTSourceFile
 import compiler.ast.FunctionDeclaration
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeVariance
-import compiler.binding.context.Module
-import compiler.binding.context.ModuleRootContext
+import compiler.binding.context.SourceFile
+import compiler.binding.context.SourceFileRootContext
 import compiler.lexer.IdentifierToken
 import compiler.parseFromClasspath
 
@@ -67,7 +67,7 @@ val BuiltinArray = object : BuiltinType("Array", BuiltinAny) {
     override val typeParameters = listOf(
         BoundTypeParameter(
             astNode = TypeParameter(variance = TypeVariance.UNSPECIFIED, IdentifierToken("Item"), bound = null),
-            context = ModuleRootContext(),
+            context = SourceFileRootContext(),
         )
     )
 }
@@ -76,7 +76,7 @@ val BuiltinArray = object : BuiltinType("Array", BuiltinAny) {
  * A BuiltinType is defined in the ROOT package.
  */
 abstract class BuiltinType(final override val simpleName: String, vararg superTypes: BaseType) : BaseType {
-    final override val fullyQualifiedName = "$DEFAULT_MODULE_NAME_STRING.$simpleName"
+    final override val fullyQualifiedName = "$DEFAULT_PACKAGE_NAME_STRING.$simpleName"
 
     final override val superTypes: Set<BaseType> = superTypes.toSet()
 
@@ -102,29 +102,29 @@ abstract class BuiltinType(final override val simpleName: String, vararg superTy
     override fun toString() = _string
 
     companion object {
-        val DEFAULT_MODULE_NAME = arrayOf("emerge", "lang")
-        val DEFAULT_MODULE_NAME_STRING = DEFAULT_MODULE_NAME.joinToString(".")
+        val DEFAULT_PACKAGE_NAME = arrayOf("emerge", "lang")
+        val DEFAULT_PACKAGE_NAME_STRING = DEFAULT_PACKAGE_NAME.joinToString(".")
 
-        private val stdlib: ASTModule = parseFromClasspath("builtin.dt")
-        fun getNewModule(): Module {
-            val moduleContext = ModuleRootContext()
-            val module = Module(DEFAULT_MODULE_NAME, moduleContext)
+        private val stdlib: ASTSourceFile = parseFromClasspath("builtin.em")
+        fun getNewSourceFile(): SourceFile {
+            val fileContext = SourceFileRootContext()
+            val file = SourceFile(DEFAULT_PACKAGE_NAME, fileContext)
 
-            module.context.addBaseType(BuiltinAny)
-            module.context.addBaseType(BuiltinUnit)
-            module.context.addBaseType(BuiltinNumber)
-            module.context.addBaseType(BuiltinFloat)
-            module.context.addBaseType(BuiltinInt)
-            module.context.addBaseType(BuiltinBoolean)
-            module.context.addBaseType(BuiltinArray)
-            module.context.addBaseType(BuiltinNothing)
-            module.context.addBaseType(BuiltinByte)
+            file.context.addBaseType(BuiltinAny)
+            file.context.addBaseType(BuiltinUnit)
+            file.context.addBaseType(BuiltinNumber)
+            file.context.addBaseType(BuiltinFloat)
+            file.context.addBaseType(BuiltinInt)
+            file.context.addBaseType(BuiltinBoolean)
+            file.context.addBaseType(BuiltinArray)
+            file.context.addBaseType(BuiltinNothing)
+            file.context.addBaseType(BuiltinByte)
 
-            stdlib.functions.forEach(module.context::addFunction)
-            stdlib.variables.forEach(module.context::addVariable)
-            stdlib.structs.forEach(module.context::addStruct)
+            stdlib.functions.forEach(file.context::addFunction)
+            stdlib.variables.forEach(file.context::addVariable)
+            stdlib.structs.forEach(file.context::addStruct)
 
-            return module
+            return file
         }
     }
 }

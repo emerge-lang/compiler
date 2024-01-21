@@ -18,25 +18,25 @@
 
 package compiler
 
-import compiler.ast.ASTModule
+import compiler.ast.ASTSourceFile
 import compiler.lexer.ClasspathSourceFile
 import compiler.lexer.lex
-import compiler.parser.grammar.Module
+import compiler.parser.grammar.SourceFileGrammar
 import compiler.parser.grammar.rule.MatchingContext
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.IdentityHashMap
 import kotlin.NoSuchElementException
 
-fun parseFromClasspath(path: String): ASTModule = parseFromClasspath(Paths.get(path))
+fun parseFromClasspath(path: String): ASTSourceFile = parseFromClasspath(Paths.get(path))
 
-fun parseFromClasspath(path: Path): ASTModule {
+fun parseFromClasspath(path: Path): ASTSourceFile {
     val sourceFile = ClasspathSourceFile(
         path,
         ClassLoader.getSystemResource(path.toString())!!.readText(),
     )
 
-    val matchResult = Module.match(MatchingContext.None, lex(sourceFile))
+    val matchResult = SourceFileGrammar.match(MatchingContext.None, lex(sourceFile))
 
     if (matchResult.hasErrors) {
         System.err.println()

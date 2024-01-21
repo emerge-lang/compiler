@@ -51,11 +51,11 @@ open class MutableCTContext(
             _swCtx = value
         }
 
-    private var _module: Module? = null
-    override var module
-        get() = _module ?: parentContext.module
+    private var _sourceFile: SourceFile? = null
+    override var sourceFile
+        get() = _sourceFile ?: parentContext.sourceFile
         set(value) {
-            _module = value
+            _sourceFile = value
         }
 
     private val hierarchy: Sequence<CTContext> = generateSequence(this as CTContext) { (it as? MutableCTContext)?.parentContext }
@@ -106,25 +106,25 @@ open class MutableCTContext(
         return typeParameters[simpleName] ?: parentContext.resolveTypeParameter(simpleName)
     }
 
-    override fun resolveBaseType(simpleName: String, fromOwnModuleOnly: Boolean): BaseType? {
+    override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BaseType? {
         _types.find { it.simpleName == simpleName }?.let { return it }
 
-        val fromImport = if (fromOwnModuleOnly) null else {
+        val fromImport = if (fromOwnFileOnly) null else {
             val importedTypes = importsForSimpleName(simpleName)
-                .mapNotNull { it.resolveBaseType(simpleName, fromOwnModuleOnly = true) }
+                .mapNotNull { it.resolveBaseType(simpleName, fromOwnFileOnly = true) }
 
             // TODO: if importedTypes.size is > 1 the reference is ambiguous; how to handle that?
             importedTypes.firstOrNull()
         }
 
-        return fromImport ?: parentContext.resolveBaseType(simpleName, fromOwnModuleOnly)
+        return fromImport ?: parentContext.resolveBaseType(simpleName, fromOwnFileOnly)
     }
 
     override fun resolveType(ref: TypeArgument): BoundTypeArgument {
         return BoundTypeArgument(ref, ref.variance, resolveType(ref.type))
     }
 
-    override fun resolveType(ref: TypeReference, fromOwnModuleOnly: Boolean): BoundTypeReference {
+    override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
         resolveTypeParameter(ref.simpleName)?.let { parameter ->
             return GenericTypeReference(ref, parameter)
         }
@@ -135,19 +135,19 @@ open class MutableCTContext(
             ?: UnresolvedType(ref, resolvedParameters)
     }
 
-    override fun resolveVariable(name: String, fromOwnModuleOnly: Boolean): BoundVariable? {
+    override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? {
         _variables[name]?.let { return it }
 
-        val fromImport = if (fromOwnModuleOnly) null else {
+        val fromImport = if (fromOwnFileOnly) null else {
             val importedVars = importsForSimpleName(name)
-                .map { it.resolveVariable(name, fromOwnModuleOnly = true) }
+                .map { it.resolveVariable(name, fromOwnFileOnly = true) }
                 .filterNotNull()
 
             // TODO: if importedVars.size is > 1 the name is ambiguous; how to handle that?
             importedVars.firstOrNull()
         }
 
-        return fromImport ?: parentContext.resolveVariable(name, fromOwnModuleOnly)
+        return fromImport ?: parentContext.resolveVariable(name, fromOwnFileOnly)
     }
 
     override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean {
@@ -184,15 +184,15 @@ open class MutableCTContext(
         throw InternalCompilerError("Cannot add a variable that has been bound to a different context")
     }
 
-    override fun resolveFunction(name: String, fromOwnModuleOnly: Boolean): Collection<BoundFunction> {
+    override fun resolveFunction(name: String, fromOwnFileOnly: Boolean): Collection<BoundFunction> {
         // try to resolve from this context
         val selfDefined = _functions.filter { it.name == name }
 
         // look through the imports
-        val importedTypes = if (fromOwnModuleOnly) emptySet() else importsForSimpleName(name).map { it.resolveFunction(name, fromOwnModuleOnly = true) }
+        val importedTypes = if (fromOwnFileOnly) emptySet() else importsForSimpleName(name).map { it.resolveFunction(name, fromOwnFileOnly = true) }
 
         // TODO: if importedTypes.size is > 1 the reference is ambiguous; how to handle that?
-        return selfDefined + (importedTypes.firstOrNull() ?: emptySet()) + parentContext.resolveFunction(name, fromOwnModuleOnly)
+        return selfDefined + (importedTypes.firstOrNull() ?: emptySet()) + parentContext.resolveFunction(name, fromOwnFileOnly)
     }
 
     /**
@@ -201,14 +201,14 @@ open class MutableCTContext(
     private fun importsForSimpleName(simpleName: String): Iterable<CTContext> {
         return imports.map { import ->
             val importRange = import.identifiers.map(IdentifierToken::value)
-            val moduleName = importRange.dropLast(1)
+            val packageName = importRange.dropLast(1)
             val importSimpleName = importRange.last()
 
             if (importSimpleName != "*" && importSimpleName != simpleName) {
                 return@map null
             }
 
-            return@map swCtx.module(moduleName)?.context
+            return@map swCtx.module(packageName)?.context
         }
             .filterNotNull()
     }
