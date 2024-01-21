@@ -14,7 +14,7 @@ import compiler.binding.type.UnresolvedType
 class SourceFileRootContext : MutableCTContext(
     EMPTY,
 ) {
-    override lateinit var swCtx: SoftwareContext
+    override lateinit var moduleContext: ModuleContext
     override lateinit var sourceFile: SourceFile
 
     val variables: Collection<BoundVariable> = _variables.values
@@ -25,7 +25,10 @@ class SourceFileRootContext : MutableCTContext(
     private companion object {
         val EMPTY = object : CTContext {
             override val swCtx: SoftwareContext
-                get() = throw InternalCompilerError("${SoftwareContext::class.simpleName} not initialized yet")
+                get() = throw InternalCompilerError("${this::swCtx.name} not initialized yet")
+
+            override val moduleContext: ModuleContext
+                get() = throw InternalCompilerError("${this::moduleContext.name} not initialized yet")
 
             override val sourceFile: SourceFile
                 get() = throw InternalCompilerError("file not initialized yet")

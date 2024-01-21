@@ -18,49 +18,49 @@
 
 package compiler.binding.context
 
-import compiler.InternalCompilerError
+import compiler.PackageName
 import compiler.reportings.Reporting
 import java.util.*
 
 /**
- * Connects all elements that make up a piece of software. Is able to resolve fully-qualified names across
- * contained [SourceFile]s.
+ * Bundles all modules that are part of a piece of software (e.g. an application), so it also
+ * groups pre-defined modules like the core builtin types, dependencies and code that is specific
+ * to the application/project currently being compiled.
  */
 class SoftwareContext {
-    /**
-     * All the source files
-     */
-    private val sourceFiles: MutableSet<SourceFile> = HashSet()
+    private val modules: MutableList<ModuleContext> = ArrayList()
 
     /**
-     * @param names The single names of the module; e.g. for module `foo.bar.x` pass `["foo", "bar", "x"]`
-     * @return The [CTContext] of the module with the given name or null if no such module is defined.
-     *
-     * TODO: rename to package, but that groups multiple files
+     * Creates and register a new [ModuleContext] in this software.
+     * @return the new context so [SourceFile]s can be bound to it (see [ModuleContext.addSourceFile])
      */
-    fun module(vararg names: String): SourceFile? = sourceFiles.find { Arrays.equals(it.packageName, names) }
-
-    fun module(name: Iterable<String>): SourceFile? = module(*name.toList().toTypedArray())
-
-    /**
-     * Defines a new module with the given name and the given context.
-     * @throws InternalCompilerError If such a module is already defined.
-     * TODO: Create & use a more specific exception
-     */
-    fun addSourceFile(sourceFile: SourceFile) {
-        sourceFiles.add(sourceFile)
-    }
-
-    private var semanticAnaylsisReults: Collection<Reporting>? = null
-
-    fun doSemanticAnalysis(): Collection<Reporting> {
-        if (semanticAnaylsisReults == null) {
-            semanticAnaylsisReults = (
-                sourceFiles.flatMap(SourceFile::semanticAnalysisPhase1) +
-                sourceFiles.flatMap(SourceFile::semanticAnalysisPhase2) +
-                sourceFiles.flatMap(SourceFile::semanticAnalysisPhase3)).toSet()
+    fun registerModule(name: PackageName): ModuleContext {
+        modules.find { it.moduleName.containsOrEquals(name) }?.let { conflictingModule ->
+            throw IllegalArgumentException("Cannot add module $name to this ${this::class.simpleName}, because it already contains a module with conflicting name: $conflictingModule")
         }
 
-        return semanticAnaylsisReults!!
+        val moduleContext = ModuleContext(name, this)
+        modules.add(moduleContext)
+        return moduleContext
+    }
+
+    private val packageCache = HashMap<List<String>, PackageContext>()
+
+    /**
+     * @return a reference to the requested package in this software context, or null if no module is known that
+     * contains the package (see [registerModule]).
+     */
+    fun getPackage(name: List<String>): PackageContext? {
+        packageCache[name]?.let { return it }
+        val module = modules.singleOrNull { it.moduleName.containsOrEquals(name) } ?: return null
+        val ctx = PackageContext(module, PackageName(name))
+        packageCache[name] = ctx
+        return ctx
+    }
+    fun getPackage(name: PackageName): PackageContext? = getPackage(name.components)
+
+    fun doSemanticAnalysis(): Collection<Reporting> {
+        return modules.flatMap { it.doSemanticAnalysis() }
+            .toSet()
     }
 }

@@ -82,5 +82,5 @@ abstract class BoundFunction : SemanticallyAnalyzable {
     open val returnsExclusiveValue: Boolean = false
 
     val fullyQualifiedName: String
-        get() = context.sourceFile.packageName.joinToString(".") + "." + name
+        get() = "${context.sourceFile.packageName}.$name"
 }

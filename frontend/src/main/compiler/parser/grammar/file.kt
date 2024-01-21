@@ -19,11 +19,13 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
+import compiler.PackageName
 import compiler.ast.ASTSourceFile
 import compiler.ast.Declaration
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
-import compiler.ast.PackageDeclaration
+import compiler.ast.ASTPackageDeclaration
+import compiler.ast.ASTPackageName
 import compiler.ast.VariableDeclaration
 import compiler.ast.struct.StructDeclaration
 import compiler.lexer.IdentifierToken
@@ -40,6 +42,8 @@ import compiler.parser.grammar.dsl.map
 import compiler.parser.grammar.dsl.sequence
 import compiler.reportings.ParsingMismatchReporting
 import compiler.reportings.Reporting
+import compiler.transact.Position
+import compiler.transact.TransactionalSequence
 import java.util.ArrayList
 import java.util.HashSet
 
@@ -52,17 +56,17 @@ val ModuleOrPackageName = sequence("module or package name") {
     }
 }
     .astTransformation { tokens ->
-        val identifiers = ArrayList<String>()
+        val identifiers = ArrayList<IdentifierToken>()
 
         while (tokens.hasNext()) {
             // collect the identifier
-            identifiers.add((tokens.next()!! as IdentifierToken).value)
+            identifiers.add(tokens.next()!! as IdentifierToken)
 
             // skip the dot, if there
             tokens.next()
         }
 
-        identifiers.toTypedArray()
+        ASTPackageName(identifiers)
     }
 
 val PackageDeclaration = sequence("package declaration") {
@@ -75,9 +79,9 @@ val PackageDeclaration = sequence("package declaration") {
     .astTransformation { tokens ->
         val keyword = tokens.next()!! as KeywordToken
         @Suppress("UNCHECKED_CAST") // ModuleOrPackageName is a Rule<Array<String>>
-        val packageName = tokens.next()!! as Array<String>
+        val packageName = tokens.next()!! as ASTPackageName
 
-        PackageDeclaration(keyword.sourceLocation, packageName)
+        ASTPackageDeclaration(keyword, packageName)
     }
 
 val ImportDeclaration = sequence("import declaration") {
@@ -112,7 +116,7 @@ val ImportDeclaration = sequence("import declaration") {
         ImportDeclaration(keyword.sourceLocation, identifiers)
     }
 
-val SourceFileGrammar: Rule<ASTSourceFile> = sequence("source file") {
+val SourceFileGrammar: Rule<TransactionalSequence<Any, Position>> = sequence("source file") {
     repeatingAtLeastOnce {
         optionalWhitespace()
         eitherOf {
@@ -127,70 +131,3 @@ val SourceFileGrammar: Rule<ASTSourceFile> = sequence("source file") {
     endOfInput()
 }
     .flatten()
-    .map { inResult ->
-        @Suppress("UNCHECKED_CAST")
-        val input = inResult.item ?: return@map inResult as MatchingResult<ASTSourceFile> // null can haz any type that i want :)
-
-        val reportings: MutableSet<Reporting> = HashSet()
-        val astSourceFile = ASTSourceFile()
-
-        input.forEachRemainingIndexed { index, declaration ->
-            declaration as? Declaration ?: throw InternalCompilerError("What tha heck went wrong here?!")
-
-            if (declaration is PackageDeclaration) {
-                if (astSourceFile.selfDeclaration == null) {
-                    if (index != 0) {
-                        reportings.add(Reporting.parsingError(
-                            "The package declaration must be the first declaration in the source file",
-                            declaration.declaredAt
-                        ))
-                    }
-
-                    astSourceFile.selfDeclaration = declaration
-                }
-                else {
-                    reportings.add(Reporting.parsingError(
-                        "Duplicate package declaration",
-                        declaration.declaredAt
-                    ))
-                }
-            }
-            else if (declaration is ImportDeclaration) {
-                astSourceFile.imports.add(declaration)
-            }
-            else if (declaration is VariableDeclaration) {
-                astSourceFile.variables.add(declaration)
-            }
-            else if (declaration is FunctionDeclaration) {
-                astSourceFile.functions.add(declaration)
-            }
-            else if (declaration is StructDeclaration) {
-                astSourceFile.structs.add(declaration)
-            }
-            else {
-                reportings.add(Reporting.unsupported(
-                    "Unsupported declaration $declaration",
-                    declaration.declaredAt
-                ))
-            }
-        }
-
-        if (astSourceFile.selfDeclaration == null) {
-            reportings.add(Reporting.parsingError("No package declaration found.", (input.items.getOrNull(0) as Declaration?)?.declaredAt ?: SourceLocation.UNKNOWN))
-        }
-
-        // default import emerge.lang.*
-        astSourceFile.imports.add(ImportDeclaration(
-            SourceLocation.UNKNOWN, listOf(
-            IdentifierToken("emerge"),
-            IdentifierToken("lang"),
-            IdentifierToken("*")
-        )))
-
-        MatchingResult(
-            isAmbiguous = false,
-            marksEndOfAmbiguity = inResult.marksEndOfAmbiguity,
-            item = astSourceFile,
-            reportings = inResult.reportings.plus(reportings)
-        )
-    }

@@ -18,6 +18,7 @@
 
 package compiler.binding.context
 
+import compiler.PackageName
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
 import compiler.binding.struct.Struct
@@ -25,7 +26,7 @@ import compiler.binding.type.BaseType
 import compiler.reportings.Reporting
 
 class SourceFile(
-    val packageName: Array<String>,
+    val packageName: PackageName,
     val context: SourceFileRootContext,
     /** [Reporting]s generated at bind-time: double declarations, ... */
     val bindTimeReportings: Collection<Reporting> = emptySet()

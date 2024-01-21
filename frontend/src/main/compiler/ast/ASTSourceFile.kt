@@ -18,7 +18,9 @@
 
 package compiler.ast
 
+import compiler.PackageName
 import compiler.ast.struct.StructDeclaration
+import compiler.binding.context.ModuleContext
 import compiler.binding.context.SourceFile
 import compiler.binding.context.SourceFileRootContext
 import compiler.binding.context.SoftwareContext
@@ -27,8 +29,10 @@ import compiler.reportings.Reporting
 /**
  * AST representation of a source file
  */
-class ASTSourceFile {
-    var selfDeclaration: PackageDeclaration? = null
+class ASTSourceFile(
+    val expectedPackageName: PackageName,
+) {
+    var selfDeclaration: ASTPackageDeclaration? = null
 
     val imports: MutableList<ImportDeclaration> = mutableListOf()
 
@@ -42,9 +46,9 @@ class ASTSourceFile {
      * Works by the same principle as [Bindable.bindTo]; but since binds to a [SoftwareContext] (rather than a
      * [CTContext]) this has its own signature.
      */
-    fun bindTo(context: SoftwareContext): SourceFile {
+    fun bindTo(context: ModuleContext): SourceFile {
         val fileContext = SourceFileRootContext()
-        fileContext.swCtx = context
+        fileContext.moduleContext = context
         val reportings = mutableSetOf<Reporting>()
 
         imports.forEach(fileContext::addImport)
@@ -63,6 +67,12 @@ class ASTSourceFile {
             }
         }
 
-        return SourceFile(selfDeclaration?.name ?: emptyArray(), fileContext, reportings)
+        // TODO: validate declared package name
+
+        return SourceFile(
+            selfDeclaration?.packageName?.names?.map { it.value }?.let(::PackageName) ?: expectedPackageName,
+            fileContext,
+            reportings
+        )
     }
 }

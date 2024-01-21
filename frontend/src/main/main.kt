@@ -1,10 +1,16 @@
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.types.path
+import compiler.CoreIntrinsicsModule
+import compiler.PackageName
 import compiler.binding.context.SoftwareContext
 import compiler.binding.type.BuiltinType
+import compiler.cli.packageName
+import compiler.lexer.MemorySourceFile
 import compiler.lexer.SourceSet
 import compiler.lexer.lex
+import compiler.parser.SourceFileRule
+import compiler.parser.grammar.ModuleOrPackageName
 import compiler.parser.grammar.SourceFileGrammar
 import compiler.parser.grammar.rule.MatchingContext
 import compiler.reportings.Reporting
@@ -15,24 +21,23 @@ import java.time.Instant
 import kotlin.time.toKotlinDuration
 
 object CompileCommand : CliktCommand() {
+    private val moduleName: PackageName by argument("module name").packageName()
     private val srcDir: Path by argument("source directory").path(mustExist = true, canBeFile = false, canBeDir = true, mustBeReadable = true)
     override fun run() {
-        // setup context
         val swCtx = SoftwareContext()
-        val builtinsModule = BuiltinType.getNewSourceFile()
-        builtinsModule.context.swCtx = swCtx
-        swCtx.addSourceFile(builtinsModule)
+        CoreIntrinsicsModule.addTo(swCtx)
+        val moduleCtx = swCtx.registerModule(moduleName)
 
         val measureClock = Clock.systemUTC()
         val startedAt = measureClock.instant()
         val sourceInMemoryAt: Instant
 
-        val parseResults = SourceSet.load(srcDir)
+        val parseResults = SourceSet.load(srcDir, moduleName)
             .also {
                 sourceInMemoryAt = measureClock.instant()
             }
             .map {
-                SourceFileGrammar.match(MatchingContext.None, lex(it))
+                SourceFileRule.match(lex(it), it.packageName)
             }
 
         val lexicalCompleteAt = measureClock.instant()
@@ -46,7 +51,10 @@ object CompileCommand : CliktCommand() {
             return
         }
 
-        parseResults.forEach { it.item!!.bindTo(swCtx) }
+        parseResults.forEach {
+            val bound = it.item!!.bindTo(moduleCtx)
+            moduleCtx.addSourceFile(bound)
+        }
 
         val semanticResults = swCtx.doSemanticAnalysis()
         val semanticCompleteAt = measureClock.instant()

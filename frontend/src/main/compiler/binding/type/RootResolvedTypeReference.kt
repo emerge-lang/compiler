@@ -1,5 +1,6 @@
 package compiler.binding.type
 
+import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
@@ -192,7 +193,7 @@ class RootResolvedTypeReference private constructor(
         var str = mutability.toString()
         str += " "
 
-        str += baseType.fullyQualifiedName.removePrefix(BuiltinType.DEFAULT_PACKAGE_NAME_STRING + ".")
+        str += baseType.fullyQualifiedName.removePrefix(CoreIntrinsicsModule.NAME_STRING + ".")
 
         if (arguments.isNotEmpty()) {
             str += arguments.joinToString(

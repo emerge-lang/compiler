@@ -18,13 +18,14 @@
 
 package compiler.ast
 
-import compiler.lexer.SourceLocation
+import compiler.lexer.KeywordToken
 
 /**
  * The package declaration on top of a file.
  */
-class PackageDeclaration(
-    override val declaredAt: SourceLocation,
-    /** The identifiers in order of the source: `package pkg1.subpkg.subpkg2` => `[pkg1, subpkg, subpkg2]` */
-    val name: Array<String>
-) : Declaration
+class ASTPackageDeclaration(
+    val packageKeyword: KeywordToken,
+    val packageName: ASTPackageName,
+) : Declaration {
+    override val declaredAt = packageKeyword.sourceLocation
+}

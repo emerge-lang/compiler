@@ -1,4 +1,4 @@
-module emerge.lang
+package emerge.lang
 
 external operator fun unaryMinus(self: Int) -> Int
 

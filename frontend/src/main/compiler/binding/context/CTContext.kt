@@ -59,9 +59,11 @@ import compiler.binding.type.BoundTypeReference
  * the `immutable` keyword in Emerge.
  */
 interface CTContext {
-    val swCtx: SoftwareContext
+    val swCtx: SoftwareContext get() = moduleContext.softwareContext
 
-    /** The file this context belongs to, right beneath the software context in the tree */
+    val moduleContext: ModuleContext
+
+    /** The file this context belongs to, right beneath the module context in the tree */
     val sourceFile: SourceFile
 
     /**

@@ -44,11 +44,11 @@ open class MutableCTContext(
 ) : CTContext {
     private val imports: MutableSet<ImportDeclaration> = HashSet()
 
-    private var _swCtx: SoftwareContext? = null
-    override var swCtx: SoftwareContext
-        get() = _swCtx ?: parentContext.swCtx
+    private var _moduleContext: ModuleContext? = null
+    override var moduleContext: ModuleContext
+        get() = _moduleContext ?: parentContext.moduleContext
         set(value) {
-            _swCtx = value
+            _moduleContext = value
         }
 
     private var _sourceFile: SourceFile? = null
@@ -199,17 +199,18 @@ open class MutableCTContext(
      * @return All the imported contexts that could contain the given simple name.
      */
     private fun importsForSimpleName(simpleName: String): Iterable<CTContext> {
-        return imports.map { import ->
+        return imports.mapNotNull { import ->
             val importRange = import.identifiers.map(IdentifierToken::value)
             val packageName = importRange.dropLast(1)
             val importSimpleName = importRange.last()
 
             if (importSimpleName != "*" && importSimpleName != simpleName) {
-                return@map null
+                return@mapNotNull null
             }
 
-            return@map swCtx.module(packageName)?.context
+            return@mapNotNull swCtx.getPackage(packageName)?.module?.sourceFiles
         }
-            .filterNotNull()
+            .flatten()
+            .map { it.context }
     }
 }

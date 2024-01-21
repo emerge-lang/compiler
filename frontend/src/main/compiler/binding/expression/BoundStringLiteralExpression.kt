@@ -1,11 +1,11 @@
 package compiler.binding.expression
 
+import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
 import compiler.ast.expression.StringLiteralExpression
 import compiler.ast.type.TypeMutability
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.BuiltinType
 import compiler.reportings.Reporting
 
 class BoundStringLiteralExpression(
@@ -16,10 +16,13 @@ class BoundStringLiteralExpression(
     override var type: BoundTypeReference? = null
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val defaultPackage = context.swCtx.module(*BuiltinType.DEFAULT_PACKAGE_NAME)
+        val defaultPackage = context.swCtx.getPackage(CoreIntrinsicsModule.NAME)
             ?: throw InternalCompilerError("Default package not present in the software context")
-        val stringType = defaultPackage.context.resolveBaseType("String")
-            ?: throw InternalCompilerError("This software context doesn't define ${BuiltinType.DEFAULT_PACKAGE_NAME_STRING}.String")
+        val stringType = defaultPackage.module.sourceFiles.asSequence()
+            .map { it.context.resolveBaseType("String") }
+            .filterNotNull()
+            .firstOrNull()
+            ?: throw InternalCompilerError("This software context doesn't define ${CoreIntrinsicsModule.NAME_STRING}.String")
 
         type = stringType.baseReference.withMutability(TypeMutability.IMMUTABLE)
         return emptySet()

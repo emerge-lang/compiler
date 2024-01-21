@@ -18,6 +18,7 @@
 
 package compiler.lexer
 
+import compiler.PackageName
 import compiler.reportings.getIllustrationForHighlightedLines
 import org.apache.commons.io.input.BOMInputStream
 import java.nio.charset.Charset
@@ -33,6 +34,7 @@ import kotlin.io.path.*
  */
 class SourceSet(
     val path: Path,
+    val moduleName: PackageName,
 ) {
     init {
         require(path.isAbsolute) { "SourceSet path must be absolute" }
@@ -41,8 +43,8 @@ class SourceSet(
     }
 
     companion object {
-        fun load(sourceSetPath: Path): Collection<SourceFile> {
-            val sourceSet = SourceSet(sourceSetPath)
+        fun load(sourceSetPath: Path, moduleName: PackageName): Collection<SourceFile> {
+            val sourceSet = SourceSet(sourceSetPath, moduleName)
 
             return Files.walk(sourceSetPath)
                 .parallel()
@@ -70,6 +72,7 @@ class SourceSet(
 
 interface SourceFile {
     val content: String
+    val packageName: PackageName
 
     companion object {
         const val EXTENSION = "em"
@@ -78,6 +81,7 @@ interface SourceFile {
 
 class ClasspathSourceFile(
     val pathOnClasspath: Path,
+    override val packageName: PackageName,
     override val content: String,
 ) : SourceFile {
     override fun toString() = "classpath:/$pathOnClasspath"
@@ -94,6 +98,8 @@ class DiskSourceFile(
         throw IllegalArgumentException("Source file is not located in the given source-set!", ex)
     }
 
+    override val packageName = PackageName(sourceSet.moduleName.components + (pathRelativeToSourceSet.parent?.segments() ?: emptyList()))
+
     override fun toString(): String = pathRelativeToSourceSet.toString()
 }
 
@@ -102,6 +108,7 @@ class DiskSourceFile(
  */
 class MemorySourceFile(
     val name: String,
+    override val packageName: PackageName,
     override val content: String
 ) : SourceFile {
     override fun toString() = "memory:$name"
@@ -132,6 +139,21 @@ data class SourceLocation(
     val fileLineColumnText: String get() = "$file on line $fromLineNumber at column $fromColumnNumber"
 
     companion object {
-        val UNKNOWN = SourceLocation(MemorySourceFile("UNKNOWN", ""), 1u, 1u, 1u, 1u)
+        val UNKNOWN = SourceLocation(MemorySourceFile("UNKNOWN", PackageName(listOf("unknown")), ""), 1u, 1u, 1u, 1u)
+    }
+}
+
+private fun Path.segments(): Iterable<String> = object : Iterable<String> {
+    override fun iterator() = object : Iterator<String> {
+        var index = 0
+        override fun hasNext(): Boolean = nameCount > index
+
+        override fun next(): String {
+            if (!hasNext()) {
+                throw NoSuchElementException()
+            }
+
+            return getName(index++).name
+        }
     }
 }

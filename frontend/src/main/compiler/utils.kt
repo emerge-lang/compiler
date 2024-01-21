@@ -21,6 +21,7 @@ package compiler
 import compiler.ast.ASTSourceFile
 import compiler.lexer.ClasspathSourceFile
 import compiler.lexer.lex
+import compiler.parser.SourceFileRule
 import compiler.parser.grammar.SourceFileGrammar
 import compiler.parser.grammar.rule.MatchingContext
 import java.nio.file.Path
@@ -28,15 +29,16 @@ import java.nio.file.Paths
 import java.util.IdentityHashMap
 import kotlin.NoSuchElementException
 
-fun parseFromClasspath(path: String): ASTSourceFile = parseFromClasspath(Paths.get(path))
+fun parseFromClasspath(path: String, packageName: PackageName): ASTSourceFile = parseFromClasspath(Paths.get(path), packageName)
 
-fun parseFromClasspath(path: Path): ASTSourceFile {
+fun parseFromClasspath(path: Path, packageName: PackageName): ASTSourceFile {
     val sourceFile = ClasspathSourceFile(
         path,
+        packageName,
         ClassLoader.getSystemResource(path.toString())!!.readText(),
     )
 
-    val matchResult = SourceFileGrammar.match(MatchingContext.None, lex(sourceFile))
+    val matchResult = SourceFileRule.match(lex(sourceFile), packageName)
 
     if (matchResult.hasErrors) {
         System.err.println()

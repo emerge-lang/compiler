@@ -18,14 +18,12 @@
 
 package compiler.binding.type
 
-import compiler.ast.ASTSourceFile
+import compiler.CoreIntrinsicsModule
 import compiler.ast.FunctionDeclaration
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeVariance
-import compiler.binding.context.SourceFile
 import compiler.binding.context.SourceFileRootContext
 import compiler.lexer.IdentifierToken
-import compiler.parseFromClasspath
 
 /*
  * This file contains raw definitions of the builtin types.
@@ -76,7 +74,7 @@ val BuiltinArray = object : BuiltinType("Array", BuiltinAny) {
  * A BuiltinType is defined in the ROOT package.
  */
 abstract class BuiltinType(final override val simpleName: String, vararg superTypes: BaseType) : BaseType {
-    final override val fullyQualifiedName = "$DEFAULT_PACKAGE_NAME_STRING.$simpleName"
+    final override val fullyQualifiedName = "${CoreIntrinsicsModule.NAME_STRING}.$simpleName"
 
     final override val superTypes: Set<BaseType> = superTypes.toSet()
 
@@ -100,31 +98,4 @@ abstract class BuiltinType(final override val simpleName: String, vararg superTy
         str
     }
     override fun toString() = _string
-
-    companion object {
-        val DEFAULT_PACKAGE_NAME = arrayOf("emerge", "lang")
-        val DEFAULT_PACKAGE_NAME_STRING = DEFAULT_PACKAGE_NAME.joinToString(".")
-
-        private val stdlib: ASTSourceFile = parseFromClasspath("builtin.em")
-        fun getNewSourceFile(): SourceFile {
-            val fileContext = SourceFileRootContext()
-            val file = SourceFile(DEFAULT_PACKAGE_NAME, fileContext)
-
-            file.context.addBaseType(BuiltinAny)
-            file.context.addBaseType(BuiltinUnit)
-            file.context.addBaseType(BuiltinNumber)
-            file.context.addBaseType(BuiltinFloat)
-            file.context.addBaseType(BuiltinInt)
-            file.context.addBaseType(BuiltinBoolean)
-            file.context.addBaseType(BuiltinArray)
-            file.context.addBaseType(BuiltinNothing)
-            file.context.addBaseType(BuiltinByte)
-
-            stdlib.functions.forEach(file.context::addFunction)
-            stdlib.variables.forEach(file.context::addVariable)
-            stdlib.structs.forEach(file.context::addStruct)
-
-            return file
-        }
-    }
 }
