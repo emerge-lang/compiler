@@ -179,10 +179,10 @@ val Module: Rule<ASTModule> = sequence("module") {
             reportings.add(Reporting.parsingError("No module declaration found.", (input.items.getOrNull(0) as Declaration?)?.declaredAt ?: SourceLocation.UNKNOWN))
         }
 
-        // default import dotlin.lang.*
+        // default import emerge.lang.*
         astModule.imports.add(ImportDeclaration(
             SourceLocation.UNKNOWN, listOf(
-            IdentifierToken("dotlin"),
+            IdentifierToken("emerge"),
             IdentifierToken("lang"),
             IdentifierToken("*")
         )))

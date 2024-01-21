@@ -238,7 +238,7 @@ class BoundInvocationExpression(
  * returns the functions matching the types sorted by matching quality to the given
  * types (see [BoundTypeReference.evaluateAssignabilityTo] and [BoundTypeReference.assignMatchQuality])
  *
- * In essence, this function is the overload resolution algorithm of the language.
+ * In essence, this function is the overload resolution algorithm of Emerge.
  *
  * @return a list of matching functions, along with the resolved generics. Use the TypeUnification::right with the
  * returned function to determine the return type if that function were invoked.

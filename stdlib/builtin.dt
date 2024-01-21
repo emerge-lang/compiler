@@ -1,4 +1,4 @@
-module dotlin.lang
+module emerge.lang
 
 external operator fun unaryMinus(self: Int) -> Int
 

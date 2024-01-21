@@ -56,7 +56,7 @@ import compiler.binding.type.BoundTypeReference
  * is mutable.
  * All contexts in use are [MutableCTContext]s; this interface contains only the immutable operations. It is used
  * to convey that the context must not be modified to assure correct compilation, CTFE or interpretation. Much like
- * the `immutable` keyword in the language this program compiles.
+ * the `immutable` keyword in Emerge.
  */
 interface CTContext {
     val swCtx: SoftwareContext

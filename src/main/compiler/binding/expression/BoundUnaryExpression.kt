@@ -80,7 +80,7 @@ class BoundUnaryExpression(
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // nothing to do here: the only way to use this information would be the return type of the operator function
-        // overload resolution based on return type is not a thing in this language
+        // overload resolution based on return type is not a thing in Emerge
     }
 }
 

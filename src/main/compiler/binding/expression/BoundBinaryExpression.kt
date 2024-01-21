@@ -86,7 +86,7 @@ class BoundBinaryExpression(
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // nothing to do, as one could only correlate this with the return value
         // of the operator function. But overload resolution based on return type
-        // is not a thing in this language
+        // is not a thing in Emerge
     }
 }
 

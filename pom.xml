@@ -18,15 +18,15 @@
 
 <project>
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.tmarsteel</groupId>
-    <artifactId>dotlin-compiler</artifactId>
+    <groupId>io.github.tmarsteel.emerge-lang</groupId>
+    <artifactId>frontend</artifactId>
     <version>0.1.0</version>
     <packaging>jar</packaging>
     <properties>
         <kotlin.version>1.9.20</kotlin.version>
     </properties>
 
-    <name>tmarsteel/Dotlin Compiler</name>
+    <name>Emerge Lang Compiler Frontend</name>
 
     <build>
         <sourceDirectory>src/main</sourceDirectory>

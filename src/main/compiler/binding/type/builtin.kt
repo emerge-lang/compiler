@@ -102,7 +102,7 @@ abstract class BuiltinType(final override val simpleName: String, vararg superTy
     override fun toString() = _string
 
     companion object {
-        val DEFAULT_MODULE_NAME = arrayOf("dotlin", "lang")
+        val DEFAULT_MODULE_NAME = arrayOf("emerge", "lang")
         val DEFAULT_MODULE_NAME_STRING = DEFAULT_MODULE_NAME.joinToString(".")
 
         private val stdlib: ASTModule = parseFromClasspath("builtin.dt")

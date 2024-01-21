@@ -13,8 +13,8 @@ class VariableErrors : FreeSpec({
                 val foo: Int = false
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.sourceType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType.fullyQualifiedName shouldBe "dotlin.lang.Boolean"
-                    it.targetType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType.fullyQualifiedName shouldBe "dotlin.lang.Int"
+                    it.sourceType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType.fullyQualifiedName shouldBe "emerge.lang.Boolean"
+                    it.targetType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType.fullyQualifiedName shouldBe "emerge.lang.Int"
                 }
         }
 

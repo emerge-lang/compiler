@@ -1,10 +1,10 @@
 # My Dream Language
 
-* influenced by: Kotlin, D, Groovy, TypeScript, Java, Jai, PHP
+* influenced by: Kotlin, D, Rust, Groovy, TypeScript, Java, Jai, PHP
 
 ## Separating Software
 
-In dotlin, software is split up into modules. Every file is one module can contain an
+In Emerge, software is split up into modules. Every file is one module can contain an
 arbitrary number of declarations. The name of a module is derived from its relativ path
 to its source root:
 
@@ -251,7 +251,7 @@ Note that curly braces alone do not denote a function literal.
 #### Overloading functions
 
 If functions were *only* values, overloads would be impossible. But because overloads are an important feature,
-this language supports functions and methods in the sense as used in Kotlin and Java:
+Emerge supports functions and methods in the sense as used in Kotlin and Java:
 
     fun someFunction(paramName: ParamType) -> ReturnType = expression
 
@@ -410,7 +410,7 @@ The type modifiers are written *before* the function declaration (as opposed to 
 
 ## Data structures
 
-This language has classes, interfaces and structs. The syntax is more traditional like in D or Java (and less like in Kotlin). The constructor notation of TypeScript is used:
+Emerge has classes, interfaces and structs. The syntax is more traditional like in D or Java (and less like in Kotlin). The constructor notation of TypeScript is used:
 
     class MyClass : BaseClass, ImplementedInterface {
     	constructor(arg1: Type) {
@@ -471,7 +471,7 @@ Note that the `readonly` modifier of the class field does not affect the functio
 
 ### Visibility  Modifiers
 
-This language distinguishes between visibility within the same source set/libary
+Emerge distinguishes between visibility within the same source set/libary
 and outside code. Elements can be visible throughout an entire codebase but not
 to code that lives in other code bases. The goal of this is to enable more 
 optimization: this distinction reduces the number of symbols exposed to other
@@ -544,7 +544,7 @@ Data classes from Kotlin are not supported. However, structs from D are supporte
         member: Int
     }
 
-Struct constructors work as in D. Because this language does not know the `new` keyword, there is no syntactical difference in instatiating a class or a struct. However, as in D, the memory layout of a struct must be known at
+Struct constructors work as in D. Because Emerge does not know the `new` keyword, there is no syntactical difference in instatiating a class or a struct. However, as in D, the memory layout of a struct must be known at
 compile time.
 
     struct Foo {
