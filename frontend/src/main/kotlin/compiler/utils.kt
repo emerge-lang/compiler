@@ -22,12 +22,10 @@ import compiler.ast.ASTSourceFile
 import compiler.lexer.ClasspathSourceFile
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
-import compiler.parser.grammar.SourceFileGrammar
-import compiler.parser.grammar.rule.MatchingContext
+import io.github.tmarsteel.emerge.backend.api.PackageName
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.IdentityHashMap
-import kotlin.NoSuchElementException
 
 fun parseFromClasspath(path: String, packageName: PackageName): ASTSourceFile = parseFromClasspath(Paths.get(path), packageName)
 

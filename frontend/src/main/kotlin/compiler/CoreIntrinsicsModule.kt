@@ -13,6 +13,7 @@ import compiler.binding.type.BuiltinInt
 import compiler.binding.type.BuiltinNothing
 import compiler.binding.type.BuiltinNumber
 import compiler.binding.type.BuiltinUnit
+import io.github.tmarsteel.emerge.backend.api.PackageName
 
 /**
  * The very core module of the language, defining intrinsic elements that are implemented by the

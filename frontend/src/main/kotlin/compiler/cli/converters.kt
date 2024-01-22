@@ -8,12 +8,12 @@ import com.github.ajalt.clikt.parameters.arguments.convert
 import com.github.ajalt.clikt.parameters.options.NullableOption
 import com.github.ajalt.clikt.parameters.options.RawOption
 import com.github.ajalt.clikt.parameters.options.convert
-import compiler.PackageName
 import compiler.lexer.MemorySourceFile
 import compiler.lexer.lex
 import compiler.parser.grammar.ModuleOrPackageName
 import compiler.parser.grammar.rule.MatchingContext
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.PackageName
 
 fun RawArgument.packageName(): ProcessedArgument<PackageName, PackageName> {
     return convert { rawName ->

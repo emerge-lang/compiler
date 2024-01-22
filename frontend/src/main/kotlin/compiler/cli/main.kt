@@ -9,7 +9,6 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.path
 import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
-import compiler.PackageName
 import compiler.binding.context.SoftwareContext
 import compiler.lexer.SourceSet
 import compiler.lexer.lex
@@ -17,6 +16,7 @@ import compiler.parser.SourceFileRule
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.EmergeBackend
+import io.github.tmarsteel.emerge.backend.api.PackageName
 import java.nio.file.Path
 import java.time.Clock
 import java.time.Duration

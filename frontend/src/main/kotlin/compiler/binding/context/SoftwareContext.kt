@@ -18,11 +18,10 @@
 
 package compiler.binding.context
 
-import compiler.PackageName
-import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
-import java.util.*
 import compiler.InternalCompilerError
+import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 
 /**
  * Bundles all modules that are part of a piece of software (e.g. an application), so it also

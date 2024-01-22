@@ -1,7 +1,6 @@
 package compiler.parser
 
 import compiler.InternalCompilerError
-import compiler.PackageName
 import compiler.ast.ASTPackageDeclaration
 import compiler.ast.ASTSourceFile
 import compiler.ast.Declaration
@@ -15,7 +14,7 @@ import compiler.parser.grammar.SourceFileGrammar
 import compiler.parser.grammar.rule.MatchingContext
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.reportings.Reporting
-import java.util.HashSet
+import io.github.tmarsteel.emerge.backend.api.PackageName
 
 object SourceFileRule {
     fun match(tokens: TokenSequence, expectedPackageName: PackageName): MatchingResult<ASTSourceFile> {

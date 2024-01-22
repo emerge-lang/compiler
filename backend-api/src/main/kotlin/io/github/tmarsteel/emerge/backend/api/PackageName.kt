@@ -1,4 +1,4 @@
-package compiler
+package io.github.tmarsteel.emerge.backend.api
 
 class PackageName(val components: List<String>) {
 

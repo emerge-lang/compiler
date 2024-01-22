@@ -18,12 +18,12 @@
 
 package compiler.binding.context
 
-import compiler.PackageName
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
 import compiler.binding.struct.Struct
 import compiler.binding.type.BaseType
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.PackageName
 
 class SourceFile(
     val packageName: PackageName,

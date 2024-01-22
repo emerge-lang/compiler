@@ -1,13 +1,13 @@
 package compiler.compiler.negative
 
 import compiler.CoreIntrinsicsModule
-import compiler.PackageName
 import compiler.binding.context.SoftwareContext
 import compiler.lexer.MemorySourceFile
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
 import compiler.parser.TokenSequence
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.PackageName
 import io.kotest.inspectors.forOne
 import io.kotest.matchers.types.shouldBeInstanceOf
 

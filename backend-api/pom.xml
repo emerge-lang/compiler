@@ -10,7 +10,7 @@
         <version>0.1.0</version>
     </parent>
 
-    <name>Emerge Lang Compiler Frontend</name>
+    <name>Emerge Lang Compiler API for Backends</name>
 
     <build>
         <sourceDirectory>src/main/kotlin</sourceDirectory>

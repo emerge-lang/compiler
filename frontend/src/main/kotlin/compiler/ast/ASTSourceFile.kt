@@ -18,13 +18,13 @@
 
 package compiler.ast
 
-import compiler.PackageName
 import compiler.ast.struct.StructDeclaration
 import compiler.binding.context.ModuleContext
+import compiler.binding.context.SoftwareContext
 import compiler.binding.context.SourceFile
 import compiler.binding.context.SourceFileRootContext
-import compiler.binding.context.SoftwareContext
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.PackageName
 
 /**
  * AST representation of a source file

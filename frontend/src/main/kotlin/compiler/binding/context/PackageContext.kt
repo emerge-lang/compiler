@@ -1,7 +1,7 @@
 package compiler.binding.context
 
-import compiler.PackageName
 import compiler.binding.type.BaseType
+import io.github.tmarsteel.emerge.backend.api.PackageName
 
 class PackageContext(
     val module: ModuleContext,

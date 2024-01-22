@@ -1,8 +1,8 @@
 package compiler.binding.context
 
-import compiler.PackageName
 import compiler.ast.ASTSourceFile
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.PackageName
 
 /**
  * Bundles all source files of a single module.

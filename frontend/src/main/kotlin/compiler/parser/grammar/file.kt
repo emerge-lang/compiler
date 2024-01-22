@@ -18,34 +18,22 @@
 
 package compiler.parser.grammar
 
-import compiler.InternalCompilerError
-import compiler.PackageName
-import compiler.ast.ASTSourceFile
-import compiler.ast.Declaration
-import compiler.ast.FunctionDeclaration
-import compiler.ast.ImportDeclaration
 import compiler.ast.ASTPackageDeclaration
 import compiler.ast.ASTPackageName
-import compiler.ast.VariableDeclaration
-import compiler.ast.struct.StructDeclaration
+import compiler.ast.ImportDeclaration
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
-import compiler.lexer.SourceLocation
-import compiler.parser.grammar.rule.Rule
-import compiler.parser.grammar.rule.MatchingResult
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.enhanceErrors
 import compiler.parser.grammar.dsl.flatten
-import compiler.parser.grammar.dsl.map
 import compiler.parser.grammar.dsl.sequence
+import compiler.parser.grammar.rule.Rule
 import compiler.reportings.ParsingMismatchReporting
 import compiler.reportings.Reporting
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
-import java.util.ArrayList
-import java.util.HashSet
 
 val ModuleOrPackageName = sequence("module or package name") {
     identifier()

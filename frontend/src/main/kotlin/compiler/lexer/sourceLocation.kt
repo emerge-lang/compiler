@@ -18,15 +18,21 @@
 
 package compiler.lexer
 
-import compiler.PackageName
 import compiler.reportings.getIllustrationForHighlightedLines
+import io.github.tmarsteel.emerge.backend.api.PackageName
 import org.apache.commons.io.input.BOMInputStream
 import java.nio.charset.Charset
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.util.stream.Collectors
-import kotlin.io.path.*
+import kotlin.io.path.exists
+import kotlin.io.path.extension
+import kotlin.io.path.inputStream
+import kotlin.io.path.isDirectory
+import kotlin.io.path.isRegularFile
+import kotlin.io.path.name
+import kotlin.io.path.relativeTo
 
 /**
  * A set of sources that are compiled together. This is usually one project / codebase, or
