@@ -25,6 +25,6 @@ import compiler.ast.FunctionDeclaration
  */
 class MissingFunctionBodyReporting(val function: FunctionDeclaration) : Reporting(
     Level.ERROR,
-    "Function ${function.name} must either be declared external or have a function body.",
+    "Function ${function.name.value} must either be declared intrinsic, external or have a function body.",
     function.declaredAt
 )

@@ -23,6 +23,6 @@ import compiler.ast.FunctionDeclaration
 /** Reported when a body is declared for a that must not have one. */
 class IllegalFunctionBodyReporting(val function: FunctionDeclaration) : Reporting(
     Level.ERROR,
-    "Function ${function.name} is declared as external and thus must not declare a function body.",
+    "Function ${function.name} is declared as ${function.modifiers.first { it.impliesNoBody }::class.simpleName!!.lowercase()} and thus must not declare a function body.",
     function.declaredAt
 )

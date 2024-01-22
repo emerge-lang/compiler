@@ -18,35 +18,43 @@
 
 package compiler.ast.type
 
+import compiler.lexer.IdentifierToken
+
 /** Function modifiers */
-enum class FunctionModifier {
+sealed class FunctionModifier {
+    open val impliesNoBody: Boolean = false
+
     /**
      * The function may only read from its enclosing context and only invoke other functions that are marked with
-     * [READONLY] or that don't actually read from their enclosing context.
+     * [Readonly] or that don't actually read from their enclosing context.
      */
-    READONLY,
+    data object Readonly : FunctionModifier()
 
     /**
      * The function may not throw exceptions nor may it call other functions that throw exceptions.
      */
-    NOTHROW,
+    data object Nothrow : FunctionModifier()
 
     /**
      * The function must not interact with its enclosing scope nor may it call other functions that do. That
      * assures that the function is deterministic and allows for aggressive optimization using CTFE.
      */
-    PURE,
+    data object Pure : FunctionModifier()
 
     /**
      * The function defines or overrides an operator.
      */
-    OPERATOR,
+    data object Operator : FunctionModifier()
 
     /**
      * The body of the function is provided by the backend. Used for target-specific functions, usually
      * the smallest of building blocks (e.g. `Int.opPlus(Int)`)
      */
-    INTRINSIC,
+    data object Intrinsic : FunctionModifier() {
+        override val impliesNoBody = true
+    }
 
-    // TODO: add C FFI
+    data class External(val ffiName: IdentifierToken) : FunctionModifier() {
+        override val impliesNoBody = true
+    }
 }

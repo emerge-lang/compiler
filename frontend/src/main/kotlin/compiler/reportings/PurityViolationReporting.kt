@@ -20,9 +20,9 @@ package compiler.reportings
 
 import compiler.ast.Executable
 import compiler.ast.type.FunctionModifier
-import compiler.binding.expression.BoundAssignmentExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
+import compiler.binding.expression.BoundAssignmentExpression
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundInvocationExpression
 
@@ -50,9 +50,9 @@ data class ModifyingInvocationInReadonlyContextReporting internal constructor(va
 data class StateModificationOutsideOfPurityBoundaryReporting internal constructor(val assignment: BoundAssignmentExpression, val function: BoundFunction) : PurityViolationReporting(
     assignment,
     {
-        val functionType = if (FunctionModifier.PURE in function.modifiers) FunctionModifier.PURE else FunctionModifier.READONLY
-        val functionTypeAsString = functionType.name[0].uppercaseChar() + functionType.name.substring(1).lowercase()
-        val boundaryType = if (functionType == FunctionModifier.PURE) "purity" else "readonlyness"
+        val functionType = if (FunctionModifier.Pure in function.modifiers) FunctionModifier.Pure else FunctionModifier.Readonly
+        val functionTypeAsString = functionType::class.simpleName
+        val boundaryType = if (functionType == FunctionModifier.Pure) "purity" else "readonlyness"
 
         "$functionTypeAsString function ${function.name} cannot assign state outside of its $boundaryType boundary"
     }()

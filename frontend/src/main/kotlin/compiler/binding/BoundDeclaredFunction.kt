@@ -8,9 +8,9 @@ import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.BuiltinUnit
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
-import compiler.binding.type.BuiltinUnit
 import compiler.reportings.Reporting
 
 /**
@@ -34,19 +34,19 @@ class BoundDeclaredFunction(
     override val declaresReceiver = parameters.declaredReceiver != null
 
     /**
-     * Implied modifiers. Operator functions often have an implied [FunctionModifier.READONLY]
+     * Implied modifiers. Operator functions often have an implied [FunctionModifier.Readonly]
      * TODO: yeet, these modifiers can go into the stdlib sources
      */
     val impliedModifiers: Set<FunctionModifier> = run {
         // only operator functions have implied modifiers
-        if (FunctionModifier.OPERATOR !in declaration.modifiers) {
+        if (FunctionModifier.Operator !in declaration.modifiers) {
             emptySet<FunctionModifier>()
         }
 
         when {
-            name.startsWith("opUnary")                                -> setOf(FunctionModifier.READONLY)
-            name.startsWith("op") && !name.endsWith("Assign") -> setOf(FunctionModifier.READONLY)
-            name == "rangeTo" || name == "contains"                           -> setOf(FunctionModifier.READONLY)
+            name.startsWith("opUnary")                                -> setOf(FunctionModifier.Readonly)
+            name.startsWith("op") && !name.endsWith("Assign") -> setOf(FunctionModifier.Readonly)
+            name == "rangeTo" || name == "contains"                           -> setOf(FunctionModifier.Readonly)
             else                                                              -> emptySet()
         }
     }
@@ -56,7 +56,7 @@ class BoundDeclaredFunction(
     override var returnType: BoundTypeReference? = null
         private set
 
-    val isDeclaredPure: Boolean = FunctionModifier.PURE in declaration.modifiers
+    val isDeclaredPure: Boolean = FunctionModifier.Pure in declaration.modifiers
 
     /**
      * Whether this functions code is behaves in a pure way. Is null if that has not yet been determined (see semantic
@@ -65,7 +65,7 @@ class BoundDeclaredFunction(
     var isEffectivelyPure: Boolean? = null
         private set
 
-    val isDeclaredReadonly: Boolean = FunctionModifier.READONLY in declaration.modifiers
+    val isDeclaredReadonly: Boolean = FunctionModifier.Readonly in declaration.modifiers
 
     /**
      * Whether this functions code behaves in a readonly way. Is null if that has not yet been determined (see semantic
@@ -90,13 +90,15 @@ class BoundDeclaredFunction(
     private val onceAction = OnceAction()
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
+        // TODO: check FFI name of external modifier
+
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
             val reportings = mutableSetOf<Reporting>()
 
             reportings.addAll(parameters.semanticAnalysisPhase1())
 
             // modifiers
-            if (FunctionModifier.INTRINSIC in modifiers) {
+            if (modifiers.any { it.impliesNoBody }) {
                 if (code != null) {
                     reportings.add(Reporting.illegalFunctionBody(declaration))
                 }
@@ -104,7 +106,7 @@ class BoundDeclaredFunction(
                 reportings.add(Reporting.missingFunctionBody(declaration))
             }
 
-            if (FunctionModifier.PURE in modifiers && FunctionModifier.READONLY in modifiers) {
+            if (FunctionModifier.Pure in modifiers && FunctionModifier.Readonly in modifiers) {
                 reportings.add(
                     Reporting.inefficientModifiers(
                         "The modifier readonly is superfluous: the function is also pure and pure implies readonly.",
@@ -145,7 +147,7 @@ class BoundDeclaredFunction(
                 if (this.code is BoundExpression<*>) {
                     this.returnType = this.code.type
                 } else {
-                    reportings += Reporting.consecutive("Cannot infer return type because function body is not an expression", declaredAt)
+                    this.returnType = BuiltinUnit.baseReference
                 }
             }
 

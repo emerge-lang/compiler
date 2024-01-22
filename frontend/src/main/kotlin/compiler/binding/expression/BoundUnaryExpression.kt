@@ -56,12 +56,12 @@ class BoundUnaryExpression(
             .let(reportings::addAll)
 
         hiddenInvocation.dispatchedFunction?.let { operatorFunction ->
-            if (FunctionModifier.OPERATOR !in operatorFunction.modifiers) {
+            if (FunctionModifier.Operator !in operatorFunction.modifiers) {
                 reportings.add(
                     Reporting.functionIsMissingModifier(
                         operatorFunction,
                         this.declaration,
-                        FunctionModifier.OPERATOR
+                        FunctionModifier.Operator
                     )
                 )
             }

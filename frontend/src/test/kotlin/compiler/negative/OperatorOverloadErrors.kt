@@ -35,7 +35,7 @@ class OperatorOverloadErrors : FreeSpec({
         """.trimIndent())
             .shouldReport<FunctionMissingModifierReporting> {
                 it.function.name shouldBe "unaryMinus"
-                it.missingModifier shouldBe FunctionModifier.OPERATOR
+                it.missingModifier shouldBe FunctionModifier.Operator
             }
     }
 })

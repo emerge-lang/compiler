@@ -10,7 +10,7 @@ data class FunctionMissingModifierReporting(
     val missingModifier: FunctionModifier
 ) : Reporting(
     Reporting.Level.ERROR,
-    "Missing modifier \"${missingModifier.name.lowercase()}\" on function ${function.fullyQualifiedName}",
+    "Missing modifier \"${missingModifier::class.simpleName?.lowercase()}\" on function ${function.fullyQualifiedName}",
     usageRequiringModifier.sourceLocation,
 ) {
     init {

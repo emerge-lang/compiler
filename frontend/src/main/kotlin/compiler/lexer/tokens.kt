@@ -44,6 +44,7 @@ enum class Keyword(val text: String)
     PURE("pure"),
     OPERATOR("operator"),
     INTRINSIC("intrinsic"),
+    EXTERNAL("external"),
     IF("if"),
     ELSE("else"),
 

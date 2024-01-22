@@ -2,7 +2,11 @@ package compiler.binding.struct
 
 import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
-import compiler.ast.type.*
+import compiler.ast.type.FunctionModifier
+import compiler.ast.type.TypeArgument
+import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.BoundFunction
 import compiler.binding.context.MutableCTContext
 import compiler.binding.type.BoundTypeParameter
@@ -16,7 +20,7 @@ class StructConstructor(
     override val receiverType = null
     override val declaresReceiver = false
     override val name = struct.simpleName
-    override val modifiers = setOf(FunctionModifier.PURE)
+    override val modifiers = setOf(FunctionModifier.Pure)
     override val isPure = true
     override val isReadonly = true
     override val returnsExclusiveValue = true

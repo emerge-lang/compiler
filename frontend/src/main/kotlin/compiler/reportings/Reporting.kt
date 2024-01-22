@@ -216,11 +216,11 @@ abstract class Reporting internal constructor(
         private fun purityOrReadonlyViolationToReporting(violation: BoundExecutable<Executable<*>>, context: BoundFunction): Reporting {
             // violations can only be variable reads + writes as well as function invocations
             if (violation is BoundIdentifierExpression) {
-                if (FunctionModifier.PURE !in context.modifiers) throw InternalCompilerError("This is not a purity violation")
+                if (FunctionModifier.Pure !in context.modifiers) throw InternalCompilerError("This is not a purity violation")
                 return ReadInPureContextReporting(violation, context)
             }
             else if (violation is BoundInvocationExpression) {
-                if (FunctionModifier.PURE in context.modifiers) {
+                if (FunctionModifier.Pure in context.modifiers) {
                     return ImpureInvocationInPureContextReporting(violation, context)
                 }
                 else {
