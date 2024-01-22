@@ -43,10 +43,10 @@ enum class FunctionModifier {
     OPERATOR,
 
     /**
-     * The functions body is provided to the compiler by other means than source language code.
-     *
-     * For example, a lot of the builtin types use this modifier in their defining statements. At compile time the
-     * compiler loads the function body appropriate for the compile target.
+     * The body of the function is provided by the backend. Used for target-specific functions, usually
+     * the smallest of building blocks (e.g. `Int.opPlus(Int)`)
      */
-    EXTERNAL
+    INTRINSIC,
+
+    // TODO: add C FFI
 }

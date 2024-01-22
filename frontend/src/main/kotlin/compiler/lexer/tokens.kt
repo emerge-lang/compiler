@@ -43,7 +43,7 @@ enum class Keyword(val text: String)
     NOTHROW("nothrow"),
     PURE("pure"),
     OPERATOR("operator"),
-    EXTERNAL("external"),
+    INTRINSIC("intrinsic"),
     IF("if"),
     ELSE("else"),
 

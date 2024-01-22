@@ -96,7 +96,7 @@ class BoundDeclaredFunction(
             reportings.addAll(parameters.semanticAnalysisPhase1())
 
             // modifiers
-            if (FunctionModifier.EXTERNAL in modifiers) {
+            if (FunctionModifier.INTRINSIC in modifiers) {
                 if (code != null) {
                     reportings.add(Reporting.illegalFunctionBody(declaration))
                 }

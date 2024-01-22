@@ -15,6 +15,7 @@ import compiler.binding.context.SoftwareContext
 import compiler.lexer.SourceSet
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
+import compiler.parser.grammar.StandaloneFunctionDeclaration
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.EmergeBackend

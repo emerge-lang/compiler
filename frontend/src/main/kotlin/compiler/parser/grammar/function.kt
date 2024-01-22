@@ -169,16 +169,16 @@ val FunctionModifier = sequence {
         keyword(Keyword.NOTHROW)
         keyword(Keyword.PURE)
         keyword(Keyword.OPERATOR)
-        keyword(Keyword.EXTERNAL)
+        keyword(Keyword.INTRINSIC)
     }
 }
     .astTransformation { tokens -> when((tokens.next()!! as KeywordToken).keyword) {
-        Keyword.READONLY -> compiler.ast.type.FunctionModifier.READONLY
-        Keyword.NOTHROW  -> compiler.ast.type.FunctionModifier.NOTHROW
-        Keyword.PURE     -> compiler.ast.type.FunctionModifier.PURE
-        Keyword.OPERATOR -> compiler.ast.type.FunctionModifier.OPERATOR
-        Keyword.EXTERNAL -> compiler.ast.type.FunctionModifier.EXTERNAL
-        else             -> throw InternalCompilerError("Keyword is not a function modifier")
+        Keyword.READONLY  -> compiler.ast.type.FunctionModifier.READONLY
+        Keyword.NOTHROW   -> compiler.ast.type.FunctionModifier.NOTHROW
+        Keyword.PURE      -> compiler.ast.type.FunctionModifier.PURE
+        Keyword.OPERATOR  -> compiler.ast.type.FunctionModifier.OPERATOR
+        Keyword.INTRINSIC -> compiler.ast.type.FunctionModifier.INTRINSIC
+        else              -> throw InternalCompilerError("Keyword is not a function modifier")
     } }
 
 val StandaloneFunctionDeclaration = sequence("function declaration") {
