@@ -10,6 +10,12 @@ interface EmergeBackend {
     val targetName: String
 
     /**
+     * Additional modules that must be considered by the frontend for code to be compiled to this target
+     */
+    val targetSpecificModules: Collection<ModuleSourceRef>
+        get() = emptySet()
+
+    /**
      * Generates all the code necessary for this software into [directory]. The backend implementation can further
      * structure this directory as needed / wanted.
      */

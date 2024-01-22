@@ -13,9 +13,11 @@ import compiler.binding.context.SoftwareContext
 import compiler.lexer.SourceSet
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
+import compiler.reportings.ModuleWithoutSourcesReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.EmergeBackend
+import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
 import io.github.tmarsteel.emerge.backend.api.PackageName
 import java.nio.file.Path
 import java.time.Clock
@@ -23,6 +25,7 @@ import java.time.Duration
 import java.time.Instant
 import java.util.ServiceLoader
 import java.util.stream.Collectors
+import java.util.stream.Stream
 import kotlin.time.toKotlinDuration
 
 private val backends: Map<String, EmergeBackend> = ServiceLoader.load(EmergeBackend::class.java)
@@ -44,42 +47,41 @@ object CompileCommand : CliktCommand() {
             srcDir.toAbsolutePath().parent.resolve("emerge-out")
         }
     private val target: EmergeBackend by option("--target").selectFrom(backends).required()
+
     override fun run() {
         val swCtx = SoftwareContext()
         CoreIntrinsicsModule.addTo(swCtx)
-        val moduleCtx = swCtx.registerModule(moduleName)
 
         val measureClock = Clock.systemUTC()
         val startedAt = measureClock.instant()
-        val sourceInMemoryAt: Instant
 
-        val parseResults = SourceSet.load(srcDir, moduleName)
-            .also {
-                sourceInMemoryAt = measureClock.instant()
-            }
-            .map {
-                SourceFileRule.match(lex(it), it.packageName)
-            }
+        val modulesToLoad = listOf(ModuleSourceRef(srcDir, moduleName)) + target.targetSpecificModules
+        var anyParseErrors = false
+        for (moduleRef in modulesToLoad) {
+            val moduleContext = swCtx.registerModule(moduleRef.moduleName)
+            SourceSet.load(moduleRef.path, moduleRef.moduleName)
+                .also {
+                    if (it.isEmpty()) {
+                        echo(ModuleWithoutSourcesReporting(moduleRef.moduleName, moduleRef.path))
+                    }
+                }
+                .map { SourceFileRule.match(lex(it), it.packageName) }
+                .forEach {
+                    it.reportings.forEach(this::echo)
+                    anyParseErrors = anyParseErrors || it.reportings.containsErrors
+                    it.item?.let(moduleContext::addSourceFile)
+                }
+        }
 
         val lexicalCompleteAt = measureClock.instant()
-        parseResults.flatMap { it.reportings }.forEach(this::echo)
 
-        if (parseResults.any { it.reportings.containsErrors }) {
+        if (anyParseErrors) {
             throw PrintMessage(
                 "Could not parse the source-code",
                 statusCode = 1,
                 printError = true,
             )
         }
-        if (parseResults.isEmpty()) {
-            throw PrintMessage(
-                "Found no source files in $srcDir",
-                statusCode = 1,
-                printError = true,
-            )
-        }
-
-        parseResults.mapNotNull { it.item }.forEach(moduleCtx::addSourceFile)
 
         val semanticResults = swCtx.doSemanticAnalysis()
         val semanticCompleteAt = measureClock.instant()
@@ -104,8 +106,7 @@ object CompileCommand : CliktCommand() {
         val backendDoneAt = measureClock.instant()
 
         echo("----------")
-        echo("loading sources into memory: ${elapsedBetween(startedAt, sourceInMemoryAt)}")
-        echo("lexical analysis: ${elapsedBetween(sourceInMemoryAt, lexicalCompleteAt)}")
+        echo("lexical analysis: ${elapsedBetween(startedAt, lexicalCompleteAt)}")
         echo("semantic analysis: ${elapsedBetween(lexicalCompleteAt, semanticCompleteAt)}")
         echo("backend: ${elapsedBetween(backendStartedAt, backendDoneAt)}")
         echo("total time: ${elapsedBetween(startedAt, semanticCompleteAt)}")
@@ -136,3 +137,5 @@ private fun elapsedBetween(start: Instant, end: Instant): String {
         .replace(Regex("(?<=\\.\\d{3})\\d+"), "")
         .replace(".000", "")
 }
+
+private fun <T : Any> Stream<T?>.filterNotNull(): Stream<T> = filter { it != null } as Stream<T>
