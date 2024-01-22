@@ -18,11 +18,13 @@
 
 package compiler.compiler.ast.type
 
-import compiler.binding.type.BuiltinAny
+import compiler.CoreIntrinsicsModule
+import compiler.binding.context.SoftwareContext
 import compiler.binding.type.BaseType
+import compiler.binding.type.BuiltinAny
 import compiler.binding.type.BuiltinNothing
-import compiler.binding.type.BuiltinType
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 
 class BaseTypeTest : FreeSpec() { init {
@@ -91,8 +93,12 @@ class BaseTypeTest : FreeSpec() { init {
     }
 
     "Nothing" - {
+        val testSwCtx = SoftwareContext()
+        CoreIntrinsicsModule.addTo(testSwCtx)
+        val corePackage = testSwCtx.getPackage(CoreIntrinsicsModule.NAME).shouldNotBeNull()
+
         "is a subtype of all builtin types, including itself" - {
-            BuiltinType.getNewSourceFile().context.types.forEach { builtinType ->
+            corePackage.types.forEach { builtinType ->
                 "Nothing is subtype of $builtinType" {
                     BuiltinNothing.isSubtypeOf(builtinType) shouldBe true
                 }
@@ -100,7 +106,7 @@ class BaseTypeTest : FreeSpec() { init {
         }
 
         "is not a subtype of all other builtin types" - {
-            BuiltinType.getNewSourceFile().context.types.except(BuiltinNothing).forEach { builtinType ->
+            corePackage.types.except(BuiltinNothing).forEach { builtinType ->
                 "$builtinType is not a subtype of Nothing" {
                     builtinType.isSubtypeOf(BuiltinNothing) shouldBe false
                 }
@@ -108,7 +114,7 @@ class BaseTypeTest : FreeSpec() { init {
         }
 
         "closest common supertype of any builtin type and Nothing is that builtin type" - {
-            BuiltinType.getNewSourceFile().context.types.except(BuiltinNothing).forEach { builtinType ->
+            corePackage.types.except(BuiltinNothing).forEach { builtinType ->
                 "closest common supertype of Nothing and $builtinType is $builtinType" {
                     BaseType.closestCommonSupertypeOf(BuiltinNothing, builtinType) shouldBe builtinType
                     BaseType.closestCommonSupertypeOf(builtinType, BuiltinNothing) shouldBe builtinType
@@ -118,7 +124,7 @@ class BaseTypeTest : FreeSpec() { init {
     }
 }}
 
-fun <T> Iterable<T>.except(vararg es: T): Iterable<T> {
+private fun <T> Sequence<T>.except(vararg es: T): Sequence<T> {
     val eSet = es.toSet()
-    return asSequence().filter { it !in eSet }.asIterable()
+    return filter { it !in eSet }
 }

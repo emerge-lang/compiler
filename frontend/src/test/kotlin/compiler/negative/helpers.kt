@@ -1,12 +1,12 @@
 package compiler.compiler.negative
 
+import compiler.CoreIntrinsicsModule
+import compiler.PackageName
 import compiler.binding.context.SoftwareContext
-import compiler.binding.type.BuiltinType
 import compiler.lexer.MemorySourceFile
 import compiler.lexer.lex
+import compiler.parser.SourceFileRule
 import compiler.parser.TokenSequence
-import compiler.parser.grammar.SourceFileGrammar
-import compiler.parser.grammar.rule.MatchingContext
 import compiler.reportings.Reporting
 import io.kotest.inspectors.forOne
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -25,7 +25,7 @@ fun lexCode(
         code
     }
 
-    val sourceFile = MemorySourceFile(invokedFrom.fileName!!, moduleCode)
+    val sourceFile = MemorySourceFile(invokedFrom.fileName!!, PackageName(listOf("testmodule")), moduleCode)
     return lex(sourceFile)
 }
 
@@ -44,24 +44,19 @@ fun validateModule(
     invokedFrom: StackTraceElement = Thread.currentThread().stackTrace[2],
 ): Collection<Reporting> {
     val tokens = lexCode(code.assureEndsWith('\n'), addModuleDeclaration, invokedFrom)
-    val result = SourceFileGrammar.match(MatchingContext.None, tokens)
+    val result = SourceFileRule.match(tokens, PackageName(listOf("testmodule")))
     if (result.item == null) {
         val error = result.reportings.maxBy { it.level }
         throw AssertionError("Failed to parse code: ${error.message} in ${error.sourceLocation}")
     }
     val lexicalReportings = result.reportings
-    val nTopLevelDeclarations = result.item!!.let { module ->
-        module.functions.size + module.structs.size + module.variables.size
-    }
+    val sourceFile = result.item!!
+    val nTopLevelDeclarations = sourceFile.functions.size + sourceFile.structs.size + sourceFile.variables.size
     check(nTopLevelDeclarations > 0) { "Found no top-level declarations in the test source. Very likely a parsing bug." }
 
     val swCtxt = SoftwareContext()
-
-    swCtxt.addSourceFile(result.item!!.bindTo(swCtxt))
-
-    val builtinsModule = BuiltinType.getNewSourceFile()
-    builtinsModule.context.swCtx = swCtxt
-    swCtxt.addSourceFile(builtinsModule)
+    CoreIntrinsicsModule.addTo(swCtxt)
+    swCtxt.registerModule(sourceFile.expectedPackageName).addSourceFile(sourceFile)
 
     val semanticReportings = swCtxt.doSemanticAnalysis()
     return (lexicalReportings + semanticReportings).toSet()

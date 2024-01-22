@@ -1,9 +1,8 @@
 package compiler.binding.context
 
-import compiler.InternalCompilerError
 import compiler.PackageName
+import compiler.ast.ASTSourceFile
 import compiler.reportings.Reporting
-import java.util.HashSet
 
 /**
  * Bundles all source files of a single module.
@@ -15,11 +14,12 @@ class ModuleContext(
     private val _sourceFiles: MutableSet<SourceFile> = HashSet()
     val sourceFiles: Set<SourceFile> = _sourceFiles
 
-    /**
-     * Defines a new module with the given name and the given context.
-     * @throws InternalCompilerError If such a module is already defined.
-     * TODO: Create & use a more specific exception
-     */
+    fun addSourceFile(sourceFile: ASTSourceFile): SourceFile {
+        val bound = sourceFile.bindTo(this)
+        _sourceFiles.add(bound)
+        return bound
+    }
+
     fun addSourceFile(sourceFile: SourceFile) {
         _sourceFiles.add(sourceFile)
     }

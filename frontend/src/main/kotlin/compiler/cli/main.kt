@@ -2,7 +2,6 @@ package compiler.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.PrintMessage
-import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.defaultLazy
 import com.github.ajalt.clikt.parameters.options.option
@@ -15,7 +14,6 @@ import compiler.binding.context.SoftwareContext
 import compiler.lexer.SourceSet
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
-import compiler.parser.grammar.StandaloneFunctionDeclaration
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.EmergeBackend
@@ -81,10 +79,7 @@ object CompileCommand : CliktCommand() {
             )
         }
 
-        parseResults.forEach {
-            val bound = it.item!!.bindTo(moduleCtx)
-            moduleCtx.addSourceFile(bound)
-        }
+        parseResults.mapNotNull { it.item }.forEach(moduleCtx::addSourceFile)
 
         val semanticResults = swCtx.doSemanticAnalysis()
         val semanticCompleteAt = measureClock.instant()

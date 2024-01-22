@@ -1,11 +1,15 @@
 package compiler.compiler.parser
 
+import compiler.compiler.negative.lexCode
+import compiler.compiler.negative.shouldReport
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
-import compiler.compiler.negative.lexCode
-import compiler.compiler.negative.shouldReport
-import compiler.parser.grammar.dsl.*
+import compiler.parser.grammar.dsl.GrammarReceiver
+import compiler.parser.grammar.dsl.eitherOf
+import compiler.parser.grammar.dsl.flatten
+import compiler.parser.grammar.dsl.mapResult
+import compiler.parser.grammar.dsl.sequence
 import compiler.parser.grammar.rule.MatchingContext
 import compiler.reportings.ParsingMismatchReporting
 import io.kotest.core.spec.style.FreeSpec
@@ -17,7 +21,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 class MismatchAmbiguityResolutionTest : FreeSpec({
     "sequence backtracking" - {
         val grammar = sequence {
-            keyword(Keyword.EXTERNAL)
+            keyword(Keyword.INTRINSIC)
             eitherOf {
                 sequence {
                     keyword(Keyword.OPERATOR)
@@ -33,11 +37,11 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
         }.flatten().mapResult { it.remainingToList() }
 
         "match first path" {
-            val tokens = lexCode("external operator nothrow fun", addModuleDeclaration = false)
+            val tokens = lexCode("intrinsic operator nothrow fun", addModuleDeclaration = false)
             val result = grammar.match(MatchingContext.None, tokens)
 
             result.item.shouldBeInstanceOf<List<Any>>()
-            (result.item as List<Any>)[0] shouldBe KeywordToken(Keyword.EXTERNAL)
+            (result.item as List<Any>)[0] shouldBe KeywordToken(Keyword.INTRINSIC)
             (result.item as List<Any>)[1] shouldBe KeywordToken(Keyword.OPERATOR)
             (result.item as List<Any>)[2] shouldBe KeywordToken(Keyword.NOTHROW)
             (result.item as List<Any>)[3] shouldBe KeywordToken(Keyword.FUNCTION)
@@ -46,11 +50,11 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
         }
 
         "match second path with backtracing" {
-            val tokens = lexCode("external operator readonly val", addModuleDeclaration = false)
+            val tokens = lexCode("intrinsic operator readonly val", addModuleDeclaration = false)
             val result = grammar.match(MatchingContext.None, tokens)
 
             result.item.shouldBeInstanceOf<List<Any>>()
-            (result.item as List<Any>)[0] shouldBe KeywordToken(Keyword.EXTERNAL)
+            (result.item as List<Any>)[0] shouldBe KeywordToken(Keyword.INTRINSIC)
             (result.item as List<Any>)[1] shouldBe KeywordToken(Keyword.OPERATOR)
             (result.item as List<Any>)[2] shouldBe KeywordToken(Keyword.READONLY)
             (result.item as List<Any>)[3] shouldBe KeywordToken(Keyword.VAL)
@@ -59,7 +63,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
         }
 
         "mismatch on ambiguous token" {
-            val tokens = lexCode("external operator pure fun", addModuleDeclaration = false)
+            val tokens = lexCode("intrinsic operator pure fun", addModuleDeclaration = false)
             val result = grammar.match(MatchingContext.None, tokens)
 
             result.item shouldBe null
@@ -68,7 +72,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
         }
 
         "mismatch after disambiguifying token in first branch" {
-            val tokens = lexCode("external operator nothrow struct", addModuleDeclaration = false)
+            val tokens = lexCode("intrinsic operator nothrow struct", addModuleDeclaration = false)
             val result = grammar.match(MatchingContext.None, tokens)
 
             result.item shouldBe null
@@ -80,7 +84,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
         }
 
         "mismatch after disambiguifying token in second branch" {
-            val tokens = lexCode("external operator readonly struct", addModuleDeclaration = false)
+            val tokens = lexCode("intrinsic operator readonly struct", addModuleDeclaration = false)
             val result = grammar.match(MatchingContext.None, tokens)
 
             result.item shouldBe null
@@ -96,7 +100,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
             val result = grammar.match(MatchingContext.None, tokens)
 
             result.reportings.shouldReport<ParsingMismatchReporting> {
-                it.expected shouldBe "keyword external"
+                it.expected shouldBe "keyword intrinsic"
                 it.actual shouldBe "identifier foo"
             }
         }
