@@ -1,5 +1,6 @@
 package compiler.parser
 
+import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
 import compiler.ast.ASTPackageDeclaration
 import compiler.ast.ASTSourceFile
@@ -76,11 +77,9 @@ object SourceFileRule {
         // default import emerge.lang.*
         astSourceFile.imports.add(
             ImportDeclaration(
-            SourceLocation.UNKNOWN, listOf(
-                IdentifierToken("emerge"),
-                IdentifierToken("lang"),
-                IdentifierToken("*")
-            ))
+                SourceLocation.UNKNOWN,
+                CoreIntrinsicsModule.NAME.components.map(::IdentifierToken) + listOf(IdentifierToken("*")),
+            )
         )
 
         return MatchingResult(

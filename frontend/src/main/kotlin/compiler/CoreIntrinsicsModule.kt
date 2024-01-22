@@ -41,7 +41,7 @@ object CoreIntrinsicsModule {
         softwareContext.registerModule(NAME).addSourceFile(file)
     }
 
-    val NAME = PackageName(listOf("emerge", "lang"))
+    val NAME = PackageName(listOf("emerge", "core"))
     /* TODO: evaluate need for this */
     val NAME_STRING = NAME.toString()
 
