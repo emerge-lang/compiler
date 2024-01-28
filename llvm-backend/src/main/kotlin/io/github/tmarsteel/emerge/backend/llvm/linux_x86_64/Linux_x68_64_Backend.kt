@@ -5,6 +5,7 @@ import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
 import io.github.tmarsteel.emerge.backend.api.PackageName
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.llvm.SystemPropertyDelegate.Companion.systemProperty
+import org.bytedeco.llvm.global.LLVM
 import java.nio.file.Path
 import java.nio.file.Paths
 
@@ -18,7 +19,9 @@ class Linux_x68_64_Backend : EmergeBackend {
     )
 
     override fun emit(softwareContext: IrSoftwareContext, directory: Path) {
-        TODO("Not yet implemented")
+        LLVM.LLVMInitializeNativeAsmPrinter()
+        LLVM.LLVMInitializeNativeAsmParser()
+        LLVM.LLVMInitializeNativeTarget()
     }
 
     companion object {
