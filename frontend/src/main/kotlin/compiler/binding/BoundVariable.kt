@@ -26,12 +26,12 @@ import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
 import compiler.binding.expression.BoundExpression
-import compiler.binding.type.BuiltinAny
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.BuiltinAny
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
-import compiler.reportings.Reporting
 import compiler.handleCyclicInvocation
+import compiler.reportings.Reporting
 
 /**
  * Describes the presence/avaiability of a (class member) variable or (class member) value in a context.
@@ -46,7 +46,7 @@ class BoundVariable(
 {
     val isAssignable: Boolean = declaration.isAssignable
     private val implicitMutability: TypeMutability = declaration.typeMutability
-        ?: if (isAssignable) TypeMutability.MUTABLE else TypeMutability.IMMUTABLE
+        ?: if (isAssignable) TypeMutability.MUTABLE else kind.defaultMutability
 
     val name: String = declaration.name.value
 
@@ -210,9 +210,11 @@ class BoundVariable(
         return initializerExpression?.findWritesBeyond(boundary) ?: emptySet()
     }
 
-    enum class Kind {
-        VARIABLE,
-        PARAMETER,
+    enum class Kind(
+        val defaultMutability: TypeMutability,
+    ) {
+        VARIABLE(TypeMutability.IMMUTABLE),
+        PARAMETER(TypeMutability.READONLY),
         ;
 
         override fun toString() = name.lowercase()
