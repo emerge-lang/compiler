@@ -1,6 +1,7 @@
 package compiler.binding.expression
 
 import compiler.CoreIntrinsicsModule
+import compiler.InternalCompilerError
 import compiler.ast.Executable
 import compiler.ast.expression.ArrayLiteralExpression
 import compiler.ast.type.TypeArgument
@@ -8,6 +9,7 @@ import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
+import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.BuiltinAny
@@ -28,6 +30,13 @@ class BoundArrayLiteralExpression(
     private var expectedElementType: BoundTypeReference? = null
     override var type: BoundTypeReference? = null
         private set
+
+    private val arrayType: BaseType = run {
+        val corePackage = context.swCtx.getPackage(CoreIntrinsicsModule.NAME)
+            ?: throw InternalCompilerError("The software context doesn't define the default package ${CoreIntrinsicsModule.NAME}")
+        corePackage.resolveBaseType("Array")
+            ?: throw InternalCompilerError("The software context doesn't define ${CoreIntrinsicsModule.NAME}.Array")
+    }
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return elements.flatMap { it.semanticAnalysisPhase1() }
@@ -54,7 +63,6 @@ class BoundArrayLiteralExpression(
                 ?: BuiltinAny.baseReference
         }
 
-        val arrayType = context.swCtx.getPackage(CoreIntrinsicsModule.NAME)!!.resolveBaseType("Array")!!
         type = RootResolvedTypeReference(
             TypeReference(arrayType.simpleName),
             arrayType,
@@ -82,7 +90,7 @@ class BoundArrayLiteralExpression(
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         expectedReturnType = type
 
-        if (type !is RootResolvedTypeReference || type.baseType !== BuiltinArray) {
+        if (type !is RootResolvedTypeReference || type.baseType != arrayType) {
             // ignore
             return
         }
