@@ -1,5 +1,6 @@
 package compiler.binding.expression
 
+import compiler.CoreIntrinsicsModule
 import compiler.ast.Executable
 import compiler.ast.expression.ArrayLiteralExpression
 import compiler.ast.type.TypeArgument
@@ -53,9 +54,10 @@ class BoundArrayLiteralExpression(
                 ?: BuiltinAny.baseReference
         }
 
+        val arrayType = context.swCtx.getPackage(CoreIntrinsicsModule.NAME)!!.resolveBaseType("Array")!!
         type = RootResolvedTypeReference(
-            TypeReference(BuiltinArray.simpleName),
-            BuiltinArray,
+            TypeReference(arrayType.simpleName),
+            arrayType,
             listOf(BoundTypeArgument(
                 TypeArgument(TypeVariance.UNSPECIFIED, TypeReference("_")),
                 TypeVariance.UNSPECIFIED,

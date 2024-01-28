@@ -12,7 +12,9 @@ import compiler.binding.type.BuiltinFloat
 import compiler.binding.type.BuiltinInt
 import compiler.binding.type.BuiltinNothing
 import compiler.binding.type.BuiltinNumber
+import compiler.binding.type.BuiltinSignedWord
 import compiler.binding.type.BuiltinUnit
+import compiler.binding.type.BuiltinUnsignedWord
 import io.github.tmarsteel.emerge.backend.api.PackageName
 
 /**
@@ -21,7 +23,8 @@ import io.github.tmarsteel.emerge.backend.api.PackageName
  */
 object CoreIntrinsicsModule {
     fun addTo(softwareContext: SoftwareContext) {
-        val fileContext = SourceFileRootContext()
+        val moduleContext = softwareContext.registerModule(NAME)
+        val fileContext = SourceFileRootContext(softwareContext.getPackage(NAME)!!)
         val file = SourceFile(NAME, fileContext)
 
         file.context.addBaseType(BuiltinAny)
@@ -30,15 +33,17 @@ object CoreIntrinsicsModule {
         file.context.addBaseType(BuiltinFloat)
         file.context.addBaseType(BuiltinInt)
         file.context.addBaseType(BuiltinBoolean)
-        file.context.addBaseType(BuiltinArray)
+        file.context.addBaseType(BuiltinArray(softwareContext))
         file.context.addBaseType(BuiltinNothing)
         file.context.addBaseType(BuiltinByte)
+        file.context.addBaseType(BuiltinSignedWord)
+        file.context.addBaseType(BuiltinUnsignedWord)
 
         stdlib.functions.forEach(file.context::addFunction)
         stdlib.variables.forEach(file.context::addVariable)
         stdlib.structs.forEach(file.context::addStruct)
 
-        softwareContext.registerModule(NAME).addSourceFile(file)
+        moduleContext.addSourceFile(file)
     }
 
     val NAME = PackageName(listOf("emerge", "core"))

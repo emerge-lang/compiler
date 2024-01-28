@@ -22,6 +22,8 @@ import compiler.CoreIntrinsicsModule
 import compiler.ast.FunctionDeclaration
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeVariance
+import compiler.binding.ObjectMember
+import compiler.binding.context.SoftwareContext
 import compiler.binding.context.SourceFileRootContext
 import compiler.lexer.IdentifierToken
 
@@ -61,14 +63,31 @@ val BuiltinBoolean = object : BuiltinType("Boolean", BuiltinAny) {
     override val isAtomic = true
 }
 
-val BuiltinArray = object : BuiltinType("Array", BuiltinAny) {
+val BuiltinSignedWord = object : BuiltinType("iword", BuiltinAny) {
+    override val isAtomic = true
+}
+
+val BuiltinUnsignedWord = object : BuiltinType("uword", BuiltinAny) {
+    override val isAtomic = true
+}
+
+val BuiltinArray: (SoftwareContext) -> BuiltinType = { swCtx -> object : BuiltinType("Array", BuiltinAny) {
     override val typeParameters = listOf(
         BoundTypeParameter(
             astNode = TypeParameter(variance = TypeVariance.UNSPECIFIED, IdentifierToken("Item"), bound = null),
-            context = SourceFileRootContext(),
+            context = SourceFileRootContext(swCtx.getPackage(CoreIntrinsicsModule.NAME)!!),
         )
     )
-}
+
+    override fun resolveMemberVariable(name: String): ObjectMember? = when(name) {
+        "size" -> object : ObjectMember {
+            override val name = "size"
+            override val type: BoundTypeReference get() = BuiltinUnsignedWord.baseReference
+            override val isMutable = false
+        }
+        else -> null
+    }
+}}
 
 /**
  * A BuiltinType is defined in the ROOT package.

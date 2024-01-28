@@ -18,6 +18,7 @@
 
 package compiler.ast
 
+import compiler.InternalCompilerError
 import compiler.ast.struct.StructDeclaration
 import compiler.binding.context.ModuleContext
 import compiler.binding.context.SoftwareContext
@@ -47,8 +48,10 @@ class ASTSourceFile(
      * [CTContext]) this has its own signature.
      */
     fun bindTo(context: ModuleContext): SourceFile {
-        val fileContext = SourceFileRootContext()
-        fileContext.moduleContext = context
+        val effectivePackageName = selfDeclaration?.packageName?.names?.map { it.value }?.let(::PackageName) ?: expectedPackageName
+        val packageContext = context.softwareContext.getPackage(effectivePackageName)
+            ?: throw InternalCompilerError("Cannot bind source file because its module hasn't been registered with the software-context yet.")
+        val fileContext = SourceFileRootContext(packageContext)
         val reportings = mutableSetOf<Reporting>()
 
         imports.forEach(fileContext::addImport)
@@ -70,7 +73,7 @@ class ASTSourceFile(
         // TODO: validate declared package name
 
         return SourceFile(
-            selfDeclaration?.packageName?.names?.map { it.value }?.let(::PackageName) ?: expectedPackageName,
+            effectivePackageName,
             fileContext,
             reportings
         )

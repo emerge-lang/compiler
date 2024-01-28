@@ -11,10 +11,12 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.UnresolvedType
 
-class SourceFileRootContext : MutableCTContext(
+class SourceFileRootContext(
+    val packageContext: PackageContext,
+) : MutableCTContext(
     EMPTY,
 ) {
-    override lateinit var moduleContext: ModuleContext
+    override var moduleContext: ModuleContext = packageContext.module
     override lateinit var sourceFile: SourceFile
 
     val variables: Collection<BoundVariable> = _variables.values
