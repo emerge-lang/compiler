@@ -37,7 +37,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
         }.flatten().mapResult { it.remainingToList() }
 
         "match first path" {
-            val tokens = lexCode("intrinsic operator nothrow fun", addModuleDeclaration = false)
+            val tokens = lexCode("intrinsic operator nothrow fun", addPackageDeclaration = false)
             val result = grammar.match(MatchingContext.None, tokens)
 
             result.item.shouldBeInstanceOf<List<Any>>()
@@ -50,7 +50,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
         }
 
         "match second path with backtracing" {
-            val tokens = lexCode("intrinsic operator readonly val", addModuleDeclaration = false)
+            val tokens = lexCode("intrinsic operator readonly val", addPackageDeclaration = false)
             val result = grammar.match(MatchingContext.None, tokens)
 
             result.item.shouldBeInstanceOf<List<Any>>()
@@ -63,7 +63,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
         }
 
         "mismatch on ambiguous token" {
-            val tokens = lexCode("intrinsic operator pure fun", addModuleDeclaration = false)
+            val tokens = lexCode("intrinsic operator pure fun", addPackageDeclaration = false)
             val result = grammar.match(MatchingContext.None, tokens)
 
             result.item shouldBe null
@@ -72,7 +72,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
         }
 
         "mismatch after disambiguifying token in first branch" {
-            val tokens = lexCode("intrinsic operator nothrow struct", addModuleDeclaration = false)
+            val tokens = lexCode("intrinsic operator nothrow struct", addPackageDeclaration = false)
             val result = grammar.match(MatchingContext.None, tokens)
 
             result.item shouldBe null
@@ -84,7 +84,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
         }
 
         "mismatch after disambiguifying token in second branch" {
-            val tokens = lexCode("intrinsic operator readonly struct", addModuleDeclaration = false)
+            val tokens = lexCode("intrinsic operator readonly struct", addPackageDeclaration = false)
             val result = grammar.match(MatchingContext.None, tokens)
 
             result.item shouldBe null
@@ -96,7 +96,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
         }
 
         "fail before ambiguity in outer sequence" {
-            val tokens = lexCode("foo", addModuleDeclaration = false)
+            val tokens = lexCode("foo", addPackageDeclaration = false)
             val result = grammar.match(MatchingContext.None, tokens)
 
             result.reportings.shouldReport<ParsingMismatchReporting> {
@@ -126,7 +126,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
             .mapResult { it.remainingToList() }
 
         "must not affect other ambiguous branches" {
-            val tokens = lexCode("b e", addModuleDeclaration = false)
+            val tokens = lexCode("b e", addPackageDeclaration = false)
             val result = grammar.match(MatchingContext.None, tokens)
 
             result.reportings should beEmpty()
@@ -138,7 +138,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
         }
 
         "mismatch in unambiguous branch should prevent backtracking" {
-            val tokens = lexCode("c a", addModuleDeclaration = false)
+            val tokens = lexCode("c a", addPackageDeclaration = false)
             val result = grammar.match(MatchingContext.None, tokens)
 
             result.isAmbiguous shouldBe false
@@ -175,7 +175,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
                 .flatten()
                 .mapResult { it.remainingToList() }
 
-            val tokens = lexCode("preA b", addModuleDeclaration = false)
+            val tokens = lexCode("preA b", addPackageDeclaration = false)
             val result = grammar.match(MatchingContext.None, tokens)
 
             result.reportings should beEmpty()
@@ -204,7 +204,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
             .flatten()
             .mapResult { it.remainingToList() }
 
-        val tokens = lexCode("identifier", addModuleDeclaration = false)
+        val tokens = lexCode("identifier", addPackageDeclaration = false)
         val result = expr.match(MatchingContext.None, tokens)
 
         result.reportings should beEmpty()

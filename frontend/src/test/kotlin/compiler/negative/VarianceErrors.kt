@@ -1,7 +1,9 @@
 package compiler.compiler.negative
 
+import compiler.CoreIntrinsicsModule
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance.*
+import compiler.binding.context.SoftwareContext
 import compiler.binding.type.*
 import compiler.lexer.SourceLocation
 import compiler.reportings.ValueNotAssignableReporting
@@ -17,6 +19,10 @@ import io.mockk.mockk
 
 
 class VarianceErrors : FreeSpec({
+    val swCtx = SoftwareContext()
+    swCtx.registerModule(CoreIntrinsicsModule.NAME)
+    CoreIntrinsicsModule.amendCoreModuleIn(swCtx)
+
     val Parent = BuiltinNumberType
     val Child = BuiltinIntType
 
@@ -26,7 +32,7 @@ class VarianceErrors : FreeSpec({
 
     fun arrayOf(element: BoundTypeArgument): BoundTypeReference = RootResolvedTypeReference(
         TypeReference("Array"),
-        BuiltinArray,
+        swCtx.getPackage(CoreIntrinsicsModule.NAME)!!.resolveBaseType("Array")!!,
         listOf(element),
     )
 

@@ -18,10 +18,12 @@
 
 package compiler.compiler.ast.type
 
+import compiler.CoreIntrinsicsModule
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
+import compiler.binding.context.SoftwareContext
 import compiler.binding.context.SourceFileRootContext
 import compiler.binding.type.BuiltinAny
 import compiler.binding.type.BuiltinArray
@@ -143,9 +145,10 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
     }
 
     "generics" - {
-        val context = SourceFileRootContext()
-        context.addBaseType(BuiltinAny)
-        context.addBaseType(BuiltinArray)
+        val swCtx = SoftwareContext()
+        swCtx.registerModule(CoreIntrinsicsModule.NAME)
+        CoreIntrinsicsModule.amendCoreModuleIn(swCtx)
+        val context = swCtx.getPackage(CoreIntrinsicsModule.NAME)!!.moduleContext.sourceFiles.single().context
 
         "mutability projection" - {
             for (outerMutability in TypeMutability.entries) {

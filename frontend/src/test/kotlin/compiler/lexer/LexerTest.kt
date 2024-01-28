@@ -39,18 +39,18 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 class LexerTest : FreeSpec() {init {
     "keywords" - {
         "default" {
-            val result = lexCode("   module   ", false).tokens
+            val result = lexCode("   package   ", false).tokens
 
             result.size shouldBe 1
             result[0] should beInstanceOf(KeywordToken::class)
             (result[0] as KeywordToken).keyword shouldBe Keyword.PACKAGE
-            (result[0] as KeywordToken).sourceText shouldBe "module"
+            (result[0] as KeywordToken).sourceText shouldBe "package"
             (result[0] as KeywordToken).sourceLocation.fromLineNumber shouldBe 1u
             (result[0] as KeywordToken).sourceLocation.fromColumnNumber shouldBe 4u
         }
 
         "should be case insensitive" {
-            val result = lexCode(" MoDulE ", false).tokens
+            val result = lexCode(" PaCkAGe ", false).tokens
 
             result.size should beGreaterThanOrEqualTo(1)
             result[0] should beInstanceOf(KeywordToken::class)
@@ -157,18 +157,18 @@ class LexerTest : FreeSpec() {init {
 
         "identifiers can include keywords" - {
             "beginning" {
-                val result = lexCode("asddd", addModuleDeclaration = false).tokens
+                val result = lexCode("asddd", addPackageDeclaration = false).tokens
                 result.shouldBeSingleton().single().shouldBeInstanceOf<IdentifierToken>().value shouldBe "asddd"
             }
 
             "middle" {
-                val result = lexCode("basd", addModuleDeclaration = false).tokens
+                val result = lexCode("basd", addPackageDeclaration = false).tokens
 
                 result.shouldBeSingleton().single().shouldBeInstanceOf<IdentifierToken>().value shouldBe "basd"
             }
 
             "ending" {
-                val result = lexCode("das", addModuleDeclaration = false).tokens
+                val result = lexCode("das", addPackageDeclaration = false).tokens
 
                 result.shouldBeSingleton().single().shouldBeInstanceOf<IdentifierToken>().value shouldBe "das"
             }
@@ -210,7 +210,7 @@ class LexerTest : FreeSpec() {init {
     }
 
     "combo test with code" {
-        val result = lexCode("""module foo
+        val result = lexCode("""package foo
             fun foobar(val x: Int = 24) = return (142.12)?.toLong() == x
         """, false).tokens
 

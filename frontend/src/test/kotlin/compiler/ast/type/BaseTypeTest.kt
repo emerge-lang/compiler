@@ -94,7 +94,8 @@ class BaseTypeTest : FreeSpec() { init {
 
     "Nothing" - {
         val testSwCtx = SoftwareContext()
-        CoreIntrinsicsModule.addTo(testSwCtx)
+        testSwCtx.registerModule(CoreIntrinsicsModule.NAME)
+        CoreIntrinsicsModule.amendCoreModuleIn(testSwCtx)
         val corePackage = testSwCtx.getPackage(CoreIntrinsicsModule.NAME).shouldNotBeNull()
 
         "is a subtype of all builtin types, including itself" - {

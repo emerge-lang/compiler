@@ -9,7 +9,7 @@ class FunctionErrors : FreeSpec({
         "external function cannot have body" {
             validateModule(
                 """
-                external fun foo() -> Int {
+                external(C) fun foo() -> Int {
                     return 3
                 }
             """.trimIndent()

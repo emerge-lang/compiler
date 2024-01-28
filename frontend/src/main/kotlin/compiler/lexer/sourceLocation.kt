@@ -106,7 +106,7 @@ class DiskSourceFile(
 
     override val packageName = PackageName(sourceSet.moduleName.components + (pathRelativeToSourceSet.parent?.segments() ?: emptyList()))
 
-    override fun toString(): String = pathRelativeToSourceSet.toString()
+    override fun toString(): String = "${sourceSet.moduleName} $ ${pathRelativeToSourceSet}"
 }
 
 /**

@@ -15,3 +15,8 @@ Thus,
   OS or hardware specific functionality. `emerge.platform` should focus on providing as small primitives as possible
   so that the standard library sources remain descriptive and informative. This should also make it far easier to
   add new targets, as the implementation scope is smaller
+
+## Platform API
+
+The compiler is not explicitly aware of the API between the platform-specific `emerge.platform` module and other code
+it is compiling. The API is documented by [the non-functional stub implementations found in the `backend-api` module](backend-api/src/main/emerge/noop-backend-platform). 
