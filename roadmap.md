@@ -55,6 +55,11 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 20. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
     1. index access can always throw IndexOutOfBounds; work out a nothrow alternative. Maybe `.safeGet(index)` returning `Either`?
 21. implement overload resolution algorithm, marked with TODOs
+    * attention: currently, when an overload doesn't match just because of mutability that is reported as "function not defined".
+      while technically correct, its very negative-helpful. E.g. when assignee is `readonly` and target is `mutable` the
+      error message should say someting like "can't mutate ..."
+    * Also: what about overloading only based on mutabliltiy? Deny by incorporating mutability into the disjoint logic
+      somehow?
 22. object model
     1. ditch struct for class: there is no use for a struct that a `data`/`record` modifier as in Kotlin/Java couldn't
        do; especially because closed-world optimization will produce identically optimal code for a struct and a
