@@ -100,9 +100,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     for i in 0.rangeTo(10) { /* ... */ }
     ```
 28. while / do-while
-29. Jump targets for return, break and continue like in Kotlin
-30. Typealiases
-31. Function types
+29. Typealiases
+30. Function types
     1. `operator fun invoke`: `obj(param)` to `obj.invoke(param)`
     2. Regular functions: `(T1, T2) -> R`
     3. Functions w/ receiver: `O.(T1, T2) -> R` that can be invoked on objects
@@ -112,6 +111,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        val obj: O = ...
        obj.fn(param1, param2)
        ```
+31. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
 32. smart casts
 33. optional parameters
     * parameter with default value is optional
