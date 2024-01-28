@@ -1,3 +1,5 @@
 package emerge.linux.libc
 
-external(C) fun write()
+import emerge.ffi.c.COpaquePointer
+
+external(C) fun write(fd: Int, buf: COpaquePointer, count: uword) -> iword
