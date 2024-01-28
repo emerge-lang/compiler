@@ -139,20 +139,24 @@ class BoundVariable(
 
                 // if declaration doesn't mention mutability, try to infer it from the initializer
                 // instead of using the default mutability
+                var targetTypeToVerifyAgainst: BoundTypeReference? = null
                 if (declaration.typeMutability == null && declaration.type?.mutability == null) {
                     type?.let { resolvedDeclaredType ->
                         initializerExpression.type?.let { initializerType ->
                             type = resolvedDeclaredType.withMutability(initializerType.mutability)
+                            targetTypeToVerifyAgainst = type!!
                         }
                     }
+                } else {
+                    targetTypeToVerifyAgainst = resolvedDeclaredType
                 }
 
                 // verify compatibility declared type <-> initializer type
-                resolvedDeclaredType?.let { resolvedDeclaredType ->
+                if (targetTypeToVerifyAgainst != null) {
                     initializerExpression.type?.let { initializerType ->
                         // discrepancy between assign expression and declared type
                         if (initializerType !is UnresolvedType) {
-                            initializerType.evaluateAssignabilityTo(resolvedDeclaredType, declaration.initializerExpression!!.sourceLocation)
+                            initializerType.evaluateAssignabilityTo(targetTypeToVerifyAgainst!!, declaration.initializerExpression!!.sourceLocation)
                                 ?.let(reportings::add)
                         }
                     }
