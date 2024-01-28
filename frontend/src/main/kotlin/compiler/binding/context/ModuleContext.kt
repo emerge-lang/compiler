@@ -3,13 +3,13 @@ package compiler.binding.context
 import compiler.ast.ASTSourceFile
 import compiler.binding.SemanticallyAnalyzable
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.DotName
 
 /**
  * Bundles all source files of a single module.
  */
 class ModuleContext(
-    val moduleName: PackageName,
+    val moduleName: DotName,
     val softwareContext: SoftwareContext,
 ) : SemanticallyAnalyzable {
     private val _sourceFiles: MutableSet<SourceFile> = HashSet()

@@ -3,11 +3,11 @@ package compiler.binding.context
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
 import compiler.binding.type.BaseType
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.DotName
 
 class PackageContext(
     val moduleContext: ModuleContext,
-    val packageName: PackageName,
+    val packageName: DotName,
 ) {
     val types: Sequence<BaseType> get() {
         return moduleContext.sourceFiles

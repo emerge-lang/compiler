@@ -11,7 +11,7 @@ import compiler.parser.SourceFileRule
 import compiler.parser.TokenSequence
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.noop.NoopBackend
 import io.kotest.inspectors.forOne
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -30,11 +30,11 @@ fun lexCode(
         code
     }
 
-    val sourceFile = MemorySourceFile(invokedFrom.fileName!!, PackageName(listOf("testmodule")), moduleCode)
+    val sourceFile = MemorySourceFile(invokedFrom.fileName!!, DotName(listOf("testmodule")), moduleCode)
     return lex(sourceFile)
 }
 
-private val defaultModulesParsed: List<Pair<PackageName, List<ASTSourceFile>>> = (NoopBackend().targetSpecificModules + listOf(
+private val defaultModulesParsed: List<Pair<DotName, List<ASTSourceFile>>> = (NoopBackend().targetSpecificModules + listOf(
     ModuleSourceRef(CoreIntrinsicsModule.SRC_DIR, CoreIntrinsicsModule.NAME),
     ModuleSourceRef(StandardLibraryModule.SRC_DIR, StandardLibraryModule.NAME),
 ))
@@ -66,7 +66,7 @@ fun validateModule(
     invokedFrom: StackTraceElement = Thread.currentThread().stackTrace[2],
 ): Collection<Reporting> {
     val tokens = lexCode(code.assureEndsWith('\n'), addPackageDeclaration, invokedFrom)
-    val result = SourceFileRule.match(tokens, PackageName(listOf("testmodule")))
+    val result = SourceFileRule.match(tokens, DotName(listOf("testmodule")))
     if (result.item == null) {
         val error = result.reportings.maxBy { it.level }
         throw AssertionError("Failed to parse code: ${error.message} in ${error.sourceLocation}")

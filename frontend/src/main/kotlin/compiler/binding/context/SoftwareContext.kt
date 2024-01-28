@@ -20,7 +20,7 @@ package compiler.binding.context
 
 import compiler.InternalCompilerError
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 
 /**
@@ -35,7 +35,7 @@ class SoftwareContext {
      * Creates and register a new [ModuleContext] in this software.
      * @return the new context so [SourceFile]s can be bound to it (see [ModuleContext.addSourceFile])
      */
-    fun registerModule(name: PackageName): ModuleContext {
+    fun registerModule(name: DotName): ModuleContext {
         modules.find { it.moduleName.containsOrEquals(name) }?.let { conflictingModule ->
             throw IllegalArgumentException("Cannot add module $name to this ${this::class.simpleName}, because it already contains a module with conflicting name: $conflictingModule")
         }
@@ -45,7 +45,7 @@ class SoftwareContext {
         return moduleContext
     }
 
-    fun getRegisteredModule(name: PackageName): ModuleContext {
+    fun getRegisteredModule(name: DotName): ModuleContext {
         return modules.find { it.moduleName == name } ?: throw IllegalStateException("Module $name has not been registered")
     }
 
@@ -58,11 +58,11 @@ class SoftwareContext {
     fun getPackage(name: List<String>): PackageContext? {
         packageCache[name]?.let { return it }
         val module = modules.singleOrNull { it.moduleName.containsOrEquals(name) } ?: return null
-        val ctx = PackageContext(module, PackageName(name))
+        val ctx = PackageContext(module, DotName(name))
         packageCache[name] = ctx
         return ctx
     }
-    fun getPackage(name: PackageName): PackageContext? = getPackage(name.components)
+    fun getPackage(name: DotName): PackageContext? = getPackage(name.components)
 
     fun doSemanticAnalysis(): Collection<Reporting> {
         return (modules.flatMap { it.semanticAnalysisPhase1() } +

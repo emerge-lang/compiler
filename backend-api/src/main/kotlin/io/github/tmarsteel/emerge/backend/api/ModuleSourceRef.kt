@@ -7,5 +7,5 @@ import java.nio.file.Path
  */
 data class ModuleSourceRef(
     val path: Path,
-    val moduleName: PackageName,
+    val moduleName: DotName,
 )

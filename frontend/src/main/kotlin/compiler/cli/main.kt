@@ -19,7 +19,7 @@ import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.EmergeBackend
 import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.DotName
 import java.nio.file.Path
 import java.time.Clock
 import java.time.Duration
@@ -39,7 +39,7 @@ private val backends: Map<String, EmergeBackend> = ServiceLoader.load(EmergeBack
     ))
 
 object CompileCommand : CliktCommand() {
-    private val moduleName: PackageName by argument("module name").packageName()
+    private val moduleName: DotName by argument("module name").packageName()
     private val srcDir: Path by argument("source directory")
         .path(mustExist = true, canBeFile = false, canBeDir = true, mustBeReadable = true)
     private val outDir: Path by argument("output directory")

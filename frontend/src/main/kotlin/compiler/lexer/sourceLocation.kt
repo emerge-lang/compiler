@@ -19,7 +19,7 @@
 package compiler.lexer
 
 import compiler.reportings.getIllustrationForHighlightedLines
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.DotName
 import org.apache.commons.io.input.BOMInputStream
 import java.nio.charset.Charset
 import java.nio.file.Files
@@ -40,7 +40,7 @@ import kotlin.io.path.relativeTo
  */
 class SourceSet(
     val path: Path,
-    val moduleName: PackageName,
+    val moduleName: DotName,
 ) {
     init {
         require(path.isAbsolute) { "SourceSet path $path must be absolute" }
@@ -49,7 +49,7 @@ class SourceSet(
     }
 
     companion object {
-        fun load(sourceSetPath: Path, moduleName: PackageName): Collection<SourceFile> {
+        fun load(sourceSetPath: Path, moduleName: DotName): Collection<SourceFile> {
             val sourceSet = SourceSet(sourceSetPath, moduleName)
 
             return Files.walk(sourceSetPath)
@@ -78,7 +78,7 @@ class SourceSet(
 
 interface SourceFile {
     val content: String
-    val packageName: PackageName
+    val packageName: DotName
 
     companion object {
         const val EXTENSION = "em"
@@ -87,7 +87,7 @@ interface SourceFile {
 
 class ClasspathSourceFile(
     val pathOnClasspath: Path,
-    override val packageName: PackageName,
+    override val packageName: DotName,
     override val content: String,
 ) : SourceFile {
     override fun toString() = "classpath:/$pathOnClasspath"
@@ -104,7 +104,7 @@ class DiskSourceFile(
         throw IllegalArgumentException("Source file is not located in the given source-set!", ex)
     }
 
-    override val packageName = PackageName(sourceSet.moduleName.components + (pathRelativeToSourceSet.parent?.segments() ?: emptyList()))
+    override val packageName = DotName(sourceSet.moduleName.components + (pathRelativeToSourceSet.parent?.segments() ?: emptyList()))
 
     override fun toString(): String = "${sourceSet.moduleName} $ ${pathRelativeToSourceSet}"
 }
@@ -114,7 +114,7 @@ class DiskSourceFile(
  */
 class MemorySourceFile(
     val name: String,
-    override val packageName: PackageName,
+    override val packageName: DotName,
     override val content: String
 ) : SourceFile {
     override fun toString() = "memory:$name"
@@ -145,7 +145,7 @@ data class SourceLocation(
     val fileLineColumnText: String get() = "$file on line $fromLineNumber at column $fromColumnNumber"
 
     companion object {
-        val UNKNOWN = SourceLocation(MemorySourceFile("UNKNOWN", PackageName(listOf("unknown")), ""), 1u, 1u, 1u, 1u)
+        val UNKNOWN = SourceLocation(MemorySourceFile("UNKNOWN", DotName(listOf("unknown")), ""), 1u, 1u, 1u, 1u)
     }
 }
 

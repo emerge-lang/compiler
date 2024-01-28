@@ -1,6 +1,6 @@
 package io.github.tmarsteel.emerge.backend.api
 
-class PackageName(val components: List<String>) {
+class DotName(val components: List<String>) {
 
     override fun toString() = components.joinToString(separator = ".")
 
@@ -12,7 +12,7 @@ class PackageName(val components: List<String>) {
         return components.zip(other).all { (a, b) -> a == b }
     }
 
-    fun containsOrEquals(other: PackageName): Boolean {
+    fun containsOrEquals(other: DotName): Boolean {
         return containsOrEquals(other.components)
     }
 
@@ -20,7 +20,7 @@ class PackageName(val components: List<String>) {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
-        other as PackageName
+        other as DotName
 
         return components == other.components
     }

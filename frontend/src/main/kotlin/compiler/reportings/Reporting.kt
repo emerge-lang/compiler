@@ -41,7 +41,7 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.OperatorToken
 import compiler.lexer.SourceLocation
 import compiler.lexer.Token
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.DotName
 import textutils.indentByFromSecondLine
 
 abstract class Reporting internal constructor(
@@ -211,7 +211,7 @@ abstract class Reporting internal constructor(
         fun mutationInCondition(mutation: BoundExecutable<*>)
             = MutationInConditionReporting(mutation.declaration)
 
-        fun incorrectPackageDeclaration(name: ASTPackageName, expected: PackageName)
+        fun incorrectPackageDeclaration(name: ASTPackageName, expected: DotName)
             = IncorrectPackageDeclarationReporting(name, expected)
 
         /**

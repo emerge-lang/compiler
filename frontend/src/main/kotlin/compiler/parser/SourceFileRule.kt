@@ -16,10 +16,10 @@ import compiler.parser.grammar.SourceFileGrammar
 import compiler.parser.grammar.rule.MatchingContext
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.DotName
 
 object SourceFileRule {
-    fun match(tokens: TokenSequence, expectedPackageName: PackageName): MatchingResult<ASTSourceFile> {
+    fun match(tokens: TokenSequence, expectedPackageName: DotName): MatchingResult<ASTSourceFile> {
         val inResult = SourceFileGrammar.match(MatchingContext.None, tokens)
         @Suppress("UNCHECKED_CAST")
         val input = inResult.item ?: return inResult as MatchingResult<ASTSourceFile> // null can haz any type that i want :)

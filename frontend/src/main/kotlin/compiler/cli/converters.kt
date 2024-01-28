@@ -13,16 +13,16 @@ import compiler.lexer.lex
 import compiler.parser.grammar.ModuleOrPackageName
 import compiler.parser.grammar.rule.MatchingContext
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.DotName
 
-fun RawArgument.packageName(): ProcessedArgument<PackageName, PackageName> {
+fun RawArgument.packageName(): ProcessedArgument<DotName, DotName> {
     return convert { rawName ->
-        val parseResult = ModuleOrPackageName.match(MatchingContext.None, lex(MemorySourceFile("CLI argument ${this.name}", PackageName(emptyList()), rawName)))
+        val parseResult = ModuleOrPackageName.match(MatchingContext.None, lex(MemorySourceFile("CLI argument ${this.name}", DotName(emptyList()), rawName)))
         parseResult.reportings.find { it.level > Reporting.Level.ERROR }?.let {
             fail(it.message)
         }
 
-        PackageName(parseResult.item!!.names.map { it.value })
+        DotName(parseResult.item!!.names.map { it.value })
     }
 }
 

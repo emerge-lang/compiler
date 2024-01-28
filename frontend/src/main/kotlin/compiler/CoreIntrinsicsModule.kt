@@ -1,6 +1,5 @@
 package compiler
 
-import compiler.ast.ASTSourceFile
 import compiler.binding.context.SoftwareContext
 import compiler.binding.context.SourceFile
 import compiler.binding.context.SourceFileRootContext
@@ -15,7 +14,7 @@ import compiler.binding.type.BuiltinNumber
 import compiler.binding.type.BuiltinSignedWord
 import compiler.binding.type.BuiltinUnit
 import compiler.binding.type.BuiltinUnsignedWord
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.llvm.SystemPropertyDelegate.Companion.systemProperty
 import java.nio.file.Paths
 
@@ -44,7 +43,7 @@ object CoreIntrinsicsModule {
         coreModule.addSourceFile(file)
     }
 
-    val NAME = PackageName(listOf("emerge", "core"))
+    val NAME = DotName(listOf("emerge", "core"))
     /* TODO: evaluate need for this */
     val NAME_STRING = NAME.toString()
 
