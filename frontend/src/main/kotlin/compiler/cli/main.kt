@@ -9,6 +9,7 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.path
 import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
+import compiler.StandardLibraryModule
 import compiler.binding.context.SoftwareContext
 import compiler.lexer.SourceSet
 import compiler.lexer.lex
@@ -50,12 +51,15 @@ object CompileCommand : CliktCommand() {
 
     override fun run() {
         val swCtx = SoftwareContext()
-        CoreIntrinsicsModule.addTo(swCtx)
 
         val measureClock = Clock.systemUTC()
         val startedAt = measureClock.instant()
 
-        val modulesToLoad = listOf(ModuleSourceRef(srcDir, moduleName)) + target.targetSpecificModules
+        val modulesToLoad = target.targetSpecificModules + listOf(
+            ModuleSourceRef(CoreIntrinsicsModule.SRC_DIR, CoreIntrinsicsModule.NAME),
+            ModuleSourceRef(StandardLibraryModule.SRC_DIR, StandardLibraryModule.NAME),
+            ModuleSourceRef(srcDir, moduleName)
+        )
         var anyParseErrors = false
         for (moduleRef in modulesToLoad) {
             val moduleContext = swCtx.registerModule(moduleRef.moduleName)
@@ -82,6 +86,8 @@ object CompileCommand : CliktCommand() {
                 printError = true,
             )
         }
+
+        CoreIntrinsicsModule.amendCoreModuleIn(swCtx)
 
         val semanticResults = swCtx.doSemanticAnalysis()
         val semanticCompleteAt = measureClock.instant()

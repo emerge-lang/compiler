@@ -14,9 +14,9 @@ import compiler.binding.type.UnresolvedType
 class SourceFileRootContext(
     val packageContext: PackageContext,
 ) : MutableCTContext(
-    EMPTY,
+    SourceFileParentContext(packageContext),
 ) {
-    override var moduleContext: ModuleContext = packageContext.module
+    override var moduleContext: ModuleContext = packageContext.moduleContext
     override lateinit var sourceFile: SourceFile
 
     val variables: Collection<BoundVariable> = _variables.values
@@ -44,6 +44,37 @@ class SourceFileRootContext(
                 ref.arguments.map { BoundTypeArgument(it, it.variance, this.resolveType(it.type)) },
             )
             override fun resolveFunction(name: String, fromOwnFileOnly: Boolean): Collection<BoundFunction> = emptySet()
+        }
+    }
+
+    private class SourceFileParentContext(val packageContext: PackageContext) : CTContext by EMPTY {
+        override val moduleContext = packageContext.moduleContext
+
+        override val sourceFile: SourceFile
+            get() = throw InternalCompilerError("shouldn't be accessed")
+
+        override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? {
+            if (fromOwnFileOnly) {
+                return EMPTY.resolveVariable(name, fromOwnFileOnly)
+            }
+
+            return packageContext.resolveVariable(name)
+        }
+
+        override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BaseType? {
+            if (fromOwnFileOnly) {
+                return EMPTY.resolveBaseType(simpleName, fromOwnFileOnly)
+            }
+
+            return packageContext.resolveBaseType(simpleName)
+        }
+
+        override fun resolveFunction(name: String, fromOwnFileOnly: Boolean): Collection<BoundFunction> {
+            if (fromOwnFileOnly) {
+                return EMPTY.resolveFunction(name, fromOwnFileOnly)
+            }
+
+            return packageContext.resolveFunction(name)
         }
     }
 }

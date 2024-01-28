@@ -43,9 +43,9 @@ class SourceSet(
     val moduleName: PackageName,
 ) {
     init {
-        require(path.isAbsolute) { "SourceSet path must be absolute" }
-        require(path.exists()) { "SourceSet directory does not exist" }
-        require(path.isDirectory()) { "SourceSet must a directory" }
+        require(path.isAbsolute) { "SourceSet path $path must be absolute" }
+        require(path.exists()) { "SourceSet directory $path does not exist" }
+        require(path.isDirectory()) { "SourceSet $path must be a directory" }
     }
 
     companion object {

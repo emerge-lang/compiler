@@ -6,11 +6,11 @@ import compiler.binding.type.BaseType
 import io.github.tmarsteel.emerge.backend.api.PackageName
 
 class PackageContext(
-    val module: ModuleContext,
+    val moduleContext: ModuleContext,
     val packageName: PackageName,
 ) {
     val types: Sequence<BaseType> get() {
-        return module.sourceFiles
+        return moduleContext.sourceFiles
             .asSequence()
             .filter { it.packageName == packageName }
             .flatMap { it.context.types }
@@ -25,12 +25,12 @@ class PackageContext(
     }
 
     fun resolveFunction(simpleName: String): Collection<BoundFunction> {
-        return module.sourceFiles
+        return moduleContext.sourceFiles
             .flatMap { it.context.resolveFunction(simpleName, true) }
     }
 
     fun resolveVariable(simpleName: String): BoundVariable? {
-        return module.sourceFiles
+        return moduleContext.sourceFiles
             .asSequence()
             .mapNotNull { it.context.resolveVariable(simpleName, true) }
             .firstOrNull()

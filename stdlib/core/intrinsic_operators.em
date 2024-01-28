@@ -1,4 +1,4 @@
-package emerge.lang
+package emerge.core
 
 intrinsic operator fun unaryMinus(self: Int) -> Int
 
@@ -11,7 +11,3 @@ intrinsic fun get<T>(self: readonly Array<out T>, index: Int) -> T
 intrinsic fun set<T>(self: mutable Array<in T>, index: Int, value: T) -> Unit
 
 intrinsic fun size(self: readonly Array<out readonly Any?>) -> Int
-
-struct String {
-    utf8Data: Array<Byte>
-}

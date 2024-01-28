@@ -1,6 +1,7 @@
 package compiler.binding.context
 
 import compiler.ast.ASTSourceFile
+import compiler.binding.SemanticallyAnalyzable
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.PackageName
 
@@ -10,7 +11,7 @@ import io.github.tmarsteel.emerge.backend.api.PackageName
 class ModuleContext(
     val moduleName: PackageName,
     val softwareContext: SoftwareContext,
-) {
+) : SemanticallyAnalyzable {
     private val _sourceFiles: MutableSet<SourceFile> = HashSet()
     val sourceFiles: Set<SourceFile> = _sourceFiles
 
@@ -24,11 +25,16 @@ class ModuleContext(
         _sourceFiles.add(sourceFile)
     }
 
-    fun doSemanticAnalysis(): Collection<Reporting> {
-        return (_sourceFiles.flatMap { it.semanticAnalysisPhase1() } +
-                _sourceFiles.flatMap { it.semanticAnalysisPhase2() } +
-                _sourceFiles.flatMap { it.semanticAnalysisPhase3() })
-            .toSet()
+    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+        return _sourceFiles.flatMap { it.semanticAnalysisPhase1() }
+    }
+
+    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        return _sourceFiles.flatMap { it.semanticAnalysisPhase2() }
+    }
+
+    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+        return _sourceFiles.flatMap { it.semanticAnalysisPhase3() }
     }
 
     override fun toString() = moduleName.toString()

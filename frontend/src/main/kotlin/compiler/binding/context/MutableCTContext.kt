@@ -196,7 +196,7 @@ open class MutableCTContext(
         val importedTypes = if (fromOwnFileOnly) emptySet() else importsForSimpleName(name).map { it.resolveFunction(name) }
 
         // TODO: if importedTypes.size is > 1 the reference is ambiguous; how to handle that?
-        return selfDefined + (importedTypes.firstOrNull() ?: emptySet()) + parentContext.resolveFunction(name, fromOwnFileOnly)
+        return (selfDefined + (importedTypes.firstOrNull() ?: emptySet()) + parentContext.resolveFunction(name, fromOwnFileOnly)).toSet()
     }
 
     /**

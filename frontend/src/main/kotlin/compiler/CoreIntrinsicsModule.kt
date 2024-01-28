@@ -16,14 +16,16 @@ import compiler.binding.type.BuiltinSignedWord
 import compiler.binding.type.BuiltinUnit
 import compiler.binding.type.BuiltinUnsignedWord
 import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.llvm.SystemPropertyDelegate.Companion.systemProperty
+import java.nio.file.Paths
 
 /**
  * The very core module of the language, defining intrinsic elements that are implemented by the
  * compiler/backends, rather than source code from the standard library.
  */
 object CoreIntrinsicsModule {
-    fun addTo(softwareContext: SoftwareContext) {
-        val moduleContext = softwareContext.registerModule(NAME)
+    fun amendCoreModuleIn(softwareContext: SoftwareContext) {
+        val coreModule = softwareContext.getRegisteredModule(NAME)
         val fileContext = SourceFileRootContext(softwareContext.getPackage(NAME)!!)
         val file = SourceFile(NAME, fileContext)
 
@@ -39,16 +41,12 @@ object CoreIntrinsicsModule {
         file.context.addBaseType(BuiltinSignedWord)
         file.context.addBaseType(BuiltinUnsignedWord)
 
-        stdlib.functions.forEach(file.context::addFunction)
-        stdlib.variables.forEach(file.context::addVariable)
-        stdlib.structs.forEach(file.context::addStruct)
-
-        moduleContext.addSourceFile(file)
+        coreModule.addSourceFile(file)
     }
 
     val NAME = PackageName(listOf("emerge", "core"))
     /* TODO: evaluate need for this */
     val NAME_STRING = NAME.toString()
 
-    private val stdlib: ASTSourceFile = parseFromClasspath("builtin.em", NAME)
+    val SRC_DIR by systemProperty("emerge.frontend.core.sources", Paths::get)
 }

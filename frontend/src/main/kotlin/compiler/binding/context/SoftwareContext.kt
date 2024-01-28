@@ -45,6 +45,10 @@ class SoftwareContext {
         return moduleContext
     }
 
+    fun getRegisteredModule(name: PackageName): ModuleContext {
+        return modules.find { it.moduleName == name } ?: throw IllegalStateException("Module $name has not been registered")
+    }
+
     private val packageCache = HashMap<List<String>, PackageContext>()
 
     /**
@@ -61,7 +65,9 @@ class SoftwareContext {
     fun getPackage(name: PackageName): PackageContext? = getPackage(name.components)
 
     fun doSemanticAnalysis(): Collection<Reporting> {
-        return modules.flatMap { it.doSemanticAnalysis() }
+        return (modules.flatMap { it.semanticAnalysisPhase1() } +
+                modules.flatMap { it.semanticAnalysisPhase2() } +
+                modules.flatMap { it.semanticAnalysisPhase3() })
             .toSet()
     }
 

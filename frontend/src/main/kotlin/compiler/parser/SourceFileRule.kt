@@ -2,6 +2,7 @@ package compiler.parser
 
 import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
+import compiler.StandardLibraryModule
 import compiler.ast.ASTPackageDeclaration
 import compiler.ast.ASTSourceFile
 import compiler.ast.Declaration
@@ -74,11 +75,18 @@ object SourceFileRule {
             reportings.add(Reporting.parsingError("No package declaration found.", (input.items.getOrNull(0) as Declaration?)?.declaredAt ?: SourceLocation.UNKNOWN))
         }
 
-        // default import emerge.lang.*
+        // default imports
+        // TODO: refactor this into the binding code, its not part of the input sources
         astSourceFile.imports.add(
             ImportDeclaration(
                 SourceLocation.UNKNOWN,
-                CoreIntrinsicsModule.NAME.components.map(::IdentifierToken) + listOf(IdentifierToken("*")),
+                (CoreIntrinsicsModule.NAME.components + "*").map(::IdentifierToken),
+            )
+        )
+        astSourceFile.imports.add(
+            ImportDeclaration(
+                SourceLocation.UNKNOWN,
+                (StandardLibraryModule.NAME.components + "*").map(::IdentifierToken),
             )
         )
 
