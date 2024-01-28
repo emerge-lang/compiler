@@ -1,12 +1,21 @@
 package compiler.binding.expression
 
+import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
 import compiler.StandardLibraryModule
 import compiler.ast.expression.StringLiteralExpression
 import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
+import compiler.binding.struct.Struct
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrStaticByteArrayExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundStringLiteralExpression(
     override val context: CTContext,
@@ -30,5 +39,21 @@ class BoundStringLiteralExpression(
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // nothing to do
+    }
+
+    override fun toBackendIr(): IrExpression {
+        val stringStruct = (type as RootResolvedTypeReference).baseType as Struct
+        val staticDataType = stringStruct.resolveMemberVariable("utf8Data")!!.type!!
+        val staticData = object : IrStaticByteArrayExpression {
+            override val content = declaration.content.content.encodeToByteArray()
+            override val evaluatesTo: IrType = staticDataType.toBackendIr()
+        }
+        val stringCtorInvocation = object : IrStaticDispatchFunctionInvocationExpression {
+            override val function = stringStruct.constructors.single().toBackendIr()
+            override val arguments = listOf(staticData)
+            override val evaluatesTo = type!!.toBackendIr()
+        }
+
+        return stringCtorInvocation
     }
 }

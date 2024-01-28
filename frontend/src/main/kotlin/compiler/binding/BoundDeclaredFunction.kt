@@ -240,7 +240,6 @@ class BoundDeclaredFunction(
         }
     }
 
-    override fun toBackendIr(): IrFunction {
-        return IrFunctionImpl(this)
-    }
+    private val backendIr by lazy { IrFunctionImpl(this) }
+    override fun toBackendIr(): IrFunction = backendIr
 }

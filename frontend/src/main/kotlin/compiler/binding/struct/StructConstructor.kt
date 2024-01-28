@@ -63,5 +63,7 @@ class StructConstructor(
     override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
     override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
     override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
-    override fun toBackendIr(): IrFunction = IrFunctionImpl(this)
+
+    private val backendIr by lazy { IrFunctionImpl(this) }
+    override fun toBackendIr(): IrFunction = backendIr
 }
