@@ -19,6 +19,7 @@
 package compiler.reportings
 
 import compiler.InternalCompilerError
+import compiler.ast.ASTPackageName
 import compiler.ast.Executable
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
@@ -40,6 +41,7 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.OperatorToken
 import compiler.lexer.SourceLocation
 import compiler.lexer.Token
+import io.github.tmarsteel.emerge.backend.api.PackageName
 import textutils.indentByFromSecondLine
 
 abstract class Reporting internal constructor(
@@ -208,6 +210,9 @@ abstract class Reporting internal constructor(
 
         fun mutationInCondition(mutation: BoundExecutable<*>)
             = MutationInConditionReporting(mutation.declaration)
+
+        fun incorrectPackageDeclaration(name: ASTPackageName, expected: PackageName)
+            = IncorrectPackageDeclarationReporting(name, expected)
 
         /**
          * Converts a violation of purity or readonlyness into an appropriate error.

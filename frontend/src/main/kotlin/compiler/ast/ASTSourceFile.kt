@@ -24,6 +24,7 @@ import compiler.binding.context.ModuleContext
 import compiler.binding.context.SoftwareContext
 import compiler.binding.context.SourceFile
 import compiler.binding.context.SourceFileRootContext
+import compiler.lexer.IdentifierToken
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.PackageName
 
@@ -48,9 +49,8 @@ class ASTSourceFile(
      * [CTContext]) this has its own signature.
      */
     fun bindTo(context: ModuleContext): SourceFile {
-        val effectivePackageName = selfDeclaration?.packageName?.names?.map { it.value }?.let(::PackageName) ?: expectedPackageName
-        val packageContext = context.softwareContext.getPackage(effectivePackageName)
-            ?: throw InternalCompilerError("Cannot bind source file because its module hasn't been registered with the software-context yet.")
+        val packageContext = context.softwareContext.getPackage(expectedPackageName)
+            ?: throw InternalCompilerError("Cannot bind source file in $expectedPackageName because its module hasn't been registered with the software-context yet.")
         val fileContext = SourceFileRootContext(packageContext)
         val reportings = mutableSetOf<Reporting>()
 
@@ -70,10 +70,14 @@ class ASTSourceFile(
             }
         }
 
-        // TODO: validate declared package name
+        selfDeclaration?.packageName?.let { declaredPackageName ->
+            if (declaredPackageName.names.map { it.value } != expectedPackageName.components) {
+                reportings.add(Reporting.incorrectPackageDeclaration(declaredPackageName, expectedPackageName))
+            }
+        }
 
         return SourceFile(
-            effectivePackageName,
+            selfDeclaration?.packageName?.names?.map(IdentifierToken::value)?.let(::PackageName) ?: expectedPackageName,
             fileContext,
             reportings
         )
