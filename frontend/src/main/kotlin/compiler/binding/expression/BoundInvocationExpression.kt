@@ -29,6 +29,10 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import compiler.handleCyclicInvocation
+import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundInvocationExpression(
     override val context: CTContext,
@@ -230,6 +234,10 @@ class BoundInvocationExpression(
         onceAction.requireActionNotDone(OnceAction.SemanticAnalysisPhase2)
         expectedReturnType = type
     }
+
+    override fun toBackendIr(): IrExpression {
+        return IrStaticDispatchFunctionInvocationImpl(this)
+    }
 }
 
 
@@ -343,4 +351,16 @@ private data class OverloadCandidateEvaluation(
     val returnType: BoundTypeReference?,
 ) {
     val hasErrors = unification.reportings.any { it.level >= Reporting.Level.ERROR }
+}
+
+private class IrStaticDispatchFunctionInvocationImpl(
+    private val invocation: BoundInvocationExpression,
+) : IrStaticDispatchFunctionInvocationExpression {
+    private val irReturnType by lazy { invocation.type!!.toBackendIr() }
+    private val irFunction by lazy { invocation.dispatchedFunction!!.toBackendIr() }
+    private val irArguments by lazy { invocation.valueArguments.map { it.toBackendIr() } }
+
+    override val evaluatesTo get() = irReturnType
+    override val function get() = irFunction
+    override val arguments get() = irArguments
 }

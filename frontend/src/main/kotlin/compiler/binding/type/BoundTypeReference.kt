@@ -25,6 +25,7 @@ import compiler.binding.SemanticallyAnalyzable
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import compiler.reportings.ValueNotAssignableReporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import java.util.IdentityHashMap
 
 sealed interface BoundTypeReference {
@@ -196,6 +197,8 @@ sealed interface BoundTypeReference {
      * `T => Int` in [TypeUnification.left]
      */
     val inherentTypeBindings: TypeUnification
+
+    fun toBackendIr(): IrType
 }
 
 infix fun BoundTypeReference.isAssignableTo(other: BoundTypeReference): Boolean {

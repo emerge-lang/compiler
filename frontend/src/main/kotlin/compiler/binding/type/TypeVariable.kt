@@ -5,6 +5,7 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 /**
  * A generic type in the process of being inferred. To understand the difference between [TypeVariable]
@@ -104,6 +105,10 @@ class TypeVariable(
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
         return other == this
+    }
+
+    override fun toBackendIr(): IrType {
+        throw InternalCompilerError("Attempting to create BackendIr from unresolved type variable $this at ${this.sourceLocation}")
     }
 
     override fun toString() = simpleName

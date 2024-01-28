@@ -24,6 +24,8 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.SourceLocation
 import compiler.ast.type.TypeMutability
+import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 
 abstract class BoundFunction : SemanticallyAnalyzable {
     abstract val context: CTContext
@@ -81,6 +83,8 @@ abstract class BoundFunction : SemanticallyAnalyzable {
      */
     open val returnsExclusiveValue: Boolean = false
 
-    val fullyQualifiedName: String
-        get() = "${context.sourceFile.packageName}.$name"
+    val fullyQualifiedName: DotName
+        get() = context.sourceFile.packageName + name
+
+    abstract fun toBackendIr(): IrFunction
 }

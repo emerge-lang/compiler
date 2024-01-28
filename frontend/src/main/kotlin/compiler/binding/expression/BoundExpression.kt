@@ -20,6 +20,7 @@ package compiler.binding.expression
 
 import compiler.binding.BoundExecutable
 import compiler.binding.type.BoundTypeReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
 interface BoundExpression<out ASTType> : BoundExecutable<ASTType> {
     /**
@@ -38,4 +39,8 @@ interface BoundExpression<out ASTType> : BoundExecutable<ASTType> {
      *   called function declaration, through this method.
      */
     fun setExpectedEvaluationResultType(type: BoundTypeReference)
+
+    override fun toBackendIr(): IrExpression {
+        TODO("implement for all subtypes")
+    }
 }

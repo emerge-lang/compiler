@@ -26,6 +26,8 @@ import compiler.binding.ObjectMember
 import compiler.binding.context.SoftwareContext
 import compiler.binding.context.SourceFileRootContext
 import compiler.lexer.IdentifierToken
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
+import io.github.tmarsteel.emerge.backend.api.ir.IrIntrinsicType
 
 /*
  * This file contains raw definitions of the builtin types.
@@ -93,7 +95,7 @@ val BuiltinArray: (SoftwareContext) -> BuiltinType = { swCtx -> object : Builtin
  * A BuiltinType is defined in the ROOT package.
  */
 abstract class BuiltinType(final override val simpleName: String, vararg superTypes: BaseType) : BaseType {
-    final override val fullyQualifiedName = "${CoreIntrinsicsModule.NAME_STRING}.$simpleName"
+    final override val fullyQualifiedName = CoreIntrinsicsModule.NAME + simpleName
 
     final override val superTypes: Set<BaseType> = superTypes.toSet()
 
@@ -102,6 +104,8 @@ abstract class BuiltinType(final override val simpleName: String, vararg superTy
      * stdlib and implementation is provided from elsewhere, probably platform-specific.
      */
     final override fun resolveMemberFunction(name: String) = emptySet<FunctionDeclaration>()
+
+    override fun toBackendIr(): IrBaseType = IrIntrinsicTypeImpl(this)
 
     private val _string by lazy {
         var str = simpleName
@@ -117,4 +121,11 @@ abstract class BuiltinType(final override val simpleName: String, vararg superTy
         str
     }
     override fun toString() = _string
+}
+
+private class IrIntrinsicTypeImpl(
+    private val builtin: BuiltinType,
+) : IrIntrinsicType {
+    override val fqn = builtin.fullyQualifiedName
+    override val parameters = builtin.typeParameters.map { it.toBackendIr() }
 }

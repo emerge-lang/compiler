@@ -4,6 +4,7 @@ import compiler.ast.ASTSourceFile
 import compiler.binding.SemanticallyAnalyzable
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.ir.IrModule
 
 /**
  * Bundles all source files of a single module.
@@ -38,4 +39,6 @@ class ModuleContext(
     }
 
     override fun toString() = moduleName.toString()
+
+    fun toBackendIr(): IrModule = IrModuleImpl(this)
 }

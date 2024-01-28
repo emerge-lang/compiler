@@ -32,6 +32,12 @@ import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
 import compiler.handleCyclicInvocation
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
+import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
+import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAssignment
+import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
 /**
  * Describes the presence/avaiability of a (class member) variable or (class member) value in a context.
@@ -42,8 +48,7 @@ class BoundVariable(
     override val declaration: VariableDeclaration,
     val initializerExpression: BoundExpression<*>?,
     val kind: Kind,
-) : BoundExecutable<VariableDeclaration>
-{
+) : BoundExecutable<VariableDeclaration> {
     val isAssignable: Boolean = declaration.isAssignable
     private val implicitMutability: TypeMutability = declaration.typeMutability
         ?: if (isAssignable) TypeMutability.MUTABLE else kind.defaultMutability
@@ -214,6 +219,19 @@ class BoundVariable(
         return initializerExpression?.findWritesBeyond(boundary) ?: emptySet()
     }
 
+    val backendIrDeclaration: IrVariableDeclaration by lazy { IrVariableDeclarationImpl(name, type!!.toBackendIr()) }
+
+    override fun toBackendIr(): IrExecutable {
+        if (initializerExpression == null) {
+            return backendIrDeclaration
+        }
+
+        return IrCodeChunkImpl(listOf(
+            backendIrDeclaration,
+            IrVariableAssignmentImpl(backendIrDeclaration, initializerExpression.toBackendIr())
+        ))
+    }
+
     enum class Kind(
         val defaultMutability: TypeMutability,
     ) {
@@ -224,3 +242,13 @@ class BoundVariable(
         override fun toString() = name.lowercase()
     }
 }
+
+private class IrVariableDeclarationImpl(
+    override val name: String,
+    override val type: IrType,
+) : IrVariableDeclaration
+
+private class IrVariableAssignmentImpl(
+    override val declaration: IrVariableDeclaration,
+    override val value: IrExpression,
+) : IrVariableAssignment

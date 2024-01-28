@@ -12,6 +12,7 @@ import compiler.binding.type.BuiltinUnit
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 
 /**
  * Describes the presence/avaiability of a (class member) function in a context.
@@ -239,4 +240,7 @@ class BoundDeclaredFunction(
         }
     }
 
+    override fun toBackendIr(): IrFunction {
+        return IrFunctionImpl(this)
+    }
 }

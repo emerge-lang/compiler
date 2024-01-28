@@ -25,6 +25,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
 import compiler.handleCyclicInvocation
+import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 
 class BoundCodeChunk(
     /**
@@ -98,5 +99,9 @@ class BoundCodeChunk(
                 onCycle = ::emptySet,
             )
         }
+    }
+
+    override fun toBackendIr(): IrCodeChunk {
+        return IrCodeChunkImpl((statements ?: emptyList()).map { it.toBackendIr() })
     }
 }

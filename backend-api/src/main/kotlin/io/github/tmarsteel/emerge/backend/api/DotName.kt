@@ -1,6 +1,9 @@
 package io.github.tmarsteel.emerge.backend.api
 
 class DotName(val components: List<String>) {
+    init {
+        require(components.isNotEmpty())
+    }
 
     override fun toString() = components.joinToString(separator = ".")
 
@@ -15,6 +18,12 @@ class DotName(val components: List<String>) {
     fun containsOrEquals(other: DotName): Boolean {
         return containsOrEquals(other.components)
     }
+
+    operator fun plus(other: String): DotName {
+        return DotName(components + other)
+    }
+
+    val last: String get() = components.last()
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

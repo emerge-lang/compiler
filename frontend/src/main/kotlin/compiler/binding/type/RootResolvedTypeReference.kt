@@ -2,11 +2,16 @@ package compiler.binding.type
 
 import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
+import compiler.StandardLibraryModule
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.ObjectMember
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
+import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
+import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 /**
  * A [TypeReference] where the root type is resolved
@@ -193,7 +198,11 @@ class RootResolvedTypeReference private constructor(
         var str = mutability.toString()
         str += " "
 
-        str += baseType.fullyQualifiedName.removePrefix(CoreIntrinsicsModule.NAME_STRING + ".")
+        str += when {
+            CoreIntrinsicsModule.NAME.containsOrEquals(baseType.fullyQualifiedName) ||
+            StandardLibraryModule.NAME.containsOrEquals(baseType.fullyQualifiedName) -> baseType.fullyQualifiedName.last
+            else -> baseType.fullyQualifiedName.toString()
+        }
 
         if (arguments.isNotEmpty()) {
             str += arguments.joinToString(
@@ -209,6 +218,21 @@ class RootResolvedTypeReference private constructor(
 
         str
     }
+
+    override fun toBackendIr(): IrType {
+        val raw = IrSimpleTypeImpl(baseType.toBackendIr())
+        if (arguments.isEmpty()) {
+            return raw
+        }
+
+        return IrParameterizedTypeImpl(
+            raw,
+            baseType.typeParameters.zip(arguments).associate { (param, arg) ->
+                param.name to arg.toBackendIrAsTypeArgument()
+            }
+        )
+    }
+
     override fun toString(): String = _string
 
     override fun equals(other: Any?): Boolean {
@@ -233,3 +257,12 @@ class RootResolvedTypeReference private constructor(
         return result
     }
 }
+
+private class IrSimpleTypeImpl(
+    override val baseType: IrBaseType
+) : IrSimpleType
+
+private class IrParameterizedTypeImpl(
+    override val simpleType: IrSimpleType,
+    override val arguments: Map<String, IrParameterizedType.Argument>,
+) : IrParameterizedType

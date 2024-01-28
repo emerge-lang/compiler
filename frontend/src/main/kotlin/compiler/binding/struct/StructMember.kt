@@ -29,6 +29,8 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.reportings.Reporting
 import compiler.reportings.StructMemberDefaultValueNotAssignableReporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class StructMember(
     override val context: StructContext,
@@ -87,4 +89,11 @@ class StructMember(
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
         return defaultValue?.findWritesBeyond(boundary) ?: emptySet()
     }
+
+    fun toBackendIr(): IrStruct.Member = IrStructMemberImpl(name, type!!.toBackendIr())
 }
+
+private class IrStructMemberImpl(
+    override val name: String,
+    override val type: IrType,
+) : IrStruct.Member

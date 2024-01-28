@@ -27,10 +27,13 @@ import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
+import compiler.binding.misc_ir.IrOverloadGroupImpl
 import compiler.binding.type.BuiltinAny
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeParameter
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 import kotlinext.duplicatesBy
 
 class Struct(
@@ -41,6 +44,7 @@ class Struct(
     private val onceAction = OnceAction()
 
     override val context: CTContext = structContext
+    override val fullyQualifiedName get() = structContext.sourceFile.packageName + declaration.name.value
     override val simpleName: String = declaration.name.value
     override val typeParameters: List<BoundTypeParameter> = structContext.typeParameters
     override val superTypes: Set<BaseType> = setOf(BuiltinAny)
@@ -107,4 +111,15 @@ class Struct(
     }
 
     override fun resolveMemberVariable(name: String): ObjectMember? = members.find { it.name == name }
+
+    override fun toBackendIr(): IrStruct = IrStructImpl(this)
+}
+
+private class IrStructImpl(
+    struct: Struct,
+) : IrStruct {
+    override val fqn: DotName = struct.fullyQualifiedName
+    override val parameters = struct.typeParameters.map { it.toBackendIr() }
+    override val members = struct.members.map { it.toBackendIr() }
+    override val constructors = IrOverloadGroupImpl(struct.fullyQualifiedName, struct.constructors)
 }

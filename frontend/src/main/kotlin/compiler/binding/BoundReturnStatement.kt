@@ -23,6 +23,9 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
 import compiler.reportings.ReturnTypeMismatchReporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrStatement
 
 class BoundReturnStatement(
     override val context: CTContext,
@@ -71,4 +74,10 @@ class BoundReturnStatement(
         expectedReturnType = type
         expression.setExpectedEvaluationResultType(type)
     }
+
+    override fun toBackendIr(): IrStatement {
+        return IrReturnStatementImpl(this.expression.toBackendIr())
+    }
 }
+
+private class IrReturnStatementImpl(override val value: IrExpression) : IrReturnStatement

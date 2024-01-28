@@ -7,6 +7,9 @@ import compiler.ast.type.TypeVariance
 import compiler.lexer.SourceLocation
 import compiler.andThen
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
+import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 sealed class GenericTypeReference : BoundTypeReference {
     abstract val original: TypeReference
@@ -128,6 +131,11 @@ sealed class GenericTypeReference : BoundTypeReference {
         return MappedEffectiveBoundGenericTypeReference(this, mapper)
     }
 
+    override fun toBackendIr(): IrType = IrGenericTypeReferenceImpl(
+        parameter.toBackendIr(),
+        effectiveBound.toBackendIr(),
+    )
+
     override fun toString(): String {
         var str = parameter.name
         if (!isNullable) {
@@ -190,3 +198,8 @@ private class MappedEffectiveBoundGenericTypeReference private constructor(
         }
     }
 }
+
+private class IrGenericTypeReferenceImpl(
+    override val parameter: IrBaseType.Parameter,
+    override val effectiveBound: IrType,
+) : IrGenericTypeReference

@@ -76,7 +76,6 @@ class SoftwareContext {
      * @throws InternalCompilerError if this software is not valid (semantic analysis not done, or it produced errors)
      */
     fun toBackendIr(): IrSoftwareContext {
-        // TODO
-        return IrSoftwareContext()
+        return IrSoftwareContextImpl(modules)
     }
 }

@@ -6,6 +6,9 @@ import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 
 class BoundTypeArgument(
     val astNode: TypeArgument,
@@ -152,6 +155,10 @@ class BoundTypeArgument(
         return type.hasSameBaseTypeAs(other)
     }
 
+    override fun toBackendIr(): IrType = type.toBackendIr()
+
+    fun toBackendIrAsTypeArgument(): IrParameterizedType.Argument = IrTypeArgumentImpl(variance.backendIr, type.toBackendIr())
+
     override fun toString(): String {
         if (variance == TypeVariance.UNSPECIFIED) {
             return type.toString()
@@ -160,3 +167,8 @@ class BoundTypeArgument(
         return "$variance $type"
     }
 }
+
+private class IrTypeArgumentImpl(
+    override val variance: IrTypeVariance,
+    override val type: IrType
+) : IrParameterizedType.Argument

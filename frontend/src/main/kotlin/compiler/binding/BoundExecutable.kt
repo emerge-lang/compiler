@@ -21,6 +21,8 @@ package compiler.binding
 import compiler.ast.Executable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
+import io.github.tmarsteel.emerge.backend.api.ir.IrStatement
 
 interface BoundExecutable<out ASTType> : BoundElement<Executable<*>> {
     /**
@@ -61,4 +63,6 @@ interface BoundExecutable<out ASTType> : BoundElement<Executable<*>> {
      * given type; otherwise an appropriate reporting as to returned from [semanticAnalysisPhase3].
      */
     fun setExpectedReturnType(type: BoundTypeReference) {}
+
+    fun toBackendIr(): IrExecutable
 }

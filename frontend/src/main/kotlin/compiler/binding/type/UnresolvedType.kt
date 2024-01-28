@@ -1,9 +1,11 @@
 package compiler.binding.type
 
+import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class UnresolvedType private constructor(
     val standInType: BoundTypeReference,
@@ -101,6 +103,10 @@ class UnresolvedType private constructor(
     }
 
     override fun toString() = simpleName
+
+    override fun toBackendIr(): IrType {
+        throw InternalCompilerError("Attempting to create backend IR from unresolved type at $sourceLocation")
+    }
 
     companion object {
         val STAND_IN_TYPE: BoundTypeReference = BuiltinAny.baseReference

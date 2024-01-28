@@ -1,10 +1,12 @@
 package compiler.ast.type
 
-enum class TypeVariance {
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
+
+enum class TypeVariance(val backendIr: IrTypeVariance) {
     /** rename to invariant? */
-    UNSPECIFIED,
-    IN,
-    OUT,
+    UNSPECIFIED(IrTypeVariance.INVARIANT),
+    IN(IrTypeVariance.IN),
+    OUT(IrTypeVariance.OUT),
     ;
 
     override fun toString() = when(this) {

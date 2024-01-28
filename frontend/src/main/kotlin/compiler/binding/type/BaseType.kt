@@ -26,6 +26,9 @@ import compiler.binding.BoundFunction
 import compiler.binding.ObjectMember
 import compiler.binding.SemanticallyAnalyzable
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
+import io.github.tmarsteel.emerge.backend.api.ir.IrIntrinsicType
 import kotlinext.get
 
 /**
@@ -36,8 +39,7 @@ interface BaseType : SemanticallyAnalyzable {
         get() = javaClass.simpleName
 
     // TODO: infer this from declaring package and simpleName
-    val fullyQualifiedName: String
-        get() = simpleName
+    val fullyQualifiedName: DotName
 
     val baseReference: BoundTypeReference
         get() = RootResolvedTypeReference(TypeReference(this.simpleName), this, typeParameters.map {
@@ -79,6 +81,8 @@ interface BaseType : SemanticallyAnalyzable {
     fun resolveMemberFunction(name: String): Collection<FunctionDeclaration> = emptySet()
 
     fun resolveMemberVariable(name: String): ObjectMember? = null
+
+    fun toBackendIr(): IrBaseType
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return typeParameters.flatMap { it.semanticAnalysisPhase1() }

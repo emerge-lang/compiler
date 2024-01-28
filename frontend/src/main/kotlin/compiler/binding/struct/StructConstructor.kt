@@ -8,9 +8,11 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundFunction
+import compiler.binding.IrFunctionImpl
 import compiler.binding.context.MutableCTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 
 class StructConstructor(
     val struct: Struct,
@@ -61,4 +63,5 @@ class StructConstructor(
     override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
     override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
     override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
+    override fun toBackendIr(): IrFunction = IrFunctionImpl(this)
 }
