@@ -46,8 +46,8 @@
             </dependency>
             <dependency>
                 <groupId>io.mockk</groupId>
-                <artifactId>mockk</artifactId>
-                <version>1.12.5</version>
+                <artifactId>mockk-jvm</artifactId>
+                <version>1.13.9</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
