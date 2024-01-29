@@ -23,8 +23,12 @@ import compiler.ast.expression.MemberAccessExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
+import compiler.binding.struct.StructMember
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
+import io.github.tmarsteel.emerge.backend.api.ir.IrStructMemberAccessExpression
 
 class BoundMemberAccessExpression(
     override val context: CTContext,
@@ -80,4 +84,18 @@ class BoundMemberAccessExpression(
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // nothing to do, the type of any object member is predetermined
     }
+
+    override fun toBackendIr(): IrExpression {
+        return IrStructMemberAccessExpressionImpl(
+            valueExpression.toBackendIr(),
+            (member!! as StructMember).toBackendIr(),
+        )
+    }
+}
+
+private class IrStructMemberAccessExpressionImpl(
+    override val base: IrExpression,
+    override val member: IrStruct.Member,
+) : IrStructMemberAccessExpression {
+    override val evaluatesTo = member.type
 }

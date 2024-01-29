@@ -112,7 +112,8 @@ class Struct(
 
     override fun resolveMemberVariable(name: String): ObjectMember? = members.find { it.name == name }
 
-    override fun toBackendIr(): IrStruct = IrStructImpl(this)
+    private val backendIr by lazy { IrStructImpl(this) }
+    override fun toBackendIr(): IrStruct = backendIr
 }
 
 private class IrStructImpl(

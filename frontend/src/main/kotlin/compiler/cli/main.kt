@@ -21,12 +21,14 @@ import io.github.tmarsteel.emerge.backend.api.EmergeBackend
 import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
 import io.github.tmarsteel.emerge.backend.api.DotName
 import java.nio.file.Path
+import java.nio.file.attribute.FileAttribute
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.util.ServiceLoader
 import java.util.stream.Collectors
 import java.util.stream.Stream
+import kotlin.io.path.createDirectories
 import kotlin.time.toKotlinDuration
 
 private val backends: Map<String, EmergeBackend> = ServiceLoader.load(EmergeBackend::class.java)
@@ -102,6 +104,7 @@ object CompileCommand : CliktCommand() {
             )
         }
 
+        outDir.createDirectories()
         val backendStartedAt = measureClock.instant()
         try {
             target.emit(swCtx.toBackendIr(), outDir)

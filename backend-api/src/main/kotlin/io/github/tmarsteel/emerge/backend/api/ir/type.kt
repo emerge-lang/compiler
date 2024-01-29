@@ -1,6 +1,6 @@
 package io.github.tmarsteel.emerge.backend.api.ir
 
-interface IrType
+sealed interface IrType
 
 interface IrSimpleType : IrType {
     val baseType: IrBaseType

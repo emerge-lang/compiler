@@ -94,7 +94,10 @@ val BuiltinArray: (SoftwareContext) -> BuiltinType = { swCtx -> object : Builtin
 /**
  * A BuiltinType is defined in the ROOT package.
  */
-abstract class BuiltinType(final override val simpleName: String, vararg superTypes: BaseType) : BaseType {
+abstract class BuiltinType(
+    final override val simpleName: String,
+    vararg superTypes: BaseType,
+) : BaseType {
     final override val fullyQualifiedName = CoreIntrinsicsModule.NAME + simpleName
 
     final override val superTypes: Set<BaseType> = superTypes.toSet()
@@ -105,7 +108,8 @@ abstract class BuiltinType(final override val simpleName: String, vararg superTy
      */
     final override fun resolveMemberFunction(name: String) = emptySet<FunctionDeclaration>()
 
-    override fun toBackendIr(): IrBaseType = IrIntrinsicTypeImpl(this)
+    private val backendIr by lazy { IrIntrinsicTypeImpl(this) }
+    override fun toBackendIr(): IrBaseType = backendIr
 
     private val _string by lazy {
         var str = simpleName
@@ -128,4 +132,19 @@ private class IrIntrinsicTypeImpl(
 ) : IrIntrinsicType {
     override val fqn = builtin.fullyQualifiedName
     override val parameters = builtin.typeParameters.map { it.toBackendIr() }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as IrIntrinsicTypeImpl
+
+        return builtin == other.builtin
+    }
+
+    override fun hashCode(): Int {
+        return builtin.hashCode()
+    }
+
+    override fun toString() = "IrIntrinsicType[${builtin.simpleName}]"
 }

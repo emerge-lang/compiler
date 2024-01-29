@@ -15,3 +15,8 @@ interface IrStaticDispatchFunctionInvocationExpression : IrExpression {
     val function: IrFunction
     val arguments: List<IrExpression>
 }
+
+interface IrStructMemberAccessExpression : IrExpression {
+    val base: IrExpression
+    val member: IrStruct.Member
+}

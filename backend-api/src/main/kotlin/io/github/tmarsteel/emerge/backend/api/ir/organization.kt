@@ -5,6 +5,7 @@ import io.github.tmarsteel.emerge.backend.api.DotName
 interface IrPackage {
     val name: DotName
     val functions: Set<IrOverloadGroup<IrFunction>>
+    val structs: Set<IrStruct>
 }
 
 interface IrModule {

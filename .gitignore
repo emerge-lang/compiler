@@ -47,3 +47,6 @@ crashlytics-build.properties
 fabric.properties
 
 target/
+
+# Output of this app for testing
+emerge-out/

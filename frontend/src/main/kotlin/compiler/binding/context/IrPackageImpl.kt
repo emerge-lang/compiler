@@ -5,6 +5,7 @@ import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
 import io.github.tmarsteel.emerge.backend.api.ir.IrPackage
+import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 
 internal class IrPackageImpl(
     override val name: DotName,
@@ -16,6 +17,11 @@ internal class IrPackageImpl(
         .map { (functionName, overloads) ->
             IrOverloadGroupImpl(name + functionName, overloads)
         }
+        .toSet()
+
+    override val structs: Set<IrStruct> = files
+        .flatMap { it.context.structs }
+        .map { it.toBackendIr() }
         .toSet()
 
     override fun equals(other: Any?): Boolean {

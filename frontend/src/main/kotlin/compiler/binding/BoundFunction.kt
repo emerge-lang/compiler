@@ -86,5 +86,5 @@ abstract class BoundFunction : SemanticallyAnalyzable {
     val fullyQualifiedName: DotName
         get() = context.sourceFile.packageName + name
 
-    abstract fun toBackendIr(): IrFunction
+    internal abstract fun toBackendIr(): IrFunction
 }

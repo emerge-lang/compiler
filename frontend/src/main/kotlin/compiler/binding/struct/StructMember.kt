@@ -90,7 +90,8 @@ class StructMember(
         return defaultValue?.findWritesBeyond(boundary) ?: emptySet()
     }
 
-    fun toBackendIr(): IrStruct.Member = IrStructMemberImpl(name, type!!.toBackendIr())
+    private val _backendIr by lazy { IrStructMemberImpl(name, type!!.toBackendIr()) }
+    fun toBackendIr(): IrStruct.Member = _backendIr
 }
 
 private class IrStructMemberImpl(
