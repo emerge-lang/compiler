@@ -32,7 +32,6 @@ import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
 import compiler.handleCyclicInvocation
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -40,7 +39,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAssignment
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
 /**
- * Describes the presence/avaiability of a (class member) variable or (class member) value in a context.
+ * Describes the presence/availability of a (class member) variable or (class member) value in a context.
  * Refers to the original declaration and contains an override type.
  */
 class BoundVariable(
