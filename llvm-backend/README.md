@@ -128,20 +128,40 @@ Has this layout in memory:
 This allows the array-box to conform to the `Any` type, and through dynamic dispatch to normalize the elements
 of unknown size. E.g. consider the Array-Box for `Byte`: the vtable would define these methods (pseudo-code):
 
-```
-fun size(self: readonly ArrayBox) -> uword {
-    val byteArray = self.llvmStructEntry_valueArrayPtr as Array<Byte>
-    return byteArray.llvmStructEntry_size
+```llvm
+%valuearray_byte = {
+    %word,
+    %word,
+    [0 x i8]
 }
-fun get(self: readonly ArrayBox, index: uword) -> Number {
-    val byteArray = self.llvmStructEntry_valueArrayPtr as Array<Byte>
-    val rawByte = byteArray.get(index)
-    return ByteBox(rawByte)
+%bytebox = {
+    %word,
+    ptr,
+    i8
 }
-fun set(self: mutable ArrayBox, index: uword, valueBox: ByteBox) {
-    val byteArray = self.llvmStructEntry_valueArrayPtr as Array<Byte>
-    byteArray.set(index, valueBox.value)
+
+define %word @arrayBoxByte_size(ptr %self) {
+    %rawArrayPtr = getelementptr %arraybox, ptr %self, i32 0, i32 2
+    %sizePtr = getelementptr %valuearray_byte, ptr %rawArrayPtr, i32 0, i32 1
+    %size = load %word, ptr %sizePtr
+    ret %size
 }
+define ptr @arrayBoxByte_get(ptr %self, %word %index) {
+    %rawArrayPtr = getelementptr %arraybox, ptr %self, i32 0, i32 2
+    %rawBytePtr = getelementptr %valuearray_byte, ptr %rawArrayPtr, i32 2, %word %index
+    %rawByte = load i8, ptr %rawBytePtr
+    %boxPtr = call ptr @ByteBoxCtor(i8 %rawByte)
+    ret %boxPtr
+}
+define void @arrayBoxByte_set(ptr %self, %word %index, ptr %valueBox) {
+    %rawByteSourcePtr = getelementptr %bytebox, ptr %valueBox, i32 0, i32 2
+    %rawByteSource = load i8, ptr %rawByteSourcePtr, align 1
+    %rawArrayPtr = getelementptr %arraybox, ptr %self, i32 0, i32 2
+    %rawByteTargetPtr = getelementptr %valuearray_byte, ptr %rawArrayPtr, i32 2, %word %index
+    store i8 %rawByteSource, ptr %rawByteTargetPtr, align 1
+    ret void
+}
+declare ptr @ByteBoxCtor(i8 %value)
 ```
 
 ## Reference Counting
