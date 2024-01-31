@@ -17,7 +17,7 @@ So, for the LLVM backend, there are value types from emerge:
 | Long, ULong   | `i64`         |
 | iword, uword  | `i<ptr size>` |
 
-So the LLVM backend will always define based on the target architecture:
+The LLVM backend will always define based on the target architecture:
 ```llvm
 %word = i<ptr size>
 ```
@@ -56,7 +56,7 @@ For reference types, arrays are simple enough as they are just containers like a
 Hence, this is the layout for arrays of reference types:
 
 ```llvm
-%refrray = type {
+%refarray = type {
     %word,    ; reference count
     ptr,      ; vtable pointer
     %word,    ; element count
@@ -70,7 +70,8 @@ This allows
 
 #### Of Value-Types
 
-When the element type of the array is known to be a value type, the `ptr` to the array can be simplified to this:
+When the element type of the array is known to be a value type, layout of the array on heap
+can be simplified to this:
 
 ```llvm
 %valuearray = type {
@@ -79,6 +80,7 @@ When the element type of the array is known to be a value type, the `ptr` to the
     [0 x %valuetype] ; elements, size determined at array creation
 }
 ```
+
 #### (Auto-)Boxing
 
 `Array<Int>` could just always be an array of boxed `Int`s. But that's bad for performance when dealing
@@ -145,7 +147,7 @@ fun set(self: mutable ArrayBox, index: uword, valueBox: ByteBox) {
 ## Reference Counting
 
 * every heap-allocated object has a reference count (see layout above)
-* when a reference-value is assigned to a local variable, struct member object member, the reference count must be
+* when a reference-value is assigned to a local variable, struct member or object member, the reference count must be
   incremented by 1
     * `val x: Any = Unit` increments the ref-count for `Unit`
 * when passing a reference-value to a function (or a dynamic setter of an object member), the reference count
@@ -211,16 +213,18 @@ interface type is a tool that can be very useful in adapting one piece of code t
 of some other code, dynamically at runtime.
 
 Union and intersection types are a very useful concept when trying to get the static typing out of the
-programmers way: `A | B` and `A & B`.
-
-Combining these two, we can denote that a single value has multiple capabilities:
+programmers way: `A | B` and `A & B`. It allows to denote that a single value has multiple capabilities:
 
     interface S
     interface A
+    interface B
 
-    fun doSomething(obj: S & A) {
+    fun doSomething(obj: S & (A | B)) {
     }
 
+I conjecture that combining the concept of downcast-to-interface-type and combinatory types yields enough
+benefit in terms of freedom to write code that it's worthwhile to invent another dynamic-dispatch algorithm
+than the one used in C-like languages traditionally.
 
 Having a separate vtable for each abstract type makes downcasting very complicated and union+intersection types
 even more complicated (if not impossible) to implement. Hence, the vtable design for Emerge is more sophisticated
@@ -229,13 +233,13 @@ to enable these features.
 ----
 
 The emerge vtables are essentially a hash map designed for quick access, to minimize the performance penalty on
-dynamic dispatch
+dynamic dispatch.
 
 ### How vtables are built
 
 There is a vtable for each _concrete_ type; as for the concrete type all the abstract supertypes are known and can
 be considered. Each method signature/overload gets a hash-value assigned to it. The hash is of the same size as the
-targets word-size. Knowing all the hashes of a concrete type, the backend will find the shortest prefix of all of the
+targets word-size. Knowing all the hashes of a concrete type, the backend will find the shortest prefix of all the
 hashes that still keeps them unique. So e.g. these hashes:
 
 | Hash                 | Function          |
@@ -333,6 +337,6 @@ gets compiled to:
 Placing the reference counter first was supposed to make reference counting faster. Dynamic dispatch
 is quite complex in LLVM already, and gets even more complex in actual assembly. Putting the vtable pointer
 first to avoid the pointer arithmetic on dynamic dispatch doesn't simplify the assembly significantly on
-any of the architectures i tried it on. So the effect of that seems to be very small (judging just by
+any of the architectures I tried it on. So the effect of that seems to be very small (judging just by
 reading assembly in compiler explorer). Maybe we can revisit this once the compiler is mature enough to run
 a benchmark on this.
