@@ -4,7 +4,7 @@
 
 ### Value Types
 
-Even though Emerge semantically doesn't really distinguish between value types and reference types,
+Even though Emerge semantically doesn't distinguish between value types and reference types,
 its design still aims to allow optimization of the traditional value types (ints, floats, booleans, ...).
 So, for the LLVM backend, there are value types from emerge:
 
@@ -327,3 +327,12 @@ gets compiled to:
 %targetAddress = load ptr, ptr %offsetIntoVtable, align 8
 %returnValue = call i32 %targetAddress(i1 false) 
 ```
+
+## Considerations re. memory layout
+
+Placing the reference counter first was supposed to make reference counting faster. Dynamic dispatch
+is quite complex in LLVM already, and gets even more complex in actual assembly. Putting the vtable pointer
+first to avoid the pointer arithmetic on dynamic dispatch doesn't simplify the assembly significantly on
+any of the architectures i tried it on. So the effect of that seems to be very small (judging just by
+reading assembly in compiler explorer). Maybe we can revisit this once the compiler is mature enough to run
+a benchmark on this.
