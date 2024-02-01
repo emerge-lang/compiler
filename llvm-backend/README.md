@@ -42,7 +42,8 @@ Hence, this is the layout that all heap-allocated values will have in common:
 ```llvm
 %anyvalue = type {
     %word,  ; reference count
-    ptr,    ; typeinfo pointer 
+    ptr,    ; typeinfo pointer
+    ptr,    ; weak reference collection pointer (see below) 
 }
 ```
 
@@ -59,6 +60,7 @@ Hence, this is the layout for arrays of reference types:
 %refarray = type {
     %word,    ; reference count
     ptr,      ; typeinfo pointer
+    ptr,      ; weak reference collection pointer
     %word,    ; element count
     [0 x ptr] ; elements, size determined at array creation
 }
@@ -76,6 +78,7 @@ can be simplified to this:
 ```llvm
 %valuearray = type {
     %word,           ; reference count
+    ptr,             ; weak reference collection pointer
     %word,           ; element count
     [0 x %valuetype] ; elements, size determined at array creation
 }
@@ -121,6 +124,7 @@ Has this layout in memory:
 %arraybox = type {
     %word,  ; reference count
     ptr,    ; vtable pointer, set according to the type of the underlying value-array
+    ptr,    ; weak reference collection pointer
     ptr,    ; pointer to the value-array that is being boxed
 }
 ```
@@ -131,33 +135,35 @@ of unknown size. E.g. consider the Array-Box for `Byte`: the vtable would define
 ```llvm
 %valuearray_byte = {
     %word,
+    ptr,
     %word,
     [0 x i8]
 }
 %bytebox = {
     %word,
     ptr,
+    ptr,
     i8
 }
 
 define %word @arrayBoxByte_size(ptr %self) {
-    %rawArrayPtr = getelementptr %arraybox, ptr %self, i32 0, i32 2
-    %sizePtr = getelementptr %valuearray_byte, ptr %rawArrayPtr, i32 0, i32 1
+    %rawArrayPtr = getelementptr %arraybox, ptr %self, i32 0, i32 3
+    %sizePtr = getelementptr %valuearray_byte, ptr %rawArrayPtr, i32 0, i32 2
     %size = load %word, ptr %sizePtr
     ret %size
 }
 define ptr @arrayBoxByte_get(ptr %self, %word %index) {
-    %rawArrayPtr = getelementptr %arraybox, ptr %self, i32 0, i32 2
-    %rawBytePtr = getelementptr %valuearray_byte, ptr %rawArrayPtr, i32 2, %word %index
+    %rawArrayPtr = getelementptr %arraybox, ptr %self, i32 0, i32 3
+    %rawBytePtr = getelementptr %valuearray_byte, ptr %rawArrayPtr, i32 0, i32 3, %word %index
     %rawByte = load i8, ptr %rawBytePtr
     %boxPtr = call ptr @ByteBoxCtor(i8 %rawByte)
     ret %boxPtr
 }
 define void @arrayBoxByte_set(ptr %self, %word %index, ptr %valueBox) {
-    %rawByteSourcePtr = getelementptr %bytebox, ptr %valueBox, i32 0, i32 2
+    %rawByteSourcePtr = getelementptr %bytebox, ptr %valueBox, i32 0, i32 3
     %rawByteSource = load i8, ptr %rawByteSourcePtr, align 1
-    %rawArrayPtr = getelementptr %arraybox, ptr %self, i32 0, i32 2
-    %rawByteTargetPtr = getelementptr %valuearray_byte, ptr %rawArrayPtr, i32 2, %word %index
+    %rawArrayPtr = getelementptr %arraybox, ptr %self, i32 0, i32 3
+    %rawByteTargetPtr = getelementptr %valuearray_byte, ptr %rawArrayPtr, i32 0, i32 3, %word %index
     store i8 %rawByteSource, ptr %rawByteTargetPtr, align 1
     ret void
 }
@@ -207,6 +213,8 @@ fun __dropReference(object: Any) {
     // the counter is always at the start of the object
     assert(pointer.pointed == 0) { "Reference count not 0 when dropping: premature deallocation" }
     
+    nullWeakReferences(object)
+    
     object.finalize()
     free(pointer)
 }
@@ -214,9 +222,13 @@ fun __dropReference(object: Any) {
 fun __dropValueArray(arrayPointer: CPointer<uword>) {
     assert(pointer.pointed == 0) { "Reference count not 0 when dropping: premature deallocation" }
     
+    nullWeakReferences(object)
+    
     free(pointer)
 }
 ```
+
+_`nullWeakReferences` is described further below._
 
 ### Singletons (like the unit value)
 
@@ -228,7 +240,109 @@ This conveniently allows the `Unit` type+object to be declared completely in Eme
 
 ### Weak references
 
-TODO!
+Weak references are denoted by the regular type `Weak<T>` that gets amended with special treatment by the
+llvm backend:
+
+    struct Weak<T : Any> {
+        value: T?
+    }
+
+The special treatment is:
+* creating a new `Weak<T>(t)` does _not_ increase the reference counter of `t`
+* instead, the compiler registers this instance of `Weak` in the weak reference collection of `t`.
+* the `Weak<T>` is itself strongly reference counted
+* when a `Weak` is dropped and the referred value is still present, it removes itself from the
+  weak reference collection of its value.
+
+This mechanism is described here.
+
+#### The weak reference collection
+
+The `%anyvalue` type described above that is a prelude to _all_ reference counted objects on the heap
+contains a `ptr` to what is called the "weak reference collection". If there are 0 weak references to that
+object, this `ptr` must be `null`. When there are, it points to a special linked list of arrays, holding pointers
+to the `Weak`s referencing the object:
+
+```llvm
+%weakReferenceCollection = type {
+    [10 x ptr],  ; space for up to 10 weak references
+    ptr          ; nullable pointer to a further %weakReferenceCollection (linked list)
+}
+```
+
+_The linking in this structure gives the ability to have an arbitrary amount of weak references to each
+object. The array-ing aims to amortize the cost of the linking to some extent._
+
+#### Creating a new weak reference
+
+1. allocate a `Weak` on the heap. This initializes the `value` to `null`.
+2. if the weak-reference-collection pointer of the target object is `null`:
+   1. allocate a new `%weakReferenceCollection` on the heap
+   2. write the pointer to the newly created `Weak` into the first element of the `[10 x ptr]` array
+3. else:
+   1. walk the linked list of `%weakReferenceCollection` values, on each
+   2. iterate the `[10 x ptr]` array
+   3. if one `null` ptr is found, write the pointer to the newly created `Weak` into that location
+   4. else:
+      1. allocate a new `%weakReferenceCollection` on the heap
+      2. write the pointer to the newly created `Weak` into the first element of the `[10 x ptr]` array
+      3. link the newly created `%weakReferenceCollection` to the last one already linked from the target object
+
+#### Dropping a weak reference
+
+1. abort if the `value` is already `null`
+2. walk the linked list of `%weakReferenceCollection` values, on each
+3. iterate the `[10 x ptr]` array, on each
+4. if this is the ptr to the `Weak` that is being dropped:
+   1. set it to `null`
+   2. if now the whole `[10 x ptr]` array is `null`s:
+   3. remove that `%weakReferenceCollection` from the linked list
+   4. if this was the only `%weakReferenceCollection` in the linked list
+      1. set the weak-reference-collection pointer of the target object to `null`
+   5. deallocate the removed `%weakReferenceCollection`
+
+#### Nulling weak references
+
+When the last strong reference to an object is to be dropped, all the weak references have to be
+null-ed before the object is actually touched for finalization. To achieve this, there are backwards
+references from the object to all `Weak`s pointing to it, so this is trivially possible.
+
+1. walk the linked list of `%weakReferenceCollection` values, on each
+2. iterate the `[10 x ptr]` array
+3. interpret that `ptr` as a reference to a `Weak`, which it is
+4. set the `value` entry to `null`, ignoring any mutability typing
+
+The last point here has an implication, though: `Weak`s can always be mutated by the runtime, caused
+by potentially totally external events that drop the last strong reference to the `T`. Consequently,
+the compiler frontend must implement a special rule: `Weak`s can _never_ be `immutable`.
+
+#### Goals (why all this effort??, design reasoning)
+
+Highly recommended read: https://verdagon.dev/blog/surprising-weak-refs
+
+The goals i had for my reference counting were:
+* when a value gets dropped, _it gets dropped!_. No zombies. The overhead, no matter how much, happens at predictable
+  reproducible places/times.
+  * the problem with swifts approach: if you keep the allocation around until all weak references had a chance to see
+    that the object is gone, the allocation can stick around for a _long_ time. Especially because the entire **point**
+    of weak references is to use them seldomly. This approach creates sort of a memory leak. Yuck!
+* a global list/table of weak references like Objective-C has it always seemed ugly to me. This article confirms it,
+  so this is by definition not an option.
+* if a large amount of objects get dropped, it should be possible to hand memory back to the OS. The JVM not doing that
+  is an infamous ops problem when running lots of JVMs.
+* the generational references used by vale are a _beautiful_ solution. Very lean and efficient. However, they also require
+  keeping the allocation around _forever_.
+  * Yes, reuse is possible, and probably prevents much memory from leaking. **But** it is impossible to return heap
+    memory back to the OS, as you always need that tombstone around so your weak references don't break. I dislike this
+    a lot, too. It becomes impossible to have your application consume lots of memory at startup, and then hand a large
+    portion of that back to the OS for long-term low-memory operation.
+
+But, there is one property of Emerge that comes to the rescue. I didn't plan for this, i didn't see it coming.
+But it is a godsent for weak references! That property is: _memory is not shared across threads_. Objective-C needs
+a _global_ mutex on its Weak-Reference-Map to deal with multithreading. Swift can use atomic increment/decrement
+on the weak reference counter to deal with multithreading. Emerge doesn't need that. Whatever reference counting
+mechanism i choose for Emerge, it will only ever be used by one thread _across time_ (not just at any given time).
+Hence, Emerge gets away with this slightly wonky linked-list-of-arrays structure.
 
 ## Dynamic Dispatch (vtable)
 
