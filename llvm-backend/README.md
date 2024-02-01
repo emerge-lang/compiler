@@ -42,7 +42,7 @@ Hence, this is the layout that all heap-allocated values will have in common:
 ```llvm
 %anyvalue = type {
     %word,  ; reference count
-    ptr,    ; vtable pointer 
+    ptr,    ; typeinfo pointer 
 }
 ```
 
@@ -58,7 +58,7 @@ Hence, this is the layout for arrays of reference types:
 ```llvm
 %refarray = type {
     %word,    ; reference count
-    ptr,      ; vtable pointer
+    ptr,      ; typeinfo pointer
     %word,    ; element count
     [0 x ptr] ; elements, size determined at array creation
 }
@@ -66,7 +66,7 @@ Hence, this is the layout for arrays of reference types:
 
 This allows
 * arrays to be assigned to `Any` references
-* runtime-type-checked downcasting from `Any` to `Array` (through the vtable pointer)
+* runtime-type-checked downcasting from `Any` to `Array` (through the typeinfo pointer)
 
 #### Of Value-Types
 
@@ -103,14 +103,14 @@ The solution:
 * `Array<in T>` for any `T` is always a boxed version
 * `Array<T>` and `Array<out T>` where `T : Value`
   * is always a value-array. The element size is known, no need for
-    a vtable pointer
+    a vtable
   * the backend can safely emit direct access into the elements as the element-size is known at compile-time
 * `Array<T>` where `T : Reference`
   * if there is a `T2 != T` where `T2 : Value, T` then the `Array<T>` is an array-box (see layout below).
     direct access into the elements is forbidden; the backend must emit dynamic-dispatch for accessing the elements
     so the array-box can handle the boxing logic
   * if there is **no** `T2 != T` where `T2 : Value, T`, then `Array<T>` is a reference-array. The direct elements
-    are known to be `ptr`s to the actual elements on the heap, and direct access into the elements without the `vtable`
+    are known to be `ptr`s to the actual elements on the heap, and direct access into the elements without the vtable
     is possible.
 
 ##### The Array-Box
@@ -126,7 +126,7 @@ Has this layout in memory:
 ```
 
 This allows the array-box to conform to the `Any` type, and through dynamic dispatch to normalize the elements
-of unknown size. E.g. consider the Array-Box for `Byte`: the vtable would define these methods (pseudo-code):
+of unknown size. E.g. consider the Array-Box for `Byte`: the vtable would define these methods (ignoring ref counting for clarity):
 
 ```llvm
 %valuearray_byte = {
@@ -226,6 +226,10 @@ This conveniently allows the `Unit` type+object to be declared completely in Eme
 
     immutable object Unit {}
 
+### Weak references
+
+TODO!
+
 ## Dynamic Dispatch (vtable)
 
 Downcasting from one class to a subclass is generally a sign of bad code design. However, downcasting to an 
@@ -321,12 +325,16 @@ hash to the unique prefix. This is easily done using a `lshr` instruction. So, f
 to shift the hash right by (64 - 5) = 59 bits to obtain the prefix in the lower 5 bits. This `59` value
 is stored in the vtable, too, for quick access during a dynamic dispatch.
 
-The vtable needs some more information to be useful:
+Last but not least, there needs to be a mechanism to determine a values supertypes at runtime to typecheck
+downcasts. The vtable of a type is defined to be the type metadata for that type. So, each vtable stores a list
+of its supertypes. `Any` is never mentioned explicitly in that list.
+To avoid having to search a tree for an `instanceof`, every typeinfo should contain _all_ supertypes of the
+type being describe, transitively.
 
 ```llvm
-%vtable = type {
-    ptr,       ; pointer to the reflection data about the concrete type
+%typeinfo = type {
     %word,     ; lshr offset for the function hashes
+    ptr,       ; pointer to a %valuearray of ptrs, each pointing at the vtable of one of the supertypes
     [0 x ptr]  ; the vtable blob, as stated above 
 }
 ```
@@ -343,13 +351,66 @@ obj.foo(false)
 
 gets compiled to:
 ```llvm
-%vtablePtr = getelementptr %anyvalue, ptr %obj, i32 0, i32 1
-%shiftAmountPtr = getelementptr %vtable, ptr %vtablePtr, i32 0, i32 1
-%shiftAmount = load i64, ptr %shiftAmountPtr, align 8
-%shortHash = lshr i64 u0x522773FF24CB1A07, %shiftAmount
-%offsetIntoVtable = getelementptr %vtable, ptr %vtablePtr, i32 0, i32 2, i64 %shortHash
-%targetAddress = load ptr, ptr %offsetIntoVtable, align 8
-%returnValue = call i32 %targetAddress(i1 false) 
+define ptr @getDynamicCallAddress(ptr %anyvalue_reference, %word %hash) {
+    %typeinfoPtr = getelementptr %anyvalue, ptr %anyvalue_reference, i32 0, i32 1
+    %shiftAmountPtr = getelementptr %typeinfo, ptr %typeinfoPtr, i32 0, i32 0
+    %shiftAmount = load %word, ptr %shiftAmountPtr, align 8
+    %shortHash = lshr %word %hash, %shiftAmount
+    %offsetIntoVtable = getelementptr %typeinfo, ptr %typeinfoPtr, i32 0, i32 2, i64 %shortHash
+    %targetAddress = load ptr, ptr %offsetIntoVtable, align 8
+    ret %targetAddress
+}
+
+; this is the actual call
+%targetAddress = @getDynamicCallAddress(ptr %obj, %word u0x522773FF24CB1A07)
+%returnValue = call i32 %targetAddress(i1 false)
+```
+
+### instanceof checks
+
+For a literal `instanceof` function in the language and for runtime-checking `as` casts, there needs to be
+an underlying function that analyzes the vtable to find this out. Its a linear search along the list of supertypes,
+so:
+
+```llvm
+@AnyTypeinfo = global %typeinfo
+define ptr @getAnyTypeinfoPtr() {
+  ret ptr @AnyTypeinfo
+}
+define ptr @getSupertypePtrArray(ptr %anyvalue_ref) {
+  %typeinfoPtr = getelementptr %anyvalue, ptr %anyvalue_reference, i32 0, i32 1
+  %arrayPtr = getelementptr %typeinfo, ptr %typeinfoPtr, i32 0, i32 1
+  ; elided: increase refcount for %arrayPtr
+  ret ptr %arrayPtr
+}
+define ptr @getTypeinfoPtrOfType(ptr %typePtr) {
+  ret %typePtr
+}
+```
+
+```
+intrinsic fun getAnyTypeinfoPtr() -> COpaquePointer
+intrinsic fun getSupertypePtrArray(ref: Any) -> Array<COpaquePointer>
+intrinsic fun <reified T : Any> getTypeinfoPtrOfType() -> COpaquePointer
+
+fun <reified T : Any> isInstanceOf(self: Any) -> Boolean {
+    val typePointerToCheck = getTypeinfoPtrOfType::<T>()
+    if (typePointerToCheck == getAnyTypeinfoPtr()) {
+        return true
+    }
+    val supertypes: Array<COpaquePointer> = getSupertypePtrArray(self)
+    return supertypes.contains(getTypeinfoPtrOfType::<T>()) 
+}
+
+// this can then be used as such:
+val x: Any = "foobar"
+val isString = x.isInstanceOf::<String>()
+val asString = x as String // typechecked cast
+val asNumber = x as? Number // typechecked cast
+
+assert(isString == true)
+assert(asString == x)
+assert(asNumber == null)
 ```
 
 ## Considerations re. memory layout
