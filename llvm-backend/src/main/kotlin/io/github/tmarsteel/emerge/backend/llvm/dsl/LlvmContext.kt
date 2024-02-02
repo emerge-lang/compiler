@@ -7,8 +7,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
-import io.github.tmarsteel.emerge.backend.llvm.AnyvalueType
-import io.github.tmarsteel.emerge.backend.llvm.WeakReferenceCollectionType
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
@@ -21,15 +19,15 @@ internal class LlvmContext(val targetTriple: String) : AutoCloseable {
         LLVM.LLVMSetTarget(module, targetTriple)
     }
     val targetData = LLVM.LLVMGetModuleDataLayout(module)
-    val intTypeRaw = LLVM.LLVMInt32TypeInContext(ref)
-    val pointerTypeRaw = LLVM.LLVMPointerTypeInContext(ref, 0)
-    val wordTypeRaw = LLVM.LLVMIntTypeInContext(ref, LLVM.LLVMPointerSize(targetData) * 8)
-    val voidTypeRaw = LLVM.LLVMVoidType()
-
+    val void = LlvmVoidType(this)
+    val rawPointer: LLVMTypeRef = LLVM.LLVMPointerTypeInContext(ref, 0)
     val functionAddress = LlvmFunctionAddressType(this)
-    val anyValue = AnyvalueType(this)
-    val pointerToAnyValue = LlvmPointerType(anyValue)
-    val weakReferenceCollection = WeakReferenceCollectionType(this)
+
+    private val typesWithHandle = HashMap<LlvmContext.() -> LlvmType, LlvmType>()
+    fun <T : LlvmType> cachedType(builder: LlvmContext.() -> T): T {
+        @Suppress("UNCHECKED_CAST")
+        return typesWithHandle.computeIfAbsent(builder) { builder(this) } as T
+    }
 
     private val baseTypeRefs = HashMap<IrBaseType, LLVMTypeRef>()
     fun registerStruct(struct: IrStruct) {
@@ -51,6 +49,7 @@ internal class LlvmContext(val targetTriple: String) : AutoCloseable {
             is IrGenericTypeReference -> return getType(type.effectiveBound)
         }
 
+        /*
         when (baseType.fqn.toString()) {
             "emerge.ffi.c.COpaquePointer",
             "emerge.ffi.c.CPointer" -> return pointerTypeRaw
@@ -60,7 +59,7 @@ internal class LlvmContext(val targetTriple: String) : AutoCloseable {
             "emerge.core.uword" -> return wordTypeRaw
             "emerge.core.Unit" -> return voidTypeRaw
             "emerge.core.Any" -> return pointerTypeRaw // TODO: remove, Any will be a pure language-defined type
-        }
+        }*/
 
         return baseTypeRefs[baseType] ?: throw CodeGenerationException("Unknown base type $baseType")
     }
@@ -69,4 +68,6 @@ internal class LlvmContext(val targetTriple: String) : AutoCloseable {
         LLVM.LLVMDisposeModule(module)
         LLVM.LLVMContextDispose(ref)
     }
+
+
 }

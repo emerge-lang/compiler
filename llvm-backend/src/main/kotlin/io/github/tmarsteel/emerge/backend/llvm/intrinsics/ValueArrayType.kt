@@ -1,4 +1,4 @@
-package io.github.tmarsteel.emerge.backend.llvm
+package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmStructType

@@ -5,7 +5,7 @@ import org.bytedeco.llvm.LLVM.LLVMValueRef
 /**
  * A type-safe wrapper around [LLVMValueRef]
  */
-internal class LlvmValue<Type : LlvmType>(
+internal class LlvmValue<out Type : LlvmType>(
     val raw: LLVMValueRef,
     val type: Type,
 )
