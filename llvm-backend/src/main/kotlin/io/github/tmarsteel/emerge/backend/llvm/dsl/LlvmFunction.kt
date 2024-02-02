@@ -1,130 +1,140 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
-import kotlin.reflect.KProperty
-import kotlin.reflect.KProperty1
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.i32
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMValueRef
 import org.bytedeco.llvm.global.LLVM
+import kotlin.reflect.KProperty
 
-internal class LlvmFunction<ReturnType : LlvmType> private constructor(
-    val name: String,
-    givenReturnType: ReturnType?,
-    val bodyBuilder: (BasicBlockBuilder.() -> LlvmValue<ReturnType>)?,
+class LlvmFunction<ReturnType : LlvmType> private constructor(
+    val buildAndAdd: (LlvmContext) -> LLVMValueRef,
 ) {
-    class BasicBlockBuilder(
-        private val context: LlvmContext
-    ) : LlvmContext by context {
-        private val builder = LLVM.LLVMCreateBuilderInContext(ref)
-
-        fun <T : LlvmType> param(type: T) : ParameterDelegate<T> {
-            TODO()
-        }
-
-        fun <BasePointee : LlvmType> getelementptr(
-            base: LlvmValue<LlvmPointerType<out BasePointee>>,
-            index: LlvmValue<LlvmIntegerType> = base.type.context.i32(0)
-        ): GetElementPointerStep<BasePointee> {
-            return GetElementPointerStep.initial(base, index)
-        }
-
-        fun <P : LlvmType> GetElementPointerStep<P>.get(): LlvmValue<LlvmPointerType<P>> {
-            val (basePointer, indices, resultPointeeType) = completeAndGetData()
-            val indicesRaw = PointerPointer(*indices.toTypedArray())
-            val instruction = LLVM.LLVMBuildGEP2(builder, basePointer.type.raw, basePointer.raw, indicesRaw, indices.size, null) // TODO: name nullable?
-            LLVM.LLVMInsertIntoBuilder(builder, instruction)
-            return LlvmValue(instruction, LlvmPointerType(resultPointeeType))
-        }
-
-        fun <P : LlvmType> LlvmValue<LlvmPointerType<P>>.dereference(): LlvmValue<P> {
-            val loadInstr = LLVM.LLVMBuildLoad2(builder, type.pointed.raw, raw, null as String?) // TODO: name nullable?
-            LLVM.LLVMInsertIntoBuilder(builder, loadInstr)
-            return LlvmValue(loadInstr, type.pointed)
-        }
-
-        fun <P : LlvmType> store(value: LlvmValue<P>, to: LlvmValue<LlvmPointerType<P>>) {
-            val storeInstr = LLVM.LLVMBuildStore(builder, value.raw, to.raw)
-            LLVM.LLVMInsertIntoBuilder(builder, storeInstr)
-        }
-
-        fun add(a: LlvmValue<LlvmIntegerType>, b: LlvmValue<LlvmIntegerType>): LlvmValue<LlvmIntegerType> {
-            check(a.type.nBits == b.type.nBits)
-            val addInstr = LLVM.LLVMBuildAdd(builder, a.raw, b.raw, null as String?)
-            LLVM.LLVMInsertIntoBuilder(builder, addInstr)
-            return LlvmValue(addInstr, a.type)
-        }
-    }
-
-    class ParameterDelegate<T : LlvmType> {
-        operator fun getValue(thisRef: Nothing?, prop: KProperty<*>): LlvmValue<T> {
-            TODO()
-        }
+    fun addTo(context: LlvmContext) {
+        buildAndAdd(context)
     }
 
     companion object {
-        fun <ReturnType : LlvmType> declare(name: String, returnType: ReturnType) = LlvmFunction(name, returnType, null)
-        fun <ReturnType : LlvmType> define(name: String, body: BasicBlockBuilder.() -> LlvmValue<ReturnType>) = LlvmFunction(name, null, body)
+        fun <ReturnType : LlvmType> declare(
+            name: String,
+            returnType: LlvmContext.() -> ReturnType,
+            declaration: DeclareFunctionBuilderContext.() -> Unit
+        ) = LlvmFunction<ReturnType> { context ->
+            val fnContext = DeclareFunctionBuilderContextImpl(context, returnType(context))
+            fnContext.declaration()
+            fnContext.buildAndAdd(name)
+        }
+
+        fun <ReturnType : LlvmType> define(
+            name: String,
+            returnType: LlvmContext.() -> ReturnType,
+            body: DefineFunctionBuilderContext<ReturnType>.() -> Unit
+        ) = LlvmFunction<ReturnType> { context ->
+            val fnContext = DefineFunctionBuilderContextImpl(context, returnType(context))
+            fnContext.body()
+            fnContext.buildAndAdd(name)
+        }
     }
 }
 
-internal sealed class GetElementPointerStep<P : LlvmType> private constructor(
-    private val pointeeType: P,
+class ParameterDelegate<T : LlvmType>(
+    val type: T,
+    val index: Int,
 ) {
-    private var consumed = false
-
-    private fun consume() {
-        check(!consumed) {
-            "This instance of ${this::class.simpleName} was not used with strict method-chaining."
-        }
-        consumed = true
+    private lateinit var function: LLVMValueRef
+    internal fun setFunctionInstance(function: LLVMValueRef) {
+        check(LLVM.LLVMIsAFunction(function) != null)
+        this.function = function
     }
 
-    private fun <NewP : LlvmType> step(index: LlvmValue<LlvmIntegerType>, pointeeType: NewP): GetElementPointerStep<NewP> {
-        consume()
-        return Subsequent(this, index, pointeeType)
+    operator fun getValue(thisRef: Nothing?, prop: KProperty<*>): LlvmValue<T> {
+        return LlvmValue(LLVM.LLVMGetParam(function, index), type)
+    }
+}
+
+interface DeclareFunctionBuilderContext : LlvmContext {
+    fun <T : LlvmType> param(type: T): ParameterDelegate<T>
+}
+
+interface DefineFunctionBuilderContext<ReturnType : LlvmType> : DeclareFunctionBuilderContext {
+    fun body(build: BasicBlockBuilder.() -> LlvmValue<ReturnType>)
+}
+
+private abstract class BaseFunctionBuilderContext<R : LlvmType>(
+    private val context: LlvmContext,
+    private val returnType: R,
+) : DeclareFunctionBuilderContext {
+    protected val parameters = ArrayList<ParameterDelegate<*>>()
+    override fun <T : LlvmType> param(type: T) : ParameterDelegate<T> {
+        val delegate = ParameterDelegate(type, parameters.size)
+        parameters.add(delegate)
+        return delegate
     }
 
-    /**
-     * @return first: the base pointer, second: the list of indices being traversed, third: the type the resulting pointer points to
-     */
-    internal fun completeAndGetData(): Triple<LlvmValue<LlvmPointerType<*>>, List<LLVMValueRef>, P> {
-        consume()
-        val indices = ArrayList<LLVMValueRef>()
-        var pivot: GetElementPointerStep<*> = this
-        while (pivot is Subsequent<*>) {
-            indices.add(0, pivot.index.raw)
-            pivot = pivot.parent
-        }
-        pivot as Base<*>
-        indices.add(0, pivot.index.raw)
-        val basePointer = pivot.basePointer
+    abstract fun buildAndAdd(name: String): LLVMValueRef
 
-        return Triple(basePointer, indices, pointeeType)
+    protected fun buildAndAddFunctionInstance(name: String): LLVMValueRef {
+        val functionType = LLVM.LLVMFunctionType(
+            returnType.raw,
+            PointerPointer(*parameters.map { it.type.raw }.toTypedArray()),
+            parameters.size,
+            0
+        )
+        return LLVM.LLVMAddFunction(context.module, name, functionType)
+    }
+}
+
+private class DeclareFunctionBuilderContextImpl<R : LlvmType>(
+    context: LlvmContext,
+    returnType: R,
+) : BaseFunctionBuilderContext<R>(context, returnType), LlvmContext by context {
+    private var built = false
+    override fun buildAndAdd(name: String): LLVMValueRef {
+        check(!built) { "Already built" }
+        built = true
+
+        return buildAndAddFunctionInstance(name)
+    }
+}
+
+private class DefineFunctionBuilderContextImpl<R : LlvmType>(
+    private val context: LlvmContext,
+    returnType: R,
+) : BaseFunctionBuilderContext<R>(context, returnType), DefineFunctionBuilderContext<R>, LlvmContext by context {
+    private var state = State.PRELUDE
+    private lateinit var bodyBuilder: BasicBlockBuilder.() -> LlvmValue<R>
+
+    override fun <T : LlvmType> param(type: T): ParameterDelegate<T> {
+        check(state == State.PRELUDE) {
+            "Cannot define parameters after defining the body"
+        }
+        return super.param(type)
     }
 
-    private class Base<P : LlvmType>(
-        val basePointer: LlvmValue<LlvmPointerType<out P>>,
-        val index: LlvmValue<LlvmIntegerType>,
-    ) : GetElementPointerStep<P>(basePointer.type.pointed)
-    private class Subsequent<P : LlvmType>(
-        val parent: GetElementPointerStep<*>,
-        val index: LlvmValue<LlvmIntegerType>,
-        pointeeType: P,
-    ) : GetElementPointerStep<P>(pointeeType)
-
-    companion object {
-        fun <P : LlvmType> initial(basePointer: LlvmValue<LlvmPointerType<out P>>, index: LlvmValue<LlvmIntegerType>): GetElementPointerStep<P> {
-            return Base(basePointer, index)
+    override fun body(build: BasicBlockBuilder.() -> LlvmValue<R>) {
+        check(state == State.PRELUDE) {
+            "Cannot declare body more than once"
         }
 
-        fun <S : LlvmStructType, MemberType : LlvmType> GetElementPointerStep<S>.member(
-            memberProp: KProperty1<S, LlvmStructType.Member<MemberType>>
-        ): GetElementPointerStep<MemberType> {
-            val member = memberProp(pointeeType)
-            return step(
-                member.type.context.i32(member.indexInStruct),
-                member.type
-            )
+        state = State.BODY_KNOWN
+        bodyBuilder = build
+    }
+
+    override fun buildAndAdd(name: String): LLVMValueRef {
+        check(state == State.BODY_KNOWN) {
+            "Cannot build before declaring body"
         }
+        state = State.BUILT
+
+        val functionInstance = buildAndAddFunctionInstance(name)
+        parameters.forEach { it.setFunctionInstance(functionInstance) }
+        val basicBlock = LLVM.LLVMAppendBasicBlock(functionInstance, "entry")
+        BasicBlockBuilder.appendToWithReturn(context, basicBlock, bodyBuilder)
+
+        return functionInstance
+    }
+
+    private enum class State {
+        PRELUDE,
+        BODY_KNOWN,
+        BUILT
     }
 }

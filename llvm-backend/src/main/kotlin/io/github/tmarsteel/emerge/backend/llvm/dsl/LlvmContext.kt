@@ -1,14 +1,5 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
-import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
-import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
-import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
-import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
-import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
-import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
-import io.github.tmarsteel.emerge.backend.api.ir.IrType
-import io.github.tmarsteel.emerge.backend.llvm.llvmName
-import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMContextRef
 import org.bytedeco.llvm.LLVM.LLVMModuleRef
 import org.bytedeco.llvm.LLVM.LLVMTargetDataRef
@@ -21,6 +12,7 @@ interface LlvmContext {
     val targetData: LLVMTargetDataRef
     val void: LlvmVoidType
     val rawPointer: LLVMTypeRef
+    val opaquePointer: LlvmPointerType<LlvmVoidType>
     val functionAddress: LlvmFunctionAddressType
 
     fun <T : LlvmType> cachedType(name: String, builder: LlvmContext.() -> T): T
@@ -41,12 +33,16 @@ private class LlvmContextImpl(val targetTriple: String) : LlvmContext, AutoClose
     override val targetData = LLVM.LLVMGetModuleDataLayout(module)
     override val void = LlvmVoidType(this)
     override val rawPointer: LLVMTypeRef = LLVM.LLVMPointerTypeInContext(ref, 0)
+    override val opaquePointer: LlvmPointerType<LlvmVoidType> = LlvmPointerType(void)
     override val functionAddress = LlvmFunctionAddressType(this)
 
     private val typesWithHandle = HashMap<LlvmContext.() -> LlvmType, LlvmType>()
     override fun <T : LlvmType> cachedType(name: String, builder: LlvmContext.() -> T): T {
         @Suppress("UNCHECKED_CAST")
-        return typesWithHandle.computeIfAbsent(builder) { builder(this) } as T
+        typesWithHandle[builder]?.let { return it as T }
+        val type = builder(this)
+        typesWithHandle[builder] = type
+        return type
     }
 
     override fun close() {

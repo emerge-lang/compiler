@@ -8,6 +8,8 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
@@ -23,32 +25,33 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
         val structType = LLVM.LLVMStructCreateNamed(ref, struct.llvmName)
         // register here to allow cyclic references
         baseTypeRefs[struct] = structType
-        val elements = PointerPointer(*struct.members.map { getType(it.type) }.toTypedArray())
+        val elements = PointerPointer(*struct.members.map { getReferenceSiteType(it.type).raw }.toTypedArray())
         LLVM.LLVMStructSetBody(structType, elements, struct.members.size, 0)
     }
 
-    fun getType(type: IrType): LLVMTypeRef {
+    /**
+     * @return the [LlvmType] of the given emerge type, for use in the reference location. This is
+     * [LlvmPointerType] for all structural/heap-allocated types, and an LLVM value type for the emerge value types.
+     */
+    fun getReferenceSiteType(type: IrType): LlvmType {
         val baseType: IrBaseType = when (type) {
             is IrSimpleType -> type.baseType
             is IrParameterizedType -> type.simpleType.baseType
-            is IrGenericTypeReference -> return getType(type.effectiveBound)
+            is IrGenericTypeReference -> return getReferenceSiteType(type.effectiveBound)
         }
 
-        /*
         when (baseType.fqn.toString()) {
             "emerge.ffi.c.COpaquePointer",
-            "emerge.ffi.c.CPointer" -> return pointerTypeRaw
-            "emerge.core.Int" -> return intTypeRaw
-            "emerge.core.Array" -> return pointerTypeRaw
+            "emerge.ffi.c.CPointer" -> return opaquePointer
+            "emerge.core.Int" -> return i32
+            "emerge.core.Array" -> return opaquePointer
             "emerge.core.iword",
-            "emerge.core.uword" -> return wordTypeRaw
-            "emerge.core.Unit" -> return voidTypeRaw
-            "emerge.core.Any" -> return pointerTypeRaw // TODO: remove, Any will be a pure language-defined type
+            "emerge.core.uword" -> return word
+            "emerge.core.Unit" -> return void
+            "emerge.core.Any" -> return pointerToAnyValue // TODO: remove, Any will be a pure language-defined type
         }
 
-         */
-
-        return baseTypeRefs[baseType] ?: throw CodeGenerationException("Unknown base type $baseType")
+        return pointerToAnyValue
     }
 
     companion object {

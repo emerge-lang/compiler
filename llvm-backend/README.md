@@ -58,9 +58,7 @@ Hence, this is the layout for arrays of reference types:
 
 ```llvm
 %refarray = type {
-    %word,    ; reference count
-    ptr,      ; typeinfo pointer
-    ptr,      ; weak reference collection pointer
+    %anyvalue ; base for all objects
     %word,    ; element count
     [0 x ptr] ; elements, size determined at array creation
 }
@@ -122,10 +120,8 @@ Has this layout in memory:
 
 ```llvm
 %arraybox = type {
-    %word,  ; reference count
-    ptr,    ; vtable pointer, set according to the type of the underlying value-array
-    ptr,    ; weak reference collection pointer
-    ptr,    ; pointer to the value-array that is being boxed
+    %anyvalue ; base for all objects, vtable set according to the type of the underlying value-array
+    ptr,      ; pointer to the value-array that is being boxed
 }
 ```
 
@@ -140,27 +136,25 @@ of unknown size. E.g. consider the Array-Box for `Byte`: the vtable would define
     [0 x i8]
 }
 %bytebox = {
-    %word,
-    ptr,
-    ptr,
+    %anyvalue,
     i8
 }
 
 define %word @arrayBoxByte_size(ptr %self) {
-    %rawArrayPtr = getelementptr %arraybox, ptr %self, i32 0, i32 3
+    %rawArrayPtr = getelementptr %arraybox, ptr %self, i32 0, i32 1
     %sizePtr = getelementptr %valuearray_byte, ptr %rawArrayPtr, i32 0, i32 2
     %size = load %word, ptr %sizePtr
     ret %size
 }
 define ptr @arrayBoxByte_get(ptr %self, %word %index) {
-    %rawArrayPtr = getelementptr %arraybox, ptr %self, i32 0, i32 3
+    %rawArrayPtr = getelementptr %arraybox, ptr %self, i32 0, i32 1
     %rawBytePtr = getelementptr %valuearray_byte, ptr %rawArrayPtr, i32 0, i32 3, %word %index
     %rawByte = load i8, ptr %rawBytePtr
     %boxPtr = call ptr @ByteBoxCtor(i8 %rawByte)
     ret %boxPtr
 }
 define void @arrayBoxByte_set(ptr %self, %word %index, ptr %valueBox) {
-    %rawByteSourcePtr = getelementptr %bytebox, ptr %valueBox, i32 0, i32 3
+    %rawByteSourcePtr = getelementptr %bytebox, ptr %valueBox, i32 0, i32 1
     %rawByteSource = load i8, ptr %rawByteSourcePtr, align 1
     %rawArrayPtr = getelementptr %arraybox, ptr %self, i32 0, i32 3
     %rawByteTargetPtr = getelementptr %valuearray_byte, ptr %rawArrayPtr, i32 0, i32 3, %word %index
@@ -308,9 +302,10 @@ null-ed before the object is actually touched for finalization. To achieve this,
 references from the object to all `Weak`s pointing to it, so this is trivially possible.
 
 1. walk the linked list of `%weakReferenceCollection` values, on each
-2. iterate the `[10 x ptr]` array
-3. interpret that `ptr` as a reference to a `Weak`, which it is
-4. set the `value` entry to `null`, ignoring any mutability typing
+2. iterate the `[10 x ptr]` array, on each
+   1. interpret that `ptr` as a reference to a `Weak`, which it is
+   2. set the `value` entry to `null`, ignoring any mutability typing
+3. deallocate the `%weakReferenceCollection` that was just nulled
 
 The last point here has an implication, though: `Weak`s can always be mutated by the runtime, caused
 by potentially totally external events that drop the last strong reference to the `T`. Consequently,

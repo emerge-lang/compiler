@@ -4,6 +4,9 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrPackage
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
+import org.bytedeco.javacpp.BytePointer
+import org.bytedeco.llvm.global.LLVM
+import java.nio.ByteBuffer
 
 internal val IrFunction.llvmName: String get() = this.fqn.toString()
 internal val IrStruct.llvmName: String get() = this.fqn.toString()
@@ -29,4 +32,10 @@ internal fun <K, V> MutableMap<K, V>.dropAllAndDo(action: (Map.Entry<K, V>) -> U
         iterator.remove()
         action(next)
     }
+}
+
+internal fun getLlvmMessage(message: BytePointer): String {
+    val str = message.string
+    LLVM.LLVMDisposeMessage(message)
+    return str
 }

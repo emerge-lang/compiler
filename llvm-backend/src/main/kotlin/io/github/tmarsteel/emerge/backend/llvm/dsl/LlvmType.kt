@@ -89,7 +89,7 @@ abstract class LlvmStructType(
         builder: LlvmContext.() -> T
     ) {
         init {
-            check(indexInStruct > 0)
+            check(indexInStruct >= 0)
         }
         val type: T by lazy {
             builder(context)

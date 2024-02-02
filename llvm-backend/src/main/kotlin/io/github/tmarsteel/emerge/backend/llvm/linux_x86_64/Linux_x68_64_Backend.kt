@@ -7,6 +7,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.llvm.SystemPropertyDelegate.Companion.systemProperty
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getSupertypePointers
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.packagesSeq
 import org.bytedeco.javacpp.PointerPointer
@@ -30,14 +31,15 @@ class Linux_x68_64_Backend : EmergeBackend {
         LLVM.LLVMInitializeX86TargetInfo()
 
         EmergeLlvmContext.createDoAndDispose("x86_64-pc-linux-unknown") { llvmContext ->
+            getSupertypePointers.addTo(llvmContext)
             softwareContext.packagesSeq.forEach { pkg ->
                 pkg.structs.forEach(llvmContext::registerStruct)
             }
             softwareContext.modules.flatMap { it.packages }.forEach { pkg ->
                 pkg.functions.flatMap { it.overloads }.forEach { function ->
                     val functionType = LLVM.LLVMFunctionType(
-                        llvmContext.getType(function.returnType),
-                        PointerPointer(*function.parameters.map { llvmContext.getType(it.type) }.toTypedArray()),
+                        llvmContext.getReferenceSiteType(function.returnType).raw,
+                        PointerPointer(*function.parameters.map { llvmContext.getReferenceSiteType(it.type).raw }.toTypedArray()),
                         function.parameters.size,
                         0,
                     )

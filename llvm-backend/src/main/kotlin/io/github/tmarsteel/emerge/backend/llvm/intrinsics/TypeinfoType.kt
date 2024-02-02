@@ -8,7 +8,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmStructType
 internal class TypeinfoType(
     context: LlvmContext,
 ) : LlvmStructType(context, "typeinfo") {
-    val shiftRightAmount by structMemberRaw { wordTypeRaw }
+    val shiftRightAmount by structMember { word }
     val supertypes by structMember {
         LlvmPointerType(
             ValueArrayType(
