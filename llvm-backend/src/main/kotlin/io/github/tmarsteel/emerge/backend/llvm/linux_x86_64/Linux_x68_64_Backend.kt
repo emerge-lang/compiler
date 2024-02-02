@@ -5,7 +5,6 @@ import io.github.tmarsteel.emerge.backend.api.EmergeBackend
 import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.llvm.SystemPropertyDelegate.Companion.systemProperty
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getSupertypePointers
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
@@ -13,6 +12,7 @@ import io.github.tmarsteel.emerge.backend.llvm.packagesSeq
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.global.LLVM
 import java.nio.channels.AsynchronousFileChannel
+import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardOpenOption
@@ -49,7 +49,11 @@ class Linux_x68_64_Backend : EmergeBackend {
             LLVM.LLVMDumpModule(llvmContext.module)
             LLVM.LLVMPrintModuleToString(llvmContext.module).let { moduleBytes ->
                 AsynchronousFileChannel.open(directory.resolve("out.bin"), StandardOpenOption.CREATE, StandardOpenOption.WRITE).use {
-                    it.write(moduleBytes.asBuffer(), 0L).get()
+                    val nBytesToWrite = moduleBytes.limit() - moduleBytes.position()
+                    var nBytesWritten = 0
+                    while (nBytesWritten < nBytesToWrite) {
+                        nBytesWritten += it.write(moduleBytes.asBuffer(), 0L).get()
+                    }
                 }
                 LLVM.LLVMDisposeMessage(moduleBytes)
             }
