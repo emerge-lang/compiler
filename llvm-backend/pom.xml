@@ -25,6 +25,9 @@
                         <id>compile</id>
                         <phase>process-sources</phase>
                         <goals> <goal>compile</goal> </goals>
+                        <configuration>
+                            <args>-Xcontext-receivers</args>
+                        </configuration>
                     </execution>
 
                     <execution>

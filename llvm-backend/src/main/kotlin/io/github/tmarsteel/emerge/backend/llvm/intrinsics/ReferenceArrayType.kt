@@ -8,6 +8,6 @@ internal class ReferenceArrayType<Element : LlvmType>(
     context: LlvmContext,
     val elementType: Element,
 ) : AnyvalueType(context, "refarray") {
-    val elementCount by structMemberRaw { wordTypeRaw }
+    val elementCount by structMember { word }
     val elementsArray by structMember { LlvmArrayType(this, 0L, elementType) }
 }

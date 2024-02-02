@@ -10,12 +10,12 @@ import kotlin.reflect.KProperty
  * TODO: remove need for context, compute raw on-demand when a context is known
  * This should allow intrinsic types to be defined as kotlin objects, not class instances
  */
-internal interface LlvmType {
+interface LlvmType {
     val context: LlvmContext
     val raw: LLVMTypeRef
 }
 
-internal class LlvmVoidType(
+class LlvmVoidType(
     override val context: LlvmContext
 ) : LlvmType {
     override val raw = LLVM.LLVMVoidTypeInContext(context.ref)
@@ -24,14 +24,14 @@ internal class LlvmVoidType(
 /**
  * For non-structural types like i32, ptr, ...
  */
-internal open class LlvmLeafType(
+open class LlvmLeafType(
     override val context: LlvmContext,
     override val raw: LLVMTypeRef,
 ) : LlvmType
 
-internal class LlvmIntegerType(
+class LlvmIntegerType(
     context: LlvmContext,
-    nBits: Int,
+    val nBits: Int,
 ) : LlvmLeafType(context, LLVM.LLVMIntTypeInContext(context.ref, nBits)) {
     init {
         check(nBits > 0)
@@ -40,16 +40,20 @@ internal class LlvmIntegerType(
     operator fun invoke(value: Int) = invoke(value.toLong())
 
     operator fun invoke(value: Long): LlvmValue<LlvmIntegerType> {
-        return LlvmValue<LlvmIntegerType>(
+        return LlvmValue(
             LLVM.LLVMConstInt(raw, value, 1),
             this,
         )
     }
 }
 
-internal open class LlvmPointerType<Pointed : LlvmType>(val pointed: Pointed) : LlvmType {
+open class LlvmPointerType<Pointed : LlvmType>(val pointed: Pointed) : LlvmType {
     override val context = pointed.context
-    override val raw: LLVMTypeRef = context.rawPointer
+    override val raw: LLVMTypeRef = pointed.context.rawPointer
+
+    companion object {
+        fun <T : LlvmType> pointerTo(t: T): LlvmPointerType<T> = LlvmPointerType(t)
+    }
 }
 
 /**
@@ -58,7 +62,7 @@ internal open class LlvmPointerType<Pointed : LlvmType>(val pointed: Pointed) : 
  * that are defined by the LLVM backend, not by the emerge source code. That
  * is mostly the code around handling references.
  */
-internal abstract class LlvmStructType(
+abstract class LlvmStructType(
     override val context: LlvmContext,
     val name: String,
 ) : LlvmType {
@@ -73,26 +77,11 @@ internal abstract class LlvmStructType(
     }
 
     private val membersInOrder = ArrayList<Member<*>>()
-    protected fun <T : LlvmType> structMember(builder: LlvmContext.() -> T): StructMemberDelegate<T> {
+    protected fun <T : LlvmType> structMember(builder: LlvmContext.() -> T): ImmediateDelegate<LlvmStructType, Member<T>> {
         check(!registered)
         val member = Member(membersInOrder.size, builder)
         membersInOrder.add(member)
-        return StructMemberDelegate(member)
-    }
-
-    protected fun structMemberRaw(builder: LlvmContext.() -> LLVMTypeRef): StructMemberDelegate<LlvmLeafType> {
-        return structMember {
-            val raw = builder(context)
-            LlvmLeafType(context, raw)
-        }
-    }
-
-    protected inner class StructMemberDelegate<T : LlvmType>(
-        private val member: Member<T>
-    ) {
-        operator fun getValue(thisRef: Any, prop: KProperty<*>): Member<T> {
-            return member
-        }
+        return ImmediateDelegate(member)
     }
 
     inner class Member<T : LlvmType>(
@@ -108,7 +97,7 @@ internal abstract class LlvmStructType(
     }
 }
 
-internal class LlvmArrayType<Element : LlvmType>(
+class LlvmArrayType<Element : LlvmType>(
     override val context: LlvmContext,
     val elementCount: Long,
     val elementType: Element
@@ -122,7 +111,7 @@ internal class LlvmArrayType<Element : LlvmType>(
     }
 }
 
-internal class LlvmFunctionAddressType(
+class LlvmFunctionAddressType(
     override val context: LlvmContext,
 ) : LlvmType {
     override val raw = context.rawPointer

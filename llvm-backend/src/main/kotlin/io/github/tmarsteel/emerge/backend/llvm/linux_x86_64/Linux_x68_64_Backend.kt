@@ -6,6 +6,7 @@ import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.llvm.SystemPropertyDelegate.Companion.systemProperty
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.packagesSeq
 import org.bytedeco.javacpp.PointerPointer
@@ -28,7 +29,7 @@ class Linux_x68_64_Backend : EmergeBackend {
         LLVM.LLVMInitializeX86Target()
         LLVM.LLVMInitializeX86TargetInfo()
 
-        LlvmContext("x86_64-pc-linux-unknown").use { llvmContext ->
+        EmergeLlvmContext.createDoAndDispose("x86_64-pc-linux-unknown") { llvmContext ->
             softwareContext.packagesSeq.forEach { pkg ->
                 pkg.structs.forEach(llvmContext::registerStruct)
             }

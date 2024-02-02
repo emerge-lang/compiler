@@ -492,7 +492,8 @@ define ptr @getAnyTypeinfoPtr() {
   ret ptr @AnyTypeinfo
 }
 define ptr @getSupertypePtrArray(ptr %anyvalue_ref) {
-  %typeinfoPtr = getelementptr %anyvalue, ptr %anyvalue_reference, i32 0, i32 1
+  %typeinfoPtrPtr = getelementptr %anyvalue, ptr %anyvalue_reference, i32 0, i32 1
+  %typeinfoPtr = load ptr, ptr %typeinfoPtrPtr
   %arrayPtr = getelementptr %typeinfo, ptr %typeinfoPtr, i32 0, i32 1
   ; elided: increase refcount for %arrayPtr
   ret ptr %arrayPtr
