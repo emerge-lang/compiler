@@ -27,7 +27,8 @@ internal class LlvmContext(val targetTriple: String) : AutoCloseable {
     val voidTypeRaw = LLVM.LLVMVoidType()
 
     val functionAddress = LlvmFunctionAddressType(this)
-    val anyvalue = AnyvalueType(this)
+    val anyValue = AnyvalueType(this)
+    val pointerToAnyValue = LlvmPointerType(anyValue)
     val weakReferenceCollection = WeakReferenceCollectionType(this)
 
     private val baseTypeRefs = HashMap<IrBaseType, LLVMTypeRef>()
