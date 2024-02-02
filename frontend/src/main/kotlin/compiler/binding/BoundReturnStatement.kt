@@ -18,6 +18,7 @@
 
 package compiler.binding
 
+import compiler.ast.Executable
 import compiler.ast.ReturnStatement
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
@@ -73,6 +74,14 @@ class BoundReturnStatement(
     override fun setExpectedReturnType(type: BoundTypeReference) {
         expectedReturnType = type
         expression.setExpectedEvaluationResultType(type)
+    }
+
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+        return this.expression.findReadsBeyond(boundary)
+    }
+
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+        return this.expression.findWritesBeyond(boundary)
     }
 
     override fun toBackendIr(): IrStatement {

@@ -56,6 +56,16 @@ class PurityErrors : FreeSpec({
             .shouldReport<ReadInPureContextReporting>()
     }
 
+    "reading outside of a pure context" {
+        validateModule("""
+            val x = 0
+            pure fun a() -> Int {
+                return x
+            }
+        """.trimIndent())
+            .shouldReport<ReadInPureContextReporting>()
+    }
+
     "mutating outside of a pure context" {
         validateModule("""
             var x = 1

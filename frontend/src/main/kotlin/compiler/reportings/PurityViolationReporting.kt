@@ -35,7 +35,9 @@ abstract class PurityViolationReporting protected constructor(
 data class ReadInPureContextReporting internal constructor(val readingExpression: BoundIdentifierExpression, val function: BoundFunction) : PurityViolationReporting(
     readingExpression,
     "pure function ${function.name} cannot read ${readingExpression.identifier} (is not within the pure boundary)"
-)
+) {
+    override fun toString() = super.toString()
+}
 
 data class ImpureInvocationInPureContextReporting internal constructor(val invcExpr: BoundInvocationExpression, val function: BoundFunction) : PurityViolationReporting(
     invcExpr,
@@ -56,4 +58,6 @@ data class StateModificationOutsideOfPurityBoundaryReporting internal constructo
 
         "$functionTypeAsString function ${function.name} cannot assign state outside of its $boundaryType boundary"
     }()
-)
+) {
+    override fun toString() = super.toString()
+}
