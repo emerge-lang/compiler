@@ -30,26 +30,32 @@ import compiler.lexer.Keyword.*
 import compiler.parser.*
 import compiler.parser.grammar.dsl.*
 import compiler.parser.grammar.rule.Rule
+import compiler.transact.TransactionalSequence
+
+private val ExpressionBase: Rule<Expression<*>> = eitherOf("expression without postfixes") {
+    ref(UnaryExpression)
+    ref(ValueExpression)
+    ref(ParanthesisedExpression)
+    ref(IfExpression)
+}
+    .astTransformation { tokens -> tokens.next() as Expression<*> }
 
 val Expression: Rule<Expression<*>> = sequence("expression") {
-    eitherOf {
-        ref(BinaryExpression)
-        ref(UnaryExpression)
-        ref(ValueExpression)
-        ref(ParanthesisedExpression)
-        ref(IfExpression)
-    }
+    ref(ExpressionBase)
     repeating {
         ref(ExpressionPostfix)
     }
 }
     .isolateCyclicGrammar
-    .astTransformation { tokens ->
-        val expression = tokens.next()!! as Expression<*>
-        tokens
-            .remainingToList()
-            .fold(expression) { expr, postfix -> (postfix as ExpressionPostfix<*>).modify(expr) }
+    .astTransformation(false, ::astTransformOneExpressionWithOptionalPostfixes)
+
+val ExpressionExcludingBinaryPostfix = sequence("expression (excluding binary expressions)") {
+    ref(ExpressionBase)
+    repeating {
+        ref(ExpressionPostfixExcludingBinary)
     }
+}
+    .astTransformation(false, ::astTransformOneExpressionWithOptionalPostfixes)
 
 val StringLiteralExpression = sequence("string literal") {
     operator(Operator.STRING_DELIMITER)
@@ -167,25 +173,6 @@ val binaryOperators = arrayOf(
     // MISC
     Operator.ELVIS
 )
-
-val BinaryExpression = sequence("binary operator expression") {
-    eitherOf {
-        ref(UnaryExpression)
-        ref(ValueExpression)
-        ref(ParanthesisedExpression)
-    }
-    repeatingAtLeastOnce {
-        eitherOf(*binaryOperators)
-        eitherOf {
-            ref(UnaryExpression)
-            ref(ValueExpression)
-            ref(ParanthesisedExpression)
-        }
-    }
-}
-    .astTransformation { tokens ->
-        buildBinaryExpressionAst(tokens.remainingToList())
-    }
 
 val BracedCodeOrSingleStatement = eitherOf("curly braced code or single statement") {
     sequence {
@@ -349,92 +336,32 @@ val ExpressionPostfixAssignment = sequence("assignment") {
         AssignmentExpressionPostfix(tokens.next() as OperatorToken, tokens.next() as Expression<*>)
     }
 
-val ExpressionPostfix = eitherOf {
+val ExpressionPostfixBinaryOperation = sequence("binary expression") {
+    repeatingAtLeastOnce {
+        eitherOf(*binaryOperators)
+        ref(ExpressionExcludingBinaryPostfix)
+    }
+}
+    .astTransformation { tokens ->
+        BinaryExpressionPostfix(tokens.remainingToList())
+    }
+
+val ExpressionPostfixExcludingBinary = eitherOf {
     ref(ExpressionPostfixNotNull)
     ref(ExpressionPostfixInvocation)
     ref(ExpressionPostfixMemberAccess)
     ref(ExpressionPostfixAssignment)
 }
+
+val ExpressionPostfix = eitherOf {
+    ref(ExpressionPostfixExcludingBinary)
+    ref(ExpressionPostfixBinaryOperation)
+}
     .mapResult { it as ExpressionPostfix<Expression<*>> }
 
-private typealias OperatorOrExpression = Any // kotlin does not have a union type; if it had, this would be = OperatorToken | Expression<*>
-
-private val Operator.priority: Int
-    get() = when(this) {
-        Operator.ELVIS -> 10
-
-        Operator.LESS_THAN,
-        Operator.LESS_THAN_OR_EQUALS,
-        Operator.GREATER_THAN,
-        Operator.GREATER_THAN_OR_EQUALS,
-        Operator.EQUALS,
-        Operator.NOT_EQUALS,
-        Operator.IDENTITY_EQ,
-        Operator.IDENTITY_NEQ -> 20
-
-        Operator.PLUS,
-        Operator.MINUS -> 30
-
-        Operator.TIMES,
-        Operator.DIVIDE -> 40
-        else -> throw InternalCompilerError("$this is not a binary operator")
-    }
-
-/**
- * Takes as input a list of alternating [Expression]s and [OperatorToken]s, e.g.:
- *     [Identifier(a), Operator(+), Identifier(b), Operator(*), Identifier(c)]
- * Builds the AST with respect to operator precedence defined in [Operator.priority]
- *
- * **Operator Precedence**
- *
- * Consider this input: `a * (b + c) + e * f + g`
- * Of those operators with the lowest precedence the rightmost will form the toplevel expression (the one
- * returned from this function). In this case it's the second `+`:
- *
- *                                   +
- *                                  / \
- *      [a, *, (b + c), +, e, *, f]    g
- *
- * This process is then recursively repeated for both sides of the node:
- *
- *                        +
- *                       / \
- *                      +   g
- *                     / \
- *     [a, *, (b + c)]    [e, *, f]
- *
- *     ---
- *               +
- *              / \
- *             +   g
- *            / \
- *           /   *
- *          /   / \
- *         *   e   f
- *        / \
- *       a  (b + c)
- */
-private fun buildBinaryExpressionAst(rawExpression: List<OperatorOrExpression>): Expression<*> {
-    if (rawExpression.size == 1) {
-        return rawExpression[0] as? Expression<*> ?: throw InternalCompilerError("List with one item that is not an expression.. bug!")
-    }
-
-    @Suppress("UNCHECKED_CAST") // the type check is in the filter {}
-    val operatorsWithIndex = rawExpression
-        .mapIndexed { index, item -> Pair(index, item) }
-        .filter { it.second is OperatorToken } as List<Pair<Int, OperatorToken>>
-
-    val rightmostWithLeastPriority = operatorsWithIndex
-        .reversed()
-        .minByOrNull { it.second.operator.priority }
-        ?: throw InternalCompilerError("No operator in the list... how can this even be?")
-
-    val leftOfOperator = rawExpression.subList(0, rightmostWithLeastPriority.first)
-    val rightOfOperator = rawExpression.subList(rightmostWithLeastPriority.first + 1, rawExpression.size)
-
-    return BinaryExpression(
-        leftHandSide = buildBinaryExpressionAst(leftOfOperator),
-        op = rightmostWithLeastPriority.second,
-        rightHandSide = buildBinaryExpressionAst(rightOfOperator)
-    )
+private fun astTransformOneExpressionWithOptionalPostfixes(tokens: TransactionalSequence<Any, *>): Expression<*> {
+    val expression = tokens.next()!! as Expression<*>
+    return tokens
+        .remainingToList()
+        .fold(expression) { expr, postfix -> (postfix as ExpressionPostfix<*>).modify(expr) }
 }

@@ -43,24 +43,12 @@ val ReturnStatement = sequence("return statement") {
     }
 
 val Assignable = sequence("assignable") {
-    eitherOf {
-        ref(BinaryExpression)
-        ref(UnaryExpression)
-        sequence {
-            ref(ParanthesisedExpression)
-            ref(ExpressionPostfix)
-        }
-        ref(IdentifierExpression)
-    }
-    repeating {
-        ref(ExpressionPostfix)
-    }
+    // TODO: refine grammar
+    ref(ExpressionExcludingBinaryPostfix)
 }
     .astTransformation { tokens ->
         val expression = tokens.next()!! as Expression<*>
-        tokens
-            .remainingToList()
-            .fold(expression) { expr, postfix -> (postfix as ExpressionPostfix<*>).modify(expr) }
+        expression
     }
 
 val LineOfCode = sequence {
