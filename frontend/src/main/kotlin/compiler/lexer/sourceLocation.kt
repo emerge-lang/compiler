@@ -79,6 +79,7 @@ class SourceSet(
 interface SourceFile {
     val content: String
     val packageName: DotName
+    val name: String
 
     companion object {
         const val EXTENSION = "em"
@@ -90,6 +91,7 @@ class ClasspathSourceFile(
     override val packageName: DotName,
     override val content: String,
 ) : SourceFile {
+    override val name: String = pathOnClasspath.name
     override fun toString() = "classpath:/$pathOnClasspath"
 }
 
@@ -104,6 +106,7 @@ class DiskSourceFile(
         throw IllegalArgumentException("Source file is not located in the given source-set!", ex)
     }
 
+    override val name: String = sourceFilePath.name
     override val packageName = DotName(sourceSet.moduleName.components + (pathRelativeToSourceSet.parent?.segments() ?: emptyList()))
 
     override fun toString(): String = "${sourceSet.moduleName} $ ${pathRelativeToSourceSet}"
@@ -113,7 +116,7 @@ class DiskSourceFile(
  * This is not actually a source file, its code from in memory.
  */
 class MemorySourceFile(
-    val name: String,
+    override val name: String,
     override val packageName: DotName,
     override val content: String
 ) : SourceFile {
