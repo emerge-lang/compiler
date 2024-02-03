@@ -33,11 +33,13 @@ import compiler.parser.grammar.dsl.sequence
 
 val ReturnStatement = sequence("return statement") {
     keyword(Keyword.RETURN)
-    ref(Expression)
+    optional {
+        ref(Expression)
+    }
 }
     .astTransformation { tokens ->
         val keyword = tokens.next()!! as KeywordToken
-        val expression = tokens.next()!! as Expression<*>
+        val expression = if (tokens.hasNext()) tokens.next()!! as Expression<*> else null
 
         ReturnStatement(keyword, expression)
     }
