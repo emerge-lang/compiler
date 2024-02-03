@@ -44,12 +44,4 @@ class BoundNullLiteralExpression(
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
-
-    companion object {
-        fun getInstance(context: CTContext, sourceLocation: SourceLocation = SourceLocation.UNKNOWN) =
-            BoundNullLiteralExpression(
-                context,
-                NullLiteralExpression(sourceLocation)
-            )
-    }
 }

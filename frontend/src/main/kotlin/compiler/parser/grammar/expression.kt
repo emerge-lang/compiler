@@ -116,12 +116,11 @@ val IdentifierExpression = sequence("identifier") {
     identifier()
 }
     .astTransformation { tokens ->
-        // todo: null
         val identifier = tokens.next() as IdentifierToken
-        if (identifier.value == "true" || identifier.value == "false") {
-            BooleanLiteralExpression(identifier.sourceLocation, identifier.value == "true")
-        } else {
-            IdentifierExpression(identifier)
+        when (identifier.value) {
+            "true", "false" -> BooleanLiteralExpression(identifier.sourceLocation, identifier.value == "true")
+            "null" -> NullLiteralExpression(identifier.sourceLocation)
+            else -> IdentifierExpression(identifier)
         }
     }
 
@@ -309,7 +308,7 @@ val ExpressionPostfixInvocation = sequence("function invocation") {
 }
     .astTransformation { tokens ->
         val typeArguments: List<TypeArgument>
-        var next = tokens.next()!!
+        val next = tokens.next()!!
         if (next is TypeArgumentBundle) {
             typeArguments = next.arguments
             // skip PARANT_OPEN
