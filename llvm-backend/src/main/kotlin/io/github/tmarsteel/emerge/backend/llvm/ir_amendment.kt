@@ -33,7 +33,6 @@ internal val IrType.llvmValueType: LlvmType? by tackLazyVal {
     }
 
     when (this.baseType.fqn.toString()) {
-        "emerge.core.Any" -> AnyValueType
         "emerge.core.Byte",
         "emerge.core.UByte" -> LlvmI8Type
 

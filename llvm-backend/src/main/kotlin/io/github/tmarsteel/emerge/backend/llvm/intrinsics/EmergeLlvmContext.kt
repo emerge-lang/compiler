@@ -214,6 +214,12 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
             }
             is IrSimpleType -> {
                 type.llvmValueType?.let { return it }
+                if (type.baseType is IrIntrinsicType) {
+                    return when (type.baseType.fqn.toString()) {
+                        "emerge.core.Any" -> AnyValueType
+                        else -> throw CodeGenerationException("Missing allocation-site representation for this intrinsic type: $type")
+                    }
+                }
 
                 // there are no other possibilities AFAICT right now
                 return (type.baseType as IrStruct).llvmType
