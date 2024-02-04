@@ -80,16 +80,16 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
 
     fun <R : LlvmType> call(function: LlvmFunction<R>, args: List<LlvmValue<*>>): LlvmValue<R> {
         require(function.parameterTypes.size == args.size) {
-            "The function ${getLlvmMessage(LLVM.LLVMGetValueName(function.raw))} takes ${function.parameterTypes.size} parameters, ${args.size} arguments given."
+            "The function ${getLlvmMessage(LLVM.LLVMGetValueName(function.address.raw))} takes ${function.parameterTypes.size} parameters, ${args.size} arguments given."
         }
         checkNotTerminated()
 
-        val argsArray = args.map { it.type.getRawInContext(context) }.toTypedArray()
+        val argsArray = args.map { it.raw }.toTypedArray()
         val argsPointerPointer = PointerPointer(*argsArray)
         val result = LLVM.LLVMBuildCall2(
             builder,
             function.rawFunctionType,
-            function.raw,
+            function.address.raw,
             argsPointerPointer,
             args.size,
             tmpVars.next(),
