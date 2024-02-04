@@ -24,12 +24,16 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI16Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI64Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
+import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.llvmType
@@ -129,9 +133,6 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
 
     private val globalVariableInitializers = ArrayList<Pair<IrVariableDeclaration, IrExpression>>()
     fun defineGlobalInitializer(global: IrVariableDeclaration, initializer: IrExpression) {
-        val writeEmitter = global.emitWrite
-            ?: throw CodeGenerationException("Global not registered through ${this::registerGlobal.name} first")
-
         globalVariableInitializers.add(Pair(global, initializer))
     }
 
@@ -163,7 +164,7 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
      */
     fun getReferenceSiteType(type: IrType): LlvmType {
         if (type is IrParameterizedType && type.simpleType.baseType.fqn.toString() == "emerge.ffi.c.CPointer") {
-            return LlvmPointerType(getReferenceSiteType(type.arguments["T"]!!.type))
+            return LlvmPointerType(getReferenceSiteType(type.arguments.values.single().type))
         }
 
         val baseType: IrBaseType = when (type) {
@@ -173,10 +174,16 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
         }
 
         when (baseType.fqn.toString()) {
-            "emerge.ffi.c.COpaquePointer",
-            "emerge.ffi.c.CPointer" -> return opaquePointer
-            "emerge.core.Int" -> return LlvmI32Type
-            "emerge.core.Array" -> return opaquePointer
+            "emerge.ffi.c.COpaquePointer" -> return opaquePointer
+            "emerge.ffi.c.CPointer" -> return pointerTo(getAllocationSiteType(type))
+            "emerge.core.Byte",
+            "emerge.core.UByte" -> return LlvmI8Type
+            "emerge.core.Short",
+            "emerge.core.UShort" -> return LlvmI16Type
+            "emerge.core.Int",
+            "emerge.core.UInt" -> return LlvmI32Type
+            "emerge.core.Long",
+            "emerge.core.ULong" -> return LlvmI64Type
             "emerge.core.iword",
             "emerge.core.uword" -> return LlvmWordType
             "emerge.core.Unit" -> return LlvmVoidType
@@ -187,37 +194,60 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
     }
 
     fun getAllocationSiteType(type: IrType): LlvmType {
-        if (type is IrParameterizedType && type.simpleType.baseType.fqn.toString() == "emerge.core.Array") {
-            val component = type.arguments["Item"]!!
-            if (component.variance == IrTypeVariance.IN || component.type !is IrSimpleType) {
-                TODO("this is a reference type, return reference array type")
-            }
-
-            when ((component.type as IrSimpleType).baseType.fqn.toString()) {
-                "emerge.core.Byte" -> return ValueArrayType.i8s
-                else -> TODO("other intrinsic types??")
-            }
-        }
-
-        val baseType: IrBaseType = when (type) {
-            is IrSimpleType -> type.baseType
-            is IrParameterizedType -> type.simpleType.baseType
+        when (type) {
             is IrGenericTypeReference -> return getAllocationSiteType(type.effectiveBound)
-        }
+            is IrParameterizedType -> when (type.simpleType.baseType.fqn.toString()) {
+                "emerge.core.Array" -> {
+                    val component = type.arguments.values.single()
+                    if (component.variance == IrTypeVariance.IN || component.type !is IrSimpleType) {
+                        return ReferenceArrayType(getAllocationSiteType(component.type))
+                    }
 
-        when (baseType.fqn.toString()) {
-            "emerge.ffi.c.COpaquePointer",
-            "emerge.ffi.c.CPointer" -> return opaquePointer
-            "emerge.core.Int" -> return LlvmI32Type
-            "emerge.core.iword",
-            "emerge.core.uword" -> return LlvmWordType
-        }
+                    when ((component.type as IrSimpleType).baseType.fqn.toString()) {
+                        "emerge.core.Byte" -> return ValueArrayType.i8s
+                        "emerge.core.Any" -> return ReferenceArrayType(AnyValueType)
+                        else -> TODO("other intrinsic types??")
+                    }
+                }
 
-        if (baseType is IrStruct) {
-            return baseType.llvmType!!
-        }
+                "emerge.ffi.c.CPointer" -> {
+                    val componentType = getAllocationSiteType(type.arguments.values.single().type)
+                    return LlvmPointerType(componentType)
+                }
 
-        throw CodeGenerationException("Cannot determine LLVM type for allocation of $baseType")
+                "emerge.ffi.c.CValue" -> {
+                    // TODO: any logic needed?
+                    val componentType = type.arguments.values.single()
+                    return getAllocationSiteType(componentType.type)
+                }
+            }
+            is IrSimpleType -> return when (type.baseType.fqn.toString()) {
+                "emerge.core.Any" -> AnyValueType
+                "emerge.core.Byte",
+                "emerge.core.UByte" -> LlvmI8Type
+
+                "emerge.core.Short",
+                "emerge.core.UShort" -> LlvmI16Type
+
+                "emerge.core.Int",
+                "emerge.core.UInt" -> LlvmI32Type
+
+                "emerge.core.Long",
+                "emerge.core.ULong" -> LlvmI64Type
+
+                "emerge.core.iword",
+                "emerge.core.uword" -> LlvmWordType
+
+                "emerge.ffi.c.COpaquePointer" -> LlvmPointerType(LlvmVoidType)
+
+                else -> {
+                    // there are no other possibilities AFAICT right now
+                    (type.baseType as IrStruct).llvmType
+                        ?: throw CodeGenerationException("Encountered Emerge struct type ${type.baseType.fqn} that wasn't registered through ${EmergeLlvmContext::registerStruct.name}")
+                }
+            }
+        }
+        throw CodeGenerationException("Failed to determine allocation-site type for $type")
     }
 
     companion object {

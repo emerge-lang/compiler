@@ -12,6 +12,9 @@ import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
 import org.bytedeco.llvm.global.LLVM
 
+/**
+ * TODO: add the [AnyValueType] as base!!
+ */
 class EmergeStructType private constructor(
     val structRef: LLVMTypeRef,
     val irStruct: IrStruct,
