@@ -37,6 +37,7 @@ import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.llvmType
+import io.github.tmarsteel.emerge.backend.llvm.llvmValueType
 import io.github.tmarsteel.emerge.backend.llvm.rawLlvmRef
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.global.LLVM
@@ -173,19 +174,9 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
             is IrGenericTypeReference -> return getReferenceSiteType(type.effectiveBound)
         }
 
+        type.llvmValueType?.let { return it }
         when (baseType.fqn.toString()) {
-            "emerge.ffi.c.COpaquePointer" -> return opaquePointer
             "emerge.ffi.c.CPointer" -> return pointerTo(getAllocationSiteType(type))
-            "emerge.core.Byte",
-            "emerge.core.UByte" -> return LlvmI8Type
-            "emerge.core.Short",
-            "emerge.core.UShort" -> return LlvmI16Type
-            "emerge.core.Int",
-            "emerge.core.UInt" -> return LlvmI32Type
-            "emerge.core.Long",
-            "emerge.core.ULong" -> return LlvmI64Type
-            "emerge.core.iword",
-            "emerge.core.uword" -> return LlvmWordType
             "emerge.core.Unit" -> return LlvmVoidType
             "emerge.core.Any" -> return PointerToAnyValue // TODO: remove, Any will be a pure language-defined type
         }
@@ -221,30 +212,12 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
                     return getAllocationSiteType(componentType.type)
                 }
             }
-            is IrSimpleType -> return when (type.baseType.fqn.toString()) {
-                "emerge.core.Any" -> AnyValueType
-                "emerge.core.Byte",
-                "emerge.core.UByte" -> LlvmI8Type
+            is IrSimpleType -> {
+                type.llvmValueType?.let { return it }
 
-                "emerge.core.Short",
-                "emerge.core.UShort" -> LlvmI16Type
-
-                "emerge.core.Int",
-                "emerge.core.UInt" -> LlvmI32Type
-
-                "emerge.core.Long",
-                "emerge.core.ULong" -> LlvmI64Type
-
-                "emerge.core.iword",
-                "emerge.core.uword" -> LlvmWordType
-
-                "emerge.ffi.c.COpaquePointer" -> LlvmPointerType(LlvmVoidType)
-
-                else -> {
-                    // there are no other possibilities AFAICT right now
-                    (type.baseType as IrStruct).llvmType
-                        ?: throw CodeGenerationException("Encountered Emerge struct type ${type.baseType.fqn} that wasn't registered through ${EmergeLlvmContext::registerStruct.name}")
-                }
+                // there are no other possibilities AFAICT right now
+                return (type.baseType as IrStruct).llvmType
+                    ?: throw CodeGenerationException("Encountered Emerge struct type ${type.baseType.fqn} that wasn't registered through ${EmergeLlvmContext::registerStruct.name}")
             }
         }
         throw CodeGenerationException("Failed to determine allocation-site type for $type")
