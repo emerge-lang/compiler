@@ -55,8 +55,9 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
         }
 
         val entryBlock = LLVM.LLVMAppendBasicBlockInContext(ref, rawRef, "entry")
-        BasicBlockBuilder.appendToUnsafe(this, entryBlock) {
-            emitCode(fn.body, it)
+        BasicBlockBuilder.fill(this, entryBlock) {
+            emitCode(fn.body, this)
+                ?: throw CodeGenerationException("Function body for ${fn.fqn} does not return or throw on all possible execution paths.")
         }
     }
 
