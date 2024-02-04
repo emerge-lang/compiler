@@ -6,10 +6,10 @@ import org.bytedeco.llvm.global.LLVM
 import kotlin.reflect.KProperty
 
 class KotlinLlvmFunction<C : LlvmContext, R : LlvmType> private constructor(
-    val buildAndAdd: (C) -> LLVMValueRef,
+    private val buildAndAdd: (C) -> LlvmFunction<R>,
 ) {
-    fun addTo(context: C) {
-        buildAndAdd(context)
+    fun addTo(context: C): LlvmFunction<R> {
+        return buildAndAdd(context)
     }
 
     companion object {
@@ -69,16 +69,22 @@ private abstract class BaseFunctionBuilderContext<C : LlvmContext, R : LlvmType>
         return delegate
     }
 
-    abstract fun buildAndAdd(name: String): LLVMValueRef
+    abstract fun buildAndAdd(name: String): LlvmFunction<R>
 
-    protected fun buildAndAddFunctionInstance(name: String): LLVMValueRef {
+    protected fun buildAndAddFunctionInstance(name: String): LlvmFunction<R> {
         val functionType = LLVM.LLVMFunctionType(
             returnType.getRawInContext(context),
             PointerPointer(*parameters.map { it.type.getRawInContext(context) }.toTypedArray()),
             parameters.size,
             0
         )
-        return LLVM.LLVMAddFunction(context.module, name, functionType)
+        val rawFunction = LLVM.LLVMAddFunction(context.module, name, functionType)
+        return LlvmFunction(
+            LlvmValue(rawFunction, LlvmFunctionAddressType),
+            functionType,
+            returnType,
+            parameters.map { it.type }
+        )
     }
 }
 
@@ -87,7 +93,7 @@ private class DeclareFunctionBuilderContextImpl<C : LlvmContext, R : LlvmType>(
     returnType: R,
 ) : BaseFunctionBuilderContext<C, R>(context, returnType), LlvmContext by context {
     private var built = false
-    override fun buildAndAdd(name: String): LLVMValueRef {
+    override fun buildAndAdd(name: String): LlvmFunction<R> {
         check(!built) { "Already built" }
         built = true
 
@@ -118,15 +124,15 @@ private class DefineFunctionBuilderContextImpl<C : LlvmContext, R : LlvmType>(
         bodyBuilder = build
     }
 
-    override fun buildAndAdd(name: String): LLVMValueRef {
+    override fun buildAndAdd(name: String): LlvmFunction<R> {
         check(state == State.BODY_KNOWN) {
             "Cannot build before declaring body"
         }
         state = State.BUILT
 
         val functionInstance = buildAndAddFunctionInstance(name)
-        parameters.forEach { it.setFunctionInstance(functionInstance) }
-        val basicBlock = LLVM.LLVMAppendBasicBlock(functionInstance, "entry")
+        parameters.forEach { it.setFunctionInstance(functionInstance.address.raw) }
+        val basicBlock = LLVM.LLVMAppendBasicBlock(functionInstance.address.raw, "entry")
         BasicBlockBuilder.fill(context, basicBlock, bodyBuilder)
 
         return functionInstance

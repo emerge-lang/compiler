@@ -23,8 +23,12 @@ class ConstantStructBuilder<S : LlvmStructType, C : LlvmContext>(
         valuesByIndex[member.indexInStruct] = value
     }
 
+    fun setNull(member: LlvmStructType.Member<S, *>) {
+        valuesByIndex[member.indexInStruct] = context.nullValue(member.type)
+    }
+
     internal fun build(): LLVMValueRef {
-        (0 ..structType.nMembers)
+        (0  until structType.nMembers)
             .find { index -> index !in valuesByIndex }
             ?.let {
                 throw IllegalArgumentException("Missing data for struct member #$it")
@@ -37,4 +41,18 @@ class ConstantStructBuilder<S : LlvmStructType, C : LlvmContext>(
 
         return LLVM.LLVMConstStructInContext(context.ref, valuesPointerPointer, valuesArray.size, 0)
     }
+}
+
+fun <E : LlvmType> LlvmArrayType<E>.insertConstantInto(
+    context: LlvmContext,
+    data: Iterable<LlvmValue<E>>,
+): LlvmValue<LlvmArrayType<E>> {
+    val constantsArray = data.map { it.raw }.toTypedArray()
+    val constArray = LLVM.LLVMConstArray2(
+        elementType.getRawInContext(context),
+        PointerPointer(*constantsArray),
+        constantsArray.size.toLong(),
+    )
+
+    return LlvmValue(constArray, this)
 }

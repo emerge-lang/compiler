@@ -19,6 +19,13 @@ interface LlvmContext {
         type,
     )
 
+    fun addModuleInitFunction(intializer: LlvmFunction<LlvmVoidType>)
+
+    /**
+     * Must be called at least once before using the LLVM IR (e.g. through LLVM.LLVMPrintModuleToFile)
+     */
+    fun complete()
+
     companion object {
         fun createDoAndDispose(targetTriple: String, action: (LlvmContext) -> Unit) {
             return LlvmContextImpl(targetTriple).use(action)
@@ -36,6 +43,23 @@ private class LlvmContextImpl(val targetTriple: String) : LlvmContext, AutoClose
     override val rawPointer = LLVM.LLVMPointerTypeInContext(ref, 0)
     override val opaquePointer: LlvmPointerType<LlvmVoidType> = LlvmPointerType(LlvmVoidType)
     override val globalsScope = NameScope("global")
+
+    private val initializerFunctions = ArrayList<LlvmFunction<LlvmVoidType>>()
+    override fun addModuleInitFunction(intializer: LlvmFunction<LlvmVoidType>) {
+        initializerFunctions.add(intializer)
+    }
+    override fun complete() {
+        val arrayType = LlvmArrayType(initializerFunctions.size.toLong(), LlvmGlobalCtorEntry)
+        val ctorsGlobal = LLVM.LLVMAddGlobal(module, arrayType.getRawInContext(this), "llvm.global_ctors")
+        val ctorsData = arrayType.insertConstantInto(this, initializerFunctions.mapIndexed { initializerIndex, initializer ->
+            LlvmGlobalCtorEntry.insertConstantInto(this) {
+                setValue(LlvmGlobalCtorEntry.priority, i32(initializerIndex))
+                setValue(LlvmGlobalCtorEntry.function, initializer.address)
+                setNull(LlvmGlobalCtorEntry.data)
+            }
+        })
+        LLVM.LLVMSetInitializer(ctorsGlobal, ctorsData.raw)
+    }
 
     override fun close() {
         LLVM.LLVMDisposeModule(module)
