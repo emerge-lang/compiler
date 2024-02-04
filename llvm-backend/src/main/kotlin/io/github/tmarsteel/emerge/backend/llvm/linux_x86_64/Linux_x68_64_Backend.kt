@@ -1,5 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.linux_x86_64
 
+import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.EmergeBackend
 import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
@@ -9,6 +10,7 @@ import io.github.tmarsteel.emerge.backend.llvm.SystemPropertyDelegate.Companion.
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getSupertypePointers
 import io.github.tmarsteel.emerge.backend.llvm.packagesSeq
+import org.bytedeco.javacpp.BytePointer
 import org.bytedeco.llvm.global.LLVM
 import java.nio.channels.AsynchronousFileChannel
 import java.nio.file.Path
@@ -54,16 +56,19 @@ class Linux_x68_64_Backend : EmergeBackend {
                     .filterIsInstance<IrImplementedFunction>()
                     .forEach(llvmContext::defineFunctionBody)
             }
-            LLVM.LLVMDumpModule(llvmContext.module)
-            LLVM.LLVMPrintModuleToString(llvmContext.module).let { moduleBytes ->
-                AsynchronousFileChannel.open(directory.resolve("out.bin"), StandardOpenOption.CREATE, StandardOpenOption.WRITE).use {
-                    val nBytesToWrite = moduleBytes.limit() - moduleBytes.position()
-                    var nBytesWritten = 0
-                    while (nBytesWritten < nBytesToWrite) {
-                        nBytesWritten += it.write(moduleBytes.asBuffer(), 0L).get()
-                    }
-                }
-                LLVM.LLVMDisposeMessage(moduleBytes)
+
+            llvmContext.complete()
+
+            val errorMessage = BytePointer(2048)
+            val errorCode = LLVM.LLVMPrintModuleToFile(
+                llvmContext.module,
+                directory.resolve("out.ll").toAbsolutePath().toString(),
+                errorMessage,
+            )
+            if (errorCode != 0) {
+                val message = errorMessage.string
+                LLVM.LLVMDisposeMessage(errorMessage)
+                throw CodeGenerationException(message)
             }
         }
     }
