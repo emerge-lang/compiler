@@ -29,6 +29,7 @@ import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 import io.github.tmarsteel.emerge.backend.api.ir.IrStructMemberAccessExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundMemberAccessExpression(
     override val context: CTContext,
@@ -89,6 +90,7 @@ class BoundMemberAccessExpression(
         return IrStructMemberAccessExpressionImpl(
             valueExpression.toBackendIr(),
             (member!! as StructMember).toBackendIr(),
+            type!!.toBackendIr(),
         )
     }
 }
@@ -96,6 +98,5 @@ class BoundMemberAccessExpression(
 private class IrStructMemberAccessExpressionImpl(
     override val base: IrExpression,
     override val member: IrStruct.Member,
-) : IrStructMemberAccessExpression {
-    override val evaluatesTo = member.type
-}
+    override val evaluatesTo: IrType,
+) : IrStructMemberAccessExpression
