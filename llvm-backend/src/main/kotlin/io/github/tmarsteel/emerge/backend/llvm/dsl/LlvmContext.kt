@@ -19,7 +19,7 @@ interface LlvmContext {
         type,
     )
 
-    fun addModuleInitFunction(intializer: LlvmFunction<LlvmVoidType>)
+    fun addModuleInitFunction(initializer: LlvmFunction<LlvmVoidType>)
 
     /**
      * Must be called at least once before using the LLVM IR (e.g. through LLVM.LLVMPrintModuleToFile)
@@ -45,8 +45,8 @@ private class LlvmContextImpl(val targetTriple: String) : LlvmContext, AutoClose
     override val globalsScope = NameScope("global")
 
     private val initializerFunctions = ArrayList<LlvmFunction<LlvmVoidType>>()
-    override fun addModuleInitFunction(intializer: LlvmFunction<LlvmVoidType>) {
-        initializerFunctions.add(intializer)
+    override fun addModuleInitFunction(initializer: LlvmFunction<LlvmVoidType>) {
+        initializerFunctions.add(initializer)
     }
     override fun complete() {
         val arrayType = LlvmArrayType(initializerFunctions.size.toLong(), LlvmGlobalCtorEntry)
@@ -59,6 +59,7 @@ private class LlvmContextImpl(val targetTriple: String) : LlvmContext, AutoClose
             }
         })
         LLVM.LLVMSetInitializer(ctorsGlobal, ctorsData.raw)
+        LLVM.LLVMSetLinkage(ctorsGlobal, LLVM.LLVMAppendingLinkage)
     }
 
     override fun close() {
