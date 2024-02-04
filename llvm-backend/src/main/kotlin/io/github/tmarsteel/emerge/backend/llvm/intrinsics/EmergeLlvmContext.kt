@@ -38,14 +38,6 @@ import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.global.LLVM
 
 class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
-    /**
-     * The IR tree node that is the pointed member of the CPointer struct; for use in special-treating
-     * the intrinsic
-     * TODO: move to ir_amendments.kt
-     */
-    lateinit var cPointerPointedMember: IrStruct.Member
-        private set
-
     fun registerStruct(struct: IrStruct) {
         if (struct.rawLlvmRef != null) {
             return
@@ -61,7 +53,7 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
         )
 
         if (struct.fqn.toString() == "emerge.ffi.c.CPointer") {
-            cPointerPointedMember = struct.members.first { it.name == "pointed" }
+            struct.members.single { it.name == "pointed" }.isCPointerPointed = true
         }
 
         struct.constructors.overloads.forEach(this::registerFunction)

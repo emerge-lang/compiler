@@ -16,5 +16,10 @@ internal var IrStruct.rawLlvmRef: LLVMTypeRef? by tackState { null }
 internal var IrStruct.llvmType: EmergeStructType? by tackState { null }
 internal var IrStruct.Member.indexInLlvmStruct: Int? by tackState { null }
 
+/**
+ * True only for the member `pointed` of `emerge.ffi.c.CPointer`
+ */
+internal var IrStruct.Member.isCPointerPointed: Boolean by tackState { false }
+
 internal var IrFunction.llvmRef: LlvmFunction<LlvmType>? by tackState { null }
 internal var IrFunction.bodyDefined: Boolean by tackState { false }

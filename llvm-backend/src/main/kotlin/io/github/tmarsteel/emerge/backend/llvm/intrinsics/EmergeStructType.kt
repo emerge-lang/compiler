@@ -7,6 +7,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.indexInLlvmStruct
+import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
 import org.bytedeco.llvm.global.LLVM
@@ -37,7 +38,7 @@ class EmergeStructType private constructor(
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
         fun GetElementPointerStep<EmergeStructType>.member(member: IrStruct.Member): GetElementPointerStep<LlvmType> {
-            if (member === context.cPointerPointedMember) {
+            if (member.isCPointerPointed) {
                 return this as GetElementPointerStep<LlvmType>
             }
 
