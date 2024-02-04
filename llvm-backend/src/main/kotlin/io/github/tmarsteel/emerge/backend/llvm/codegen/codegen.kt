@@ -5,7 +5,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 
 internal fun emitCode(
     code: IrCodeChunk,
-    builder: BasicBlockBuilder,
+    builder: BasicBlockBuilder<*, *>,
 ) {
 
 }

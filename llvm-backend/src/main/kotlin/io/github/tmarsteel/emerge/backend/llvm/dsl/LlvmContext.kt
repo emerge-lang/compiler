@@ -10,12 +10,8 @@ interface LlvmContext {
     val ref: LLVMContextRef
     val module: LLVMModuleRef
     val targetData: LLVMTargetDataRef
-    val void: LlvmVoidType
     val rawPointer: LLVMTypeRef
     val opaquePointer: LlvmPointerType<LlvmVoidType>
-    val functionAddress: LlvmFunctionAddressType
-
-    fun <T : LlvmType> cachedType(name: String, builder: LlvmContext.() -> T): T
 
     companion object {
         fun createDoAndDispose(targetTriple: String, action: (LlvmContext) -> Unit) {
@@ -31,19 +27,8 @@ private class LlvmContextImpl(val targetTriple: String) : LlvmContext, AutoClose
         LLVM.LLVMSetTarget(module, targetTriple)
     }
     override val targetData = LLVM.LLVMGetModuleDataLayout(module)
-    override val void = LlvmVoidType(this)
-    override val rawPointer: LLVMTypeRef = LLVM.LLVMPointerTypeInContext(ref, 0)
-    override val opaquePointer: LlvmPointerType<LlvmVoidType> = LlvmPointerType(void)
-    override val functionAddress = LlvmFunctionAddressType(this)
-
-    private val typesWithHandle = HashMap<LlvmContext.() -> LlvmType, LlvmType>()
-    override fun <T : LlvmType> cachedType(name: String, builder: LlvmContext.() -> T): T {
-        @Suppress("UNCHECKED_CAST")
-        typesWithHandle[builder]?.let { return it as T }
-        val type = builder(this)
-        typesWithHandle[builder] = type
-        return type
-    }
+    override val rawPointer = LLVM.LLVMPointerTypeInContext(ref, 0)
+    override val opaquePointer: LlvmPointerType<LlvmVoidType> = LlvmPointerType(LlvmVoidType)
 
     override fun close() {
         LLVM.LLVMDisposeModule(module)

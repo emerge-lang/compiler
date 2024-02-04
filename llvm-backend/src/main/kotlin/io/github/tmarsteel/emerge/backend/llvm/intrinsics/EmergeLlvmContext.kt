@@ -13,8 +13,10 @@ import io.github.tmarsteel.emerge.backend.llvm.bodyDefined
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitCode
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.llvmDefinition
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
@@ -30,7 +32,7 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
         val structType = LLVM.LLVMStructCreateNamed(ref, struct.llvmName)
         // register here to allow cyclic references
         struct.llvmDefinition = structType
-        val elements = PointerPointer(*struct.members.map { getReferenceSiteType(it.type).raw }.toTypedArray())
+        val elements = PointerPointer(*struct.members.map { getReferenceSiteType(it.type).getRawInContext(this) }.toTypedArray())
         LLVM.LLVMStructSetBody(structType, elements, struct.members.size, 0)
     }
 
@@ -40,8 +42,8 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
         }
 
         val functionType = LLVM.LLVMFunctionType(
-            getReferenceSiteType(fn.returnType).raw,
-            PointerPointer(*fn.parameters.map { getReferenceSiteType(it.type).raw }.toTypedArray()),
+            getReferenceSiteType(fn.returnType).getRawInContext(this),
+            PointerPointer(*fn.parameters.map { getReferenceSiteType(it.type).getRawInContext(this) }.toTypedArray()),
             fn.parameters.size,
             0,
         )
@@ -55,7 +57,7 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
         }
 
         val entryBlock = LLVM.LLVMAppendBasicBlockInContext(ref, rawRef, "entry")
-        BasicBlockBuilder.fill(this, entryBlock) {
+        BasicBlockBuilder.fill<_, LlvmType>(this, entryBlock) {
             emitCode(fn.body, this)
                 ?: throw CodeGenerationException("Function body for ${fn.fqn} does not return or throw on all possible execution paths.")
         }
@@ -75,15 +77,15 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
         when (baseType.fqn.toString()) {
             "emerge.ffi.c.COpaquePointer",
             "emerge.ffi.c.CPointer" -> return opaquePointer
-            "emerge.core.Int" -> return i32
+            "emerge.core.Int" -> return LlvmI32Type
             "emerge.core.Array" -> return opaquePointer
             "emerge.core.iword",
-            "emerge.core.uword" -> return word
-            "emerge.core.Unit" -> return void
-            "emerge.core.Any" -> return pointerToAnyValue // TODO: remove, Any will be a pure language-defined type
+            "emerge.core.uword" -> return LlvmWordType
+            "emerge.core.Unit" -> return LlvmVoidType
+            "emerge.core.Any" -> return PointerToAnyValue // TODO: remove, Any will be a pure language-defined type
         }
 
-        return pointerToAnyValue
+        return PointerToAnyValue
     }
 
     companion object {

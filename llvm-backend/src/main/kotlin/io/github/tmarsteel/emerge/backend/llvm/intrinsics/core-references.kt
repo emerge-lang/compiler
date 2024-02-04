@@ -10,16 +10,16 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 
 internal val getSupertypePointers = LlvmFunction.define<LlvmContext, _>(
     "getSupertypePointers",
-    { pointerTo(ValueArrayType(pointerTo(typeinfo), "typeinfo")) },
+    { pointerTo(ValueArrayType(pointerTo(TypeinfoType), "typeinfo")) },
 ) {
-    val inputRef by param { pointerToAnyValue }
+    val inputRef by param(PointerToAnyValue)
     body {
         val typeinfoPointer = getelementptr(inputRef)
-            .member(AnyvalueType::typeinfo)
+            .member { typeinfo }
             .get()
             .dereference()
         val arrayPointer = getelementptr(typeinfoPointer)
-            .member(TypeinfoType::supertypes)
+            .member { supertypes }
             .get()
             .dereference()
 
@@ -31,7 +31,7 @@ internal val getSupertypePointers = LlvmFunction.define<LlvmContext, _>(
 context(BasicBlockBuilder<*, *>)
 internal fun LlvmValue<LlvmPointerType<out ValueArrayType<*>>>.incrementStrongReferenceCount() {
     val referenceCountPtr = getelementptr(this@incrementStrongReferenceCount)
-        .member(ValueArrayType<*>::referenceCount)
+        .member { strongReferenceCount }
         .get()
 
     store(

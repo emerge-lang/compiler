@@ -1,6 +1,5 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.i32
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMBasicBlockRef
 import org.bytedeco.llvm.global.LLVM
@@ -30,7 +29,7 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
 
     fun <BasePointee : LlvmType> getelementptr(
         base: LlvmValue<LlvmPointerType<out BasePointee>>,
-        index: LlvmValue<LlvmIntegerType> = base.type.context.i32(0)
+        index: LlvmValue<LlvmFixedIntegerType> = context.i32(0)
     ): GetElementPointerStep<BasePointee> {
         return GetElementPointerStep.initial(base, index)
     }
@@ -42,7 +41,7 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
         val indicesRaw = PointerPointer(*indices.toTypedArray())
         val instruction = LLVM.LLVMBuildGEP2(
             builder,
-            basePointer.type.pointed.raw,
+            basePointer.type.pointed.getRawInContext(context),
             basePointer.raw,
             indicesRaw,
             indices.size,
@@ -54,7 +53,7 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
     fun <P : LlvmType> LlvmValue<LlvmPointerType<P>>.dereference(): LlvmValue<P> {
         checkNotTerminated()
 
-        val loadResult = LLVM.LLVMBuildLoad2(builder, type.pointed.raw, raw, tmpVars.next())
+        val loadResult = LLVM.LLVMBuildLoad2(builder, type.pointed.getRawInContext(context), raw, tmpVars.next())
         return LlvmValue(loadResult, type.pointed)
     }
 
@@ -64,8 +63,7 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
         LLVM.LLVMBuildStore(builder, value.raw, to.raw)
     }
 
-    fun add(a: LlvmValue<LlvmIntegerType>, b: LlvmValue<LlvmIntegerType>): LlvmValue<LlvmIntegerType> {
-        check(a.type.nBits == b.type.nBits)
+    fun <T : LlvmIntegerType> add(a: LlvmValue<T>, b: LlvmValue<T>): LlvmValue<T> {
         checkNotTerminated()
 
         val addInstr = LLVM.LLVMBuildAdd(builder, a.raw, b.raw, tmpVars.next())
@@ -75,7 +73,7 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
     fun <T: LlvmType> alloca(type: T): LlvmValue<LlvmPointerType<T>> {
         checkNotTerminated()
 
-        val ptr = LLVM.LLVMBuildAlloca(builder, type.raw, tmpVars.next())
+        val ptr = LLVM.LLVMBuildAlloca(builder, type.getRawInContext(context), tmpVars.next())
         return LlvmValue(ptr, LlvmPointerType(type))
     }
 

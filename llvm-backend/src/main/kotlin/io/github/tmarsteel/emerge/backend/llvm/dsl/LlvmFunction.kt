@@ -16,7 +16,7 @@ class LlvmFunction<C : LlvmContext, R : LlvmType> private constructor(
         fun <C : LlvmContext, R : LlvmType> declare(
             name: String,
             returnType: C.() -> R,
-            declaration: DeclareFunctionBuilderContext<C>.() -> Unit
+            declaration: DeclareFunctionBuilderContext.() -> Unit
         ) = LlvmFunction<C, R> { context ->
             val fnContext = DeclareFunctionBuilderContextImpl(context, returnType(context))
             fnContext.declaration()
@@ -50,21 +50,21 @@ class ParameterDelegate<T : LlvmType>(
     }
 }
 
-interface DeclareFunctionBuilderContext<C : LlvmContext> {
-    fun <T : LlvmType> param(type: C.() -> T): ParameterDelegate<T>
+interface DeclareFunctionBuilderContext {
+    fun <T : LlvmType> param(type: T): ParameterDelegate<T>
 }
 
-interface DefineFunctionBuilderContext<C : LlvmContext, R : LlvmType> : DeclareFunctionBuilderContext<C> {
+interface DefineFunctionBuilderContext<C : LlvmContext, R : LlvmType> : DeclareFunctionBuilderContext {
     fun body(build: CodeGenerator<C, R>)
 }
 
 private abstract class BaseFunctionBuilderContext<C : LlvmContext, R : LlvmType>(
     private val context: C,
     private val returnType: R,
-) : DeclareFunctionBuilderContext<C> {
+) : DeclareFunctionBuilderContext {
     protected val parameters = ArrayList<ParameterDelegate<*>>()
-    override fun <T : LlvmType> param(type: C.() -> T) : ParameterDelegate<T> {
-        val delegate = ParameterDelegate(type(context), parameters.size)
+    override fun <T : LlvmType> param(type: T) : ParameterDelegate<T> {
+        val delegate = ParameterDelegate(type, parameters.size)
         parameters.add(delegate)
         return delegate
     }
@@ -73,8 +73,8 @@ private abstract class BaseFunctionBuilderContext<C : LlvmContext, R : LlvmType>
 
     protected fun buildAndAddFunctionInstance(name: String): LLVMValueRef {
         val functionType = LLVM.LLVMFunctionType(
-            returnType.raw,
-            PointerPointer(*parameters.map { it.type.raw }.toTypedArray()),
+            returnType.getRawInContext(context),
+            PointerPointer(*parameters.map { it.type.getRawInContext(context) }.toTypedArray()),
             parameters.size,
             0
         )
@@ -102,7 +102,7 @@ private class DefineFunctionBuilderContextImpl<C : LlvmContext, R : LlvmType>(
     private var state = State.PRELUDE
     private lateinit var bodyBuilder: CodeGenerator<C, R>
 
-    override fun <T : LlvmType> param(type: C.() -> T): ParameterDelegate<T> {
+    override fun <T : LlvmType> param(type: T): ParameterDelegate<T> {
         check(state == State.PRELUDE) {
             "Cannot define parameters after defining the body"
         }

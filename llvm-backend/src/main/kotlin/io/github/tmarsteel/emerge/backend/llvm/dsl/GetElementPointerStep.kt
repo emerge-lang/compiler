@@ -1,8 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.i32
 import org.bytedeco.llvm.LLVM.LLVMValueRef
-import kotlin.reflect.KProperty1
 
 sealed class GetElementPointerStep<P : LlvmType> private constructor(
     private val pointeeType: P,
@@ -16,7 +14,7 @@ sealed class GetElementPointerStep<P : LlvmType> private constructor(
         consumed = true
     }
 
-    private fun <NewP : LlvmType> step(index: LlvmValue<LlvmIntegerType>, pointeeType: NewP): GetElementPointerStep<NewP> {
+    private fun <NewP : LlvmType> step(index: LlvmValue<LlvmFixedIntegerType>, pointeeType: NewP): GetElementPointerStep<NewP> {
         consume()
         return Subsequent(this, index, pointeeType)
     }
@@ -41,26 +39,27 @@ sealed class GetElementPointerStep<P : LlvmType> private constructor(
 
     private class Base<P : LlvmType>(
         val basePointer: LlvmValue<LlvmPointerType<out P>>,
-        val index: LlvmValue<LlvmIntegerType>,
+        val index: LlvmValue<LlvmFixedIntegerType>,
     ) : GetElementPointerStep<P>(basePointer.type.pointed)
     private class Subsequent<P : LlvmType>(
         val parent: GetElementPointerStep<*>,
-        val index: LlvmValue<LlvmIntegerType>,
+        val index: LlvmValue<LlvmFixedIntegerType>,
         pointeeType: P,
     ) : GetElementPointerStep<P>(pointeeType)
 
     companion object {
-        fun <P : LlvmType> initial(basePointer: LlvmValue<LlvmPointerType<out P>>, index: LlvmValue<LlvmIntegerType>): GetElementPointerStep<P> {
+        fun <P : LlvmType> initial(basePointer: LlvmValue<LlvmPointerType<out P>>, index: LlvmValue<LlvmFixedIntegerType>): GetElementPointerStep<P> {
             return Base(basePointer, index)
         }
 
+        context(BasicBlockBuilder<*, *>)
         fun <S : LlvmStructType, MemberType : LlvmType> GetElementPointerStep<S>.member(
-            memberProp: KProperty1<S, LlvmStructType.Member<MemberType>>
+            accessor: S.() -> LlvmStructType.Member<out S, MemberType>
         ): GetElementPointerStep<MemberType> {
-            val member = memberProp(pointeeType)
+            val member = accessor(pointeeType)
             return step(
-                member.type.context.i32(member.indexInStruct),
-                member.type
+                i32(member.indexInStruct),
+                member.type,
             )
         }
     }

@@ -1,55 +1,49 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
+import com.google.common.collect.MapMaker
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
 import org.bytedeco.llvm.global.LLVM
-import kotlin.reflect.KProperty
 
 /**
  * A type-safe wrapper around [LLVMTypeRef]
- * TODO: remove need for context, compute raw on-demand when a context is known
  * This should allow intrinsic types to be defined as kotlin objects, not class instances
  */
 interface LlvmType {
-    val context: LlvmContext
-    val raw: LLVMTypeRef
+    fun getRawInContext(context: LlvmContext): LLVMTypeRef
 }
 
-class LlvmVoidType(
-    override val context: LlvmContext
-) : LlvmType {
-    override val raw = LLVM.LLVMVoidTypeInContext(context.ref)
+abstract class LlvmCachedType : LlvmType {
+    private val byContext: MutableMap<LlvmContext, LLVMTypeRef> = MapMaker().weakKeys().makeMap()
+    final override fun getRawInContext(context: LlvmContext): LLVMTypeRef {
+        return byContext.computeIfAbsent(context, this::computeRaw)
+    }
+
+    protected abstract fun computeRaw(context: LlvmContext): LLVMTypeRef
 }
 
-/**
- * For non-structural types like i32, ptr, ...
- */
-open class LlvmLeafType(
-    override val context: LlvmContext,
-    override val raw: LLVMTypeRef,
-) : LlvmType
+object LlvmVoidType : LlvmCachedType() {
+    override fun computeRaw(context: LlvmContext): LLVMTypeRef {
+        return LLVM.LLVMVoidTypeInContext(context.ref)
+    }
+}
 
-class LlvmIntegerType(
-    context: LlvmContext,
+interface LlvmIntegerType : LlvmType
+
+abstract class LlvmFixedIntegerType(
     val nBits: Int,
-) : LlvmLeafType(context, LLVM.LLVMIntTypeInContext(context.ref, nBits)) {
+) : LlvmCachedType(), LlvmIntegerType {
     init {
         check(nBits > 0)
     }
 
-    operator fun invoke(value: Int) = invoke(value.toLong())
-
-    operator fun invoke(value: Long): LlvmValue<LlvmIntegerType> {
-        return LlvmValue(
-            LLVM.LLVMConstInt(raw, value, 1),
-            this,
-        )
+    override fun computeRaw(context: LlvmContext): LLVMTypeRef {
+        return LLVM.LLVMIntTypeInContext(context.ref, nBits)
     }
 }
 
 open class LlvmPointerType<Pointed : LlvmType>(val pointed: Pointed) : LlvmType {
-    override val context = pointed.context
-    override val raw: LLVMTypeRef = pointed.context.rawPointer
+    override fun getRawInContext(context: LlvmContext): LLVMTypeRef = context.rawPointer
 
     companion object {
         fun <T : LlvmType> pointerTo(t: T): LlvmPointerType<T> = LlvmPointerType(t)
@@ -63,42 +57,42 @@ open class LlvmPointerType<Pointed : LlvmType>(val pointed: Pointed) : LlvmType 
  * is mostly the code around handling references.
  */
 abstract class LlvmStructType(
-    override val context: LlvmContext,
     val name: String,
-) : LlvmType {
+) : LlvmCachedType() {
     private var registered = false
-    override val raw: LLVMTypeRef by lazy {
+
+    override fun computeRaw(context: LlvmContext): LLVMTypeRef {
         registered = true
         val structType = LLVM.LLVMStructCreateNamed(context.ref, name)
-        val elements = PointerPointer(*membersInOrder.map { it.type.raw }.toTypedArray())
+        val elements = PointerPointer(*membersInOrder.map { it.type.getRawInContext(context) }.toTypedArray())
         LLVM.LLVMStructSetBody(structType, elements, membersInOrder.size, 0)
 
-        structType
+        return structType
     }
 
-    private val membersInOrder = ArrayList<Member<*>>()
-    protected fun <T : LlvmType> structMember(builder: LlvmContext.() -> T): ImmediateDelegate<LlvmStructType, Member<T>> {
-        check(!registered)
-        val member = Member(membersInOrder.size, builder)
-        membersInOrder.add(member)
-        return ImmediateDelegate(member)
-    }
+    private val membersInOrder = ArrayList<Member<*, *>>()
 
-    inner class Member<T : LlvmType>(
+    inner class Member<S : LlvmStructType, T : LlvmType>(
         val indexInStruct: Int,
-        builder: LlvmContext.() -> T
+        val type: T,
     ) {
         init {
             check(indexInStruct >= 0)
         }
-        val type: T by lazy {
-            builder(context)
+    }
+
+    companion object {
+        @JvmStatic
+        protected fun <S : LlvmStructType, T : LlvmType> S.structMember(type: T): ImmediateDelegate<LlvmStructType, Member<S, T>> {
+            check(!registered)
+            val member = Member<S, T>(membersInOrder.size, type)
+            membersInOrder.add(member)
+            return ImmediateDelegate(member)
         }
     }
 }
 
 class LlvmArrayType<Element : LlvmType>(
-    override val context: LlvmContext,
     val elementCount: Long,
     val elementType: Element
 ) : LlvmType {
@@ -106,13 +100,11 @@ class LlvmArrayType<Element : LlvmType>(
         require(elementCount >= 0)
     }
 
-    override val raw by lazy {
-        LLVM.LLVMArrayType2(elementType.raw, elementCount)
+    override fun getRawInContext(context: LlvmContext): LLVMTypeRef {
+        return LLVM.LLVMArrayType2(elementType.getRawInContext(context), elementCount)
     }
 }
 
-class LlvmFunctionAddressType(
-    override val context: LlvmContext,
-) : LlvmType {
-    override val raw = context.rawPointer
+object LlvmFunctionAddressType : LlvmType {
+    override fun getRawInContext(context: LlvmContext) = context.rawPointer
 }
