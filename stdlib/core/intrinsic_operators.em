@@ -17,4 +17,4 @@ intrinsic fun get<T>(self: readonly Array<out T>, index: Int) -> T
 
 intrinsic fun set<T>(self: mutable Array<in T>, index: Int, value: T) -> Unit
 
-intrinsic fun size(self: readonly Array<out readonly Any?>) -> Int
+intrinsic fun size(self: readonly Array<out readonly Any?>) -> uword

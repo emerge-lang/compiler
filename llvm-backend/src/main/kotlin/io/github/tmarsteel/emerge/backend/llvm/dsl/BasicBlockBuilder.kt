@@ -1,5 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
+import io.github.tmarsteel.emerge.backend.llvm.getLlvmMessage
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMBasicBlockRef
 import org.bytedeco.llvm.global.LLVM
@@ -75,6 +76,26 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
 
         val ptr = LLVM.LLVMBuildAlloca(builder, type.getRawInContext(context), tmpVars.next())
         return LlvmValue(ptr, LlvmPointerType(type))
+    }
+
+    fun <R : LlvmType> call(function: LlvmFunction<R>, args: List<LlvmValue<*>>): LlvmValue<R> {
+        require(function.parameterTypes.size == args.size) {
+            "The function ${getLlvmMessage(LLVM.LLVMGetValueName(function.raw))} takes ${function.parameterTypes.size} parameters, ${args.size} arguments given."
+        }
+        checkNotTerminated()
+
+        val argsArray = args.map { it.type.getRawInContext(context) }.toTypedArray()
+        val argsPointerPointer = PointerPointer(*argsArray)
+        val result = LLVM.LLVMBuildCall2(
+            builder,
+            function.rawFunctionType,
+            function.raw,
+            argsPointerPointer,
+            args.size,
+            tmpVars.next(),
+        )
+
+        return LlvmValue(result, function.returnType)
     }
 
     fun ret(value: LlvmValue<R>): Termination {

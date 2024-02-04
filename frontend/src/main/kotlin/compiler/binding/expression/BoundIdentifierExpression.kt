@@ -27,6 +27,9 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
+import io.github.tmarsteel.emerge.backend.api.ir.IrVariableReferenceExpression
 
 class BoundIdentifierExpression(
     override val context: CTContext,
@@ -108,5 +111,16 @@ class BoundIdentifierExpression(
             return emptySet()
         }
     }
+
+    private val _backendIr by lazy {
+        (referral as? ReferringVariable)?.let { referral ->
+            IrVariableReferenceExpressionImpl(referral.variable.backendIrDeclaration)
+        } ?: TODO("implement type references")
+    }
+
+    override fun toBackendIr(): IrExpression = _backendIr
 }
 
+private class IrVariableReferenceExpressionImpl(
+    override val variable: IrVariableDeclaration,
+) : IrVariableReferenceExpression

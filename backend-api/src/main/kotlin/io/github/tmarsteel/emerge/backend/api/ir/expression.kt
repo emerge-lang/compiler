@@ -20,3 +20,10 @@ interface IrStructMemberAccessExpression : IrExpression {
     val base: IrExpression
     val member: IrStruct.Member
 }
+
+interface IrVariableReferenceExpression : IrExpression {
+    val variable: IrVariableDeclaration
+
+    override val evaluatesTo: IrType
+        get() = variable.type
+}

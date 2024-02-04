@@ -41,6 +41,6 @@ interface BoundExpression<out ASTType> : BoundExecutable<ASTType> {
     fun setExpectedEvaluationResultType(type: BoundTypeReference)
 
     override fun toBackendIr(): IrExpression {
-        TODO("implement for all subtypes")
+        TODO("for ${this::class.simpleName}")
     }
 }

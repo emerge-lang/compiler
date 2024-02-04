@@ -3,7 +3,7 @@ package io.github.tmarsteel.emerge.backend.llvm.dsl
 import org.bytedeco.llvm.LLVM.LLVMValueRef
 
 sealed class GetElementPointerStep<P : LlvmType> private constructor(
-    private val pointeeType: P,
+    val pointeeType: P,
 ) {
     private var consumed = false
 
@@ -14,7 +14,7 @@ sealed class GetElementPointerStep<P : LlvmType> private constructor(
         consumed = true
     }
 
-    private fun <NewP : LlvmType> step(index: LlvmValue<LlvmFixedIntegerType>, pointeeType: NewP): GetElementPointerStep<NewP> {
+    fun <NewP : LlvmType> stepUnsafe(index: LlvmValue<LlvmFixedIntegerType>, pointeeType: NewP): GetElementPointerStep<NewP> {
         consume()
         return Subsequent(this, index, pointeeType)
     }
@@ -57,7 +57,7 @@ sealed class GetElementPointerStep<P : LlvmType> private constructor(
             accessor: S.() -> LlvmStructType.Member<out S, MemberType>
         ): GetElementPointerStep<MemberType> {
             val member = accessor(pointeeType)
-            return step(
+            return stepUnsafe(
                 i32(member.indexInStruct),
                 member.type,
             )
