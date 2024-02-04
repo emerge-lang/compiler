@@ -10,7 +10,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 
 internal val getSupertypePointers = KotlinLlvmFunction.define<LlvmContext, _>(
     "getSupertypePointers",
-    { pointerTo(ValueArrayType(pointerTo(TypeinfoType), "typeinfo")) },
+    pointerTo(ValueArrayType(pointerTo(TypeinfoType), "typeinfo")),
 ) {
     val inputRef by param(PointerToAnyValue)
     body {

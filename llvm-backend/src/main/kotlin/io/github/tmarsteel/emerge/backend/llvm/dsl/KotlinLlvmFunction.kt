@@ -15,20 +15,20 @@ class KotlinLlvmFunction<C : LlvmContext, R : LlvmType> private constructor(
     companion object {
         fun <C : LlvmContext, R : LlvmType> declare(
             name: String,
-            returnType: C.() -> R,
+            returnType: R,
             declaration: DeclareFunctionBuilderContext.() -> Unit
         ) = KotlinLlvmFunction<C, R> { context ->
-            val fnContext = DeclareFunctionBuilderContextImpl(context, returnType(context))
+            val fnContext = DeclareFunctionBuilderContextImpl(context, returnType)
             fnContext.declaration()
             fnContext.buildAndAdd(name)
         }
 
         fun <C : LlvmContext, R : LlvmType> define(
             name: String,
-            returnType: C.() -> R,
+            returnType: R,
             body: DefineFunctionBuilderContext<C, R>.() -> Unit
         ) = KotlinLlvmFunction<C, R> { context ->
-            val fnContext = DefineFunctionBuilderContextImpl(context, returnType(context))
+            val fnContext = DefineFunctionBuilderContextImpl(context, returnType)
             fnContext.body()
             fnContext.buildAndAdd(name)
         }

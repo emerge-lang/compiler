@@ -6,6 +6,7 @@ interface IrPackage {
     val name: DotName
     val functions: Set<IrOverloadGroup<IrFunction>>
     val structs: Set<IrStruct>
+    val variables: Set<IrGlobalVariable>
 }
 
 interface IrModule {
@@ -15,4 +16,9 @@ interface IrModule {
 
 interface IrSoftwareContext {
     val modules: Set<IrModule>
+}
+
+interface IrGlobalVariable {
+    val declaration: IrVariableDeclaration
+    val initializer: IrExpression
 }

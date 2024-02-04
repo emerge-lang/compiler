@@ -38,6 +38,16 @@ class Linux_x68_64_Backend : EmergeBackend {
                     .flatMap { it.overloads }
                     .forEach(llvmContext::registerFunction)
             }
+            softwareContext.modules.flatMap { it.packages }
+                .flatMap { it.variables }
+                .forEach {
+                    llvmContext.registerGlobal(it.declaration)
+                }
+            softwareContext.modules.flatMap { it.packages }
+                .flatMap { it.variables }
+                .forEach {
+                    llvmContext.defineGlobalInitializer(it.declaration, it.initializer)
+                }
             softwareContext.modules.flatMap { it.packages }.forEach { pkg ->
                 pkg.functions
                     .flatMap { it.overloads }

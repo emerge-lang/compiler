@@ -2,21 +2,29 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
+import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrGlobalVariable
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplementedFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.backend.llvm.bodyDefined
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitCode
+import io.github.tmarsteel.emerge.backend.llvm.codegen.allocation
+import io.github.tmarsteel.emerge.backend.llvm.codegen.emitExpressionCode
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
+import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
@@ -29,6 +37,7 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
     /**
      * The IR tree node that is the pointed member of the CPointer struct; for use in special-treating
      * the intrinsic
+     * TODO: move to ir_amendments.kt
      */
     lateinit var cPointerPointedMember: IrStruct.Member
         private set
@@ -72,6 +81,19 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
         )
     }
 
+    fun registerGlobal(global: IrVariableDeclaration) {
+        val allocationSiteType = getAllocationSiteType(global.type).getRawInContext(this)
+        val rawRef = LLVM.LLVMAddGlobal(
+            module,
+            allocationSiteType,
+            globalsScope.next()
+        )
+        global.allocation = LlvmValue(
+            rawRef,
+            pointerTo(getReferenceSiteType(global.type)),
+        )
+    }
+
     fun defineFunctionBody(fn: IrImplementedFunction) {
         val llvmFunction = fn.llvmRef ?: throw CodeGenerationException("You must register the functions through ${this::registerFunction.name} first to handle cyclic references (especially important for recursion)")
         if (fn.bodyDefined) {
@@ -84,6 +106,23 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
             emitCode(fn.body)
                 ?: throw CodeGenerationException("Function body for ${fn.fqn} does not return or throw on all possible execution paths.")
         }
+    }
+
+    fun defineGlobalInitializer(global: IrVariableDeclaration, initializer: IrExpression) {
+        val rawRef = global.allocation?.raw
+            ?: throw CodeGenerationException("Global not registered through ${this::registerGlobal.name} first")
+
+        val initializerFn = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+            "globalVar_${global.name}_initializer",
+            getReferenceSiteType(global.type),
+        ) {
+            body {
+                ret(emitExpressionCode(initializer))
+            }
+        }
+            .buildAndAdd(this)
+
+        LLVM.LLVMSetInitializer(rawRef, initializerFn)
     }
 
     /**

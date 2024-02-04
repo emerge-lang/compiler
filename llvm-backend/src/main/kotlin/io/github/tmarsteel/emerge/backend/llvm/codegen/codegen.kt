@@ -39,12 +39,12 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         is IrVariableDeclaration -> {
             val type = context.getAllocationSiteType(code.type)
             code.typeForAllocationSite = type
-            code.stackAllocation = alloca(type)
+            code.allocation = alloca(type)
             return null
         }
         is IrVariableAssignment -> {
             val toAssign = emitExpressionCode(code.value)
-            store(toAssign, code.declaration.stackAllocation!!)
+            store(toAssign, code.declaration.allocation!!)
             return null
         }
         is IrReturnStatement -> {
@@ -87,13 +87,14 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             return call(expression.function.llvmRef!!, expression.arguments.map { emitExpressionCode(it) })
         }
         is IrVariableReferenceExpression -> {
-            return expression.variable.stackAllocation!!.dereference()
+            return expression.variable.allocation!!.dereference()
         }
         else -> TODO("code generation for ${expression::class.simpleName}")
     }
 }
 
 internal var IrVariableDeclaration.typeForAllocationSite: LlvmType? by tackState { null }
-internal var IrVariableDeclaration.stackAllocation: LlvmValue<LlvmPointerType<LlvmType>>? by tackState { null }
+/** For locals on the stack, globals on the globals space */
+internal var IrVariableDeclaration.allocation: LlvmValue<LlvmPointerType<LlvmType>>? by tackState { null }
 
 internal var IrStaticByteArrayExpression.globalThreadLocal: LlvmValue<ValueArrayType<LlvmI8Type>>? by tackState { null }
