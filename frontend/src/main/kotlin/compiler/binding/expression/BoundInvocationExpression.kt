@@ -358,7 +358,7 @@ private class IrStaticDispatchFunctionInvocationImpl(
 ) : IrStaticDispatchFunctionInvocationExpression {
     private val irReturnType by lazy { invocation.type!!.toBackendIr() }
     private val irFunction by lazy { invocation.dispatchedFunction!!.toBackendIr() }
-    private val irArguments by lazy { invocation.valueArguments.map { it.toBackendIr() } }
+    private val irArguments by lazy { (listOfNotNull(invocation.receiverExpression) + invocation.valueArguments).map { it.toBackendIr() } }
 
     override val evaluatesTo get() = irReturnType
     override val function get() = irFunction
