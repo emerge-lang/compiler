@@ -12,6 +12,12 @@ interface LlvmContext {
     val targetData: LLVMTargetDataRef
     val rawPointer: LLVMTypeRef
     val opaquePointer: LlvmPointerType<LlvmVoidType>
+    val globalsScope: NameScope
+
+    fun <T : LlvmType> nullValue(type: T): LlvmValue<T> = LlvmValue(
+        LLVM.LLVMConstNull(type.getRawInContext(this)),
+        type,
+    )
 
     companion object {
         fun createDoAndDispose(targetTriple: String, action: (LlvmContext) -> Unit) {
@@ -29,6 +35,7 @@ private class LlvmContextImpl(val targetTriple: String) : LlvmContext, AutoClose
     override val targetData = LLVM.LLVMGetModuleDataLayout(module)
     override val rawPointer = LLVM.LLVMPointerTypeInContext(ref, 0)
     override val opaquePointer: LlvmPointerType<LlvmVoidType> = LlvmPointerType(LlvmVoidType)
+    override val globalsScope = NameScope("global")
 
     override fun close() {
         LLVM.LLVMDisposeModule(module)

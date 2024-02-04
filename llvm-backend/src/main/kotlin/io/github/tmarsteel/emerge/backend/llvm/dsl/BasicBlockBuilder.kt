@@ -9,7 +9,7 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
     private val basicBlock: LLVMBasicBlockRef,
 ) : LlvmContext by context, AutoCloseable {
     private val builder = LLVM.LLVMCreateBuilder()
-    private val tmpVars = TempVarsScope()
+    private val tmpVars = NameScope("tmp")
     init {
         LLVM.LLVMPositionBuilderAtEnd(builder, basicBlock)
     }
@@ -116,11 +116,3 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
 }
 
 typealias CodeGenerator<C, R> = BasicBlockBuilder<C, R>.() -> BasicBlockBuilder.Termination
-
-private class TempVarsScope {
-    private var counter: ULong = 0u
-
-    fun next(): String {
-        return "tmp${counter++}"
-    }
-}
