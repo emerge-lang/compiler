@@ -202,4 +202,6 @@ private class MappedEffectiveBoundGenericTypeReference private constructor(
 private class IrGenericTypeReferenceImpl(
     override val parameter: IrBaseType.Parameter,
     override val effectiveBound: IrType,
-) : IrGenericTypeReference
+) : IrGenericTypeReference {
+    override fun toString() = "IrGenericReference[${parameter.name} : $effectiveBound]"
+}

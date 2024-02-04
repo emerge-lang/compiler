@@ -260,9 +260,17 @@ class RootResolvedTypeReference private constructor(
 
 private class IrSimpleTypeImpl(
     override val baseType: IrBaseType
-) : IrSimpleType
+) : IrSimpleType {
+    override fun toString() = "IrSimpleType[${baseType.fqn}]"
+}
 
 private class IrParameterizedTypeImpl(
     override val simpleType: IrSimpleType,
     override val arguments: Map<String, IrParameterizedType.Argument>,
-) : IrParameterizedType
+) : IrParameterizedType {
+    override fun toString() = "IrParameterizedType[$simpleType" + arguments.entries.joinToString(
+        prefix = "<",
+        transform = { (name, value) -> "$name = $value" },
+        postfix = ">]"
+    )
+}

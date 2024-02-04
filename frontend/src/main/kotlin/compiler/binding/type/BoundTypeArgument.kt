@@ -171,4 +171,6 @@ class BoundTypeArgument(
 private class IrTypeArgumentImpl(
     override val variance: IrTypeVariance,
     override val type: IrType
-) : IrParameterizedType.Argument
+) : IrParameterizedType.Argument {
+    override fun toString() = "${variance.name.lowercase()} $type"
+}
