@@ -46,12 +46,18 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         is IrVariableDeclaration -> {
             val type = context.getAllocationSiteType(code.type)
             code.typeForAllocationSite = type
-            code.allocation = alloca(type)
+            val stackAllocation = alloca(type)
+            code.emitRead = {
+                stackAllocation.dereference()
+            }
+            code.emitWrite = { newValue ->
+                store(newValue, stackAllocation)
+            }
             return null
         }
         is IrVariableAssignment -> {
             val toAssign = emitExpressionCode(code.value)
-            store(toAssign, code.declaration.allocation!!)
+            code.declaration.emitWrite!!(this, toAssign)
             return null
         }
         is IrReturnStatement -> {
@@ -66,7 +72,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
     }
 }
 
-internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
+internal fun BasicBlockBuilder<EmergeLlvmContext, out LlvmType>.emitExpressionCode(
     expression: IrExpression,
 ): LlvmValue<LlvmType> {
     println("Emitting $expression")
@@ -94,7 +100,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             return call(expression.function.llvmRef!!, expression.arguments.map { emitExpressionCode(it) })
         }
         is IrVariableReferenceExpression -> {
-            return expression.variable.allocation!!.dereference()
+            return expression.variable.emitRead!!()
         }
         is IrIntegerLiteralExpression -> {
             // TODO: these conversions are not correct; just to get it working for now
@@ -119,7 +125,18 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
 }
 
 internal var IrVariableDeclaration.typeForAllocationSite: LlvmType? by tackState { null }
-/** For locals on the stack, globals on the globals space */
-internal var IrVariableDeclaration.allocation: LlvmValue<LlvmPointerType<LlvmType>>? by tackState { null }
+/**
+ * for locals: loads from the alloca'd location
+ * for globals: loads from the result of LLVM.LLVMAddGlobal
+ * for parameters: result of LLVM.LLVMGetParam
+ */
+internal var IrVariableDeclaration.emitRead: (BasicBlockBuilder<EmergeLlvmContext, *>.() -> LlvmValue<LlvmType>)? by tackState { null }
+
+/**
+ * for locals: stores to the alloca'd location
+ * for globals: stores to the result of LLVM.LLVMAddGlobal
+ * for parameters: throws an exception
+ */
+internal var IrVariableDeclaration.emitWrite: (BasicBlockBuilder<EmergeLlvmContext, *>.(v: LlvmValue<LlvmType>) -> Unit)? by tackState { null }
 
 internal var IrStaticByteArrayExpression.globalThreadLocal: LlvmValue<ValueArrayType<LlvmI8Type>>? by tackState { null }

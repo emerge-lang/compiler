@@ -5,16 +5,16 @@ import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrDeclaredFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrFunctionParameter
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplementedFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
 internal abstract class IrFunctionImpl private constructor(
     val fqn: DotName,
     private val boundFunction: BoundFunction,
     boundBody: BoundExecutable<*>?,
 ) {
-    protected val _parameters: List<IrFunctionParameter> = boundFunction.parameters.parameters.map { Parameter(it) }
+    protected val _parameters: List<IrVariableDeclaration> = boundFunction.parameters.parameters.map { it.backendIrDeclaration }
     protected val _returnType = boundFunction.returnType!!.toBackendIr()
 
     protected val _body: IrCodeChunk = when (boundBody) {
@@ -27,11 +27,6 @@ internal abstract class IrFunctionImpl private constructor(
             boundBody.toBackendIr(),
             // TODO: implicit unit return
         ))
-    }
-
-    private class Parameter(private val param: BoundParameter) : IrFunctionParameter {
-        override val name = param.name
-        override val type = param.type!!.toBackendIr()
     }
 
     private class IrDeclaredFunctionImpl(
