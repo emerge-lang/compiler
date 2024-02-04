@@ -4,8 +4,6 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.i32
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMBasicBlockRef
 import org.bytedeco.llvm.global.LLVM
-import kotlin.math.absoluteValue
-import kotlin.random.Random
 
 class BasicBlockBuilder private constructor(
     private val context: LlvmContext,
@@ -58,6 +56,10 @@ class BasicBlockBuilder private constructor(
     }
 
     companion object {
+        fun appendToUnsafe(context: LlvmContext, block: LLVMBasicBlockRef, code: (BasicBlockBuilder) -> Unit) {
+            BasicBlockBuilder(context, block).use(code)
+        }
+
         fun <ReturnType : LlvmType> appendToWithReturn(context: LlvmContext, block: LLVMBasicBlockRef, code: BasicBlockBuilder.() -> LlvmValue<ReturnType>) {
             BasicBlockBuilder(context, block).use {
                 val returnValue = it.code()

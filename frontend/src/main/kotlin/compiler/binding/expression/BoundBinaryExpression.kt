@@ -32,6 +32,7 @@ import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.nullableOr
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
 class BoundBinaryExpression(
     override val context: CTContext,
@@ -87,6 +88,10 @@ class BoundBinaryExpression(
         // nothing to do, as one could only correlate this with the return value
         // of the operator function. But overload resolution based on return type
         // is not a thing in Emerge
+    }
+
+    override fun toBackendIr(): IrExpression {
+        return hiddenInvocation.toBackendIr()
     }
 }
 

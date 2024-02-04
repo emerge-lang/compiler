@@ -3,20 +3,21 @@ package compiler.binding
 import compiler.binding.expression.BoundExpression
 import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
+import io.github.tmarsteel.emerge.backend.api.ir.IrDeclaredFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunctionParameter
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplementedFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 
 internal abstract class IrFunctionImpl private constructor(
-    override val fqn: DotName,
+    val fqn: DotName,
     private val boundFunction: BoundFunction,
     boundBody: BoundExecutable<*>?,
-) : IrImplementedFunction {
-    override val parameters: List<IrFunctionParameter> = boundFunction.parameters.parameters.map { Parameter(it) }
-    override val returnType = boundFunction.returnType!!.toBackendIr()
+) {
+    protected val _parameters: List<IrFunctionParameter> = boundFunction.parameters.parameters.map { Parameter(it) }
+    protected val _returnType = boundFunction.returnType!!.toBackendIr()
 
-    override val body: IrCodeChunk = when (boundBody) {
+    protected val _body: IrCodeChunk = when (boundBody) {
         null -> IrCodeChunkImpl(emptyList())
         is BoundCodeChunk -> boundBody.toBackendIr()
         is BoundExpression<*> -> IrCodeChunkImpl(listOf(object : IrReturnStatement {
@@ -36,12 +37,19 @@ internal abstract class IrFunctionImpl private constructor(
     private class IrDeclaredFunctionImpl(
         fqn: DotName,
         boundFunction: BoundFunction,
-    ) : IrFunctionImpl(fqn, boundFunction, null)
+    ) : IrFunctionImpl(fqn, boundFunction, null), IrDeclaredFunction {
+        override val parameters = super._parameters
+        override val returnType = super._returnType
+    }
 
     private class IrImplementedFunctionImpl(
         fqn: DotName,
         boundFunction: BoundDeclaredFunction,
-    ) : IrFunctionImpl(fqn, boundFunction, boundFunction.code!!)
+    ) : IrFunctionImpl(fqn, boundFunction, boundFunction.code!!), IrImplementedFunction {
+        override val parameters = super._parameters
+        override val returnType = super._returnType
+        override val body = super._body
+    }
 
     override fun toString(): String {
         return "IrFunction[$fqn] declared in ${boundFunction.declaredAt.fileLineColumnText}"
