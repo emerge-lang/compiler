@@ -1,9 +1,12 @@
 package io.github.tmarsteel.emerge.backend.llvm.codegen
 
+import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticByteArrayExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStructMemberAccessExpression
@@ -15,11 +18,15 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
+import io.github.tmarsteel.emerge.backend.llvm.dsl.i16
+import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
+import io.github.tmarsteel.emerge.backend.llvm.dsl.i64
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.ValueArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.tackState
 
@@ -88,6 +95,24 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         }
         is IrVariableReferenceExpression -> {
             return expression.variable.allocation!!.dereference()
+        }
+        is IrIntegerLiteralExpression -> {
+            // TODO: these conversions are not correct; just to get it working for now
+            val value = when ((expression.evaluatesTo as IrSimpleType).baseType.fqn.toString()) {
+                "emerge.core.Byte" -> i8(expression.value.byteValueExact())
+                "emerge.core.UByte" -> TODO()
+                "emerge.core.Short" -> i16(expression.value.shortValueExact())
+                "emerge.core.UShort" -> TODO()
+                "emerge.core.Int" -> i32(expression.value.intValueExact())
+                "emerge.core.UInt" -> TODO()
+                "emerge.core.Long" -> i64(expression.value.longValueExact())
+                "emerge.core.ULong" -> TODO()
+                "emerge.core.iword" -> word(expression.value.intValueExact())
+                "emerge.core.uword" -> TODO()
+                else -> throw CodeGenerationException("Unsupport integer literal type ${expression.evaluatesTo}")
+            }
+
+            return value
         }
         else -> TODO("code generation for ${expression::class.simpleName}")
     }

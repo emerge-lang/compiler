@@ -1,5 +1,7 @@
 package io.github.tmarsteel.emerge.backend.api.ir
 
+import java.math.BigInteger
+
 sealed interface IrExpression : IrStatement {
     val evaluatesTo: IrType
 }
@@ -26,4 +28,8 @@ interface IrVariableReferenceExpression : IrExpression {
 
     override val evaluatesTo: IrType
         get() = variable.type
+}
+
+interface IrIntegerLiteralExpression : IrExpression {
+    val value: BigInteger
 }

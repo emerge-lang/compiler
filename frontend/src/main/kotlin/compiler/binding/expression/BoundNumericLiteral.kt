@@ -24,6 +24,9 @@ import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import java.math.BigDecimal
 import java.math.BigInteger
 
@@ -57,6 +60,13 @@ class BoundIntegerLiteral(
     reportings: Collection<Reporting>
 ) : BoundNumericLiteral(context, declaration, reportings) {
     override val type = compiler.binding.type.BuiltinInt.baseReference
+
+    override fun toBackendIr(): IrExpression {
+        return IrIntegerLiteralExpressionImpl(
+            integer,
+            type.toBackendIr(),
+        )
+    }
 }
 
 class BoundFloatingPointLiteral(
@@ -67,3 +77,8 @@ class BoundFloatingPointLiteral(
 ) : BoundNumericLiteral(context, declaration, reportings) {
     override val type = compiler.binding.type.BuiltinFloat.baseReference
 }
+
+internal class IrIntegerLiteralExpressionImpl(
+    override val value: BigInteger,
+    override val evaluatesTo: IrType,
+) : IrIntegerLiteralExpression
