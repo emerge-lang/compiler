@@ -59,10 +59,10 @@ open class LlvmPointerType<Pointed : LlvmType>(val pointed: Pointed) : LlvmType 
 abstract class LlvmStructType(
     val name: String,
 ) : LlvmCachedType() {
-    private var registered = false
+    private var observed = false
 
     override fun computeRaw(context: LlvmContext): LLVMTypeRef {
-        registered = true
+        observed = true
         val structType = LLVM.LLVMStructCreateNamed(context.ref, name)
         val elements = PointerPointer(*membersInOrder.map { it.type.getRawInContext(context) }.toTypedArray())
         LLVM.LLVMStructSetBody(structType, elements, membersInOrder.size, 0)
@@ -81,10 +81,18 @@ abstract class LlvmStructType(
         }
     }
 
+    val nMembers: Int
+        get() {
+            observed = true
+            return membersInOrder.size
+        }
+
     companion object {
         @JvmStatic
         protected fun <S : LlvmStructType, T : LlvmType> S.structMember(type: T): ImmediateDelegate<LlvmStructType, Member<S, T>> {
-            check(!registered)
+            check(!observed) {
+                "You can only declare struct members at the creation time of your type, not later."
+            }
             val member = Member<S, T>(membersInOrder.size, type)
             membersInOrder.add(member)
             return ImmediateDelegate(member)
