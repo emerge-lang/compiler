@@ -5,29 +5,29 @@ import org.bytedeco.llvm.LLVM.LLVMValueRef
 import org.bytedeco.llvm.global.LLVM
 import kotlin.reflect.KProperty
 
-class LlvmFunction<ReturnType : LlvmType> private constructor(
-    val buildAndAdd: (LlvmContext) -> LLVMValueRef,
+class LlvmFunction<C : LlvmContext, R : LlvmType> private constructor(
+    val buildAndAdd: (C) -> LLVMValueRef,
 ) {
-    fun addTo(context: LlvmContext) {
+    fun addTo(context: C) {
         buildAndAdd(context)
     }
 
     companion object {
-        fun <ReturnType : LlvmType> declare(
+        fun <C : LlvmContext, R : LlvmType> declare(
             name: String,
-            returnType: LlvmContext.() -> ReturnType,
-            declaration: DeclareFunctionBuilderContext.() -> Unit
-        ) = LlvmFunction<ReturnType> { context ->
+            returnType: C.() -> R,
+            declaration: DeclareFunctionBuilderContext<C>.() -> Unit
+        ) = LlvmFunction<C, R> { context ->
             val fnContext = DeclareFunctionBuilderContextImpl(context, returnType(context))
             fnContext.declaration()
             fnContext.buildAndAdd(name)
         }
 
-        fun <ReturnType : LlvmType> define(
+        fun <C : LlvmContext, R : LlvmType> define(
             name: String,
-            returnType: LlvmContext.() -> ReturnType,
-            body: DefineFunctionBuilderContext<ReturnType>.() -> Unit
-        ) = LlvmFunction<ReturnType> { context ->
+            returnType: C.() -> R,
+            body: DefineFunctionBuilderContext<C, R>.() -> Unit
+        ) = LlvmFunction<C, R> { context ->
             val fnContext = DefineFunctionBuilderContextImpl(context, returnType(context))
             fnContext.body()
             fnContext.buildAndAdd(name)
@@ -50,21 +50,21 @@ class ParameterDelegate<T : LlvmType>(
     }
 }
 
-interface DeclareFunctionBuilderContext : LlvmContext {
-    fun <T : LlvmType> param(type: T): ParameterDelegate<T>
+interface DeclareFunctionBuilderContext<C : LlvmContext> {
+    fun <T : LlvmType> param(type: C.() -> T): ParameterDelegate<T>
 }
 
-interface DefineFunctionBuilderContext<ReturnType : LlvmType> : DeclareFunctionBuilderContext {
-    fun body(build: BasicBlockBuilder.() -> LlvmValue<ReturnType>)
+interface DefineFunctionBuilderContext<C : LlvmContext, R : LlvmType> : DeclareFunctionBuilderContext<C> {
+    fun body(build: CodeGenerator<C, R>)
 }
 
-private abstract class BaseFunctionBuilderContext<R : LlvmType>(
-    private val context: LlvmContext,
+private abstract class BaseFunctionBuilderContext<C : LlvmContext, R : LlvmType>(
+    private val context: C,
     private val returnType: R,
-) : DeclareFunctionBuilderContext {
+) : DeclareFunctionBuilderContext<C> {
     protected val parameters = ArrayList<ParameterDelegate<*>>()
-    override fun <T : LlvmType> param(type: T) : ParameterDelegate<T> {
-        val delegate = ParameterDelegate(type, parameters.size)
+    override fun <T : LlvmType> param(type: C.() -> T) : ParameterDelegate<T> {
+        val delegate = ParameterDelegate(type(context), parameters.size)
         parameters.add(delegate)
         return delegate
     }
@@ -82,10 +82,10 @@ private abstract class BaseFunctionBuilderContext<R : LlvmType>(
     }
 }
 
-private class DeclareFunctionBuilderContextImpl<R : LlvmType>(
-    context: LlvmContext,
+private class DeclareFunctionBuilderContextImpl<C : LlvmContext, R : LlvmType>(
+    context: C,
     returnType: R,
-) : BaseFunctionBuilderContext<R>(context, returnType), LlvmContext by context {
+) : BaseFunctionBuilderContext<C, R>(context, returnType), LlvmContext by context {
     private var built = false
     override fun buildAndAdd(name: String): LLVMValueRef {
         check(!built) { "Already built" }
@@ -95,21 +95,21 @@ private class DeclareFunctionBuilderContextImpl<R : LlvmType>(
     }
 }
 
-private class DefineFunctionBuilderContextImpl<R : LlvmType>(
-    private val context: LlvmContext,
+private class DefineFunctionBuilderContextImpl<C : LlvmContext, R : LlvmType>(
+    private val context: C,
     returnType: R,
-) : BaseFunctionBuilderContext<R>(context, returnType), DefineFunctionBuilderContext<R>, LlvmContext by context {
+) : BaseFunctionBuilderContext<C, R>(context, returnType), DefineFunctionBuilderContext<C, R>, LlvmContext by context {
     private var state = State.PRELUDE
-    private lateinit var bodyBuilder: BasicBlockBuilder.() -> LlvmValue<R>
+    private lateinit var bodyBuilder: CodeGenerator<C, R>
 
-    override fun <T : LlvmType> param(type: T): ParameterDelegate<T> {
+    override fun <T : LlvmType> param(type: C.() -> T): ParameterDelegate<T> {
         check(state == State.PRELUDE) {
             "Cannot define parameters after defining the body"
         }
         return super.param(type)
     }
 
-    override fun body(build: BasicBlockBuilder.() -> LlvmValue<R>) {
+    override fun body(build: CodeGenerator<C, R>) {
         check(state == State.PRELUDE) {
             "Cannot declare body more than once"
         }
@@ -127,7 +127,7 @@ private class DefineFunctionBuilderContextImpl<R : LlvmType>(
         val functionInstance = buildAndAddFunctionInstance(name)
         parameters.forEach { it.setFunctionInstance(functionInstance) }
         val basicBlock = LLVM.LLVMAppendBasicBlock(functionInstance, "entry")
-        BasicBlockBuilder.appendToWithReturn(context, basicBlock, bodyBuilder)
+        BasicBlockBuilder.fill(context, basicBlock, bodyBuilder)
 
         return functionInstance
     }
