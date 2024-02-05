@@ -28,6 +28,8 @@ internal fun LlvmContext.word(value: Int): LlvmValue<LlvmWordType> = LlvmValue(
     LlvmWordType,
 )
 
+// TODO: prefix all the emerge-specific types with Emerge, so its EmergeTypeInfoType, EmergeAnyValueType, ...
+
 internal object TypeinfoType : LlvmStructType("typeinfo") {
     val shiftRightAmount by structMember(LlvmWordType)
     val supertypes by structMember(
@@ -55,6 +57,12 @@ internal object AnyValueType : LlvmStructType("anyvalue") {
 }
 
 internal val PointerToAnyValue: LlvmPointerType<AnyValueType> = pointerTo(AnyValueType)
+
+/*
+TODO: refactor array types to be as in the README.
+Will probably leave us with just one array type where value-arrays are ArrayType<LlvmI8Type>, ...
+and reference arrays are ArrayType<PointerToAnyValue>.
+ */
 
 internal class ReferenceArrayType<Element : LlvmType>(
     val elementType: Element,

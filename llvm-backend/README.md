@@ -1,5 +1,10 @@
 # LLVM Backend
 
+The LLVM backend will always define based on the target architecture:
+```llvm
+%word = i<ptr size>
+```
+
 ## Memory Layout of Values
 
 ### Value Types
@@ -8,19 +13,20 @@ Even though Emerge semantically doesn't distinguish between value types and refe
 its design still aims to allow optimization of the traditional value types (ints, floats, booleans, ...).
 So, for the LLVM backend, there are value types from emerge:
 
-| Emerge Type   | LLVM Type     |
-|---------------|---------------|
-| Boolean       | `i1`          |
-| Byte, UByte   | `i8`          |
-| Short, UShort | `i16`         |
-| Int, UInt     | `i32`         |
-| Long, ULong   | `i64`         |
-| iword, uword  | `i<ptr size>` |
+| Emerge Type    | LLVM Type     | DSL Type                        |
+|----------------|---------------|---------------------------------|
+| Boolean        | `i1`          | `LlvmBooleanType`               |
+| Byte, UByte    | `i8`          | `LlvmI8Type`                    |
+| Short, UShort  | `i16`         | `LlvmI16Type`                   |
+| Int, UInt      | `i32`         | `LlvmI32Type`                   |
+| Long, ULong    | `i64`         | `LlvmI64Type`                   |
+| iword, uword   | `i<ptr size>` | `LlvmWordType`                  |
+| COpaquePointer | `ptr`         | `LlvmPointerType<LlvmVoidType>` |
+| CPointer\<E>   | `ptr`         | `LlvmPointerType<E>`            |
 
-The LLVM backend will always define based on the target architecture:
-```llvm
-%word = i<ptr size>
-```
+Within Emerge, value types will always be stored on the stack and copied on assignment, never referenced
+through a pointer. This is an optimization, and it is possible because this behaviour cannot be observed
+by the source program as these types have no internal mutability.
 
 #### (Auto-)Boxing
 
@@ -30,12 +36,14 @@ whenever they are assigned to one of their non-value supertypes `Number` or `Any
     val x: Int = 3 // value type, no heap allocation
     val y: Any = x // new heap-allocated box, gets filled with a copy of x
 
+Or, more formally: Whenever a value of type `V` is to be assigned to a target of type `T` where `V` is a value
+type and `T` is not (see list above), then the value must be boxed and the box can be assigned to the target regularly.
+
 ### Reference Types
 
 Any value that is not of a value-type well be a heap-allocated reference type.
 Emerge uses reference counting for memory management. To allow reference counting on `Any` values,
-_all_ reference types (including arrays) must have the same memory layout for the reference
-counter.
+_all_ reference types (including arrays) must share a base layout to facility this.
 
 Hence, this is the layout that all heap-allocated values will have in common:
 
@@ -49,36 +57,36 @@ Hence, this is the layout that all heap-allocated values will have in common:
 
 ### Arrays
 
-Arrays always live on the heap.
-
-#### Of Reference-Types
-
-For reference types, arrays are simple enough as they are just containers like any other type.
-Hence, this is the layout for arrays of reference types:
+Arrays always live on the heap. All arrays share this common base layout:
 
 ```llvm
-%refarray = type {
+%anyarray = type {
     %anyvalue ; base for all objects
-    %word,    ; element count
-    [0 x ptr] ; elements, size determined at array creation
+    %word     ; number of elements in the array, independent of the type (or its size)
 }
 ```
 
-This allows
-* arrays to be assigned to `Any` references
-* runtime-type-checked downcasting from `Any` to `Array` (through the typeinfo pointer)
-
 #### Of Value-Types
 
-When the element type of the array is known to be a value type, layout of the array on heap
-can be simplified to this:
+At creation time the element-type is know. If it is a value type, the LLVM type for the array
+is parameterized on the element type:
 
 ```llvm
 %valuearray = type {
-    %word,           ; reference count
-    ptr,             ; weak reference collection pointer
-    %word,           ; element count
-    [0 x %valuetype] ; elements, size determined at array creation
+    %anyarray,      ; array object base
+    [0 x %element]  ; elements, size determined at array creation
+}
+```
+
+#### Of Reference-Types
+
+Heap-Allocated objects on the reference side are just llvm `ptr`s anyways. So any `Array<T>` where `T` is
+a reference type will have the same structure as an `Array<CPointer<T>>` or `Array<COpaquePointer>`:
+
+```
+%refarray = type {    ; == %valuearray_ptr
+    %anyarray,
+    [0 x ptr]
 }
 ```
 
@@ -101,38 +109,28 @@ because changes in `x` will then not propagate to `y`.
 
 The solution:
 
-* `Array<in T>` for any `T` is always a boxed version
-* `Array<T>` and `Array<out T>` where `T : Value`
-  * is always a value-array. The element size is known, no need for
-    a vtable
-  * the backend can safely emit direct access into the elements as the element-size is known at compile-time
-* `Array<T>` where `T : Reference`
-  * if there is a `T2 != T` where `T2 : Value, T` then the `Array<T>` is an array-box (see layout below).
-    direct access into the elements is forbidden; the backend must emit dynamic-dispatch for accessing the elements
-    so the array-box can handle the boxing logic
-  * if there is **no** `T2 != T` where `T2 : Value, T`, then `Array<T>` is a reference-array. The direct elements
-    are known to be `ptr`s to the actual elements on the heap, and direct access into the elements without the vtable
-    is possible.
+* all arrays, regardless of what element type they have at creation, have a vtable (see below). For value-arrays
+  the compiler can put functions in the vtable that handle the (un-)boxing of elements on individual access. **Thus,
+  accessing an array through dynamic-dispatch accessors is _always_ safe.**
+* when, at the use-site of an array, the compiler _knows_ that the element type exactly and that is a value type,
+  then the compiler can emit code that directly accesses the contents of the value array instead of doing a dynamic
+  dispatch. This is a performance optimization purely.
+  * notice that this also applies to all `Array<T>` where `T` is a reference type. When known that `T` is a reference
+    type and there are no `T2 : T` that are value types, the compiler can deduce that the array elements are `ptr`s
+    and _also_ emit direct access into the contiguous block, skipping the dynamic dispatch.
+* **care must be taken when, at the use-site, the compiler is looking at an `Array<T>` where `T` is a reference type
+  and there are `T2 : T` where `T2` is a value type. As of now, the only `T` that satisfy this condition are `Any`
+  and `Number`.** And it should stay this way by design.
+  In this case, the compiler _must_ resort to accessing possibly boxed values through dynamic dispatch.
+  I deem this acceptable because it's an easy enough thing to avoid as a programmer when performance is important.
+  Most importantly, the stdlib `String` being a wrapper around `Array<Byte>` doesn't fall into this "trap".
 
-##### The Array-Box
-
-Has this layout in memory:
-
-```llvm
-%arraybox = type {
-    %anyvalue ; base for all objects, vtable set according to the type of the underlying value-array
-    ptr,      ; pointer to the value-array that is being boxed
-}
-```
-
-This allows the array-box to conform to the `Any` type, and through dynamic dispatch to normalize the elements
-of unknown size. E.g. consider the Array-Box for `Byte`: the vtable would define these methods (ignoring ref counting for clarity):
+---------
+As an example, here is some code for the vtable in an `Array<Byte>`:
 
 ```llvm
 %valuearray_byte = {
-    %word,
-    ptr,
-    %word,
+    %anyarray,
     [0 x i8]
 }
 %bytebox = {
@@ -140,15 +138,9 @@ of unknown size. E.g. consider the Array-Box for `Byte`: the vtable would define
     i8
 }
 
-define %word @arrayBoxByte_size(ptr %self) {
-    %rawArrayPtr = getelementptr %arraybox, ptr %self, i32 0, i32 1
-    %sizePtr = getelementptr %valuearray_byte, ptr %rawArrayPtr, i32 0, i32 2
-    %size = load %word, ptr %sizePtr
-    ret %size
-}
 define ptr @arrayBoxByte_get(ptr %self, %word %index) {
-    %rawArrayPtr = getelementptr %arraybox, ptr %self, i32 0, i32 1
-    %rawBytePtr = getelementptr %valuearray_byte, ptr %rawArrayPtr, i32 0, i32 3, %word %index
+    ; elides bounds checking
+    %rawBytePtr = getelementptr %valuearray_byte, ptr %self, i32 0, i32 1, %word %index
     %rawByte = load i8, ptr %rawBytePtr
     %boxPtr = call ptr @ByteBoxCtor(i8 %rawByte)
     ret %boxPtr
@@ -156,8 +148,7 @@ define ptr @arrayBoxByte_get(ptr %self, %word %index) {
 define void @arrayBoxByte_set(ptr %self, %word %index, ptr %valueBox) {
     %rawByteSourcePtr = getelementptr %bytebox, ptr %valueBox, i32 0, i32 1
     %rawByteSource = load i8, ptr %rawByteSourcePtr, align 1
-    %rawArrayPtr = getelementptr %arraybox, ptr %self, i32 0, i32 3
-    %rawByteTargetPtr = getelementptr %valuearray_byte, ptr %rawArrayPtr, i32 0, i32 3, %word %index
+    %rawByteTargetPtr = getelementptr %valuearray_byte, ptr %self, i32 0, i32 1, %word %index
     store i8 %rawByteSource, ptr %rawByteTargetPtr, align 1
     ret void
 }
