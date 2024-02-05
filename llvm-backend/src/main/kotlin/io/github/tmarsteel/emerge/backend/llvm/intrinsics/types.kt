@@ -1,5 +1,9 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
+import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
+import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
+import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
+import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmCachedType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
@@ -15,6 +19,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.insertConstantInto
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.global.LLVM
@@ -53,7 +58,13 @@ internal object WeakReferenceCollectionType : LlvmStructType("weakrefcoll") {
 internal object AnyValueType : LlvmStructType("anyvalue") {
     val strongReferenceCount by structMember(LlvmVoidType)
     val typeinfo by structMember(pointerTo(TypeinfoType))
+    val anyObjectVirtualFunctions by structMember(LlvmArrayType(1, LlvmFunctionAddressType))
     val weakReferenceCollection by structMember(pointerTo(WeakReferenceCollectionType))
+}
+
+context(BasicBlockBuilder<EmergeLlvmContext, *>)
+internal fun GetElementPointerStep<AnyValueType>.deallocatorFunctionAddress() : GetElementPointerStep<LlvmFunctionAddressType> {
+    return member { anyObjectVirtualFunctions }.index(i32(0))
 }
 
 internal val PointerToAnyValue: LlvmPointerType<AnyValueType> = pointerTo(AnyValueType)

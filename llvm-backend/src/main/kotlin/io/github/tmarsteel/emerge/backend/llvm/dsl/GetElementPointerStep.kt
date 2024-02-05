@@ -14,7 +14,7 @@ sealed class GetElementPointerStep<P : LlvmType> private constructor(
         consumed = true
     }
 
-    fun <NewP : LlvmType> stepUnsafe(index: LlvmValue<LlvmFixedIntegerType>, pointeeType: NewP): GetElementPointerStep<NewP> {
+    fun <NewP : LlvmType> stepUnsafe(index: LlvmValue<LlvmIntegerType>, pointeeType: NewP): GetElementPointerStep<NewP> {
         consume()
         return Subsequent(this, index, pointeeType)
     }
@@ -43,7 +43,7 @@ sealed class GetElementPointerStep<P : LlvmType> private constructor(
     ) : GetElementPointerStep<P>(basePointer.type.pointed)
     private class Subsequent<P : LlvmType>(
         val parent: GetElementPointerStep<*>,
-        val index: LlvmValue<LlvmFixedIntegerType>,
+        val index: LlvmValue<LlvmIntegerType>,
         pointeeType: P,
     ) : GetElementPointerStep<P>(pointeeType)
 
@@ -61,6 +61,12 @@ sealed class GetElementPointerStep<P : LlvmType> private constructor(
                 i32(member.indexInStruct),
                 member.type,
             )
+        }
+
+        fun <E : LlvmType> GetElementPointerStep<LlvmArrayType<E>>.index(
+            index: LlvmValue<LlvmIntegerType>
+        ): GetElementPointerStep<E> {
+            return stepUnsafe(index, pointeeType.elementType)
         }
     }
 }

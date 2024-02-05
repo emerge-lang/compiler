@@ -425,19 +425,29 @@ hash to the unique prefix. This is easily done using a `lshr` instruction. So, f
 to shift the hash right by (64 - 5) = 59 bits to obtain the prefix in the lower 5 bits. This `59` value
 is stored in the vtable, too, for quick access during a dynamic dispatch.
 
-Last but not least, there needs to be a mechanism to determine a values supertypes at runtime to typecheck
+Also, there needs to be a mechanism to determine a values supertypes at runtime to typecheck
 downcasts. The vtable of a type is defined to be the type metadata for that type. So, each vtable stores a list
 of its supertypes. `Any` is never mentioned explicitly in that list.
 To avoid having to search a tree for an `instanceof`, every typeinfo should contain _all_ supertypes of the
-type being describe, transitively.
+type being described, transitively.
+
+Last but not least there is an optimization possibility. `Any` has virtual functions, most importantly
+the destructor as its naturally different for every type. Since these will be present in _all_ objects
+we can optimize and don't need to risk blowing the vtable to a large size due to a long common hash prefix.
+The pointer to the virtual functions of `Any` are stored next to the vtable blob:
 
 ```llvm
 %typeinfo = type {
-    %word,     ; lshr offset for the function hashes
-    ptr,       ; pointer to a %valuearray of ptrs, each pointing at the vtable of one of the supertypes
-    [0 x ptr]  ; the vtable blob, as stated above 
+    %word,      ; lshr offset for the function hashes
+    ptr,        ; pointer to a %valuearray of ptrs, each pointing at the vtable of one of the supertypes
+    [1 x ptr],  ; a ptr for each of the virtual functions defined on Any
+    [0 x ptr]   ; the vtable blob, as stated above 
 }
 ```
+
+| virtual function on `Any`    | index |
+|------------------------------|-------|
+| destructor (name still TODO) | 0     |
 
 ### How vtables are accessed for a dynamic dispatch
 
