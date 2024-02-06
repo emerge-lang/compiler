@@ -94,23 +94,17 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
     }
 
     fun registerGlobal(global: IrVariableDeclaration) {
-        val allocationSiteType = getAllocationSiteType(global.type).getRawInContext(this)
-        val rawRef = LLVM.LLVMAddGlobal(
-            module,
+        val allocationSiteType = getAllocationSiteType(global.type)
+        val allocation = addThreadLocalGlobal(LlvmValue(
+            LLVM.LLVMGetUndef(allocationSiteType.getRawInContext(this)),
             allocationSiteType,
-            globalsScope.next()
-        )
-        val allocation = LlvmValue(
-            rawRef,
-            pointerTo(getReferenceSiteType(global.type)),
-        )
+        ))
         global.emitRead = {
             allocation.dereference()
         }
         global.emitWrite = { newValue ->
             store(newValue, allocation)
         }
-        LLVM.LLVMSetInitializer(rawRef, LLVM.LLVMGetUndef(allocationSiteType))
     }
 
     fun defineFunctionBody(fn: IrImplementedFunction) {
