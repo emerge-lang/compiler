@@ -24,6 +24,7 @@ class Linux_x68_64_Backend : EmergeBackend {
         ModuleSourceRef(FFI_C_SOURCES_PATH, DotName(listOf("emerge", "ffi", "c"))),
         ModuleSourceRef(LINUX_LIBC_SOURCES_PATH, DotName(listOf("emerge", "linux", "libc"))),
         ModuleSourceRef(LINUX_PLATFORM_PATH, DotName(listOf("emerge", "platform"))),
+        ModuleSourceRef(LLVM_PATH, DotName(listOf("emerge", "llvm")))
     )
 
     override fun emit(softwareContext: IrSoftwareContext, directory: Path) {
@@ -77,6 +78,7 @@ class Linux_x68_64_Backend : EmergeBackend {
         val FFI_C_SOURCES_PATH by systemProperty("emerge.compiler.native.c-ffi-sources", Paths::get)
         val LINUX_LIBC_SOURCES_PATH by systemProperty("emerge.compiler.native.libc-wrapper.sources", Paths::get)
         val LINUX_PLATFORM_PATH by systemProperty("emerge.compiler.native.linux-platform.sources", Paths::get)
+        val LLVM_PATH by systemProperty("emerge.compiler.native.llvm.sources", Paths::get)
     }
 }
 
