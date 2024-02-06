@@ -63,8 +63,8 @@ private class LlvmContextImpl(val targetTriple: String) : LlvmContext, AutoClose
     override fun complete() {
         val arrayType = LlvmArrayType(initializerFunctions.size.toLong(), LlvmGlobalCtorEntry)
         val ctorsGlobal = LLVM.LLVMAddGlobal(module, arrayType.getRawInContext(this), "llvm.global_ctors")
-        val ctorsData = arrayType.insertConstantInto(this, initializerFunctions.mapIndexed { initializerIndex, initializer ->
-            LlvmGlobalCtorEntry.insertConstantInto(this) {
+        val ctorsData = arrayType.buildConstantIn(this, initializerFunctions.mapIndexed { initializerIndex, initializer ->
+            LlvmGlobalCtorEntry.buildConstantIn(this) {
                 setValue(LlvmGlobalCtorEntry.priority, i32(initializerIndex))
                 setValue(LlvmGlobalCtorEntry.function, initializer.address)
                 setNull(LlvmGlobalCtorEntry.data)

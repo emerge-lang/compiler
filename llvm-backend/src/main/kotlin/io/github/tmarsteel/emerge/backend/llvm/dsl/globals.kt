@@ -4,7 +4,7 @@ import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMValueRef
 import org.bytedeco.llvm.global.LLVM
 
-fun <S : LlvmStructType, C : LlvmContext> S.insertConstantInto(
+fun <S : LlvmStructType, C : LlvmContext> S.buildConstantIn(
     context: C,
     data: ConstantStructBuilder<S, C>.() -> Unit,
 ): LlvmValue<S> {
@@ -43,7 +43,7 @@ class ConstantStructBuilder<S : LlvmStructType, C : LlvmContext>(
     }
 }
 
-fun <E : LlvmType> LlvmArrayType<E>.insertConstantInto(
+fun <E : LlvmType> LlvmArrayType<E>.buildConstantIn(
     context: LlvmContext,
     data: Iterable<LlvmValue<E>>,
 ): LlvmValue<LlvmArrayType<E>> {
