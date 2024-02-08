@@ -14,6 +14,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAssignment
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableReferenceExpression
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
@@ -22,10 +23,11 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i16
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i64
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType.Companion.member
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.ValueArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.ValueArrayI8Type
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
@@ -80,13 +82,14 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, out LlvmType>.emitExpressionCo
     println("Emitting $expression")
     when (expression) {
         is IrStaticByteArrayExpression -> {
-            expression.globalThreadLocal?.let { return it }
-            val global = ValueArrayType.i8s.insertThreadLocalGlobalInto(
+            expression.global?.let { return it }
+            val constant = ValueArrayI8Type.buildConstantIn(
                 context,
                 expression.content.asList(),
                 context::i8,
             )
-            expression.globalThreadLocal = global
+            val global = addGlobal(constant, LlvmGlobal.ThreadLocalMode.SHARED)
+            expression.global = global
             return global
         }
         is IrStructMemberAccessExpression -> {
@@ -144,4 +147,4 @@ internal var IrVariableDeclaration.emitRead: (BasicBlockBuilder<EmergeLlvmContex
  */
 internal var IrVariableDeclaration.emitWrite: (BasicBlockBuilder<EmergeLlvmContext, *>.(v: LlvmValue<LlvmType>) -> Unit)? by tackState { null }
 
-internal var IrStaticByteArrayExpression.globalThreadLocal: LlvmValue<ValueArrayType<LlvmI8Type>>? by tackState { null }
+internal var IrStaticByteArrayExpression.global: LlvmGlobal<ArrayType<LlvmI8Type>>? by tackState { null }

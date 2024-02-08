@@ -21,13 +21,11 @@ import io.github.tmarsteel.emerge.backend.llvm.codegen.emitWrite
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI16Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI64Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
@@ -77,7 +75,7 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
         )
         val rawRef = LLVM.LLVMAddFunction(module, fn.llvmName, functionType)
         fn.llvmRef = LlvmFunction(
-            LlvmValue(rawRef, LlvmFunctionAddressType),
+            LlvmConstant(rawRef, LlvmFunctionAddressType),
             functionType,
             getReferenceSiteType(fn.returnType),
             fn.parameters.map { getReferenceSiteType(it.type) }
@@ -95,10 +93,13 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
 
     fun registerGlobal(global: IrVariableDeclaration) {
         val allocationSiteType = getAllocationSiteType(global.type)
-        val allocation = addThreadLocalGlobal(LlvmValue(
-            LLVM.LLVMGetUndef(allocationSiteType.getRawInContext(this)),
-            allocationSiteType,
-        ))
+        val allocation = addGlobal(
+            LlvmConstant(
+                LLVM.LLVMGetUndef(allocationSiteType.getRawInContext(this)),
+                allocationSiteType,
+            ),
+            LlvmGlobal.ThreadLocalMode.LOCAL_DYNAMIC,
+        )
         global.emitRead = {
             allocation.dereference()
         }

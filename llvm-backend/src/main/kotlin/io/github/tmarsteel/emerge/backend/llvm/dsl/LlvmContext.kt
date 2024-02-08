@@ -1,6 +1,5 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import org.bytedeco.llvm.LLVM.LLVMContextRef
 import org.bytedeco.llvm.LLVM.LLVMModuleRef
 import org.bytedeco.llvm.LLVM.LLVMTargetDataRef
@@ -22,13 +21,10 @@ interface LlvmContext {
 
     fun addModuleInitFunction(initializer: LlvmFunction<LlvmVoidType>)
 
-    fun <T : LlvmType> addThreadLocalGlobal(initialValue: LlvmValue<T>): LlvmValue<LlvmPointerType<T>> {
-        require(initialValue.isConstant) {
-            "The given value must be a constant"
-        }
+    fun <T : LlvmType> addGlobal(initialValue: LlvmConstant<T>, mode: LlvmGlobal.ThreadLocalMode): LlvmGlobal<T> {
         val rawRef = LLVM.LLVMAddGlobal(module, initialValue.type.getRawInContext(this), globalsScope.next())
-        val allocation = LlvmValue(rawRef, pointerTo(initialValue.type))
-        LLVM.LLVMSetThreadLocal(rawRef, 1)
+        val allocation = LlvmGlobal(rawRef, initialValue.type)
+        LLVM.LLVMSetThreadLocalMode(rawRef, mode.llvmKindValue)
         LLVM.LLVMSetInitializer(rawRef, initialValue.raw)
         return allocation
     }

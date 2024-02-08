@@ -1,13 +1,14 @@
+/**
+ * TODO: rename file to core_language_types
+ */
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmCachedType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFixedIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI16Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI64Type
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
@@ -23,8 +24,13 @@ internal object LlvmWordType : LlvmCachedType(), LlvmIntegerType {
     override fun computeRaw(context: LlvmContext) = LLVM.LLVMIntTypeInContext(context.ref, LLVM.LLVMPointerSize(context.targetData) * 8)
 }
 
-internal fun LlvmContext.word(value: Int): LlvmValue<LlvmWordType> = LlvmValue(
+internal fun LlvmContext.word(value: Int): LlvmConstant<LlvmWordType> = LlvmConstant(
     LLVM.LLVMConstInt(LlvmWordType.getRawInContext(this), value.toLong(), 0),
+    LlvmWordType,
+)
+
+internal fun LlvmContext.word(value: Long): LlvmConstant<LlvmWordType> = LlvmConstant(
+    LLVM.LLVMConstInt(LlvmWordType.getRawInContext(this), value, 0),
     LlvmWordType,
 )
 

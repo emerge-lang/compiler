@@ -7,10 +7,10 @@ import org.bytedeco.llvm.global.LLVM
 fun <S : LlvmStructType, C : LlvmContext> S.buildConstantIn(
     context: C,
     data: ConstantStructBuilder<S, C>.() -> Unit,
-): LlvmValue<S> {
+): LlvmConstant<S> {
     val builder = ConstantStructBuilder(this, context)
     builder.data()
-    return LlvmValue(builder.build(), this)
+    return LlvmConstant(builder.build(), this)
 }
 
 class ConstantStructBuilder<S : LlvmStructType, C : LlvmContext>(
