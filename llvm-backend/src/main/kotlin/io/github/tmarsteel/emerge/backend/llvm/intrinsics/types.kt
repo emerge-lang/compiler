@@ -1,9 +1,5 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
-import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
-import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
-import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
-import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmCachedType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
@@ -19,8 +15,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
-import io.github.tmarsteel.emerge.backend.llvm.dsl.insertConstantInto
+import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.global.LLVM
 
@@ -35,6 +30,10 @@ internal fun LlvmContext.word(value: Int): LlvmValue<LlvmWordType> = LlvmValue(
 
 // TODO: prefix all the emerge-specific types with Emerge, so its EmergeTypeInfoType, EmergeAnyValueType, ...
 
+internal object AnyValueVirtualsType : LlvmStructType("anyvalue_virtuals") {
+    val dropFunction by structMember(LlvmFunctionAddressType)
+}
+
 internal object TypeinfoType : LlvmStructType("typeinfo") {
     val shiftRightAmount by structMember(LlvmWordType)
     val supertypes by structMember(
@@ -45,6 +44,7 @@ internal object TypeinfoType : LlvmStructType("typeinfo") {
             )
         )
     )
+    val anyvalueVirtuals by structMember(AnyValueVirtualsType)
     val vtableBlob by structMember(LlvmArrayType(0L, LlvmFunctionAddressType))
 }
 
@@ -58,13 +58,7 @@ internal object WeakReferenceCollectionType : LlvmStructType("weakrefcoll") {
 internal object AnyValueType : LlvmStructType("anyvalue") {
     val strongReferenceCount by structMember(LlvmVoidType)
     val typeinfo by structMember(pointerTo(TypeinfoType))
-    val anyObjectVirtualFunctions by structMember(LlvmArrayType(1, LlvmFunctionAddressType))
     val weakReferenceCollection by structMember(pointerTo(WeakReferenceCollectionType))
-}
-
-context(BasicBlockBuilder<EmergeLlvmContext, *>)
-internal fun GetElementPointerStep<AnyValueType>.deallocatorFunctionAddress() : GetElementPointerStep<LlvmFunctionAddressType> {
-    return member { anyObjectVirtualFunctions }.index(i32(0))
 }
 
 internal val PointerToAnyValue: LlvmPointerType<AnyValueType> = pointerTo(AnyValueType)
@@ -101,7 +95,7 @@ internal class ValueArrayType<Element : LlvmType>(
         val contentAsPointerPointer = PointerPointer(*constValues)
         val constantData = LLVM.LLVMConstArray2(elementsArray.type.getRawInContext(context), contentAsPointerPointer, data.size.toLong())
 
-        val constant = insertConstantInto(context) {
+        val constant = buildConstantIn(context) {
             setValue(strongReferenceCount, context.word(1))
             setValue(weakReferenceCollection, context.nullValue(pointerTo(WeakReferenceCollectionType)))
             setValue(elementCount, context.word(data.size))

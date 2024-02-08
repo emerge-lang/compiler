@@ -178,36 +178,60 @@ declare ptr @ByteBoxCtor(i8 %value)
   count is 0. If that's the case the code that just dropped the reference(count) needs to invoke the drop function
   for the reference (see below).
 
+### Static data
+
+Any program will need to reference static data that needs to appear like any other data created at runtime, first
+example that comes to mind being string literals. Thus, static data needs to have a reference counter that can be
+modified. This means that static data cannot live in readonly RAM pages. This bugs me, but i don't see an alternative
+with implicit refcounting. Rust solves this nicely with the `'static` lifetime, not a possibility for Emerge.
+
+**Consequence: static data must live in read+write RAM.**
+
+All global state visible to Emerge code is otherwise thread-local. Doing this with static data could easily lead
+to consuming much more memory than necessary. Static data also includes reflection data on the code, vtables, ...
+so it can easily grow big. E.g. say you have 2MiB of static data in your program and you launch 32 threads.
+Then the program is using 64MiB of RAM just for static data.  
+Granted, a system where 32 threads make sense wouldn't really mind an extra 64MiB of ram consumption, but its bugging
+me nonetheless. 
+Static data can be marked as fully `immutable`, so sharing between threads should<sup>TM</sup> not be a problem.
+
+**Consequence: static data will be shared across threads.**
+
+It must be impossible to deallocate static data. Sharing the static data across threads but still not doing
+atomic increment/decrement operations when counting references means that the reference counter on static
+objects is basically garbage info because it is subject to data races. Given correct reference counting it
+should never reach `0` from decrements. But the counter could overflow to `0`.
+
+**Consequence: object deallocation is 100% virtual/type specific. Calling the deallocator for a static value
+will do exactly nothing.**
+
 ### The drop function
 
-The `platform` package of each target must provide two drop functions. One for value-arrays, another for reference values,
-which includes reference-arrays and array-boxes.
-This function would also call the open `finalize` method on the reference objects, serving two purposes:
-* handle nested references decrementing and dropping
-* closing external resources like sockets, file handles, ...
+It needs to be defined by all types and is always dynamic dispatch. It has three tasks, in this order:
 
-Here is an example implementation using libc:
+1. void all `Weak` reference to the object
+2. recursively decrement reference counts on all referenced objects, potentially dropping them, too
+3. hand the objects memory back to the allocator/OS
+
+Voiding the Weak references is something that is _not_ type specific (see implementation details later in this document),
+so the `emerge.platform` package of each target must provide a `nullWeakReferences(Any)` function.
+
+The compiler would then generate the deallocator function for each type based off of this template:
 
 ```
 // void free (void *ptr) from libc
 external(C) fun free(ptr: COpaquePointer) -> Unit
 
-fun __dropReference(object: Any) {
-    val pointer = object as CPointer<uword>
-    
-    // the counter is always at the start of the object
-    assert(pointer.pointed == 0) { "Reference count not 0 when dropping: premature deallocation" }
+// imported from platform:
+intrinsic fun getReferenceCount(self: Any) -> uword
+intrinsic fun nullWeakReferences(self: Any) -> Unit
+
+fun __dropObject(object: Any) {
+    assert(pointer.getReferenceCount() == 0) { "Reference count not 0 when dropping: premature deallocation" }
     
     nullWeakReferences(object)
     
     object.finalize()
-    free(pointer)
-}
-
-fun __dropValueArray(arrayPointer: CPointer<uword>) {
-    assert(pointer.pointed == 0) { "Reference count not 0 when dropping: premature deallocation" }
-    
-    nullWeakReferences(object)
     
     free(pointer)
 }
@@ -368,7 +392,7 @@ hashes that still keeps them unique. So e.g. these hashes:
 
 | Hash                 | Function          |
 |----------------------|-------------------|
-| `0x9DEE000007F32200` | `finalize()`      |
+| `0x9DEE000007F32200` | `bar()`           |
 | `0x4ECAD20890000000` | `foo(x: Int)`     | 
 | `0x522773FF24CB1A07` | `foo(x: Boolean)` |
 
@@ -376,7 +400,7 @@ Then there can be these prefixes:
 
 | Prefix   | Function                 |
 |----------|--------------------------|
-| `0b1001` | `finalize()`             |
+| `0b1001` | `bar()`                  |
 | `0b0100` | `foo(x: Int)`            | 
 | `0b0101` | `foo(x: Boolean) -> Int` |
 
@@ -401,7 +425,7 @@ At the location of each functions prefix there would be the address of that func
     0b01110         0x0000000000000000
     0b01111         0x0000000000000000
     0b10000         0x0000000000000000
-    0b10001         0x000000000006c551   finalize()
+    0b10001         0x000000000006c551   bar()
     0b10010         0x0000000000000000
     0b10011         0x0000000000000000
     0b10100         0x0000000000000000
@@ -437,17 +461,17 @@ we can optimize and don't need to risk blowing the vtable to a large size due to
 The pointer to the virtual functions of `Any` are stored next to the vtable blob:
 
 ```llvm
+%anyvalue_virtuals = type {
+    ptr  ; deallocator, includes a call to type-specific finalize()
+}
+
 %typeinfo = type {
-    %word,      ; lshr offset for the function hashes
-    ptr,        ; pointer to a %valuearray of ptrs, each pointing at the vtable of one of the supertypes
-    [1 x ptr],  ; a ptr for each of the virtual functions defined on Any
-    [0 x ptr]   ; the vtable blob, as stated above 
+    %word,               ; lshr offset for the function hashes
+    ptr,                 ; pointer to a %valuearray of ptrs, each pointing at the %typeinfo of one of the supertypes
+    %anyvalue_virtuals,  ; a ptr for each of the virtual functions defined on Any
+    [0 x ptr]            ; the vtable blob, as stated above 
 }
 ```
-
-| virtual function on `Any`    | index |
-|------------------------------|-------|
-| destructor (name still TODO) | 0     |
 
 ### How vtables are accessed for a dynamic dispatch
 
