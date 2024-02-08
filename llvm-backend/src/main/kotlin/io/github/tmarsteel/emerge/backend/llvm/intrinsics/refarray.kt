@@ -5,17 +5,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 
-internal val EmergeReferenceArrayType: ArrayType<LlvmPointerType<AnyValueType>> = ArrayType(PointerToAnyValue, "ref") { context -> StaticAndDynamicTypeInfo.buildInContext(
-    context,
-    "array_ref",
-    emptyList(),
-    refArrayFinalize,
-    listOf(
-        context.word(ArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to I8BoxGetElement,
-        context.word(ArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to I8BoxSetElement,
-    )
-) }
-
 private val refArrayFinalize: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
     "refarray_finalize",
     LlvmVoidType,
@@ -26,3 +15,18 @@ private val refArrayFinalize: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType
         retVoid()
     }
 }
+
+internal val EmergeReferenceArrayType: ArrayType<LlvmPointerType<AnyValueType>> = ArrayType(
+    PointerToAnyValue,
+    StaticAndDynamicTypeInfo.define(
+        "array_ref",
+        emptyList(),
+        refArrayFinalize,
+    ) {
+        listOf(
+            word(ArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to I8BoxGetElement,
+            word(ArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to I8BoxSetElement,
+        )
+    },
+    "ref"
+)

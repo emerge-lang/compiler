@@ -8,14 +8,11 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrImplementedFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.llvm.SystemPropertyDelegate.Companion.systemProperty
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getSupertypePointers
 import io.github.tmarsteel.emerge.backend.llvm.packagesSeq
 import org.bytedeco.javacpp.BytePointer
 import org.bytedeco.llvm.global.LLVM
-import java.nio.channels.AsynchronousFileChannel
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.nio.file.StandardOpenOption
 
 class Linux_x68_64_Backend : EmergeBackend {
     override val targetName = "linux-x86_64"

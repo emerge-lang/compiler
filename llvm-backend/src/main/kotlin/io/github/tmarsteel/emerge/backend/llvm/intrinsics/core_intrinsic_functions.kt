@@ -24,6 +24,7 @@ internal val nullWeakReferences = KotlinLlvmFunction.define<EmergeLlvmContext, _
         retVoid()
     }
 }
+
 internal val getSupertypePointers = KotlinLlvmFunction.define<LlvmContext, _>(
     "getSupertypePointers",
     LlvmPointerType.pointerTo(EmergeArrayOfPointersToTypeInfoType),

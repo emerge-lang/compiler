@@ -14,8 +14,13 @@ interface LlvmContext {
     val opaquePointer: LlvmPointerType<LlvmVoidType>
     val globalsScope: NameScope
 
-    fun <T : LlvmType> nullValue(type: T): LlvmValue<T> = LlvmValue(
+    fun <T : LlvmType> nullValue(type: T): LlvmConstant<T> = LlvmConstant(
         LLVM.LLVMConstNull(type.getRawInContext(this)),
+        type,
+    )
+
+    fun <T : LlvmType> undefValue(type: T): LlvmConstant<T> = LlvmConstant(
+        LLVM.LLVMGetUndef(type.getRawInContext(this)),
         type,
     )
 

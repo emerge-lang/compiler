@@ -111,6 +111,17 @@ class LlvmArrayType<Element : LlvmType>(
     override fun getRawInContext(context: LlvmContext): LLVMTypeRef {
         return LLVM.LLVMArrayType2(elementType.getRawInContext(context), elementCount)
     }
+
+    fun <T> buildConstantIn(
+        context: LlvmContext,
+        data: Iterable<T>,
+        transform: (T) -> LlvmConstant<Element>,
+    ): LlvmConstant<LlvmArrayType<Element>> {
+        val dataArray = data.map { transform(it).raw }.toTypedArray()
+        val dataPointerPointer = PointerPointer(*dataArray)
+        val array = LLVM.LLVMConstArray2(elementType.getRawInContext(context), dataPointerPointer, dataArray.size.toLong())
+        return LlvmConstant(array, this)
+    }
 }
 
 object LlvmFunctionAddressType : LlvmType {

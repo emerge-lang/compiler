@@ -61,13 +61,16 @@ internal val I8BoxSetElement: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType
     }
 }
 
-internal val ValueArrayI8Type = ArrayType(LlvmI8Type) { context -> StaticAndDynamicTypeInfo.buildInContext(
-    context,
-    "valuearray_i8",
-    emptyList(),
-    valueArrayFinalize,
-    listOf(
-        context.word(ArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to I8BoxGetElement,
-        context.word(ArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to I8BoxSetElement,
-    )
-) }
+internal val ValueArrayI8Type = ArrayType(
+    LlvmI8Type,
+    StaticAndDynamicTypeInfo.define(
+        "valuearray_i8",
+        emptyList(),
+        valueArrayFinalize,
+    ) {
+        listOf(
+            word(ArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to I8BoxGetElement,
+            word(ArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to I8BoxSetElement,
+        )
+    }
+)

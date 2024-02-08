@@ -62,11 +62,11 @@ internal object AnyArrayType : LlvmStructType("anyarray") {
 
 internal class ArrayType<Element : LlvmType>(
     val elementType: Element,
-    typeNameSuffix: String = typeNameSuffix(elementType),
     /**
      * Has to return typeinfo that suits for an Array<E>. This is so boxed types can supply their type-specific virtual functions
      */
-    private val typeinfoBuilder: (EmergeLlvmContext) -> StaticAndDynamicTypeInfo,
+    private val typeinfo: StaticAndDynamicTypeInfo.Provider,
+    typeNameSuffix: String = typeNameSuffix(elementType),
 ) : LlvmStructType("array_$typeNameSuffix") {
     val base by structMember(AnyArrayType)
     val elements by structMember(LlvmArrayType(0L, elementType))
@@ -84,7 +84,7 @@ internal class ArrayType<Element : LlvmType>(
             setValue(base, AnyArrayType.buildConstantIn(context) {
                 setValue(AnyArrayType.anyBase, AnyValueType.buildConstantIn(context) {
                     setValue(AnyValueType.strongReferenceCount, context.word(1))
-                    setValue(AnyValueType.typeinfo, typeinfoBuilder(context).static)
+                    setValue(AnyValueType.typeinfo, typeinfo.provide(context).static)
                     setValue(AnyValueType.weakReferenceCollection, context.nullValue(pointerTo(WeakReferenceCollectionType)))
                 })
                 setValue(AnyArrayType.elementCount, context.word(data.size))

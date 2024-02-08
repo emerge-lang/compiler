@@ -1,5 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
+import com.google.common.collect.MapMaker
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
@@ -14,6 +15,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.poi
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
+import org.bytedeco.llvm.global.LLVM
 
 internal val staticValueDropFunction: KotlinLlvmFunction<LlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
     "drop_static",
@@ -72,32 +74,53 @@ private val ArrayOfPointersToTypeInfosSetElement: KotlinLlvmFunction<EmergeLlvmC
     }
 }
 
-internal val EmergeArrayOfPointersToTypeInfoType = ArrayType(pointerTo(TypeinfoType), "pointer_to_typeinfo") { context ->
-    StaticAndDynamicTypeInfo.buildInContext(
-        context,
+internal val EmergeArrayOfPointersToTypeInfoType = ArrayType(
+    pointerTo(TypeinfoType),
+    StaticAndDynamicTypeInfo.define(
         "valuearray_pointers_to_typeinfo",
         emptyList(),
-        valueArrayFinalize,
+        valueArrayFinalize
+    ) {
         listOf(
-            context.word(ArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to ArrayOfPointersToTypeInfosGetElement,
-            context.word(ArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to ArrayOfPointersToTypeInfosSetElement,
+            word(ArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to ArrayOfPointersToTypeInfosGetElement,
+            word(ArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to ArrayOfPointersToTypeInfosSetElement,
         )
-    )
-}
+    },
+    "pointer_to_typeinfo",
+)
 
 internal class StaticAndDynamicTypeInfo private constructor(
     val context: EmergeLlvmContext,
     val dynamic: LlvmGlobal<TypeinfoType>,
     val static: LlvmGlobal<TypeinfoType>,
 ) {
-    companion object {
-        fun buildInContext(
-            context: EmergeLlvmContext,
-            typeName: String,
-            supertypes: List<LlvmConstant<LlvmPointerType<TypeinfoType>>>,
-            finalizerFunction: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
-            virtualFunctions: List<Pair<LlvmConstant<LlvmWordType>, KotlinLlvmFunction<*, *>>>,
-        ) : StaticAndDynamicTypeInfo {
+    interface Provider {
+        fun provide(context: EmergeLlvmContext): StaticAndDynamicTypeInfo
+    }
+
+    private class ProviderImpl(
+        val typeName: String,
+        val supertypes: List<LlvmConstant<LlvmPointerType<TypeinfoType>>>,
+        val finalizerFunction: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
+        val virtualFunctions: EmergeLlvmContext.() -> List<Pair<LlvmConstant<LlvmWordType>, KotlinLlvmFunction<*, *>>>,
+    ) : Provider {
+        private val byContext: MutableMap<LlvmContext, StaticAndDynamicTypeInfo> = MapMaker().weakKeys().makeMap()
+        override fun provide(context: EmergeLlvmContext): StaticAndDynamicTypeInfo {
+            byContext[context]?.let { return it }
+            val dynamicGlobal = context.addGlobal(context.undefValue(TypeinfoType), LlvmGlobal.ThreadLocalMode.SHARED)
+            val staticGlobal = context.addGlobal(context.undefValue(TypeinfoType), LlvmGlobal.ThreadLocalMode.SHARED)
+            val bundle = StaticAndDynamicTypeInfo(context, dynamicGlobal, staticGlobal)
+            // register now to break loops
+            byContext[context] = bundle
+
+            val (dynamicConstant, staticConstant) = build(context)
+            LLVM.LLVMSetInitializer(dynamicGlobal.raw, dynamicConstant.raw)
+            LLVM.LLVMSetInitializer(staticGlobal.raw, staticConstant.raw)
+
+            return bundle
+        }
+
+        private fun build(context: EmergeLlvmContext): Pair<LlvmConstant<TypeinfoType>, LlvmConstant<TypeinfoType>> {
             val dropFunction = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>(
                 "drop_$typeName",
                 LlvmVoidType
@@ -124,9 +147,8 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 })
                 setValue(TypeinfoType.vtableBlob, vtableBlob)
             }
-            val typeinfoDynamicGlobal = context.addGlobal(typeinfoDynamicData, LlvmGlobal.ThreadLocalMode.SHARED)
 
-            val staticSupertypesData = EmergeArrayOfPointersToTypeInfoType.buildConstantIn(context, supertypes + listOf(typeinfoDynamicGlobal), { it })
+            val staticSupertypesData = EmergeArrayOfPointersToTypeInfoType.buildConstantIn(context, supertypes, { it })
             val staticSupertypesGlobal = context.addGlobal(staticSupertypesData, LlvmGlobal.ThreadLocalMode.SHARED)
 
             val typeinfoStaticData = TypeinfoType.buildConstantIn(context) {
@@ -135,10 +157,19 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 setValue(TypeinfoType.anyValueVirtuals, AnyValueVirtualsType.buildConstantIn(context) {
                     setValue(AnyValueVirtualsType.dropFunction, staticValueDropFunction.getInContext(context).address)
                 })
+                setValue(TypeinfoType.vtableBlob, vtableBlob)
             }
-            val typeinfoStaticGlobal = context.addGlobal(typeinfoStaticData, LlvmGlobal.ThreadLocalMode.SHARED)
 
-            return StaticAndDynamicTypeInfo(context, typeinfoDynamicGlobal, typeinfoStaticGlobal)
+            return Pair(typeinfoDynamicData, typeinfoStaticData)
         }
+    }
+
+    companion object {
+        fun define(
+            typeName: String,
+            supertypes: List<LlvmConstant<LlvmPointerType<TypeinfoType>>>,
+            finalizerFunction: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
+            virtualFunctions: EmergeLlvmContext.() -> List<Pair<LlvmConstant<LlvmWordType>, KotlinLlvmFunction<*, *>>>,
+        ): Provider = ProviderImpl(typeName, supertypes, finalizerFunction, virtualFunctions)
     }
 }
