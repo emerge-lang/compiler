@@ -1,15 +1,21 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
+import com.google.common.collect.MapMaker
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMValueRef
 import org.bytedeco.llvm.global.LLVM
 import kotlin.reflect.KProperty
 
-class KotlinLlvmFunction<C : LlvmContext, R : LlvmType> private constructor(
+class KotlinLlvmFunction<in C : LlvmContext, R : LlvmType> private constructor(
     private val buildAndAdd: (C) -> LlvmFunction<R>,
 ) {
-    fun addTo(context: C): LlvmFunction<R> {
-        return buildAndAdd(context)
+    private val inContext: MutableMap<LlvmContext, LlvmFunction<*>> = MapMaker().weakKeys().makeMap()
+
+    fun getInContext(context: C): LlvmFunction<R> {
+        @Suppress("UNCHECKED_CAST")
+        return inContext.computeIfAbsent(context) {
+            buildAndAdd(context)
+        } as LlvmFunction<R>
     }
 
     companion object {
@@ -26,10 +32,10 @@ class KotlinLlvmFunction<C : LlvmContext, R : LlvmType> private constructor(
         fun <C : LlvmContext, R : LlvmType> define(
             name: String,
             returnType: R,
-            body: DefineFunctionBuilderContext<C, R>.() -> Unit
+            definition: DefineFunctionBuilderContext<C, R>.() -> Unit
         ) = KotlinLlvmFunction<C, R> { context ->
             val fnContext = DefineFunctionBuilderContextImpl(context, returnType)
-            fnContext.body()
+            fnContext.definition()
             fnContext.buildAndAdd(name)
         }
     }
@@ -80,7 +86,7 @@ private abstract class BaseFunctionBuilderContext<C : LlvmContext, R : LlvmType>
         )
         val rawFunction = LLVM.LLVMAddFunction(context.module, name, functionType)
         return LlvmFunction(
-            LlvmValue(rawFunction, LlvmFunctionAddressType),
+            LlvmConstant(rawFunction, LlvmFunctionAddressType),
             functionType,
             returnType,
             parameters.map { it.type }

@@ -40,87 +40,73 @@ internal object AnyValueVirtualsType : LlvmStructType("anyvalue_virtuals") {
     val dropFunction by structMember(LlvmFunctionAddressType)
 }
 
-internal object TypeinfoType : LlvmStructType("typeinfo") {
-    val shiftRightAmount by structMember(LlvmWordType)
-    val supertypes by structMember(
-        pointerTo(
-            ValueArrayType(
-                pointerTo(this@TypeinfoType),
-                this@TypeinfoType.name,
-            )
-        )
-    )
-    val anyvalueVirtuals by structMember(AnyValueVirtualsType)
-    val vtableBlob by structMember(LlvmArrayType(0L, LlvmFunctionAddressType))
-}
+internal val PointerToAnyValue: LlvmPointerType<AnyValueType> = pointerTo(AnyValueType)
 
 internal object WeakReferenceCollectionType : LlvmStructType("weakrefcoll") {
     val weakObjects = structMember(
-        LlvmArrayType(10, PointerToAnyValue)
+        LlvmArrayType(10, pointerTo(AnyValueType))
     )
     val next = structMember(pointerTo(this@WeakReferenceCollectionType))
 }
 
 internal object AnyValueType : LlvmStructType("anyvalue") {
-    val strongReferenceCount by structMember(LlvmVoidType)
+    val strongReferenceCount by structMember(LlvmWordType)
     val typeinfo by structMember(pointerTo(TypeinfoType))
     val weakReferenceCollection by structMember(pointerTo(WeakReferenceCollectionType))
 }
 
-internal val PointerToAnyValue: LlvmPointerType<AnyValueType> = pointerTo(AnyValueType)
-
-/*
-TODO: refactor array types to be as in the README.
-Will probably leave us with just one array type where value-arrays are ArrayType<LlvmI8Type>, ...
-and reference arrays are ArrayType<PointerToAnyValue>.
- */
-
-internal class ReferenceArrayType<Element : LlvmType>(
-    val elementType: Element,
-) : LlvmStructType("refarray") {
-    val base by structMember(AnyValueType)
+internal object AnyArrayType : LlvmStructType("anyarray") {
+    val anyBase by structMember(AnyValueType)
     val elementCount by structMember(LlvmWordType)
-    val elementsArray by structMember(LlvmArrayType(0L, elementType))
 }
 
-internal class ValueArrayType<Element : LlvmType>(
-    elementType: Element,
-    valueTypeName: String,
-) : LlvmStructType("valuearray_$valueTypeName") {
-    val strongReferenceCount by structMember(LlvmWordType)
-    val weakReferenceCollection by structMember(pointerTo(WeakReferenceCollectionType))
-    val elementCount by structMember(LlvmWordType)
-    val elementsArray by structMember(LlvmArrayType(0L, elementType))
+internal class ArrayType<Element : LlvmType>(
+    val elementType: Element,
+    typeNameSuffix: String = typeNameSuffix(elementType),
+    /**
+     * Has to return typeinfo that suits for an Array<E>. This is so boxed types can supply their type-specific virtual functions
+     */
+    private val typeinfoBuilder: (EmergeLlvmContext) -> StaticAndDynamicTypeInfo,
+) : LlvmStructType("array_$typeNameSuffix") {
+    val base by structMember(AnyArrayType)
+    val elements by structMember(LlvmArrayType(0L, elementType))
 
-    fun <Raw> insertThreadLocalGlobalInto(
-        context: LlvmContext,
+    fun <Raw> buildConstantIn(
+        context: EmergeLlvmContext,
         data: Collection<Raw>,
         rawTransform: (Raw) -> LlvmValue<Element>,
-    ): LlvmValue<ValueArrayType<Element>> {
+    ): LlvmConstant<ArrayType<Element>> {
         val constValues = data.map { rawTransform(it).raw }.toTypedArray()
         val contentAsPointerPointer = PointerPointer(*constValues)
-        val constantData = LLVM.LLVMConstArray2(elementsArray.type.getRawInContext(context), contentAsPointerPointer, data.size.toLong())
+        val constantData = LLVM.LLVMConstArray2(elements.type.getRawInContext(context), contentAsPointerPointer, data.size.toLong())
 
-        val constant = buildConstantIn(context) {
-            setValue(strongReferenceCount, context.word(1))
-            setValue(weakReferenceCollection, context.nullValue(pointerTo(WeakReferenceCollectionType)))
-            setValue(elementCount, context.word(data.size))
-            setValue(elementsArray, LlvmValue(constantData, elementsArray.type))
+        return buildConstantIn(context) {
+            setValue(base, AnyArrayType.buildConstantIn(context) {
+                setValue(AnyArrayType.anyBase, AnyValueType.buildConstantIn(context) {
+                    setValue(AnyValueType.strongReferenceCount, context.word(1))
+                    setValue(AnyValueType.typeinfo, typeinfoBuilder(context).static)
+                    setValue(AnyValueType.weakReferenceCollection, context.nullValue(pointerTo(WeakReferenceCollectionType)))
+                })
+                setValue(AnyArrayType.elementCount, context.word(data.size))
+            })
+            setValue(elements, LlvmValue(constantData, elements.type))
         }
-
-        val globalRef = LLVM.LLVMAddGlobal(context.module, this.getRawInContext(context), context.globalsScope.next())
-        LLVM.LLVMSetInitializer(globalRef, constant.raw)
-        LLVM.LLVMSetThreadLocal(globalRef, 1)
-
-        return LlvmValue(globalRef, this)
     }
 
     companion object {
-        val i8s = ValueArrayType(LlvmI8Type, "i8")
-        val i16s = ValueArrayType(LlvmI16Type, "i16")
-        val i32s = ValueArrayType(LlvmI32Type, "i32")
-        val i64s = ValueArrayType(LlvmI64Type, "i64")
-        val words = ValueArrayType(LlvmWordType, "word")
+        val VIRTUAL_FUNCTION_HASH_GET_ELEMENT: Long = 0b0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000
+        val VIRTUAL_FUNCTION_HASH_SET_ELEMENT: Long = 0b0100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000
+
+        /**
+         * @return the suffix for the llvm type, based on the array elements. E.g. `i32` or `ptr`
+         * @throws IllegalArgumentException if the suffix is not defined for the element type.
+         */
+        fun typeNameSuffix(elementType: LlvmType): String = when {
+            elementType is LlvmFixedIntegerType -> "i${elementType.nBits}"
+            elementType is LlvmWordType -> "word"
+            elementType is LlvmPointerType<*> && (elementType.pointed == LlvmVoidType) -> "ptr"
+            elementType is LlvmPointerType<*> && (elementType.pointed is AnyArrayType || elementType.pointed is EmergeStructType) -> "ref"
+            else -> throw IllegalArgumentException("The LLVM array-type suffix for element type $elementType is not defined")
+        }
     }
 }
-

@@ -150,7 +150,7 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
             }
         }
 
-        addModuleInitFunction(initializeGlobalsFn.addTo(this))
+        addModuleInitFunction(initializeGlobalsFn.getInContext(this))
         base.complete()
     }
 
@@ -186,12 +186,12 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
                 "emerge.core.Array" -> {
                     val component = type.arguments.values.single()
                     if (component.variance == IrTypeVariance.IN || component.type !is IrSimpleType) {
-                        return ReferenceArrayType(getAllocationSiteType(component.type))
+                        return EmergeReferenceArrayType
                     }
 
                     when ((component.type as IrSimpleType).baseType.fqn.toString()) {
-                        "emerge.core.Byte" -> return ValueArrayType.i8s
-                        "emerge.core.Any" -> return ReferenceArrayType(AnyValueType)
+                        "emerge.core.Byte" -> return ValueArrayI8Type
+                        "emerge.core.Any" -> return EmergeReferenceArrayType
                         else -> TODO("other intrinsic types??")
                     }
                 }
