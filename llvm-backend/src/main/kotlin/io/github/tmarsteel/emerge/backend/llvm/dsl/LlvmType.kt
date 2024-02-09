@@ -61,7 +61,7 @@ abstract class LlvmStructType(
 ) : LlvmCachedType() {
     private var observed = false
 
-    override fun computeRaw(context: LlvmContext): LLVMTypeRef {
+    final override fun computeRaw(context: LlvmContext): LLVMTypeRef {
         observed = true
         val structType = LLVM.LLVMStructCreateNamed(context.ref, name)
         val elements = PointerPointer(*membersInOrder.map { it.type.getRawInContext(context) }.toTypedArray())
