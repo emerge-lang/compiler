@@ -74,20 +74,22 @@ private val ArrayOfPointersToTypeInfosSetElement: KotlinLlvmFunction<EmergeLlvmC
     }
 }
 
-internal val EmergeArrayOfPointersToTypeInfoType = ArrayType(
-    pointerTo(TypeinfoType),
-    StaticAndDynamicTypeInfo.define(
-        "valuearray_pointers_to_typeinfo",
-        emptyList(),
-        valueArrayFinalize
-    ) {
-        listOf(
-            word(ArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to ArrayOfPointersToTypeInfosGetElement,
-            word(ArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to ArrayOfPointersToTypeInfosSetElement,
-        )
-    },
-    "pointer_to_typeinfo",
-)
+internal val EmergeArrayOfPointersToTypeInfoType by lazy {
+    ArrayType(
+        pointerTo(TypeinfoType),
+        StaticAndDynamicTypeInfo.define(
+            "valuearray_pointers_to_typeinfo",
+            emptyList(),
+            valueArrayFinalize
+        ) {
+            listOf(
+                word(ArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to ArrayOfPointersToTypeInfosGetElement,
+                word(ArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to ArrayOfPointersToTypeInfosSetElement,
+            )
+        },
+        "pointer_to_typeinfo",
+    )
+}
 
 internal class StaticAndDynamicTypeInfo private constructor(
     val context: EmergeLlvmContext,
