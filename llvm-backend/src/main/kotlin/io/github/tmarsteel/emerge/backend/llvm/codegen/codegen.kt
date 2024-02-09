@@ -7,8 +7,9 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
-import io.github.tmarsteel.emerge.backend.api.ir.IrStaticByteArrayExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrStringLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 import io.github.tmarsteel.emerge.backend.api.ir.IrStructMemberAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAssignment
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -81,16 +82,12 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, out LlvmType>.emitExpressionCo
 ): LlvmValue<LlvmType> {
     println("Emitting $expression")
     when (expression) {
-        is IrStaticByteArrayExpression -> {
-            expression.global?.let { return it }
-            val constant = ValueArrayI8Type.buildConstantIn(
-                context,
-                expression.content.asList(),
-                context::i8,
-            )
-            val global = addGlobal(constant, LlvmGlobal.ThreadLocalMode.SHARED)
-            expression.global = global
-            return global
+        is IrStringLiteralExpression -> {
+            val stringIrStruct = (expression.evaluatesTo as IrSimpleType).baseType as IrStruct
+            val irCtor = stringIrStruct.constructors.overloads.single()
+            check(irCtor.parameters.single().typeForAllocationSite === ValueArrayI8Type)
+            val byteArrayPtr = expression.assureByteArrayConstantIn(context)
+            return call(irCtor.llvmRef!!, listOf(byteArrayPtr))
         }
         is IrStructMemberAccessExpression -> {
             // TODO: throw + catch
@@ -102,7 +99,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, out LlvmType>.emitExpressionCo
             if (!expression.member.isCPointerPointed || expression.evaluatesTo.llvmValueType == null) {
                 return memberPtr
             }
-            return  memberPtr.dereference()
+            return memberPtr.dereference()
         }
         is IrStaticDispatchFunctionInvocationExpression -> {
             return call(expression.function.llvmRef!!, expression.arguments.map { emitExpressionCode(it) })
@@ -147,4 +144,15 @@ internal var IrVariableDeclaration.emitRead: (BasicBlockBuilder<EmergeLlvmContex
  */
 internal var IrVariableDeclaration.emitWrite: (BasicBlockBuilder<EmergeLlvmContext, *>.(v: LlvmValue<LlvmType>) -> Unit)? by tackState { null }
 
-internal var IrStaticByteArrayExpression.global: LlvmGlobal<ArrayType<LlvmI8Type>>? by tackState { null }
+internal var IrStringLiteralExpression.byteArrayGlobal: LlvmGlobal<ArrayType<LlvmI8Type>>? by tackState { null }
+internal fun IrStringLiteralExpression.assureByteArrayConstantIn(context: EmergeLlvmContext): LlvmGlobal<ArrayType<LlvmI8Type>> {
+    byteArrayGlobal?.let { return it }
+    val constant = ValueArrayI8Type.buildConstantIn(
+        context,
+        utf8Bytes.asList(),
+        { context.i8(it) }
+    )
+    val global = context.addGlobal(constant, LlvmGlobal.ThreadLocalMode.SHARED)
+    byteArrayGlobal = global
+    return global
+}

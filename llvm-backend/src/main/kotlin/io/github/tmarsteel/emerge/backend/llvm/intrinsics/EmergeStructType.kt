@@ -16,10 +16,12 @@ import org.bytedeco.llvm.global.LLVM
  * TODO: add the [AnyValueType] as base!!
  */
 class EmergeStructType private constructor(
+    val context: EmergeLlvmContext,
     val structRef: LLVMTypeRef,
     val irStruct: IrStruct,
 ) : LlvmType {
     override fun getRawInContext(context: LlvmContext): LLVMTypeRef {
+        check(context === context)
         return structRef
     }
 
@@ -36,7 +38,7 @@ class EmergeStructType private constructor(
             val elements = PointerPointer(*irStruct.members.map { context.getReferenceSiteType(it.type).getRawInContext(context) }.toTypedArray())
             LLVM.LLVMStructSetBody(structRef, elements, irStruct.members.size, 0)
 
-            return EmergeStructType(structRef, irStruct)
+            return EmergeStructType(context, structRef, irStruct)
         }
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)

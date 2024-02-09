@@ -6,11 +6,8 @@ sealed interface IrExpression : IrStatement {
     val evaluatesTo: IrType
 }
 
-/**
- * Static representation of opaque/serialized data, e.g. the contents of a string.
- */
-interface IrStaticByteArrayExpression : IrExpression {
-    val content: ByteArray
+interface IrStringLiteralExpression : IrExpression {
+    val utf8Bytes: ByteArray
 }
 
 interface IrStaticDispatchFunctionInvocationExpression : IrExpression {

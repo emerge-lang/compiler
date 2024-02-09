@@ -18,6 +18,7 @@ import io.github.tmarsteel.emerge.backend.llvm.codegen.emitCode
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitExpressionCode
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitRead
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitWrite
+import io.github.tmarsteel.emerge.backend.llvm.codegen.typeForAllocationSite
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
@@ -88,6 +89,7 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
             param.emitWrite = {
                 throw CodeGenerationException("Writing to function parameters is forbidden.")
             }
+            param.typeForAllocationSite = getAllocationSiteType(param.type)
         }
     }
 
