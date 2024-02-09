@@ -98,6 +98,34 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
         return LlvmValue(result, function.returnType)
     }
 
+    fun <T : LlvmIntegerType> ptrtoint(pointer: LlvmValue<LlvmPointerType<*>>, integerType: T): LlvmValue<T> {
+        checkNotTerminated()
+
+        val inst = LLVM.LLVMBuildPtrToInt(builder, pointer.raw, integerType.getRawInContext(context), tmpVars.next())
+        return LlvmValue(inst, integerType)
+    }
+
+    fun memcpy(destination: LlvmValue<LlvmPointerType<*>>, source: LlvmValue<LlvmPointerType<*>>, nBytes: LlvmValue<LlvmIntegerType>, volatile: Boolean = false) {
+        checkNotTerminated()
+
+        // TODO: alignment; 1 is bad
+        val inst = LLVM.LLVMBuildMemCpy(builder, destination.raw, 1, source.raw, 1, nBytes.raw)
+        if (volatile) {
+            LLVM.LLVMSetVolatile(inst, 1)
+        }
+    }
+
+    internal fun LlvmType.sizeof(): LlvmValue<LlvmI32Type> {
+        // thanks to https://stackoverflow.com/questions/14608250/how-can-i-find-the-size-of-a-type
+        val pointerFromNullToSize = getelementptr(
+            context.nullValue(LlvmPointerType(this)),
+            i32(1)
+        )
+            .get()
+
+        return ptrtoint(pointerFromNullToSize, LlvmI32Type)
+    }
+
     fun ret(value: LlvmValue<R>): Termination {
         markTerminated()
 

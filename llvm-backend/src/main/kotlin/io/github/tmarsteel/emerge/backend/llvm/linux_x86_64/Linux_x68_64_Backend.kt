@@ -7,6 +7,9 @@ import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplementedFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.llvm.SystemPropertyDelegate.Companion.systemProperty
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.packagesSeq
 import org.bytedeco.javacpp.BytePointer
@@ -34,7 +37,17 @@ class Linux_x68_64_Backend : EmergeBackend {
             softwareContext.modules.flatMap { it.packages }.forEach { pkg ->
                 pkg.functions
                     .flatMap { it.overloads }
-                    .forEach(llvmContext::registerFunction)
+                    .forEach {
+                        val fn = llvmContext.registerFunction(it)
+                        if (it.fqn == allocatorFunctionName) {
+                            @Suppress("UNCHECKED_CAST")
+                            llvmContext.allocateFunction = fn as LlvmFunction<LlvmPointerType<LlvmVoidType>>
+                        }
+                        if (it.fqn == freeFunctionName) {
+                            @Suppress("UNCHECKED_CAST")
+                            llvmContext.freeFunction = fn as LlvmFunction<LlvmVoidType>
+                        }
+                    }
             }
             softwareContext.modules.flatMap { it.packages }
                 .flatMap { it.variables }
@@ -73,6 +86,9 @@ class Linux_x68_64_Backend : EmergeBackend {
         val FFI_C_SOURCES_PATH by systemProperty("emerge.compiler.native.c-ffi-sources", Paths::get)
         val LINUX_LIBC_SOURCES_PATH by systemProperty("emerge.compiler.native.libc-wrapper.sources", Paths::get)
         val LINUX_PLATFORM_PATH by systemProperty("emerge.compiler.native.linux-platform.sources", Paths::get)
+
+        private val allocatorFunctionName = DotName(listOf("emerge", "linux", "libc", "malloc"))
+        private val freeFunctionName = DotName(listOf("emerge", "linux", "libc", "free"))
     }
 }
 

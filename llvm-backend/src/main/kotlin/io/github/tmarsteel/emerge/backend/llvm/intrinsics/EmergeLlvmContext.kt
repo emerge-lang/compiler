@@ -42,6 +42,20 @@ import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.global.LLVM
 
 class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
+    /**
+     * The function that allocates heap memory. Semantically equivalent to libcs
+     * `void* malloc(size_t size)`.
+     * Must be set by the backend class after [registerFunction]
+     */
+    lateinit var allocateFunction: LlvmFunction<LlvmPointerType<LlvmVoidType>>
+
+    /**
+     * The function the deallocates heap memory. Semantically equivalent to libcs
+     * `void free(void* memory)`
+     * Must be set by the backend class after [registerFunction]
+     */
+    lateinit var freeFunction: LlvmFunction<LlvmVoidType>
+
     fun registerStruct(struct: IrStruct) {
         if (struct.rawLlvmRef != null) {
             return
@@ -63,10 +77,8 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
         struct.constructors.overloads.forEach(this::registerFunction)
     }
 
-    fun registerFunction(fn: IrFunction) {
-        if (fn.llvmRef != null) {
-            return
-        }
+    fun registerFunction(fn: IrFunction): LlvmFunction<*> {
+        fn.llvmRef?.let { return it }
 
         val functionType = LLVM.LLVMFunctionType(
             getReferenceSiteType(fn.returnType).getRawInContext(this),
@@ -91,6 +103,8 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
             }
             param.typeForAllocationSite = getAllocationSiteType(param.type)
         }
+
+        return fn.llvmRef!!
     }
 
     fun registerGlobal(global: IrVariableDeclaration) {
@@ -233,4 +247,10 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
             }
         }
     }
+}
+
+fun <T : LlvmType> BasicBlockBuilder<EmergeLlvmContext, *>.heapAllocate(type: T): LlvmValue<LlvmPointerType<T>> {
+    val size = type.sizeof()
+    val voidPtr = call(context.allocateFunction, listOf(size))
+    return LlvmValue(voidPtr.raw, pointerTo(type))
 }
