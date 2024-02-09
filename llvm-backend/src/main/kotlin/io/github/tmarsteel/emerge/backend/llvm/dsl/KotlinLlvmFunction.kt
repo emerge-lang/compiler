@@ -97,7 +97,7 @@ private abstract class BaseFunctionBuilderContext<C : LlvmContext, R : LlvmType>
 private class DeclareFunctionBuilderContextImpl<C : LlvmContext, R : LlvmType>(
     context: C,
     returnType: R,
-) : BaseFunctionBuilderContext<C, R>(context, returnType), LlvmContext by context {
+) : BaseFunctionBuilderContext<C, R>(context, returnType) {
     private var built = false
     override fun buildAndAdd(name: String): LlvmFunction<R> {
         check(!built) { "Already built" }
@@ -110,7 +110,7 @@ private class DeclareFunctionBuilderContextImpl<C : LlvmContext, R : LlvmType>(
 private class DefineFunctionBuilderContextImpl<C : LlvmContext, R : LlvmType>(
     private val context: C,
     returnType: R,
-) : BaseFunctionBuilderContext<C, R>(context, returnType), DefineFunctionBuilderContext<C, R>, LlvmContext by context {
+) : BaseFunctionBuilderContext<C, R>(context, returnType), DefineFunctionBuilderContext<C, R> {
     private var state = State.PRELUDE
     private lateinit var bodyBuilder: CodeGenerator<C, R>
 

@@ -50,7 +50,7 @@ internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.incrementStrong
     val referenceCountPtr = this.anyValueBase().member { strongReferenceCount }.get()
 
     store(
-        add(referenceCountPtr.dereference(), word(1)),
+        add(referenceCountPtr.dereference(), context.word(1)),
         referenceCountPtr,
     )
 }

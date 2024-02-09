@@ -41,7 +41,9 @@ import io.github.tmarsteel.emerge.backend.llvm.rawLlvmRef
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.global.LLVM
 
-class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
+class EmergeLlvmContext(
+    targetTriple: String,
+) : LlvmContext(targetTriple) {
     /**
      * The function that allocates heap memory. Semantically equivalent to libcs
      * `void* malloc(size_t size)`.
@@ -132,7 +134,6 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
             throw CodeGenerationException("Cannot define body for function ${fn.fqn} multiple times!")
         }
 
-        println("Emitting code for ${fn.fqn}")
         val entryBlock = LLVM.LLVMAppendBasicBlockInContext(ref, llvmFunction.address.raw, "entry")
         BasicBlockBuilder.fill(this, entryBlock) {
             emitCode(fn.body)
@@ -169,7 +170,7 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
         }
 
         addModuleInitFunction(initializeGlobalsFn.getInContext(this))
-        base.complete()
+        super.complete()
     }
 
     /**
@@ -244,9 +245,7 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
 
     companion object {
         fun createDoAndDispose(targetTriple: String, action: (EmergeLlvmContext) -> Unit) {
-            return LlvmContext.createDoAndDispose(targetTriple) {
-                action(EmergeLlvmContext(it))
-            }
+            return EmergeLlvmContext(targetTriple).use(action)
         }
     }
 }

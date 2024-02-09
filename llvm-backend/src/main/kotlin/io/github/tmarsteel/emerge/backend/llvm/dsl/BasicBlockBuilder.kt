@@ -10,7 +10,7 @@ import org.bytedeco.llvm.global.LLVM
 class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
     val context: C,
     private val basicBlock: LLVMBasicBlockRef,
-) : LlvmContext by context, AutoCloseable {
+) : AutoCloseable {
     private val builder = LLVM.LLVMCreateBuilder()
     private val tmpVars = NameScope("tmp")
     init {
@@ -121,7 +121,7 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
         // thanks to https://stackoverflow.com/questions/14608250/how-can-i-find-the-size-of-a-type
         val pointerFromNullToSize = getelementptr(
             context.nullValue(LlvmPointerType(this)),
-            i32(1)
+            context.i32(1)
         )
             .get()
 

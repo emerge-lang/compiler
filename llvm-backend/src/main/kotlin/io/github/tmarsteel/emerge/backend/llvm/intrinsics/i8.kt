@@ -64,7 +64,7 @@ internal val I8BoxSetElement: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType
 internal val ValueArrayI8Type = ArrayType(
     LlvmI8Type,
     StaticAndDynamicTypeInfo.define(
-        "valuearray_i8",
+        "array_i8",
         emptyList(),
         valueArrayFinalize,
     ) {

@@ -79,7 +79,6 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
 internal fun BasicBlockBuilder<EmergeLlvmContext, out LlvmType>.emitExpressionCode(
     expression: IrExpression,
 ): LlvmValue<LlvmType> {
-    println("Emitting $expression")
     when (expression) {
         is IrStringLiteralExpression -> {
             val llvmStructWrapper = context.getAllocationSiteType(expression.evaluatesTo) as EmergeStructType
@@ -108,15 +107,15 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, out LlvmType>.emitExpressionCo
         is IrIntegerLiteralExpression -> {
             // TODO: these conversions are not correct; just to get it working for now
             val value = when ((expression.evaluatesTo as IrSimpleType).baseType.fqn.toString()) {
-                "emerge.core.Byte" -> i8(expression.value.byteValueExact())
+                "emerge.core.Byte" -> context.i8(expression.value.byteValueExact())
                 "emerge.core.UByte" -> TODO()
-                "emerge.core.Short" -> i16(expression.value.shortValueExact())
+                "emerge.core.Short" -> context.i16(expression.value.shortValueExact())
                 "emerge.core.UShort" -> TODO()
-                "emerge.core.Int" -> i32(expression.value.intValueExact())
+                "emerge.core.Int" -> context.i32(expression.value.intValueExact())
                 "emerge.core.UInt" -> TODO()
-                "emerge.core.Long" -> i64(expression.value.longValueExact())
+                "emerge.core.Long" -> context.i64(expression.value.longValueExact())
                 "emerge.core.ULong" -> TODO()
-                "emerge.core.iword" -> word(expression.value.intValueExact())
+                "emerge.core.iword" -> context.word(expression.value.intValueExact())
                 "emerge.core.uword" -> TODO()
                 else -> throw CodeGenerationException("Unsupport integer literal type ${expression.evaluatesTo}")
             }

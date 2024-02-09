@@ -58,7 +58,7 @@ sealed class GetElementPointerStep<P : LlvmType> private constructor(
         ): GetElementPointerStep<MemberType> {
             val member = accessor(pointeeType)
             return stepUnsafe(
-                i32(member.indexInStruct),
+                context.i32(member.indexInStruct),
                 member.type,
             )
         }

@@ -96,7 +96,7 @@ internal class EmergeStructType private constructor(
         require(value.type.pointed is EmergeStructType)
         @Suppress("UNCHECKED_CAST")
         return builder.getelementptr(value as LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>)
-            .stepUnsafe(builder.i32(0), AnyValueType)
+            .stepUnsafe(builder.context.i32(0), AnyValueType)
     }
 
     companion object {
@@ -124,7 +124,7 @@ internal class EmergeStructType private constructor(
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
         internal fun GetElementPointerStep<EmergeStructType>.anyValueBase(): GetElementPointerStep<AnyValueType> {
-            return stepUnsafe(i32(0), AnyValueType)
+            return stepUnsafe(context.i32(0), AnyValueType)
         }
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
@@ -134,7 +134,7 @@ internal class EmergeStructType private constructor(
             }
 
             check(member in this@member.pointeeType.irStruct.members)
-            return stepUnsafe(i32(member.indexInLlvmStruct!!), context.getAllocationSiteType(member.type))
+            return stepUnsafe(context.i32(member.indexInLlvmStruct!!), context.getAllocationSiteType(member.type))
         }
     }
 }
