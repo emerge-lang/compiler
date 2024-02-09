@@ -3,6 +3,7 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
+import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
@@ -42,7 +43,11 @@ internal class EmergeStructType private constructor(
             "${irStruct.llvmName}__finalize",
             LlvmVoidType,
         ) {
-            // TODO: iterate members, decrement refcount, potentiall invoke the deallocator
+            // TODO: iterate members, decrement refcount, potentially invoke the deallocator
+            val self by param(pointerTo(this@EmergeStructType))
+            body {
+                retVoid()
+            }
         },
         { emptyList() }
     )

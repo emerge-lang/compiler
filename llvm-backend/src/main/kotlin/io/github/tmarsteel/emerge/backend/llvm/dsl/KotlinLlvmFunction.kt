@@ -132,7 +132,7 @@ private class DefineFunctionBuilderContextImpl<C : LlvmContext, R : LlvmType>(
 
     override fun buildAndAdd(name: String): LlvmFunction<R> {
         check(state == State.BODY_KNOWN) {
-            "Cannot build before declaring body"
+            "Cannot build before declaring body ($name)"
         }
         state = State.BUILT
 
