@@ -17,11 +17,10 @@ import compiler.parser.SourceFileRule
 import compiler.reportings.ModuleWithoutSourcesReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
+import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.EmergeBackend
 import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
-import io.github.tmarsteel.emerge.backend.api.DotName
 import java.nio.file.Path
-import java.nio.file.attribute.FileAttribute
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -118,7 +117,7 @@ object CompileCommand : CliktCommand() {
         echo("lexical analysis: ${elapsedBetween(startedAt, lexicalCompleteAt)}")
         echo("semantic analysis: ${elapsedBetween(lexicalCompleteAt, semanticCompleteAt)}")
         echo("backend: ${elapsedBetween(backendStartedAt, backendDoneAt)}")
-        echo("total time: ${elapsedBetween(startedAt, semanticCompleteAt)}")
+        echo("total time: ${elapsedBetween(startedAt, backendDoneAt)}")
     }
 
     private fun echo(reporting: Reporting) {
