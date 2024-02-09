@@ -24,15 +24,29 @@ internal object LlvmWordType : LlvmCachedType(), LlvmIntegerType {
     override fun computeRaw(context: LlvmContext) = LLVM.LLVMIntTypeInContext(context.ref, LLVM.LLVMPointerSize(context.targetData) * 8)
 }
 
-internal fun LlvmContext.word(value: Int): LlvmConstant<LlvmWordType> = LlvmConstant(
-    LLVM.LLVMConstInt(LlvmWordType.getRawInContext(this), value.toLong(), 0),
-    LlvmWordType,
-)
+internal fun LlvmContext.word(value: Int): LlvmConstant<LlvmWordType> {
+    val wordMax = LlvmWordType.getMaxUnsignedValueInContext(this)
+    check (value.toBigInteger() <= wordMax) {
+        "The value $value cannot be represented by the word type on this target (max $wordMax)"
+    }
 
-internal fun LlvmContext.word(value: Long): LlvmConstant<LlvmWordType> = LlvmConstant(
-    LLVM.LLVMConstInt(LlvmWordType.getRawInContext(this), value, 0),
-    LlvmWordType,
-)
+    return LlvmConstant(
+        LLVM.LLVMConstInt(LlvmWordType.getRawInContext(this), value.toLong(), 0),
+        LlvmWordType,
+    )
+}
+
+internal fun LlvmContext.word(value: Long): LlvmConstant<LlvmWordType> {
+    val wordMax = LlvmWordType.getMaxUnsignedValueInContext(this)
+    check (value.toBigInteger() <= wordMax) {
+        "The value $value cannot be represented by the word type on this target (max $wordMax)"
+    }
+
+    return LlvmConstant(
+        LLVM.LLVMConstInt(LlvmWordType.getRawInContext(this), value, 0),
+        LlvmWordType,
+    )
+}
 
 // TODO: prefix all the emerge-specific types with Emerge, so its EmergeTypeInfoType, EmergeAnyValueType, ...
 
