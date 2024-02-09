@@ -74,7 +74,9 @@ class EmergeLlvmContext(val base: LlvmContext) : LlvmContext by base {
             struct.members.single { it.name == "pointed" }.isCPointerPointed = true
         }
 
-        struct.constructors.overloads.forEach(this::registerFunction)
+        // constructors need not be registered as of now. There only is the default
+        // constructor, and it finds its way into the context by being invoked
+        // and added through KotlinLlvmFunction.getInContext
     }
 
     fun registerFunction(fn: IrFunction): LlvmFunction<*> {

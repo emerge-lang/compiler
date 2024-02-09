@@ -11,7 +11,9 @@ import org.bytedeco.llvm.global.LLVM
 open class LlvmValue<out Type : LlvmType>(
     val raw: LLVMValueRef,
     val type: Type,
-)
+) {
+    fun <NewT : LlvmType> reinterpretAs(type: NewT): LlvmValue<NewT> = LlvmValue(raw, type)
+}
 
 class LlvmConstant<out Type : LlvmType>(
     raw: LLVMValueRef,

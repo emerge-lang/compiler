@@ -46,12 +46,8 @@ internal val getSupertypePointers = KotlinLlvmFunction.define<LlvmContext, _>(
 }
 
 context(BasicBlockBuilder<*, *>)
-internal fun LlvmValue<LlvmPointerType<out ArrayType<*>>>.incrementStrongReferenceCount() {
-    val referenceCountPtr = getelementptr(this@incrementStrongReferenceCount)
-        .member { base }
-        .member { anyBase }
-        .member { strongReferenceCount }
-        .get()
+internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.incrementStrongReferenceCount() {
+    val referenceCountPtr = this.anyValueBase().member { strongReferenceCount }.get()
 
     store(
         add(referenceCountPtr.dereference(), word(1)),

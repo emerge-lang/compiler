@@ -3,6 +3,9 @@
  */
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
+import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
+import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
+import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmCachedType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
@@ -63,15 +66,37 @@ internal object WeakReferenceCollectionType : LlvmStructType("weakrefcoll") {
     val next = structMember(pointerTo(this@WeakReferenceCollectionType))
 }
 
-internal object AnyValueType : LlvmStructType("anyvalue") {
+internal object AnyValueType : LlvmStructType("anyvalue"), EmergeHeapAllocated {
     val strongReferenceCount by structMember(LlvmWordType)
     val typeinfo by structMember(pointerTo(TypeinfoType))
     val weakReferenceCollection by structMember(pointerTo(WeakReferenceCollectionType))
+
+    override fun pointerToAnyValueBase(
+        builder: BasicBlockBuilder<*, *>,
+        value: LlvmValue<*>,
+    ): GetElementPointerStep<AnyValueType> {
+        require(value.type is LlvmPointerType<*>)
+        return builder.getelementptr(value.reinterpretAs(PointerToAnyValue))
+    }
 }
 
-internal object AnyArrayType : LlvmStructType("anyarray") {
+internal interface EmergeHeapAllocated : LlvmType {
+    fun pointerToAnyValueBase(builder: BasicBlockBuilder<*, *>, value: LlvmValue<*>): GetElementPointerStep<AnyValueType>
+}
+
+internal object AnyArrayType : LlvmStructType("anyarray"), EmergeHeapAllocated {
     val anyBase by structMember(AnyValueType)
     val elementCount by structMember(LlvmWordType)
+
+    override fun pointerToAnyValueBase(
+        builder: BasicBlockBuilder<*, *>,
+        value: LlvmValue<*>
+    ): GetElementPointerStep<AnyValueType> {
+        require(value.type is LlvmPointerType<*>)
+        with(builder) {
+            return getelementptr(value.reinterpretAs(pointerTo(this@AnyArrayType))).member { anyBase }
+        }
+    }
 }
 
 internal class ArrayType<Element : LlvmType>(
@@ -81,9 +106,21 @@ internal class ArrayType<Element : LlvmType>(
      */
     private val typeinfo: StaticAndDynamicTypeInfo.Provider,
     typeNameSuffix: String = typeNameSuffix(elementType),
-) : LlvmStructType("array_$typeNameSuffix") {
+) : LlvmStructType("array_$typeNameSuffix"), EmergeHeapAllocated {
     val base by structMember(AnyArrayType)
     val elements by structMember(LlvmArrayType(0L, elementType))
+
+    override fun pointerToAnyValueBase(
+        builder: BasicBlockBuilder<*, *>,
+        value: LlvmValue<*>
+    ): GetElementPointerStep<AnyValueType> {
+        check(value.type is LlvmPointerType<*>)
+        with(builder) {
+            return getelementptr(value.reinterpretAs(pointerTo(this@ArrayType)))
+                .member { base }
+                .member { anyBase }
+        }
+    }
 
     fun <Raw> buildConstantIn(
         context: EmergeLlvmContext,

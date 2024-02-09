@@ -1,6 +1,8 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import io.github.tmarsteel.emerge.backend.llvm.getLlvmMessage
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.AnyValueType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeHeapAllocated
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMBasicBlockRef
 import org.bytedeco.llvm.global.LLVM
@@ -132,6 +134,10 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
         LLVM.LLVMBuildRet(builder, value.raw)
 
         return TerminationImpl(this)
+    }
+
+    internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.anyValueBase(): GetElementPointerStep<AnyValueType> {
+        return this.type.pointed.pointerToAnyValueBase(this@BasicBlockBuilder, this@anyValueBase)
     }
 
     override fun close() {

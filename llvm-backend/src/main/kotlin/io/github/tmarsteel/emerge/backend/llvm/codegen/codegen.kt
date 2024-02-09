@@ -9,7 +9,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStringLiteralExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 import io.github.tmarsteel.emerge.backend.api.ir.IrStructMemberAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAssignment
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -83,11 +82,10 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, out LlvmType>.emitExpressionCo
     println("Emitting $expression")
     when (expression) {
         is IrStringLiteralExpression -> {
-            val stringIrStruct = (expression.evaluatesTo as IrSimpleType).baseType as IrStruct
-            val irCtor = stringIrStruct.constructors.overloads.single()
-            check(irCtor.parameters.single().typeForAllocationSite === ValueArrayI8Type)
+            val llvmStructWrapper = context.getAllocationSiteType(expression.evaluatesTo) as EmergeStructType
             val byteArrayPtr = expression.assureByteArrayConstantIn(context)
-            return call(irCtor.llvmRef!!, listOf(byteArrayPtr))
+            val ctor = llvmStructWrapper.defaultConstructor.getInContext(context)
+            return call(ctor, listOf(byteArrayPtr))
         }
         is IrStructMemberAccessExpression -> {
             // TODO: throw + catch
