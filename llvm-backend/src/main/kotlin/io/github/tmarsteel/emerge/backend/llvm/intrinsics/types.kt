@@ -129,7 +129,7 @@ internal class ArrayType<Element : LlvmType>(
     ): LlvmConstant<ArrayType<Element>> {
         val constValues = data.map { rawTransform(it).raw }.toTypedArray()
         val contentAsPointerPointer = PointerPointer(*constValues)
-        val constantData = LLVM.LLVMConstArray2(elements.type.getRawInContext(context), contentAsPointerPointer, data.size.toLong())
+        val constantData = LLVM.LLVMConstArray2(elementType.getRawInContext(context), contentAsPointerPointer, data.size.toLong())
 
         return buildConstantIn(context) {
             setValue(base, AnyArrayType.buildConstantIn(context) {
