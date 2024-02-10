@@ -29,7 +29,8 @@ open class LlvmContext(val targetTriple: String) : AutoCloseable {
     }
 
     fun <T : LlvmType> addGlobal(initialValue: LlvmConstant<T>, mode: LlvmGlobal.ThreadLocalMode): LlvmGlobal<T> {
-        val rawRef = LLVM.LLVMAddGlobal(module, initialValue.type.getRawInContext(this), globalsScope.next())
+        val name = globalsScope.next()
+        val rawRef = LLVM.LLVMAddGlobal(module, initialValue.type.getRawInContext(this), name)
         val allocation = LlvmGlobal(rawRef, initialValue.type)
         LLVM.LLVMSetThreadLocalMode(rawRef, mode.llvmKindValue)
         LLVM.LLVMSetInitializer(rawRef, initialValue.raw)

@@ -39,7 +39,7 @@ class ConstantStructBuilder<S : LlvmStructType, C : LlvmContext>(
         }
         val valuesPointerPointer = PointerPointer(*valuesArray)
 
-        return LLVM.LLVMConstStructInContext(context.ref, valuesPointerPointer, valuesArray.size, 0)
+        return LLVM.LLVMConstNamedStruct(structType.getRawInContext(context), valuesPointerPointer, valuesArray.size)
     }
 }
 
