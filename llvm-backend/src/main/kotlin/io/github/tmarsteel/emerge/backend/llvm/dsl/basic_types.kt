@@ -8,6 +8,13 @@ object LlvmI16Type : LlvmFixedIntegerType(16)
 object LlvmI32Type : LlvmFixedIntegerType(32)
 object LlvmI64Type : LlvmFixedIntegerType(64)
 
+fun LlvmContext.i1(value: Boolean): LlvmValue<LlvmBooleanType> {
+    return LlvmValue(
+        LLVM.LLVMConstInt(LlvmBooleanType.getRawInContext(this), if (value) 1 else 0, 0),
+        LlvmBooleanType,
+    )
+}
+
 fun LlvmContext.i8(value: Byte): LlvmValue<LlvmI8Type> {
     return LlvmValue(
         LLVM.LLVMConstInt(LlvmI8Type.getRawInContext(this), value.toLong(), 0),
