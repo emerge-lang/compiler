@@ -24,7 +24,7 @@
     <parent>
         <groupId>io.github.tmarsteel.emerge-lang</groupId>
         <artifactId>parent</artifactId>
-        <version>0.1.0</version>
+        <version>0.1.0-SNAPSHOT</version>
     </parent>
 
     <name>Emerge Lang Compiler Frontend</name>
@@ -46,7 +46,9 @@
                     <execution>
                         <id>compile</id>
                         <phase>process-sources</phase>
-                        <goals> <goal>compile</goal> </goals>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
                     </execution>
 
                     <execution>
@@ -77,6 +79,58 @@
                         <goals>
                             <goal>jar</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.1</version>
+                <executions>
+                    <execution>
+                        <id>emerge-compile-test</id>
+                        <phase>none</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>compiler.cli.MainKt</mainClass>
+                            <arguments>
+                                <argument>compilertest</argument>
+                                <argument>${project.parent.basedir}/emerge-test-sources</argument>
+                                <argument>--target</argument>
+                                <argument>linux-x86_64</argument>
+                            </arguments>
+                            <systemProperties>
+                                <systemProperty>
+                                    <systemProperty>
+                                        <key>emerge.compiler.native.libc-wrapper.sources</key>
+                                        <value>${project.parent.basedir}/llvm-backend/src/main/emerge-linux-libc</value>
+                                    </systemProperty>
+                                    <systemProperty>
+                                        <key>emerge.compiler.native.linux-platform.sources</key>
+                                        <value>${project.parent.basedir}/llvm-backend/src/main/emerge-platform-linux</value>
+                                    </systemProperty>
+                                    <systemProperty>
+                                        <key>emerge.frontend.core.sources</key>
+                                        <value>${project.parent.basedir}/stdlib/core</value>
+                                    </systemProperty>
+                                    <systemProperty>
+                                        <key>emerge.frontend.std.sources</key>
+                                        <value>${project.parent.basedir}/stdlib/std</value>
+                                    </systemProperty>
+                                    <systemProperty>
+                                        <key>emerge.backend.noop.platform.sources</key>
+                                        <value>${project.parent.basedir}/backend-api/src/main/emerge/noop-backend-platform
+                                        </value>
+                                    </systemProperty>
+                                    <systemProperty>
+                                        <key>emerge.compiler.native.c-ffi-sources</key>
+                                        <value>${project.parent.basedir}/llvm-backend/src/main/emerge-ffi-c</value>
+                                    </systemProperty>
+                                </systemProperty>
+                            </systemProperties>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
