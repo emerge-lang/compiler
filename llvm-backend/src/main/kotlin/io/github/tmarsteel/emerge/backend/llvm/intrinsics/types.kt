@@ -12,6 +12,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFixedIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmInlineStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
@@ -20,7 +21,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
-import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.global.LLVM
 
 internal object LlvmWordType : LlvmCachedType(), LlvmIntegerType {
@@ -126,22 +126,54 @@ internal class ArrayType<Element : LlvmType>(
         context: EmergeLlvmContext,
         data: Collection<Raw>,
         rawTransform: (Raw) -> LlvmValue<Element>,
-    ): LlvmConstant<ArrayType<Element>> {
-        val constValues = data.map { rawTransform(it).raw }.toTypedArray()
-        val contentAsPointerPointer = PointerPointer(*constValues)
-        val constantData = LLVM.LLVMConstArray2(elementType.getRawInContext(context), contentAsPointerPointer, data.size.toLong())
+    ): LlvmConstant<LlvmInlineStructType> {
+        /*
+        there is a problem with constant arrays of the dynamic-array format of emerge:
+        array types are declared with [0 x %element] so no space is wasted but getelementptr access
+        is well defined. However, declaring a constant "Hello World" string directly against an
+        array type is not valid:
 
-        return buildConstantIn(context) {
-            setValue(base, AnyArrayType.buildConstantIn(context) {
-                setValue(AnyArrayType.anyBase, AnyValueType.buildConstantIn(context) {
-                    setValue(AnyValueType.strongReferenceCount, context.word(1))
-                    setValue(AnyValueType.typeinfo, typeinfo.provide(context).static)
-                    setValue(AnyValueType.weakReferenceCollection, context.nullValue(pointerTo(WeakReferenceCollectionType)))
-                })
-                setValue(AnyArrayType.elementCount, context.word(data.size))
-            })
-            setValue(elements, LlvmValue(constantData, elements.type))
+        @myString = global %array_i8 { %anyarray { %anyvalue { ... }, i64 11 }, [11 x i8] c"Hello World" }
+
+        LLVM will complain that we put an [13 x i8] where a [0 x i8] should go.
+        The solution: declare the global as what it is, but use %array_i8 when referring to it:
+
+        @myString = global { %anyarray, [11 x i8] } { %anyarray { %anyvalue { ... }, i64 11 }, [11 x i8] c"Hello World" }
+
+        and when referring to it:
+
+        define i8 @access_string_constant(i64 %index) {
+        entry:
+            %elementPointer = getelementptr %array_i8, ptr @myString, i32 0, i32 1, i64 %index
+            %value = load i8, ptr %elementPointer
+            ret i8 %value
         }
+
+        Hence: here, we don't use ArrayType.buildConstantIn, but hand-roll it to do the typing trick
+        TODO: if this approach really works, post it as an answer here: https://stackoverflow.com/questions/77973362/dynamic-arrays-in-llvm-declaring-a-constant-global
+         */
+
+        val anyArrayBaseConstant = AnyArrayType.buildConstantIn(context) {
+            setValue(AnyArrayType.anyBase, AnyValueType.buildConstantIn(context) {
+                setValue(AnyValueType.strongReferenceCount, context.word(1))
+                setValue(AnyValueType.typeinfo, typeinfo.provide(context).static)
+                setValue(
+                    AnyValueType.weakReferenceCollection,
+                    context.nullValue(pointerTo(WeakReferenceCollectionType))
+                )
+            })
+            setValue(AnyArrayType.elementCount, context.word(data.size))
+        }
+        val payload = LlvmArrayType(data.size.toLong(), elementType).buildConstantIn(
+            context,
+            data.map { rawTransform(it) },
+        )
+
+        return LlvmInlineStructType.buildInlineTypedConstantIn(
+            context,
+            anyArrayBaseConstant,
+            payload
+        )
     }
 
     companion object {

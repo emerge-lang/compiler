@@ -149,7 +149,8 @@ internal fun IrStringLiteralExpression.assureByteArrayConstantIn(context: Emerge
         utf8Bytes.asList(),
         { context.i8(it) }
     )
-    val global = context.addGlobal(constant, LlvmGlobal.ThreadLocalMode.SHARED)
+    val untypedGlobal = context.addGlobal(constant, LlvmGlobal.ThreadLocalMode.SHARED)
+    val global = LlvmGlobal(untypedGlobal.raw, ValueArrayI8Type)
     byteArrayGlobal = global
     return global
 }

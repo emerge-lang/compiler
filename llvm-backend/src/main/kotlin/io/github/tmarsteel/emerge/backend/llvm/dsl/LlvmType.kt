@@ -109,6 +109,33 @@ abstract class LlvmStructType(
     }
 }
 
+class LlvmInlineStructType(
+    val memberTypes: List<LlvmType>,
+    val packed: Boolean = false,
+) : LlvmCachedType() {
+    override fun computeRaw(context: LlvmContext): LLVMTypeRef {
+        val memberTypesRaw = memberTypes.map { it.getRawInContext(context) }.toTypedArray()
+        val memberTypesPointerPointer = PointerPointer(*memberTypesRaw)
+        return LLVM.LLVMStructTypeInContext(context.ref, memberTypesPointerPointer, memberTypesRaw.size, if (packed) 1 else 0)
+    }
+
+    companion object {
+        /**
+         * Builds a constant struct (see [LLVM.LLVMConstStructInContext]) with an inline type
+         * (as opposed to a named type) inferred from the members.
+         */
+        fun buildInlineTypedConstantIn(context: LlvmContext, vararg members: LlvmValue<*>, packed: Boolean = false): LlvmConstant<LlvmInlineStructType> {
+            val type = LlvmInlineStructType(members.map { it.type }, packed)
+
+            val rawMembers = members.map { it.raw }.toTypedArray()
+            val membersPointerPointer = PointerPointer(*rawMembers)
+            val constant = LLVM.LLVMConstStructInContext(context.ref, membersPointerPointer, rawMembers.size, if (packed) 1 else 0)
+
+            return LlvmConstant(constant, type)
+        }
+    }
+}
+
 class LlvmArrayType<Element : LlvmType>(
     val elementCount: Long,
     val elementType: Element

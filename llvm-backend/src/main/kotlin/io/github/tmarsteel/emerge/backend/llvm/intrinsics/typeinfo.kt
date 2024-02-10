@@ -137,6 +137,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
 
             val dynamicSupertypesData = EmergeArrayOfPointersToTypeInfoType.buildConstantIn(context, supertypes, { it })
             val dynamicSupertypesGlobal = context.addGlobal(dynamicSupertypesData, LlvmGlobal.ThreadLocalMode.SHARED)
+                .reinterpretAs(pointerTo(EmergeArrayOfPointersToTypeInfoType))
 
             val vtableBlob = TypeinfoType.vtableBlob.type.buildConstantIn(context, emptyList()) // TODO: build vtable
             val shiftRightAmount = context.word(0)// TODO: build vtable
@@ -152,6 +153,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
 
             val staticSupertypesData = EmergeArrayOfPointersToTypeInfoType.buildConstantIn(context, supertypes, { it })
             val staticSupertypesGlobal = context.addGlobal(staticSupertypesData, LlvmGlobal.ThreadLocalMode.SHARED)
+                .reinterpretAs(pointerTo(EmergeArrayOfPointersToTypeInfoType))
 
             val typeinfoStaticData = TypeinfoType.buildConstantIn(context) {
                 setValue(TypeinfoType.shiftRightAmount, shiftRightAmount)
