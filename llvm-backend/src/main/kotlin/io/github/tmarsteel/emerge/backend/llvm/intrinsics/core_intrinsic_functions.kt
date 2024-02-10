@@ -6,8 +6,10 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Compani
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 
 internal val valueArrayFinalize = KotlinLlvmFunction.define<EmergeLlvmContext, _>("valuearray_finalize", LlvmVoidType) {
     param(PointerToAnyValue)
@@ -27,7 +29,7 @@ internal val nullWeakReferences = KotlinLlvmFunction.define<EmergeLlvmContext, _
 
 internal val getSupertypePointers = KotlinLlvmFunction.define<LlvmContext, _>(
     "getSupertypePointers",
-    LlvmPointerType.pointerTo(EmergeArrayOfPointersToTypeInfoType),
+    pointerTo(EmergeArrayOfPointersToTypeInfoType),
 ) {
     val inputRef by param(PointerToAnyValue)
     body {
@@ -42,6 +44,36 @@ internal val getSupertypePointers = KotlinLlvmFunction.define<LlvmContext, _>(
 
         arrayPointer.incrementStrongReferenceCount()
         return@body ret(arrayPointer)
+    }
+}
+
+internal val arrayIndexOfFirst = KotlinLlvmFunction.define<LlvmContext, _>(
+    "emerge.ffi.c.addressOfFirst",
+    pointerTo(LlvmVoidType),
+) {
+    val arrayPointer by param(pointerTo(EmergeReferenceArrayType))
+    body {
+        val ptr = getelementptr(arrayPointer, context.i32(1))
+            .get()
+            .reinterpretAs(pointerTo(LlvmVoidType))
+
+        ret(ptr)
+    }
+}
+
+internal val arraySize = KotlinLlvmFunction.define<LlvmContext, _>(
+    "emerge.core.size",
+    LlvmWordType,
+) {
+    val arrayPointer by param(pointerTo(EmergeReferenceArrayType))
+    body {
+        ret(
+            getelementptr(arrayPointer)
+                .member { base }
+                .member { elementCount }
+                .get()
+                .dereference()
+        )
     }
 }
 

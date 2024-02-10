@@ -7,6 +7,7 @@ import org.bytedeco.llvm.global.LLVM
 import kotlin.reflect.KProperty
 
 class KotlinLlvmFunction<in C : LlvmContext, R : LlvmType> private constructor(
+    val name: String,
     private val buildAndAdd: (C) -> LlvmFunction<R>,
 ) {
     private val inContext: MutableMap<LlvmContext, LlvmFunction<*>> = MapMaker().weakKeys().makeMap()
@@ -23,7 +24,7 @@ class KotlinLlvmFunction<in C : LlvmContext, R : LlvmType> private constructor(
             name: String,
             returnType: R,
             declaration: DeclareFunctionBuilderContext.() -> Unit
-        ) = KotlinLlvmFunction<C, R> { context ->
+        ) = KotlinLlvmFunction<C, R>(name) { context ->
             val fnContext = DeclareFunctionBuilderContextImpl(context, returnType)
             fnContext.declaration()
             fnContext.buildAndAdd(name)
@@ -33,7 +34,7 @@ class KotlinLlvmFunction<in C : LlvmContext, R : LlvmType> private constructor(
             name: String,
             returnType: R,
             definition: DefineFunctionBuilderContext<C, R>.() -> Unit
-        ) = KotlinLlvmFunction<C, R> { context ->
+        ) = KotlinLlvmFunction<C, R>(name) { context ->
             val fnContext = DefineFunctionBuilderContextImpl(context, returnType)
             fnContext.definition()
             fnContext.buildAndAdd(name)
@@ -100,7 +101,6 @@ private class DeclareFunctionBuilderContextImpl<C : LlvmContext, R : LlvmType>(
 ) : BaseFunctionBuilderContext<C, R>(context, returnType) {
     private var built = false
     override fun buildAndAdd(name: String): LlvmFunction<R> {
-        check(!built) { "Already built" }
         built = true
 
         return buildAndAddFunctionInstance(name)

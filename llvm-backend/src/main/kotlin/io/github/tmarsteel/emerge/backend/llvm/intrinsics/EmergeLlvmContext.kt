@@ -2,6 +2,7 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
+import io.github.tmarsteel.emerge.backend.api.ir.IrDeclaredFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
@@ -84,9 +85,25 @@ class EmergeLlvmContext(
     fun registerFunction(fn: IrFunction): LlvmFunction<*> {
         fn.llvmRef?.let { return it }
 
+        val parameterTypes = fn.parameters.map { getReferenceSiteType(it.type) }
+
+        if (fn is IrDeclaredFunction) {
+            intrinsicFunctions[fn.fqn.toString()]?.let { intrinsic ->
+                // TODO: different intrinsic per overload
+                val intrinsicImpl = intrinsic.getInContext(this@EmergeLlvmContext)
+                check(parameterTypes.size == intrinsicImpl.parameterTypes.size)
+                intrinsicImpl.parameterTypes.forEachIndexed { paramIndex, intrinsicType ->
+                    val declaredType = parameterTypes[paramIndex]
+                    check(intrinsicType == declaredType) { "param #$paramIndex; intrinsic $intrinsicType, declared $declaredType" }
+                }
+                fn.llvmRef = intrinsicImpl
+                return intrinsicImpl
+            }
+        }
+
         val functionType = LLVM.LLVMFunctionType(
             getReferenceSiteType(fn.returnType).getRawInContext(this),
-            PointerPointer(*fn.parameters.map { getReferenceSiteType(it.type).getRawInContext(this) }.toTypedArray()),
+            PointerPointer(*parameterTypes.map{ it.getRawInContext(this) }.toTypedArray()),
             fn.parameters.size,
             0,
         )
@@ -168,8 +185,8 @@ class EmergeLlvmContext(
                 retVoid()
             }
         }
-
         addModuleInitFunction(initializeGlobalsFn.getInContext(this))
+
         super.complete()
     }
 
@@ -255,3 +272,9 @@ fun <T : LlvmType> BasicBlockBuilder<EmergeLlvmContext, *>.heapAllocate(type: T)
     val voidPtr = call(context.allocateFunction, listOf(size))
     return LlvmValue(voidPtr.raw, pointerTo(type))
 }
+
+private val intrinsicFunctions: Map<String, KotlinLlvmFunction<EmergeLlvmContext, *>> = listOf(
+    arrayIndexOfFirst,
+    arraySize,
+)
+    .associateBy { it.name }
