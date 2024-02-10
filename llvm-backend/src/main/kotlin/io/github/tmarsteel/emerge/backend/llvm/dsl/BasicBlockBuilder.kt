@@ -86,6 +86,8 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
         }
         checkNotTerminated()
 
+        val name = if (function.returnType == LlvmVoidType) "" else tmpVars.next()
+
         val argsArray = args.map { it.raw }.toTypedArray()
         val argsPointerPointer = PointerPointer(*argsArray)
         val result = LLVM.LLVMBuildCall2(
@@ -94,7 +96,7 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
             function.address.raw,
             argsPointerPointer,
             args.size,
-            tmpVars.next(),
+            name,
         )
 
         return LlvmValue(result, function.returnType)
