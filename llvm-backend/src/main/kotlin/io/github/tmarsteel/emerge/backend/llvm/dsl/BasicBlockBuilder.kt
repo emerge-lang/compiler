@@ -32,7 +32,7 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
 
     fun <BasePointee : LlvmType> getelementptr(
         base: LlvmValue<LlvmPointerType<out BasePointee>>,
-        index: LlvmValue<LlvmFixedIntegerType> = context.i32(0)
+        index: LlvmValue<LlvmIntegerType> = context.i32(0)
     ): GetElementPointerStep<BasePointee> {
         return GetElementPointerStep.initial(base, index)
     }
