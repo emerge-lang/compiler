@@ -1,5 +1,6 @@
 package compiler.binding
 
+import compiler.ast.type.FunctionModifier
 import compiler.binding.expression.BoundExpression
 import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -16,6 +17,7 @@ internal abstract class IrFunctionImpl private constructor(
 ) {
     protected val _parameters: List<IrVariableDeclaration> = boundFunction.parameters.parameters.map { it.backendIrDeclaration }
     protected val _returnType = boundFunction.returnType!!.toBackendIr()
+    protected val _isExternalC = boundFunction.modifiers.any { it is FunctionModifier.External && it.ffiName.value == "C" }
 
     protected val _body: IrCodeChunk = when (boundBody) {
         null -> IrCodeChunkImpl(emptyList())
@@ -35,6 +37,7 @@ internal abstract class IrFunctionImpl private constructor(
     ) : IrFunctionImpl(fqn, boundFunction, null), IrDeclaredFunction {
         override val parameters = super._parameters
         override val returnType = super._returnType
+        override val isExternalC = super._isExternalC
     }
 
     private class IrImplementedFunctionImpl(
@@ -43,6 +46,8 @@ internal abstract class IrFunctionImpl private constructor(
     ) : IrFunctionImpl(fqn, boundFunction, boundFunction.code!!), IrImplementedFunction {
         override val parameters = super._parameters
         override val returnType = super._returnType
+        override val isExternalC = super._isExternalC
+
         override val body = super._body
     }
 

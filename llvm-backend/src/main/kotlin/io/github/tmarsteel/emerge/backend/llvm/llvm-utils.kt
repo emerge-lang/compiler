@@ -1,17 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm
 
-import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrPackage
-import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
-import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 import org.bytedeco.javacpp.BytePointer
 import org.bytedeco.llvm.global.LLVM
-
-internal val IrFunction.llvmName: String get() = this.fqn.toString()
-internal val IrStruct.llvmName: String get() = this.fqn.toString()
-
-internal val IrSoftwareContext.packagesSeq: Sequence<IrPackage> get() = modules.asSequence()
-    .flatMap { it.packages }
 
 internal fun <T : Any> iterateLinkedList(
     first: T?,

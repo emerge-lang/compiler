@@ -1,7 +1,9 @@
 package io.github.tmarsteel.emerge.backend.llvm
 
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrPackage
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
+import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
@@ -12,7 +14,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.AnyValueType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.LlvmWordType
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
@@ -55,6 +56,7 @@ internal val IrType.llvmValueType: LlvmType? by tackLazyVal {
 }
 
 internal var IrStruct.rawLlvmRef: LLVMTypeRef? by tackState { null }
+internal val IrStruct.llvmName: String get() = this.fqn.toString()
 internal var IrStruct.llvmType: EmergeStructType? by tackState { null }
 internal var IrStruct.Member.indexInLlvmStruct: Int? by tackState { null }
 
@@ -65,3 +67,7 @@ internal var IrStruct.Member.isCPointerPointed: Boolean by tackState { false }
 
 internal var IrFunction.llvmRef: LlvmFunction<LlvmType>? by tackState { null }
 internal var IrFunction.bodyDefined: Boolean by tackState { false }
+internal val IrFunction.llvmName: String get() = if (isExternalC) fqn.last else fqn.toString()
+
+internal val IrSoftwareContext.packagesSeq: Sequence<IrPackage> get() = modules.asSequence()
+    .flatMap { it.packages }

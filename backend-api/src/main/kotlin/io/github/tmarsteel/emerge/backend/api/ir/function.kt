@@ -6,6 +6,7 @@ sealed interface IrFunction {
     val fqn: DotName
     val parameters: List<IrVariableDeclaration>
     val returnType: IrType
+    val isExternalC: Boolean
 }
 
 interface IrImplementedFunction : IrFunction {
