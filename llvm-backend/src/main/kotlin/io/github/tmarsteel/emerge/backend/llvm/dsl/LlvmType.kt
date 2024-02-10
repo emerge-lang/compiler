@@ -28,6 +28,8 @@ object LlvmVoidType : LlvmCachedType() {
     override fun computeRaw(context: LlvmContext): LLVMTypeRef {
         return LLVM.LLVMVoidTypeInContext(context.ref)
     }
+
+    override fun toString() = "void"
 }
 
 interface LlvmIntegerType : LlvmType {
@@ -49,10 +51,40 @@ abstract class LlvmFixedIntegerType(
     override fun computeRaw(context: LlvmContext): LLVMTypeRef {
         return LLVM.LLVMIntTypeInContext(context.ref, nBits)
     }
+
+    override fun toString() = "i$nBits"
+
+    final override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is LlvmFixedIntegerType) return false
+
+        if (nBits != other.nBits) return false
+
+        return true
+    }
+
+    final override fun hashCode(): Int {
+        return nBits
+    }
 }
 
-open class LlvmPointerType<Pointed : LlvmType>(val pointed: Pointed) : LlvmType {
+class LlvmPointerType<Pointed : LlvmType>(val pointed: Pointed) : LlvmType {
     override fun getRawInContext(context: LlvmContext): LLVMTypeRef = context.rawPointer
+
+    override fun toString() = "$pointed*"
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is LlvmPointerType<*>) return false
+
+        if (pointed != other.pointed) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return pointed.hashCode()
+    }
 
     companion object {
         fun <T : LlvmType> pointerTo(t: T): LlvmPointerType<T> = LlvmPointerType(t)
@@ -96,6 +128,21 @@ abstract class LlvmStructType(
             return membersInOrder.size
         }
 
+    override fun toString(): String = "%$name"
+
+    final override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is LlvmStructType) return false
+
+        if (name != other.name) return false
+
+        return true
+    }
+
+    final override fun hashCode(): Int {
+        return name.hashCode()
+    }
+
     companion object {
         @JvmStatic
         protected fun <S : LlvmStructType, T : LlvmType> S.structMember(type: T): ImmediateDelegate<LlvmStructType, Member<S, T>> {
@@ -117,6 +164,28 @@ class LlvmInlineStructType(
         val memberTypesRaw = memberTypes.map { it.getRawInContext(context) }.toTypedArray()
         val memberTypesPointerPointer = PointerPointer(*memberTypesRaw)
         return LLVM.LLVMStructTypeInContext(context.ref, memberTypesPointerPointer, memberTypesRaw.size, if (packed) 1 else 0)
+    }
+
+    override fun toString() = memberTypes.joinToString(
+        prefix = if (packed) "<{ " else "{ ",
+        separator = ", ",
+        postfix = if (packed) " }>" else " }",
+    )
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is LlvmInlineStructType) return false
+
+        if (memberTypes != other.memberTypes) return false
+        if (packed != other.packed) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = memberTypes.hashCode()
+        result = 31 * result + packed.hashCode()
+        return result
     }
 
     companion object {
@@ -148,15 +217,22 @@ class LlvmArrayType<Element : LlvmType>(
         return LLVM.LLVMArrayType2(elementType.getRawInContext(context), elementCount)
     }
 
-    fun <T> buildConstantIn(
-        context: LlvmContext,
-        data: Iterable<T>,
-        transform: (T) -> LlvmConstant<Element>,
-    ): LlvmConstant<LlvmArrayType<Element>> {
-        val dataArray = data.map { transform(it).raw }.toTypedArray()
-        val dataPointerPointer = PointerPointer(*dataArray)
-        val array = LLVM.LLVMConstArray2(elementType.getRawInContext(context), dataPointerPointer, dataArray.size.toLong())
-        return LlvmConstant(array, this)
+    override fun toString() = "[$elementCount x $elementType]"
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is LlvmArrayType<*>) return false
+
+        if (elementCount != other.elementCount) return false
+        if (elementType != other.elementType) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = elementCount.hashCode()
+        result = 31 * result + elementType.hashCode()
+        return result
     }
 }
 
