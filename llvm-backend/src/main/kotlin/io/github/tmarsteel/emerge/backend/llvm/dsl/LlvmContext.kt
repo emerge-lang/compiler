@@ -34,6 +34,8 @@ open class LlvmContext(val targetTriple: String) : AutoCloseable {
         val allocation = LlvmGlobal(rawRef, initialValue.type)
         LLVM.LLVMSetThreadLocalMode(rawRef, mode.llvmKindValue)
         LLVM.LLVMSetInitializer(rawRef, initialValue.raw)
+        LLVM.LLVMSetUnnamedAddress(rawRef, LLVM.LLVMGlobalUnnamedAddr)
+        LLVM.LLVMSetLinkage(rawRef, LLVM.LLVMPrivateLinkage)
         return allocation
     }
 
