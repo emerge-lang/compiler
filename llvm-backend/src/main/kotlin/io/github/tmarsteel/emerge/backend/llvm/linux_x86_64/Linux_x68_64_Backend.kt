@@ -73,6 +73,21 @@ class Linux_x68_64_Backend : EmergeBackend {
 
             llvmContext.complete()
             val errorMessageBuffer = BytePointer(1024 * 10)
+
+            errorMessageBuffer.position(0)
+            errorMessageBuffer.limit(errorMessageBuffer.capacity())
+            if (LLVM.LLVMPrintModuleToFile(
+                llvmContext.module,
+                directory.resolve("out.ll").toAbsolutePath().toString(),
+                errorMessageBuffer,
+            ) != 0) {
+                // null-terminated, this makes the .getString() function behave correctly
+                errorMessageBuffer.limit(0)
+                throw CodeGenerationException(errorMessageBuffer.string)
+            }
+
+            errorMessageBuffer.position(0)
+            errorMessageBuffer.limit(errorMessageBuffer.capacity())
             if (LLVM.LLVMVerifyModule(llvmContext.module, LLVM.LLVMReturnStatusAction, errorMessageBuffer) != 0) {
                 errorMessageBuffer.limit(0)
                 throw CodeGenerationException(errorMessageBuffer.string)
@@ -88,16 +103,7 @@ class Linux_x68_64_Backend : EmergeBackend {
             }
 
 
-            val errorCode = LLVM.LLVMPrintModuleToFile(
-                llvmContext.module,
-                directory.resolve("out.ll").toAbsolutePath().toString(),
-                errorMessageBuffer,
-            )
-            if (errorCode != 0) {
-                val message = errorMessageBuffer.string
-                LLVM.LLVMDisposeMessage(errorMessageBuffer)
-                throw CodeGenerationException(message)
-            }
+
         }
     }
 
