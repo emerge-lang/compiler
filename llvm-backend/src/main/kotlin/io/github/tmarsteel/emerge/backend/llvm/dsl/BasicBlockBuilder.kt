@@ -3,6 +3,7 @@ package io.github.tmarsteel.emerge.backend.llvm.dsl
 import io.github.tmarsteel.emerge.backend.llvm.getLlvmMessage
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.AnyValueType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeHeapAllocated
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.LlvmWordType
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMBasicBlockRef
 import org.bytedeco.llvm.global.LLVM
@@ -119,7 +120,7 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
         }
     }
 
-    internal fun LlvmType.sizeof(): LlvmValue<LlvmI32Type> {
+    internal fun LlvmType.sizeof(): LlvmValue<LlvmWordType> {
         // thanks to https://stackoverflow.com/questions/14608250/how-can-i-find-the-size-of-a-type
         val pointerFromNullToSize = getelementptr(
             context.nullValue(LlvmPointerType(this)),
@@ -127,7 +128,7 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
         )
             .get()
 
-        return ptrtoint(pointerFromNullToSize, LlvmI32Type)
+        return ptrtoint(pointerFromNullToSize, LlvmWordType)
     }
 
     fun ret(value: LlvmValue<R>): Termination {
