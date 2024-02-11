@@ -2,15 +2,16 @@ package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import org.bytedeco.llvm.global.LLVM
 
-open class LlvmContext(val targetTriple: String) : AutoCloseable {
+open class LlvmContext(val target: LlvmTarget) : AutoCloseable {
     val ref = LLVM.LLVMContextCreate()
     val module = LLVM.LLVMModuleCreateWithName("app")
+    val targetMachine = target.createTargetMachine()
+    val targetData = targetMachine.targetData
     init {
-        LLVM.LLVMSetTarget(module, targetTriple)
+        LLVM.LLVMSetTarget(module, target.name)
+        LLVM.LLVMSetModuleDataLayout(module, targetData.ref)
     }
-    val targetData = LLVM.LLVMGetModuleDataLayout(module)
     val rawPointer = LLVM.LLVMPointerTypeInContext(ref, 0)
-    val opaquePointer: LlvmPointerType<LlvmVoidType> = LlvmPointerType(LlvmVoidType)
     val globalsScope = NameScope("global")
 
     fun <T : LlvmType> nullValue(type: T): LlvmConstant<T> = LlvmConstant(

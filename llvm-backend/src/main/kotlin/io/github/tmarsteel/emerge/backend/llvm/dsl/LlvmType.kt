@@ -35,7 +35,7 @@ object LlvmVoidType : LlvmCachedType() {
 interface LlvmIntegerType : LlvmType {
     fun getMaxUnsignedValueInContext(context: LlvmContext): BigInteger {
         val rawInContext = LlvmWordType.getRawInContext(context)
-        val nBits = LLVM.LLVMSizeOfTypeInBits(context.targetData, rawInContext)
+        val nBits = LLVM.LLVMSizeOfTypeInBits(context.targetData.ref, rawInContext)
         check(nBits in 0 .. Int.MAX_VALUE)
         return BigInteger.TWO.pow(nBits.toInt()) - BigInteger.ONE
     }

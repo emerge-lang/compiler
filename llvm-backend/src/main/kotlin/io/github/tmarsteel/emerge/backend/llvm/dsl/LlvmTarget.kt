@@ -7,8 +7,12 @@ import org.bytedeco.llvm.global.LLVM
 
 class LlvmTarget private constructor(
     private val triple: String,
-    private val ref: LLVMTargetRef,
+    internal val ref: LLVMTargetRef,
 ) {
+    val name: String by lazy {
+        LLVM.LLVMGetTargetName(ref).string
+    }
+
     fun createTargetMachine(): LlvmTargetMachine {
         val ref = LLVM.LLVMCreateTargetMachine(
             ref,

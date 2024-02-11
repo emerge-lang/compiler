@@ -30,6 +30,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmTarget
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
@@ -43,8 +44,8 @@ import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.global.LLVM
 
 class EmergeLlvmContext(
-    targetTriple: String,
-) : LlvmContext(targetTriple) {
+    target: LlvmTarget
+) : LlvmContext(target) {
     /**
      * The function that allocates heap memory. Semantically equivalent to libcs
      * `void* malloc(size_t size)`.
@@ -263,8 +264,8 @@ class EmergeLlvmContext(
     }
 
     companion object {
-        fun createDoAndDispose(targetTriple: String, action: (EmergeLlvmContext) -> Unit) {
-            return EmergeLlvmContext(targetTriple).use(action)
+        fun createDoAndDispose(target: LlvmTarget, action: (EmergeLlvmContext) -> Unit) {
+            return EmergeLlvmContext(target).use(action)
         }
     }
 }

@@ -24,7 +24,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import org.bytedeco.llvm.global.LLVM
 
 internal object LlvmWordType : LlvmCachedType(), LlvmIntegerType {
-    override fun computeRaw(context: LlvmContext) = LLVM.LLVMIntTypeInContext(context.ref, LLVM.LLVMPointerSize(context.targetData) * 8)
+    override fun computeRaw(context: LlvmContext) = LLVM.LLVMIntTypeInContext(context.ref, context.targetData.pointerSizeInBytes * 8)
 }
 
 internal fun LlvmContext.word(value: Int): LlvmConstant<LlvmWordType> {

@@ -9,6 +9,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.llvm.SystemPropertyDelegate.Companion.systemProperty
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmTarget
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.packagesSeq
@@ -27,10 +28,13 @@ class Linux_x68_64_Backend : EmergeBackend {
     )
 
     override fun emit(softwareContext: IrSoftwareContext, directory: Path) {
-        LLVM.LLVMInitializeX86Target()
-        LLVM.LLVMInitializeX86TargetInfo()
+        LLVM.LLVMInitializeAllTargetInfos()
+        LLVM.LLVMInitializeAllTargets()
+        LLVM.LLVMInitializeAllTargetMCs()
+        LLVM.LLVMInitializeAllAsmPrinters()
+        LLVM.LLVMInitializeAllAsmParsers()
 
-        EmergeLlvmContext.createDoAndDispose("x86_64-pc-linux-unknown") { llvmContext ->
+        EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-unknown")) { llvmContext ->
             softwareContext.packagesSeq.forEach { pkg ->
                 pkg.structs.forEach(llvmContext::registerStruct)
             }
