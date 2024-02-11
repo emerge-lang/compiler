@@ -4,7 +4,7 @@ import org.bytedeco.llvm.global.LLVM
 
 open class LlvmContext(val target: LlvmTarget) : AutoCloseable {
     val ref = LLVM.LLVMContextCreate()
-    val module = LLVM.LLVMModuleCreateWithName("app")
+    val module = LLVM.LLVMModuleCreateWithNameInContext("app", ref)
     val targetMachine = target.createTargetMachine()
     val targetData = targetMachine.targetData
     init {
