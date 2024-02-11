@@ -11,6 +11,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmTarget
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.PassBuilderOptions
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.packagesSeq
 import org.bytedeco.javacpp.BytePointer
@@ -71,16 +72,30 @@ class Linux_x68_64_Backend : EmergeBackend {
             }
 
             llvmContext.complete()
+            val errorMessageBuffer = BytePointer(1024 * 10)
+            if (LLVM.LLVMVerifyModule(llvmContext.module, LLVM.LLVMReturnStatusAction, errorMessageBuffer) != 0) {
+                errorMessageBuffer.limit(0)
+                throw CodeGenerationException(errorMessageBuffer.string)
+            }
 
-            val errorMessage = BytePointer(2048)
+            PassBuilderOptions().use { pbo ->
+                LLVM.LLVMRunPasses(
+                    llvmContext.module,
+                    "",
+                    llvmContext.targetMachine.ref,
+                    pbo.ref,
+                )
+            }
+
+
             val errorCode = LLVM.LLVMPrintModuleToFile(
                 llvmContext.module,
                 directory.resolve("out.ll").toAbsolutePath().toString(),
-                errorMessage,
+                errorMessageBuffer,
             )
             if (errorCode != 0) {
-                val message = errorMessage.string
-                LLVM.LLVMDisposeMessage(errorMessage)
+                val message = errorMessageBuffer.string
+                LLVM.LLVMDisposeMessage(errorMessageBuffer)
                 throw CodeGenerationException(message)
             }
         }
