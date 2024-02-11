@@ -208,7 +208,8 @@ class EmergeLlvmContext(
         type.llvmValueType?.let { return it }
         when (baseType.fqn.toString()) {
             "emerge.ffi.c.CPointer" -> return pointerTo(getAllocationSiteType(type))
-            "emerge.core.Unit" -> return LlvmVoidType
+            "emerge.core.Unit",
+            "emerge.core.Nothing" -> return LlvmVoidType
             "emerge.core.Any" -> return PointerToAnyValue // TODO: remove, Any will be a pure language-defined type
         }
 
@@ -248,6 +249,7 @@ class EmergeLlvmContext(
                 if (type.baseType is IrIntrinsicType) {
                     return when (type.baseType.fqn.toString()) {
                         "emerge.core.Any" -> AnyValueType
+                        "emerge.core.Nothing" -> LlvmVoidType
                         else -> throw CodeGenerationException("Missing allocation-site representation for this intrinsic type: $type")
                     }
                 }
