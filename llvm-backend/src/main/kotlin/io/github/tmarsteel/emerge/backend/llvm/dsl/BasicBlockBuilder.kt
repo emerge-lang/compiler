@@ -149,6 +149,10 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
 
     companion object {
         fun <C : LlvmContext, R : LlvmType> fill(context: C, block: LLVMBasicBlockRef, code: CodeGenerator<C, R>) {
+            check(LLVM.LLVMGetFirstInstruction(block) == null) {
+                "The basic block ${LLVM.LLVMGetBasicBlockName(block).string} already contains instructions, cannot safely add more."
+            }
+            
             BasicBlockBuilder<C, R>(context, block).use {
                 val termination = it.code()
                 require((termination as TerminationImpl).fromBuilder === it) {
