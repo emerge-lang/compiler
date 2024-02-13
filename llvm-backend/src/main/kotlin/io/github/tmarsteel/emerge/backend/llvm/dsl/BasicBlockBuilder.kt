@@ -12,7 +12,7 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
     val context: C,
     private val basicBlock: LLVMBasicBlockRef,
 ) : AutoCloseable {
-    private val builder = LLVM.LLVMCreateBuilder()
+    private val builder = LLVM.LLVMCreateBuilderInContext(context.ref)
     private val tmpVars = NameScope("tmp")
     init {
         LLVM.LLVMPositionBuilderAtEnd(builder, basicBlock)
@@ -115,12 +115,12 @@ class BasicBlockBuilder<C : LlvmContext, R : LlvmType> private constructor(
 
         // TODO: alignment; 1 is bad
         val inst = LLVM.LLVMBuildMemCpy(builder, destination.raw, 1, source.raw, 1, nBytes.raw)
-        if (volatile) {
-            LLVM.LLVMSetVolatile(inst, 1)
-        }
+        LLVM.LLVMSetVolatile(inst, if (volatile) 1 else 0)
     }
 
     internal fun LlvmType.sizeof(): LlvmValue<LlvmWordType> {
+        checkNotTerminated()
+
         // thanks to https://stackoverflow.com/questions/14608250/how-can-i-find-the-size-of-a-type
         val pointerFromNullToSize = getelementptr(
             context.nullValue(LlvmPointerType(this)),
