@@ -6,7 +6,7 @@ import org.bytedeco.llvm.LLVM.LLVMTargetRef
 import org.bytedeco.llvm.global.LLVM
 
 class LlvmTarget private constructor(
-    private val triple: String,
+    val triple: String,
     internal val ref: LLVMTargetRef,
 ) {
     val name: String by lazy {

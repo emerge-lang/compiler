@@ -8,7 +8,7 @@ open class LlvmContext(val target: LlvmTarget) : AutoCloseable {
     val targetMachine = target.createTargetMachine()
     val targetData = targetMachine.targetData
     init {
-        LLVM.LLVMSetTarget(module, target.name)
+        LLVM.LLVMSetTarget(module, target.triple)
         LLVM.LLVMSetModuleDataLayout(module, targetData.ref)
     }
     val rawPointer = LLVM.LLVMPointerTypeInContext(ref, 0)

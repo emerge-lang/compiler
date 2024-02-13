@@ -89,6 +89,7 @@ class Linux_x68_64_Backend : EmergeBackend {
             errorMessageBuffer.position(0)
             errorMessageBuffer.limit(errorMessageBuffer.capacity())
             if (LLVM.LLVMVerifyModule(llvmContext.module, LLVM.LLVMReturnStatusAction, errorMessageBuffer) != 0) {
+                // null-terminated, this makes the .getString() function behave correctly
                 errorMessageBuffer.limit(0)
                 throw CodeGenerationException(errorMessageBuffer.string)
             }
@@ -102,8 +103,19 @@ class Linux_x68_64_Backend : EmergeBackend {
                 )
             }
 
-
-
+            errorMessageBuffer.position(0)
+            errorMessageBuffer.limit(errorMessageBuffer.capacity())
+            if (LLVM.LLVMTargetMachineEmitToFile(
+                llvmContext.targetMachine.ref,
+                llvmContext.module,
+                directory.resolve("out.o").toAbsolutePath().toString(),
+                LLVM.LLVMObjectFile,
+                errorMessageBuffer,
+            ) != 0) {
+                // null-terminated, this makes the .getString() function behave correctly
+                errorMessageBuffer.limit(0)
+                throw CodeGenerationException(errorMessageBuffer.string)
+            }
         }
     }
 

@@ -72,11 +72,11 @@ internal class EmergeStructType private constructor(
         }
 
         body {
-            val heapAlloc = heapAllocate(this@EmergeStructType)
-            val basePointer = getelementptr(heapAlloc).anyValueBase().get()
-            memcpy(basePointer, anyValueBaseTemplateDynamic, AnyValueType.sizeof())
+            val heapAllocation = heapAllocate(this@EmergeStructType)
+            val basePointer = getelementptr(heapAllocation).anyValueBase().get()
+            memcpy(basePointer, anyValueBaseTemplateDynamic, AnyValueType.sizeof(), false)
             for ((irStructMember, llvmParam) in params) {
-                val memberPointer = getelementptr(heapAlloc).member(irStructMember).get()
+                val memberPointer = getelementptr(heapAllocation).member(irStructMember).get()
                 val paramValue = llvmParam.getValue(null, String::length)
                 store(paramValue, memberPointer)
                 if (paramValue.type is LlvmPointerType<*> && paramValue.type.pointed is EmergeHeapAllocated) {
@@ -84,7 +84,7 @@ internal class EmergeStructType private constructor(
                     (paramValue as LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>).incrementStrongReferenceCount()
                 }
             }
-            ret(heapAlloc)
+            ret(heapAllocation)
         }
     }
 
