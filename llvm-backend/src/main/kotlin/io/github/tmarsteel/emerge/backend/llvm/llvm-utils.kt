@@ -1,6 +1,9 @@
 package io.github.tmarsteel.emerge.backend.llvm
 
 import org.bytedeco.javacpp.BytePointer
+import org.bytedeco.javacpp.PointerPointer
+import org.bytedeco.llvm.LLVM.LLVMTargetDataRef
+import org.bytedeco.llvm.LLVM.LLVMTypeRef
 import org.bytedeco.llvm.global.LLVM
 import java.nio.ByteBuffer
 import java.nio.file.Files
@@ -72,4 +75,83 @@ internal fun Path.writeBuffer(buffer: ByteBuffer) {
             channel.write(buffer)
         }
     }
+}
+
+internal fun LLVMTypeRef.describeMemoryLayout(targetDataRef: LLVMTargetDataRef): String {
+    val sb = StringBuilder()
+    describeMemoryLayoutTo(targetDataRef, "", sb, 0)
+    return sb.toString()
+}
+
+private fun LLVMTypeRef.describeMemoryLayoutTo(
+    targetDataRef: LLVMTargetDataRef,
+    indent: String,
+    out: StringBuilder,
+    baseOffset: Int,
+) {
+    val kind = LLVM.LLVMGetTypeKind(this)
+    when (kind) {
+        LLVM.LLVMStructTypeKind -> describeStructMemoryLayout(targetDataRef, indent, out, baseOffset)
+        LLVM.LLVMArrayTypeKind -> describeArrayMemoryLayout(targetDataRef, indent, out, baseOffset)
+        LLVM.LLVMIntegerTypeKind -> {
+            out.append("i")
+            out.append(LLVM.LLVMGetIntTypeWidth(this))
+        }
+        LLVM.LLVMPointerTypeKind -> {
+            out.append("ptr")
+        }
+        else -> TODO(kind.toString())
+    }
+}
+
+private fun LLVMTypeRef.describeStructMemoryLayout(
+    targetDataRef: LLVMTargetDataRef,
+    indent: String,
+    out: StringBuilder,
+    baseOffset: Int,
+) {
+    val selfSize = LLVM.LLVMSizeOfTypeInBits(targetDataRef, this) / 8
+    out.append("(0x")
+    out.append(selfSize.toString(16).padStart(2, '0'))
+    out.append(") ")
+
+    val selfPrefix = when {
+        LLVM.LLVMIsLiteralStruct(this) == 1 -> ""
+        else -> "%" + LLVM.LLVMGetStructName(this).string + " "
+    }
+
+    out.append(selfPrefix)
+    out.append("{\n")
+
+    val nElements = LLVM.LLVMCountStructElementTypes(this)
+    val elementsArray = PointerPointer<LLVMTypeRef>(nElements.toLong())
+    LLVM.LLVMGetStructElementTypes(this, elementsArray)
+
+    for (memberIndex in 0 until nElements) {
+        val memberType = elementsArray.get(LLVMTypeRef::class.java, memberIndex.toLong())
+        val offset = baseOffset + LLVM.LLVMOffsetOfElement(targetDataRef, this, memberIndex).toInt()
+        out.append(indent)
+        out.append("  +0x")
+        out.append(offset.toString(16).padStart(2, '0'))
+        out.append("  ")
+        memberType.describeMemoryLayoutTo(targetDataRef, indent + "  ", out, offset)
+        out.append("\n")
+    }
+
+    out.append(indent)
+    out.append("}")
+}
+
+private fun LLVMTypeRef.describeArrayMemoryLayout(
+    targetDataRef: LLVMTargetDataRef,
+    indent: String,
+    out: StringBuilder,
+    baseOffset: Int,
+) {
+    val elementType = LLVM.LLVMGetElementType(this)
+    out.append("[")
+    out.append(LLVM.LLVMGetArrayLength2(this).toString())
+    out.append(" x ")
+    elementType.describeMemoryLayoutTo(targetDataRef, indent + "  ", out, 0)
+    out.append("]")
 }
