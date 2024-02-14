@@ -116,7 +116,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, out LlvmType>.emitExpressionCo
                 "emerge.core.Long" -> context.i64(expression.value.longValueExact())
                 "emerge.core.ULong" -> TODO()
                 "emerge.core.iword" -> context.word(expression.value.intValueExact())
-                "emerge.core.uword" -> TODO()
+                "emerge.core.uword" -> context.word(expression.value.longValueExact())
                 else -> throw CodeGenerationException("Unsupport integer literal type ${expression.evaluatesTo}")
             }
 
