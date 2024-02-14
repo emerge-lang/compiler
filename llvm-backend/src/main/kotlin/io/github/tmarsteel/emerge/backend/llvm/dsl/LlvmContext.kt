@@ -24,6 +24,11 @@ open class LlvmContext(val target: LlvmTarget) : AutoCloseable {
         type,
     )
 
+    private val initializerFunctions = ArrayList<LlvmFunction<LlvmVoidType>>()
+    fun addModuleInitFunction(initializer: LlvmFunction<LlvmVoidType>) {
+        initializerFunctions.add(initializer)
+    }
+
     fun <T : LlvmType> addGlobal(initialValue: LlvmConstant<T>, mode: LlvmGlobal.ThreadLocalMode): LlvmGlobal<T> {
         val name = globalsScope.next()
         val rawRef = LLVM.LLVMAddGlobal(module, initialValue.type.getRawInContext(this), name)
@@ -33,6 +38,20 @@ open class LlvmContext(val target: LlvmTarget) : AutoCloseable {
         LLVM.LLVMSetUnnamedAddress(rawRef, LLVM.LLVMGlobalUnnamedAddr)
         LLVM.LLVMSetLinkage(rawRef, LLVM.LLVMPrivateLinkage)
         return allocation
+    }
+
+    open fun complete() {
+        val arrayType = LlvmArrayType(initializerFunctions.size.toLong(), LlvmGlobalCtorEntry)
+        val ctorsGlobal = LLVM.LLVMAddGlobal(module, arrayType.getRawInContext(this), "llvm.global_ctors")
+        val ctorsData = arrayType.buildConstantIn(this, initializerFunctions.mapIndexed { initializerIndex, initializer ->
+            LlvmGlobalCtorEntry.buildConstantIn(this) {
+                setValue(LlvmGlobalCtorEntry.priority, i32(initializerIndex))
+                setValue(LlvmGlobalCtorEntry.function, initializer.address)
+                setNull(LlvmGlobalCtorEntry.data)
+            }
+        })
+        LLVM.LLVMSetInitializer(ctorsGlobal, ctorsData.raw)
+        LLVM.LLVMSetLinkage(ctorsGlobal, LLVM.LLVMAppendingLinkage)
     }
 
     override fun close() {

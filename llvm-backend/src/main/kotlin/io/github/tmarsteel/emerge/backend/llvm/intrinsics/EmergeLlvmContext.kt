@@ -202,7 +202,7 @@ class EmergeLlvmContext(
     lateinit var threadInitializerFn: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>
         private set
     private var completed = false
-    fun complete() {
+    override fun complete() {
         if (completed) {
             return
         }
@@ -219,6 +219,8 @@ class EmergeLlvmContext(
                 retVoid()
             }
         }
+
+        super.complete()
     }
 
     /**
