@@ -27,6 +27,8 @@ import compiler.binding.context.SourceFileRootContext
 import compiler.lexer.IdentifierToken
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntrinsicType
+import java.math.BigDecimal
+import java.math.BigInteger
 
 /*
  * This file contains raw definitions of the builtin types.
@@ -36,40 +38,58 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrIntrinsicType
  * package.
  */
 
-val BuiltinAny = object : BuiltinType("Any") {}
+object BuiltinAny : BuiltinType("Any")
 
-val BuiltinNothing = object : BuiltinType("Nothing") {
+object BuiltinNothing : BuiltinType("Nothing") {
     override fun isSubtypeOf(other: BaseType) = true
     override val isAtomic = true
 }
 
-val BuiltinUnit = object : BuiltinType("Unit", BuiltinAny) {
+object BuiltinUnit : BuiltinType("Unit", BuiltinAny) {
     override val isAtomic = true
 }
 
-val BuiltinNumber = object : BuiltinType("Number", BuiltinAny) {
+object BuiltinNumber : BuiltinType("Number", BuiltinAny) {
     override val isAtomic = true
 }
 
-val BuiltinFloat = object : BuiltinType("Float", BuiltinNumber) {
+object BuiltinFloat : BuiltinType("Float", BuiltinNumber) {
     override val isAtomic = true
+
+    val MIN = BigDecimal.valueOf(Float.MIN_VALUE.toDouble())
+    val MAX = BigDecimal.valueOf(Float.MAX_VALUE.toDouble())
 }
-val BuiltinInt = object : BuiltinType("Int", BuiltinNumber) {
+
+object BuiltinInt : BuiltinType("Int", BuiltinNumber) {
     override val isAtomic = true
+
+    val MIN = BigInteger.valueOf(Int.MIN_VALUE.toLong())
+    val MAX = BigInteger.valueOf(Int.MAX_VALUE.toLong())
 }
-val BuiltinByte = object : BuiltinType("Byte", BuiltinNumber) {
+
+object BuiltinByte : BuiltinType("Byte", BuiltinNumber) {
     override val isAtomic = true
+
+    val MIN = BigInteger.valueOf(Byte.MIN_VALUE.toLong())
+    val MAX = BigInteger.valueOf(Byte.MAX_VALUE.toLong())
 }
-val BuiltinBoolean = object : BuiltinType("Boolean", BuiltinAny) {
+
+object BuiltinBoolean : BuiltinType("Boolean", BuiltinAny) {
     override val isAtomic = true
 }
 
-val BuiltinSignedWord = object : BuiltinType("iword", BuiltinAny) {
+object BuiltinSignedWord : BuiltinType("iword", BuiltinNumber) {
     override val isAtomic = true
+
+    val SAFE_MIN = BigInteger.valueOf(Int.MIN_VALUE.toLong())
+    val SAFE_MAX = BigInteger.valueOf(Int.MAX_VALUE.toLong())
 }
 
-val BuiltinUnsignedWord = object : BuiltinType("uword", BuiltinAny) {
+object BuiltinUnsignedWord : BuiltinType("uword", BuiltinNumber) {
     override val isAtomic = true
+
+    val SAFE_MIN = BigInteger.valueOf(UInt.MIN_VALUE.toLong())
+    val SAFE_MAX = BigInteger.valueOf(UInt.MAX_VALUE.toLong())
 }
 
 val BuiltinArray: (SoftwareContext) -> BuiltinType = { swCtx -> object : BuiltinType("Array", BuiltinAny) {

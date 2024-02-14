@@ -33,6 +33,7 @@ import compiler.binding.BoundFunction
 import compiler.binding.expression.*
 import compiler.binding.struct.Struct
 import compiler.binding.struct.StructMember
+import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
@@ -43,6 +44,7 @@ import compiler.lexer.SourceLocation
 import compiler.lexer.Token
 import io.github.tmarsteel.emerge.backend.api.DotName
 import textutils.indentByFromSecondLine
+import java.math.BigInteger
 
 abstract class Reporting internal constructor(
     val level: Level,
@@ -213,6 +215,9 @@ abstract class Reporting internal constructor(
 
         fun incorrectPackageDeclaration(name: ASTPackageName, expected: DotName)
             = IncorrectPackageDeclarationReporting(name, expected)
+
+        fun integerLiteralOutOfRange(literal: Expression<*>, expectedType: BaseType, expectedRange: ClosedRange<BigInteger>)
+            = IntegerLiteralOutOfRangeReporting(literal, expectedType, expectedRange)
 
         /**
          * Converts a violation of purity or readonlyness into an appropriate error.

@@ -23,6 +23,13 @@ import compiler.ast.expression.NumericLiteralExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.BuiltinByte
+import compiler.binding.type.BuiltinInt
+import compiler.binding.type.BuiltinNumber
+import compiler.binding.type.BuiltinSignedWord
+import compiler.binding.type.BuiltinType
+import compiler.binding.type.BuiltinUnsignedWord
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
@@ -48,8 +55,21 @@ open class BoundNumericLiteral(
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
 
+    protected var expectedNumericType: BuiltinType? = null
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
-        // nothing to do there, the type of numeric literals is always predetermined by their specification in source
+        if (type !is RootResolvedTypeReference) {
+            return
+        }
+
+        if (type.baseType !is BuiltinType) {
+            return
+        }
+
+        if (BuiltinNumber !in type.baseType.superTypes) {
+            return
+        }
+
+        expectedNumericType = type.baseType
     }
 }
 
@@ -59,7 +79,39 @@ class BoundIntegerLiteral(
     val integer: BigInteger,
     reportings: Collection<Reporting>
 ) : BoundNumericLiteral(context, declaration, reportings) {
-    override val type = compiler.binding.type.BuiltinInt.baseReference
+    override var type = BuiltinInt.baseReference
+
+    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        val reportings = mutableSetOf<Reporting>()
+        if (expectedNumericType == null) {
+            if (integer !in BuiltinInt.MIN .. BuiltinInt.MAX) {
+                reportings.add(Reporting.integerLiteralOutOfRange(
+                    declaration, BuiltinInt, BuiltinInt.MIN .. BuiltinInt.MAX
+                ))
+            }
+            return reportings
+        }
+
+        expectedNumericType?.let { expectedType ->
+            val range: ClosedRange<BigInteger> = when (expectedType) {
+                BuiltinByte -> BuiltinByte.MIN .. BuiltinByte.MAX
+                BuiltinInt -> BuiltinInt.MIN .. BuiltinInt.MAX
+                BuiltinSignedWord -> BuiltinSignedWord.SAFE_MIN .. BuiltinSignedWord.SAFE_MAX
+                BuiltinUnsignedWord -> BuiltinUnsignedWord.SAFE_MIN .. BuiltinUnsignedWord.SAFE_MAX
+                else -> return reportings
+            }
+
+            // even if the literal doesn't fit into the expected type, setting this makes sense: it makes a
+            // possible cannot-be-assigned error go away. there already is an error for the out-of-range literal,
+            // no need for a second reporting on the same error
+            type = expectedType.baseReference
+            if (integer !in range) {
+                reportings.add(Reporting.integerLiteralOutOfRange(declaration, expectedType, range))
+            }
+        }
+
+        return reportings
+    }
 
     override fun toBackendIr(): IrExpression {
         return IrIntegerLiteralExpressionImpl(
