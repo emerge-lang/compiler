@@ -60,6 +60,19 @@ class EmergeLlvmContext(
      */
     lateinit var freeFunction: LlvmFunction<LlvmVoidType>
 
+    /**
+     * The function that exits the process. Semantically equivalent to libcs
+     * `void exit(int status)`
+     * Must be set by the backend class after [registerFunction]
+     */
+    lateinit var exitFunction: LlvmFunction<LlvmVoidType>
+
+    /**
+     * The main function of the program. `fun main() -> Unit`
+     * Set by [registerFunction].
+     */
+    lateinit var mainFunction: LlvmFunction<LlvmVoidType>
+
     fun registerStruct(struct: IrStruct) {
         if (struct.rawLlvmRef != null) {
             return
@@ -126,6 +139,21 @@ class EmergeLlvmContext(
             param.typeForAllocationSite = getAllocationSiteType(param.type)
         }
 
+        if (fn.fqn.last == "main") {
+            if (this::mainFunction.isInitialized) {
+                throw CodeGenerationException("Found multiple main functions!")
+            }
+            if (fn.parameters.isNotEmpty()) {
+                throw CodeGenerationException("Main function must not declare parameters")
+            }
+            if (getReferenceSiteType(fn.returnType) != LlvmVoidType) {
+                throw CodeGenerationException("Main function ${fn.fqn} must return Unit")
+            }
+
+            @Suppress("UNCHECKED_CAST")
+            this.mainFunction = fn.llvmRef as LlvmFunction<LlvmVoidType>
+        }
+
         return fn.llvmRef!!
     }
 
@@ -166,17 +194,22 @@ class EmergeLlvmContext(
 
     private val globalVariableInitializers = ArrayList<Pair<IrVariableDeclaration, IrExpression>>()
     fun defineGlobalInitializer(global: IrVariableDeclaration, initializer: IrExpression) {
+        check(!completed)
+
         globalVariableInitializers.add(Pair(global, initializer))
     }
 
+    lateinit var threadInitializerFn: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>
+        private set
     private var completed = false
-    override fun complete() {
+    fun complete() {
         if (completed) {
             return
         }
+        completed = true
 
-        val initializeGlobalsFn = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
-            "initialize_global_variables",
+        threadInitializerFn = KotlinLlvmFunction.define(
+            "_emerge_thread_init",
             LlvmVoidType,
         ) {
             body {
@@ -186,9 +219,6 @@ class EmergeLlvmContext(
                 retVoid()
             }
         }
-        addModuleInitFunction(initializeGlobalsFn.getInContext(this))
-
-        super.complete()
     }
 
     /**

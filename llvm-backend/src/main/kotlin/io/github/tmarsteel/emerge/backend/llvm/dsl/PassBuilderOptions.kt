@@ -17,7 +17,7 @@ class PassBuilderOptions : AutoCloseable {
         LLVM.LLVMPassBuilderOptionsSetLoopVectorization(ref, if (value) 1 else 0)
     }
 
-    fun seSLPVectorization(value: Boolean) {
+    fun setSLPVectorization(value: Boolean) {
         LLVM.LLVMPassBuilderOptionsSetSLPVectorization(ref, if (value) 1 else 0)
     }
 

@@ -13,6 +13,8 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmTarget
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.PassBuilderOptions
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.linux.EmergeEntrypoint
+import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.packagesSeq
 import org.bytedeco.javacpp.BytePointer
 import org.bytedeco.llvm.global.LLVM
@@ -29,6 +31,14 @@ class Linux_x68_64_Backend : EmergeBackend {
     )
 
     override fun emit(softwareContext: IrSoftwareContext, directory: Path) {
+        val objectFilePath = directory.resolve("out.o").toAbsolutePath()
+        writeSoftwareToObjectFile(softwareContext, objectFilePath)
+
+        val executablePath = directory.resolve("runnable").toAbsolutePath()
+        createExecutableFromObjectFile(objectFilePath, executablePath)
+    }
+
+    private fun writeSoftwareToObjectFile(softwareContext: IrSoftwareContext, objectFilePath: Path) {
         LLVM.LLVMInitializeAllTargetInfos()
         LLVM.LLVMInitializeAllTargets()
         LLVM.LLVMInitializeAllTargetMCs()
@@ -44,14 +54,7 @@ class Linux_x68_64_Backend : EmergeBackend {
                     .flatMap { it.overloads }
                     .forEach {
                         val fn = llvmContext.registerFunction(it)
-                        if (it.fqn == allocatorFunctionName) {
-                            @Suppress("UNCHECKED_CAST")
-                            llvmContext.allocateFunction = fn as LlvmFunction<LlvmPointerType<LlvmVoidType>>
-                        }
-                        if (it.fqn == freeFunctionName) {
-                            @Suppress("UNCHECKED_CAST")
-                            llvmContext.freeFunction = fn as LlvmFunction<LlvmVoidType>
-                        }
+                        storeCoreFunctionReference(llvmContext, it.fqn, fn)
                     }
             }
             softwareContext.modules.flatMap { it.packages }
@@ -72,13 +75,17 @@ class Linux_x68_64_Backend : EmergeBackend {
             }
 
             llvmContext.complete()
+
+            // assure the entrypoint is in the object file
+            EmergeEntrypoint.getInContext(llvmContext)
+
             val errorMessageBuffer = BytePointer(1024 * 10)
 
             errorMessageBuffer.position(0)
             errorMessageBuffer.limit(errorMessageBuffer.capacity())
             if (LLVM.LLVMPrintModuleToFile(
                 llvmContext.module,
-                directory.resolve("out.ll").toAbsolutePath().toString(),
+                objectFilePath.parent.resolve("out.ll").toString(),
                 errorMessageBuffer,
             ) != 0) {
                 // null-terminated, this makes the .getString() function behave correctly
@@ -97,7 +104,7 @@ class Linux_x68_64_Backend : EmergeBackend {
             PassBuilderOptions().use { pbo ->
                 LLVM.LLVMRunPasses(
                     llvmContext.module,
-                    "",
+                    null as String?,
                     llvmContext.targetMachine.ref,
                     pbo.ref,
                 )
@@ -106,9 +113,23 @@ class Linux_x68_64_Backend : EmergeBackend {
             errorMessageBuffer.position(0)
             errorMessageBuffer.limit(errorMessageBuffer.capacity())
             if (LLVM.LLVMTargetMachineEmitToFile(
+                    llvmContext.targetMachine.ref,
+                    llvmContext.module,
+                    objectFilePath.parent.resolve("out.s").toString(),
+                    LLVM.LLVMAssemblyFile,
+                    errorMessageBuffer,
+                ) != 0) {
+                // null-terminated, this makes the .getString() function behave correctly
+                errorMessageBuffer.limit(0)
+                throw CodeGenerationException(errorMessageBuffer.string)
+            }
+
+            errorMessageBuffer.position(0)
+            errorMessageBuffer.limit(errorMessageBuffer.capacity())
+            if (LLVM.LLVMTargetMachineEmitToFile(
                 llvmContext.targetMachine.ref,
                 llvmContext.module,
-                directory.resolve("out.o").toAbsolutePath().toString(),
+                objectFilePath.toString(),
                 LLVM.LLVMObjectFile,
                 errorMessageBuffer,
             ) != 0) {
@@ -119,13 +140,44 @@ class Linux_x68_64_Backend : EmergeBackend {
         }
     }
 
+    private fun createExecutableFromObjectFile(objectFilePath: Path, executablePath: Path) {
+
+    }
+
+    private fun findMainFunction(softwareContext: IrSoftwareContext): LlvmFunction<*> {
+        return softwareContext.modules
+            .flatMap { it.packages }
+            .flatMap { it.functions }
+            .flatMap { it.overloads }
+            .single { it.fqn.last == "main" }
+            .llvmRef!!
+    }
+
+    private fun storeCoreFunctionReference(context: EmergeLlvmContext, functionName: DotName, fn: LlvmFunction<*>) {
+        when (functionName) {
+            ALLOCATOR_FUNCTION_NAME -> {
+                @Suppress("UNCHECKED_CAST")
+                context.allocateFunction = fn as LlvmFunction<LlvmPointerType<LlvmVoidType>>
+            }
+            FREE_FUNCTION_NAME -> {
+                @Suppress("UNCHECKED_CAST")
+                context.freeFunction = fn as LlvmFunction<LlvmVoidType>
+            }
+            EXIT_FUNCTION_NAME -> {
+                @Suppress("UNCHECKED_CAST")
+                context.exitFunction = fn as LlvmFunction<LlvmVoidType>
+            }
+        }
+    }
+
     companion object {
         val FFI_C_SOURCES_PATH by systemProperty("emerge.compiler.native.c-ffi-sources", Paths::get)
         val LINUX_LIBC_SOURCES_PATH by systemProperty("emerge.compiler.native.libc-wrapper.sources", Paths::get)
         val LINUX_PLATFORM_PATH by systemProperty("emerge.compiler.native.linux-platform.sources", Paths::get)
 
-        private val allocatorFunctionName = DotName(listOf("emerge", "linux", "libc", "malloc"))
-        private val freeFunctionName = DotName(listOf("emerge", "linux", "libc", "free"))
+        private val ALLOCATOR_FUNCTION_NAME = DotName(listOf("emerge", "linux", "libc", "malloc"))
+        private val FREE_FUNCTION_NAME = DotName(listOf("emerge", "linux", "libc", "free"))
+        private val EXIT_FUNCTION_NAME = DotName(listOf("emerge", "linux", "libc", "exit"))
     }
 }
 
