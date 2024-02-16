@@ -42,88 +42,129 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     but it requires varargs. And these complicate the overload resolution EVEN more than it already is.
     So **no varargs**. The cool thing is that a concise array literal syntax can fill the role of varargs
     almost seamlessly: Kotlin `setOf(1, 2, 3)` vs this language `Set([1, 2, 3])`.
-16. String type, based on array
+16. ~~String type, based on array~~
     * default encoding? -> unicode / utf-8?
     * string is a wrapper around an `Array<Byte>`
 17. ~~Decision on compile target architecture (native/vm with pointers VS JVM)~~
     -> llvm to native, because thats interesting for me
-18. implement enough backend code to have a "Hello World" execute
+18. ~~implement enough backend code to have a "Hello World" execute~~
 19. Variable handling improvements
     * decide on shadowing rules (e.g. rust does it WAY differently than Kotlin), **and implement**
     * track assignment status of variables. It should be possible to split declaration and assignment, even on
       `val`s.
-20. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
+20. resolve any reasonably resolvable TODO in the llvm backend, including
+    * array deallocation, needs code in the DSL for creating loops 
+    * reference counting - currently not done at all. Needs work in the frontend and in the backend.
+      * no need to optimize rn, can be done later
+21. sane defaults, mutability and purity
+    * currently mutable and impure by default. Other languages show clearly that this is not needed. Makes sense,
+      mutability and impurity are a complexity, that should only be added when needed
+    * so: objects created on the stack: immutable by default
+    * objects referenced from other objects: immutable by default
+    * function parameters: readonly be default. Functions are an API and should provide best compatibility
+    * functions: pure by default? at least readonly! impure/mutable should be opt-in
+      * this is already eased by having the receiver be an explicit parameter that can get an explicit mutability
+22. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
     1. index access can always throw IndexOutOfBounds; work out a nothrow alternative. Maybe `.safeGet(index)` returning `Either`?
-21. implement overload resolution algorithm, marked with TODOs
+23. implement overload resolution algorithm, marked with TODOs
     * attention: currently, when an overload doesn't match just because of mutability that is reported as "function not defined".
       while technically correct, its very negative-helpful. E.g. when assignee is `readonly` and target is `mutable` the
       error message should say someting like "can't mutate ..."
     * Also: what about overloading only based on mutabliltiy? Deny by incorporating mutability into the disjoint logic
       somehow?
-22. object model
+24. object model
     1. ditch struct for class: there is no use for a struct that a `data`/`record` modifier as in Kotlin/Java couldn't
        do; especially because closed-world optimization will produce identically optimal code for a struct and a
        class with just accessors.
        1. add member methods
        2. implement visibility
+       3. allow finalizer customization
     2. add interfaces and inheritance class impls interface
        1. implement generic supertypes - yey, another logic monstrosity
        2. class extends class will not be a thing! composition all the way. Probably needs some boilerplate-reduction
           tools, like Kotlins `by`, but more powerful
        3. add the cast operation
-    3. add `sealed` interfaces as in Kotlin 
-23. extend InvocationExpression
+    3. review the vtable approach: does looking for a prefix suffice to keep them small?
+       * idea 1: put 1s into the bitwise hashes at different, non-harmonic frequencies to generate hard-to-clash patterns
+         * maybe adding phase-shift helps even more
+         * e.g. '10101010101010...', '100100100100100100', '1000100010001000'
+       * if that isn't enough, it could make sense to include both a left- and a right shift, so any unique
+         sequence from the hashes can be chosen, not just prefixes.
+       * TEST, TEST, TEST. Unit test the shit out of the algorithm. More to proof the concept, less to
+         test the implementation.
+    4. deal with the wrapper mutability problem: do types need to be generic on mutability?
+    5. add `sealed` interfaces as in Kotlin
+25. implement weak references
+26. extend InvocationExpression
     1. ~~handle constructors~~
     2. when checking `objRef.method()` error if `method` is a property  
       (will be implemented with function types later on)
-24. exceptions
+27. exceptions
     1. `throw` statement
-    2. NOTHROW scope modifier
-    3. try+catch+finally
-25. Stdlib Collections
-    * Iterables: java.util.Iterable, D Ranges or sth. else?
-26. All operator overloads, including
-    * contains(T): Boolean
-    * <E : Iterable> rangeTo(T): E
-27. for each control structure:
+    2. `nothrow` scope modifier
+    3. try+catch+finally 
+       * a catch-all makes the try block nothrow, allowing nothrow functions to do risky things
+         provided they do a catchall
+    4. deallocation should be nothrow. Dealing with errors/exceptions during finalization requires
+       a fallback error handling. Probably this should just be a panic like in rust. In that case:
+       look into how rusts panic is defined and how it behaves, its probably not simple and the rust devs
+       put a ton of thought into it
+28. Stdlib Basics
+    * get type names in order: decide on i8+u8 vs s8+u8 vs Byte, ...
+    * move intrinsic types 100% into emerge source. Both frontend and backend should
+      have the necessary toolset now to still hook in and handle them correctly
+    * arithmetic
+      * overflow-safe implementations of the actual operators + - * ...
+      * overflow-unsafe intrinsics, e.g. `emerge.std.math.addWithOverflow(a: i32, b: i32)`
+      * conversions between the integral types, especially handy for word
+    * a to-string abstraction: Java-style toString on all objects is probably overkill, more like rusts Display trait
+    * equality and hashCodes: again, Java-style is overkill, have explicit generic Equatable<T> and Hashable interfaces
+    * some good standard collections
+      * ArrayList, LinkedList, (De)Queue, Stack, ...
+      * Map
+29. while + do-while loops
+30. for each loops over arrays
     ```
     for each item in iterable { /* ... */ }
     // is actually
     val temp1 = iterable.iterator() // or whatever was decided in step 19
     while temp1.hasNext() {
-      val item = temp1.next()
-      /* ... */
+        val item = temp1.next()
+        /* ... */
     }
-
+    
     for each i in 0 .. 10 { /* ... */ }
     // gets rewritten to
     for i in 0.rangeTo(10) { /* ... */ }
     ```
-28. while / do-while
-29. Typealiases
-30. Function types
+31. general iterable types
+    * Like Java Iterable<T>, D ranges, ... ?
+    * for each over iterable
+32. Function types
     1. `operator fun invoke`: `obj(param)` to `obj.invoke(param)`
     2. Regular functions: `(T1, T2) -> R`
-    3. Functions w/ receiver: `O.(T1, T2) -> R` that can be invoked on objects
-       as if they were extension functions:
-       ```
-       val fn: O.(T1, T2) -> R = ...
-       val obj: O = ...
-       obj.fn(param1, param2)
-       ```
-31. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
-32. smart casts
-33. optional parameters
+    3. do we need functions with receiver? Or is receiver/self VS regular parameter just a syntax
+       thing on the declaration side?
+    4. deal with the higher-order function purity problem: do functions need to be generic on purity?
+33. functional-style collection operations (possible because the higher-order function purity problem is solved)
+    1. start simple with forEach
+    2. go on with filter, map, fold, ...
+    3. more tricky: make sure the code emitted by LLVM doesn't actually do all the allocation. A chain of maps and filters
+       should be compiled down to a single loop.
+34. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
+35. typealiases
+36. smart casts
+37. optional parameters
     * parameter with default value is optional
     * affects overload validation and resolution
     * default value should be evaluated on the caller side because it allows to keep the
       ABI calling conventions
       * as a consequence, only the initial declaration of a function can declare default values,
         overrides cannot
-34. named arguments
+38. named arguments
     * allow to change the order of arguments? Its important to keep the evaluation order on the
       calling side to match the order of the arguments as passed, not as declared
-35. threading
+39. threading
     The whole shtick of the explicit-mutability types is to simplify multithreading. Avoiding the
     complexity of having a `shared` mutability like D allows to infer some properties necessary for
     multithreading:
@@ -164,6 +205,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * numeric types: `i8`, `i16`, `i32`, `i64` instead of `Byte`, `Short`, `Int` and `Long`?
     * use explicit parameter `self` in methods and functions with receiver to simplify
       type constraints/modifications for the `self`/`this` argument
+  * steal from vale
+    * allow declaration of immutable/readonly variables without keyword (`x = 3`), require keyword for assignment
+  * shorter keywords for mutability
+    * `imm`, `mut`, `read`?
 
 -----
 
