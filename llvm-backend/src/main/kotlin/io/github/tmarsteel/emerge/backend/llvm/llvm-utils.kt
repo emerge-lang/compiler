@@ -65,3 +65,11 @@ internal fun Path.readToBuffer(): ByteBuffer {
         return buffer
     }
 }
+
+internal fun Path.writeBuffer(buffer: ByteBuffer) {
+    Files.newByteChannel(this, StandardOpenOption.CREATE, StandardOpenOption.WRITE).use { channel ->
+        while (buffer.remaining() > 0) {
+            channel.write(buffer)
+        }
+    }
+}

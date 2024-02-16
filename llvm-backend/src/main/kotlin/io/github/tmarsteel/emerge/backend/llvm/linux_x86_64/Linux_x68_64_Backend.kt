@@ -7,6 +7,7 @@ import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplementedFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.llvm.SystemPropertyDelegate.Companion.systemProperty
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmCompiler
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmTarget
@@ -32,14 +33,34 @@ class Linux_x68_64_Backend : EmergeBackend {
     )
 
     override fun emit(softwareContext: IrSoftwareContext, directory: Path) {
-        val objectFilePath = directory.resolve("out.o").toAbsolutePath()
-        writeSoftwareToObjectFile(softwareContext, objectFilePath)
+        val bitcodeFilePath = directory.resolve("out.bc").toAbsolutePath()
+        writeSoftwareToBitcodeFile(softwareContext, bitcodeFilePath)
+
+        /* we cannot use LLVMTargetMachineEmitToFile because:
+        it insits on using .ctor sections for static initializers, but these are LONG deprecated
+        the c runtime only looks for init_array sections. For some reason, LLVMTargetMachineEmitToFile
+        wants to use .ctors. In C++, one can configure this in the TargetOptions class by setting
+        useInitArray to true. Though, there currently is no way to modify the C++ TargetOptions object
+        that gets passed to TargetMachine::create via the C interface. I might submit a PR when i feel like
+        it. If things like LLVMCreateTargetOptions and LLVMTargetOptionsSetUseInitArray get added to llvm-c,
+        this roundtrip through the filesystem can be replaced by a direct call to LLVMTargetMachineEmitToFile.
+
+        I've also read online that LLVMTargetMachineEmitToFile ignores the datalayout string and instead uses
+        the default for the target-triple. Not a problem as of writing, since its not customized, but also a bug
+        i don't want to have to re-discover when chasing a segfault or something like that...
+         */
+
+        val objectFilePath = directory.resolve("out.o")
+        LlvmCompiler.compileBitcodeFile(
+            bitcodeFilePath,
+            objectFilePath,
+        )
 
         val executablePath = directory.resolve("runnable").toAbsolutePath()
-        createExecutableFromObjectFile(objectFilePath, executablePath)
+        createExecutableFromObjectFile(bitcodeFilePath, executablePath)
     }
 
-    private fun writeSoftwareToObjectFile(softwareContext: IrSoftwareContext, objectFilePath: Path) {
+    private fun writeSoftwareToBitcodeFile(softwareContext: IrSoftwareContext, bitcodeFilePath: Path) {
         LLVM.LLVMInitializeAllTargetInfos()
         LLVM.LLVMInitializeAllTargets()
         LLVM.LLVMInitializeAllTargetMCs()
@@ -86,7 +107,7 @@ class Linux_x68_64_Backend : EmergeBackend {
             errorMessageBuffer.limit(errorMessageBuffer.capacity())
             if (LLVM.LLVMPrintModuleToFile(
                 llvmContext.module,
-                objectFilePath.parent.resolve("out.ll").toString(),
+                bitcodeFilePath.parent.resolve("out.ll").toString(),
                 errorMessageBuffer,
             ) != 0) {
                 // null-terminated, this makes the .getString() function behave correctly
@@ -114,32 +135,8 @@ class Linux_x68_64_Backend : EmergeBackend {
                 }
             }
 
-            errorMessageBuffer.position(0)
-            errorMessageBuffer.limit(errorMessageBuffer.capacity())
-            if (LLVM.LLVMTargetMachineEmitToFile(
-                    llvmContext.targetMachine.ref,
-                    llvmContext.module,
-                    objectFilePath.parent.resolve("out.s").toString(),
-                    LLVM.LLVMAssemblyFile,
-                    errorMessageBuffer,
-                ) != 0) {
-                // null-terminated, this makes the .getString() function behave correctly
-                errorMessageBuffer.limit(0)
-                throw CodeGenerationException(errorMessageBuffer.string)
-            }
-
-            errorMessageBuffer.position(0)
-            errorMessageBuffer.limit(errorMessageBuffer.capacity())
-            if (LLVM.LLVMTargetMachineEmitToFile(
-                llvmContext.targetMachine.ref,
-                llvmContext.module,
-                objectFilePath.toString(),
-                LLVM.LLVMObjectFile,
-                errorMessageBuffer,
-            ) != 0) {
-                // null-terminated, this makes the .getString() function behave correctly
-                errorMessageBuffer.limit(0)
-                throw CodeGenerationException(errorMessageBuffer.string)
+            if (LLVM.LLVMWriteBitcodeToFile(llvmContext.module, bitcodeFilePath.toString()) != 0) {
+                throw CodeGenerationException("Failed to write LLVM bitcode to $bitcodeFilePath")
             }
         }
     }
