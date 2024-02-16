@@ -16,6 +16,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.PassBuilderOptions
 import io.github.tmarsteel.emerge.backend.llvm.getLlvmMessage
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.linux.EmergeEntrypoint
+import io.github.tmarsteel.emerge.backend.llvm.linux.LinuxLinker
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.packagesSeq
 import org.bytedeco.javacpp.BytePointer
@@ -57,7 +58,21 @@ class Linux_x68_64_Backend : EmergeBackend {
         )
 
         val executablePath = directory.resolve("runnable").toAbsolutePath()
-        createExecutableFromObjectFile(bitcodeFilePath, executablePath)
+        LinuxLinker.linkObjectFilesToELF(
+            listOf(
+                // what other object files we need is just found out from clang -v
+                // this is a rabbit hole to go down, especially why clang uses gcc binaries
+                // but there are more important things right now. This should work on most debian distros.
+                Paths.get("/usr/lib/x86_64-linux-gnu/Scrt1.o"),
+                Paths.get("/lib/x86_64-linux-gnu/crti.o"),
+                Paths.get("/usr/lib/gcc/x86_64-linux-gnu/12/crtbeginS.o"),
+                objectFilePath,
+                Paths.get("/usr/lib/gcc/x86_64-linux-gnu/12/crtendS.o"),
+                Paths.get("/lib/x86_64-linux-gnu/crtn.o"),
+            ),
+            executablePath,
+            dynamicallyLinkAtRuntime = listOf("c"),
+        )
     }
 
     private fun writeSoftwareToBitcodeFile(softwareContext: IrSoftwareContext, bitcodeFilePath: Path) {
