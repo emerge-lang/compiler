@@ -20,7 +20,7 @@ class LlvmTarget private constructor(
             "generic",
             "",
             LLVM.LLVMCodeGenLevelDefault,
-            RelocationModel.PIC.numeric,
+            RelocationModel.POSITION_INDEPENDENT.numeric,
             CodeModel.SMALL.numeric
         )
         return LlvmTargetMachine(ref)
