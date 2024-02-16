@@ -29,9 +29,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.ValueArrayI8Type
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
-import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
-import io.github.tmarsteel.emerge.backend.llvm.llvmValueType
 import io.github.tmarsteel.emerge.backend.llvm.tackState
 
 internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
@@ -88,14 +86,10 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, out LlvmType>.emitExpressionCo
         is IrStructMemberAccessExpression -> {
             // TODO: throw + catch
             val baseStructPtr = emitExpressionCode(expression.base) as LlvmValue<LlvmPointerType<EmergeStructType>>
-            val memberPtr = getelementptr(baseStructPtr)
+            return getelementptr(baseStructPtr)
                 .member(expression.member)
                 .get()
-
-            if (!expression.member.isCPointerPointed || expression.evaluatesTo.llvmValueType == null) {
-                return memberPtr
-            }
-            return memberPtr.dereference()
+                .dereference()
         }
         is IrStaticDispatchFunctionInvocationExpression -> {
             return call(expression.function.llvmRef!!, expression.arguments.map { emitExpressionCode(it) })

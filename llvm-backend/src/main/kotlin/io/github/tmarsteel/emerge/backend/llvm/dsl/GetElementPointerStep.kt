@@ -41,6 +41,7 @@ sealed class GetElementPointerStep<P : LlvmType> private constructor(
         val basePointer: LlvmValue<LlvmPointerType<out P>>,
         val index: LlvmValue<LlvmIntegerType>,
     ) : GetElementPointerStep<P>(basePointer.type.pointed)
+
     private class Subsequent<P : LlvmType>(
         val parent: GetElementPointerStep<*>,
         val index: LlvmValue<LlvmIntegerType>,
