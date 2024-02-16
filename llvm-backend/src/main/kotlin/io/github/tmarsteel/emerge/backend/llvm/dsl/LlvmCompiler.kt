@@ -45,7 +45,7 @@ object LlvmCompiler {
         }
 
         throw LlvmCompilerException(
-            "llc command: $command\nError:\n" + String(result.standardError.array(), result.standardError.position(), result.standardError.limit()),
+            "llc command: $command\nError:\n" + result.standardErrorAsString(),
             result.exitCode,
         )
     }

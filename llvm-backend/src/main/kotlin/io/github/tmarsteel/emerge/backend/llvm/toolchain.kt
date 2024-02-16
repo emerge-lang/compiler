@@ -14,7 +14,11 @@ data class CommandResult(
     val exitCode: Int,
     val standardOut: ByteBuffer,
     val standardError: ByteBuffer,
-)
+) {
+    fun standardErrorAsString(): String {
+        return String(standardError.array(), standardError.position(), standardError.limit())
+    }
+}
 
 fun runSyncCapturing(command: List<String>): CommandResult {
     val process = ProcessBuilder().command(command).start()
