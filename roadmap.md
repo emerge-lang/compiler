@@ -152,19 +152,20 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     3. more tricky: make sure the code emitted by LLVM doesn't actually do all the allocation. A chain of maps and filters
        should be compiled down to a single loop.
 34. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
-35. typealiases
-36. smart casts
-37. optional parameters
+35. optimize reference counting; see [](refcounting optimizations.md)
+36. typealiases
+37. smart casts
+38. optional parameters
     * parameter with default value is optional
     * affects overload validation and resolution
     * default value should be evaluated on the caller side because it allows to keep the
       ABI calling conventions
       * as a consequence, only the initial declaration of a function can declare default values,
         overrides cannot
-38. named arguments
+39. named arguments
     * allow to change the order of arguments? Its important to keep the evaluation order on the
       calling side to match the order of the arguments as passed, not as declared
-39. threading
+40. threading
     The whole shtick of the explicit-mutability types is to simplify multithreading. Avoiding the
     complexity of having a `shared` mutability like D allows to infer some properties necessary for
     multithreading:
