@@ -134,7 +134,7 @@ internal class EmergeStructType private constructor(
             }
 
             check(member in this@member.pointeeType.irStruct.members)
-            return stepUnsafe(context.i32(member.indexInLlvmStruct!!), context.getAllocationSiteType(member.type))
+            return stepUnsafe(context.i32(member.indexInLlvmStruct!!), context.getReferenceSiteType(member.type))
         }
     }
 }

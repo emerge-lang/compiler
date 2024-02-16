@@ -48,8 +48,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
     when (code) {
         is IrCodeChunk -> return emitCode(code)
         is IrVariableDeclaration -> {
-            val type = context.getAllocationSiteType(code.type)
-            code.typeForAllocationSite = type
+            val type = context.getReferenceSiteType(code.type)
             val stackAllocation = alloca(type)
             code.emitRead = {
                 stackAllocation.dereference()
@@ -126,7 +125,6 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, out LlvmType>.emitExpressionCo
     }
 }
 
-internal var IrVariableDeclaration.typeForAllocationSite: LlvmType? by tackState { null }
 /**
  * for locals: loads from the alloca'd location
  * for globals: loads from the result of LLVM.LLVMAddGlobal
