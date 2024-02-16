@@ -191,7 +191,11 @@ private fun PositionTrackingCodePointTransactionalSequence.collectStringContent(
             } catch (ex: NoSuchElementException) {
                 throw IllegalEscapeSequenceException(SourceLocation(sourceFile, escapeStart, currentPosition), "Unexpected EOF in escape sequence", ex)
             }
-            data.appendCodePoint(next.value)
+
+            val actualChar = ESCAPE_SEQUENCES[next]
+                ?: throw IllegalEscapeSequenceException(SourceLocation(sourceFile, escapeStart, currentPosition), "Illegal escape sequence")
+
+            data.appendCodePoint(actualChar.value)
             continue
         }
 
@@ -206,4 +210,12 @@ private fun PositionTrackingCodePointTransactionalSequence.collectStringContent(
     }
 
     return Pair(data.toString(), SourceLocation(sourceFile, start ?: currentPosition, currentPosition))
+}
+
+private val ESCAPE_SEQUENCES: Map<CodePoint, CodePoint> = mapOf<Char, Char>(
+    'n' to '\n',
+    't' to '\t',
+    'r' to '\r',
+).entries.associate {
+    CodePoint(it.key.code) to CodePoint(it.value.code)
 }

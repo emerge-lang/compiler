@@ -18,6 +18,7 @@
 
 package compiler.compiler.lexer
 
+import compiler.compiler.negative.lexCode
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
@@ -25,7 +26,6 @@ import compiler.lexer.NumericLiteralToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.StringLiteralContentToken
-import compiler.compiler.negative.lexCode
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.comparables.beGreaterThan
@@ -177,11 +177,11 @@ class LexerTest : FreeSpec() {init {
 
     "string literals" {
         val code = """
-            fun "some {test} data" "{some} test data" "some test {data}"
+            fun "some {test} data" "{some} test data" "some test {data}" "\n \t"
         """.trimIndent()
         val tokens = lexCode(code, false).tokens
 
-        tokens.size shouldBe 10
+        tokens.size shouldBe 13
         tokens[0].shouldBeInstanceOf<KeywordToken>().keyword shouldBe Keyword.FUNCTION
 
         tokens[1].shouldBeInstanceOf<OperatorToken>().let {
@@ -207,6 +207,10 @@ class LexerTest : FreeSpec() {init {
         tokens[7].shouldBeInstanceOf<OperatorToken>().operator shouldBe Operator.STRING_DELIMITER
         tokens[8].shouldBeInstanceOf<StringLiteralContentToken>().content shouldBe "some test {data}"
         tokens[9].shouldBeInstanceOf<OperatorToken>().operator shouldBe Operator.STRING_DELIMITER
+
+        tokens[10].shouldBeInstanceOf<OperatorToken>().operator shouldBe Operator.STRING_DELIMITER
+        tokens[11].shouldBeInstanceOf<StringLiteralContentToken>().content shouldBe "\n \t"
+        tokens[12].shouldBeInstanceOf<OperatorToken>().operator shouldBe Operator.STRING_DELIMITER
     }
 
     "combo test with code" {
