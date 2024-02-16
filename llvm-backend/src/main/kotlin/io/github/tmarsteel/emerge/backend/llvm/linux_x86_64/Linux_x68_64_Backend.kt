@@ -12,6 +12,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmTarget
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.PassBuilderOptions
+import io.github.tmarsteel.emerge.backend.llvm.getLlvmMessage
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.linux.EmergeEntrypoint
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
@@ -102,12 +103,15 @@ class Linux_x68_64_Backend : EmergeBackend {
             }
 
             PassBuilderOptions().use { pbo ->
-                LLVM.LLVMRunPasses(
+                val error = LLVM.LLVMRunPasses(
                     llvmContext.module,
-                    null as String?,
+                    "default<O0>",
                     llvmContext.targetMachine.ref,
                     pbo.ref,
                 )
+                if (error != null) {
+                    throw CodeGenerationException("LLVM passes failed: ${getLlvmMessage(LLVM.LLVMGetErrorMessage(error))}")
+                }
             }
 
             errorMessageBuffer.position(0)
