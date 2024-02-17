@@ -1,7 +1,13 @@
 package compiler.compiler.negative
 
 import compiler.binding.type.RootResolvedTypeReference
-import compiler.reportings.*
+import compiler.reportings.IllegalAssignmentReporting
+import compiler.reportings.MultipleVariableDeclarationsReporting
+import compiler.reportings.TypeDeductionErrorReporting
+import compiler.reportings.UndefinedIdentifierReporting
+import compiler.reportings.UnknownTypeReporting
+import compiler.reportings.ValueNotAssignableReporting
+import compiler.reportings.VariableDeclaredWithSplitTypeReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -97,6 +103,60 @@ class VariableErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<UnknownTypeReporting>()
+        }
+    }
+
+    "shadowing" - {
+        "in function - forbidden" {
+            validateModule("""
+                fun foo() {
+                    val a = 3
+                    if true {
+                        val a = 3
+                    }
+                }
+            """.trimIndent())
+                .shouldReport<MultipleVariableDeclarationsReporting> {
+                    it.originalDeclaration.name.value shouldBe "a"
+                    it.additionalDeclaration.name.value shouldBe "a"
+                }
+        }
+
+        "in function - shadowing parameter" {
+            validateModule("""
+                fun foo(a: Int) {
+                    val a = false
+                }
+            """.trimIndent())
+                .shouldReport<MultipleVariableDeclarationsReporting> {
+                    it.originalDeclaration.name.value shouldBe "a"
+                    it.additionalDeclaration.name.value shouldBe "a"
+                }
+        }
+
+        "in function - shadowing global" {
+            validateModule("""
+                val a = 3
+                fun foo() {
+                    val a = false
+                }
+            """.trimIndent())
+                .shouldReport<MultipleVariableDeclarationsReporting> {
+                    it.originalDeclaration.name.value shouldBe "a"
+                    it.additionalDeclaration.name.value shouldBe "a"
+                }
+        }
+
+        "in function - parameter shadowing global" {
+            validateModule("""
+                val a = 3
+                fun foo(a: Boolean) {
+                }
+            """.trimIndent())
+                .shouldReport<MultipleVariableDeclarationsReporting> {
+                    it.originalDeclaration.name.value shouldBe "a"
+                    it.additionalDeclaration.name.value shouldBe "a"
+                }
         }
     }
 })

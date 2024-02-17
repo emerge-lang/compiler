@@ -49,7 +49,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     -> llvm to native, because thats interesting for me
 18. ~~implement enough backend code to have a "Hello World" execute~~
 19. Variable handling improvements
-    * decide on shadowing rules (e.g. rust does it WAY differently than Kotlin), **and implement**
+    * ~~decide on shadowing rules (e.g. rust does it WAY differently than Kotlin), **and implement**~~
     * track assignment status of variables. It should be possible to split declaration and assignment, even on
       `val`s.
 20. resolve any reasonably resolvable TODO in the llvm backend, including

@@ -76,7 +76,7 @@ class BoundVariable(
             }
 
             context.resolveVariable(this.name)
-                ?.takeUnless { it == this }
+                ?.takeUnless { it === this }
                 ?.let { firstDeclarationOfVariable ->
                     reportings.add(
                         Reporting.variableDeclaredMoreThanOnce(
