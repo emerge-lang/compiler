@@ -94,12 +94,13 @@ This file describes the Items that are next on the TODO list. **This list is NOT
          test the implementation.
     4. deal with the wrapper mutability problem: do types need to be generic on mutability?
     5. add `sealed` interfaces as in Kotlin
-25. implement weak references
-26. extend InvocationExpression
+25. get rid of BuiltinBaseType: declare all builtins in emerge source. Unit, Any, Int, ...
+26. implement weak references
+27. extend InvocationExpression
     1. ~~handle constructors~~
     2. when checking `objRef.method()` error if `method` is a property  
       (will be implemented with function types later on)
-27. exceptions
+28. exceptions
     1. `throw` statement
     2. `nothrow` scope modifier
     3. try+catch+finally 
@@ -109,21 +110,28 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        a fallback error handling. Probably this should just be a panic like in rust. In that case:
        look into how rusts panic is defined and how it behaves, its probably not simple and the rust devs
        put a ton of thought into it
-28. Stdlib Basics
+29. limit c-interface to standard library
+    1. upgrade the compilers CLI interface to a configuration via a proper config format. NOT YAML! Maybe TOML, maybe PKL. Should have schema
+    2. implement dependencies between input modules/source sets
+       * stdlib depends on platform module provided by backend
+       * modules only have access to things in other modules that they explicitly depend on
+    3. special rule: only emerge.std may depend on emerge.platform
+    4. special rule: only emerge.platform may depend on emerge.ffi.c
+30. Stdlib _absolute_ Basics
     * get type names in order: decide on i8+u8 vs s8+u8 vs Byte, ...
     * move intrinsic types 100% into emerge source. Both frontend and backend should
       have the necessary toolset now to still hook in and handle them correctly
     * arithmetic
-      * overflow-safe implementations of the actual operators + - * ...
-      * overflow-unsafe intrinsics, e.g. `emerge.std.math.addWithOverflow(a: i32, b: i32)`
-      * conversions between the integral types, especially handy for word
+        * overflow-safe implementations of the actual operators + - * ...
+        * overflow-unsafe intrinsics, e.g. `emerge.std.math.addWithOverflow(a: i32, b: i32)`
+        * conversions between the integral types, especially handy for word
     * a to-string abstraction: Java-style toString on all objects is probably overkill, more like rusts Display trait
-    * equality and hashCodes: again, Java-style is overkill, have explicit generic Equatable<T> and Hashable interfaces
-    * some good standard collections
-      * ArrayList, LinkedList, (De)Queue, Stack, ...
-      * Map
-29. while + do-while loops
-30. for each loops over arrays
+    * equality
+      * reference equality operator: really === ??
+      * it would be great to be able to do == on Any
+    * hashCodes: again, Java-style is overkill, have an explicit Hashable interface 
+31. while + do-while loops
+32. for each loops over arrays
     ```
     for each item in iterable { /* ... */ }
     // is actually
@@ -137,35 +145,40 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     // gets rewritten to
     for i in 0.rangeTo(10) { /* ... */ }
     ```
-31. general iterable types
+33. general iterable types
     * Like Java Iterable<T>, D ranges, ... ?
     * for each over iterable
-32. Function types
+34. Stdlib basics
+    * some good standard collections
+    * ArrayList, LinkedList, (De)Queue, Stack, ...
+    * Map
+35. Function types
     1. `operator fun invoke`: `obj(param)` to `obj.invoke(param)`
     2. Regular functions: `(T1, T2) -> R`
     3. do we need functions with receiver? Or is receiver/self VS regular parameter just a syntax
        thing on the declaration side?
     4. deal with the higher-order function purity problem: do functions need to be generic on purity?
-33. functional-style collection operations (possible because the higher-order function purity problem is solved)
+36. functional-style collection operations (possible because the higher-order function purity problem is solved)
     1. start simple with forEach
     2. go on with filter, map, fold, ...
     3. more tricky: make sure the code emitted by LLVM doesn't actually do all the allocation. A chain of maps and filters
        should be compiled down to a single loop.
-34. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
-35. optimize reference counting; see [](refcounting optimizations.md)
-36. typealiases
-37. smart casts
-38. optional parameters
+37. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
+38. optimize reference counting; see [](refcounting optimizations.md)
+39. some stdlib primitives for filesystem IO
+40. typealiases
+41. smart casts
+42. optional parameters
     * parameter with default value is optional
     * affects overload validation and resolution
     * default value should be evaluated on the caller side because it allows to keep the
       ABI calling conventions
       * as a consequence, only the initial declaration of a function can declare default values,
         overrides cannot
-39. named arguments
+43. named arguments
     * allow to change the order of arguments? Its important to keep the evaluation order on the
       calling side to match the order of the arguments as passed, not as declared
-40. threading
+44. threading
     The whole shtick of the explicit-mutability types is to simplify multithreading. Avoiding the
     complexity of having a `shared` mutability like D allows to infer some properties necessary for
     multithreading:
