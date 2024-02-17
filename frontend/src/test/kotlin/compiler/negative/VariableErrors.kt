@@ -1,14 +1,17 @@
 package compiler.compiler.negative
 
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.reportings.GlobalVariableNotInitializedReporting
 import compiler.reportings.IllegalAssignmentReporting
 import compiler.reportings.MultipleVariableDeclarationsReporting
 import compiler.reportings.TypeDeductionErrorReporting
 import compiler.reportings.UndefinedIdentifierReporting
 import compiler.reportings.UnknownTypeReporting
 import compiler.reportings.ValueNotAssignableReporting
+import compiler.reportings.VariableAccessedBeforeInitializationReporting
 import compiler.reportings.VariableDeclaredWithSplitTypeReporting
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
@@ -75,6 +78,15 @@ class VariableErrors : FreeSpec({
                 .shouldReport<IllegalAssignmentReporting>()
         }
 
+        "cannot assign to parameter" {
+            validateModule("""
+                fun foo(p: Int) {
+                    p = 2
+                }
+            """.trimIndent())
+                .shouldReport<IllegalAssignmentReporting>()
+        }
+
         "variable declared multiple times" {
             validateModule("""
                 fun foo() {
@@ -103,6 +115,68 @@ class VariableErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<UnknownTypeReporting>()
+        }
+
+        "assignment status tracking" - {
+            "global variable must be assigned at declaration" {
+                validateModule("""
+                    val a: Int
+                """.trimIndent())
+                    .shouldReport<GlobalVariableNotInitializedReporting>()
+            }
+
+            "local final variable can be assigned after declaration and then accessed" {
+                validateModule("""
+                    fun bar(p: Int) {
+                    }
+                    fun foo() {
+                        val a: Int
+                        bar(1)
+                        a = 3
+                        bar(a)
+                    }
+                """.trimIndent())
+                    .shouldBeEmpty()
+            }
+
+            "local final variable cannot be accessed before initialization" {
+                validateModule("""
+                    fun bar(p: Int) {}
+                    fun foo() {
+                        val a: Int
+                        bar(a)
+                        a = 3
+                    }
+                """.trimIndent())
+                    .shouldReport<VariableAccessedBeforeInitializationReporting>()
+            }
+
+            "local non-final variable can be assigned after declaration and then accessed, and reassigned" {
+                validateModule("""
+                    fun bar(p: Int) {
+                    }
+                    fun foo() {
+                        var a: Int
+                        bar(1)
+                        a = 3
+                        bar(a)
+                        a = 4
+                    }
+                """.trimIndent())
+                    .shouldBeEmpty()
+            }
+
+            "local non-final variable cannot be accessed before initialization" {
+                validateModule("""
+                    fun bar(p: Int) {}
+                    fun foo() {
+                        var a: Int
+                        bar(a)
+                        a = 3
+                    }
+                """.trimIndent())
+                    .shouldReport<VariableAccessedBeforeInitializationReporting>()
+            }
         }
     }
 

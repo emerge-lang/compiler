@@ -37,6 +37,8 @@ import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.lexer.IdentifierToken
+import java.util.Collections
+import java.util.IdentityHashMap
 
 /**
  * Mutable compile-time context; for explanation, see the doc of [CTContext].
@@ -152,6 +154,15 @@ open class MutableCTContext(
         }
 
         return fromImport ?: parentContext.resolveVariable(name, fromOwnFileOnly)
+    }
+
+    private val initializedVariables: MutableSet<BoundVariable> = Collections.newSetFromMap(IdentityHashMap())
+    fun markVariableInitialized(variable: BoundVariable) {
+        initializedVariables.add(variable)
+    }
+
+    override fun initializesVariable(variable: BoundVariable): Boolean {
+        return variable in initializedVariables || parentContext.initializesVariable(variable)
     }
 
     override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean {

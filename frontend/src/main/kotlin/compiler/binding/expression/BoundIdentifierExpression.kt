@@ -23,6 +23,7 @@ import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundVariable
+import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.UnresolvedType
@@ -69,15 +70,26 @@ class BoundIdentifierExpression(
             }
         }
 
-        return reportings
+        return reportings + (referral?.semanticAnalysisPhase1() ?: emptySet())
+    }
+
+    override fun markEvaluationResultUsed() {
+        referral?.markEvaluationResultUsed()
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        val reportings = mutableListOf<Reporting>()
         if (type == null) {
-            (referral as? ReferringVariable)?.variable?.semanticAnalysisPhase2()
+            (referral as? ReferringVariable)?.variable?.semanticAnalysisPhase2()?.let(reportings::addAll)
         }
 
-        return emptySet()
+        referral?.semanticAnalysisPhase2()?.let(reportings::addAll)
+
+        return reportings
+    }
+
+    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+        return referral?.semanticAnalysisPhase3() ?: emptySet()
     }
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
@@ -93,10 +105,25 @@ class BoundIdentifierExpression(
         // nothing to do. identifiers must always be unambiguous so there is no use for this information
     }
 
-    sealed interface Referral {
+    sealed interface Referral : SemanticallyAnalyzable {
         fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>>
+        fun markEvaluationResultUsed()
     }
     inner class ReferringVariable(val variable: BoundVariable) : Referral {
+        private var usageContext = VariableUsageContext.WRITE
+
+        override fun markEvaluationResultUsed() {
+            usageContext = VariableUsageContext.READ
+        }
+
+        override fun semanticAnalysisPhase3(): Collection<Reporting> {
+            if (usageContext.requiresInitialization && !variable.isInitializedInContext(context)) {
+                return setOf(Reporting.useOfUninitializedVariable(variable, this@BoundIdentifierExpression))
+            }
+
+            return emptySet()
+        }
+
         override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
             return if (context.containsWithinBoundary(variable, boundary)) {
                 emptySet()
@@ -106,6 +133,10 @@ class BoundIdentifierExpression(
         }
     }
     inner class ReferringType(val reference: BoundTypeReference) : Referral {
+        override fun markEvaluationResultUsed() {
+
+        }
+
         override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
             // TODO is reading type information of types declared outside the boundary considered impure?
             return emptySet()
@@ -119,6 +150,11 @@ class BoundIdentifierExpression(
     }
 
     override fun toBackendIr(): IrExpression = _backendIr
+
+    private enum class VariableUsageContext(val requiresInitialization: Boolean) {
+        READ(true),
+        WRITE(false),
+    }
 }
 
 private class IrVariableReferenceExpressionImpl(

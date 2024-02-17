@@ -30,6 +30,7 @@ import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
+import compiler.binding.BoundVariable
 import compiler.binding.expression.*
 import compiler.binding.struct.Struct
 import compiler.binding.struct.StructMember
@@ -46,6 +47,10 @@ import io.github.tmarsteel.emerge.backend.api.DotName
 import textutils.indentByFromSecondLine
 import java.math.BigInteger
 
+/**
+ * TODO: rename to Diagnostic
+ * TODO: replace the mutableSetOf(), addAll return shit with something actually efficient
+ */
 abstract class Reporting internal constructor(
     val level: Level,
     open val message: String,
@@ -58,6 +63,9 @@ abstract class Reporting internal constructor(
 
     fun toException(): ReportingException = ReportingException(this)
 
+    /**
+     * TODO: currently, all subclasses must override this with super.toString(), because `data` is needed to detect double-reporting the same problem
+     */
     override fun toString() = "($level) $message".indentByFromSecondLine(2) + "\nin $sourceLocation"
 
     enum class Level(val level: Int) {
@@ -105,6 +113,12 @@ abstract class Reporting internal constructor(
 
         fun variableDeclaredWithSplitType(declaration: VariableDeclaration)
             = VariableDeclaredWithSplitTypeReporting(declaration)
+
+        fun globalVariableNotInitialized(variable: BoundVariable)
+            = GlobalVariableNotInitializedReporting(variable.declaration)
+
+        fun useOfUninitializedVariable(variable: BoundVariable, access: BoundIdentifierExpression)
+            = VariableAccessedBeforeInitializationReporting(variable.declaration, access.declaration)
 
         fun parameterDeclaredMoreThanOnce(firstDeclaration: VariableDeclaration, additionalDeclaration: VariableDeclaration)
             = MultipleParameterDeclarationsReporting(firstDeclaration, additionalDeclaration)
@@ -207,8 +221,8 @@ abstract class Reporting internal constructor(
         fun duplicateTypeMembers(struct: Struct, duplicateMembers: Set<StructMember>) =
             DuplicateStructMemberReporting(struct, duplicateMembers)
 
-        fun assignmentInCondition(assignment: BoundAssignmentExpression)
-            = AssignmentInConditionReporting(assignment.declaration)
+        fun assignmentUsedAsExpression(assignment: BoundAssignmentExpression)
+            = AssignmenUsedAsExpressionReporting(assignment.declaration)
 
         fun mutationInCondition(mutation: BoundExecutable<*>)
             = MutationInConditionReporting(mutation.declaration)

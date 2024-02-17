@@ -51,7 +51,7 @@ class FunctionDeclaration(
         var contextAfterValueParameters: CTContext = functionContext
         val boundParameters = ArrayList<BoundParameter>(parameters.parameters.size)
         for (parameter in parameters.parameters) {
-            val bound = parameter.bindTo(contextAfterValueParameters)
+            val bound = parameter.bindToAsParameter(contextAfterValueParameters)
             boundParameters.add(bound)
             contextAfterValueParameters = bound.modifiedContext
         }

@@ -36,6 +36,7 @@ class SourceFileRootContext(
                 get() = throw InternalCompilerError("file not initialized yet")
 
             override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? = null
+            override fun initializesVariable(variable: BoundVariable): Boolean = false
             override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean = false
             override fun resolveTypeParameter(simpleName: String): BoundTypeParameter? = null
             override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BaseType? = null

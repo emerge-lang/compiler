@@ -25,14 +25,12 @@ import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.context.CTContext
 import compiler.binding.type.*
+import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
-import compiler.handleCyclicInvocation
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundInvocationExpression(
     override val context: CTContext,
@@ -71,6 +69,9 @@ class BoundInvocationExpression(
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
+            receiverExpression?.markEvaluationResultUsed()
+            valueArguments.forEach { it.markEvaluationResultUsed() }
+
             val reportings = mutableSetOf<Reporting>()
 
             receiverExpression?.semanticAnalysisPhase2()?.let(reportings::addAll)

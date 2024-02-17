@@ -49,8 +49,12 @@ class BoundMemberAccessExpression(
 
     override val isGuaranteedToThrow = false // member accessor CAN throw, but must not ALWAYS do so
 
-    override fun semanticAnalysisPhase1() = valueExpression.semanticAnalysisPhase1()
+    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+        return valueExpression.semanticAnalysisPhase1()
+    }
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        valueExpression.markEvaluationResultUsed()
+
         val reportings = mutableSetOf<Reporting>()
         reportings.addAll(valueExpression.semanticAnalysisPhase2())
 

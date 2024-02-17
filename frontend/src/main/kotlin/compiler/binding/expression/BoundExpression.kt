@@ -40,6 +40,19 @@ interface BoundExpression<out ASTType> : BoundExecutable<ASTType> {
      */
     fun setExpectedEvaluationResultType(type: BoundTypeReference)
 
+    /**
+     * Must be called during after [BoundExecutable.semanticAnalysisPhase1] and before [BoundExecutable.semanticAnalysisPhase2]
+     * by the enclosing code running this expression. The intended purposes are:
+     * * in the frontend
+     *   * detect whether a [BoundIdentifierExpression] is used in read context ([markEvaluationResultUsed] was called)
+     *     or in write context ([markEvaluationResultUsed] was not called). Ultimately drives whether initialization of a
+     *     referred variable is required.
+     * * in the backend:
+     *   * detect whether a function invocation returning `Unit` can be left to be optimized to `void` or
+     *     whether an artificial reference to `Unit` needs to be generated.
+     */
+    fun markEvaluationResultUsed() {}
+
     override fun toBackendIr(): IrExpression {
         TODO("for ${this::class.simpleName}")
     }

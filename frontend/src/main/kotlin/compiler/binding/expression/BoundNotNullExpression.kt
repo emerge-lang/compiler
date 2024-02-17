@@ -23,6 +23,7 @@ import compiler.ast.expression.NotNullExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
+import compiler.reportings.Reporting
 
 class BoundNotNullExpression(
     override val context: CTContext,
@@ -38,7 +39,12 @@ class BoundNotNullExpression(
     override val isGuaranteedToThrow = false // this MAY throw, but it's not guaranteed to
 
     override fun semanticAnalysisPhase1() = super<BoundExpression>.semanticAnalysisPhase1()
-    override fun semanticAnalysisPhase2() = super<BoundExpression>.semanticAnalysisPhase2()
+
+    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        nullableExpression.markEvaluationResultUsed()
+        return super<BoundExpression>.semanticAnalysisPhase2()
+    }
+
     override fun semanticAnalysisPhase3() = super<BoundExpression>.semanticAnalysisPhase3()
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {

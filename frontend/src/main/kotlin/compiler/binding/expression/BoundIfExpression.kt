@@ -100,7 +100,7 @@ class BoundIfExpression(
 
         condition.findWritesBeyond(context).forEach { mutationInCondition ->
             if (mutationInCondition is BoundAssignmentExpression) {
-                reportings.add(Reporting.assignmentInCondition(mutationInCondition))
+                reportings.add(Reporting.assignmentUsedAsExpression(mutationInCondition))
             } else {
                 reportings.add(Reporting.mutationInCondition(mutationInCondition))
             }

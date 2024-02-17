@@ -1,6 +1,6 @@
 package compiler.compiler.negative
 
-import compiler.reportings.AssignmentInConditionReporting
+import compiler.reportings.AssignmenUsedAsExpressionReporting
 import compiler.reportings.ConditionNotBooleanReporting
 import compiler.reportings.MutationInConditionReporting
 import io.kotest.core.spec.style.FreeSpec
@@ -26,7 +26,7 @@ class ConditionErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<AssignmentInConditionReporting>()
+            .shouldReport<AssignmenUsedAsExpressionReporting>()
     }
 
     "if containing mutation" {

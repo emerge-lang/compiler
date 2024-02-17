@@ -25,6 +25,7 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
+import compiler.binding.context.SourceFileRootContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.BuiltinAny
@@ -53,6 +54,7 @@ class BoundVariable(
         ?: if (isAssignable) TypeMutability.MUTABLE else kind.defaultMutability
 
     val name: String = declaration.name.value
+    private val isGlobal = context is SourceFileRootContext
 
     /**
      * The base type reference; null if not determined yet or if it cannot be determined due to semantic errors.
@@ -86,7 +88,9 @@ class BoundVariable(
                     )
                 }
 
-            // TODO: warn about shadowing
+            if (isGlobal && declaration.initializerExpression == null) {
+                reportings.add(Reporting.globalVariableNotInitialized(this))
+            }
 
             // type-related stuff
             // unknown type
@@ -207,6 +211,9 @@ class BoundVariable(
     override val modifiedContext: CTContext by lazy {
         val newCtx = MutableCTContext(context)
         newCtx.addVariable(this)
+        if (initializerExpression != null) {
+            newCtx.markVariableInitialized(this)
+        }
         newCtx
     }
 
@@ -216,6 +223,10 @@ class BoundVariable(
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
         return initializerExpression?.findWritesBeyond(boundary) ?: emptySet()
+    }
+
+    fun isInitializedInContext(context: CTContext): Boolean {
+        return isGlobal || kind == Kind.PARAMETER || context.initializesVariable(this)
     }
 
     val backendIrDeclaration: IrVariableDeclaration by lazy { IrVariableDeclarationImpl(name, type!!.toBackendIr()) }

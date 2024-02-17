@@ -72,6 +72,14 @@ interface CTContext {
     fun resolveVariable(name: String, fromOwnFileOnly: Boolean = false): BoundVariable?
 
     /**
+     * **This is a helper method for [BoundVariable.isInitializedInContext]! You likely want to use that one.**
+     * @return whether this context or any of its parents initializes the given variable.
+     *
+     * If the [BoundVariable] wasn't obtained from [resolveVariable] on the same context, the return value is undefined.
+     */
+    fun initializesVariable(variable: BoundVariable): Boolean
+
+    /**
      * @return Whether this context contains the given variable. Only parent contexts up to and including the
      *         given `boundary` will be searched.
      */

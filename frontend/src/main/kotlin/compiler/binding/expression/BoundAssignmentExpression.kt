@@ -19,11 +19,12 @@
 package compiler.binding.expression
 
 import compiler.InternalCompilerError
-import compiler.ast.expression.AssignmentExpression
 import compiler.ast.Executable
+import compiler.ast.expression.AssignmentExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundVariable
 import compiler.binding.context.CTContext
+import compiler.binding.context.MutableCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.nullableOr
 import compiler.reportings.Reporting
@@ -53,9 +54,29 @@ class BoundAssignmentExpression(
     override val isGuaranteedToThrow: Boolean?
         get() = targetExpression.isGuaranteedToThrow nullableOr valueExpression.isGuaranteedToThrow
 
+    private val _modifiedContext = MutableCTContext(context)
+    override val modifiedContext: CTContext = _modifiedContext
+
     override fun semanticAnalysisPhase1() = targetExpression.semanticAnalysisPhase1() + valueExpression.semanticAnalysisPhase1()
 
-    override fun semanticAnalysisPhase2() = targetExpression.semanticAnalysisPhase2() + valueExpression.semanticAnalysisPhase2()
+    private var resultUsed = false
+    override fun markEvaluationResultUsed() {
+        resultUsed = true
+    }
+
+    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        valueExpression.markEvaluationResultUsed()
+
+        val reportings = mutableListOf<Reporting>()
+        reportings.addAll(targetExpression.semanticAnalysisPhase2())
+        reportings.addAll(valueExpression.semanticAnalysisPhase2())
+
+        if (resultUsed) {
+            reportings.add(Reporting.assignmentUsedAsExpression(this))
+        }
+
+        return reportings
+    }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
@@ -71,9 +92,15 @@ class BoundAssignmentExpression(
                         assignmentTargetType = AssignmentTargetType.VARIABLE
                         targetVariable = localReferral.variable
 
-                        if (!targetVariable!!.isAssignable) {
-                            reportings.add(Reporting.illegalAssignment("Cannot assign to value / final variable ${targetVariable!!.name}", this))
+                        val isInitialized = targetVariable!!.isInitializedInContext(context)
+                        if (isInitialized) {
+                            if (!targetVariable!!.isAssignable) {
+                                reportings.add(Reporting.illegalAssignment("Cannot assign to value / final variable ${targetVariable!!.name}", this))
+                            }
+                        } else {
+                            _modifiedContext.markVariableInitialized(targetVariable!!)
                         }
+
                         localReferral.variable.type?.let { targetType ->
                             valueExpression.type?.evaluateAssignabilityTo(targetType, valueExpression.declaration.sourceLocation)
                                 ?.let(reportings::add)
