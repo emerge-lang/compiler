@@ -37,7 +37,7 @@ jobs:
         run: |
           cmake -B build -GNinja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DLLVM_ENABLE_PROJECTS="llvm;lld" \
+            -DLLVM_ENABLE_PROJECTS="llvm;lld;libc;lldb" \
             -DCMAKE_C_COMPILER_LAUNCHER=sccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
             -DLLVM_ENABLE_ASSERTIONS=ON \
