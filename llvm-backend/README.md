@@ -175,7 +175,7 @@ declare ptr @ByteBoxCtor(i8 %value)
 * when an object is dropped all the reference-counter of all the objects references from member variables must
   be decremented.
 * whenever the reference count of a value is decremented, the acting code must subsequently check whether the reference
-  count is 0. If that's the case the code that just dropped the reference(count) needs to invoke the drop function
+  count is 0. If that's the case the code that just dropped the reference(count) needs to invoke the finalizer function
   for the reference (see below).
 
 ### Static data
@@ -205,18 +205,20 @@ should never reach `0` from decrements. But the counter could overflow to `0`.
 **Consequence: object deallocation is 100% virtual/type specific. Calling the deallocator for a static value
 will do exactly nothing.**
 
-### The drop function
+### The finalizer function
 
 It needs to be defined by all types and is always dynamic dispatch. It has three tasks, in this order:
 
 1. void all `Weak` reference to the object
-2. recursively decrement reference counts on all referenced objects, potentially dropping them, too
-3. hand the objects memory back to the allocator/OS
+2. potentially execute user-defined cleanup (e.g. closing file handles)
+3. recursively decrement reference counts on all referenced objects, potentially dropping them, too
+4. hand the objects memory back to the allocator/OS
 
 Voiding the Weak references is something that is _not_ type specific (see implementation details later in this document),
 so the `emerge.platform` package of each target must provide a `nullWeakReferences(Any)` function.
 
-The compiler would then generate the deallocator function for each type based off of this template:
+The compiler would then generate the finalizer function for each type and store a pointer to it in the `vtable`
+(see below). Here is a rough sketch of how that looks like:
 
 ```
 // void free (void *ptr) from libc
@@ -226,14 +228,15 @@ external(C) fun free(ptr: COpaquePointer) -> Unit
 intrinsic fun getReferenceCount(self: Any) -> uword
 intrinsic fun nullWeakReferences(self: Any) -> Unit
 
-fun __dropObject(object: Any) {
-    assert(pointer.getReferenceCount() == 0) { "Reference count not 0 when dropping: premature deallocation" }
-    
+fun emerge.core.SomeType__finalize_user(self: Any) {
+    // user-defined code goes here
+}
+
+fun emerge.core.Any__finalize(object: Any) {
+    assert(pointer.getReferenceCount() == 0) { "Reference count not 0 when finalizing: premature deallocation" }
     nullWeakReferences(object)
-    
-    object.finalize()
-    
-    free(pointer)
+    `emerge.core.SomeType__finalize_user`(object)
+    free(object)
 }
 ```
 
@@ -312,7 +315,7 @@ object. The array-ing aims to amortize the cost of the linking to some extent._
 
 #### Nulling weak references
 
-When the last strong reference to an object is to be dropped, all the weak references have to be
+When the last strong reference to an object is to be finalized, all the weak references have to be
 null-ed before the object is actually touched for finalization. To achieve this, there are backwards
 references from the object to all `Weak`s pointing to it, so this is trivially possible.
 
