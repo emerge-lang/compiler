@@ -64,15 +64,13 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * function parameters: readonly be default. Functions are an API and should provide best compatibility
     * functions: pure by default? at least readonly! impure/mutable should be opt-in
       * this is already eased by having the receiver be an explicit parameter that can get an explicit mutability
-22. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
-    1. index access can always throw IndexOutOfBounds; work out a nothrow alternative. Maybe `.safeGet(index)` returning `Either`?
-23. implement overload resolution algorithm, marked with TODOs
+22. implement overload resolution algorithm, marked with TODOs
     * attention: currently, when an overload doesn't match just because of mutability that is reported as "function not defined".
       while technically correct, its very negative-helpful. E.g. when assignee is `readonly` and target is `mutable` the
       error message should say someting like "can't mutate ..."
     * Also: what about overloading only based on mutabliltiy? Deny by incorporating mutability into the disjoint logic
       somehow?
-24. object model
+23. object model
     1. ditch struct for class: there is no use for a struct that a `data`/`record` modifier as in Kotlin/Java couldn't
        do; especially because closed-world optimization will produce identically optimal code for a struct and a
        class with just accessors.
@@ -94,22 +92,21 @@ This file describes the Items that are next on the TODO list. **This list is NOT
          test the implementation.
     4. deal with the wrapper mutability problem: do types need to be generic on mutability?
     5. add `sealed` interfaces as in Kotlin
-25. get rid of BuiltinBaseType: declare all builtins in emerge source. Unit, Any, Int, ...
-26. implement weak references
-27. extend InvocationExpression
+24. get rid of BuiltinBaseType: declare all builtins in emerge source. Unit, Any, Int, ...
+25. implement weak references
+26. extend InvocationExpression
     1. ~~handle constructors~~
     2. when checking `objRef.method()` error if `method` is a property  
       (will be implemented with function types later on)
-28. exceptions
+27. error handling
     1. `throw` statement
-    2. `nothrow` scope modifier
-    3. try+catch+finally 
-       * a catch-all makes the try block nothrow, allowing nothrow functions to do risky things
-         provided they do a catchall
-    4. deallocation should be nothrow. Dealing with errors/exceptions during finalization requires
-       a fallback error handling. Probably this should just be a panic like in rust. In that case:
-       look into how rusts panic is defined and how it behaves, its probably not simple and the rust devs
-       put a ton of thought into it
+    2. `Throwable` for everything that can be thrown, `Exception : Throwable` for recoverable errors,
+       `Error : Throwable` for unrecoverable errors. `Error` cannot be `catch`ed
+    3. `Exception`s are checked - must be declared on the signature. Errors can be omitted. This removes the need for
+       a `nothrow` modifier
+    4. try+catch+finally
+28. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
+    1. index access can always throw IndexOutOfBounds; work out a nothrow alternative. Maybe `.safeGet(index)` returning `Either`?
 29. limit c-interface to standard library
     1. upgrade the compilers CLI interface to a configuration via a proper config format. NOT YAML! Maybe TOML, maybe PKL. Should have schema
     2. implement dependencies between input modules/source sets
@@ -125,6 +122,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
         * overflow-safe implementations of the actual operators + - * ...
         * overflow-unsafe intrinsics, e.g. `emerge.std.math.addWithOverflow(a: i32, b: i32)`
         * conversions between the integral types, especially handy for word
+    * array bounds checks, null deref
     * a to-string abstraction: Java-style toString on all objects is probably overkill, more like rusts Display trait
     * equality
       * reference equality operator: really === ??
