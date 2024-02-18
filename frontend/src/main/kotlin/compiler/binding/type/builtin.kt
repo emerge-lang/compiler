@@ -60,13 +60,6 @@ object BuiltinFloat : BuiltinType("Float", BuiltinNumber) {
     val MAX = BigDecimal.valueOf(Float.MAX_VALUE.toDouble())
 }
 
-object BuiltinInt : BuiltinType("Int", BuiltinNumber) {
-    override val isAtomic = true
-
-    val MIN = BigInteger.valueOf(Int.MIN_VALUE.toLong())
-    val MAX = BigInteger.valueOf(Int.MAX_VALUE.toLong())
-}
-
 object BuiltinByte : BuiltinType("Byte", BuiltinNumber) {
     override val isAtomic = true
 
@@ -74,8 +67,53 @@ object BuiltinByte : BuiltinType("Byte", BuiltinNumber) {
     val MAX = BigInteger.valueOf(Byte.MAX_VALUE.toLong())
 }
 
-object BuiltinBoolean : BuiltinType("Boolean", BuiltinAny) {
+object BuiltinUByte : BuiltinType("UByte", BuiltinNumber) {
     override val isAtomic = true
+
+    val MIN = BigInteger.valueOf(Byte.MIN_VALUE.toLong())
+    val MAX = BigInteger.valueOf(Byte.MAX_VALUE.toLong())
+}
+
+object BuiltinShort : BuiltinType("Short", BuiltinNumber) {
+    override val isAtomic = true
+
+    val MIN = BigInteger.valueOf(Short.MIN_VALUE.toLong())
+    val MAX = BigInteger.valueOf(Short.MAX_VALUE.toLong())
+}
+
+object BuiltinUShort : BuiltinType("UShort", BuiltinNumber) {
+    override val isAtomic = true
+
+    val MIN = BigInteger.valueOf(UShort.MIN_VALUE.toLong())
+    val MAX = BigInteger.valueOf(UShort.MAX_VALUE.toLong())
+}
+
+object BuiltinInt : BuiltinType("Int", BuiltinNumber) {
+    override val isAtomic = true
+
+    val MIN = BigInteger.valueOf(Int.MIN_VALUE.toLong())
+    val MAX = BigInteger.valueOf(Int.MAX_VALUE.toLong())
+}
+
+object BuiltinUInt : BuiltinType("UInt", BuiltinNumber) {
+    override val isAtomic = true
+
+    val MIN = BigInteger.valueOf(UInt.MIN_VALUE.toLong())
+    val MAX = BigInteger.valueOf(UInt.MAX_VALUE.toLong())
+}
+
+object BuiltinLong : BuiltinType("Long", BuiltinNumber) {
+    override val isAtomic = true
+
+    val MIN = BigInteger.valueOf(Long.MIN_VALUE)
+    val MAX = BigInteger.valueOf(Long.MAX_VALUE)
+}
+
+object BuiltinULong : BuiltinType("ULong", BuiltinNumber) {
+    override val isAtomic = true
+
+    val MIN = BigInteger.valueOf(ULong.MIN_VALUE.toLong())
+    val MAX = BigInteger.valueOf(ULong.MAX_VALUE.toLong())
 }
 
 object BuiltinSignedWord : BuiltinType("iword", BuiltinNumber) {
@@ -90,6 +128,10 @@ object BuiltinUnsignedWord : BuiltinType("uword", BuiltinNumber) {
 
     val SAFE_MIN = BigInteger.valueOf(UInt.MIN_VALUE.toLong())
     val SAFE_MAX = BigInteger.valueOf(UInt.MAX_VALUE.toLong())
+}
+
+object BuiltinBoolean : BuiltinType("Boolean", BuiltinAny) {
+    override val isAtomic = true
 }
 
 val BuiltinArray: (SoftwareContext) -> BuiltinType = { swCtx -> object : BuiltinType("Array", BuiltinAny) {

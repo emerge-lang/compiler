@@ -27,7 +27,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType.Companion.member
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.ValueArrayI8Type
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.ValueArrayS8Type
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.tackState
@@ -84,7 +84,6 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, out LlvmType>.emitExpressionCo
             return call(ctor, listOf(byteArrayPtr))
         }
         is IrStructMemberAccessExpression -> {
-            // TODO: throw + catch
             val baseStructPtr = emitExpressionCode(expression.base) as LlvmValue<LlvmPointerType<EmergeStructType>>
             return getelementptr(baseStructPtr)
                 .member(expression.member)
@@ -135,13 +134,13 @@ internal var IrVariableDeclaration.emitWrite: (BasicBlockBuilder<EmergeLlvmConte
 internal var IrStringLiteralExpression.byteArrayGlobal: LlvmGlobal<ArrayType<LlvmI8Type>>? by tackState { null }
 internal fun IrStringLiteralExpression.assureByteArrayConstantIn(context: EmergeLlvmContext): LlvmGlobal<ArrayType<LlvmI8Type>> {
     byteArrayGlobal?.let { return it }
-    val constant = ValueArrayI8Type.buildConstantIn(
+    val constant = ValueArrayS8Type.buildConstantIn(
         context,
         utf8Bytes.asList(),
         { context.i8(it) }
     )
     val untypedGlobal = context.addGlobal(constant, LlvmGlobal.ThreadLocalMode.SHARED)
-    val global = LlvmGlobal(untypedGlobal.raw, ValueArrayI8Type)
+    val global = LlvmGlobal(untypedGlobal.raw, ValueArrayS8Type)
     byteArrayGlobal = global
     return global
 }

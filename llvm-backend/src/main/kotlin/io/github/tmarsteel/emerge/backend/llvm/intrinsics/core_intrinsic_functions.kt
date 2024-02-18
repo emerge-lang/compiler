@@ -51,7 +51,7 @@ internal val arrayIndexOfFirst = KotlinLlvmFunction.define<LlvmContext, _>(
     "emerge.ffi.c.addressOfFirst",
     pointerTo(LlvmVoidType),
 ) {
-    val arrayPointer by param(pointerTo(EmergeReferenceArrayType))
+    val arrayPointer by param(pointerTo(AnyArrayType))
     body {
         val ptr = getelementptr(arrayPointer, context.i32(1))
             .get()
@@ -65,11 +65,10 @@ internal val arraySize = KotlinLlvmFunction.define<LlvmContext, _>(
     "emerge.core.size",
     LlvmWordType,
 ) {
-    val arrayPointer by param(pointerTo(EmergeReferenceArrayType))
+    val arrayPointer by param(pointerTo(AnyArrayType))
     body {
         ret(
             getelementptr(arrayPointer)
-                .member { base }
                 .member { elementCount }
                 .get()
                 .dereference()

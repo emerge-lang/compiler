@@ -25,9 +25,13 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.BuiltinByte
 import compiler.binding.type.BuiltinInt
+import compiler.binding.type.BuiltinLong
 import compiler.binding.type.BuiltinNumber
 import compiler.binding.type.BuiltinSignedWord
 import compiler.binding.type.BuiltinType
+import compiler.binding.type.BuiltinUByte
+import compiler.binding.type.BuiltinUInt
+import compiler.binding.type.BuiltinULong
 import compiler.binding.type.BuiltinUnsignedWord
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.reportings.Reporting
@@ -95,7 +99,11 @@ class BoundIntegerLiteral(
         expectedNumericType?.let { expectedType ->
             val range: ClosedRange<BigInteger> = when (expectedType) {
                 BuiltinByte -> BuiltinByte.MIN .. BuiltinByte.MAX
+                BuiltinUByte -> BuiltinUByte.MIN .. BuiltinUByte.MAX
                 BuiltinInt -> BuiltinInt.MIN .. BuiltinInt.MAX
+                BuiltinUInt -> BuiltinUInt.MIN .. BuiltinUInt.MAX
+                BuiltinLong -> BuiltinLong.MIN .. BuiltinLong.MAX
+                BuiltinULong -> BuiltinULong.MIN .. BuiltinULong.MAX
                 BuiltinSignedWord -> BuiltinSignedWord.SAFE_MIN .. BuiltinSignedWord.SAFE_MAX
                 BuiltinUnsignedWord -> BuiltinUnsignedWord.SAFE_MIN .. BuiltinUnsignedWord.SAFE_MAX
                 else -> return reportings

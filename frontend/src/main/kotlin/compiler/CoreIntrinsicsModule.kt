@@ -9,9 +9,15 @@ import compiler.binding.type.BuiltinBoolean
 import compiler.binding.type.BuiltinByte
 import compiler.binding.type.BuiltinFloat
 import compiler.binding.type.BuiltinInt
+import compiler.binding.type.BuiltinLong
 import compiler.binding.type.BuiltinNothing
 import compiler.binding.type.BuiltinNumber
+import compiler.binding.type.BuiltinShort
 import compiler.binding.type.BuiltinSignedWord
+import compiler.binding.type.BuiltinUByte
+import compiler.binding.type.BuiltinUInt
+import compiler.binding.type.BuiltinULong
+import compiler.binding.type.BuiltinUShort
 import compiler.binding.type.BuiltinUnit
 import compiler.binding.type.BuiltinUnsignedWord
 import io.github.tmarsteel.emerge.backend.api.DotName
@@ -32,13 +38,19 @@ object CoreIntrinsicsModule {
         file.context.addBaseType(BuiltinUnit)
         file.context.addBaseType(BuiltinNumber)
         file.context.addBaseType(BuiltinFloat)
+        file.context.addBaseType(BuiltinByte)
+        file.context.addBaseType(BuiltinUByte)
+        file.context.addBaseType(BuiltinShort)
+        file.context.addBaseType(BuiltinUShort)
         file.context.addBaseType(BuiltinInt)
+        file.context.addBaseType(BuiltinUInt)
+        file.context.addBaseType(BuiltinLong)
+        file.context.addBaseType(BuiltinULong)
+        file.context.addBaseType(BuiltinSignedWord)
+        file.context.addBaseType(BuiltinUnsignedWord)
         file.context.addBaseType(BuiltinBoolean)
         file.context.addBaseType(BuiltinArray(softwareContext))
         file.context.addBaseType(BuiltinNothing)
-        file.context.addBaseType(BuiltinByte)
-        file.context.addBaseType(BuiltinSignedWord)
-        file.context.addBaseType(BuiltinUnsignedWord)
 
         coreModule.addSourceFile(file)
     }

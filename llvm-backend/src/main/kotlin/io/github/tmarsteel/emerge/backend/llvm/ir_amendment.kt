@@ -6,6 +6,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI16Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
@@ -48,6 +49,8 @@ internal val IrType.llvmValueType: LlvmType? by tackLazyVal {
 
         "emerge.core.iword",
         "emerge.core.uword" -> LlvmWordType
+
+        "emerge.core.Boolean" -> LlvmBooleanType
 
         "emerge.ffi.c.COpaquePointer" -> LlvmPointerType(LlvmVoidType)
 

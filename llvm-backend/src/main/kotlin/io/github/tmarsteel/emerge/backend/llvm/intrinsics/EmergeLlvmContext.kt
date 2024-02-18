@@ -72,6 +72,29 @@ class EmergeLlvmContext(
      */
     lateinit var mainFunction: LlvmFunction<LlvmVoidType>
 
+    /** `emerge.platform.S8Box` */
+    internal lateinit var boxTypeS8: EmergeStructType
+    /** `emerge.platform.U8Box` */
+    internal lateinit var boxTypeU8: EmergeStructType
+    /** `emerge.platform.S16Box` */
+    internal lateinit var boxTypeS16: EmergeStructType
+    /** `emerge.platform.U16Box` */
+    internal lateinit var boxTypeU16: EmergeStructType
+    /** `emerge.platform.S32Box` */
+    internal lateinit var boxTypeS32: EmergeStructType
+    /** `emerge.platform.U32Box` */
+    internal lateinit var boxTypeU32: EmergeStructType
+    /** `emerge.platform.S64Box` */
+    internal lateinit var boxTypeS64: EmergeStructType
+    /** `emerge.platform.U64Box` */
+    internal lateinit var boxTypeU64: EmergeStructType
+    /** `emerge.platform.SWordBox` */
+    internal lateinit var boxTypeSWord: EmergeStructType
+    /** `emerge.platform.UWordBox` */
+    internal lateinit var boxTypeUWord: EmergeStructType
+    /** `emerge.platform.BooleanBox` */
+    internal lateinit var boxTypeBoolean: EmergeStructType
+
     fun registerStruct(struct: IrStruct) {
         if (struct.rawLlvmRef != null) {
             return
@@ -80,14 +103,27 @@ class EmergeLlvmContext(
         val structType = LLVM.LLVMStructCreateNamed(ref, struct.llvmName)
         // register here to allow cyclic references
         struct.rawLlvmRef = structType
-        struct.llvmType = EmergeStructType.fromLlvmStructWithoutBody(
+        val emergeStructType = EmergeStructType.fromLlvmStructWithoutBody(
             this,
             structType,
             struct,
         )
+        struct.llvmType = emergeStructType
 
-        if (struct.fqn.toString() == "emerge.ffi.c.CPointer") {
-            struct.members.single { it.name == "pointed" }.isCPointerPointed = true
+        when (struct.fqn.toString()) {
+            "emerge.ffi.c.CPointer" -> {
+                struct.members.single { it.name == "pointed" }.isCPointerPointed = true
+            }
+            "emerge.platform.I8Box" -> boxTypeS8 = emergeStructType
+            "emerge.platform.U8Box" -> boxTypeU8 = emergeStructType
+            "emerge.platform.S16Box" -> boxTypeS16 = emergeStructType
+            "emerge.platform.U16Box" -> boxTypeU16 = emergeStructType
+            "emerge.platform.S32Box" -> boxTypeS32 = emergeStructType
+            "emerge.platform.U32Box" -> boxTypeU32 = emergeStructType
+            "emerge.platform.S64Box" -> boxTypeS64 = emergeStructType
+            "emerge.platform.U64Box" -> boxTypeU64 = emergeStructType
+            "emerge.platform.SWordBox" -> boxTypeSWord = emergeStructType
+            "emerge.platform.UWordBox" -> boxTypeUWord = emergeStructType
         }
 
         // constructors need not be registered as of now. There only is the default
@@ -107,7 +143,7 @@ class EmergeLlvmContext(
                 check(parameterTypes.size == intrinsicImpl.parameterTypes.size)
                 intrinsicImpl.parameterTypes.forEachIndexed { paramIndex, intrinsicType ->
                     val declaredType = parameterTypes[paramIndex]
-                    check(intrinsicType == declaredType) { "param #$paramIndex; intrinsic $intrinsicType, declared $declaredType" }
+                    check(intrinsicType == declaredType) { "${fn.fqn} param #$paramIndex; intrinsic $intrinsicType, declared $declaredType" }
                 }
                 fn.llvmRef = intrinsicImpl
                 return intrinsicImpl
@@ -254,13 +290,24 @@ class EmergeLlvmContext(
                 "emerge.core.Array" -> {
                     val component = type.arguments.values.single()
                     if (component.variance == IrTypeVariance.IN || component.type !is IrSimpleType) {
-                        return EmergeReferenceArrayType
+                        return AnyArrayType
                     }
 
-                    when ((component.type as IrSimpleType).baseType.fqn.toString()) {
-                        "emerge.core.Byte" -> return ValueArrayI8Type
-                        "emerge.core.Any" -> return EmergeReferenceArrayType
-                        else -> TODO("other intrinsic types??")
+                    return when ((component.type as IrSimpleType).baseType.fqn.toString()) {
+                        "emerge.core.Byte" -> ValueArrayS8Type
+                        "emerge.core.UByte" -> ValueArrayU8Type
+                        "emerge.core.Short" -> ValueArrayS16Type
+                        "emerge.core.UShort" -> ValueArrayU16Type
+                        "emerge.core.Int" -> ValueArrayS16Type
+                        "emerge.core.UInt" -> ValueArrayU16Type
+                        "emerge.core.Long" -> ValueArrayS16Type
+                        "emerge.core.ULong" -> ValueArrayU16Type
+                        "emerge.core.iword" -> ValueArraySWordType
+                        "emerge.core.uword" -> ValueArrayUWordType
+                        "emerge.core.Boolean" -> ValueArrayBooleanType
+                        "emerge.core.Any" -> AnyArrayType
+                        "emerge.core.Number" -> AnyArrayType
+                        else -> EmergeReferenceArrayType
                     }
                 }
 
