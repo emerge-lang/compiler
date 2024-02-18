@@ -17,7 +17,7 @@ jobs:
             exit 1
           }
       - name: Setup Windows
-        uses: llvm/actions/setup-windows@llvmorg-17.0.6
+        uses: llvm/actions/setup-windows@main
         with:
           arch: amd64
       - name: Fetch LLVM sources
