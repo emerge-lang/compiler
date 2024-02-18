@@ -53,6 +53,10 @@ jobs:
           path: |
             build/bin
             build/include
+            !build/include/**/*.cmake
             build/lib
+            !build/lib/**/*.obj
+            !build/lib/**/*.cmake
+            !build/lib/**/*.dir
             build/libexec
             build/share
