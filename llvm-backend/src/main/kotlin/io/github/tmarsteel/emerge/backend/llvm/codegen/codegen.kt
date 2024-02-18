@@ -98,19 +98,18 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, out LlvmType>.emitExpressionCo
             return expression.variable.emitRead!!()
         }
         is IrIntegerLiteralExpression -> {
-            // TODO: these conversions are not correct; just to get it working for now
             val value = when ((expression.evaluatesTo as IrSimpleType).baseType.fqn.toString()) {
                 "emerge.core.Byte" -> context.i8(expression.value.byteValueExact())
-                "emerge.core.UByte" -> TODO()
+                "emerge.core.UByte" -> context.i8(expression.value.shortValueExact().toUByte())
                 "emerge.core.Short" -> context.i16(expression.value.shortValueExact())
-                "emerge.core.UShort" -> TODO()
+                "emerge.core.UShort" -> context.i16(expression.value.intValueExact().toUShort())
                 "emerge.core.Int" -> context.i32(expression.value.intValueExact())
-                "emerge.core.UInt" -> TODO()
+                "emerge.core.UInt" -> context.i32(expression.value.longValueExact().toUInt())
                 "emerge.core.Long" -> context.i64(expression.value.longValueExact())
-                "emerge.core.ULong" -> TODO()
-                "emerge.core.iword" -> context.word(expression.value.intValueExact())
-                "emerge.core.uword" -> context.word(expression.value.longValueExact())
-                else -> throw CodeGenerationException("Unsupport integer literal type ${expression.evaluatesTo}")
+                "emerge.core.ULong" -> context.i64(expression.value.toLong())
+                "emerge.core.iword" -> context.word(expression.value.longValueExact())
+                "emerge.core.uword" -> context.word(expression.value.toLong())
+                else -> throw CodeGenerationException("Unsupported integer literal type ${expression.evaluatesTo}")
             }
 
             return value

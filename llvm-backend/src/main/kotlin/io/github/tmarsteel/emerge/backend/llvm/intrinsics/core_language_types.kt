@@ -1,6 +1,3 @@
-/**
- * TODO: rename file to core_language_types
- */
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
