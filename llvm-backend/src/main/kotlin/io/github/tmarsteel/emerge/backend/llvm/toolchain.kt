@@ -50,6 +50,7 @@ interface ToolDiscoverer {
         val INSTANCE: ToolDiscoverer by lazy {
             when (FileSystems.getDefault().separator) {
                 "/" -> LinuxToolDiscoverer()
+                "\\" -> WindowsToolDiscoverer()
                 else -> throw IllegalStateException("Unsupported host OS")
             }
         }
@@ -70,6 +71,28 @@ private class LinuxToolDiscoverer : ToolDiscoverer {
         // no need to wait for which to exit
 
         return Paths.get(chosen)
+    }
+}
+
+private class WindowsToolDiscoverer : ToolDiscoverer {
+    override fun discover(vararg commandNames: String): Path {
+        return sequenceOf(*commandNames)
+            .mapNotNull(this::findSingle)
+            .map(Paths::get)
+            .firstOrNull()
+            ?: throw ToolNotFoundException(commandNames)
+    }
+
+    private fun findSingle(commandName: String): String? {
+        val process = ProcessBuilder()
+            .command("powershell", "-Command", "gcm $commandName | % { \$_.Source }")
+            .start()
+
+        process.waitFor()
+
+        return process.inputReader().lineSequence()
+            .filterNot { it.isBlank() }
+            .firstOrNull()
     }
 }
 
