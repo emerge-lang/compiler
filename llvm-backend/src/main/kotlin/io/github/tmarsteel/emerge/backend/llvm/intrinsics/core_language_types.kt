@@ -18,6 +18,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
+import org.bytedeco.llvm.LLVM.LLVMTypeRef
 import org.bytedeco.llvm.global.LLVM
 
 internal object LlvmWordType : LlvmCachedType(), LlvmIntegerType {
@@ -75,10 +76,21 @@ internal object AnyValueType : LlvmStructType("anyvalue"), EmergeHeapAllocated {
         require(value.type is LlvmPointerType<*>)
         return builder.getelementptr(value.reinterpretAs(PointerToAnyValue))
     }
+
+    override fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LLVMTypeRef) {
+        // this is AnyValue itself, noop
+    }
 }
 
 internal interface EmergeHeapAllocated : LlvmType {
     fun pointerToAnyValueBase(builder: BasicBlockBuilder<*, *>, value: LlvmValue<*>): GetElementPointerStep<AnyValueType>
+
+    /**
+     * This abstract method is a reminder to check *at emerge compile time* that your subtype of [EmergeHeapAllocated]#
+     * can actually be [LlvmValue.reinterpretAs] any([AnyValueType]).
+     * @throws CodeGenerationException if that is not the case.
+     */
+    fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LLVMTypeRef)
 }
 
 internal object AnyArrayType : LlvmStructType("anyarray"), EmergeHeapAllocated {
@@ -94,6 +106,10 @@ internal object AnyArrayType : LlvmStructType("anyarray"), EmergeHeapAllocated {
             return getelementptr(value.reinterpretAs(pointerTo(this@AnyArrayType))).member { anyBase }
         }
     }
+
+    override fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LLVMTypeRef) {
+        check(LLVM.LLVMOffsetOfElement(context.targetData.ref, selfInContext, anyBase.indexInStruct) == 0L)
+    }
 }
 
 internal class ArrayType<Element : LlvmType>(
@@ -106,6 +122,16 @@ internal class ArrayType<Element : LlvmType>(
 ) : LlvmStructType("array_$typeNameSuffix"), EmergeHeapAllocated {
     val base by structMember(AnyArrayType)
     val elements by structMember(LlvmArrayType(0L, elementType))
+
+    override fun computeRaw(context: LlvmContext): LLVMTypeRef {
+        val raw = super.computeRaw(context)
+        assureReinterpretableAsAnyValue(context, raw)
+        return raw
+    }
+
+    override fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LLVMTypeRef) {
+        check(LLVM.LLVMOffsetOfElement(context.targetData.ref, selfInContext, base.indexInStruct) == 0L)
+    }
 
     override fun pointerToAnyValueBase(
         builder: BasicBlockBuilder<*, *>,
@@ -147,7 +173,6 @@ internal class ArrayType<Element : LlvmType>(
         }
 
         Hence: here, we don't use ArrayType.buildConstantIn, but hand-roll it to do the typing trick
-        TODO: if this approach really works, post it as an answer here: https://stackoverflow.com/questions/77973362/dynamic-arrays-in-llvm-declaring-a-constant-global
          */
 
         val anyArrayBaseConstant = AnyArrayType.buildConstantIn(context) {
@@ -166,11 +191,37 @@ internal class ArrayType<Element : LlvmType>(
             data.map { rawTransform(it) },
         )
 
-        return LlvmInlineStructType.buildInlineTypedConstantIn(
+        val inlineConstant = LlvmInlineStructType.buildInlineTypedConstantIn(
             context,
             anyArrayBaseConstant,
             payload
         )
+
+        val anyArrayBaseOffsetInGeneralType = LLVM.LLVMOffsetOfElement(
+            context.targetData.ref,
+            this.getRawInContext(context),
+            base.indexInStruct,
+        )
+        val anyArrayBaseOffsetInConstant = LLVM.LLVMOffsetOfElement(
+            context.targetData.ref,
+            inlineConstant.type.getRawInContext(context),
+            0,
+        )
+        check(anyArrayBaseOffsetInConstant == anyArrayBaseOffsetInGeneralType)
+
+        val firstElementOffsetInGeneralType = LLVM.LLVMOffsetOfElement(
+            context.targetData.ref,
+            this.getRawInContext(context),
+            1,
+        )
+        val firstElementOffsetInConstant = LLVM.LLVMOffsetOfElement(
+            context.targetData.ref,
+            inlineConstant.type.getRawInContext(context),
+            1,
+        )
+        check(firstElementOffsetInConstant == firstElementOffsetInGeneralType)
+
+        return inlineConstant
     }
 
     companion object {

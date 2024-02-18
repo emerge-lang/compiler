@@ -24,7 +24,6 @@ class LlvmConstant<out Type : LlvmType>(
     }
 }
 
-// TODO: does LLVM.LLVMAddGlobal return a pointer or a value?
 class LlvmGlobal<Type : LlvmType>(
     raw: LLVMValueRef,
     type: Type,

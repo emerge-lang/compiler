@@ -17,7 +17,7 @@ interface LlvmType {
 
 abstract class LlvmCachedType : LlvmType {
     private val byContext: MutableMap<LlvmContext, LLVMTypeRef> = MapMaker().weakKeys().makeMap()
-    final override fun getRawInContext(context: LlvmContext): LLVMTypeRef {
+    override fun getRawInContext(context: LlvmContext): LLVMTypeRef {
         return byContext.computeIfAbsent(context, this::computeRaw)
     }
 
@@ -102,7 +102,7 @@ abstract class LlvmStructType(
 ) : LlvmCachedType() {
     private var observed = false
 
-    final override fun computeRaw(context: LlvmContext): LLVMTypeRef {
+    override fun computeRaw(context: LlvmContext): LLVMTypeRef {
         observed = true
         val structType = LLVM.LLVMStructCreateNamed(context.ref, name)
         val elements = PointerPointer(*membersInOrder.map { it.type.getRawInContext(context) }.toTypedArray())

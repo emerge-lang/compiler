@@ -47,6 +47,10 @@ internal val getSupertypePointers = KotlinLlvmFunction.define<LlvmContext, _>(
     }
 }
 
+// TODO: refactor to addressOf(index: uword)
+// that would be easy to do for concrete types; but there should be an overload for Array<out Any>
+// and with the currently planned rules for overloading, having an addressOf(self: Array<out Any>)
+// would prevent declaring a specialized addressOf(self: Array<Byte>) etc.
 internal val arrayIndexOfFirst = KotlinLlvmFunction.define<LlvmContext, _>(
     "emerge.ffi.c.addressOfFirst",
     pointerTo(LlvmVoidType),

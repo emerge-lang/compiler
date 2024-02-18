@@ -23,17 +23,22 @@ import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
 import org.bytedeco.llvm.global.LLVM
 
-/**
- * TODO: add the [AnyValueType] as base!!
- */
 internal class EmergeStructType private constructor(
     val context: EmergeLlvmContext,
     val structRef: LLVMTypeRef,
     val irStruct: IrStruct,
 ) : LlvmType, EmergeHeapAllocated {
+    init {
+        assureReinterpretableAsAnyValue(context, structRef)
+    }
+
     override fun getRawInContext(context: LlvmContext): LLVMTypeRef {
         check(context === context)
         return structRef
+    }
+
+    override fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LLVMTypeRef) {
+        // done in [fromLlvmStructWithoutBody]
     }
 
     private val typeinfo = StaticAndDynamicTypeInfo.define(
@@ -118,6 +123,10 @@ internal class EmergeStructType private constructor(
 
             val llvmStructElements = PointerPointer(*llvmMemberTypesRaw)
             LLVM.LLVMStructSetBody(structRef, llvmStructElements, llvmMemberTypesRaw.size, 0)
+
+            check(LLVM.LLVMOffsetOfElement(context.targetData.ref, structRef, 0) == 0L) {
+                "Cannot reinterpret emerge type ${irStruct.fqn} as Any"
+            }
 
             return EmergeStructType(context, structRef, irStruct)
         }
