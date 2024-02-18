@@ -19,6 +19,7 @@ import io.github.tmarsteel.emerge.backend.llvm.codegen.emitCode
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitExpressionCode
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitRead
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitWrite
+import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
