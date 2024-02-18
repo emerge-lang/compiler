@@ -9,6 +9,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFixedIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmInlineStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
@@ -53,6 +54,8 @@ internal fun LlvmContext.word(value: Long): LlvmConstant<LlvmWordType> {
 
 internal object AnyValueVirtualsType : LlvmStructType("anyvalue_virtuals") {
     val dropFunction by structMember(LlvmFunctionAddressType)
+
+    val dropFunctionType = LlvmFunctionType(LlvmVoidType, emptyList())
 }
 
 internal val PointerToAnyValue: LlvmPointerType<AnyValueType> = pointerTo(AnyValueType)

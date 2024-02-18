@@ -239,3 +239,19 @@ class LlvmArrayType<Element : LlvmType>(
 object LlvmFunctionAddressType : LlvmType {
     override fun getRawInContext(context: LlvmContext) = context.rawPointer
 }
+
+class LlvmFunctionType<R : LlvmType>(
+    val returnType: R,
+    val parameterTypes: List<LlvmType>,
+) : LlvmCachedType() {
+    override fun computeRaw(context: LlvmContext): LLVMTypeRef {
+        val returnTypeRaw = returnType.getRawInContext(context)
+        val parameterTypesRaw = parameterTypes.map { it.getRawInContext(context) }.toTypedArray()
+        return LLVM.LLVMFunctionType(
+            returnTypeRaw,
+            PointerPointer(*parameterTypesRaw),
+            parameterTypesRaw.size,
+            0,
+        )
+    }
+}

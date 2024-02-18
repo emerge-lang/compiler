@@ -20,6 +20,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.indexInLlvmStruct
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
+import io.github.tmarsteel.emerge.backend.llvm.llvmValueType
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
 import org.bytedeco.llvm.global.LLVM
@@ -49,9 +50,16 @@ internal class EmergeStructType private constructor(
             "${irStruct.llvmName}__finalize",
             LlvmVoidType,
         ) {
-            // TODO: iterate members, decrement refcount, potentially invoke the deallocator
             val self by param(pointerTo(this@EmergeStructType))
             body {
+                irStruct.members
+                    .filter { it.type.llvmValueType == null } // value types need not be dropped
+                    .forEach {
+                        val referenceAsPointer = getelementptr(self).member(it).get().dereference()
+                            .reinterpretAs(pointerTo(AnyValueType))
+                        referenceAsPointer.decrementStrongReferenceCount()
+                    }
+                call(context.freeFunction, listOf(self))
                 retVoid()
             }
         },

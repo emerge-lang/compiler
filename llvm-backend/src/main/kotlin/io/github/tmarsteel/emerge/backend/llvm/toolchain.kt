@@ -6,9 +6,10 @@ import java.nio.file.FileSystems
 import java.nio.file.Path
 import java.nio.file.Paths
 
-class ToolNotFoundException(names: Array<out String>) : RuntimeException(
-    "The command ${names[0]} was not found on this machine (also looked for ${names.drop(1).joinToString()})"
-)
+class ToolNotFoundException(names: Array<out String>) : RuntimeException(run {
+    val prefix = "The command ${names[0]} was not found on this machine"
+    prefix + (if (names.size == 1) "." else " (also looked for ${names.drop(1).joinToString()}).")
+})
 
 data class CommandResult(
     val exitCode: Int,

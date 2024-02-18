@@ -138,8 +138,7 @@ private class DefineFunctionBuilderContextImpl<C : LlvmContext, R : LlvmType>(
 
         val functionInstance = buildAndAddFunctionInstance(name)
         parameters.forEach { it.setFunctionInstance(functionInstance.address.raw) }
-        val basicBlock = LLVM.LLVMAppendBasicBlock(functionInstance.address.raw, "entry")
-        BasicBlockBuilder.fill(context, basicBlock, bodyBuilder)
+        BasicBlockBuilder.fillBody(context, functionInstance, bodyBuilder)
 
         return functionInstance
     }

@@ -123,18 +123,6 @@ internal class StaticAndDynamicTypeInfo private constructor(
         }
 
         private fun build(context: EmergeLlvmContext): Pair<LlvmConstant<TypeinfoType>, LlvmConstant<TypeinfoType>> {
-            val dropFunction = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>(
-                "drop_$typeName",
-                LlvmVoidType
-            ) {
-                val self by param(PointerToAnyValue)
-                body {
-                    // TODO: check refcount is 0!
-                    call(finalizerFunction.getInContext(context), listOf(self))
-                    retVoid()
-                }
-            }
-
             val dynamicSupertypesData = EmergeArrayOfPointersToTypeInfoType.buildConstantIn(context, supertypes, { it })
             val dynamicSupertypesGlobal = context.addGlobal(dynamicSupertypesData, LlvmGlobal.ThreadLocalMode.SHARED)
                 .reinterpretAs(pointerTo(EmergeArrayOfPointersToTypeInfoType))
@@ -146,7 +134,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 setValue(TypeinfoType.shiftRightAmount, shiftRightAmount)
                 setValue(TypeinfoType.supertypes, dynamicSupertypesGlobal)
                 setValue(TypeinfoType.anyValueVirtuals, AnyValueVirtualsType.buildConstantIn(context) {
-                    setValue(AnyValueVirtualsType.dropFunction, dropFunction.getInContext(context).address)
+                    setValue(AnyValueVirtualsType.dropFunction, finalizerFunction.getInContext(context).address)
                 })
                 setValue(TypeinfoType.vtableBlob, vtableBlob)
             }

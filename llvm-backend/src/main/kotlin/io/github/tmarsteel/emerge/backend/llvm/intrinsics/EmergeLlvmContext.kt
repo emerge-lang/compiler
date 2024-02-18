@@ -215,8 +215,7 @@ class EmergeLlvmContext(
             throw CodeGenerationException("Cannot define body for function ${fn.fqn} multiple times!")
         }
 
-        val entryBlock = LLVM.LLVMAppendBasicBlockInContext(ref, llvmFunction.address.raw, "entry")
-        BasicBlockBuilder.fill(this, entryBlock) {
+        BasicBlockBuilder.fillBody(this, llvmFunction) {
             emitCode(fn.body)
                 ?: run {
                     // TODO: this happens when the frontend doesn't give a return instruction when it should.
