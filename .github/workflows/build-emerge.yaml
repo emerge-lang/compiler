@@ -1,5 +1,5 @@
-name: build
-run-name: Build & Test the entire project
+name: build emerge
+run-name: Build & Test the Emerge compiler
 on:
   - push
 jobs:

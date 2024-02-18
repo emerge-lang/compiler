@@ -1,0 +1,47 @@
+# Copied from github.com/llvm/llvm-project Actions
+
+name: "Build LLVM for Windows"
+on: workflow_dispatch
+
+jobs:
+  build-llvm-windows:
+    name: "Build LLVM x86_64-unknown-windows-msvc"
+    runs-on:
+      - windows-2022
+      - x64
+    steps:
+      - name: Setup Windows
+        uses: llvm/actions/setup-windows@llvmorg-17.0.6
+        with:
+          arch: amd64
+      - name: Fetch LLVM sources
+        uses: actions/checkout@v4
+        with:
+          repository: llvm/llvm-project
+          ref: llvmorg-17.0.6
+          fetch-depth: 2
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1
+        with:
+          max-size: 500M
+          variant: sccache
+          key: precommit-windows
+      - name: Configure LLVM
+        shell: bash
+        run: |
+          cmake -B build -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLLVM_ENABLE_PROJECTS="llvm" \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
+            -DLLVM_ENABLE_ASSERTIONS=ON \
+            -DLLVM_LIT_ARGS="-v --no-progress-bar" \
+            -S llvm
+      - name: Build LLVM
+        run: |
+          ninja -C build check-llvm
+      - name: Collect build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: llvm-windows-x86_64
+          path: build/bin
