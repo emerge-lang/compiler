@@ -37,7 +37,7 @@ jobs:
         run: |
           cmake -B build -GNinja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DLLVM_ENABLE_PROJECTS="llvm" \
+            -DLLVM_ENABLE_PROJECTS="llvm;lld" \
             -DCMAKE_C_COMPILER_LAUNCHER=sccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
             -DLLVM_ENABLE_ASSERTIONS=ON \
@@ -50,4 +50,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: llvm-windows-x86_64
-          path: build/bin
+          path: |
+            build/bin
+            build/include
+            build/lib
+            build/libexec
+            build/share
