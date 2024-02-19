@@ -1,18 +1,166 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
+import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
+import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmInlineStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType.Companion.member
+import org.bytedeco.llvm.LLVM.LLVMTypeRef
+import org.bytedeco.llvm.global.LLVM
 
-internal fun <Element : LlvmType> buildValueArrayBoxingElementGetter(
+internal object EmergeArrayBaseType : LlvmStructType("anyarray"), EmergeHeapAllocated {
+    val anyBase by structMember(EmergeHeapAllocatedValueBaseType)
+    val elementCount by structMember(EmergeWordType)
+
+    override fun pointerToCommonBase(
+        builder: BasicBlockBuilder<*, *>,
+        value: LlvmValue<*>
+    ): GetElementPointerStep<EmergeHeapAllocatedValueBaseType> {
+        require(value.type is LlvmPointerType<*>)
+        with(builder) {
+            return getelementptr(value.reinterpretAs(pointerTo(this@EmergeArrayBaseType))).member { anyBase }
+        }
+    }
+
+    override fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LLVMTypeRef) {
+        check(LLVM.LLVMOffsetOfElement(context.targetData.ref, selfInContext, anyBase.indexInStruct) == 0L)
+    }
+}
+
+internal class EmergeArrayType<Element : LlvmType>(
+    val elementType: Element,
+    /**
+     * Has to return typeinfo that suits for an Array<E>. This is so boxed types can supply their type-specific virtual functions
+     */
+    private val typeinfo: StaticAndDynamicTypeInfo.Provider,
+    elementTypeName: String,
+) : LlvmStructType("array_$elementTypeName"), EmergeHeapAllocated {
+    val base by structMember(EmergeArrayBaseType)
+    val elements by structMember(LlvmArrayType(0L, elementType))
+
+    override fun computeRaw(context: LlvmContext): LLVMTypeRef {
+        val raw = super.computeRaw(context)
+        assureReinterpretableAsAnyValue(context, raw)
+        return raw
+    }
+
+    override fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LLVMTypeRef) {
+        check(LLVM.LLVMOffsetOfElement(context.targetData.ref, selfInContext, base.indexInStruct) == 0L)
+    }
+
+    override fun pointerToCommonBase(
+        builder: BasicBlockBuilder<*, *>,
+        value: LlvmValue<*>
+    ): GetElementPointerStep<EmergeHeapAllocatedValueBaseType> {
+        check(value.type is LlvmPointerType<*>)
+        with(builder) {
+            return getelementptr(value.reinterpretAs(pointerTo(this@EmergeArrayType)))
+                .member { base }
+                .member { anyBase }
+        }
+    }
+
+    fun <Raw> buildConstantIn(
+        context: EmergeLlvmContext,
+        data: Collection<Raw>,
+        rawTransform: (Raw) -> LlvmValue<Element>,
+    ): LlvmConstant<LlvmInlineStructType> {
+        /*
+        there is a problem with constant arrays of the dynamic-array format of emerge:
+        array types are declared with [0 x %element] so no space is wasted but getelementptr access
+        is well defined. However, declaring a constant "Hello World" string directly against an
+        array type is not valid:
+
+        @myString = global %array_i8 { %anyarray { %anyvalue { ... }, i64 11 }, [11 x i8] c"Hello World" }
+
+        LLVM will complain that we put an [13 x i8] where a [0 x i8] should go.
+        The solution: declare the global as what it is, but use %array_i8 when referring to it:
+
+        @myString = global { %anyarray, [11 x i8] } { %anyarray { %anyvalue { ... }, i64 11 }, [11 x i8] c"Hello World" }
+
+        and when referring to it:
+
+        define i8 @access_string_constant(i64 %index) {
+        entry:
+            %elementPointer = getelementptr %array_i8, ptr @myString, i32 0, i32 1, i64 %index
+            %value = load i8, ptr %elementPointer
+            ret i8 %value
+        }
+
+        Hence: here, we don't use ArrayType.buildConstantIn, but hand-roll it to do the typing trick
+         */
+
+        val anyArrayBaseConstant = EmergeArrayBaseType.buildConstantIn(context) {
+            setValue(EmergeArrayBaseType.anyBase, EmergeHeapAllocatedValueBaseType.buildConstantIn(context) {
+                setValue(EmergeHeapAllocatedValueBaseType.strongReferenceCount, context.word(1))
+                setValue(EmergeHeapAllocatedValueBaseType.typeinfo, typeinfo.provide(context).static)
+                setValue(
+                    EmergeHeapAllocatedValueBaseType.weakReferenceCollection,
+                    context.nullValue(pointerTo(EmergeWeakReferenceCollectionType))
+                )
+            })
+            setValue(EmergeArrayBaseType.elementCount, context.word(data.size))
+        }
+        val payload = LlvmArrayType(data.size.toLong(), elementType).buildConstantIn(
+            context,
+            data.map { rawTransform(it) },
+        )
+
+        val inlineConstant = LlvmInlineStructType.buildInlineTypedConstantIn(
+            context,
+            anyArrayBaseConstant,
+            payload
+        )
+
+        val anyArrayBaseOffsetInGeneralType = LLVM.LLVMOffsetOfElement(
+            context.targetData.ref,
+            this.getRawInContext(context),
+            base.indexInStruct,
+        )
+        val anyArrayBaseOffsetInConstant = LLVM.LLVMOffsetOfElement(
+            context.targetData.ref,
+            inlineConstant.type.getRawInContext(context),
+            0,
+        )
+        check(anyArrayBaseOffsetInConstant == anyArrayBaseOffsetInGeneralType)
+
+        val firstElementOffsetInGeneralType = LLVM.LLVMOffsetOfElement(
+            context.targetData.ref,
+            this.getRawInContext(context),
+            1,
+        )
+        val firstElementOffsetInConstant = LLVM.LLVMOffsetOfElement(
+            context.targetData.ref,
+            inlineConstant.type.getRawInContext(context),
+            1,
+        )
+        check(firstElementOffsetInConstant == firstElementOffsetInGeneralType)
+
+        return inlineConstant
+    }
+
+    companion object {
+        val VIRTUAL_FUNCTION_HASH_GET_ELEMENT: Long = 0b0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000
+        val VIRTUAL_FUNCTION_HASH_SET_ELEMENT: Long = 0b0100_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000
+    }
+}
+
+private fun <Element : LlvmType> buildValueArrayBoxingElementGetter(
     typeName: String,
     getValueArrayType: () -> EmergeArrayType<Element>,
     getBoxType: EmergeLlvmContext.() -> EmergeStructType,
@@ -37,7 +185,7 @@ internal fun <Element : LlvmType> buildValueArrayBoxingElementGetter(
     }
 }
 
-internal fun <Element : LlvmType> buildValueArrayBoxingElementSetter(
+private fun <Element : LlvmType> buildValueArrayBoxingElementSetter(
     typeName: String,
     getValueArrayType: () -> EmergeArrayType<Element>,
     getBoxType: EmergeLlvmContext.() -> EmergeStructType,
@@ -75,18 +223,18 @@ internal fun <Element : LlvmType> buildValueArrayBoxingElementSetter(
     }
 }
 
-internal fun <Element : LlvmType> buildValueArrayType(
-    typeName: String,
+private fun <Element : LlvmType> buildValueArrayType(
+    elementTypeName: String,
     elementType: Element,
     getBoxType: EmergeLlvmContext.() -> EmergeStructType,
 ) : EmergeArrayType<Element> {
     lateinit var arrayTypeHolder: EmergeArrayType<Element>
-    val getter = buildValueArrayBoxingElementGetter(typeName, { arrayTypeHolder }, getBoxType)
-    val setter = buildValueArrayBoxingElementSetter(typeName, { arrayTypeHolder }, getBoxType)
+    val getter = buildValueArrayBoxingElementGetter(elementTypeName, { arrayTypeHolder }, getBoxType)
+    val setter = buildValueArrayBoxingElementSetter(elementTypeName, { arrayTypeHolder }, getBoxType)
     arrayTypeHolder = EmergeArrayType(
         elementType,
         StaticAndDynamicTypeInfo.define(
-            "array_$typeName",
+            "array_$elementTypeName",
             emptyList(),
             valueArrayFinalize,
         ) {
@@ -94,7 +242,8 @@ internal fun <Element : LlvmType> buildValueArrayType(
                 word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to getter,
                 word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to setter,
             )
-        }
+        },
+        elementTypeName,
     )
 
     return arrayTypeHolder
