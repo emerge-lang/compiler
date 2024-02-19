@@ -1,6 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm.codegen
 
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
+import io.github.tmarsteel.emerge.backend.api.ir.IrArrayLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -14,6 +15,8 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAssignment
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableReferenceExpression
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
+import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
+import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
@@ -112,6 +115,21 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, out LlvmType>.emitExpressionCo
             }
 
             return value
+        }
+        is IrArrayLiteralExpression -> {
+            val elementCount = context.word(expression.elements.size)
+            val arrayType = context.getAllocationSiteType(expression.evaluatesTo) as EmergeArrayType<*>
+            val arrayPtr = call(arrayType.constructorOfUndefEntries.getInContext(context), listOf(elementCount))
+            expression.elements.forEachIndexed { index, elementExpr ->
+                val elementValue = emitExpressionCode(elementExpr).reinterpretAs(arrayType.elementType)
+                val slotPtr = getelementptr(arrayPtr)
+                    .member { elements }
+                    .index(context.word(index))
+                    .get()
+                store(elementValue, slotPtr)
+            }
+
+            return arrayPtr
         }
         else -> TODO("code generation for ${expression::class.simpleName}")
     }

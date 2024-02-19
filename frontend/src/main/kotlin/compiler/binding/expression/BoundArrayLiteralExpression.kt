@@ -13,11 +13,13 @@ import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.BuiltinAny
-import compiler.binding.type.BuiltinArray
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUnification
 import compiler.nullableOr
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrArrayLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundArrayLiteralExpression(
     override val context: CTContext,
@@ -98,4 +100,19 @@ class BoundArrayLiteralExpression(
         expectedElementType = type.arguments.firstOrNull()?.type ?: return
         elements.forEach { it.setExpectedEvaluationResultType(expectedElementType!!) }
     }
+
+    private val _backendIr by lazy {
+        IrArrayLiteralExpressionImpl(
+            type!!.toBackendIr(),
+            (type as RootResolvedTypeReference).arguments.single().type.toBackendIr(),
+            elements.map { it.toBackendIr() },
+        )
+    }
+    override fun toBackendIr(): IrExpression = _backendIr
 }
+
+private class IrArrayLiteralExpressionImpl(
+    override val evaluatesTo: IrType,
+    override val elementType: IrType,
+    override val elements: List<IrExpression>,
+) : IrArrayLiteralExpression

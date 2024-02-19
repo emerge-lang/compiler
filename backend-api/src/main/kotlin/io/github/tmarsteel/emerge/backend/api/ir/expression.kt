@@ -10,6 +10,16 @@ interface IrStringLiteralExpression : IrExpression {
     val utf8Bytes: ByteArray
 }
 
+interface IrArrayLiteralExpression : IrExpression {
+    /**
+     * The type of the elements. The same information is also in [evaluatesTo], but
+     * [elementType] doesn't contain variance information.
+     */
+    val elementType: IrType
+
+    val elements: List<IrExpression>
+}
+
 interface IrStaticDispatchFunctionInvocationExpression : IrExpression {
     val function: IrFunction
     val arguments: List<IrExpression>

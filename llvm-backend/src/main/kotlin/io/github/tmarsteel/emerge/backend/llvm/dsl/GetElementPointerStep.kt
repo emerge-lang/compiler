@@ -64,7 +64,7 @@ sealed class GetElementPointerStep<P : LlvmType> private constructor(
             )
         }
 
-        fun <E : LlvmType> GetElementPointerStep<LlvmArrayType<E>>.index(
+        fun <E : LlvmType> GetElementPointerStep<out LlvmArrayType<out E>>.index(
             index: LlvmValue<LlvmIntegerType>
         ): GetElementPointerStep<E> {
             return stepUnsafe(index, pointeeType.elementType)

@@ -1,5 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
+import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
@@ -52,6 +53,44 @@ internal class EmergeArrayType<Element : LlvmType>(
 ) : LlvmStructType("array_$elementTypeName"), EmergeHeapAllocated {
     val base by structMember(EmergeArrayBaseType)
     val elements by structMember(LlvmArrayType(0L, elementType))
+
+    /**
+     * A constructor that will allocate an array of [this] type, filled with [LlvmContext.undefValue]s. Signature:
+     *
+     *     declare ptr array_E__ctor(%word elementCount)
+     */
+    val constructorOfUndefEntries: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeArrayType<Element>>> by lazy {
+        KotlinLlvmFunction.define(
+            super.name + "__ctor",
+            pointerTo(this),
+        ) {
+            val elementCount by param(EmergeWordType)
+            body {
+                val allocationSize = add(this@EmergeArrayType.sizeof(), mul(elementType.sizeof(), elementCount))
+                val allocation = heapAllocate(allocationSize)
+                    .reinterpretAs(pointerTo(this@EmergeArrayType))
+                // TODO: check allocation == null, OOM
+
+                // initialize the any
+                val anyBasePtr = getelementptr(allocation)
+                    .member { base }
+                    .member { anyBase }
+                    .get()
+                store(context.word(1), getelementptr(anyBasePtr).member { strongReferenceCount }.get())
+                store(typeinfo.provide(context).dynamic, getelementptr(anyBasePtr).member { typeinfo }.get())
+                store(context.nullValue(pointerTo(EmergeWeakReferenceCollectionType)), getelementptr(anyBasePtr).member { weakReferenceCollection }.get())
+
+                // initialize the array
+                val arrayElementCountPtr = getelementptr(allocation)
+                    .member { base }
+                    .member { this@member.elementCount }
+                    .get()
+                store(elementCount, arrayElementCountPtr)
+
+                ret(allocation)
+            }
+        }
+    }
 
     override fun computeRaw(context: LlvmContext): LLVMTypeRef {
         val raw = super.computeRaw(context)

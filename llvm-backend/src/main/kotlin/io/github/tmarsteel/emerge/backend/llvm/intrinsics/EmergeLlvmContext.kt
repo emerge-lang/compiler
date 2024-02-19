@@ -347,10 +347,21 @@ class EmergeLlvmContext(
     }
 }
 
+/**
+ * Allocates [nBytes] bytes on the heap, triggering an OOM exception if [EmergeLlvmContext.allocateFunction] returns `null`.
+ */
+internal fun BasicBlockBuilder<EmergeLlvmContext, *>.heapAllocate(nBytes: LlvmValue<EmergeWordType>): LlvmValue<LlvmPointerType<LlvmVoidType>> {
+    val allocationPointer = call(context.allocateFunction, listOf(nBytes))
+    // TODO: check allocation pointer == null, OOM
+    return allocationPointer
+}
+
+/**
+ * Allocates [T].[sizeof] bytes on the heap, triggering an OOM exception if needed
+ */
 fun <T : LlvmType> BasicBlockBuilder<EmergeLlvmContext, *>.heapAllocate(type: T): LlvmValue<LlvmPointerType<T>> {
     val size = type.sizeof()
-    val voidPtr = call(context.allocateFunction, listOf(size))
-    return LlvmValue(voidPtr.raw, pointerTo(type))
+    return heapAllocate(size).reinterpretAs(pointerTo(type))
 }
 
 private val intrinsicFunctions: Map<String, KotlinLlvmFunction<EmergeLlvmContext, *>> = listOf(

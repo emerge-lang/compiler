@@ -113,6 +113,10 @@ internal class EmergeStructType private constructor(
             .stepUnsafe(builder.context.i32(0), EmergeHeapAllocatedValueBaseType)
     }
 
+    override fun toString(): String {
+        return "EmergeStruct[${irStruct.fqn}]"
+    }
+
     companion object {
         fun fromLlvmStructWithoutBody(
             context: EmergeLlvmContext,
