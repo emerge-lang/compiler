@@ -20,8 +20,8 @@ import compiler.binding.type.BuiltinULong
 import compiler.binding.type.BuiltinUShort
 import compiler.binding.type.BuiltinUnit
 import compiler.binding.type.BuiltinUnsignedWord
+import io.github.tmarsteel.emerge.backend.SystemPropertyDelegate.Companion.systemProperty
 import io.github.tmarsteel.emerge.backend.api.DotName
-import io.github.tmarsteel.emerge.backend.llvm.SystemPropertyDelegate.Companion.systemProperty
 import java.nio.file.Paths
 
 /**

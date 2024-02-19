@@ -352,10 +352,10 @@ private val refArrayFinalize: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType
             .dereference()
 
         loop(
-            header = elementLoopHeader@{
+            header = {
                 val endReached = icmp(indexStackSlot.dereference(), IntegerComparison.EQUAL, size)
                 conditionalBranch(endReached, ifTrue = {
-                    this@elementLoopHeader.breakLoop()
+                    breakLoop()
                 })
                 doIteration()
             },

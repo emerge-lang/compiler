@@ -1,4 +1,4 @@
-package io.github.tmarsteel.emerge.backend.llvm
+package io.github.tmarsteel.emerge.backend
 
 import kotlin.reflect.KProperty
 

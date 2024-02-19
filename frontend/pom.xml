@@ -34,7 +34,7 @@
         <testSourceDirectory>src/test/kotlin</testSourceDirectory>
         <resources>
             <resource>
-                <directory>src/main/resources</directory>
+                <directory>../backend-api/src/main/resources</directory>
             </resource>
         </resources>
         <plugins>

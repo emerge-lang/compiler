@@ -131,7 +131,6 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, out LlvmType>.emitExpressionCo
 
             return arrayPtr
         }
-        else -> TODO("code generation for ${expression::class.simpleName}")
     }
 }
 

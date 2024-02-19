@@ -1,10 +1,10 @@
 package io.github.tmarsteel.emerge.backend.noop
 
+import io.github.tmarsteel.emerge.backend.SystemPropertyDelegate
+import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.EmergeBackend
 import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
-import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
-import io.github.tmarsteel.emerge.backend.llvm.SystemPropertyDelegate.Companion.systemProperty
 import java.nio.file.Path
 import java.nio.file.Paths
 
@@ -16,10 +16,13 @@ class NoopBackend : EmergeBackend {
     )
 
     override fun emit(softwareContext: IrSoftwareContext, directory: Path) {
-        
+
     }
 
     companion object {
-        val SRC_DIR: Path by systemProperty("emerge.backend.noop.platform.sources", Paths::get)
+        val SRC_DIR: Path by SystemPropertyDelegate.Companion.systemProperty(
+            "emerge.backend.noop.platform.sources",
+            Paths::get
+        )
     }
 }
