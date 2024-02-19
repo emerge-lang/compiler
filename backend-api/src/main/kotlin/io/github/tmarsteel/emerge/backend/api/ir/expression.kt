@@ -20,6 +20,10 @@ interface IrArrayLiteralExpression : IrExpression {
     val elements: List<IrExpression>
 }
 
+interface IrBooleanLiteralExpression : IrExpression {
+    val value: Boolean
+}
+
 interface IrStaticDispatchFunctionInvocationExpression : IrExpression {
     val function: IrFunction
     val arguments: List<IrExpression>

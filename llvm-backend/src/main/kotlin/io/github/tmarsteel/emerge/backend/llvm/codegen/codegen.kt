@@ -2,6 +2,7 @@ package io.github.tmarsteel.emerge.backend.llvm.codegen
 
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrArrayLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrBooleanLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -22,6 +23,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
+import io.github.tmarsteel.emerge.backend.llvm.dsl.i1
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i16
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i64
@@ -115,6 +117,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, out LlvmType>.emitExpressionCo
             }
 
             return value
+        }
+        is IrBooleanLiteralExpression -> {
+            return context.i1(expression.value)
         }
         is IrArrayLiteralExpression -> {
             val elementCount = context.word(expression.elements.size)

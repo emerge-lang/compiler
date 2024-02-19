@@ -53,6 +53,9 @@ interface BoundExpression<out ASTType> : BoundExecutable<ASTType> {
      */
     fun markEvaluationResultUsed() {}
 
+    /**
+     * TODO: most classes have a backing lazy field. The method is nonsense, refactor to a val
+     */
     override fun toBackendIr(): IrExpression {
         TODO("for ${this::class.simpleName}")
     }

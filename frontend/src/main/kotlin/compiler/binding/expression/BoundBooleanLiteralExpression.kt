@@ -22,6 +22,9 @@ import compiler.ast.expression.BooleanLiteralExpression
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.BuiltinBoolean
+import io.github.tmarsteel.emerge.backend.api.ir.IrBooleanLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundBooleanLiteralExpression(
     override val context: CTContext,
@@ -35,4 +38,13 @@ class BoundBooleanLiteralExpression(
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // nothing to do: this expression can only ever have one type
     }
+
+    override fun toBackendIr(): IrExpression {
+        return IrBooleanLiteralExpressionImpl(type.toBackendIr(), value)
+    }
 }
+
+private class IrBooleanLiteralExpressionImpl(
+    override val evaluatesTo: IrType,
+    override val value: Boolean,
+) : IrBooleanLiteralExpression
