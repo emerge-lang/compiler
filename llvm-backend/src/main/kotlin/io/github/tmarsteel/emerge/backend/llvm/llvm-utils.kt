@@ -91,20 +91,35 @@ private fun LLVMTypeRef.describeMemoryLayoutTo(
 ) {
     val kind = LLVM.LLVMGetTypeKind(this)
     when (kind) {
-        LLVM.LLVMStructTypeKind -> describeStructMemoryLayout(targetDataRef, indent, out, baseOffset)
-        LLVM.LLVMArrayTypeKind -> describeArrayMemoryLayout(targetDataRef, indent, out, baseOffset)
+        LLVM.LLVMStructTypeKind -> describeStructMemoryLayoutTo(targetDataRef, indent, out, baseOffset)
+        LLVM.LLVMArrayTypeKind -> describeArrayMemoryLayoutTo(targetDataRef, indent, out)
+        LLVM.LLVMVectorTypeKind,
+        LLVM.LLVMScalableVectorTypeKind -> describeVectorMemoryLayoutTo(targetDataRef, indent, out)
         LLVM.LLVMIntegerTypeKind -> {
             out.append("i")
             out.append(LLVM.LLVMGetIntTypeWidth(this))
         }
-        LLVM.LLVMPointerTypeKind -> {
-            out.append("ptr")
-        }
-        else -> TODO(kind.toString())
+        LLVM.LLVMVoidTypeKind -> out.append("void")
+        LLVM.LLVMPointerTypeKind,
+        LLVM.LLVMHalfTypeKind,
+        LLVM.LLVMFloatTypeKind,
+        LLVM.LLVMBFloatTypeKind,
+        LLVM.LLVMDoubleTypeKind,
+        LLVM.LLVMX86_FP80TypeKind,
+        LLVM.LLVMFP128TypeKind,
+        LLVM.LLVMPPC_FP128TypeKind,
+        LLVM.LLVMX86_AMXTypeKind,
+        LLVM.LLVMX86_MMXTypeKind,
+        LLVM.LLVMTargetExtTypeKind,
+        LLVM.LLVMLabelTypeKind,
+        LLVM.LLVMTokenTypeKind,
+        LLVM.LLVMMetadataTypeKind,
+        LLVM.LLVMFunctionTypeKind -> out.append(getLlvmMessage(LLVM.LLVMPrintTypeToString(this)))
+        else -> throw UnsupportedOperationException()
     }
 }
 
-private fun LLVMTypeRef.describeStructMemoryLayout(
+private fun LLVMTypeRef.describeStructMemoryLayoutTo(
     targetDataRef: LLVMTargetDataRef,
     indent: String,
     out: StringBuilder,
@@ -142,11 +157,10 @@ private fun LLVMTypeRef.describeStructMemoryLayout(
     out.append("}")
 }
 
-private fun LLVMTypeRef.describeArrayMemoryLayout(
+private fun LLVMTypeRef.describeArrayMemoryLayoutTo(
     targetDataRef: LLVMTargetDataRef,
     indent: String,
     out: StringBuilder,
-    baseOffset: Int,
 ) {
     val elementType = LLVM.LLVMGetElementType(this)
     out.append("[")
@@ -154,4 +168,17 @@ private fun LLVMTypeRef.describeArrayMemoryLayout(
     out.append(" x ")
     elementType.describeMemoryLayoutTo(targetDataRef, indent + "  ", out, 0)
     out.append("]")
+}
+
+private fun LLVMTypeRef.describeVectorMemoryLayoutTo(
+    targetDataRef: LLVMTargetDataRef,
+    indent: String,
+    out: StringBuilder,
+) {
+    val elementType = LLVM.LLVMGetElementType(this)
+    out.append("<")
+    out.append(LLVM.LLVMGetVectorSize(this).toString())
+    out.append(" x ")
+    elementType.describeMemoryLayoutTo(targetDataRef, indent + "  ", out, 0)
+    out.append(">")
 }
