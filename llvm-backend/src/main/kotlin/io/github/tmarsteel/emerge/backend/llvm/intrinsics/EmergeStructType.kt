@@ -56,7 +56,7 @@ internal class EmergeStructType private constructor(
                     .filter { it.type.llvmValueType == null } // value types need not be dropped
                     .forEach {
                         val referenceAsPointer = getelementptr(self).member(it).get().dereference()
-                            .reinterpretAs(pointerTo(AnyValueType))
+                            .reinterpretAs(pointerTo(EmergeHeapAllocatedValueBaseType))
                         referenceAsPointer.decrementStrongReferenceCount()
                     }
                 call(context.freeFunction, listOf(self))
@@ -66,11 +66,11 @@ internal class EmergeStructType private constructor(
         { emptyList() }
     )
 
-    private val anyValueBaseTemplateDynamic: LlvmGlobal<AnyValueType> by lazy {
-        val constant = AnyValueType.buildConstantIn(context) {
-            setValue(AnyValueType.strongReferenceCount, context.word(1))
-            setValue(AnyValueType.typeinfo, typeinfo.provide(context).dynamic)
-            setValue(AnyValueType.weakReferenceCollection, context.nullValue(pointerTo(WeakReferenceCollectionType)))
+    private val anyValueBaseTemplateDynamic: LlvmGlobal<EmergeHeapAllocatedValueBaseType> by lazy {
+        val constant = EmergeHeapAllocatedValueBaseType.buildConstantIn(context) {
+            setValue(EmergeHeapAllocatedValueBaseType.strongReferenceCount, context.word(1))
+            setValue(EmergeHeapAllocatedValueBaseType.typeinfo, typeinfo.provide(context).dynamic)
+            setValue(EmergeHeapAllocatedValueBaseType.weakReferenceCollection, context.nullValue(pointerTo(EmergeWeakReferenceCollectionType)))
         }
         context.addGlobal(constant, LlvmGlobal.ThreadLocalMode.SHARED)
     }
@@ -88,7 +88,7 @@ internal class EmergeStructType private constructor(
         body {
             val heapAllocation = heapAllocate(this@EmergeStructType)
             val basePointer = getelementptr(heapAllocation).anyValueBase().get()
-            memcpy(basePointer, anyValueBaseTemplateDynamic, AnyValueType.sizeof(), false)
+            memcpy(basePointer, anyValueBaseTemplateDynamic, EmergeHeapAllocatedValueBaseType.sizeof(), false)
             for ((irStructMember, llvmParam) in params) {
                 val memberPointer = getelementptr(heapAllocation).member(irStructMember).get()
                 val paramValue = llvmParam.getValue(null, String::length)
@@ -102,15 +102,15 @@ internal class EmergeStructType private constructor(
         }
     }
 
-    override fun pointerToAnyValueBase(
+    override fun pointerToCommonBase(
         builder: BasicBlockBuilder<*, *>,
         value: LlvmValue<*>
-    ): GetElementPointerStep<AnyValueType> {
+    ): GetElementPointerStep<EmergeHeapAllocatedValueBaseType> {
         require(value.type is LlvmPointerType<*>)
         require(value.type.pointed is EmergeStructType)
         @Suppress("UNCHECKED_CAST")
         return builder.getelementptr(value as LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>)
-            .stepUnsafe(builder.context.i32(0), AnyValueType)
+            .stepUnsafe(builder.context.i32(0), EmergeHeapAllocatedValueBaseType)
     }
 
     companion object {
@@ -120,7 +120,7 @@ internal class EmergeStructType private constructor(
             irStruct: IrStruct,
         ): EmergeStructType {
             val baseElements = listOf(
-                AnyValueType
+                EmergeHeapAllocatedValueBaseType
             ).map { it.getRawInContext(context) }
 
             irStruct.members.forEachIndexed { index, member ->
@@ -141,8 +141,8 @@ internal class EmergeStructType private constructor(
         }
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
-        internal fun GetElementPointerStep<EmergeStructType>.anyValueBase(): GetElementPointerStep<AnyValueType> {
-            return stepUnsafe(context.i32(0), AnyValueType)
+        internal fun GetElementPointerStep<EmergeStructType>.anyValueBase(): GetElementPointerStep<EmergeHeapAllocatedValueBaseType> {
+            return stepUnsafe(context.i32(0), EmergeHeapAllocatedValueBaseType)
         }
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)

@@ -277,7 +277,7 @@ class EmergeLlvmContext(
             "emerge.ffi.c.CPointer" -> return pointerTo(getAllocationSiteType(type))
             "emerge.core.Unit",
             "emerge.core.Nothing" -> return LlvmVoidType
-            "emerge.core.Any" -> return PointerToAnyValue // TODO: remove, Any will be a pure language-defined type
+            "emerge.core.Any" -> return PointerToAnyEmergeValue // TODO: remove, Any will be a pure language-defined type
         }
 
         return pointerTo(getAllocationSiteType(type))
@@ -290,23 +290,23 @@ class EmergeLlvmContext(
                 "emerge.core.Array" -> {
                     val component = type.arguments.values.single()
                     if (component.variance == IrTypeVariance.IN || component.type !is IrSimpleType) {
-                        return AnyArrayType
+                        return EmergeArrayBaseType
                     }
 
                     return when ((component.type as IrSimpleType).baseType.fqn.toString()) {
-                        "emerge.core.Byte" -> ValueArrayS8Type
-                        "emerge.core.UByte" -> ValueArrayU8Type
-                        "emerge.core.Short" -> ValueArrayS16Type
-                        "emerge.core.UShort" -> ValueArrayU16Type
-                        "emerge.core.Int" -> ValueArrayS16Type
-                        "emerge.core.UInt" -> ValueArrayU16Type
-                        "emerge.core.Long" -> ValueArrayS16Type
-                        "emerge.core.ULong" -> ValueArrayU16Type
-                        "emerge.core.iword" -> ValueArraySWordType
-                        "emerge.core.uword" -> ValueArrayUWordType
-                        "emerge.core.Boolean" -> ValueArrayBooleanType
-                        "emerge.core.Any" -> AnyArrayType
-                        "emerge.core.Number" -> AnyArrayType
+                        "emerge.core.Byte" -> EmergeS8ArrayType
+                        "emerge.core.UByte" -> EmergeU8ArrayType
+                        "emerge.core.Short" -> EmergeS16ArrayType
+                        "emerge.core.UShort" -> EmergeU16ArrayType
+                        "emerge.core.Int" -> EmergeS16ArrayType
+                        "emerge.core.UInt" -> EmergeU16ArrayType
+                        "emerge.core.Long" -> EmergeS16ArrayType
+                        "emerge.core.ULong" -> EmergeU16ArrayType
+                        "emerge.core.iword" -> EmergeSWordArrayType
+                        "emerge.core.uword" -> EmergeUWordArrayType
+                        "emerge.core.Boolean" -> EmergeBooleanArrayType
+                        "emerge.core.Any" -> EmergeArrayBaseType
+                        "emerge.core.Number" -> EmergeArrayBaseType
                         else -> EmergeReferenceArrayType
                     }
                 }
@@ -326,7 +326,7 @@ class EmergeLlvmContext(
                 type.llvmValueType?.let { return it }
                 if (type.baseType is IrIntrinsicType) {
                     return when (type.baseType.fqn.toString()) {
-                        "emerge.core.Any" -> AnyValueType
+                        "emerge.core.Any" -> EmergeHeapAllocatedValueBaseType
                         "emerge.core.Nothing" -> LlvmVoidType
                         else -> throw CodeGenerationException("Missing allocation-site representation for this intrinsic type: $type")
                     }

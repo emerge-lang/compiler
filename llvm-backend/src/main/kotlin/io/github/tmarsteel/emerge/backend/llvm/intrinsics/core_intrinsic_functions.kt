@@ -14,7 +14,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 
 internal val valueArrayFinalize = KotlinLlvmFunction.define<LlvmContext, _>("valuearray_finalize", LlvmVoidType) {
-    param(PointerToAnyValue)
+    param(PointerToAnyEmergeValue)
     body {
         // nothing to do. There are no references, just values, so no dropping needed
         retVoid()
@@ -22,7 +22,7 @@ internal val valueArrayFinalize = KotlinLlvmFunction.define<LlvmContext, _>("val
 }
 
 internal val nullWeakReferences = KotlinLlvmFunction.define<LlvmContext, _>("nullWeakReferences", LlvmVoidType) {
-    val self by param(PointerToAnyValue)
+    val self by param(PointerToAnyEmergeValue)
     body {
         // TODO: implement!
         retVoid()
@@ -33,7 +33,7 @@ internal val getSupertypePointers = KotlinLlvmFunction.define<LlvmContext, _>(
     "getSupertypePointers",
     pointerTo(EmergeArrayOfPointersToTypeInfoType),
 ) {
-    val inputRef by param(PointerToAnyValue)
+    val inputRef by param(PointerToAnyEmergeValue)
     body {
         val typeinfoPointer = getelementptr(inputRef)
             .member { typeinfo }
@@ -57,7 +57,7 @@ internal val arrayIndexOfFirst = KotlinLlvmFunction.define<LlvmContext, _>(
     "emerge.ffi.c.addressOfFirst",
     pointerTo(LlvmVoidType),
 ) {
-    val arrayPointer by param(pointerTo(AnyArrayType))
+    val arrayPointer by param(pointerTo(EmergeArrayBaseType))
     body {
         val ptr = getelementptr(arrayPointer, context.i32(1))
             .get()
@@ -69,9 +69,9 @@ internal val arrayIndexOfFirst = KotlinLlvmFunction.define<LlvmContext, _>(
 
 internal val arraySize = KotlinLlvmFunction.define<LlvmContext, _>(
     "emerge.core.size",
-    LlvmWordType,
+    EmergeWordType,
 ) {
-    val arrayPointer by param(pointerTo(AnyArrayType))
+    val arrayPointer by param(pointerTo(EmergeArrayBaseType))
     body {
         ret(
             getelementptr(arrayPointer)
@@ -109,7 +109,7 @@ internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.decrementStrong
             .get()
             .dereference()
 
-        call(finalizerFn, AnyValueVirtualsType.dropFunctionType, emptyList())
+        call(finalizerFn, EmergeAnyValueVirtualsType.dropFunctionType, emptyList())
 
         concludeBranch()
     }, ifFalse = {

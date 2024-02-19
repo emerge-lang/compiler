@@ -21,7 +21,7 @@ internal val staticValueDropFunction: KotlinLlvmFunction<LlvmContext, LlvmVoidTy
     "drop_static",
     LlvmVoidType,
 ) {
-    val self by param(PointerToAnyValue)
+    val self by param(PointerToAnyEmergeValue)
     body {
         // by definition a noop. Static values cannot be dropped, erroring on static value drop is not
         // possible because sharing static data across threads fucks up the refcounting with data races
@@ -30,18 +30,21 @@ internal val staticValueDropFunction: KotlinLlvmFunction<LlvmContext, LlvmVoidTy
 }
 
 internal object TypeinfoType : LlvmStructType("typeinfo") {
-    val shiftRightAmount by structMember(LlvmWordType)
+    val shiftRightAmount by structMember(EmergeWordType)
     val supertypes by structMember(pointerTo(EmergeArrayOfPointersToTypeInfoType))
-    val anyValueVirtuals by structMember(AnyValueVirtualsType)
+    val anyValueVirtuals by structMember(EmergeAnyValueVirtualsType)
     val vtableBlob by structMember(LlvmArrayType(0L, LlvmFunctionAddressType))
 }
 
-private val ArrayOfPointersToTypeInfosGetElement: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<TypeinfoType>> = KotlinLlvmFunction.define(
+/**
+ * Getter function for [EmergeArrayOfPointersToTypeInfoType]
+ */
+private val getter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<TypeinfoType>> = KotlinLlvmFunction.define(
     "valuearray_pointers_to_typeinfo_get",
     pointerTo(TypeinfoType)
 ) {
     val self by param(pointerTo(EmergeArrayOfPointersToTypeInfoType))
-    val index by param(LlvmWordType)
+    val index by param(EmergeWordType)
     body {
         // TODO: bounds check!
         val raw = getelementptr(self)
@@ -54,12 +57,15 @@ private val ArrayOfPointersToTypeInfosGetElement: KotlinLlvmFunction<EmergeLlvmC
     }
 }
 
-private val ArrayOfPointersToTypeInfosSetElement: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
+/**
+ * Setter function for [EmergeArrayOfPointersToTypeInfoType]
+ */
+private val setter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
     "valuearray_pointers_to_typeinfo_set",
     LlvmVoidType
 ) {
     val self by param(pointerTo(EmergeArrayOfPointersToTypeInfoType))
-    val index by param(LlvmWordType)
+    val index by param(EmergeWordType)
     val value by param(pointerTo(TypeinfoType))
     body {
         // TODO: bounds check!
@@ -75,7 +81,7 @@ private val ArrayOfPointersToTypeInfosSetElement: KotlinLlvmFunction<EmergeLlvmC
 }
 
 internal val EmergeArrayOfPointersToTypeInfoType by lazy {
-    ArrayType(
+    EmergeArrayType(
         pointerTo(TypeinfoType),
         StaticAndDynamicTypeInfo.define(
             "valuearray_pointers_to_typeinfo",
@@ -83,8 +89,8 @@ internal val EmergeArrayOfPointersToTypeInfoType by lazy {
             valueArrayFinalize
         ) {
             listOf(
-                word(ArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to ArrayOfPointersToTypeInfosGetElement,
-                word(ArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to ArrayOfPointersToTypeInfosSetElement,
+                word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to getter_EmergeArrayOfPointersToTypeInfoType,
+                word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to setter_EmergeArrayOfPointersToTypeInfoType,
             )
         },
         "pointer_to_typeinfo",
@@ -104,7 +110,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
         val typeName: String,
         val supertypes: List<LlvmConstant<LlvmPointerType<TypeinfoType>>>,
         val finalizerFunction: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
-        val virtualFunctions: EmergeLlvmContext.() -> List<Pair<LlvmConstant<LlvmWordType>, KotlinLlvmFunction<*, *>>>,
+        val virtualFunctions: EmergeLlvmContext.() -> List<Pair<LlvmConstant<EmergeWordType>, KotlinLlvmFunction<*, *>>>,
     ) : Provider {
         private val byContext: MutableMap<LlvmContext, StaticAndDynamicTypeInfo> = MapMaker().weakKeys().makeMap()
         override fun provide(context: EmergeLlvmContext): StaticAndDynamicTypeInfo {
@@ -133,8 +139,8 @@ internal class StaticAndDynamicTypeInfo private constructor(
             val typeinfoDynamicData = TypeinfoType.buildConstantIn(context) {
                 setValue(TypeinfoType.shiftRightAmount, shiftRightAmount)
                 setValue(TypeinfoType.supertypes, dynamicSupertypesGlobal)
-                setValue(TypeinfoType.anyValueVirtuals, AnyValueVirtualsType.buildConstantIn(context) {
-                    setValue(AnyValueVirtualsType.dropFunction, finalizerFunction.getInContext(context).address)
+                setValue(TypeinfoType.anyValueVirtuals, EmergeAnyValueVirtualsType.buildConstantIn(context) {
+                    setValue(EmergeAnyValueVirtualsType.dropFunction, finalizerFunction.getInContext(context).address)
                 })
                 setValue(TypeinfoType.vtableBlob, vtableBlob)
             }
@@ -146,8 +152,8 @@ internal class StaticAndDynamicTypeInfo private constructor(
             val typeinfoStaticData = TypeinfoType.buildConstantIn(context) {
                 setValue(TypeinfoType.shiftRightAmount, shiftRightAmount)
                 setValue(TypeinfoType.supertypes, staticSupertypesGlobal)
-                setValue(TypeinfoType.anyValueVirtuals, AnyValueVirtualsType.buildConstantIn(context) {
-                    setValue(AnyValueVirtualsType.dropFunction, staticValueDropFunction.getInContext(context).address)
+                setValue(TypeinfoType.anyValueVirtuals, EmergeAnyValueVirtualsType.buildConstantIn(context) {
+                    setValue(EmergeAnyValueVirtualsType.dropFunction, staticValueDropFunction.getInContext(context).address)
                 })
                 setValue(TypeinfoType.vtableBlob, vtableBlob)
             }
@@ -161,7 +167,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
             typeName: String,
             supertypes: List<LlvmConstant<LlvmPointerType<TypeinfoType>>>,
             finalizerFunction: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
-            virtualFunctions: EmergeLlvmContext.() -> List<Pair<LlvmConstant<LlvmWordType>, KotlinLlvmFunction<*, *>>>,
+            virtualFunctions: EmergeLlvmContext.() -> List<Pair<LlvmConstant<EmergeWordType>, KotlinLlvmFunction<*, *>>>,
         ): Provider = ProviderImpl(typeName, supertypes, finalizerFunction, virtualFunctions)
     }
 }

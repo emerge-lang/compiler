@@ -22,62 +22,63 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
 import org.bytedeco.llvm.global.LLVM
 
-internal object LlvmWordType : LlvmCachedType(), LlvmIntegerType {
+internal object EmergeWordType : LlvmCachedType(), LlvmIntegerType {
     override fun computeRaw(context: LlvmContext) = LLVM.LLVMIntTypeInContext(context.ref, context.targetData.pointerSizeInBytes * 8)
 }
 
-internal fun LlvmContext.word(value: Int): LlvmConstant<LlvmWordType> {
-    val wordMax = LlvmWordType.getMaxUnsignedValueInContext(this)
+internal fun LlvmContext.word(value: Int): LlvmConstant<EmergeWordType> {
+    val wordMax = EmergeWordType.getMaxUnsignedValueInContext(this)
     check (value.toBigInteger() <= wordMax) {
         "The value $value cannot be represented by the word type on this target (max $wordMax)"
     }
 
     return LlvmConstant(
-        LLVM.LLVMConstInt(LlvmWordType.getRawInContext(this), value.toLong(), 0),
-        LlvmWordType,
+        LLVM.LLVMConstInt(EmergeWordType.getRawInContext(this), value.toLong(), 0),
+        EmergeWordType,
     )
 }
 
-internal fun LlvmContext.word(value: Long): LlvmConstant<LlvmWordType> {
-    val wordMax = LlvmWordType.getMaxUnsignedValueInContext(this)
+internal fun LlvmContext.word(value: Long): LlvmConstant<EmergeWordType> {
+    val wordMax = EmergeWordType.getMaxUnsignedValueInContext(this)
     check (value.toBigInteger() <= wordMax) {
         "The value $value cannot be represented by the word type on this target (max $wordMax)"
     }
 
     return LlvmConstant(
-        LLVM.LLVMConstInt(LlvmWordType.getRawInContext(this), value, 0),
-        LlvmWordType,
+        LLVM.LLVMConstInt(EmergeWordType.getRawInContext(this), value, 0),
+        EmergeWordType,
     )
 }
 
-// TODO: prefix all the emerge-specific types with Emerge, so its EmergeTypeInfoType, EmergeAnyValueType, ...
-
-internal object AnyValueVirtualsType : LlvmStructType("anyvalue_virtuals") {
+internal object EmergeAnyValueVirtualsType : LlvmStructType("anyvalue_virtuals") {
     val dropFunction by structMember(LlvmFunctionAddressType)
 
     val dropFunctionType = LlvmFunctionType(LlvmVoidType, emptyList())
 }
 
-internal val PointerToAnyValue: LlvmPointerType<AnyValueType> = pointerTo(AnyValueType)
+internal val PointerToAnyEmergeValue: LlvmPointerType<EmergeHeapAllocatedValueBaseType> = pointerTo(EmergeHeapAllocatedValueBaseType)
 
-internal object WeakReferenceCollectionType : LlvmStructType("weakrefcoll") {
+internal object EmergeWeakReferenceCollectionType : LlvmStructType("weakrefcoll") {
     val weakObjects = structMember(
-        LlvmArrayType(10, pointerTo(AnyValueType))
+        LlvmArrayType(10, pointerTo(EmergeHeapAllocatedValueBaseType))
     )
-    val next = structMember(pointerTo(this@WeakReferenceCollectionType))
+    val next = structMember(pointerTo(this@EmergeWeakReferenceCollectionType))
 }
 
-internal object AnyValueType : LlvmStructType("anyvalue"), EmergeHeapAllocated {
-    val strongReferenceCount by structMember(LlvmWordType)
+/**
+ * The data common to all heap-allocated objects in emerge
+ */
+internal object EmergeHeapAllocatedValueBaseType : LlvmStructType("anyvalue"), EmergeHeapAllocated {
+    val strongReferenceCount by structMember(EmergeWordType)
     val typeinfo by structMember(pointerTo(TypeinfoType))
-    val weakReferenceCollection by structMember(pointerTo(WeakReferenceCollectionType))
+    val weakReferenceCollection by structMember(pointerTo(EmergeWeakReferenceCollectionType))
 
-    override fun pointerToAnyValueBase(
+    override fun pointerToCommonBase(
         builder: BasicBlockBuilder<*, *>,
         value: LlvmValue<*>,
-    ): GetElementPointerStep<AnyValueType> {
+    ): GetElementPointerStep<EmergeHeapAllocatedValueBaseType> {
         require(value.type is LlvmPointerType<*>)
-        return builder.getelementptr(value.reinterpretAs(PointerToAnyValue))
+        return builder.getelementptr(value.reinterpretAs(PointerToAnyEmergeValue))
     }
 
     override fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LLVMTypeRef) {
@@ -86,27 +87,28 @@ internal object AnyValueType : LlvmStructType("anyvalue"), EmergeHeapAllocated {
 }
 
 internal interface EmergeHeapAllocated : LlvmType {
-    fun pointerToAnyValueBase(builder: BasicBlockBuilder<*, *>, value: LlvmValue<*>): GetElementPointerStep<AnyValueType>
+    fun pointerToCommonBase(builder: BasicBlockBuilder<*, *>, value: LlvmValue<*>): GetElementPointerStep<EmergeHeapAllocatedValueBaseType>
 
     /**
      * This abstract method is a reminder to check *at emerge compile time* that your subtype of [EmergeHeapAllocated]#
-     * can actually be [LlvmValue.reinterpretAs] any([AnyValueType]).
+     * can actually be [LlvmValue.reinterpretAs] any([EmergeHeapAllocatedValueBaseType]).
      * @throws CodeGenerationException if that is not the case.
      */
     fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LLVMTypeRef)
 }
 
-internal object AnyArrayType : LlvmStructType("anyarray"), EmergeHeapAllocated {
-    val anyBase by structMember(AnyValueType)
-    val elementCount by structMember(LlvmWordType)
+// TODO: move to array_types.kt
+internal object EmergeArrayBaseType : LlvmStructType("anyarray"), EmergeHeapAllocated {
+    val anyBase by structMember(EmergeHeapAllocatedValueBaseType)
+    val elementCount by structMember(EmergeWordType)
 
-    override fun pointerToAnyValueBase(
+    override fun pointerToCommonBase(
         builder: BasicBlockBuilder<*, *>,
         value: LlvmValue<*>
-    ): GetElementPointerStep<AnyValueType> {
+    ): GetElementPointerStep<EmergeHeapAllocatedValueBaseType> {
         require(value.type is LlvmPointerType<*>)
         with(builder) {
-            return getelementptr(value.reinterpretAs(pointerTo(this@AnyArrayType))).member { anyBase }
+            return getelementptr(value.reinterpretAs(pointerTo(this@EmergeArrayBaseType))).member { anyBase }
         }
     }
 
@@ -115,7 +117,7 @@ internal object AnyArrayType : LlvmStructType("anyarray"), EmergeHeapAllocated {
     }
 }
 
-internal class ArrayType<Element : LlvmType>(
+internal class EmergeArrayType<Element : LlvmType>(
     val elementType: Element,
     /**
      * Has to return typeinfo that suits for an Array<E>. This is so boxed types can supply their type-specific virtual functions
@@ -123,7 +125,7 @@ internal class ArrayType<Element : LlvmType>(
     private val typeinfo: StaticAndDynamicTypeInfo.Provider,
     typeNameSuffix: String = typeNameSuffix(elementType),
 ) : LlvmStructType("array_$typeNameSuffix"), EmergeHeapAllocated {
-    val base by structMember(AnyArrayType)
+    val base by structMember(EmergeArrayBaseType)
     val elements by structMember(LlvmArrayType(0L, elementType))
 
     override fun computeRaw(context: LlvmContext): LLVMTypeRef {
@@ -136,13 +138,13 @@ internal class ArrayType<Element : LlvmType>(
         check(LLVM.LLVMOffsetOfElement(context.targetData.ref, selfInContext, base.indexInStruct) == 0L)
     }
 
-    override fun pointerToAnyValueBase(
+    override fun pointerToCommonBase(
         builder: BasicBlockBuilder<*, *>,
         value: LlvmValue<*>
-    ): GetElementPointerStep<AnyValueType> {
+    ): GetElementPointerStep<EmergeHeapAllocatedValueBaseType> {
         check(value.type is LlvmPointerType<*>)
         with(builder) {
-            return getelementptr(value.reinterpretAs(pointerTo(this@ArrayType)))
+            return getelementptr(value.reinterpretAs(pointerTo(this@EmergeArrayType)))
                 .member { base }
                 .member { anyBase }
         }
@@ -178,16 +180,16 @@ internal class ArrayType<Element : LlvmType>(
         Hence: here, we don't use ArrayType.buildConstantIn, but hand-roll it to do the typing trick
          */
 
-        val anyArrayBaseConstant = AnyArrayType.buildConstantIn(context) {
-            setValue(AnyArrayType.anyBase, AnyValueType.buildConstantIn(context) {
-                setValue(AnyValueType.strongReferenceCount, context.word(1))
-                setValue(AnyValueType.typeinfo, typeinfo.provide(context).static)
+        val anyArrayBaseConstant = EmergeArrayBaseType.buildConstantIn(context) {
+            setValue(EmergeArrayBaseType.anyBase, EmergeHeapAllocatedValueBaseType.buildConstantIn(context) {
+                setValue(EmergeHeapAllocatedValueBaseType.strongReferenceCount, context.word(1))
+                setValue(EmergeHeapAllocatedValueBaseType.typeinfo, typeinfo.provide(context).static)
                 setValue(
-                    AnyValueType.weakReferenceCollection,
-                    context.nullValue(pointerTo(WeakReferenceCollectionType))
+                    EmergeHeapAllocatedValueBaseType.weakReferenceCollection,
+                    context.nullValue(pointerTo(EmergeWeakReferenceCollectionType))
                 )
             })
-            setValue(AnyArrayType.elementCount, context.word(data.size))
+            setValue(EmergeArrayBaseType.elementCount, context.word(data.size))
         }
         val payload = LlvmArrayType(data.size.toLong(), elementType).buildConstantIn(
             context,
@@ -237,9 +239,9 @@ internal class ArrayType<Element : LlvmType>(
          */
         fun typeNameSuffix(elementType: LlvmType): String = when {
             elementType is LlvmFixedIntegerType -> "i${elementType.nBits}"
-            elementType is LlvmWordType -> "word"
+            elementType is EmergeWordType -> "word"
             elementType is LlvmPointerType<*> && (elementType.pointed == LlvmVoidType) -> "ptr"
-            elementType is LlvmPointerType<*> && (elementType.pointed is AnyArrayType || elementType.pointed is EmergeStructType) -> "ref"
+            elementType is LlvmPointerType<*> && (elementType.pointed is EmergeArrayBaseType || elementType.pointed is EmergeStructType) -> "ref"
             else -> throw IllegalArgumentException("The LLVM array-type suffix for element type $elementType is not defined")
         }
     }

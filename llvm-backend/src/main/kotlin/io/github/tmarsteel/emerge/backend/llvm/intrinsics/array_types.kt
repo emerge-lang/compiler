@@ -14,15 +14,15 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType.Compa
 
 internal fun <Element : LlvmType> buildValueArrayBoxingElementGetter(
     typeName: String,
-    getValueArrayType: () -> ArrayType<Element>,
+    getValueArrayType: () -> EmergeArrayType<Element>,
     getBoxType: EmergeLlvmContext.() -> EmergeStructType,
-): KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<AnyValueType>> {
+): KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>> {
     return KotlinLlvmFunction.define(
         "valuearray_${typeName}_get_boxed",
-        pointerTo(AnyValueType)
+        pointerTo(EmergeHeapAllocatedValueBaseType)
     ) {
         val self by param(pointerTo(getValueArrayType()))
-        val index by param(LlvmWordType)
+        val index by param(EmergeWordType)
         body {
             // TODO: bounds check!
             val raw = getelementptr(self)
@@ -32,14 +32,14 @@ internal fun <Element : LlvmType> buildValueArrayBoxingElementGetter(
                 .dereference()
 
             val ctor = getBoxType(context).defaultConstructor.getInContext(context)
-            ret(call(ctor, listOf(raw)).reinterpretAs(pointerTo(AnyValueType)))
+            ret(call(ctor, listOf(raw)).reinterpretAs(pointerTo(EmergeHeapAllocatedValueBaseType)))
         }
     }
 }
 
 internal fun <Element : LlvmType> buildValueArrayBoxingElementSetter(
     typeName: String,
-    getValueArrayType: () -> ArrayType<Element>,
+    getValueArrayType: () -> EmergeArrayType<Element>,
     getBoxType: EmergeLlvmContext.() -> EmergeStructType,
 ): KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> {
     return KotlinLlvmFunction.define(
@@ -48,8 +48,8 @@ internal fun <Element : LlvmType> buildValueArrayBoxingElementSetter(
     ) {
         val arrayType = getValueArrayType()
         val self by param(pointerTo(arrayType))
-        val index by param(LlvmWordType)
-        val valueBoxAny by param(pointerTo(AnyValueType))
+        val index by param(EmergeWordType)
+        val valueBoxAny by param(pointerTo(EmergeHeapAllocatedValueBaseType))
         body {
             val boxType = getBoxType(context)
             val valueMember = boxType.irStruct.members.single()
@@ -79,11 +79,11 @@ internal fun <Element : LlvmType> buildValueArrayType(
     typeName: String,
     elementType: Element,
     getBoxType: EmergeLlvmContext.() -> EmergeStructType,
-) : ArrayType<Element> {
-    lateinit var arrayTypeHolder: ArrayType<Element>
+) : EmergeArrayType<Element> {
+    lateinit var arrayTypeHolder: EmergeArrayType<Element>
     val getter = buildValueArrayBoxingElementGetter(typeName, { arrayTypeHolder }, getBoxType)
     val setter = buildValueArrayBoxingElementSetter(typeName, { arrayTypeHolder }, getBoxType)
-    arrayTypeHolder = ArrayType(
+    arrayTypeHolder = EmergeArrayType(
         elementType,
         StaticAndDynamicTypeInfo.define(
             "array_$typeName",
@@ -91,8 +91,8 @@ internal fun <Element : LlvmType> buildValueArrayType(
             valueArrayFinalize,
         ) {
             listOf(
-                word(ArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to getter,
-                word(ArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to setter,
+                word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to getter,
+                word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to setter,
             )
         }
     )
@@ -100,24 +100,24 @@ internal fun <Element : LlvmType> buildValueArrayType(
     return arrayTypeHolder
 }
 
-internal val ValueArrayS8Type = buildValueArrayType("s8", LlvmI8Type, EmergeLlvmContext::boxTypeS8)
-internal val ValueArrayU8Type = buildValueArrayType("u8", LlvmI8Type, EmergeLlvmContext::boxTypeU8)
-internal val ValueArrayS16Type = buildValueArrayType("s16", LlvmI8Type, EmergeLlvmContext::boxTypeS16)
-internal val ValueArrayU16Type = buildValueArrayType("u16", LlvmI8Type, EmergeLlvmContext::boxTypeU16)
-internal val ValueArrayS32Type = buildValueArrayType("s32", LlvmI8Type, EmergeLlvmContext::boxTypeS32)
-internal val ValueArrayU32Type = buildValueArrayType("u32", LlvmI8Type, EmergeLlvmContext::boxTypeU32)
-internal val ValueArrayS64Type = buildValueArrayType("s64", LlvmI8Type, EmergeLlvmContext::boxTypeS64)
-internal val ValueArrayU64Type = buildValueArrayType("u64", LlvmI8Type, EmergeLlvmContext::boxTypeU64)
-internal val ValueArraySWordType = buildValueArrayType("sword", LlvmI8Type, EmergeLlvmContext::boxTypeSWord)
-internal val ValueArrayUWordType = buildValueArrayType("uword", LlvmI8Type, EmergeLlvmContext::boxTypeUWord)
-internal val ValueArrayBooleanType = buildValueArrayType("bool", LlvmBooleanType, EmergeLlvmContext::boxTypeBoolean)
+internal val EmergeS8ArrayType = buildValueArrayType("s8", LlvmI8Type, EmergeLlvmContext::boxTypeS8)
+internal val EmergeU8ArrayType = buildValueArrayType("u8", LlvmI8Type, EmergeLlvmContext::boxTypeU8)
+internal val EmergeS16ArrayType = buildValueArrayType("s16", LlvmI8Type, EmergeLlvmContext::boxTypeS16)
+internal val EmergeU16ArrayType = buildValueArrayType("u16", LlvmI8Type, EmergeLlvmContext::boxTypeU16)
+internal val EmergeS32ArrayType = buildValueArrayType("s32", LlvmI8Type, EmergeLlvmContext::boxTypeS32)
+internal val EmergeU32ArrayType = buildValueArrayType("u32", LlvmI8Type, EmergeLlvmContext::boxTypeU32)
+internal val EmergeS64ArrayType = buildValueArrayType("s64", LlvmI8Type, EmergeLlvmContext::boxTypeS64)
+internal val EmergeU64ArrayType = buildValueArrayType("u64", LlvmI8Type, EmergeLlvmContext::boxTypeU64)
+internal val EmergeSWordArrayType = buildValueArrayType("sword", LlvmI8Type, EmergeLlvmContext::boxTypeSWord)
+internal val EmergeUWordArrayType = buildValueArrayType("uword", LlvmI8Type, EmergeLlvmContext::boxTypeUWord)
+internal val EmergeBooleanArrayType = buildValueArrayType("bool", LlvmBooleanType, EmergeLlvmContext::boxTypeBoolean)
 
-private val referenceArrayElementGetter: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<AnyValueType>> = KotlinLlvmFunction.define(
+private val referenceArrayElementGetter: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>> = KotlinLlvmFunction.define(
     "refarray_get",
-    pointerTo(AnyValueType),
+    pointerTo(EmergeHeapAllocatedValueBaseType),
 ) {
     val self by param(pointerTo(EmergeReferenceArrayType))
-    val index by param(LlvmWordType)
+    val index by param(EmergeWordType)
     body {
         // TODO: bounds check!
         val referenceEntry = getelementptr(self)
@@ -135,8 +135,8 @@ private val referenceArrayElementSetter: KotlinLlvmFunction<EmergeLlvmContext, L
     LlvmVoidType,
 ) {
     val self by param(pointerTo(EmergeReferenceArrayType))
-    val index by param(LlvmWordType)
-    val value by param(pointerTo(AnyValueType))
+    val index by param(EmergeWordType)
+    val value by param(pointerTo(EmergeHeapAllocatedValueBaseType))
     body {
         // TODO: bounds check!
         val pointerToSlotInArray = getelementptr(self)
@@ -153,23 +153,23 @@ private val refArrayFinalize: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType
     "refarray_finalize",
     LlvmVoidType,
 ) {
-    val self by param(PointerToAnyValue)
+    val self by param(PointerToAnyEmergeValue)
     body {
         // TODO: walk references, drop each properly
         retVoid()
     }
 }
 
-internal val EmergeReferenceArrayType: ArrayType<LlvmPointerType<AnyValueType>> = ArrayType(
-    PointerToAnyValue,
+internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<EmergeHeapAllocatedValueBaseType>> = EmergeArrayType(
+    PointerToAnyEmergeValue,
     StaticAndDynamicTypeInfo.define(
         "array_ref",
         emptyList(),
         refArrayFinalize,
     ) {
         listOf(
-            word(ArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to referenceArrayElementGetter,
-            word(ArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to referenceArrayElementSetter,
+            word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to referenceArrayElementGetter,
+            word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to referenceArrayElementSetter,
         )
     },
     "ref"

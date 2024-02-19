@@ -16,7 +16,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.LlvmWordType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
 
 /*
@@ -48,7 +48,7 @@ internal val IrType.llvmValueType: LlvmType? by tackLazyVal {
         "emerge.core.ULong" -> LlvmI64Type
 
         "emerge.core.iword",
-        "emerge.core.uword" -> LlvmWordType
+        "emerge.core.uword" -> EmergeWordType
 
         "emerge.core.Boolean" -> LlvmBooleanType
 

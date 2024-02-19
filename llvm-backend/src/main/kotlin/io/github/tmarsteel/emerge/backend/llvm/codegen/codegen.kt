@@ -23,11 +23,11 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i16
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i64
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.ArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS8ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType.Companion.member
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.ValueArrayS8Type
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.tackState
@@ -131,16 +131,16 @@ internal var IrVariableDeclaration.emitRead: (BasicBlockBuilder<EmergeLlvmContex
  */
 internal var IrVariableDeclaration.emitWrite: (BasicBlockBuilder<EmergeLlvmContext, *>.(v: LlvmValue<LlvmType>) -> Unit)? by tackState { null }
 
-internal var IrStringLiteralExpression.byteArrayGlobal: LlvmGlobal<ArrayType<LlvmI8Type>>? by tackState { null }
-internal fun IrStringLiteralExpression.assureByteArrayConstantIn(context: EmergeLlvmContext): LlvmGlobal<ArrayType<LlvmI8Type>> {
+internal var IrStringLiteralExpression.byteArrayGlobal: LlvmGlobal<EmergeArrayType<LlvmI8Type>>? by tackState { null }
+internal fun IrStringLiteralExpression.assureByteArrayConstantIn(context: EmergeLlvmContext): LlvmGlobal<EmergeArrayType<LlvmI8Type>> {
     byteArrayGlobal?.let { return it }
-    val constant = ValueArrayS8Type.buildConstantIn(
+    val constant = EmergeS8ArrayType.buildConstantIn(
         context,
         utf8Bytes.asList(),
         { context.i8(it) }
     )
     val untypedGlobal = context.addGlobal(constant, LlvmGlobal.ThreadLocalMode.SHARED)
-    val global = LlvmGlobal(untypedGlobal.raw, ValueArrayS8Type)
+    val global = LlvmGlobal(untypedGlobal.raw, EmergeS8ArrayType)
     byteArrayGlobal = global
     return global
 }

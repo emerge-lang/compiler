@@ -1,7 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import com.google.common.collect.MapMaker
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.LlvmWordType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
 import org.bytedeco.llvm.global.LLVM
@@ -34,7 +34,7 @@ object LlvmVoidType : LlvmCachedType() {
 
 interface LlvmIntegerType : LlvmType {
     fun getMaxUnsignedValueInContext(context: LlvmContext): BigInteger {
-        val rawInContext = LlvmWordType.getRawInContext(context)
+        val rawInContext = EmergeWordType.getRawInContext(context)
         val nBits = LLVM.LLVMSizeOfTypeInBits(context.targetData.ref, rawInContext)
         check(nBits in 0 .. Int.MAX_VALUE)
         return BigInteger.TWO.pow(nBits.toInt()) - BigInteger.ONE
