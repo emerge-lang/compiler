@@ -24,6 +24,8 @@ interface IrBooleanLiteralExpression : IrExpression {
     val value: Boolean
 }
 
+interface IrNullLiteralExpression : IrExpression
+
 interface IrStaticDispatchFunctionInvocationExpression : IrExpression {
     val function: IrFunction
     val arguments: List<IrExpression>

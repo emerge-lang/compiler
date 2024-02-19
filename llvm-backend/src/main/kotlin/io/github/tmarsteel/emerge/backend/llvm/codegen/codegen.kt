@@ -7,6 +7,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrNullLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
@@ -120,6 +121,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, out LlvmType>.emitExpressionCo
         }
         is IrBooleanLiteralExpression -> {
             return context.i1(expression.value)
+        }
+        is IrNullLiteralExpression -> {
+            return context.nullValue(context.getReferenceSiteType(expression.evaluatesTo))
         }
         is IrArrayLiteralExpression -> {
             val elementCount = context.word(expression.elements.size)

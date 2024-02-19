@@ -24,7 +24,10 @@ import compiler.ast.type.TypeReference
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
-import compiler.lexer.SourceLocation
+import compiler.binding.type.BuiltinAny
+import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrNullLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundNullLiteralExpression(
     override val context: CTContext,
@@ -44,4 +47,12 @@ class BoundNullLiteralExpression(
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
+
+    override fun toBackendIr(): IrExpression {
+        return IrNullLiteralExpressionImpl(type?.toBackendIr() ?: BuiltinAny.baseReference.withCombinedNullability(TypeReference.Nullability.NULLABLE).toBackendIr())
+    }
 }
+
+private class IrNullLiteralExpressionImpl(
+    override val evaluatesTo: IrType,
+) : IrNullLiteralExpression
