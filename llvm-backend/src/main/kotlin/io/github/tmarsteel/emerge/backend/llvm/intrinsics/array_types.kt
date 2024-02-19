@@ -6,6 +6,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.r
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
+import io.github.tmarsteel.emerge.backend.llvm.dsl.IntegerComparison
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
@@ -341,9 +342,41 @@ private val refArrayFinalize: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType
     "refarray_finalize",
     LlvmVoidType,
 ) {
-    val self by param(PointerToAnyEmergeValue)
+    val self by param(pointerTo(EmergeReferenceArrayType))
     body {
-        // TODO: walk references, drop each properly
+        val indexStackSlot = alloca(EmergeWordType)
+        val size = getelementptr(self)
+            .member { base }
+            .member { elementCount }
+            .get()
+            .dereference()
+
+        loop(
+            header = elementLoopHeader@{
+                val endReached = icmp(indexStackSlot.dereference(), IntegerComparison.EQUAL, size)
+                conditionalBranch(endReached, ifTrue = {
+                    this@elementLoopHeader.breakLoop()
+                })
+                doIteration()
+            },
+            body = {
+                val currentIndex = indexStackSlot.dereference()
+                val element = getelementptr(self)
+                    .member { elements }
+                    .index(currentIndex)
+                    .get()
+                    .dereference()
+                val elementIsNotNull = not(isNull(element))
+                conditionalBranch(elementIsNotNull, ifTrue = {
+                    element.decrementStrongReferenceCount()
+                    concludeBranch()
+                })
+
+                val nextIndex = add(currentIndex, context.word(1))
+                store(nextIndex, indexStackSlot)
+                loopContinue()
+            }
+        )
         retVoid()
     }
 }
