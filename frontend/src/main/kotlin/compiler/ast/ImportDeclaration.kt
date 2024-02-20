@@ -28,7 +28,7 @@ class ImportDeclaration(
     override val declaredAt: SourceLocation,
     /** The identifiers in order of the source: `import pkg1.pkg2.component` => `[pkg1, pkg2, component]` */
     val identifiers: List<IdentifierToken>
-) : Declaration {
+) : AstFileLevelDeclaration {
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

@@ -1,11 +1,10 @@
 package compiler.parser
 
 import compiler.CoreIntrinsicsModule
-import compiler.InternalCompilerError
 import compiler.StandardLibraryModule
 import compiler.ast.ASTPackageDeclaration
 import compiler.ast.ASTSourceFile
-import compiler.ast.Declaration
+import compiler.ast.AstFileLevelDeclaration
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
 import compiler.ast.VariableDeclaration
@@ -28,7 +27,7 @@ object SourceFileRule {
         val astSourceFile = ASTSourceFile(expectedPackageName)
 
         input.forEachRemainingIndexed { index, declaration ->
-            declaration as? Declaration ?: throw InternalCompilerError("What tha heck went wrong here?!")
+            check(declaration is AstFileLevelDeclaration)
 
             if (declaration is ASTPackageDeclaration) {
                 if (astSourceFile.selfDeclaration == null) {
@@ -66,13 +65,16 @@ object SourceFileRule {
                 reportings.add(
                     Reporting.unsupported(
                     "Unsupported declaration $declaration",
-                    declaration.declaredAt
+                    declaration.declaredAt,
                 ))
             }
         }
 
         if (astSourceFile.selfDeclaration == null) {
-            reportings.add(Reporting.parsingError("No package declaration found.", (input.items.getOrNull(0) as Declaration?)?.declaredAt ?: SourceLocation.UNKNOWN))
+            reportings.add(Reporting.parsingError(
+                "No package declaration found.",
+                (input.items.getOrNull(0) as AstFileLevelDeclaration?)?.declaredAt ?: SourceLocation.UNKNOWN
+            ))
         }
 
         // default imports

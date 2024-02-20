@@ -18,16 +18,15 @@
 
 package compiler.reportings
 
-import compiler.ast.Executable
 import compiler.ast.type.FunctionModifier
-import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
+import compiler.binding.BoundStatement
 import compiler.binding.expression.BoundAssignmentExpression
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundInvocationExpression
 
 abstract class PurityViolationReporting protected constructor(
-    val violation: BoundExecutable<Executable<*>>,
+    val violation: BoundStatement<*>,
     message: String
 )
     : Reporting(Level.ERROR, message, violation.declaration.sourceLocation)

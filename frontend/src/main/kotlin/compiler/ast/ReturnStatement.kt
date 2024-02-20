@@ -18,7 +18,6 @@
 
 package compiler.ast
 
-import compiler.ast.expression.Expression
 import compiler.binding.BoundReturnStatement
 import compiler.binding.context.CTContext
 import compiler.lexer.KeywordToken
@@ -26,8 +25,8 @@ import compiler.lexer.SourceLocation
 
 class ReturnStatement(
     val returnKeyword: KeywordToken,
-    val expression: Expression<*>?,
-) : Executable<BoundReturnStatement> {
+    val expression: Expression?,
+) : Statement {
     override val sourceLocation = if (expression == null) returnKeyword.sourceLocation else {
         SourceLocation(
             returnKeyword.sourceLocation.file,

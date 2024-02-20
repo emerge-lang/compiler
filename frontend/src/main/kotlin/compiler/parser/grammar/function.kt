@@ -20,11 +20,11 @@ package compiler.parser.grammar
 
 import compiler.InternalCompilerError
 import compiler.ast.CodeChunk
+import compiler.ast.Expression
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ParameterList
 import compiler.ast.TypeParameterBundle
 import compiler.ast.VariableDeclaration
-import compiler.ast.expression.Expression
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
@@ -69,7 +69,7 @@ val Parameter = sequence("parameter declaration") {
         var typeMutability: TypeMutability? = null
         val name: IdentifierToken
         var type: TypeReference? = null
-        var initializer: Expression<*>? = null
+        var initializer: Expression? = null
 
         var next = tokens.next()!!
 
@@ -92,7 +92,7 @@ val Parameter = sequence("parameter declaration") {
 
         if (tokens.peek() == OperatorToken(Operator.ASSIGNMENT)) {
             tokens.next()
-            initializer = tokens.next()!! as Expression<*>
+            initializer = tokens.next()!! as Expression
         }
 
         VariableDeclaration(
@@ -279,12 +279,12 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
                 typeParameters,
                 parameterList,
                 type ?: TypeReference("Unit", nullability = TypeReference.Nullability.UNSPECIFIED),
-                code
+                FunctionDeclaration.Body.Full(code),
             )
         }
 
         if (next == OperatorToken(Operator.ASSIGNMENT)) {
-            val singleExpression = tokens.next()!! as Expression<*>
+            val singleExpression = tokens.next()!! as Expression
 
             return@astTransformation FunctionDeclaration(
                 declarationKeyword.sourceLocation,
@@ -293,7 +293,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
                 typeParameters,
                 parameterList,
                 type,
-                singleExpression,
+                FunctionDeclaration.Body.SingleExpression(singleExpression),
             )
         }
 

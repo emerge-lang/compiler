@@ -1,11 +1,11 @@
 package compiler.reportings
 
-import compiler.ast.expression.Expression
+import compiler.ast.Expression
 import compiler.binding.type.BaseType
 import java.math.BigInteger
 
 class IntegerLiteralOutOfRangeReporting(
-    val literal: Expression<*>,
+    val literal: Expression,
     val expectedType: BaseType,
     val expectedRange: ClosedRange<BigInteger>,
 ) : Reporting(

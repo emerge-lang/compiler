@@ -2,12 +2,11 @@ package compiler.binding.expression
 
 import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
-import compiler.ast.Executable
 import compiler.ast.expression.ArrayLiteralExpression
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
-import compiler.binding.BoundExecutable
+import compiler.binding.BoundStatement
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
@@ -89,11 +88,11 @@ class BoundArrayLiteralExpression(
         return elements.flatMap { it.semanticAnalysisPhase3() }
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
         return elements.flatMap { it.findReadsBeyond(boundary) }
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
         return elements.flatMap { it.findWritesBeyond(boundary) }
     }
 

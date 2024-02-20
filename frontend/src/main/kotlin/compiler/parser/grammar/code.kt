@@ -20,16 +20,15 @@ package compiler.parser.grammar
 
 import compiler.InternalCompilerError
 import compiler.ast.CodeChunk
-import compiler.ast.Executable
+import compiler.ast.Expression
 import compiler.ast.ReturnStatement
-import compiler.ast.expression.Expression
+import compiler.ast.Statement
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
-import compiler.lexer.OperatorToken
-import compiler.parser.ExpressionPostfix
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.sequence
+import compiler.parser.grammar.rule.Rule
 
 val ReturnStatement = sequence("return statement") {
     keyword(Keyword.RETURN)
@@ -39,7 +38,7 @@ val ReturnStatement = sequence("return statement") {
 }
     .astTransformation { tokens ->
         val keyword = tokens.next()!! as KeywordToken
-        val expression = if (tokens.hasNext()) tokens.next()!! as Expression<*> else null
+        val expression = if (tokens.hasNext()) tokens.next()!! as Expression else null
 
         ReturnStatement(keyword, expression)
     }
@@ -49,7 +48,7 @@ val Assignable = sequence("assignable") {
     ref(ExpressionExcludingBinaryPostfix)
 }
     .astTransformation { tokens ->
-        val expression = tokens.next()!! as Expression<*>
+        val expression = tokens.next()!! as Expression
         expression
     }
 
@@ -64,8 +63,9 @@ val LineOfCode = sequence {
         operator(Operator.NEWLINE)
     }
 }
+    .astTransformation { tokens -> tokens.next() as Statement }
 
-val CodeChunk = sequence("a chunk of code") {
+val CodeChunk: Rule<CodeChunk> = sequence("a chunk of code") {
     optionalWhitespace()
     optional {
         ref(LineOfCode)
@@ -77,7 +77,6 @@ val CodeChunk = sequence("a chunk of code") {
 }
     .astTransformation { tokens ->
         tokens.remainingToList()
-            .filter { it !is OperatorToken }
-            .map { it as? Executable<*> ?: throw InternalCompilerError("How did this thing get into here?!") }
+            .map { it as? Statement ?: throw InternalCompilerError("How did this thing get into here?!") }
             .let(::CodeChunk)
     }

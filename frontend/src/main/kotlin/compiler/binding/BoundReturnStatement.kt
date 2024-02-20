@@ -18,7 +18,6 @@
 
 package compiler.binding
 
-import compiler.ast.Executable
 import compiler.ast.ReturnStatement
 import compiler.ast.expression.IdentifierExpression
 import compiler.binding.context.CTContext
@@ -34,7 +33,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrStatement
 class BoundReturnStatement(
     override val context: CTContext,
     override val declaration: ReturnStatement
-) : BoundExecutable<ReturnStatement> {
+) : BoundStatement<ReturnStatement> {
 
     private var expectedReturnType: BoundTypeReference? = null
 
@@ -85,11 +84,11 @@ class BoundReturnStatement(
         expression?.setExpectedEvaluationResultType(type)
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
         return this.expression?.findReadsBeyond(boundary) ?: emptySet()
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
         return this.expression?.findWritesBeyond(boundary) ?: emptySet()
     }
 

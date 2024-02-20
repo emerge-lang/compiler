@@ -18,7 +18,6 @@
 
 package compiler.ast
 
-import compiler.ast.expression.Expression
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundVariable
@@ -32,8 +31,8 @@ open class VariableDeclaration(
     val name: IdentifierToken,
     val type: TypeReference?,
     val isAssignable: Boolean,
-    val initializerExpression: Expression<*>?
-) : Declaration, Executable<BoundVariable> {
+    val initializerExpression: Expression?
+) : Statement, AstFileLevelDeclaration {
     override val sourceLocation get() = declaredAt
 
     override fun bindTo(context: CTContext): BoundVariable = bindTo(context, BoundVariable.Kind.VARIABLE)

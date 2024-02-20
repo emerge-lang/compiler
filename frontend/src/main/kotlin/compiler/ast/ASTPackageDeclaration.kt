@@ -26,6 +26,6 @@ import compiler.lexer.KeywordToken
 class ASTPackageDeclaration(
     val packageKeyword: KeywordToken,
     val packageName: ASTPackageName,
-) : Declaration {
+) : AstFileLevelDeclaration {
     override val declaredAt = packageKeyword.sourceLocation
 }

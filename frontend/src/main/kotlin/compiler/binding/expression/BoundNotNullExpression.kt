@@ -18,9 +18,9 @@
 
 package compiler.binding.expression
 
-import compiler.ast.Executable
 import compiler.ast.expression.NotNullExpression
 import compiler.binding.BoundExecutable
+import compiler.binding.BoundStatement
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
@@ -51,11 +51,11 @@ class BoundNotNullExpression(
         return nullableExpression.semanticAnalysisPhase3()
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
         return nullableExpression.findReadsBeyond(boundary)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> = emptySet()
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // TODO: do we need to change nullability here before passing it on?

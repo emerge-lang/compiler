@@ -18,12 +18,14 @@
 
 package compiler.binding
 
+import compiler.ast.Executable
 import compiler.ast.type.FunctionModifier
+import compiler.ast.type.TypeMutability
 import compiler.binding.context.CTContext
+import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.SourceLocation
-import compiler.ast.type.TypeMutability
 import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 
@@ -87,4 +89,9 @@ abstract class BoundFunction : SemanticallyAnalyzable {
         get() = context.sourceFile.packageName + name
 
     internal abstract fun toBackendIr(): IrFunction
+
+    sealed interface Body : BoundExecutable<Executable> {
+        class SingleExpression(val expression: BoundExpression<*>) : Body, BoundExecutable<Executable> by expression
+        class Full(val code: BoundCodeChunk) : Body, BoundExecutable<Executable> by code
+    }
 }

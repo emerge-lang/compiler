@@ -16,31 +16,33 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package compiler.ast.expression
+package compiler.ast
 
-import compiler.ast.Executable
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
-import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundIfExpression
 import compiler.lexer.SourceLocation
 
 class IfExpression (
     override val sourceLocation: SourceLocation,
-    val condition: Expression<BoundExpression<Expression<*>>>,
-    val thenCode: Executable<*>,
-    val elseCode: Executable<*>?
-) : Expression<BoundIfExpression>, Executable<BoundIfExpression> {
+    val condition: Expression,
+    val thenCode: Executable,
+    val elseCode: Executable?
+) : Expression {
 
     override fun bindTo(context: CTContext): BoundIfExpression {
         val contextBeforeCondition: CTContext = MutableCTContext(context)
         val boundCondition = condition.bindTo(contextBeforeCondition)
+
+        val thenCodeAsChunk: CodeChunk = if (thenCode is CodeChunk) thenCode else CodeChunk(listOf(thenCode as Statement))
+        val elseCodeAsChunk: CodeChunk? = if (elseCode == null) null else if (elseCode is CodeChunk) elseCode else CodeChunk(listOf(elseCode as Statement))
+
         return BoundIfExpression(
             contextBeforeCondition,
             this,
             boundCondition,
-            thenCode.bindTo(boundCondition.modifiedContext),
-            elseCode?.bindTo(contextBeforeCondition),
+            thenCodeAsChunk.bindTo(boundCondition.modifiedContext),
+            elseCodeAsChunk?.bindTo(contextBeforeCondition),
         )
     }
 }

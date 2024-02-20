@@ -20,9 +20,7 @@ package compiler.ast.struct
 
 import compiler.InternalCompilerError
 import compiler.ast.ASTVisibilityModifier
-import compiler.ast.Bindable
-import compiler.ast.Declaration
-import compiler.ast.expression.Expression
+import compiler.ast.Expression
 import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
 import compiler.binding.struct.StructContext
@@ -31,13 +29,13 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 
 class StructMemberDeclaration(
-    override val declaredAt: SourceLocation,
+    val declaredAt: SourceLocation,
     val visibilityModifier: ASTVisibilityModifier?,
     val name: IdentifierToken,
     val type: TypeReference,
-    val defaultValue: Expression<*>?
-) : Declaration, Bindable<StructMember> {
-    override fun bindTo(context: CTContext): StructMember {
+    val defaultValue: Expression?
+) {
+    fun bindTo(context: CTContext): StructMember {
         if (context !is StructContext) throw InternalCompilerError(null)
 
         return StructMember(

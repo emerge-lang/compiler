@@ -27,11 +27,11 @@ import compiler.lexer.SourceLocation
  * A piece of executable code
  */
 class CodeChunk(
-    val statements: List<Executable<*>>
-) : Executable<BoundCodeChunk> {
+    val statements: List<Statement>
+) : Executable {
     override val sourceLocation: SourceLocation = statements.firstOrNull()?.sourceLocation ?: SourceLocation.UNKNOWN
 
-    override fun bindTo(context: CTContext): BoundCodeChunk {
+    fun bindTo(context: CTContext): BoundCodeChunk {
         val boundStatements = ArrayList<BoundExecutable<*>>(statements.size)
         var contextCarry = context
         for (astStatement in statements) {

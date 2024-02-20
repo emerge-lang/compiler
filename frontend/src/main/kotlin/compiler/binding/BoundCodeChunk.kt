@@ -20,8 +20,8 @@ package compiler.binding
 
 import compiler.OnceAction
 import compiler.ast.CodeChunk
-import compiler.ast.Executable
 import compiler.binding.context.CTContext
+import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.handleCyclicInvocation
 import compiler.reportings.Reporting
@@ -84,7 +84,7 @@ class BoundCodeChunk(
         }
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
         onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase3)
         return statements.flatMap {
             handleCyclicInvocation(
@@ -95,7 +95,7 @@ class BoundCodeChunk(
         }
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
         return statements.flatMap {
             handleCyclicInvocation(
                 context = this,

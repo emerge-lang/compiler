@@ -18,36 +18,19 @@
 
 package compiler.binding
 
-import compiler.ast.Executable
 import compiler.binding.context.CTContext
 
 /**
- * Anything that resulted from AST and that can have compile time checks.
+ * Anything that resulted from AST and that can have compile-time checks.
  */
-interface BoundElement<out ASTType> : SemanticallyAnalyzable {
+interface BoundElement<out AstNode> : SemanticallyAnalyzable {
     /**
-     * The context this expression has been bound to.
+     * The context this element has been bound to.
      */
     val context: CTContext
 
     /**
      * The node that was bound to [context].
      */
-    val declaration: ASTType
-
-    /**
-     * Use to find violations of purity.
-     * @param boundary The boundary. The boundary context must be in the [CTContext.hierarchy] of `this`' context.
-     * @return All the nested [BoundExecutable]s (or `this` if there are no nested ones) that read state that belongs
-     *         to context outside the given boundary.
-     */
-    fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet() // TODO remove default impl
-
-    /**
-     * Use to find violations of readonlyness and/or purity.
-     * @param boundary The boundary. The boundary context must be in the [CTContext.hierarchy] of `this`' context.
-     * @return All the nested [BoundExecutable]s (or `this` if there are no nested ones) that write state that belongs
-     *         to context outside the given boundary.
-     */
-    fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet() // TODO remove default impl
+    val declaration: AstNode
 }

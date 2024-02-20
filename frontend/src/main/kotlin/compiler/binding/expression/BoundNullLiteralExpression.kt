@@ -18,10 +18,9 @@
 
 package compiler.binding.expression
 
-import compiler.ast.Executable
 import compiler.ast.expression.NullLiteralExpression
 import compiler.ast.type.TypeReference
-import compiler.binding.BoundExecutable
+import compiler.binding.BoundStatement
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.BuiltinAny
@@ -49,9 +48,9 @@ class BoundNullLiteralExpression(
     override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
     override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> = emptySet()
 
     override fun toBackendIr(): IrExpression {
         return IrNullLiteralExpressionImpl(type?.toBackendIr() ?: BuiltinAny.baseReference.withCombinedNullability(TypeReference.Nullability.NULLABLE).toBackendIr())

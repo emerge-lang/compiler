@@ -18,15 +18,16 @@
 
 package compiler.ast.expression
 
-import compiler.binding.expression.BoundAssignmentExpression
+import compiler.ast.Expression
 import compiler.binding.context.CTContext
+import compiler.binding.expression.BoundAssignmentExpression
 import compiler.lexer.OperatorToken
 
 class AssignmentExpression(
-    val targetExpression: Expression<*>,
+    val targetExpression: Expression,
     val assignmentOperatorToken: OperatorToken,
-    val valueExpression: Expression<*>
-) : Expression<BoundAssignmentExpression> {
+    val valueExpression: Expression
+) : Expression {
 
     override val sourceLocation = targetExpression.sourceLocation
 

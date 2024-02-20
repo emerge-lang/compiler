@@ -18,6 +18,7 @@
 
 package compiler.ast.expression
 
+import compiler.ast.Expression
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundUnaryExpression
 import compiler.lexer.IdentifierToken
@@ -26,8 +27,8 @@ import compiler.lexer.OperatorToken
 
 class UnaryExpression(
     val operatorToken: OperatorToken,
-    val valueExpression: Expression<*>,
-): Expression<BoundUnaryExpression> {
+    val valueExpression:Expression,
+):Expression {
     override val sourceLocation = valueExpression.sourceLocation
 
     override fun bindTo(context: CTContext): BoundUnaryExpression {

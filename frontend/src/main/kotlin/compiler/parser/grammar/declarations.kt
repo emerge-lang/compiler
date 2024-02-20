@@ -21,23 +21,31 @@ package compiler.parser.grammar
 import compiler.InternalCompilerError
 import compiler.ast.ASTVisibilityModifier
 import compiler.ast.ExportASTVisibilityModifier
+import compiler.ast.Expression
 import compiler.ast.InternalASTVisibilityModifier
 import compiler.ast.PrivateASTVisibilityModifier
 import compiler.ast.ProtectedASTVisibilityModifier
 import compiler.ast.QualifiedASTProtectedVisibilityModifier
 import compiler.ast.VariableDeclaration
-import compiler.ast.expression.Expression
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
-import compiler.lexer.Keyword.*
+import compiler.lexer.Keyword.EXPORT
+import compiler.lexer.Keyword.INTERNAL
+import compiler.lexer.Keyword.PRIVATE
+import compiler.lexer.Keyword.PROTECTED
+import compiler.lexer.Keyword.VAL
+import compiler.lexer.Keyword.VAR
 import compiler.lexer.KeywordToken
-import compiler.lexer.Operator.*
+import compiler.lexer.Operator.ASSIGNMENT
+import compiler.lexer.Operator.COLON
+import compiler.lexer.Operator.PARANT_CLOSE
+import compiler.lexer.Operator.PARANT_OPEN
 import compiler.lexer.OperatorToken
-import compiler.parser.grammar.rule.Rule
 import compiler.parser.grammar.dsl.astTransformation
-import compiler.parser.grammar.dsl.sequence
 import compiler.parser.grammar.dsl.eitherOf
+import compiler.parser.grammar.dsl.sequence
+import compiler.parser.grammar.rule.Rule
 
 val VariableDeclaration = sequence("variable declaration") {
 
@@ -93,12 +101,12 @@ val VariableDeclaration = sequence("variable declaration") {
             colonOrEqualsOrNewline = tokens.next()
         }
 
-        var assignExpression: Expression<*>? = null
+        var assignExpression: Expression? = null
 
         val equalsOrNewline = colonOrEqualsOrNewline
 
         if (equalsOrNewline == OperatorToken(ASSIGNMENT)) {
-            assignExpression = tokens.next()!! as Expression<*>
+            assignExpression = tokens.next()!! as Expression
         }
 
         VariableDeclaration(

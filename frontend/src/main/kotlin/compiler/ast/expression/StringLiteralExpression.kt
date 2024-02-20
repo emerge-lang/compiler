@@ -1,5 +1,6 @@
 package compiler.ast.expression
 
+import compiler.ast.Expression
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundStringLiteralExpression
 import compiler.lexer.OperatorToken
@@ -10,7 +11,7 @@ class StringLiteralExpression(
     val startingDelimiter: OperatorToken,
     val content: StringLiteralContentToken,
     val endingDelimiter: OperatorToken,
-) : Expression<BoundStringLiteralExpression> {
+) :Expression {
     override val sourceLocation = SourceLocation(
         startingDelimiter.sourceLocation.file,
         startingDelimiter.sourceLocation.fromLineNumber,

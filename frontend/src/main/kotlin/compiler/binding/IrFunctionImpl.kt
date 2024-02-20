@@ -1,7 +1,6 @@
 package compiler.binding
 
 import compiler.ast.type.FunctionModifier
-import compiler.binding.expression.BoundExpression
 import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrDeclaredFunction
@@ -21,9 +20,9 @@ internal abstract class IrFunctionImpl private constructor(
 
     protected val _body: IrCodeChunk = when (boundBody) {
         null -> IrCodeChunkImpl(emptyList())
-        is BoundCodeChunk -> boundBody.toBackendIr()
-        is BoundExpression<*> -> IrCodeChunkImpl(listOf(object : IrReturnStatement {
-            override val value = boundBody.toBackendIr()
+        is BoundFunction.Body.Full -> boundBody.code.toBackendIr()
+        is BoundFunction.Body.SingleExpression -> IrCodeChunkImpl(listOf(object : IrReturnStatement {
+            override val value = boundBody.expression.toBackendIr()
         }))
         else -> IrCodeChunkImpl(listOf(
             boundBody.toBackendIr(),

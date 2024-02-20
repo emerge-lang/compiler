@@ -18,9 +18,8 @@
 
 package compiler.binding.expression
 
-import compiler.ast.Executable
 import compiler.ast.expression.NumericLiteralExpression
-import compiler.binding.BoundExecutable
+import compiler.binding.BoundStatement
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.BuiltinByte
@@ -57,8 +56,8 @@ open class BoundNumericLiteral(
     override fun semanticAnalysisPhase1() = reportings
     override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
     override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> = emptySet()
 
     protected var expectedNumericType: BuiltinType? = null
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {

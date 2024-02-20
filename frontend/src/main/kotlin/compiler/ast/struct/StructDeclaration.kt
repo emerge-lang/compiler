@@ -18,8 +18,7 @@
 
 package compiler.ast.struct
 
-import compiler.ast.Bindable
-import compiler.ast.Declaration
+import compiler.ast.AstFileLevelDeclaration
 import compiler.ast.type.TypeParameter
 import compiler.binding.context.CTContext
 import compiler.binding.struct.Struct
@@ -32,8 +31,8 @@ class StructDeclaration(
     val name: IdentifierToken,
     val memberDeclarations: Set<StructMemberDeclaration>,
     val typeParameters: List<TypeParameter>,
-) : Declaration, Bindable<Struct> {
-    override fun bindTo(context: CTContext): Struct {
+) : AstFileLevelDeclaration {
+    fun bindTo(context: CTContext): Struct {
         val structContext = StructContext(context, typeParameters)
         return Struct(
             structContext,

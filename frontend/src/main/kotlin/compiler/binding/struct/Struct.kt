@@ -19,18 +19,16 @@
 package compiler.binding.struct
 
 import compiler.OnceAction
-import compiler.ast.Executable
 import compiler.ast.FunctionDeclaration
 import compiler.ast.struct.StructDeclaration
 import compiler.binding.BoundElement
-import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
 import compiler.binding.misc_ir.IrOverloadGroupImpl
-import compiler.binding.type.BuiltinAny
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeParameter
+import compiler.binding.type.BuiltinAny
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
@@ -93,21 +91,6 @@ class Struct(
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
             return@getResult reportings
         }
-    }
-
-    /*
-        TODO: why are these two methods needed on a BaseType?
-        Structs don't read/write, their member functions do. The member functions purity is validated
-        against the struct boundary, not any other. These two methods shouldn't be returning anythin
-        other than empty(), should they? Instead, the semanticAnalysisPhase3() needs to verify the
-        purity of all member functions against the struct boundary.
-         */
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
-        return members.flatMap { it.findReadsBeyond(boundary) }
-    }
-
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
-        return members.flatMap { it.findWritesBeyond(boundary) }
     }
 
     override fun resolveMemberVariable(name: String): ObjectMember? = members.find { it.name == name }

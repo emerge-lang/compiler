@@ -18,10 +18,9 @@
 
 package compiler.binding.expression
 
-import compiler.ast.Executable
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.TypeReference
-import compiler.binding.BoundExecutable
+import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
@@ -92,11 +91,11 @@ class BoundIdentifierExpression(
         return referral?.semanticAnalysisPhase3() ?: emptySet()
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
         return referral?.findReadsBeyond(boundary) ?: emptySet()
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
         // this does not write by itself; writs are done by other statements
         return emptySet()
     }
@@ -109,7 +108,7 @@ class BoundIdentifierExpression(
         override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
         override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
         override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
-        fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>>
+        fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>>
         fun markEvaluationResultUsed()
     }
     inner class ReferringVariable(val variable: BoundVariable) : Referral {
@@ -127,7 +126,7 @@ class BoundIdentifierExpression(
             return emptySet()
         }
 
-        override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+        override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
             return if (context.containsWithinBoundary(variable, boundary)) {
                 emptySet()
             } else {
@@ -140,7 +139,7 @@ class BoundIdentifierExpression(
 
         }
 
-        override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+        override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
             // TODO is reading type information of types declared outside the boundary considered impure?
             return emptySet()
         }

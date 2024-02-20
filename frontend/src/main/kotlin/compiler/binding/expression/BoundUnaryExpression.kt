@@ -18,10 +18,9 @@
 
 package compiler.binding.expression
 
-import compiler.ast.Executable
 import compiler.ast.expression.UnaryExpression
 import compiler.ast.type.FunctionModifier
-import compiler.binding.BoundExecutable
+import compiler.binding.BoundStatement
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
@@ -72,11 +71,11 @@ class BoundUnaryExpression(
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> = hiddenInvocation.semanticAnalysisPhase3()
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
         return hiddenInvocation.findReadsBeyond(boundary)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
         return hiddenInvocation.findWritesBeyond(boundary)
     }
 

@@ -18,6 +18,7 @@
 
 package compiler.ast.expression
 
+import compiler.ast.Expression
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundBooleanLiteralExpression
 import compiler.lexer.SourceLocation
@@ -25,6 +26,6 @@ import compiler.lexer.SourceLocation
 class BooleanLiteralExpression(
     override val sourceLocation: SourceLocation,
     val value: Boolean
-) : Expression<BoundBooleanLiteralExpression> {
+) : Expression {
     override fun bindTo(context: CTContext) = BoundBooleanLiteralExpression(context, this, value)
 }

@@ -1,17 +1,17 @@
 package compiler.reportings
 
-import compiler.ast.Executable
-import compiler.ast.expression.Expression
+import compiler.ast.Expression
+import compiler.ast.Statement
 
 data class ImplicitlyEvaluatedStatementReporting(
-    val statement: Executable<*>,
+    val statement: Statement,
 ) : Reporting(
     Level.ERROR,
     "A value must be given here (implicit evaluation)",
     statement.sourceLocation,
 ) {
     init {
-        require(statement !is Expression<*>)
+        require(statement !is Expression)
     }
 
     override fun toString() = super.toString()

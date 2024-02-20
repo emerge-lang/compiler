@@ -16,15 +16,11 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package compiler.ast.expression
+package compiler.ast
 
-import compiler.ast.Bindable
-import compiler.ast.Executable
+import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
-import compiler.lexer.SourceLocation
 
-interface Expression<out BoundType : BoundExpression<*>> : Bindable<BoundType>, Executable<BoundType> {
-    override val sourceLocation: SourceLocation
+interface Expression : Statement {
+    override fun bindTo(context: CTContext): BoundExpression<*>
 }
-
-// TODO: source location, maybe Range<SourceLocation>?

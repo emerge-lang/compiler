@@ -18,8 +18,9 @@
 
 package compiler.binding.expression
 
-import compiler.ast.expression.Expression
-import compiler.ast.expression.IfExpression
+import compiler.ast.Expression
+import compiler.ast.IfExpression
+import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
@@ -28,7 +29,7 @@ import compiler.binding.type.BuiltinUnit
 import compiler.binding.type.isAssignableTo
 import compiler.nullableAnd
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
+import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIfExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -36,9 +37,9 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 class BoundIfExpression(
     override val context: CTContext,
     override val declaration: IfExpression,
-    val condition: BoundExpression<Expression<*>>,
-    val thenCode: BoundExecutable<*>,
-    val elseCode: BoundExecutable<*>?
+    val condition: BoundExpression<Expression>,
+    val thenCode: BoundCodeChunk,
+    val elseCode: BoundCodeChunk?
 ) : BoundExpression<IfExpression>, BoundExecutable<IfExpression> {
     override val isGuaranteedToThrow: Boolean
         get() = thenCode.isGuaranteedToThrow nullableAnd (elseCode?.isGuaranteedToThrow ?: false)
@@ -143,7 +144,7 @@ class BoundIfExpression(
 
 private class IrIfExpressionImpl(
     override val condition: IrExpression,
-    override val thenBranch: IrExecutable,
-    override val elseBranch: IrExecutable?,
+    override val thenBranch: IrCodeChunk,
+    override val elseBranch: IrCodeChunk?,
     override val evaluatesTo: IrType,
 ) : IrIfExpression

@@ -19,9 +19,8 @@
 package compiler.binding.expression
 
 import compiler.InternalCompilerError
-import compiler.ast.Executable
 import compiler.ast.expression.AssignmentExpression
-import compiler.binding.BoundExecutable
+import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
@@ -136,11 +135,11 @@ class BoundAssignmentExpression(
         return reportings
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
         return valueExpression.findReadsBeyond(boundary)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
         val writesByValueExpression = valueExpression.findWritesBeyond(boundary)
 
         when (assignmentTargetType) {

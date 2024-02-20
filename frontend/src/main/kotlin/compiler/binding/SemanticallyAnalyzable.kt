@@ -21,7 +21,8 @@ interface SemanticallyAnalyzable {
     fun semanticAnalysisPhase2(): Collection<Reporting>
 
     /**
-     * Here is where actual semantics are validated.
+     * Any semantics that rely on full type information being present (e.g. visibility checking) is done
+     * in this method.
      */
     fun semanticAnalysisPhase3(): Collection<Reporting>
 }

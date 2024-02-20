@@ -18,9 +18,8 @@
 
 package compiler.binding.expression
 
-import compiler.ast.Executable
 import compiler.ast.expression.MemberAccessExpression
-import compiler.binding.BoundExecutable
+import compiler.binding.BoundStatement
 import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
 import compiler.binding.struct.StructMember
@@ -82,11 +81,11 @@ class BoundMemberAccessExpression(
         return valueExpression.semanticAnalysisPhase3()
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
         return valueExpression.findReadsBeyond(boundary)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
         return valueExpression.findWritesBeyond(boundary)
     }
 

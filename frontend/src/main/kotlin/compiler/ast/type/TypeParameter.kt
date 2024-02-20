@@ -1,6 +1,5 @@
 package compiler.ast.type
 
-import compiler.ast.Bindable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.lexer.IdentifierToken
@@ -13,8 +12,8 @@ data class TypeParameter(
     val variance: TypeVariance,
     val name: IdentifierToken,
     val bound: TypeReference?,
-) : Bindable<BoundTypeParameter> {
-    override fun bindTo(context: CTContext): BoundTypeParameter {
+) {
+    fun bindTo(context: CTContext): BoundTypeParameter {
         return BoundTypeParameter(this, context)
     }
 

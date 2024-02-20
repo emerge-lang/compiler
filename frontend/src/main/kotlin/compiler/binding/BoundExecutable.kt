@@ -24,7 +24,7 @@ import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
-interface BoundExecutable<out ASTType> : BoundElement<Executable<*>> {
+interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
     /**
      * Whether this executable is guaranteed to return to the caller; with or without return value.
      *
@@ -79,6 +79,22 @@ interface BoundExecutable<out ASTType> : BoundElement<Executable<*>> {
      * given type; otherwise an appropriate reporting as to returned from [semanticAnalysisPhase3].
      */
     fun setExpectedReturnType(type: BoundTypeReference) {}
+
+    /**
+     * Use to find violations of purity.
+     * @param boundary The boundary. The boundary context must be in the [CTContext.hierarchy] of `this`' context.
+     * @return All the nested [BoundExecutable]s (or `this` if there are no nested ones) that read state that belongs
+     *         to context outside the given boundary.
+     */
+    fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet() // TODO remove default impl
+
+    /**
+     * Use to find violations of readonlyness and/or purity.
+     * @param boundary The boundary. The boundary context must be in the [CTContext.hierarchy] of `this`' context.
+     * @return All the nested [BoundExecutable]s (or `this` if there are no nested ones) that write state that belongs
+     *         to context outside the given boundary.
+     */
+    fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> = emptySet() // TODO remove default impl
 
     /**
      * TODO: most classes have a backing lazy field. The method is nonsense, refactor to a val

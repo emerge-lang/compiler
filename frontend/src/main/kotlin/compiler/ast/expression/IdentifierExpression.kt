@@ -18,6 +18,7 @@
 
 package compiler.ast.expression
 
+import compiler.ast.Expression
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.lexer.IdentifierToken
@@ -31,7 +32,7 @@ import compiler.lexer.IdentifierToken
  * * within a method invocation: [InvocationExpression] may read the [identifier] and treat it as a method name
  * * within a constructor invocation: [InvocationExpression] may read the [identifier] and treat it as a type name
  */
-class IdentifierExpression(val identifier: IdentifierToken) : Expression<BoundIdentifierExpression> {
+class IdentifierExpression(val identifier: IdentifierToken) :Expression {
     override val sourceLocation = identifier.sourceLocation
 
     override fun bindTo(context: CTContext): BoundIdentifierExpression {

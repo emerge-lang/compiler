@@ -18,11 +18,13 @@
 
 package compiler.binding.expression
 
+import compiler.ast.Expression
 import compiler.binding.BoundExecutable
+import compiler.binding.BoundStatement
 import compiler.binding.type.BoundTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
-interface BoundExpression<out ASTType> : BoundExecutable<ASTType> {
+interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
     /**
      * The type of this expression when evaluated. If the type could not be determined due to semantic errors,
      * this might be a guess or null.

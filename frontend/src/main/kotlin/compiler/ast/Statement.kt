@@ -18,11 +18,14 @@
 
 package compiler.ast
 
+import compiler.binding.BoundStatement
 import compiler.binding.context.CTContext
 
-interface Bindable<out BoundType> {
-    /**
-     * Binds the code to the given [CTContext], yielding an INSTANCE of the [BoundType].
-     */
-    fun bindTo(context: CTContext): BoundType
+/**
+ * Something that can be executed. All expressions are executable (because executing an expression means evaluating
+ * it within a certain context). Unless this is a compound (like e.g. [IfExpression]), any [Statement] can only
+ * declare one variable. [CodeChunk]s, by nature, can declare many.
+ */
+interface Statement : Executable {
+    fun bindTo(context: CTContext): BoundStatement<*>
 }

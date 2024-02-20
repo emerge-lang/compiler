@@ -18,8 +18,8 @@
 
 package compiler.ast.expression
 
+import compiler.ast.Expression
 import compiler.binding.context.CTContext
-import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundFloatingPointLiteral
 import compiler.binding.expression.BoundIntegerLiteral
 import compiler.binding.expression.BoundNumericLiteral
@@ -28,7 +28,7 @@ import compiler.reportings.Reporting
 import java.math.BigDecimal
 import java.math.BigInteger
 
-class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expression<BoundExpression<NumericLiteralExpression>> {
+class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expression {
 
     /** integer value of this expression, if integer */
     private var integerValue: BigInteger? = null

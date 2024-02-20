@@ -18,12 +18,9 @@
 
 package compiler.binding.struct
 
-import compiler.ast.Executable
 import compiler.ast.struct.StructMemberDeclaration
 import compiler.binding.BoundElement
-import compiler.binding.BoundExecutable
 import compiler.binding.ObjectMember
-import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
@@ -80,14 +77,6 @@ class StructMember(
         }
 
         return reportings
-    }
-
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
-        return defaultValue?.findReadsBeyond(boundary) ?: emptySet()
-    }
-
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
-        return defaultValue?.findWritesBeyond(boundary) ?: emptySet()
     }
 
     private val _backendIr by lazy { IrStructMemberImpl(name, type!!.toBackendIr()) }

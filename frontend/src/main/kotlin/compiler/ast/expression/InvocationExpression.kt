@@ -19,7 +19,7 @@
 package compiler.ast.expression
 
 import compiler.InternalCompilerError
-import compiler.ast.Executable
+import compiler.ast.Expression
 import compiler.ast.type.TypeArgument
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundInvocationExpression
@@ -31,10 +31,10 @@ class InvocationExpression(
      * * `doStuff()` => `IdentifierExpression(doStuff)`
      * * `obj.doStuff()` => `MemberAccessExpression(obj, doStuff)`
      */
-    val targetExpression: Expression<*>,
+    val targetExpression:Expression,
     val typeArguments: List<TypeArgument>,
-    val valueArgumentExpressions: List<Expression<*>>
-) : Expression<BoundInvocationExpression>, Executable<BoundInvocationExpression> {
+    val valueArgumentExpressions: List<Expression>
+) :Expression {
     override val sourceLocation: SourceLocation = when(targetExpression) {
         is MemberAccessExpression -> targetExpression.memberName.sourceLocation
         else -> targetExpression.sourceLocation

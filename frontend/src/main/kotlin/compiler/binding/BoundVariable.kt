@@ -19,7 +19,6 @@
 package compiler.binding
 
 import compiler.OnceAction
-import compiler.ast.Executable
 import compiler.ast.VariableDeclaration
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
@@ -48,7 +47,7 @@ class BoundVariable(
     override val declaration: VariableDeclaration,
     val initializerExpression: BoundExpression<*>?,
     val kind: Kind,
-) : BoundExecutable<VariableDeclaration> {
+) : BoundStatement<VariableDeclaration> {
     val isAssignable: Boolean = declaration.isAssignable
     private val implicitMutability: TypeMutability = declaration.typeMutability
         ?: if (isAssignable) TypeMutability.MUTABLE else kind.defaultMutability
@@ -240,11 +239,11 @@ class BoundVariable(
         newCtx
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
         return initializerExpression?.findReadsBeyond(boundary) ?: emptySet()
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
         return initializerExpression?.findWritesBeyond(boundary) ?: emptySet()
     }
 

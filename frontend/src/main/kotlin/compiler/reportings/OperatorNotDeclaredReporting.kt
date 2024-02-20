@@ -18,9 +18,9 @@
 
 package compiler.reportings
 
-import compiler.ast.expression.Expression
+import compiler.ast.Expression
 
-class OperatorNotDeclaredReporting(message: String, val expression: Expression<*>) : Reporting(
+class OperatorNotDeclaredReporting(message: String, val expression: Expression) : Reporting(
     Level.ERROR,
     message,
     expression.sourceLocation

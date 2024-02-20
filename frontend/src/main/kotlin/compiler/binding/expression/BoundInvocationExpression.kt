@@ -19,10 +19,10 @@
 package compiler.binding.expression
 
 import compiler.OnceAction
-import compiler.ast.Executable
 import compiler.ast.expression.InvocationExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
+import compiler.binding.BoundStatement
 import compiler.binding.context.CTContext
 import compiler.binding.type.*
 import compiler.handleCyclicInvocation
@@ -195,7 +195,7 @@ class BoundInvocationExpression(
         }
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
         onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase1)
         onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase2)
 
@@ -214,7 +214,7 @@ class BoundInvocationExpression(
         return byReceiver + byParameters + bySelf
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
         onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase1)
         onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase2)
 
@@ -228,7 +228,7 @@ class BoundInvocationExpression(
         }
 
         val thisExpressionIsReadonly = dispatchedFunction?.isReadonly ?: true
-        val bySelf: Collection<BoundExecutable<Executable<*>>> = if (thisExpressionIsReadonly) emptySet() else setOf(this)
+        val bySelf: Collection<BoundStatement<*>> = if (thisExpressionIsReadonly) emptySet() else setOf(this)
 
         return byReceiver + byParameters + bySelf
     }

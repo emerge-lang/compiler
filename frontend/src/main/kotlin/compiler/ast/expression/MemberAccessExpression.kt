@@ -18,6 +18,7 @@
 
 package compiler.ast.expression
 
+import compiler.ast.Expression
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundMemberAccessExpression
 import compiler.lexer.IdentifierToken
@@ -34,10 +35,10 @@ import compiler.lexer.OperatorToken
  * @param accessOperatorToken must be either [Operator.DOT] or [Operator.SAFEDOT]
  */
 class MemberAccessExpression(
-        val valueExpression: Expression<*>,
-        val accessOperatorToken: OperatorToken,
-        val memberName: IdentifierToken
-) : Expression<BoundMemberAccessExpression> {
+    val valueExpression:Expression,
+    val accessOperatorToken: OperatorToken,
+    val memberName: IdentifierToken
+) :Expression {
     override val sourceLocation = valueExpression.sourceLocation
 
     override fun bindTo(context: CTContext): BoundMemberAccessExpression {

@@ -5,7 +5,6 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
-import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.BuiltinUnit
@@ -24,7 +23,7 @@ class BoundDeclaredFunction(
     val declaration: FunctionDeclaration,
     override val typeParameters: List<BoundTypeParameter>,
     override val parameters: BoundParameterList,
-    val code: BoundExecutable<*>?
+    val code: Body?
 ) : BoundFunction() {
     override val declaredAt = declaration.declaredAt
     override val name: String = declaration.name.value
@@ -146,8 +145,8 @@ class BoundDeclaredFunction(
             )
 
             if (returnType == null) {
-                if (this.code is BoundExpression<*>) {
-                    this.returnType = this.code.type
+                if (this.code is Body.SingleExpression) {
+                    this.returnType = this.code.expression.type
                 } else {
                     this.returnType = BuiltinUnit.baseReference
                 }
@@ -230,7 +229,7 @@ class BoundDeclaredFunction(
                     val localReturnType = returnType
                     // if the function is declared to return Unit a return of Unit is implied and should be inserted by backends
                     // if this is a single-expression function (fun a() = 3), return is implied
-                    if (localReturnType == null || this.code !is BoundExpression<*>) {
+                    if (localReturnType == null || this.code !is Body.SingleExpression) {
                         val isImplicitUnitReturn = localReturnType is RootResolvedTypeReference && localReturnType.baseType === BuiltinUnit
                         if (!isImplicitUnitReturn) {
                             reportings.add(Reporting.uncertainTermination(this))

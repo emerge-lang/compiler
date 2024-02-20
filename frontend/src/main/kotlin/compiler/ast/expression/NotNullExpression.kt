@@ -18,16 +18,16 @@
 
 package compiler.ast.expression
 
-import compiler.ast.Executable
+import compiler.ast.Expression
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundNotNullExpression
 import compiler.lexer.OperatorToken
 
 /** A not-null enforcement expression created by the !! operator */
 class NotNullExpression(
-    val nullableExpression: Expression<*>,
+    val nullableExpression:Expression,
     val notNullOperator: OperatorToken
-) : Expression<BoundNotNullExpression>, Executable<BoundNotNullExpression>
+) :Expression
 {
     override val sourceLocation = nullableExpression.sourceLocation
 

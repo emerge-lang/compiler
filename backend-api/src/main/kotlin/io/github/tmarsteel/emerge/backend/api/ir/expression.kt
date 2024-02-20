@@ -51,8 +51,8 @@ interface IrIntegerLiteralExpression : IrExpression {
 
 interface IrIfExpression : IrExpression {
     val condition: IrExpression
-    val thenBranch: IrExecutable
-    val elseBranch: IrExecutable?
+    val thenBranch: IrCodeChunk
+    val elseBranch: IrCodeChunk?
 }
 
 /**

@@ -1,12 +1,12 @@
 package compiler.reportings
 
-import compiler.ast.expression.Expression
+import compiler.ast.Expression
 import compiler.ast.type.FunctionModifier
 import compiler.binding.BoundFunction
 
 data class FunctionMissingModifierReporting(
     val function: BoundFunction,
-    val usageRequiringModifier: Expression<*>,
+    val usageRequiringModifier: Expression,
     val missingModifier: FunctionModifier
 ) : Reporting(
     Reporting.Level.ERROR,

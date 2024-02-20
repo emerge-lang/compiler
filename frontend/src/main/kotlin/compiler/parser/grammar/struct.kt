@@ -19,8 +19,8 @@
 package compiler.parser.grammar
 
 import compiler.ast.ASTVisibilityModifier
+import compiler.ast.Expression
 import compiler.ast.TypeParameterBundle
-import compiler.ast.expression.Expression
 import compiler.ast.struct.StructDeclaration
 import compiler.ast.struct.StructMemberDeclaration
 import compiler.ast.type.TypeParameter
@@ -29,7 +29,11 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword.STRUCT_DEFINITION
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
-import compiler.lexer.Operator.*
+import compiler.lexer.Operator.ASSIGNMENT
+import compiler.lexer.Operator.CBRACE_CLOSE
+import compiler.lexer.Operator.CBRACE_OPEN
+import compiler.lexer.Operator.COLON
+import compiler.lexer.Operator.NEWLINE
 import compiler.lexer.OperatorToken
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.sequence
@@ -70,7 +74,7 @@ val StructMemberDefinition = sequence("struct member declaration") {
         val defaultValue = if (tokens.hasNext()) {
             // default value is present
             tokens.next()!! as OperatorToken // EQUALS
-            tokens.next()!! as Expression<*>?
+            tokens.next()!! as Expression?
         } else null
 
         StructMemberDeclaration(

@@ -22,6 +22,7 @@ import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
+import compiler.binding.BoundFunction
 import compiler.binding.BoundParameter
 import compiler.binding.BoundParameterList
 import compiler.binding.context.CTContext
@@ -36,15 +37,14 @@ class FunctionDeclaration(
     val typeParameters: List<TypeParameter>,
     val parameters: ParameterList,
     parsedReturnType: TypeReference?,
-    val code: Executable<*>?,
-) : Declaration, Bindable<BoundDeclaredFunction> {
-
+    val body: Body?,
+) : AstFileLevelDeclaration {
     /**
      * The return type. Is null if none was declared and it has not been inferred yet (see semantic analysis phase 2)
      */
     val returnType: TypeReference? = parsedReturnType
 
-    override fun bindTo(context: CTContext): BoundDeclaredFunction {
+    fun bindTo(context: CTContext): BoundDeclaredFunction {
         val functionContext = MutableCTContext(context)
         val boundTypeParams = typeParameters.map(functionContext::addTypeParameter)
 
@@ -62,7 +62,25 @@ class FunctionDeclaration(
             this,
             boundTypeParams,
             boundParamList,
-            code?.bindTo(contextAfterValueParameters)
+            body?.bindTo(contextAfterValueParameters),
         )
+    }
+
+    sealed interface Body {
+        fun bindTo(context: CTContext): BoundFunction.Body
+
+        class SingleExpression(val expression: Expression) : Body {
+            override fun bindTo(context: CTContext): BoundFunction.Body {
+                return BoundFunction.Body.SingleExpression(
+                    expression.bindTo(context)
+                )
+            }
+        }
+
+        class Full(val code: CodeChunk) : Body {
+            override fun bindTo(context: CTContext): BoundFunction.Body {
+                return BoundFunction.Body.Full(code.bindTo(context))
+            }
+        }
     }
 }

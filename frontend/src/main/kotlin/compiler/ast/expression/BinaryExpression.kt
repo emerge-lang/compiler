@@ -18,15 +18,16 @@
 
 package compiler.ast.expression
 
+import compiler.ast.Expression
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundBinaryExpression
 import compiler.lexer.OperatorToken
 
 class BinaryExpression(
-        val leftHandSide: Expression<*>,
-        val op: OperatorToken,
-        val rightHandSide: Expression<*>
-) : Expression<BoundBinaryExpression> {
+    val leftHandSide: Expression,
+    val op: OperatorToken,
+    val rightHandSide: Expression
+) : Expression {
     override val sourceLocation = leftHandSide.sourceLocation
 
     // simply rewrite to an invocation

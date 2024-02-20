@@ -1,5 +1,6 @@
 package compiler.ast.expression
 
+import compiler.ast.Expression
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundArrayLiteralExpression
 import compiler.binding.expression.BoundExpression
@@ -8,9 +9,9 @@ import compiler.lexer.SourceLocation
 
 class ArrayLiteralExpression(
     val leftBracket: OperatorToken,
-    val elements: List<Expression<*>>,
+    val elements: List<Expression>,
     val rightBracket: OperatorToken,
-) : Expression<BoundArrayLiteralExpression> {
+) : Expression {
     override val sourceLocation = SourceLocation(
         leftBracket.sourceLocation.file,
         leftBracket.sourceLocation.fromLineNumber,

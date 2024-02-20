@@ -1,9 +1,9 @@
 package compiler.parser
 
 import compiler.InternalCompilerError
+import compiler.ast.Expression
 import compiler.ast.expression.AssignmentExpression
 import compiler.ast.expression.BinaryExpression
-import compiler.ast.expression.Expression
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.expression.NotNullExpression
@@ -17,22 +17,22 @@ import compiler.lexer.OperatorToken
  * E.g. matching the !! postfix results in a [NotNullExpressionPostfix] which in turn will wrap any given
  * [Expression] in a [NotNullExpression].
  */
-interface ExpressionPostfix<out OutExprType: Expression<*>> {
-    fun modify(expr: Expression<*>): OutExprType
+interface ExpressionPostfix<out OutExprType: Expression> {
+    fun modify(expr: Expression): OutExprType
 }
 
 class NotNullExpressionPostfix(
     /** The notnull operator for reference; whether the operator is actually [Operator.NOTNULL] is never checked.*/
     val notNullOperator: OperatorToken
 ) : ExpressionPostfix<NotNullExpression> {
-    override fun modify(expr: Expression<*>) = NotNullExpression(expr, notNullOperator)
+    override fun modify(expr: Expression) = NotNullExpression(expr, notNullOperator)
 }
 
 class InvocationExpressionPostfix(
     val typeArguments: List<TypeArgument>,
-    val valueParameterExpressions: List<Expression<*>>
+    val valueParameterExpressions: List<Expression>
 ) : ExpressionPostfix<InvocationExpression> {
-    override fun modify(expr: Expression<*>) = InvocationExpression(expr, typeArguments, valueParameterExpressions)
+    override fun modify(expr: Expression) = InvocationExpression(expr, typeArguments, valueParameterExpressions)
 }
 
 class MemberAccessExpressionPostfix(
@@ -40,14 +40,14 @@ class MemberAccessExpressionPostfix(
     val accessOperatorToken: OperatorToken,
     val memberName: IdentifierToken
 ) : ExpressionPostfix<MemberAccessExpression> {
-    override fun modify(expr: Expression<*>) = MemberAccessExpression(expr, accessOperatorToken, memberName)
+    override fun modify(expr: Expression) = MemberAccessExpression(expr, accessOperatorToken, memberName)
 }
 
 class AssignmentExpressionPostfix(
     val assignmentOperator: OperatorToken,
-    val value: Expression<*>,
+    val value: Expression,
 ) : ExpressionPostfix<AssignmentExpression> {
-    override fun modify(expr: Expression<*>): AssignmentExpression {
+    override fun modify(expr: Expression): AssignmentExpression {
         return AssignmentExpression(
             expr,
             assignmentOperator,
@@ -58,13 +58,13 @@ class AssignmentExpressionPostfix(
 
 class BinaryExpressionPostfix(
     val operatorsOrExpressions: List<OperatorOrExpression>,
-) : ExpressionPostfix<Expression<*>> {
-    override fun modify(expr: Expression<*>): Expression<*> {
+) : ExpressionPostfix<Expression> {
+    override fun modify(expr: Expression): Expression {
         return buildBinaryExpressionAst(listOf(expr) + operatorsOrExpressions)
     }
 }
 
-private typealias OperatorOrExpression = Any // kotlin does not have a union type; if it had, this would be = OperatorToken | Expression<*>
+private typealias OperatorOrExpression = Any // kotlin does not have a union type; if it had, this would be = OperatorToken | Expression
 
 private val Operator.priority: Int
     get() = when(this) {
@@ -121,9 +121,9 @@ private val Operator.priority: Int
  *        / \
  *       a  (b + c)
  */
-private fun buildBinaryExpressionAst(rawExpression: List<OperatorOrExpression>): Expression<*> {
+private fun buildBinaryExpressionAst(rawExpression: List<OperatorOrExpression>): Expression {
     if (rawExpression.size == 1) {
-        return rawExpression[0] as? Expression<*>
+        return rawExpression[0] as? Expression
             ?: throw InternalCompilerError("List with one item that is not an expression.. bug!")
     }
 

@@ -21,15 +21,16 @@ package compiler.reportings
 import compiler.InternalCompilerError
 import compiler.ast.ASTPackageName
 import compiler.ast.Executable
+import compiler.ast.Expression
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
-import compiler.ast.expression.Expression
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
+import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.expression.*
 import compiler.binding.struct.Struct
@@ -171,7 +172,7 @@ abstract class Reporting internal constructor(
         fun unresolvableMemberVariable(accessExpression: BoundMemberAccessExpression, hostType: BoundTypeReference)
             = UnresolvedMemberVariableReporting(accessExpression.declaration, hostType)
 
-        fun implicitlyEvaluatingAStatement(statement: BoundExecutable<*>)
+        fun implicitlyEvaluatingAStatement(statement: BoundStatement<*>)
             = ImplicitlyEvaluatedStatementReporting(statement.declaration)
 
         fun ambiguousInvocation(invocation: BoundInvocationExpression, candidates: List<BoundFunction>)
@@ -183,10 +184,10 @@ abstract class Reporting internal constructor(
         fun modifierError(message: String, location: SourceLocation)
             = ModifierErrorReporting(message, location)
 
-        fun operatorNotDeclared(message: String, expression: Expression<*>)
+        fun operatorNotDeclared(message: String, expression: Expression)
             = OperatorNotDeclaredReporting(message, expression)
 
-        fun functionIsMissingModifier(function: BoundFunction, usageRequiringModifier: Expression<*>, missingModifier: FunctionModifier)
+        fun functionIsMissingModifier(function: BoundFunction, usageRequiringModifier: Expression, missingModifier: FunctionModifier)
             = FunctionMissingModifierReporting(function, usageRequiringModifier, missingModifier)
 
         /**
@@ -200,11 +201,11 @@ abstract class Reporting internal constructor(
         fun superfluousSafeObjectTraversal(nonNullExpression: BoundExpression<*>, superfluousSafeOperator: OperatorToken)
             = SuperfluousSafeObjectTraversal(nonNullExpression, superfluousSafeOperator)
 
-        fun purityViolations(readingViolations: Collection<BoundExecutable<Executable<*>>>, writingViolations: Collection<BoundExecutable<Executable<*>>>, context: BoundFunction): Collection<Reporting> {
+        fun purityViolations(readingViolations: Collection<BoundExecutable<Executable>>, writingViolations: Collection<BoundExecutable<Executable>>, context: BoundFunction): Collection<Reporting> {
             return (readingViolations + writingViolations).map { purityOrReadonlyViolationToReporting(it, context) }
         }
 
-        fun readonlyViolations(writingViolations: Collection<BoundExecutable<Executable<*>>>, readonlyFunction: BoundFunction): Collection<Reporting> {
+        fun readonlyViolations(writingViolations: Collection<BoundExecutable<Executable>>, readonlyFunction: BoundFunction): Collection<Reporting> {
             return writingViolations.map { violator ->
                 purityOrReadonlyViolationToReporting(violator, readonlyFunction)
             }
@@ -233,14 +234,14 @@ abstract class Reporting internal constructor(
         fun incorrectPackageDeclaration(name: ASTPackageName, expected: DotName)
             = IncorrectPackageDeclarationReporting(name, expected)
 
-        fun integerLiteralOutOfRange(literal: Expression<*>, expectedType: BaseType, expectedRange: ClosedRange<BigInteger>)
+        fun integerLiteralOutOfRange(literal: Expression, expectedType: BaseType, expectedRange: ClosedRange<BigInteger>)
             = IntegerLiteralOutOfRangeReporting(literal, expectedType, expectedRange)
 
         /**
          * Converts a violation of purity or readonlyness into an appropriate error.
          * @param violationIsWrite Whether the violiation is a writing violation or a reading violation (true = writing, false = reading)
          */
-        private fun purityOrReadonlyViolationToReporting(violation: BoundExecutable<Executable<*>>, context: BoundFunction): Reporting {
+        private fun purityOrReadonlyViolationToReporting(violation: BoundExecutable<Executable>, context: BoundFunction): Reporting {
             // violations can only be variable reads + writes as well as function invocations
             if (violation is BoundIdentifierExpression) {
                 if (FunctionModifier.Pure !in context.modifiers) throw InternalCompilerError("This is not a purity violation")
