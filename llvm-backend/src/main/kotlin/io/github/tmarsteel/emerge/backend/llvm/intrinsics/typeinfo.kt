@@ -17,14 +17,14 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import org.bytedeco.llvm.global.LLVM
 
-internal val staticValueDropFunction: KotlinLlvmFunction<LlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
-    "drop_static",
+internal val staticObjectFinalizer: KotlinLlvmFunction<LlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
+    "finalize_static",
     LlvmVoidType,
 ) {
     val self by param(PointerToAnyEmergeValue)
     body {
-        // by definition a noop. Static values cannot be dropped, erroring on static value drop is not
-        // possible because sharing static data across threads fucks up the refcounting with data races
+        // by definition a noop. Static values cannot be finalized. Erroring on static value finalization is not
+        // possible because sharing static data across threads fucks up the reference counter (data races).
         retVoid()
     }
 }
@@ -140,7 +140,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 setValue(TypeinfoType.shiftRightAmount, shiftRightAmount)
                 setValue(TypeinfoType.supertypes, dynamicSupertypesGlobal)
                 setValue(TypeinfoType.anyValueVirtuals, EmergeAnyValueVirtualsType.buildConstantIn(context) {
-                    setValue(EmergeAnyValueVirtualsType.dropFunction, finalizerFunction.getInContext(context).address)
+                    setValue(EmergeAnyValueVirtualsType.finalizeFunction, finalizerFunction.getInContext(context).address)
                 })
                 setValue(TypeinfoType.vtableBlob, vtableBlob)
             }
@@ -153,7 +153,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 setValue(TypeinfoType.shiftRightAmount, shiftRightAmount)
                 setValue(TypeinfoType.supertypes, staticSupertypesGlobal)
                 setValue(TypeinfoType.anyValueVirtuals, EmergeAnyValueVirtualsType.buildConstantIn(context) {
-                    setValue(EmergeAnyValueVirtualsType.dropFunction, staticValueDropFunction.getInContext(context).address)
+                    setValue(EmergeAnyValueVirtualsType.finalizeFunction, staticObjectFinalizer.getInContext(context).address)
                 })
                 setValue(TypeinfoType.vtableBlob, vtableBlob)
             }

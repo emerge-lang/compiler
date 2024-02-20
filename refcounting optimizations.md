@@ -127,13 +127,13 @@ So, consider a caller of `a`:
 
 Let's look at the reference counters on each line and assume `a` selects `p1`:
 
-| line                 | refcount `foo1` | refcount `foo2` | comment                                                                                                                                  |
-|----------------------|-----------------|-----------------|------------------------------------------------------------------------------------------------------------------------------------------|
-| `val foo1 = Foo(2)`  | 1               |                 |                                                                                                                                          |
-| `val foo2 = Foo(3)`  | 1               | 1               |                                                                                                                                          |
-| `a(foo1, foo2)`      |                 |                 | `a` doesn't increment refcounters for parameters                                                                                         |
-| `return p1`          | + 1 = 2         | 1               | `a` increments `p1` because its returned                                                                                                 |
-| `val selected = ...` | 2               | 1               | no increment because assignment to a stack variable                                                                                      |
-| `return selected.x`  | 2               | 1               | increment refcount for x (nop because its a value type)                                                                                  |
-| end of `b`           | -1 = 1          | - 1 = 0         | `foo1` and `foo2` go out of scope. Because the references have been "leaked" to `a` a proper drop is performed. `foo2` gets deallocated. |
-| end of `b`           | -1 = 0          |                 | `selected` goes out of scope. Because it got in touch with the outside world (`a`), a proper drop is performed. `foo1` gets deallocated. |                            
+| line                 | refcount `foo1` | refcount `foo2` | comment                                                                                                                                |
+|----------------------|-----------------|-----------------|----------------------------------------------------------------------------------------------------------------------------------------|
+| `val foo1 = Foo(2)`  | 1               |                 |                                                                                                                                        |
+| `val foo2 = Foo(3)`  | 1               | 1               |                                                                                                                                        |
+| `a(foo1, foo2)`      |                 |                 | `a` doesn't increment refcounters for parameters                                                                                       |
+| `return p1`          | + 1 = 2         | 1               | `a` increments `p1` because its returned                                                                                               |
+| `val selected = ...` | 2               | 1               | no increment because assignment to a stack variable                                                                                    |
+| `return selected.x`  | 2               | 1               | increment refcount for x (nop because its a value type)                                                                                |
+| end of `b`           | -1 = 1          | - 1 = 0         | `foo1` and `foo2` go out of scope. Because the references have been "leaked" to `a` a proper drop is performed. `foo2` gets finalized. |
+| end of `b`           | -1 = 0          |                 | `selected` goes out of scope. Because it got in touch with the outside world (`a`), a proper drop is performed. `foo1` gets finalized. |                            

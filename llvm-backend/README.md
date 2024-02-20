@@ -172,11 +172,27 @@ declare ptr @ByteBoxCtor(i8 %value)
 * after calling a function
   * when the return value is not used, the reference count must be decremented by 1
   * when the return value is used, its reference count must not be incremented.
-* when an object is dropped all the reference-counter of all the objects references from member variables must
+* when an object is finalized the reference-counters of all the objects references from member variables must
   be decremented.
 * whenever the reference count of a value is decremented, the acting code must subsequently check whether the reference
   count is 0. If that's the case the code that just dropped the reference(count) needs to invoke the finalizer function
   for the reference (see below).
+
+### Terminology
+
+The following terminology (in **_bold italics_**) results from the above rules:
+
+A pointer to an emerge object on the heap is called a **_reference_**. When such a pointer is obtained from the
+allocator or when such a pointer is copied from anywhere else, **_a reference is created_**.
+
+When a reference can no longer be used due to program semantics, the reference is deemed **_unreachable_**. The
+program has **_dropped_** the reference. The dropping of references needs to be accompanied by the ceremony of
+decrementing the strong reference count in the referred object.
+
+When the last reference to an object has been dropped (reference count reaches 0), the object has to be **_finalized_**.
+Finalizing means a) freeing any potential external resources owned by that object, b) dropping all the references the
+object holds, potentially finalizing recursively; and c) freeing the memory occupied by that object. Finalization is
+done by the **_finalizer_** function of the object, referred to from the objects vtable (see below).
 
 ### Static data
 

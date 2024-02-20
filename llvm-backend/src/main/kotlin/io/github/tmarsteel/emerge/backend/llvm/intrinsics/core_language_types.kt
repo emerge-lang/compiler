@@ -47,9 +47,9 @@ internal fun LlvmContext.word(value: Long): LlvmConstant<EmergeWordType> {
 }
 
 internal object EmergeAnyValueVirtualsType : LlvmStructType("anyvalue_virtuals") {
-    val dropFunction by structMember(LlvmFunctionAddressType)
+    val finalizeFunction by structMember(LlvmFunctionAddressType)
 
-    val dropFunctionType = LlvmFunctionType(LlvmVoidType, emptyList())
+    val finalizeFunctionType = LlvmFunctionType(LlvmVoidType, emptyList())
 }
 
 internal val PointerToAnyEmergeValue: LlvmPointerType<EmergeHeapAllocatedValueBaseType> = pointerTo(EmergeHeapAllocatedValueBaseType)

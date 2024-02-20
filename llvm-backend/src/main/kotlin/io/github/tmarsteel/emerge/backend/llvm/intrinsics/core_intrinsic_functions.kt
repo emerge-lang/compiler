@@ -63,11 +63,11 @@ internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.decrementStrong
             .dereference()
         val finalizerFn = getelementptr(typeinfoPtr)
             .member { anyValueVirtuals }
-            .member { dropFunction }
+            .member { finalizeFunction }
             .get()
             .dereference()
 
-        call(finalizerFn, EmergeAnyValueVirtualsType.dropFunctionType, emptyList())
+        call(finalizerFn, EmergeAnyValueVirtualsType.finalizeFunctionType, emptyList())
 
         concludeBranch()
     }, ifFalse = {
