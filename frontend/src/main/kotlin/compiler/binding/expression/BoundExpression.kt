@@ -53,6 +53,18 @@ interface BoundExpression<out ASTType> : BoundExecutable<ASTType> {
      */
     fun markEvaluationResultUsed() {}
 
+    /*
+     * these two shouldn't be overridden by expressions
+     */
+
+    override fun requireImplicitEvaluationTo(type: BoundTypeReference) {
+        markEvaluationResultUsed()
+        setExpectedEvaluationResultType(type)
+    }
+
+    override val implicitEvaluationResultType: BoundTypeReference?
+        get() = type
+
     override fun toBackendIr(): IrExpression {
         TODO("for ${this::class.simpleName}")
     }

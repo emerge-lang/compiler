@@ -20,6 +20,7 @@ package compiler.binding
 
 import compiler.ast.Executable
 import compiler.binding.context.CTContext
+import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
@@ -37,7 +38,7 @@ interface BoundExecutable<out ASTType> : BoundElement<Executable<*>> {
      *
      * Must not be `null` after semantic analysis is complete.
      */
-    val mayReturn: Boolean?
+    val mayReturn: Boolean
         get() = false
 
     /**
@@ -48,6 +49,12 @@ interface BoundExecutable<out ASTType> : BoundElement<Executable<*>> {
     val isGuaranteedToThrow: Boolean?
 
     /**
+     * When implicitly evaluating the result of this executable, this type is returned. Available after
+     * [semanticAnalysisPhase2]. Need not be set unless [BoundExecutable.requireImplicitEvaluationTo] is called.
+     */
+    val implicitEvaluationResultType: BoundTypeReference?
+
+    /**
      * A context derived from the one bound to ([context]), containing all the changes the [Executable] applies
      * to its enclosing scope (e.g. a variable declaration add a new variable)
      */
@@ -55,9 +62,19 @@ interface BoundExecutable<out ASTType> : BoundElement<Executable<*>> {
         get() = context
 
     /**
+     * Must be invoked before [semanticAnalysisPhase2]
+     *
+     * If invoked, the last statement in this executable must be an expression. If that's not the case, an appropriate
+     * reporting will be returned from [semanticAnalysisPhase2]. This very last expression will use [type] for type
+     * inference.
+     * @see BoundExpression.setExpectedEvaluationResultType
+     */
+    fun requireImplicitEvaluationTo(type: BoundTypeReference)
+
+    /**
      * Must be invoked before [semanticAnalysisPhase3].
      *
-     * Sets the type that [BoundReturnStatement] within this executable are expected to return. When this method has
+     * Sets the type that [BoundReturnStatement]s within this executable are expected to return. When this method has
      * been invoked the types evaluated for all [BoundReturnStatement]s within this executable must be assignable to that
      * given type; otherwise an appropriate reporting as to returned from [semanticAnalysisPhase3].
      */

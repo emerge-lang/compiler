@@ -67,6 +67,9 @@ class BoundVariable(
     override val isGuaranteedToThrow: Boolean?
         get() = initializerExpression?.isGuaranteedToThrow
 
+    override val isGuaranteedToReturn: Boolean?
+        get() = initializerExpression?.isGuaranteedToReturn
+
     private val onceAction = OnceAction()
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
@@ -125,9 +128,23 @@ class BoundVariable(
         }
     }
 
+    override val implicitEvaluationResultType: BoundTypeReference? = null
+    private var implicitEvaluationRequired = false
+    override fun requireImplicitEvaluationTo(type: BoundTypeReference) {
+        implicitEvaluationRequired = true
+    }
+
+    override fun setExpectedReturnType(type: BoundTypeReference) {
+        initializerExpression?.setExpectedReturnType(type)
+    }
+
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
             val reportings = mutableSetOf<Reporting>()
+
+            if (implicitEvaluationRequired) {
+                reportings.add(Reporting.implicitlyEvaluatingAStatement(this))
+            }
 
             if (initializerExpression != null) {
                 handleCyclicInvocation(

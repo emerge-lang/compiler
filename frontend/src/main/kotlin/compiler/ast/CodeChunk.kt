@@ -19,6 +19,7 @@
 package compiler.ast
 
 import compiler.binding.BoundCodeChunk
+import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 
@@ -30,5 +31,14 @@ class CodeChunk(
 ) : Executable<BoundCodeChunk> {
     override val sourceLocation: SourceLocation = statements.firstOrNull()?.sourceLocation ?: SourceLocation.UNKNOWN
 
-    override fun bindTo(context: CTContext) = BoundCodeChunk(context, this)
+    override fun bindTo(context: CTContext): BoundCodeChunk {
+        val boundStatements = ArrayList<BoundExecutable<*>>(statements.size)
+        var contextCarry = context
+        for (astStatement in statements) {
+            val boundStatement = astStatement.bindTo(contextCarry)
+            boundStatements.add(boundStatement)
+            contextCarry = boundStatement.modifiedContext
+        }
+        return BoundCodeChunk(context, this, boundStatements)
+    }
 }

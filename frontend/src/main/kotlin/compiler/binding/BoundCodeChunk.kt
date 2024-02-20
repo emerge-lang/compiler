@@ -33,17 +33,34 @@ class BoundCodeChunk(
      */
     override val context: CTContext,
 
-    override val declaration: CodeChunk
+    override val declaration: CodeChunk,
+
+    val statements: List<BoundExecutable<*>>,
 ) : BoundExecutable<CodeChunk> {
+    override val isGuaranteedToThrow: Boolean
+        get() = statements.any { it.isGuaranteedToThrow ?: false }
 
-    private var expectedReturnType: BoundTypeReference? = null
+    override val isGuaranteedToReturn: Boolean
+        get() = statements.any { it.isGuaranteedToReturn ?: false }
 
-    /** The bound statements of this code; must not be null after semantic analysis is done */
-    var statements: List<BoundExecutable<*>>? = null
-        private set
+    override val mayReturn: Boolean
+        get() = statements.any { it.mayReturn }
 
-    override val isGuaranteedToThrow: Boolean?
-        get() = statements?.any { it.isGuaranteedToThrow ?: false }
+    override val modifiedContext: CTContext
+        get() = statements.last().modifiedContext
+
+    override fun setExpectedReturnType(type: BoundTypeReference) {
+        this.statements.forEach {
+            it.setExpectedReturnType(type)
+        }
+    }
+
+    override val implicitEvaluationResultType: BoundTypeReference?
+        get() = statements.lastOrNull()?.implicitEvaluationResultType
+
+    override fun requireImplicitEvaluationTo(type: BoundTypeReference) {
+        statements.lastOrNull()?.requireImplicitEvaluationTo(type)
+    }
 
     private val onceAction = OnceAction()
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
@@ -60,38 +77,16 @@ class BoundCodeChunk(
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
-        var currentContext = context
-        val boundStatements = mutableListOf<BoundExecutable<*>>()
-
-        for (astStatement in declaration.statements) {
-            val boundStatement = astStatement.bindTo(currentContext)
-
-            if (this.expectedReturnType != null) {
-                boundStatement.setExpectedReturnType(this.expectedReturnType!!)
-            }
-
-            reportings += boundStatement.semanticAnalysisPhase1()
-            reportings += boundStatement.semanticAnalysisPhase2()
-            reportings += boundStatement.semanticAnalysisPhase3()
-
-            boundStatements.add(boundStatement)
-            currentContext = boundStatement.modifiedContext
+        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase1)
+        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase2)
+        return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
+            statements.flatMap { it.semanticAnalysisPhase3() }
         }
-
-        this.statements = boundStatements
-
-        return reportings
-    }
-
-    override fun setExpectedReturnType(type: BoundTypeReference) {
-        this.expectedReturnType = type
     }
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
-        if (statements == null) throw InternalCompilerError("Illegal state: invoke this function after semantic analysis phase 3 is completed.")
-
-        return statements!!.flatMap {
+        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase3)
+        return statements.flatMap {
             handleCyclicInvocation(
                 context = this,
                 action =  { it.findReadsBeyond(boundary) },
@@ -101,9 +96,7 @@ class BoundCodeChunk(
     }
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
-        if (statements == null) throw InternalCompilerError("Illegal state: invoke this function after semantic analysis phase 3 is completed.")
-
-        return statements!!.flatMap {
+        return statements.flatMap {
             handleCyclicInvocation(
                 context = this,
                 action = { it.findWritesBeyond(boundary) },
@@ -113,6 +106,6 @@ class BoundCodeChunk(
     }
 
     override fun toBackendIr(): IrCodeChunk {
-        return IrCodeChunkImpl((statements ?: emptyList()).map { it.toBackendIr() })
+        return IrCodeChunkImpl(statements.map { it.toBackendIr() })
     }
 }

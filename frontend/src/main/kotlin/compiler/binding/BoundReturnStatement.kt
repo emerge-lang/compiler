@@ -48,6 +48,12 @@ class BoundReturnStatement(
 
     override val isGuaranteedToThrow = expression?.isGuaranteedToThrow ?: false
 
+    override val implicitEvaluationResultType = null
+
+    override fun requireImplicitEvaluationTo(type: BoundTypeReference) {
+
+    }
+
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return expression?.semanticAnalysisPhase1() ?: emptySet()
     }

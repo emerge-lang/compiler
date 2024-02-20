@@ -33,6 +33,8 @@ class BoundArrayLiteralExpression(
     override var type: BoundTypeReference? = null
         private set
 
+    override val implicitEvaluationResultType get() = type
+
     private val arrayType: BaseType = run {
         val corePackage = context.swCtx.getPackage(CoreIntrinsicsModule.NAME)
             ?: throw InternalCompilerError("The software context doesn't define the default package ${CoreIntrinsicsModule.NAME}")
@@ -93,6 +95,7 @@ class BoundArrayLiteralExpression(
         return elements.flatMap { it.findWritesBeyond(boundary) }
     }
 
+    // TODO: shouldn't this be in setExpectedReturnType?
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         expectedReturnType = type
 

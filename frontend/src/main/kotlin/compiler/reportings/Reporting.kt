@@ -171,6 +171,9 @@ abstract class Reporting internal constructor(
         fun unresolvableMemberVariable(accessExpression: BoundMemberAccessExpression, hostType: BoundTypeReference)
             = UnresolvedMemberVariableReporting(accessExpression.declaration, hostType)
 
+        fun implicitlyEvaluatingAStatement(statement: BoundExecutable<*>)
+            = ImplicitlyEvaluatedStatementReporting(statement.declaration)
+
         fun ambiguousInvocation(invocation: BoundInvocationExpression, candidates: List<BoundFunction>)
             = AmbiguousInvocationReporting(invocation.declaration, candidates)
 
