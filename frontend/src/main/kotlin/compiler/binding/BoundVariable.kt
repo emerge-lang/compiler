@@ -27,6 +27,8 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
 import compiler.binding.context.SourceFileRootContext
 import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.IrAssignmentExpressionImpl
+import compiler.binding.expression.IrVariableReferenceExpressionImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.BuiltinAny
 import compiler.binding.type.TypeUseSite
@@ -34,9 +36,7 @@ import compiler.binding.type.UnresolvedType
 import compiler.handleCyclicInvocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
-import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
-import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAssignment
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
 /**
@@ -238,7 +238,10 @@ class BoundVariable(
 
         return IrCodeChunkImpl(listOf(
             backendIrDeclaration,
-            IrVariableAssignmentImpl(backendIrDeclaration, initializerExpression.toBackendIr())
+            IrAssignmentExpressionImpl(
+                IrVariableReferenceExpressionImpl(backendIrDeclaration),
+                initializerExpression.toBackendIr()
+            )
         ))
     }
 
@@ -257,8 +260,3 @@ private class IrVariableDeclarationImpl(
     override val name: String,
     override val type: IrType,
 ) : IrVariableDeclaration
-
-private class IrVariableAssignmentImpl(
-    override val declaration: IrVariableDeclaration,
-    override val value: IrExpression,
-) : IrVariableAssignment

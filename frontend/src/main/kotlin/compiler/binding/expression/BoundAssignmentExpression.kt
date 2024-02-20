@@ -28,6 +28,9 @@ import compiler.binding.context.MutableCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.nullableOr
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrNotReallyAnExpression
 
 class BoundAssignmentExpression(
     override val context: CTContext,
@@ -161,8 +164,25 @@ class BoundAssignmentExpression(
         // nothing to do because assignments are not expressions
     }
 
+    override fun toBackendIr(): IrExpression {
+        return IrAssignmentExpressionImpl(
+            targetExpression.toBackendIr(),
+            valueExpression.toBackendIr(),
+        )
+    }
+
     enum class AssignmentTargetType {
         VARIABLE,
         OBJECT_MEMBER
     }
 }
+
+/**
+ * [BoundAssignmentExpression] is a [BoundExpression] because the compiler wants to detect accidental use of `=` instead
+ * of `==`. So [BoundAssignmentExpression.toBackendIr] must return an [IrExpression], as per the [BoundExpression]
+ * contract. Consequently, this class must also implement [IrExpression] even though it's not. Unavoidable.
+ */
+internal class IrAssignmentExpressionImpl(
+    override val target: IrExpression,
+    override val value: IrExpression,
+) : IrAssignmentStatement, IrNotReallyAnExpression

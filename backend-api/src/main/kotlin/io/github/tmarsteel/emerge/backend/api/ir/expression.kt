@@ -1,5 +1,7 @@
 package io.github.tmarsteel.emerge.backend.api.ir
 
+import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
+import io.github.tmarsteel.emerge.backend.api.EmergeBackend
 import java.math.BigInteger
 
 sealed interface IrExpression : IrStatement {
@@ -45,4 +47,15 @@ interface IrVariableReferenceExpression : IrExpression {
 
 interface IrIntegerLiteralExpression : IrExpression {
     val value: BigInteger
+}
+
+/**
+ * Interface for all IrTypes that have to implement [IrExpression] for semantic-analysis reasons
+ * but are not actually expressions. Prime candidate: assignment statements.
+ *
+ * [EmergeBackend]s are expected to simply abort with a [CodeGenerationException] when encountering this
+ * type in a context where they need an actual expression.
+ */
+interface IrNotReallyAnExpression : IrExpression {
+    override val evaluatesTo: IrType get() = throw CodeGenerationException("${this::class.simpleName} is not actually an expression.")
 }

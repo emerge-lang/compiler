@@ -157,6 +157,6 @@ class BoundIdentifierExpression(
     }
 }
 
-private class IrVariableReferenceExpressionImpl(
+internal class IrVariableReferenceExpressionImpl(
     override val variable: IrVariableDeclaration,
 ) : IrVariableReferenceExpression

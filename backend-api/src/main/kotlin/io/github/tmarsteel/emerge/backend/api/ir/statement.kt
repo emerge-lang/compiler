@@ -13,8 +13,8 @@ interface IrVariableDeclaration : IrExecutable {
     val type: IrType
 }
 
-interface IrVariableAssignment : IrExecutable {
-    val declaration: IrVariableDeclaration
+interface IrAssignmentStatement : IrExecutable {
+    val target: IrExpression
     val value: IrExpression
 }
 

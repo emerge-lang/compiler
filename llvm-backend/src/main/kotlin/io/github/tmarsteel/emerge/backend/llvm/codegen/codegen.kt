@@ -2,18 +2,19 @@ package io.github.tmarsteel.emerge.backend.llvm.codegen
 
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrArrayLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrBooleanLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrNotReallyAnExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStringLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStructMemberAccessExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAssignment
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableReferenceExpression
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
@@ -62,9 +63,19 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             }
             return null
         }
-        is IrVariableAssignment -> {
+        is IrAssignmentStatement -> {
             val toAssign = emitExpressionCode(code.value)
-            code.declaration.emitWrite!!(this, toAssign)
+            when (val localTarget = code.target) {
+                is IrVariableReferenceExpression -> localTarget.variable.emitWrite!!(this, toAssign)
+                is IrStructMemberAccessExpression -> TODO("implement struct member write")
+                is IrNullLiteralExpression,
+                is IrIntegerLiteralExpression,
+                is IrBooleanLiteralExpression,
+                is IrStringLiteralExpression,
+                is IrArrayLiteralExpression,
+                is IrStaticDispatchFunctionInvocationExpression,
+                is IrNotReallyAnExpression -> throw CodeGenerationException("Cannot assign to a ${localTarget::class.simpleName}")
+            }
             return null
         }
         is IrReturnStatement -> {
@@ -140,6 +151,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, out LlvmType>.emitExpressionCo
 
             return arrayPtr
         }
+        is IrNotReallyAnExpression -> throw CodeGenerationException("Cannot emit expression evaluation code for an ${expression::class.simpleName}")
     }
 }
 
