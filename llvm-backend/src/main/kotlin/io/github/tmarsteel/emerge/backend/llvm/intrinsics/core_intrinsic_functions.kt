@@ -49,11 +49,20 @@ internal val getSupertypePointers = KotlinLlvmFunction.define<LlvmContext, _>(
     }
 }
 
-// TODO: refactor to addressOf(index: uword)
-// that would be easy to do for concrete types; but there should be an overload for Array<out Any>
-// and with the currently planned rules for overloading, having an addressOf(self: Array<out Any>)
-// would prevent declaring a specialized addressOf(self: Array<Byte>) etc.
-internal val arrayIndexOfFirst = KotlinLlvmFunction.define<LlvmContext, _>(
+/* TODO: refactor to addressOf(index: uword)
+   that would be easy to do for concrete types; but there should be an overload for Array<out Any>
+   and with the currently planned rules for overloading, having an addressOf(self: Array<out Any>)
+   would prevent declaring a specialized addressOf(self: Array<Byte>) etc.
+
+   other possibility: arrays always as slices. Right now array references are a single ptr to the array
+   object on the heap. Array references could become fat pointers consisting of
+   1. a pointer to the array object on the heap, for reference counting
+   2. the number of elements being referenced
+   3. a pointer to the first element being referenced, null when <num of elements referenced> == 0
+   Then, when you need the address of any other array element other than the first, you can create a slice
+   of the array (e.g. someArray.subArray(2, someArray.length)) and then do addressOfFirst
+ */
+internal val arrayAddressOfFirst = KotlinLlvmFunction.define<LlvmContext, _>(
     "emerge.ffi.c.addressOfFirst",
     pointerTo(LlvmVoidType),
 ) {
