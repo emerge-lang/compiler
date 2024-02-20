@@ -61,7 +61,7 @@ internal class EmergeStructType private constructor(
                     .filter { it.type.llvmValueType == null } // value types need not be dropped
                     .forEach {
                         val referenceAsPointer = getelementptr(self).member(it).get().dereference()
-                            .reinterpretAs(pointerTo(EmergeHeapAllocatedValueBaseType))
+                            .reinterpretAs(PointerToAnyEmergeValue)
                         referenceAsPointer.decrementStrongReferenceCount()
                     }
                 call(context.freeFunction, listOf(self))

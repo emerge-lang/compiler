@@ -56,7 +56,7 @@ internal val PointerToAnyEmergeValue: LlvmPointerType<EmergeHeapAllocatedValueBa
 
 internal object EmergeWeakReferenceCollectionType : LlvmStructType("weakrefcoll") {
     val weakObjects by structMember(
-        LlvmArrayType(10, pointerTo(EmergeHeapAllocatedValueBaseType))
+        LlvmArrayType(10, PointerToAnyEmergeValue),
     )
     val next by structMember(pointerTo(this@EmergeWeakReferenceCollectionType))
 }

@@ -8,7 +8,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.IntegerComparison
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 
@@ -22,7 +21,7 @@ internal val nullWeakReferences = KotlinLlvmFunction.define<LlvmContext, _>("nul
 
 internal val getSupertypePointers = KotlinLlvmFunction.define<LlvmContext, _>(
     "getSupertypePointers",
-    pointerTo(EmergeArrayOfPointersToTypeInfoType),
+    PointerToEmergeArrayOfPointersToTypeInfoType,
 ) {
     val inputRef by param(PointerToAnyEmergeValue)
     body {

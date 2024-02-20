@@ -201,6 +201,14 @@ internal class EmergeArrayType<Element : LlvmType>(
     }
 }
 
+internal val valueArrayFinalize = KotlinLlvmFunction.define<LlvmContext, _>("valuearray_finalize", LlvmVoidType) {
+    param(PointerToAnyEmergeValue)
+    body {
+        // nothing to do. There are no references, just values, so no dropping needed
+        retVoid()
+    }
+}
+
 private fun <Element : LlvmType> buildValueArrayBoxingElementGetter(
     typeName: String,
     getValueArrayType: () -> EmergeArrayType<Element>,
@@ -208,7 +216,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementGetter(
 ): KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>> {
     return KotlinLlvmFunction.define(
         "valuearray_${typeName}_get_boxed",
-        pointerTo(EmergeHeapAllocatedValueBaseType)
+        PointerToAnyEmergeValue,
     ) {
         val self by param(pointerTo(getValueArrayType()))
         val index by param(EmergeWordType)
@@ -221,7 +229,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementGetter(
                 .dereference()
 
             val ctor = getBoxType(context).defaultConstructor.getInContext(context)
-            ret(call(ctor, listOf(raw)).reinterpretAs(pointerTo(EmergeHeapAllocatedValueBaseType)))
+            ret(call(ctor, listOf(raw)).reinterpretAs(PointerToAnyEmergeValue))
         }
     }
 }
@@ -238,7 +246,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementSetter(
         val arrayType = getValueArrayType()
         val self by param(pointerTo(arrayType))
         val index by param(EmergeWordType)
-        val valueBoxAny by param(pointerTo(EmergeHeapAllocatedValueBaseType))
+        val valueBoxAny by param(PointerToAnyEmergeValue)
         body {
             val boxType = getBoxType(context)
             val valueMember = boxType.irStruct.members.single()
@@ -304,7 +312,7 @@ internal val EmergeBooleanArrayType = buildValueArrayType("bool", LlvmBooleanTyp
 
 private val referenceArrayElementGetter: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>> = KotlinLlvmFunction.define(
     "refarray_get",
-    pointerTo(EmergeHeapAllocatedValueBaseType),
+    PointerToAnyEmergeValue,
 ) {
     val self by param(pointerTo(EmergeReferenceArrayType))
     val index by param(EmergeWordType)
@@ -326,7 +334,7 @@ private val referenceArrayElementSetter: KotlinLlvmFunction<EmergeLlvmContext, L
 ) {
     val self by param(pointerTo(EmergeReferenceArrayType))
     val index by param(EmergeWordType)
-    val value by param(pointerTo(EmergeHeapAllocatedValueBaseType))
+    val value by param(PointerToAnyEmergeValue)
     body {
         // TODO: bounds check!
         val pointerToSlotInArray = getelementptr(self)
@@ -399,13 +407,6 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<EmergeHea
     },
     "ref"
 )
-internal val valueArrayFinalize = KotlinLlvmFunction.define<LlvmContext, _>("valuearray_finalize", LlvmVoidType) {
-    param(PointerToAnyEmergeValue)
-    body {
-        // nothing to do. There are no references, just values, so no dropping needed
-        retVoid()
-    }
-}
 
 /* TODO: refactor to addressOf(index: uword)
    that would be easy to do for concrete types; but there should be an overload for Array<out Any>

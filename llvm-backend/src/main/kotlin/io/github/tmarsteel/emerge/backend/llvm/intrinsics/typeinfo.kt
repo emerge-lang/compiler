@@ -31,7 +31,7 @@ internal val staticObjectFinalizer: KotlinLlvmFunction<LlvmContext, LlvmVoidType
 
 internal object TypeinfoType : LlvmStructType("typeinfo") {
     val shiftRightAmount by structMember(EmergeWordType)
-    val supertypes by structMember(pointerTo(EmergeArrayOfPointersToTypeInfoType))
+    val supertypes by structMember(PointerToEmergeArrayOfPointersToTypeInfoType)
     val anyValueVirtuals by structMember(EmergeAnyValueVirtualsType)
     val vtableBlob by structMember(LlvmArrayType(0L, LlvmFunctionAddressType))
 }
@@ -43,7 +43,7 @@ private val getter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<Emerg
     "valuearray_pointers_to_typeinfo_get",
     pointerTo(TypeinfoType)
 ) {
-    val self by param(pointerTo(EmergeArrayOfPointersToTypeInfoType))
+    val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
     val index by param(EmergeWordType)
     body {
         // TODO: bounds check!
@@ -64,7 +64,7 @@ private val setter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<Emerg
     "valuearray_pointers_to_typeinfo_set",
     LlvmVoidType
 ) {
-    val self by param(pointerTo(EmergeArrayOfPointersToTypeInfoType))
+    val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
     val index by param(EmergeWordType)
     val value by param(pointerTo(TypeinfoType))
     body {
@@ -80,20 +80,22 @@ private val setter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<Emerg
     }
 }
 
-internal val EmergeArrayOfPointersToTypeInfoType by lazy {
-    EmergeArrayType(
-        pointerTo(TypeinfoType),
-        StaticAndDynamicTypeInfo.define(
-            "valuearray_pointers_to_typeinfo",
-            emptyList(),
-            valueArrayFinalize
-        ) {
-            listOf(
-                word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to getter_EmergeArrayOfPointersToTypeInfoType,
-                word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to setter_EmergeArrayOfPointersToTypeInfoType,
-            )
-        },
-        "pointer_to_typeinfo",
+internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
+    pointerTo(
+        EmergeArrayType(
+            pointerTo(TypeinfoType),
+            StaticAndDynamicTypeInfo.define(
+                "valuearray_pointers_to_typeinfo",
+                emptyList(),
+                valueArrayFinalize
+            ) {
+                listOf(
+                    word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to getter_EmergeArrayOfPointersToTypeInfoType,
+                    word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to setter_EmergeArrayOfPointersToTypeInfoType,
+                )
+            },
+            "pointer_to_typeinfo",
+        )
     )
 }
 
@@ -129,9 +131,9 @@ internal class StaticAndDynamicTypeInfo private constructor(
         }
 
         private fun build(context: EmergeLlvmContext): Pair<LlvmConstant<TypeinfoType>, LlvmConstant<TypeinfoType>> {
-            val dynamicSupertypesData = EmergeArrayOfPointersToTypeInfoType.buildConstantIn(context, supertypes, { it })
+            val dynamicSupertypesData = PointerToEmergeArrayOfPointersToTypeInfoType.pointed.buildConstantIn(context, supertypes, { it })
             val dynamicSupertypesGlobal = context.addGlobal(dynamicSupertypesData, LlvmGlobal.ThreadLocalMode.SHARED)
-                .reinterpretAs(pointerTo(EmergeArrayOfPointersToTypeInfoType))
+                .reinterpretAs(PointerToEmergeArrayOfPointersToTypeInfoType)
 
             val vtableBlob = TypeinfoType.vtableBlob.type.buildConstantIn(context, emptyList()) // TODO: build vtable
             val shiftRightAmount = context.word(0)// TODO: build vtable
@@ -145,9 +147,9 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 setValue(TypeinfoType.vtableBlob, vtableBlob)
             }
 
-            val staticSupertypesData = EmergeArrayOfPointersToTypeInfoType.buildConstantIn(context, supertypes, { it })
+            val staticSupertypesData = PointerToEmergeArrayOfPointersToTypeInfoType.pointed.buildConstantIn(context, supertypes, { it })
             val staticSupertypesGlobal = context.addGlobal(staticSupertypesData, LlvmGlobal.ThreadLocalMode.SHARED)
-                .reinterpretAs(pointerTo(EmergeArrayOfPointersToTypeInfoType))
+                .reinterpretAs(PointerToEmergeArrayOfPointersToTypeInfoType)
 
             val typeinfoStaticData = TypeinfoType.buildConstantIn(context) {
                 setValue(TypeinfoType.shiftRightAmount, shiftRightAmount)
