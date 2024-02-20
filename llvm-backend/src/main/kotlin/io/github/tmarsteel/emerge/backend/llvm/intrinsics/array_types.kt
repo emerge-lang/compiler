@@ -339,7 +339,7 @@ private val referenceArrayElementSetter: KotlinLlvmFunction<EmergeLlvmContext, L
     }
 }
 
-private val refArrayFinalize: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
+private val referenceArrayFinalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
     "refarray_finalize",
     LlvmVoidType,
 ) {
@@ -387,7 +387,7 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<EmergeHea
     StaticAndDynamicTypeInfo.define(
         "array_ref",
         emptyList(),
-        refArrayFinalize,
+        referenceArrayFinalizer,
     ) {
         listOf(
             word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to referenceArrayElementGetter,
