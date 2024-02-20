@@ -192,7 +192,7 @@ abstract class Reporting internal constructor(
          * @see BoundTypeReference.isExplicitlyNullable
          */
         fun unsafeObjectTraversal(nullableExpression: BoundExpression<*>, faultyAccessOperator: OperatorToken)
-            = UnsafeObjectTraversalException(nullableExpression, faultyAccessOperator)
+            = UnsafeObjectTraversalReporting(nullableExpression, faultyAccessOperator)
 
         fun superfluousSafeObjectTraversal(nonNullExpression: BoundExpression<*>, superfluousSafeOperator: OperatorToken)
             = SuperfluousSafeObjectTraversal(nonNullExpression, superfluousSafeOperator)

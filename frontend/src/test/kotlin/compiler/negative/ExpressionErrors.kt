@@ -1,7 +1,8 @@
 package compiler.compiler.negative
 
 import compiler.binding.expression.BoundIdentifierExpression
-import compiler.reportings.UnsafeObjectTraversalException
+import compiler.reportings.ImplicitlyEvaluatedStatementReporting
+import compiler.reportings.UnsafeObjectTraversalReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -16,7 +17,7 @@ class ExpressionErrors : FreeSpec({
                 return p.a
             }
         """.trimIndent())
-            .shouldReport<UnsafeObjectTraversalException> {
+            .shouldReport<UnsafeObjectTraversalReporting> {
                 it.nullableExpression.shouldBeInstanceOf<BoundIdentifierExpression>().identifier shouldBe "p"
             }
     }

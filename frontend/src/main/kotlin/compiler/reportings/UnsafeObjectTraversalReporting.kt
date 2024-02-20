@@ -25,9 +25,14 @@ import compiler.lexer.OperatorToken
 /**
  * Reported when an expression is used in a way that requires it to be non-null but the type of the expression is nullable.
  */
-class UnsafeObjectTraversalException(val nullableExpression: BoundExpression<*>, val faultyAccessOperator: OperatorToken) : Reporting(
+data class UnsafeObjectTraversalReporting(
+    val nullableExpression: BoundExpression<*>,
+    val faultyAccessOperator: OperatorToken
+) : Reporting(
     Level.ERROR,
     "Receiver expression could evaluate to null (type is ${nullableExpression.type}). " +
         "Assert non null (operator ${Operator.NOTNULL.text}) or use the safe object traversal operator ${Operator.SAFEDOT.text}",
-    faultyAccessOperator.sourceLocation
-)
+    faultyAccessOperator.sourceLocation,
+) {
+    override fun toString() = super.toString()
+}
