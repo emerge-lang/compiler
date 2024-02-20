@@ -52,6 +52,11 @@ internal class EmergeStructType private constructor(
         ) {
             val self by param(pointerTo(this@EmergeStructType))
             body {
+                if (irStruct.fqn.toString() in setOf("emerge.ffi.c.CPointer", "emerge.ffi.c.COpaquePointer", "emerge.ffi.c.CValue")) {
+                    // transparent type, no action needed
+                    // TODO: throw, this should never be called!
+                    return@body retVoid()
+                }
                 irStruct.members
                     .filter { it.type.llvmValueType == null } // value types need not be dropped
                     .forEach {
