@@ -24,8 +24,8 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
 interface BoundExpression<out ASTType> : BoundExecutable<ASTType> {
     /**
-     * The type of this expression when evaluated If the type could not be determined due to semantic errors,
-     * this might be a close guess or null.
+     * The type of this expression when evaluated. If the type could not be determined due to semantic errors,
+     * this might be a guess or null.
      */
     val type: BoundTypeReference?
 
@@ -53,9 +53,6 @@ interface BoundExpression<out ASTType> : BoundExecutable<ASTType> {
      */
     fun markEvaluationResultUsed() {}
 
-    /**
-     * TODO: most classes have a backing lazy field. The method is nonsense, refactor to a val
-     */
     override fun toBackendIr(): IrExpression {
         TODO("for ${this::class.simpleName}")
     }

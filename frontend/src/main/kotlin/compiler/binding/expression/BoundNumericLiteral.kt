@@ -132,7 +132,7 @@ class BoundIntegerLiteral(
 class BoundFloatingPointLiteral(
     context: CTContext,
     declaration: NumericLiteralExpression,
-    val floatingPointNumber: BigDecimal,
+    val float: BigDecimal,
     reportings: Collection<Reporting>
 ) : BoundNumericLiteral(context, declaration, reportings) {
     override val type = compiler.binding.type.BuiltinFloat.baseReference

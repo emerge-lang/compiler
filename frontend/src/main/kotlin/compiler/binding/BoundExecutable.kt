@@ -22,7 +22,6 @@ import compiler.ast.Executable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
-import io.github.tmarsteel.emerge.backend.api.ir.IrStatement
 
 interface BoundExecutable<out ASTType> : BoundElement<Executable<*>> {
     /**
@@ -64,5 +63,8 @@ interface BoundExecutable<out ASTType> : BoundElement<Executable<*>> {
      */
     fun setExpectedReturnType(type: BoundTypeReference) {}
 
+    /**
+     * TODO: most classes have a backing lazy field. The method is nonsense, refactor to a val
+     */
     fun toBackendIr(): IrExecutable
 }
