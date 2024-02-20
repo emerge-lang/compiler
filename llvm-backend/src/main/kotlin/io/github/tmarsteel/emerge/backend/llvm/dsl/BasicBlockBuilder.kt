@@ -1,5 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.getLlvmMessage
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
@@ -31,7 +32,9 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun memcpy(destination: LlvmValue<LlvmPointerType<*>>, source: LlvmValue<LlvmPointerType<*>>, nBytes: LlvmValue<LlvmIntegerType>, volatile: Boolean = false)
     fun isNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
     fun not(value: LlvmValue<LlvmBooleanType>): LlvmValue<LlvmBooleanType>
+
     fun ret(value: LlvmValue<R>): Termination
+    fun unreachable(): Pair<Termination, LlvmValue<LlvmVoidType>>
 
     fun conditionalBranch(
         condition: LlvmValue<LlvmBooleanType>,
@@ -82,7 +85,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
             val builder = LLVM.LLVMCreateBuilderInContext(context.ref)
             LLVM.LLVMPositionBuilderAtEnd(builder, entryBlock)
             try {
-                val dslBuilder = BasicBlockBuilderImpl<C, R>(context, rawFn, builder)
+                val dslBuilder = BasicBlockBuilderImpl<C, R>(context, rawFn, builder, NameScope("tmp"))
                 dslBuilder.code()
             }
             finally {
@@ -101,8 +104,8 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     override val context: C,
     val owningFunction: LLVMValueRef,
     override val builder: LLVMBuilderRef,
+    val tmpVars: NameScope,
 ) : BasicBlockBuilder<C, R> {
-    private val tmpVars = NameScope("tmp")
 
     override fun <BasePointee : LlvmType> getelementptr(
         base: LlvmValue<LlvmPointerType<out BasePointee>>,
@@ -155,8 +158,14 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun <T: LlvmType> alloca(type: T): LlvmValue<LlvmPointerType<T>> {
+        // TODO: this is a workaround because currently, getReferenceSiteType(Unit) == LlvmVoidType
+        // this can be removed as soon as its possible to declare "object Unit {}" in the emerge stdlib
+        if (type == LlvmVoidType) {
+            return LlvmValue(LLVM.LLVMGetPoison(type.getRawInContext(context)), pointerTo(type))
+        }
+
         val ptr = LLVM.LLVMBuildAlloca(builder, type.getRawInContext(context), tmpVars.next())
-        return LlvmValue(ptr, LlvmPointerType(type))
+        return LlvmValue(ptr, pointerTo(type))
     }
 
     override fun <R : LlvmType> call(function: LlvmFunction<R>, args: List<LlvmValue<*>>): LlvmValue<R> {
@@ -226,6 +235,12 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         return TerminationImpl
     }
 
+    override fun unreachable(): Pair<BasicBlockBuilder.Termination, LlvmValue<LlvmVoidType>> {
+        val inst = LLVM.LLVMBuildUnreachable(builder)
+
+        return Pair(TerminationImpl, LlvmValue(inst, LlvmVoidType))
+    }
+
     override fun conditionalBranch(
         condition: LlvmValue<LlvmBooleanType>,
         ifTrue: BasicBlockBuilder.Branch<C, R>.() -> BasicBlockBuilder.Termination,
@@ -247,12 +262,12 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         }
 
         LLVM.LLVMPositionBuilderAtEnd(builder, thenBlock)
-        val thenBranchBuilder = BranchImpl<C, R>(context, owningFunction, builder, continueBlock)
+        val thenBranchBuilder = BranchImpl<C, R>(context, owningFunction, builder, tmpVars, continueBlock)
         val thenTermination = thenBranchBuilder.ifTrue()
 
         if (ifFalse != null) {
             LLVM.LLVMPositionBuilderAtEnd(builder, elseBlock)
-            val elseBranchBuilder = BranchImpl<C, R>(context, owningFunction, builder, continueBlock)
+            val elseBranchBuilder = BranchImpl<C, R>(context, owningFunction, builder, tmpVars, continueBlock)
             val elseTermination = elseBranchBuilder.ifFalse()
         }
 
@@ -272,11 +287,11 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         LLVM.LLVMBuildBr(builder, headerBlock)
 
         LLVM.LLVMPositionBuilderAtEnd(builder, headerBlock)
-        val headerDslBuilder = LoopImpl<C, R>(context, owningFunction, builder, headerBlock, bodyBlock, continueBlock)
+        val headerDslBuilder = LoopImpl<C, R>(context, owningFunction, builder, tmpVars, headerBlock, bodyBlock, continueBlock)
         headerDslBuilder.header()
 
         LLVM.LLVMPositionBuilderAtEnd(builder, bodyBlock)
-        val bodyDslBuilder = LoopImpl<C, R>(context, owningFunction, builder, headerBlock, bodyBlock, continueBlock)
+        val bodyDslBuilder = LoopImpl<C, R>(context, owningFunction, builder, tmpVars, headerBlock, bodyBlock, continueBlock)
         bodyDslBuilder.body()
 
         LLVM.LLVMPositionBuilderAtEnd(builder, continueBlock)
@@ -288,8 +303,9 @@ private class BranchImpl<C : LlvmContext, R : LlvmType>(
     context: C,
     owningFunction: LLVMValueRef,
     builder: LLVMBuilderRef,
+    tmpVars: NameScope,
     val continueBlock: LLVMBasicBlockRef,
-) : BasicBlockBuilderImpl<C, R>(context, owningFunction, builder), BasicBlockBuilder.Branch<C, R> {
+) : BasicBlockBuilderImpl<C, R>(context, owningFunction, builder, tmpVars), BasicBlockBuilder.Branch<C, R> {
     override fun concludeBranch(): BasicBlockBuilder.Termination {
         LLVM.LLVMBuildBr(builder, continueBlock)
         return TerminationImpl
@@ -300,10 +316,11 @@ private class LoopImpl<C : LlvmContext, R : LlvmType>(
     context: C,
     owningFunction: LLVMValueRef,
     builder: LLVMBuilderRef,
+    tmpVars: NameScope,
     val headerBlockRef: LLVMBasicBlockRef,
     val bodyBlockRef: LLVMBasicBlockRef,
     val continueBlock: LLVMBasicBlockRef,
-) : BasicBlockBuilderImpl<C, R>(context, owningFunction, builder), BasicBlockBuilder.LoopHeader<C, R>, BasicBlockBuilder.LoopBody<C, R> {
+) : BasicBlockBuilderImpl<C, R>(context, owningFunction, builder, tmpVars), BasicBlockBuilder.LoopHeader<C, R>, BasicBlockBuilder.LoopBody<C, R> {
     override fun breakLoop(): BasicBlockBuilder.Termination {
         LLVM.LLVMBuildBr(builder, continueBlock)
         return TerminationImpl

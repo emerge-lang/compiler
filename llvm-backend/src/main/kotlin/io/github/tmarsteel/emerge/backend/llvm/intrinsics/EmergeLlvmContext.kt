@@ -15,6 +15,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.backend.llvm.bodyDefined
+import io.github.tmarsteel.emerge.backend.llvm.codegen.ExecutableResult
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitCode
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitExpressionCode
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitRead
@@ -36,6 +37,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
+import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.llvmType
@@ -96,6 +98,10 @@ class EmergeLlvmContext(
     /** `emerge.platform.BooleanBox` */
     internal lateinit var boxTypeBoolean: EmergeStructType
 
+    /** `emerge.core.Unit` */
+    internal lateinit var unitType: EmergeStructType
+    internal lateinit var pointerToUnitInstance: LlvmGlobal<LlvmPointerType<EmergeStructType>>
+
     private val emergeStructs = ArrayList<EmergeStructType>()
 
     fun registerStruct(struct: IrStruct) {
@@ -127,6 +133,20 @@ class EmergeLlvmContext(
             "emerge.platform.U64Box" -> boxTypeU64 = emergeStructType
             "emerge.platform.SWordBox" -> boxTypeSWord = emergeStructType
             "emerge.platform.UWordBox" -> boxTypeUWord = emergeStructType
+            "emerge.core.Unit" -> {
+                unitType = emergeStructType
+                pointerToUnitInstance = addGlobal(undefValue(pointerTo(emergeStructType)), LlvmGlobal.ThreadLocalMode.SHARED)
+                addModuleInitFunction(KotlinLlvmFunction.define<_, _>(
+                    "init_unit",
+                    LlvmVoidType,
+                ) {
+                    body {
+                        val p = call(emergeStructType.defaultConstructor.getInContext(context), emptyList())
+                        store(p, pointerToUnitInstance)
+                        retVoid()
+                    }
+                }.getInContext(this))
+            }
         }
 
         emergeStructs.add(emergeStructType)
@@ -151,8 +171,9 @@ class EmergeLlvmContext(
             }
         }
 
+        val returnLlvmType = if (fn.returnType.isUnit) LlvmVoidType else getReferenceSiteType(fn.returnType)
         val functionType = LlvmFunctionType(
-            getReferenceSiteType(fn.returnType),
+            returnLlvmType,
             parameterTypes,
         )
         val rawRef = LLVM.LLVMAddFunction(module, fn.llvmName, functionType.getRawInContext(this))
@@ -178,7 +199,7 @@ class EmergeLlvmContext(
             if (fn.parameters.isNotEmpty()) {
                 throw CodeGenerationException("Main function must not declare parameters")
             }
-            if (getReferenceSiteType(fn.returnType) != LlvmVoidType) {
+            if (!fn.returnType.isUnit) {
                 throw CodeGenerationException("Main function ${fn.fqn} must return Unit")
             }
 
@@ -223,13 +244,15 @@ class EmergeLlvmContext(
         }
 
         BasicBlockBuilder.fillBody(this, llvmFunction) {
-            emitCode(fn.body)
-                ?: run {
-                    // TODO: this happens when the frontend doesn't give a return instruction when it should.
-                    // this currently on implicit Unit returns. Workaround until all the infrastructure for object Unit {}
-                    // is in place
+            when (val codeResult = emitCode(fn.body)) {
+                is ExecutableResult.ImplicitUnit,
+                is ExecutableResult.Value -> {
                     (this as BasicBlockBuilder<*, LlvmVoidType>).retVoid()
                 }
+                is ExecutableResult.Terminated -> {
+                    codeResult.termination
+                }
+            }
         }
     }
 
@@ -260,6 +283,7 @@ class EmergeLlvmContext(
         ) {
             body {
                 globalVariableInitializers.forEach {
+                    (this as BasicBlockBuilder<EmergeLlvmContext, LlvmType>)
                     it.first.emitWrite!!(emitExpressionCode(it.second))
                 }
                 retVoid()
@@ -285,13 +309,6 @@ class EmergeLlvmContext(
         }
 
         type.llvmValueType?.let { return it }
-        when (baseType.fqn.toString()) {
-            "emerge.ffi.c.CPointer" -> return pointerTo(getAllocationSiteType(type))
-            "emerge.core.Unit",
-            "emerge.core.Nothing" -> return LlvmVoidType
-            "emerge.core.Any" -> return PointerToAnyEmergeValue // TODO: remove, Any will be a pure language-defined type
-        }
-
         return pointerTo(getAllocationSiteType(type))
     }
 
@@ -338,8 +355,9 @@ class EmergeLlvmContext(
                 type.llvmValueType?.let { return it }
                 if (type.baseType is IrIntrinsicType) {
                     return when (type.baseType.fqn.toString()) {
-                        "emerge.core.Any" -> EmergeHeapAllocatedValueBaseType
-                        "emerge.core.Nothing" -> LlvmVoidType
+                        "emerge.core.Any",
+                        "emerge.core.Unit",
+                        "emerge.core.Nothing" -> EmergeHeapAllocatedValueBaseType
                         else -> throw CodeGenerationException("Missing allocation-site representation for this intrinsic type: $type")
                     }
                 }

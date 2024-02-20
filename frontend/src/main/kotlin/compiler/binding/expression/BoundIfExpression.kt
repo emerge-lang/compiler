@@ -28,6 +28,10 @@ import compiler.binding.type.BuiltinUnit
 import compiler.binding.type.isAssignableTo
 import compiler.nullableAnd
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
+import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrIfExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundIfExpression(
     override val context: CTContext,
@@ -49,7 +53,7 @@ class BoundIfExpression(
             }
         }
 
-    override var type: BoundTypeReference? = null
+    override var type: BoundTypeReference? = BuiltinUnit.baseReference
         private set
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
@@ -63,12 +67,32 @@ class BoundIfExpression(
         return reportings
     }
 
+    private var isInExpressionContext = false
+    override fun requireImplicitEvaluationTo(type: BoundTypeReference) {
+        isInExpressionContext = true
+        thenCode.requireImplicitEvaluationTo(type)
+        elseCode?.requireImplicitEvaluationTo(type)
+    }
+
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+        requireImplicitEvaluationTo(type)
+    }
+
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         var reportings = condition.semanticAnalysisPhase2() + thenCode.semanticAnalysisPhase2()
 
         val elseCodeReportings = elseCode?.semanticAnalysisPhase2()
         if (elseCodeReportings != null) {
             reportings = reportings + elseCodeReportings
+        }
+
+        if (isInExpressionContext) {
+            type = listOfNotNull(
+                thenCode.implicitEvaluationResultType,
+                elseCode?.implicitEvaluationResultType
+            )
+                .takeUnless { it.isEmpty() }
+                ?.reduce(BoundTypeReference::closestCommonSupertypeWith)
         }
 
         return reportings
@@ -91,13 +115,6 @@ class BoundIfExpression(
             }
         }
 
-        val thenType = if (thenCode is BoundExpression<*>) thenCode.type else BuiltinUnit.baseReference
-        val elseType = if (elseCode is BoundExpression<*>) elseCode.type else BuiltinUnit.baseReference
-
-        if (thenType != null && elseType != null) {
-            type = thenType.closestCommonSupertypeWith(elseType)
-        }
-
         condition.findWritesBeyond(context).forEach { mutationInCondition ->
             if (mutationInCondition is BoundAssignmentExpression) {
                 reportings.add(Reporting.assignmentUsedAsExpression(mutationInCondition))
@@ -114,8 +131,19 @@ class BoundIfExpression(
         elseCode?.setExpectedReturnType(type)
     }
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
-        thenCode.requireImplicitEvaluationTo(type)
-        elseCode?.requireImplicitEvaluationTo(type)
+    override fun toBackendIr(): IrExpression {
+        return IrIfExpressionImpl(
+            condition.toBackendIr(),
+            thenCode.toBackendIr(),
+            elseCode?.toBackendIr(),
+            type!!.toBackendIr(),
+        )
     }
 }
+
+private class IrIfExpressionImpl(
+    override val condition: IrExpression,
+    override val thenBranch: IrExecutable,
+    override val elseBranch: IrExecutable?,
+    override val evaluatesTo: IrType,
+) : IrIfExpression

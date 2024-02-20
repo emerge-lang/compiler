@@ -41,7 +41,7 @@ interface BoundExpression<out ASTType> : BoundExecutable<ASTType> {
     fun setExpectedEvaluationResultType(type: BoundTypeReference)
 
     /**
-     * Must be called during after [BoundExecutable.semanticAnalysisPhase1] and before [BoundExecutable.semanticAnalysisPhase2]
+     * Must be called after [BoundExecutable.semanticAnalysisPhase1] and before [BoundExecutable.semanticAnalysisPhase2]
      * by the enclosing code running this expression. The intended purposes are:
      * * in the frontend
      *   * detect whether a [BoundIdentifierExpression] is used in read context ([markEvaluationResultUsed] was called)

@@ -57,6 +57,7 @@ internal val IrType.llvmValueType: LlvmType? by tackLazyVal {
         else -> null
     }
 }
+internal val IrType.isUnit by tackLazyVal { this is IrSimpleType && this.baseType.fqn.toString() == "emerge.core.Unit" }
 
 internal var IrStruct.rawLlvmRef: LLVMTypeRef? by tackState { null }
 internal val IrStruct.llvmName: String get() = this.fqn.toString()

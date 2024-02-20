@@ -49,6 +49,12 @@ interface IrIntegerLiteralExpression : IrExpression {
     val value: BigInteger
 }
 
+interface IrIfExpression : IrExpression {
+    val condition: IrExpression
+    val thenBranch: IrExecutable
+    val elseBranch: IrExecutable?
+}
+
 /**
  * Interface for all IrTypes that have to implement [IrExpression] for semantic-analysis reasons
  * but are not actually expressions. Prime candidate: assignment statements.
