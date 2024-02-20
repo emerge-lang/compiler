@@ -211,16 +211,16 @@ private fun branchEmitter(
     valueStorage: LlvmValue<LlvmPointerType<LlvmType>>,
 ): BasicBlockBuilder.Branch<EmergeLlvmContext, LlvmType>.() -> BasicBlockBuilder.Termination {
     return {
-        when (val thenBranchResult = emitCode(branchCode)) {
+        when (val branchResult = emitCode(branchCode)) {
             is ExecutableResult.ImplicitUnit -> {
                 store(context.pointerToUnitInstance.dereference(), valueStorage)
                 concludeBranch()
             }
             is ExecutableResult.Value -> {
-                store(thenBranchResult.value, valueStorage)
+                store(branchResult.value, valueStorage)
                 concludeBranch()
             }
-            is ExecutableResult.Terminated -> thenBranchResult.termination
+            is ExecutableResult.Terminated -> branchResult.termination
         }
     }
 }

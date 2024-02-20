@@ -262,13 +262,12 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         }
 
         LLVM.LLVMPositionBuilderAtEnd(builder, thenBlock)
-        val thenBranchBuilder = BranchImpl<C, R>(context, owningFunction, builder, tmpVars, continueBlock)
-        val thenTermination = thenBranchBuilder.ifTrue()
+        val branchBuilder = BranchImpl<C, R>(context, owningFunction, builder, tmpVars, continueBlock)
+        branchBuilder.ifTrue()
 
         if (ifFalse != null) {
             LLVM.LLVMPositionBuilderAtEnd(builder, elseBlock)
-            val elseBranchBuilder = BranchImpl<C, R>(context, owningFunction, builder, tmpVars, continueBlock)
-            val elseTermination = elseBranchBuilder.ifFalse()
+            branchBuilder.ifFalse()
         }
 
         LLVM.LLVMPositionBuilderAtEnd(builder, continueBlock)
