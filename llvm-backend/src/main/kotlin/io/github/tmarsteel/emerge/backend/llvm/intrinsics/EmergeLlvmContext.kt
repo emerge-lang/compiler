@@ -27,6 +27,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
@@ -40,7 +41,6 @@ import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.llvmType
 import io.github.tmarsteel.emerge.backend.llvm.llvmValueType
 import io.github.tmarsteel.emerge.backend.llvm.rawLlvmRef
-import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.global.LLVM
 
 class EmergeLlvmContext(
@@ -96,6 +96,8 @@ class EmergeLlvmContext(
     /** `emerge.platform.BooleanBox` */
     internal lateinit var boxTypeBoolean: EmergeStructType
 
+    private val emergeStructs = ArrayList<EmergeStructType>()
+
     fun registerStruct(struct: IrStruct) {
         if (struct.rawLlvmRef != null) {
             return
@@ -127,9 +129,7 @@ class EmergeLlvmContext(
             "emerge.platform.UWordBox" -> boxTypeUWord = emergeStructType
         }
 
-        // constructors need not be registered as of now. There only is the default
-        // constructor, and it finds its way into the context by being invoked
-        // and added through KotlinLlvmFunction.getInContext
+        emergeStructs.add(emergeStructType)
     }
 
     fun registerFunction(fn: IrFunction): LlvmFunction<*> {
@@ -206,10 +206,20 @@ class EmergeLlvmContext(
         }
     }
 
+    private var structConstructorsRegistered: Boolean = false
     fun defineFunctionBody(fn: IrImplementedFunction) {
         val llvmFunction = fn.llvmRef ?: throw CodeGenerationException("You must register the functions through ${this::registerFunction.name} first to handle cyclic references (especially important for recursion)")
         if (fn.bodyDefined) {
             throw CodeGenerationException("Cannot define body for function ${fn.fqn} multiple times!")
+        }
+
+        if (!structConstructorsRegistered) {
+            structConstructorsRegistered = true
+            emergeStructs.forEach {
+                // TODO: this handling is wonky, needs more conceptual work
+                val ref = it.defaultConstructor.getInContext(this)
+                it.irStruct.constructors.overloads.single().llvmRef = ref
+            }
         }
 
         BasicBlockBuilder.fillBody(this, llvmFunction) {
@@ -238,6 +248,11 @@ class EmergeLlvmContext(
             return
         }
         completed = true
+
+        emergeStructs.forEach {
+            // has to be done late so that [heapAllocatorFunction] is available
+            it.defaultConstructor.getInContext(this)
+        }
 
         threadInitializerFn = KotlinLlvmFunction.define(
             "_emerge_thread_init",
