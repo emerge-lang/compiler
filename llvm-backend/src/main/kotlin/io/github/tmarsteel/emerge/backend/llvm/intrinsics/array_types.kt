@@ -378,6 +378,9 @@ private val referenceArrayFinalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmV
                 loopContinue()
             }
         )
+
+        call(context.freeFunction, listOf(self))
+
         retVoid()
     }
 }
