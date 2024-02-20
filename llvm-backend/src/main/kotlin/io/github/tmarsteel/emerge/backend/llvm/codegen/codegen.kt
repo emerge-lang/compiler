@@ -67,7 +67,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             val toAssign = emitExpressionCode(code.value)
             when (val localTarget = code.target) {
                 is IrVariableReferenceExpression -> localTarget.variable.emitWrite!!(this, toAssign)
-                is IrStructMemberAccessExpression -> TODO("implement struct member write")
+                is IrStructMemberAccessExpression -> store(toAssign, localTarget.getPointerToStructMember())
                 is IrNullLiteralExpression,
                 is IrIntegerLiteralExpression,
                 is IrBooleanLiteralExpression,
@@ -100,13 +100,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, out LlvmType>.emitExpressionCo
             val ctor = llvmStructWrapper.defaultConstructor.getInContext(context)
             return call(ctor, listOf(byteArrayPtr))
         }
-        is IrStructMemberAccessExpression -> {
-            val baseStructPtr = emitExpressionCode(expression.base) as LlvmValue<LlvmPointerType<EmergeStructType>>
-            return getelementptr(baseStructPtr)
-                .member(expression.member)
-                .get()
-                .dereference()
-        }
+        is IrStructMemberAccessExpression -> return expression.getPointerToStructMember().dereference()
         is IrStaticDispatchFunctionInvocationExpression -> {
             return call(expression.function.llvmRef!!, expression.arguments.map { emitExpressionCode(it) })
         }
@@ -181,4 +175,12 @@ internal fun IrStringLiteralExpression.assureByteArrayConstantIn(context: Emerge
     val global = LlvmGlobal(untypedGlobal.raw, EmergeS8ArrayType)
     byteArrayGlobal = global
     return global
+}
+
+context(BasicBlockBuilder<EmergeLlvmContext, *>)
+private fun IrStructMemberAccessExpression.getPointerToStructMember(): LlvmValue<LlvmPointerType<LlvmType>> {
+    val baseStructPtr = emitExpressionCode(this.base) as LlvmValue<LlvmPointerType<EmergeStructType>>
+    return getelementptr(baseStructPtr)
+        .member(this.member)
+        .get()
 }
