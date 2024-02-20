@@ -81,6 +81,10 @@ class BoundArrayLiteralExpression(
         return reportings
     }
 
+    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+        return elements.flatMap { it.semanticAnalysisPhase3() }
+    }
+
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
         return elements.flatMap { it.findReadsBeyond(boundary) }
     }

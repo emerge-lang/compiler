@@ -8,7 +8,6 @@ import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
-import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 
 data class BoundTypeParameter(
@@ -31,6 +30,10 @@ data class BoundTypeParameter(
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return bound.validate(TypeUseSite.Irrelevant)
+    }
+
+    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+        return emptySet()
     }
 
     private val _backendIr by lazy { IrTypeParameterImpl(name, variance, bound) }

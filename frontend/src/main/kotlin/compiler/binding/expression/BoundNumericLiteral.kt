@@ -50,13 +50,14 @@ open class BoundNumericLiteral(
     override val declaration: NumericLiteralExpression,
     private val reportings: Collection<Reporting>
 ) : BoundExpression<NumericLiteralExpression> {
-    override fun semanticAnalysisPhase1() = reportings
     override val type: BoundTypeReference? = null // unknown
 
     override val isGuaranteedToThrow = false
 
+    override fun semanticAnalysisPhase1() = reportings
+    override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
+    override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
-
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
 
     protected var expectedNumericType: BuiltinType? = null

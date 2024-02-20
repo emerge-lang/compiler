@@ -78,6 +78,10 @@ class BoundMemberAccessExpression(
         return reportings
     }
 
+    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+        return valueExpression.semanticAnalysisPhase3()
+    }
+
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
         return valueExpression.findReadsBeyond(boundary)
     }

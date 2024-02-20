@@ -31,6 +31,9 @@ class BoundStringLiteralExpression(
         return emptySet()
     }
 
+    override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
+    override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
+
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // nothing to do
     }

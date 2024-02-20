@@ -208,6 +208,12 @@ class BoundVariable(
         }
     }
 
+    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+        return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
+            initializerExpression?.semanticAnalysisPhase3() ?: emptySet()
+        }
+    }
+
     override val modifiedContext: CTContext by lazy {
         val newCtx = MutableCTContext(context)
         newCtx.addVariable(this)

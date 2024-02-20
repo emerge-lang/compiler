@@ -130,6 +130,7 @@ class BoundDeclaredFunction(
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase1)
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
             val reportings = mutableSetOf<Reporting>()
 
@@ -178,6 +179,8 @@ class BoundDeclaredFunction(
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
+        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase1)
+        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase2)
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
             val reportings = mutableSetOf<Reporting>()
 

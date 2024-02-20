@@ -70,6 +70,8 @@ class BoundUnaryExpression(
         return reportings
     }
 
+    override fun semanticAnalysisPhase3(): Collection<Reporting> = hiddenInvocation.semanticAnalysisPhase3()
+
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
         return hiddenInvocation.findReadsBeyond(boundary)
     }

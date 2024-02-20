@@ -76,6 +76,8 @@ class BoundBinaryExpression(
         return reportings
     }
 
+    override fun semanticAnalysisPhase3() = hiddenInvocation.semanticAnalysisPhase3()
+
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
         return hiddenInvocation.findReadsBeyond(boundary)
     }

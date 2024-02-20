@@ -18,13 +18,13 @@
 
 package compiler.binding
 
-import compiler.InternalCompilerError
+import compiler.OnceAction
 import compiler.ast.CodeChunk
 import compiler.ast.Executable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
-import compiler.reportings.Reporting
 import compiler.handleCyclicInvocation
+import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 
 class BoundCodeChunk(
@@ -45,8 +45,19 @@ class BoundCodeChunk(
     override val isGuaranteedToThrow: Boolean?
         get() = statements?.any { it.isGuaranteedToThrow ?: false }
 
-    override val isGuaranteedToReturn: Boolean?
-        get() = statements?.any { it.isGuaranteedToReturn ?: false }
+    private val onceAction = OnceAction()
+    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+        return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
+            statements.flatMap { it.semanticAnalysisPhase1() }
+        }
+    }
+
+    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase1)
+        return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
+            statements.flatMap { it.semanticAnalysisPhase2() }
+        }
+    }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()

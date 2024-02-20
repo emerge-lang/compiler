@@ -38,14 +38,18 @@ class BoundNotNullExpression(
 
     override val isGuaranteedToThrow = false // this MAY throw, but it's not guaranteed to
 
-    override fun semanticAnalysisPhase1() = super<BoundExpression>.semanticAnalysisPhase1()
+    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+        return nullableExpression.semanticAnalysisPhase1()
+    }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         nullableExpression.markEvaluationResultUsed()
-        return super<BoundExpression>.semanticAnalysisPhase2()
+        return nullableExpression.semanticAnalysisPhase2()
     }
 
-    override fun semanticAnalysisPhase3() = super<BoundExpression>.semanticAnalysisPhase3()
+    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+        return nullableExpression.semanticAnalysisPhase3()
+    }
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> {
         return nullableExpression.findReadsBeyond(boundary)

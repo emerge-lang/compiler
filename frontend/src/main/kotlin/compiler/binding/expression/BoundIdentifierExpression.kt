@@ -106,6 +106,9 @@ class BoundIdentifierExpression(
     }
 
     sealed interface Referral : SemanticallyAnalyzable {
+        override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
+        override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
+        override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
         fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>>
         fun markEvaluationResultUsed()
     }

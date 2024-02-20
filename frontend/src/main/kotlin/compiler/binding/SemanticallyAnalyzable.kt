@@ -10,7 +10,7 @@ interface SemanticallyAnalyzable {
      * * casts
      * * explicit generics
      */
-    fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
+    fun semanticAnalysisPhase1(): Collection<Reporting>
 
     /**
      * This method does currently not affect any expression. In the future, these expressions will make
@@ -18,10 +18,10 @@ interface SemanticallyAnalyzable {
      * * constructor invocations
      * * method references (both static ones and such with a context)
      */
-    fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
+    fun semanticAnalysisPhase2(): Collection<Reporting>
 
     /**
      * Here is where actual semantics are validated.
      */
-    fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
+    fun semanticAnalysisPhase3(): Collection<Reporting>
 }

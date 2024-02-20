@@ -81,16 +81,20 @@ class BoundInvocationExpression(
             val chosenOverload = selectOverload(reportings) ?: return@getResult reportings
 
             dispatchedFunction = chosenOverload.candidate
-            handleCyclicInvocation(
-                context = this,
-                action = { chosenOverload.candidate.semanticAnalysisPhase2() },
-                onCycle = {
-                    reportings.add(Reporting.typeDeductionError(
-                        "Cannot infer return type of the call to function ${functionNameToken.value} because the inference is cyclic here. Specify the return type explicitly.",
-                        declaration.sourceLocation,
-                    ))
-                }
-            )
+            if (chosenOverload.returnType == null) {
+                handleCyclicInvocation(
+                    context = this,
+                    action = { chosenOverload.candidate.semanticAnalysisPhase2() },
+                    onCycle = {
+                        reportings.add(
+                            Reporting.typeDeductionError(
+                                "Cannot infer return type of the call to function ${functionNameToken.value} because the inference is cyclic here. Specify the return type explicitly.",
+                                declaration.sourceLocation,
+                            )
+                        )
+                    }
+                )
+            }
 
             type = chosenOverload.returnType
             if (chosenOverload.candidate.returnsExclusiveValue && expectedReturnType != null) {

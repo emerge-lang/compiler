@@ -22,6 +22,7 @@ import compiler.ast.expression.BooleanLiteralExpression
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.BuiltinBoolean
+import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBooleanLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -38,6 +39,10 @@ class BoundBooleanLiteralExpression(
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // nothing to do: this expression can only ever have one type
     }
+
+    override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
+    override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
+    override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
 
     override fun toBackendIr(): IrExpression {
         return IrBooleanLiteralExpressionImpl(type.toBackendIr(), value)

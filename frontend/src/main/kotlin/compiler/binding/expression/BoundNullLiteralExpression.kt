@@ -25,6 +25,7 @@ import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.BuiltinAny
+import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -43,6 +44,10 @@ class BoundNullLiteralExpression(
         get() = expectedType?.withCombinedNullability(TypeReference.Nullability.NULLABLE)
 
     override val isGuaranteedToThrow = null
+
+    override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
+    override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
+    override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExecutable<Executable<*>>> = emptySet()
 
