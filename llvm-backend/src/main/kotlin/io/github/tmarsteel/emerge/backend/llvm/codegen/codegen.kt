@@ -213,7 +213,7 @@ private fun branchEmitter(
     return {
         when (val thenBranchResult = emitCode(branchCode)) {
             is ExecutableResult.ImplicitUnit -> {
-                store(TODO("reference unit"), valueStorage)
+                store(context.pointerToUnitInstance.dereference(), valueStorage)
                 concludeBranch()
             }
             is ExecutableResult.Value -> {
