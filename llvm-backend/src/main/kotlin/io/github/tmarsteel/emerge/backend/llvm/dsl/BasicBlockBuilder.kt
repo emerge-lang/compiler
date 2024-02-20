@@ -158,12 +158,6 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun <T: LlvmType> alloca(type: T): LlvmValue<LlvmPointerType<T>> {
-        // TODO: this is a workaround because currently, getReferenceSiteType(Unit) == LlvmVoidType
-        // this can be removed as soon as its possible to declare "object Unit {}" in the emerge stdlib
-        if (type == LlvmVoidType) {
-            return LlvmValue(LLVM.LLVMGetPoison(type.getRawInContext(context)), pointerTo(type))
-        }
-
         val ptr = LLVM.LLVMBuildAlloca(builder, type.getRawInContext(context), tmpVars.next())
         return LlvmValue(ptr, pointerTo(type))
     }
