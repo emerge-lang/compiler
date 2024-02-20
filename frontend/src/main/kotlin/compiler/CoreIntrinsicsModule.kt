@@ -56,8 +56,5 @@ object CoreIntrinsicsModule {
     }
 
     val NAME = DotName(listOf("emerge", "core"))
-    /* TODO: evaluate need for this */
-    val NAME_STRING = NAME.toString()
-
     val SRC_DIR by systemProperty("emerge.frontend.core.sources", Paths::get)
 }
