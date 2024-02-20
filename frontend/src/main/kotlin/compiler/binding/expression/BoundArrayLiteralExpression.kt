@@ -28,7 +28,7 @@ class BoundArrayLiteralExpression(
 ) : BoundExpression<ArrayLiteralExpression> {
     override val modifiedContext: CTContext = elements.lastOrNull()?.modifiedContext ?: context
     override val isGuaranteedToThrow: Boolean get() = elements.map { it.isGuaranteedToThrow }.reduceOrNull() { a, b -> a nullableOr b } ?: false
-    private var expectedReturnType: BoundTypeReference? = null
+    private var expectedEvaluationResultType: BoundTypeReference? = null
     private var expectedElementType: BoundTypeReference? = null
     override var type: BoundTypeReference? = null
         private set
@@ -47,6 +47,8 @@ class BoundArrayLiteralExpression(
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        elements.forEach { it.markEvaluationResultUsed() }
+
         val reportings = elements
             .flatMap { it.semanticAnalysisPhase2() }
             .toMutableSet()
@@ -76,7 +78,7 @@ class BoundArrayLiteralExpression(
                 elementType,
             ))
         )
-        expectedReturnType?.let {
+        expectedEvaluationResultType?.let {
             type = type?.withMutability(it.mutability)
         }
 
@@ -95,9 +97,12 @@ class BoundArrayLiteralExpression(
         return elements.flatMap { it.findWritesBeyond(boundary) }
     }
 
-    // TODO: shouldn't this be in setExpectedReturnType?
+    override fun setExpectedReturnType(type: BoundTypeReference) {
+        elements.forEach { it.setExpectedReturnType(type) }
+    }
+
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
-        expectedReturnType = type
+        expectedEvaluationResultType = type
 
         if (type !is RootResolvedTypeReference || type.baseType != arrayType) {
             // ignore
