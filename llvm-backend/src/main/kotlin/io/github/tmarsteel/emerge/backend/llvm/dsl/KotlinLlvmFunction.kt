@@ -1,7 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import com.google.common.collect.MapMaker
-import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMValueRef
 import org.bytedeco.llvm.global.LLVM
 import kotlin.reflect.KProperty
@@ -79,18 +78,13 @@ private abstract class BaseFunctionBuilderContext<C : LlvmContext, R : LlvmType>
     abstract fun buildAndAdd(name: String): LlvmFunction<R>
 
     protected fun buildAndAddFunctionInstance(name: String): LlvmFunction<R> {
-        val functionType = LLVM.LLVMFunctionType(
-            returnType.getRawInContext(context),
-            PointerPointer(*parameters.map { it.type.getRawInContext(context) }.toTypedArray()),
-            parameters.size,
-            0
-        )
-        val rawFunction = LLVM.LLVMAddFunction(context.module, name, functionType)
+        val functionType = LlvmFunctionType(returnType, parameters.map { it.type })
+        val functionTypeRaw = functionType.getRawInContext(context)
+        val rawFunction = LLVM.LLVMAddFunction(context.module, name, functionTypeRaw)
         return LlvmFunction(
             LlvmConstant(rawFunction, LlvmFunctionAddressType),
             functionType,
-            returnType,
-            parameters.map { it.type }
+            functionTypeRaw,
         )
     }
 }

@@ -141,8 +141,8 @@ class EmergeLlvmContext(
             intrinsicFunctions[fn.fqn.toString()]?.let { intrinsic ->
                 // TODO: different intrinsic per overload
                 val intrinsicImpl = intrinsic.getInContext(this@EmergeLlvmContext)
-                check(parameterTypes.size == intrinsicImpl.parameterTypes.size)
-                intrinsicImpl.parameterTypes.forEachIndexed { paramIndex, intrinsicType ->
+                check(parameterTypes.size == intrinsicImpl.type.parameterTypes.size)
+                intrinsicImpl.type.parameterTypes.forEachIndexed { paramIndex, intrinsicType ->
                     val declaredType = parameterTypes[paramIndex]
                     check(intrinsicType == declaredType) { "${fn.fqn} param #$paramIndex; intrinsic $intrinsicType, declared $declaredType" }
                 }
@@ -151,18 +151,15 @@ class EmergeLlvmContext(
             }
         }
 
-        val functionType = LLVM.LLVMFunctionType(
-            getReferenceSiteType(fn.returnType).getRawInContext(this),
-            PointerPointer(*parameterTypes.map{ it.getRawInContext(this) }.toTypedArray()),
-            fn.parameters.size,
-            0,
+        val functionType = LlvmFunctionType(
+            getReferenceSiteType(fn.returnType),
+            parameterTypes,
         )
-        val rawRef = LLVM.LLVMAddFunction(module, fn.llvmName, functionType)
+        val rawRef = LLVM.LLVMAddFunction(module, fn.llvmName, functionType.getRawInContext(this))
         fn.llvmRef = LlvmFunction(
             LlvmConstant(rawRef, LlvmFunctionAddressType),
             functionType,
-            getReferenceSiteType(fn.returnType),
-            fn.parameters.map { getReferenceSiteType(it.type) }
+            functionType.getRawInContext(this),
         )
 
         fn.parameters.forEachIndexed { index, param ->

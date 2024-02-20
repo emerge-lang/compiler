@@ -160,24 +160,24 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun <R : LlvmType> call(function: LlvmFunction<R>, args: List<LlvmValue<*>>): LlvmValue<R> {
-        require(function.parameterTypes.size == args.size) {
-            "The function ${getLlvmMessage(LLVM.LLVMGetValueName(function.address.raw))} takes ${function.parameterTypes.size} parameters, ${args.size} arguments given."
+        require(function.type.parameterTypes.size == args.size) {
+            "The function ${getLlvmMessage(LLVM.LLVMGetValueName(function.address.raw))} takes ${function.type.parameterTypes.size} parameters, ${args.size} arguments given."
         }
 
-        val name = if (function.returnType == LlvmVoidType) "" else tmpVars.next()
+        val name = if (function.type.returnType == LlvmVoidType) "" else tmpVars.next()
 
         val argsArray = args.map { it.raw }.toTypedArray()
         val argsPointerPointer = PointerPointer(*argsArray)
         val result = LLVM.LLVMBuildCall2(
             builder,
-            function.rawFunctionType,
+            function.rawType,
             function.address.raw,
             argsPointerPointer,
             args.size,
             name,
         )
 
-        return LlvmValue(result, function.returnType)
+        return LlvmValue(result, function.type.returnType)
     }
 
     override fun <R : LlvmType> call(
