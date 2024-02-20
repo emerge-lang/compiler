@@ -21,6 +21,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
+import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType.Companion.member
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
 import org.bytedeco.llvm.global.LLVM
@@ -395,3 +396,51 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<EmergeHea
     },
     "ref"
 )
+internal val valueArrayFinalize = KotlinLlvmFunction.define<LlvmContext, _>("valuearray_finalize", LlvmVoidType) {
+    param(PointerToAnyEmergeValue)
+    body {
+        // nothing to do. There are no references, just values, so no dropping needed
+        retVoid()
+    }
+}
+
+/* TODO: refactor to addressOf(index: uword)
+   that would be easy to do for concrete types; but there should be an overload for Array<out Any>
+   and with the currently planned rules for overloading, having an addressOf(self: Array<out Any>)
+   would prevent declaring a specialized addressOf(self: Array<Byte>) etc.
+
+   other possibility: arrays always as slices. Right now array references are a single ptr to the array
+   object on the heap. Array references could become fat pointers consisting of
+   1. a pointer to the array object on the heap, for reference counting
+   2. the number of elements being referenced
+   3. a pointer to the first element being referenced, null when <num of elements referenced> == 0
+   Then, when you need the address of any other array element other than the first, you can create a slice
+   of the array (e.g. someArray.subArray(2, someArray.length)) and then do addressOfFirst
+ */
+internal val arrayAddressOfFirst = KotlinLlvmFunction.define<LlvmContext, _>(
+    "emerge.ffi.c.addressOfFirst",
+    pointerTo(LlvmVoidType),
+) {
+    val arrayPointer by param(pointerTo(EmergeArrayBaseType))
+    body {
+        val ptr = getelementptr(arrayPointer, context.i32(1))
+            .get()
+            .reinterpretAs(pointerTo(LlvmVoidType))
+
+        ret(ptr)
+    }
+}
+internal val arraySize = KotlinLlvmFunction.define<LlvmContext, _>(
+    "emerge.core.size",
+    EmergeWordType,
+) {
+    val arrayPointer by param(pointerTo(EmergeArrayBaseType))
+    body {
+        ret(
+            getelementptr(arrayPointer)
+                .member { elementCount }
+                .get()
+                .dereference()
+        )
+    }
+}
