@@ -11,7 +11,6 @@ import compiler.reportings.TypeArgumentVarianceSuperfluousReporting
 import compiler.reportings.UnsupportedTypeUsageVarianceReporting
 import compiler.reportings.ValueNotAssignableReporting
 import io.kotest.core.spec.style.FreeSpec
-import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
@@ -37,7 +36,7 @@ class TypeErrors : FreeSpec({
                     val x: Any? = p
                 }
             """.trimIndent())
-                .shouldBeEmpty()
+                .shouldHaveNoDiagnostics()
         }
 
         "assignment of directly typed value to generically typed variable" {

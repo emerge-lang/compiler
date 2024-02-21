@@ -3,11 +3,11 @@ package compiler.compiler.binding.type
 import compiler.binding.type.BuiltinBoolean
 import compiler.binding.type.BuiltinInt
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.compiler.negative.shouldHaveNoDiagnostics
 import compiler.compiler.negative.shouldReport
 import compiler.compiler.negative.validateModule
 import compiler.reportings.ValueNotAssignableReporting
 import io.kotest.core.spec.style.FreeSpec
-import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
@@ -68,7 +68,7 @@ class UnificationTest : FreeSpec({
                 }
             """.trimIndent()
         )
-            .shouldBeEmpty()
+            .shouldHaveNoDiagnostics()
     }
 
     "generic bound as supertype" - {
@@ -78,7 +78,7 @@ class UnificationTest : FreeSpec({
                     val otherA: A = someB
                 }
             """.trimIndent())
-                .shouldBeEmpty()
+                .shouldHaveNoDiagnostics()
         }
 
         "negative A" {

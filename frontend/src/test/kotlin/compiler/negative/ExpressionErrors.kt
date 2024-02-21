@@ -5,7 +5,6 @@ import compiler.binding.expression.BoundIdentifierExpression
 import compiler.reportings.ImplicitlyEvaluatedStatementReporting
 import compiler.reportings.UnsafeObjectTraversalReporting
 import io.kotest.core.spec.style.FreeSpec
-import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
@@ -35,7 +34,7 @@ class ExpressionErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldBeEmpty()
+                .shouldHaveNoDiagnostics()
         }
 
         "variable declaration" {

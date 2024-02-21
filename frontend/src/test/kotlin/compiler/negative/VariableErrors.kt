@@ -11,7 +11,6 @@ import compiler.reportings.ValueNotAssignableReporting
 import compiler.reportings.VariableAccessedBeforeInitializationReporting
 import compiler.reportings.VariableDeclaredWithSplitTypeReporting
 import io.kotest.core.spec.style.FreeSpec
-import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
@@ -136,7 +135,7 @@ class VariableErrors : FreeSpec({
                         bar(a)
                     }
                 """.trimIndent())
-                    .shouldBeEmpty()
+                    .shouldHaveNoDiagnostics()
             }
 
             "local final variable cannot be accessed before initialization" {
@@ -163,7 +162,7 @@ class VariableErrors : FreeSpec({
                         a = 4
                     }
                 """.trimIndent())
-                    .shouldBeEmpty()
+                    .shouldHaveNoDiagnostics()
             }
 
             "local non-final variable cannot be accessed before initialization" {
@@ -231,6 +230,20 @@ class VariableErrors : FreeSpec({
                     it.originalDeclaration.name.value shouldBe "a"
                     it.additionalDeclaration.name.value shouldBe "a"
                 }
+        }
+    }
+
+    "scoping" - {
+        "variable accessed outside of its scope" {
+            validateModule("""
+                fun foo() -> Int {
+                    if true {
+                        val a = 3
+                    }
+                    return a
+                }
+            """.trimIndent())
+                .shouldReport<UndefinedIdentifierReporting>()
         }
     }
 })

@@ -5,7 +5,6 @@ import compiler.binding.expression.BoundMemberAccessExpression
 import compiler.reportings.IllegalAssignmentReporting
 import compiler.reportings.ValueNotAssignableReporting
 import io.kotest.core.spec.style.FreeSpec
-import io.kotest.matchers.collections.beEmpty
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -54,7 +53,7 @@ class MutabilityErrors : FreeSpec({
                     val myX = X(2)
                     val otherX: immutable X = myX
                 }
-            """.trimIndent()) should beEmpty()
+            """.trimIndent()) should haveNoDiagnostics()
         }
     }
 
