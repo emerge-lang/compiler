@@ -30,6 +30,7 @@ import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
+import compiler.binding.BoundReturnStatement
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.expression.*
@@ -210,6 +211,11 @@ abstract class Reporting internal constructor(
                 purityOrReadonlyViolationToReporting(violator, readonlyFunction)
             }
         }
+
+        fun missingReturnValue(returnStatement: BoundReturnStatement, expectedType: BoundTypeReference) = MissingReturnValueReporting(
+            returnStatement.declaration,
+            expectedType,
+        )
 
         fun uncertainTermination(function: BoundFunction) =
             UncertainTerminationReporting(function)

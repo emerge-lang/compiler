@@ -1,6 +1,16 @@
 package compiler.compiler.negative
 
-import compiler.reportings.*
+import compiler.reportings.IllegalFunctionBodyReporting
+import compiler.reportings.MissingFunctionBodyReporting
+import compiler.reportings.MissingParameterTypeReporting
+import compiler.reportings.MissingReturnValueReporting
+import compiler.reportings.ModifierInefficiencyReporting
+import compiler.reportings.MultipleParameterDeclarationsReporting
+import compiler.reportings.ReturnTypeMismatchReporting
+import compiler.reportings.UncertainTerminationReporting
+import compiler.reportings.UnknownTypeReporting
+import compiler.reportings.UnresolvableFunctionOverloadReporting
+import compiler.reportings.VarianceOnFunctionTypeParameterReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 
@@ -66,15 +76,6 @@ class FunctionErrors : FreeSpec({
         }
     }
 
-    "return type mismatch" {
-        validateModule("""
-            fun a() -> Int {
-                return true
-            }
-        """.trimIndent())
-            .shouldReport<ReturnTypeMismatchReporting>()
-    }
-
     "unknown declared return type" {
         validateModule("""
             fun a() -> Foo {
@@ -123,6 +124,44 @@ class FunctionErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<UncertainTerminationReporting>()
+        }
+
+        "return type mismatch" {
+            validateModule("""
+            fun a() -> Int {
+                return true
+            }
+        """.trimIndent())
+                .shouldReport<ReturnTypeMismatchReporting>()
+        }
+
+        "value-less return from" - {
+            "from function that doesn't declare return type" {
+                validateModule("""
+                    fun a() {
+                        return
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "from function that declares Unit return type" {
+                validateModule("""
+                    fun a() -> Unit {
+                        return
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "from function that declares non-unit return type" {
+                validateModule("""
+                    fun a() -> Int {
+                        return
+                    }
+                """.trimIndent())
+                    .shouldReport<MissingReturnValueReporting>()
+            }
         }
 
         "if where only then returns" {
