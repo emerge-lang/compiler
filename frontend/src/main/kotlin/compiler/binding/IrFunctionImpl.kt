@@ -12,7 +12,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 internal abstract class IrFunctionImpl private constructor(
     val fqn: DotName,
     private val boundFunction: BoundFunction,
-    boundBody: BoundExecutable<*>?,
+    boundBody: BoundFunction.Body?,
 ) {
     protected val _parameters: List<IrVariableDeclaration> = boundFunction.parameters.parameters.map { it.backendIrDeclaration }
     protected val _returnType = boundFunction.returnType!!.toBackendIr()
@@ -20,14 +20,10 @@ internal abstract class IrFunctionImpl private constructor(
 
     protected val _body: IrCodeChunk = when (boundBody) {
         null -> IrCodeChunkImpl(emptyList())
-        is BoundFunction.Body.Full -> boundBody.code.toBackendIr()
+        is BoundFunction.Body.Full -> boundBody.code.toBackendIr() // TODO: implicit unit return
         is BoundFunction.Body.SingleExpression -> IrCodeChunkImpl(listOf(object : IrReturnStatement {
             override val value = boundBody.expression.toBackendIr()
         }))
-        else -> IrCodeChunkImpl(listOf(
-            boundBody.toBackendIr(),
-            // TODO: implicit unit return
-        ))
     }
 
     private class IrDeclaredFunctionImpl(

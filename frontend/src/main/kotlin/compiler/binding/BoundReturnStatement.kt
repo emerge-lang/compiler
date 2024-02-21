@@ -39,9 +39,6 @@ class BoundReturnStatement(
 
     val expression = declaration.expression?.bindTo(context)
 
-    var returnType: BoundTypeReference? = null
-        private set
-
     override val isGuaranteedToReturn = true // this is the core LoC that makes the property work big-scale
     override val mayReturn = true            // this is the core LoC that makes the property work big-scale
 
