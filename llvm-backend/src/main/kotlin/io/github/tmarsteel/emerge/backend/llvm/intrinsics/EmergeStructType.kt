@@ -62,7 +62,7 @@ internal class EmergeStructType private constructor(
                     .forEach {
                         val referenceAsPointer = getelementptr(self).member(it).get().dereference()
                             .reinterpretAs(PointerToAnyEmergeValue)
-                        referenceAsPointer.decrementStrongReferenceCount()
+                        referenceAsPointer.afterReferenceDropped()
                     }
                 call(context.freeFunction, listOf(self))
                 retVoid()
@@ -100,7 +100,7 @@ internal class EmergeStructType private constructor(
                 store(paramValue, memberPointer)
                 if (paramValue.type is LlvmPointerType<*> && paramValue.type.pointed is EmergeHeapAllocated) {
                     @Suppress("UNCHECKED_CAST")
-                    (paramValue as LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>).incrementStrongReferenceCount()
+                    (paramValue as LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>).afterReferenceCreated()
                 }
             }
             ret(heapAllocation)

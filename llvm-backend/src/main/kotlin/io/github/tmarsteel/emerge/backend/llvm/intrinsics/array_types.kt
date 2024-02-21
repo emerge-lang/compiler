@@ -377,7 +377,7 @@ private val referenceArrayFinalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmV
                     .dereference()
                 val elementIsNotNull = not(isNull(element))
                 conditionalBranch(elementIsNotNull, ifTrue = {
-                    element.decrementStrongReferenceCount()
+                    element.afterReferenceDropped()
                     concludeBranch()
                 })
 
