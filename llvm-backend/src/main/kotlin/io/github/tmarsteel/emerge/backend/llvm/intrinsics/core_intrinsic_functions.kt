@@ -37,19 +37,51 @@ internal val getSupertypePointers = KotlinLlvmFunction.define<LlvmContext, _>(
             .get()
             .dereference()
 
-        arrayPointer.afterReferenceCreated()
+        arrayPointer.afterReferenceCreated(false)
         return@body ret(arrayPointer)
     }
 }
 
+/**
+ * @param isNullable whether, according to the type information given by the frontend ([IrType.isNullable]),
+ * the reference is nullable. If true, a runtime null-check will be emitted.
+ */
 context(BasicBlockBuilder<*, *>)
-internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceCreated() {
+internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceCreated(
+    isNullable: Boolean,
+) {
+    if (isNullable) {
+        conditionalBranch(not(isNull(this)), ifTrue = {
+            afterReferenceCreated(false)
+            concludeBranch()
+        })
+        return
+    }
+
     val referenceCountPtr = this.anyValueBase().member { strongReferenceCount }.get()
 
     store(
         add(referenceCountPtr.dereference(), context.word(1)),
         referenceCountPtr,
     )
+}
+
+/**
+ * A no-op iff the [emergeType] is a value-type.
+ *
+ * Otherwise, increments the reference counter, potentially guarded by a null-check if [IrType.isNullable]
+ * is `true`.
+ */
+context(BasicBlockBuilder<*, *>)
+internal fun LlvmValue<out LlvmType>.afterReferenceCreated(
+    emergeType: IrType,
+) {
+    if (emergeType.llvmValueType != null) {
+        return
+    }
+
+    val asAnyRef = reinterpretAs(PointerToAnyEmergeValue)
+    asAnyRef.afterReferenceCreated(emergeType.isNullable)
 }
 
 // TODO for exceptions: add dropReferenceInCatch(ref: Any, throwable: Throwable)
@@ -99,17 +131,23 @@ internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceD
             call(dropReferenceFunction.getInContext(context), listOf(this@afterReferenceDropped))
             concludeBranch()
         })
-    } else {
-        call(dropReferenceFunction.getInContext(context), listOf(this@afterReferenceDropped))
+        return
     }
+
+    call(dropReferenceFunction.getInContext(context), listOf(this@afterReferenceDropped))
 }
 
+/**
+ * A no-op iff the [emergeType] is a value-type.
+ *
+ * Otherwise, emits a call to [dropReferenceFunction], potentially guarded by a null-check if [IrType.isNullable]
+ * is `true`.
+ */
 context(BasicBlockBuilder<*, *>)
 internal fun LlvmValue<out LlvmType>.afterReferenceDropped(
     emergeType: IrType,
 ) {
     if (emergeType.llvmValueType != null) {
-        // no action needed
         return
     }
 
