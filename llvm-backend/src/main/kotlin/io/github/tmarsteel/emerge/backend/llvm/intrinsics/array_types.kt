@@ -201,7 +201,7 @@ internal class EmergeArrayType<Element : LlvmType>(
     }
 }
 
-internal val valueArrayFinalize = KotlinLlvmFunction.define<LlvmContext, _>("valuearray_finalize", LlvmVoidType) {
+internal val valueArrayFinalize = KotlinLlvmFunction.define<LlvmContext, _>("emerge.platform.finalizeValueArray", LlvmVoidType) {
     param(PointerToAnyEmergeValue)
     body {
         // nothing to do. There are no references, just values, so no dropping needed
@@ -215,7 +215,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementGetter(
     getBoxType: EmergeLlvmContext.() -> EmergeStructType,
 ): KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>> {
     return KotlinLlvmFunction.define(
-        "valuearray_${typeName}_get_boxed",
+        "emerge.platform.valueArrayGetBoxed_${typeName}",
         PointerToAnyEmergeValue,
     ) {
         val self by param(pointerTo(getValueArrayType()))
@@ -240,7 +240,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementSetter(
     getBoxType: EmergeLlvmContext.() -> EmergeStructType,
 ): KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> {
     return KotlinLlvmFunction.define(
-        "valuearray_${typeName}_set_boxed",
+        "emerge.platform.valueArraySetBoxed_${typeName}",
         LlvmVoidType,
     ) {
         val arrayType = getValueArrayType()
@@ -311,7 +311,7 @@ internal val EmergeUWordArrayType = buildValueArrayType("uword", LlvmI8Type, Eme
 internal val EmergeBooleanArrayType = buildValueArrayType("bool", LlvmBooleanType, EmergeLlvmContext::boxTypeBoolean)
 
 private val referenceArrayElementGetter: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>> = KotlinLlvmFunction.define(
-    "refarray_get",
+    "emerge.platform.referenceArrayGet",
     PointerToAnyEmergeValue,
 ) {
     val self by param(pointerTo(EmergeReferenceArrayType))
@@ -329,7 +329,7 @@ private val referenceArrayElementGetter: KotlinLlvmFunction<EmergeLlvmContext, L
 }
 
 private val referenceArrayElementSetter: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
-    "refarray_set",
+    "emerge.platform.referenceArraySet",
     LlvmVoidType,
 ) {
     val self by param(pointerTo(EmergeReferenceArrayType))
@@ -348,7 +348,7 @@ private val referenceArrayElementSetter: KotlinLlvmFunction<EmergeLlvmContext, L
 }
 
 private val referenceArrayFinalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
-    "refarray_finalize",
+    "emerge.platform.referenceArrayFinalize",
     LlvmVoidType,
 ) {
     val self by param(pointerTo(EmergeReferenceArrayType))

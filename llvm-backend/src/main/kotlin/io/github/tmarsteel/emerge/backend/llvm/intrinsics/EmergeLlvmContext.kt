@@ -137,7 +137,7 @@ class EmergeLlvmContext(
                 unitType = emergeStructType
                 pointerToUnitInstance = addGlobal(undefValue(pointerTo(emergeStructType)), LlvmGlobal.ThreadLocalMode.SHARED)
                 addModuleInitFunction(KotlinLlvmFunction.define<_, _>(
-                    "init_unit",
+                    "emerge.platform.initUnit",
                     LlvmVoidType,
                 ) {
                     body {

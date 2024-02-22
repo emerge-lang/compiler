@@ -11,7 +11,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 
-internal val nullWeakReferences = KotlinLlvmFunction.define<LlvmContext, _>("emerge_null_weak_references", LlvmVoidType) {
+internal val nullWeakReferences = KotlinLlvmFunction.define<LlvmContext, _>("emerge.platform.nullWeakReferences", LlvmVoidType) {
     val self by param(PointerToAnyEmergeValue)
     body {
         // TODO: implement!
@@ -20,7 +20,7 @@ internal val nullWeakReferences = KotlinLlvmFunction.define<LlvmContext, _>("eme
 }
 
 internal val getSupertypePointers = KotlinLlvmFunction.define<LlvmContext, _>(
-    "getSupertypePointers",
+    "emerge.platform.getSupertypePointers",
     PointerToEmergeArrayOfPointersToTypeInfoType,
 ) {
     val inputRef by param(PointerToAnyEmergeValue)
@@ -50,7 +50,7 @@ internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceC
 }
 
 private val dropReferenceFunction = KotlinLlvmFunction.define<LlvmContext, _>(
-    "emerge_drop_reference",
+    "emerge.platform.dropReference",
     LlvmVoidType
 ) {
     val objectPtr by param(PointerToAnyEmergeValue)

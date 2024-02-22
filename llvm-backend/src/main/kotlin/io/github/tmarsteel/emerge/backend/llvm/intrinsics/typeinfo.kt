@@ -18,7 +18,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import org.bytedeco.llvm.global.LLVM
 
 internal val staticObjectFinalizer: KotlinLlvmFunction<LlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
-    "finalize_static",
+    "emerge.platform.finalizeStaticObject",
     LlvmVoidType,
 ) {
     val self by param(PointerToAnyEmergeValue)
@@ -40,7 +40,7 @@ internal object TypeinfoType : LlvmStructType("typeinfo") {
  * Getter function for [EmergeArrayOfPointersToTypeInfoType]
  */
 private val getter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<TypeinfoType>> = KotlinLlvmFunction.define(
-    "valuearray_pointers_to_typeinfo_get",
+    "emerge.platform.valueArrayOfPointersToTypeinfo_Get",
     pointerTo(TypeinfoType)
 ) {
     val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
@@ -61,7 +61,7 @@ private val getter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<Emerg
  * Setter function for [EmergeArrayOfPointersToTypeInfoType]
  */
 private val setter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
-    "valuearray_pointers_to_typeinfo_set",
+    "emerge.platform.valueArrayOfPointersToTypeinfo_Set",
     LlvmVoidType
 ) {
     val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
