@@ -244,6 +244,13 @@ class EmergeLlvmContext(
         }
 
         BasicBlockBuilder.fillBody(this, llvmFunction) {
+            for (param in fn.parameters) {
+                param.emitRead!!().afterReferenceCreated(param.type)
+                defer {
+                    param.emitRead!!().afterReferenceDropped(param.type)
+                }
+            }
+
             when (val codeResult = emitCode(fn.body)) {
                 is ExecutableResult.ImplicitUnit,
                 is ExecutableResult.Value -> {
