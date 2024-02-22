@@ -33,6 +33,13 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun isNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
     fun not(value: LlvmValue<LlvmBooleanType>): LlvmValue<LlvmBooleanType>
 
+    /**
+     * @param code will be executed when this scope is closed, either on a function-terminating instruction
+     * or when a logical scope is completed (e.g. [conditionalBranch], [loop])
+     * TODO: encode into the type of [code] that defer cannot be called there again. Maybe it even throws a ConcurrentModificationException?
+     */
+    fun defer(code: NonTerminalCodeGenerator<C>)
+
     fun ret(value: LlvmValue<R>): Termination
     fun unreachable(): Pair<Termination, LlvmValue<LlvmVoidType>>
 
@@ -82,10 +89,11 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
             val rawFn = function.address.raw
             val entryBlock = LLVM.LLVMAppendBasicBlockInContext(context.ref, rawFn, "entry")
 
+            val scopeTracker = ScopeTracker<C>()
             val builder = LLVM.LLVMCreateBuilderInContext(context.ref)
             LLVM.LLVMPositionBuilderAtEnd(builder, entryBlock)
             try {
-                val dslBuilder = BasicBlockBuilderImpl<C, R>(context, rawFn, builder, NameScope("tmp"))
+                val dslBuilder = BasicBlockBuilderImpl<C, R>(context, rawFn, builder, NameScope("tmp"), scopeTracker)
                 dslBuilder.code()
             }
             finally {
@@ -93,7 +101,10 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
             }
         }
 
-        fun BasicBlockBuilder<*, LlvmVoidType>.retVoid(): Termination {
+        fun <C : LlvmContext> BasicBlockBuilder<C, LlvmVoidType>.retVoid(): Termination {
+            with(this as BasicBlockBuilderImpl<C, *>) {
+                this.scopeTracker.runAllFunctionDeferredCode()
+            }
             LLVM.LLVMBuildRetVoid(builder)
             return TerminationImpl
         }
@@ -105,6 +116,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     val owningFunction: LLVMValueRef,
     override val builder: LLVMBuilderRef,
     val tmpVars: NameScope,
+    val scopeTracker: ScopeTracker<C>,
 ) : BasicBlockBuilder<C, R> {
 
     override fun <BasePointee : LlvmType> getelementptr(
@@ -223,7 +235,12 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         return LlvmValue(inst, LlvmBooleanType)
     }
 
+    override fun defer(code: NonTerminalCodeGenerator<C>) {
+        scopeTracker.addDeferredStatement(code)
+    }
+
     override fun ret(value: LlvmValue<R>): BasicBlockBuilder.Termination {
+        scopeTracker.runAllFunctionDeferredCode()
         LLVM.LLVMBuildRet(builder, value.raw)
 
         return TerminationImpl
@@ -256,12 +273,13 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         }
 
         LLVM.LLVMPositionBuilderAtEnd(builder, thenBlock)
-        val branchBuilder = BranchImpl<C, R>(context, owningFunction, builder, tmpVars, continueBlock)
-        branchBuilder.ifTrue()
+        val thenBranchBuilder = BranchImpl<C, R>(context, owningFunction, builder, tmpVars, scopeTracker.createSubScope(), continueBlock)
+        thenBranchBuilder.ifTrue()
 
         if (ifFalse != null) {
+            val elseBranchBuilder = BranchImpl<C, R>(context, owningFunction, builder, tmpVars, scopeTracker.createSubScope(), continueBlock)
             LLVM.LLVMPositionBuilderAtEnd(builder, elseBlock)
-            branchBuilder.ifFalse()
+            elseBranchBuilder.ifFalse()
         }
 
         LLVM.LLVMPositionBuilderAtEnd(builder, continueBlock)
@@ -280,11 +298,11 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         LLVM.LLVMBuildBr(builder, headerBlock)
 
         LLVM.LLVMPositionBuilderAtEnd(builder, headerBlock)
-        val headerDslBuilder = LoopImpl<C, R>(context, owningFunction, builder, tmpVars, headerBlock, bodyBlock, continueBlock)
+        val headerDslBuilder = LoopImpl<C, R>(context, owningFunction, builder, tmpVars, scopeTracker.createSubScope(), headerBlock, bodyBlock, continueBlock)
         headerDslBuilder.header()
 
         LLVM.LLVMPositionBuilderAtEnd(builder, bodyBlock)
-        val bodyDslBuilder = LoopImpl<C, R>(context, owningFunction, builder, tmpVars, headerBlock, bodyBlock, continueBlock)
+        val bodyDslBuilder = LoopImpl<C, R>(context, owningFunction, builder, tmpVars, scopeTracker.createSubScope(), headerBlock, bodyBlock, continueBlock)
         bodyDslBuilder.body()
 
         LLVM.LLVMPositionBuilderAtEnd(builder, continueBlock)
@@ -297,9 +315,11 @@ private class BranchImpl<C : LlvmContext, R : LlvmType>(
     owningFunction: LLVMValueRef,
     builder: LLVMBuilderRef,
     tmpVars: NameScope,
+    scopeTracker: ScopeTracker<C>,
     val continueBlock: LLVMBasicBlockRef,
-) : BasicBlockBuilderImpl<C, R>(context, owningFunction, builder, tmpVars), BasicBlockBuilder.Branch<C, R> {
+) : BasicBlockBuilderImpl<C, R>(context, owningFunction, builder, tmpVars, scopeTracker), BasicBlockBuilder.Branch<C, R> {
     override fun concludeBranch(): BasicBlockBuilder.Termination {
+        scopeTracker.runLocalDeferredCode()
         LLVM.LLVMBuildBr(builder, continueBlock)
         return TerminationImpl
     }
@@ -310,21 +330,25 @@ private class LoopImpl<C : LlvmContext, R : LlvmType>(
     owningFunction: LLVMValueRef,
     builder: LLVMBuilderRef,
     tmpVars: NameScope,
+    scopeTracker: ScopeTracker<C>,
     val headerBlockRef: LLVMBasicBlockRef,
     val bodyBlockRef: LLVMBasicBlockRef,
     val continueBlock: LLVMBasicBlockRef,
-) : BasicBlockBuilderImpl<C, R>(context, owningFunction, builder, tmpVars), BasicBlockBuilder.LoopHeader<C, R>, BasicBlockBuilder.LoopBody<C, R> {
+) : BasicBlockBuilderImpl<C, R>(context, owningFunction, builder, tmpVars, scopeTracker), BasicBlockBuilder.LoopHeader<C, R>, BasicBlockBuilder.LoopBody<C, R> {
     override fun breakLoop(): BasicBlockBuilder.Termination {
+        scopeTracker.runLocalDeferredCode()
         LLVM.LLVMBuildBr(builder, continueBlock)
         return TerminationImpl
     }
 
     override fun doIteration(): BasicBlockBuilder.Termination {
+        scopeTracker.runLocalDeferredCode()
         LLVM.LLVMBuildBr(builder, bodyBlockRef)
         return TerminationImpl
     }
 
     override fun loopContinue(): BasicBlockBuilder.Termination {
+        scopeTracker.runLocalDeferredCode()
         LLVM.LLVMBuildBr(builder, headerBlockRef)
         return TerminationImpl
     }
@@ -333,6 +357,12 @@ private class LoopImpl<C : LlvmContext, R : LlvmType>(
 private data object TerminationImpl : BasicBlockBuilder.Termination
 
 typealias CodeGenerator<C, R> = BasicBlockBuilder<C, R>.() -> BasicBlockBuilder.Termination
+
+/**
+ * code to execute before the scope exits, must not emit terminal instructions.
+ * TODO: build the "no terminals" limitation into the type of the lambda, e.g. BasicBlockBuilder.NonTerminal<C, R>
+ */
+typealias NonTerminalCodeGenerator<C> = BasicBlockBuilder<C, *>.() -> Unit
 
 enum class IntegerComparison(val numeric: Int) {
     EQUAL(LLVM.LLVMIntEQ),
@@ -345,4 +375,29 @@ enum class IntegerComparison(val numeric: Int) {
     SIGNED_GREATER_THAN_OR_EQUAL(LLVM.LLVMIntSGE),
     SIGNED_LESS_THAN(LLVM.LLVMIntSLT),
     SIGNED_LESS_THAN_OR_EQUAL(LLVM.LLVMIntSLE),
+}
+
+private class ScopeTracker<C : LlvmContext> private constructor(private val parent: ScopeTracker<C>?) {
+    constructor() : this(null) {}
+
+    private val deferredCode = ArrayList<NonTerminalCodeGenerator<C>>()
+
+    fun addDeferredStatement(code: NonTerminalCodeGenerator<C>) {
+        deferredCode.add(code)
+    }
+
+    fun createSubScope(): ScopeTracker<C> = ScopeTracker(this)
+
+    context(BasicBlockBuilder<C, *>)
+    fun runLocalDeferredCode() {
+        deferredCode.forEach {
+            it(this@BasicBlockBuilder)
+        }
+    }
+
+    context(BasicBlockBuilder<C, *>)
+    fun runAllFunctionDeferredCode() {
+        parent?.runAllFunctionDeferredCode()
+        runLocalDeferredCode()
+    }
 }
