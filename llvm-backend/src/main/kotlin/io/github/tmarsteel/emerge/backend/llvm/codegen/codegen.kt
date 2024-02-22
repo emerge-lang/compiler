@@ -136,7 +136,6 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCodeIg
 ) {
     val result = emitExpressionCodeInternal(expression, false)
     if (result is ExpressionResult.Value<*>) {
-        // TODO: don't drop void
         result.value.afterReferenceDropped(expression.evaluatesTo)
     }
 }

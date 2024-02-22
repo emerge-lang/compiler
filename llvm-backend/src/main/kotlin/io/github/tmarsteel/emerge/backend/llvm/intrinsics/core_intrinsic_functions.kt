@@ -76,7 +76,7 @@ context(BasicBlockBuilder<*, *>)
 internal fun LlvmValue<out LlvmType>.afterReferenceCreated(
     emergeType: IrType,
 ) {
-    if (emergeType.llvmValueType != null) {
+    if (emergeType.llvmValueType != null || type == LlvmVoidType) {
         return
     }
 
@@ -147,7 +147,7 @@ context(BasicBlockBuilder<*, *>)
 internal fun LlvmValue<out LlvmType>.afterReferenceDropped(
     emergeType: IrType,
 ) {
-    if (emergeType.llvmValueType != null) {
+    if (emergeType.llvmValueType != null || type == LlvmVoidType) {
         return
     }
 
