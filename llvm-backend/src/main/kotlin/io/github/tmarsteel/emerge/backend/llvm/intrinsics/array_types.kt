@@ -375,11 +375,7 @@ private val referenceArrayFinalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmV
                     .index(currentIndex)
                     .get()
                     .dereference()
-                val elementIsNotNull = not(isNull(element))
-                conditionalBranch(elementIsNotNull, ifTrue = {
-                    element.afterReferenceDropped()
-                    concludeBranch()
-                })
+                element.afterReferenceDropped(isNullable = true)
 
                 val nextIndex = add(currentIndex, context.word(1))
                 store(nextIndex, indexStackSlot)

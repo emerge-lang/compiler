@@ -1,5 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
@@ -8,8 +9,10 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.IntegerComparison
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
+import io.github.tmarsteel.emerge.backend.llvm.llvmValueType
 
 internal val nullWeakReferences = KotlinLlvmFunction.define<LlvmContext, _>("emerge.platform.nullWeakReferences", LlvmVoidType) {
     val self by param(PointerToAnyEmergeValue)
@@ -49,6 +52,7 @@ internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceC
     )
 }
 
+// TODO for exceptions: add dropReferenceInCatch(ref: Any, throwable: Throwable)
 private val dropReferenceFunction = KotlinLlvmFunction.define<LlvmContext, _>(
     "emerge.platform.dropReference",
     LlvmVoidType
@@ -82,7 +86,32 @@ private val dropReferenceFunction = KotlinLlvmFunction.define<LlvmContext, _>(
     }
 }
 
+/**
+ * @param isNullable whether, according to the type information given by the frontend ([IrType.isNullable]),
+ * the reference is nullable. If true, a runtime null-check will be emitted.
+ */
 context(BasicBlockBuilder<*, *>)
-internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceDropped() {
-    call(dropReferenceFunction.getInContext(context), listOf(this@afterReferenceDropped))
+internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceDropped(
+    isNullable: Boolean,
+) {
+    if (isNullable) {
+        conditionalBranch(condition = not(isNull(this)), ifTrue = {
+            call(dropReferenceFunction.getInContext(context), listOf(this@afterReferenceDropped))
+            concludeBranch()
+        })
+    } else {
+        call(dropReferenceFunction.getInContext(context), listOf(this@afterReferenceDropped))
+    }
+}
+
+context(BasicBlockBuilder<*, *>)
+internal fun LlvmValue<out LlvmType>.afterReferenceDropped(
+    emergeType: IrType,
+) {
+    if (emergeType.llvmValueType != null) {
+        // no action needed
+        return
+    }
+
+    this.reinterpretAs(PointerToAnyEmergeValue).afterReferenceDropped(emergeType.isNullable)
 }

@@ -220,7 +220,7 @@ class RootResolvedTypeReference private constructor(
     }
 
     override fun toBackendIr(): IrType {
-        val raw = IrSimpleTypeImpl(baseType.toBackendIr())
+        val raw = IrSimpleTypeImpl(baseType.toBackendIr(), isNullable)
         if (arguments.isEmpty()) {
             return raw
         }
@@ -259,7 +259,8 @@ class RootResolvedTypeReference private constructor(
 }
 
 private class IrSimpleTypeImpl(
-    override val baseType: IrBaseType
+    override val baseType: IrBaseType,
+    override val isNullable: Boolean,
 ) : IrSimpleType {
     override fun toString() = "IrSimpleType[${baseType.fqn}]"
 }

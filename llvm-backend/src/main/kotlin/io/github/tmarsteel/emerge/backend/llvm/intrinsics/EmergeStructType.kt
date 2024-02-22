@@ -62,7 +62,7 @@ internal class EmergeStructType private constructor(
                     .forEach {
                         val referenceAsPointer = getelementptr(self).member(it).get().dereference()
                             .reinterpretAs(PointerToAnyEmergeValue)
-                        referenceAsPointer.afterReferenceDropped()
+                        referenceAsPointer.afterReferenceDropped(it.type)
                     }
                 call(context.freeFunction, listOf(self))
                 retVoid()
