@@ -32,6 +32,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i16
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i64
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
+import io.github.tmarsteel.emerge.backend.llvm.indexed
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS8ArrayType
@@ -45,11 +46,14 @@ import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.tackState
 
 internal sealed interface ExecutableResult {
-    class Terminated(val termination: BasicBlockBuilder.Termination) : ExecutableResult
     object ImplicitUnit : ExecutableResult
-    class Value(
-        val value: LlvmValue<*>,
-    ) : ExecutableResult
+}
+
+internal sealed interface ExpressionResult<out T : LlvmType> : ExecutableResult {
+    class Terminated(val termination: BasicBlockBuilder.Termination) : ExpressionResult<Nothing>
+    class Value<T : LlvmType>(
+        val value: LlvmValue<T>,
+    ) : ExpressionResult<T>
 }
 
 internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
@@ -79,10 +83,21 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             return ExecutableResult.ImplicitUnit
         }
         is IrAssignmentStatement -> {
-            val toAssign = emitExpressionCode(code.value)
+            val toAssign = when (val assigneeResult = emitExpressionCode(code.value)) {
+                is ExpressionResult.Value<*> -> assigneeResult.value
+                is ExpressionResult.Terminated -> return assigneeResult
+            }
             when (val localTarget = code.target) {
                 is IrVariableReferenceExpression -> localTarget.variable.emitWrite!!(this, toAssign)
-                is IrStructMemberAccessExpression -> store(toAssign, localTarget.getPointerToStructMember())
+                is IrStructMemberAccessExpression -> {
+                    val memberPointerResult = localTarget.getPointerToStructMember()
+                    if (memberPointerResult is ExpressionResult.Value) {
+                        store(toAssign, memberPointerResult.value)
+                    } else {
+                        return memberPointerResult
+                    }
+
+                }
                 is IrNullLiteralExpression,
                 is IrIntegerLiteralExpression,
                 is IrBooleanLiteralExpression,
@@ -96,9 +111,12 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         }
         is IrReturnStatement -> {
             // TODO: unit return to unit declaration
-            val toReturn = emitExpressionCode(code.value)
+            val toReturn = when (val returneeResult = emitExpressionCode(code.value)) {
+                is ExpressionResult.Value -> returneeResult.value
+                is ExpressionResult.Terminated -> return returneeResult
+            }
             toReturn.afterReferenceCreated(code.value.evaluatesTo)
-            return ExecutableResult.Terminated(ret(toReturn))
+            return ExpressionResult.Terminated(ret(toReturn))
         }
         is IrExpression -> {
             emitExpressionCodeIgnoringResult(code)
@@ -109,33 +127,48 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
 
 internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
     expression: IrExpression,
-): LlvmValue<LlvmType> {
-    return emitExpressionCodeInternal(expression, true)!!
+): ExpressionResult<*> {
+    return emitExpressionCodeInternal(expression, true)
 }
 
 internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCodeIgnoringResult(
     expression: IrExpression,
-): Unit {
-    emitExpressionCodeInternal(expression, false)
+) {
+    val result = emitExpressionCodeInternal(expression, false)
+    if (result is ExpressionResult.Value<*>) {
+        // TODO: don't drop void
+        result.value.afterReferenceDropped(expression.evaluatesTo)
+    }
 }
 
 private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCodeInternal(
     expression: IrExpression,
     evaluationResultUsed: Boolean,
-): LlvmValue<LlvmType>? {
+): ExpressionResult<*> {
     when (expression) {
         is IrStringLiteralExpression -> {
             val llvmStructWrapper = context.getAllocationSiteType(expression.evaluatesTo) as EmergeStructType
             val byteArrayPtr = expression.assureByteArrayConstantIn(context)
             val ctor = llvmStructWrapper.defaultConstructor.getInContext(context)
-            return call(ctor, listOf(byteArrayPtr))
+            return ExpressionResult.Value(
+                call(ctor, listOf(byteArrayPtr))
+            )
         }
-        is IrStructMemberAccessExpression -> return expression.getPointerToStructMember().dereference()
+        is IrStructMemberAccessExpression -> return when (val memberPointeResult = expression.getPointerToStructMember()) {
+            is ExpressionResult.Value<LlvmPointerType<LlvmType>> -> ExpressionResult.Value(memberPointeResult.value.dereference())
+            is ExpressionResult.Terminated -> memberPointeResult
+        }
         is IrStaticDispatchFunctionInvocationExpression -> {
-            return call(expression.function.llvmRef!!, expression.arguments.map { emitExpressionCode(it) })
+            val arguments = expression.arguments.map {
+                // if this is not a value, then the frontend fucked something up!
+                (emitExpressionCode(it) as ExpressionResult.Value).value
+            }
+            return ExpressionResult.Value(
+                call(expression.function.llvmRef!!, arguments)
+            )
         }
-        is IrVariableReferenceExpression -> return expression.variable.emitRead!!()
-        is IrIntegerLiteralExpression -> return if (!evaluationResultUsed) null else when ((expression.evaluatesTo as IrSimpleType).baseType.fqn.toString()) {
+        is IrVariableReferenceExpression -> return ExpressionResult.Value(expression.variable.emitRead!!())
+        is IrIntegerLiteralExpression -> return ExpressionResult.Value(when ((expression.evaluatesTo as IrSimpleType).baseType.fqn.toString()) {
             "emerge.core.Byte" -> context.i8(expression.value.byteValueExact())
             "emerge.core.UByte" -> context.i8(expression.value.shortValueExact().toUByte())
             "emerge.core.Short" -> context.i16(expression.value.shortValueExact())
@@ -147,15 +180,18 @@ private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCodeInt
             "emerge.core.iword" -> context.word(expression.value.longValueExact())
             "emerge.core.uword" -> context.word(expression.value.toLong())
             else -> throw CodeGenerationException("Unsupported integer literal type ${expression.evaluatesTo}")
-        }
-        is IrBooleanLiteralExpression -> return if (evaluationResultUsed) context.i1(expression.value) else null
-        is IrNullLiteralExpression -> return if (evaluationResultUsed) context.nullValue(context.getReferenceSiteType(expression.evaluatesTo)) else null
+        })
+        is IrBooleanLiteralExpression -> return ExpressionResult.Value(context.i1(expression.value))
+        is IrNullLiteralExpression -> return ExpressionResult.Value(context.nullValue(context.getReferenceSiteType(expression.evaluatesTo)))
         is IrArrayLiteralExpression -> {
             val elementCount = context.word(expression.elements.size)
             val arrayType = context.getAllocationSiteType(expression.evaluatesTo) as EmergeArrayType<*>
             val arrayPtr = call(arrayType.constructorOfUndefEntries.getInContext(context), listOf(elementCount))
-            expression.elements.forEachIndexed { index, elementExpr ->
-                val elementValue = emitExpressionCode(elementExpr).reinterpretAs(arrayType.elementType)
+            for ((index, elementExpr) in expression.elements.indexed()) {
+                val elementValue = when (val elementExprResult = emitExpressionCode(elementExpr)) {
+                    is ExpressionResult.Value -> elementExprResult.value.reinterpretAs(arrayType.elementType)
+                    is ExpressionResult.Terminated -> return elementExprResult
+                }
                 val slotPtr = getelementptr(arrayPtr)
                     .member { elements }
                     .index(context.word(index))
@@ -163,70 +199,76 @@ private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCodeInt
                 store(elementValue, slotPtr)
             }
 
-            return arrayPtr
+            return ExpressionResult.Value(arrayPtr)
         }
         is IrIfExpression -> {
-            val condition = emitExpressionCode(expression.condition)
-            check(condition.type === LlvmBooleanType)
+            val conditionValue = when (val conditionResult = emitExpressionCode(expression.condition)) {
+                is ExpressionResult.Value -> conditionResult.value
+                is ExpressionResult.Terminated -> return conditionResult
+            }
+            check(conditionValue.type === LlvmBooleanType)
             @Suppress("UNCHECKED_CAST")
-            condition as LlvmValue<LlvmBooleanType>
+            conditionValue as LlvmValue<LlvmBooleanType>
 
             if (expression.elseBranch == null) {
+                check(!evaluationResultUsed) {
+                    "Cannot use an if as an expression when it doesn't define an else branch"
+                }
                 conditionalBranch(
-                    condition = condition,
+                    condition = conditionValue,
                     ifTrue = thenBranch@{
                         val branchResult = this@thenBranch.emitCode(expression.thenBranch)
-                        (branchResult as? ExecutableResult.Terminated)?.termination ?: concludeBranch()
+                        (branchResult as? ExpressionResult.Terminated)?.termination ?: concludeBranch()
                     }
                 )
-                return if (evaluationResultUsed) context.pointerToUnitInstance.dereference() else null
-            }
-
-            if (!evaluationResultUsed) {
-                val elseBuilder: (BasicBlockBuilder.Branch<EmergeLlvmContext, LlvmType>.() -> BasicBlockBuilder.Termination) = elseBranch@{
-                    val branchResult = this@elseBranch.emitCode(expression.elseBranch!!)
-                    (branchResult as? ExecutableResult.Terminated)?.termination ?: concludeBranch()
-                }
-
-                conditionalBranch(
-                    condition = condition,
-                    ifTrue = thenBranch@{
-                        val branchResult = this@thenBranch.emitCode(expression.thenBranch)
-                        (branchResult as? ExecutableResult.Terminated)?.termination ?: concludeBranch()
-                    },
-                    ifFalse = elseBuilder.takeIf { expression.elseBranch != null },
-                )
-                return null
+                return ExpressionResult.Value(context.pointerToPointerToUnitInstance.dereference())
             }
 
             val valueHolder = alloca(context.getReferenceSiteType(expression.evaluatesTo))
 
+            val thenEmitter = BranchEmitter(expression.thenBranch, valueHolder)
+            val elseEmitter = BranchEmitter(expression.elseBranch!!, valueHolder)
+
             conditionalBranch(
-                condition = condition,
-                ifTrue = branchEmitter(expression.thenBranch, valueHolder),
-                ifFalse = branchEmitter(expression.elseBranch!!, valueHolder),
+                condition = conditionValue,
+                ifTrue = thenEmitter.generatorFn,
+                ifFalse = elseEmitter.generatorFn,
             )
-            return valueHolder.dereference()
+
+            if (thenEmitter.branchResult is ExpressionResult.Terminated && elseEmitter.branchResult is ExpressionResult.Terminated) {
+                return ExpressionResult.Terminated(unreachable().first)
+            }
+
+            return ExpressionResult.Value(valueHolder.dereference())
         }
         is IrNotReallyAnExpression -> throw CodeGenerationException("Cannot emit expression evaluation code for an ${expression::class.simpleName}")
     }
 }
 
-private fun branchEmitter(
-    branchCode: IrExecutable,
-    valueStorage: LlvmValue<LlvmPointerType<LlvmType>>,
-): BasicBlockBuilder.Branch<EmergeLlvmContext, LlvmType>.() -> BasicBlockBuilder.Termination {
-    return {
-        when (val branchResult = emitCode(branchCode)) {
+private class BranchEmitter(
+    val branchCode: IrExecutable,
+    val valueStorage: LlvmValue<LlvmPointerType<LlvmType>>?,
+) {
+    lateinit var branchResult: ExecutableResult
+        private set
+
+    val generatorFn: BasicBlockBuilder.Branch<EmergeLlvmContext, LlvmType>.() -> BasicBlockBuilder.Termination = {
+        val localBranchResult = emitCode(branchCode)
+        branchResult = localBranchResult
+        when (localBranchResult) {
             is ExecutableResult.ImplicitUnit -> {
-                store(context.pointerToUnitInstance.dereference(), valueStorage)
+                if (valueStorage != null) {
+                    store(context.pointerToPointerToUnitInstance.dereference(), valueStorage)
+                }
                 concludeBranch()
             }
-            is ExecutableResult.Value -> {
-                store(branchResult.value, valueStorage)
+            is ExpressionResult.Value<*> -> {
+                if (valueStorage != null) {
+                    store(localBranchResult.value, valueStorage)
+                }
                 concludeBranch()
             }
-            is ExecutableResult.Terminated -> branchResult.termination
+            is ExpressionResult.Terminated -> localBranchResult.termination
         }
     }
 }
@@ -260,19 +302,24 @@ internal fun IrStringLiteralExpression.assureByteArrayConstantIn(context: Emerge
 }
 
 context(BasicBlockBuilder<EmergeLlvmContext, LlvmType>)
-private fun IrStructMemberAccessExpression.getPointerToStructMember(): LlvmValue<LlvmPointerType<LlvmType>> {
-    val baseStructPtr = emitExpressionCode(this.base)
-    check(baseStructPtr.type is LlvmPointerType<*>)
-
+private fun IrStructMemberAccessExpression.getPointerToStructMember(): ExpressionResult<LlvmPointerType<LlvmType>> {
     if (member.isCPointerPointed) {
-        return baseStructPtr as LlvmValue<LlvmPointerType<LlvmType>>
+        return emitExpressionCode(this.base) as ExpressionResult<LlvmPointerType<LlvmType>>
     }
+
+    val baseStructPtr = when (val baseExprResult = emitExpressionCode(this.base)) {
+        is ExpressionResult.Value<*> -> baseExprResult.value
+        is ExpressionResult.Terminated -> return baseExprResult
+    }
+    check(baseStructPtr.type is LlvmPointerType<*>)
 
     check(baseStructPtr.type.pointed is EmergeStructType)
     @Suppress("UNCHECKED_CAST")
     baseStructPtr as LlvmValue<LlvmPointerType<EmergeStructType>>
 
-    return getelementptr(baseStructPtr)
-        .member(this.member)
-        .get()
+    return ExpressionResult.Value(
+        getelementptr(baseStructPtr)
+            .member(this.member)
+            .get()
+    )
 }

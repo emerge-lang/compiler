@@ -16,6 +16,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.backend.llvm.bodyDefined
 import io.github.tmarsteel.emerge.backend.llvm.codegen.ExecutableResult
+import io.github.tmarsteel.emerge.backend.llvm.codegen.ExpressionResult
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitCode
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitExpressionCode
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitRead
@@ -100,7 +101,7 @@ class EmergeLlvmContext(
 
     /** `emerge.core.Unit` */
     internal lateinit var unitType: EmergeStructType
-    internal lateinit var pointerToUnitInstance: LlvmGlobal<LlvmPointerType<EmergeStructType>>
+    internal lateinit var pointerToPointerToUnitInstance: LlvmGlobal<LlvmPointerType<EmergeStructType>>
 
     private val emergeStructs = ArrayList<EmergeStructType>()
 
@@ -135,14 +136,14 @@ class EmergeLlvmContext(
             "emerge.platform.UWordBox" -> boxTypeUWord = emergeStructType
             "emerge.core.Unit" -> {
                 unitType = emergeStructType
-                pointerToUnitInstance = addGlobal(undefValue(pointerTo(emergeStructType)), LlvmGlobal.ThreadLocalMode.SHARED)
-                addModuleInitFunction(KotlinLlvmFunction.define<_, _>(
+                pointerToPointerToUnitInstance = addGlobal(undefValue(pointerTo(emergeStructType)), LlvmGlobal.ThreadLocalMode.SHARED)
+                addModuleInitFunction(KotlinLlvmFunction.define(
                     "emerge.platform.initUnit",
                     LlvmVoidType,
                 ) {
                     body {
                         val p = call(emergeStructType.defaultConstructor.getInContext(context), emptyList())
-                        store(p, pointerToUnitInstance)
+                        store(p, pointerToPointerToUnitInstance)
                         retVoid()
                     }
                 }.getInContext(this))
@@ -253,10 +254,10 @@ class EmergeLlvmContext(
 
             when (val codeResult = emitCode(fn.body)) {
                 is ExecutableResult.ImplicitUnit,
-                is ExecutableResult.Value -> {
+                is ExpressionResult.Value<*> -> {
                     (this as BasicBlockBuilder<*, LlvmVoidType>).retVoid()
                 }
-                is ExecutableResult.Terminated -> {
+                is ExpressionResult.Terminated -> {
                     codeResult.termination
                 }
             }
@@ -289,9 +290,15 @@ class EmergeLlvmContext(
             LlvmVoidType,
         ) {
             body {
-                globalVariableInitializers.forEach {
+                for ((global, initializer) in globalVariableInitializers) {
                     (this as BasicBlockBuilder<EmergeLlvmContext, LlvmType>)
-                    it.first.emitWrite!!(emitExpressionCode(it.second))
+                    val initResult = emitExpressionCode(initializer)
+                    if (initResult is ExpressionResult.Value) {
+                        global.emitWrite!!(initResult.value)
+                    } else {
+                        check(initResult is ExpressionResult.Terminated)
+                        return@body initResult.termination
+                    }
                 }
                 retVoid()
             }
