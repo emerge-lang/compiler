@@ -37,6 +37,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS8ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType.Companion.member
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceDropped
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
@@ -70,6 +71,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             }
             code.emitWrite = { newValue ->
                 store(newValue, stackAllocation)
+            }
+            defer {
+                stackAllocation.afterReferenceDropped(code.type)
             }
             return ExecutableResult.ImplicitUnit
         }
@@ -168,8 +172,8 @@ private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCodeInt
             if (expression.elseBranch == null) {
                 conditionalBranch(
                     condition = condition,
-                    ifTrue = {
-                        emitCode(expression.thenBranch)
+                    ifTrue = thenBranch@{
+                        this@thenBranch.emitCode(expression.thenBranch)
                         concludeBranch()
                     }
                 )
@@ -177,15 +181,15 @@ private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCodeInt
             }
 
             if (!evaluationResultUsed) {
-                val elseBuilder: (BasicBlockBuilder.Branch<EmergeLlvmContext, *>.() -> BasicBlockBuilder.Termination) = {
-                    emitCode(expression.elseBranch!!)
+                val elseBuilder: (BasicBlockBuilder.Branch<EmergeLlvmContext, LlvmType>.() -> BasicBlockBuilder.Termination) = elseBranch@{
+                    this@elseBranch.emitCode(expression.elseBranch!!)
                     concludeBranch()
                 }
 
                 conditionalBranch(
                     condition = condition,
-                    ifTrue = {
-                        emitCode(expression.thenBranch)
+                    ifTrue = thenBranch@{
+                        this@thenBranch.emitCode(expression.thenBranch)
                         concludeBranch()
                     },
                     ifFalse = elseBuilder.takeIf { expression.elseBranch != null },
