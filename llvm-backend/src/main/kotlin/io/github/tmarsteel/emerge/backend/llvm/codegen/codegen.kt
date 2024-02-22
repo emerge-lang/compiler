@@ -175,8 +175,8 @@ private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCodeInt
                 conditionalBranch(
                     condition = condition,
                     ifTrue = thenBranch@{
-                        this@thenBranch.emitCode(expression.thenBranch)
-                        concludeBranch()
+                        val branchResult = this@thenBranch.emitCode(expression.thenBranch)
+                        (branchResult as? ExecutableResult.Terminated)?.termination ?: concludeBranch()
                     }
                 )
                 return if (evaluationResultUsed) context.pointerToUnitInstance.dereference() else null
@@ -184,15 +184,15 @@ private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCodeInt
 
             if (!evaluationResultUsed) {
                 val elseBuilder: (BasicBlockBuilder.Branch<EmergeLlvmContext, LlvmType>.() -> BasicBlockBuilder.Termination) = elseBranch@{
-                    this@elseBranch.emitCode(expression.elseBranch!!)
-                    concludeBranch()
+                    val branchResult = this@elseBranch.emitCode(expression.elseBranch!!)
+                    (branchResult as? ExecutableResult.Terminated)?.termination ?: concludeBranch()
                 }
 
                 conditionalBranch(
                     condition = condition,
                     ifTrue = thenBranch@{
-                        this@thenBranch.emitCode(expression.thenBranch)
-                        concludeBranch()
+                        val branchResult = this@thenBranch.emitCode(expression.thenBranch)
+                        (branchResult as? ExecutableResult.Terminated)?.termination ?: concludeBranch()
                     },
                     ifFalse = elseBuilder.takeIf { expression.elseBranch != null },
                 )
