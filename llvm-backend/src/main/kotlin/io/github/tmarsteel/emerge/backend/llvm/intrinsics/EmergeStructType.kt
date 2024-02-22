@@ -98,10 +98,7 @@ internal class EmergeStructType private constructor(
                 val memberPointer = getelementptr(heapAllocation).member(irStructMember).get()
                 val paramValue = llvmParam.getValue(null, String::length)
                 store(paramValue, memberPointer)
-                if (paramValue.type is LlvmPointerType<*> && paramValue.type.pointed is EmergeHeapAllocated) {
-                    @Suppress("UNCHECKED_CAST")
-                    (paramValue as LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>).afterReferenceCreated()
-                }
+                paramValue.afterReferenceCreated(irStructMember.type)
             }
             ret(heapAllocation)
         }
