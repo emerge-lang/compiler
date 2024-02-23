@@ -88,7 +88,13 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 is ExpressionResult.Terminated -> return assigneeResult
             }
             when (val localTarget = code.target) {
-                is IrVariableReferenceExpression -> localTarget.variable.emitWrite!!(this, toAssign)
+                is IrVariableReferenceExpression -> {
+                    if (localTarget.isInitialized) {
+                        localTarget.variable.emitRead!!(this).afterReferenceDropped(localTarget.evaluatesTo)
+                    }
+                    localTarget.variable.emitWrite!!(this, toAssign)
+                    toAssign.afterReferenceCreated(code.value.evaluatesTo)
+                }
                 is IrStructMemberAccessExpression -> {
                     val memberPointerResult = localTarget.getPointerToStructMember()
                     if (memberPointerResult is ExpressionResult.Value) {
