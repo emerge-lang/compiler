@@ -147,7 +147,10 @@ class BoundIdentifierExpression(
 
     private val _backendIr by lazy {
         (referral as? ReferringVariable)?.let { referral ->
-            IrVariableReferenceExpressionImpl(referral.variable.backendIrDeclaration)
+            IrVariableReferenceExpressionImpl(
+                referral.variable.backendIrDeclaration,
+                referral.variable.isInitializedInContext(context),
+            )
         } ?: TODO("implement type references")
     }
 
@@ -161,4 +164,5 @@ class BoundIdentifierExpression(
 
 internal class IrVariableReferenceExpressionImpl(
     override val variable: IrVariableDeclaration,
+    override val isInitialized: Boolean,
 ) : IrVariableReferenceExpression

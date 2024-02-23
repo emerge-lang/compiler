@@ -261,7 +261,7 @@ class BoundVariable(
         return IrCodeChunkImpl(listOf(
             backendIrDeclaration,
             IrAssignmentExpressionImpl(
-                IrVariableReferenceExpressionImpl(backendIrDeclaration),
+                IrVariableReferenceExpressionImpl(backendIrDeclaration, false),
                 initializerExpression.toBackendIr()
             )
         ))
