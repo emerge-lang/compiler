@@ -224,11 +224,11 @@ class EmergeLlvmContext(
     }
 
     fun registerGlobal(global: IrVariableDeclaration) {
-        val allocationSiteType = getAllocationSiteType(global.type)
+        val globalType = getReferenceSiteType(global.type)
         val allocation = addGlobal(
             LlvmConstant(
-                LLVM.LLVMGetUndef(allocationSiteType.getRawInContext(this)),
-                allocationSiteType,
+                LLVM.LLVMGetUndef(globalType.getRawInContext(this)),
+                globalType,
             ),
             LlvmGlobal.ThreadLocalMode.LOCAL_DYNAMIC,
         )
