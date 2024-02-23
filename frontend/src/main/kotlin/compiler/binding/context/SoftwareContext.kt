@@ -19,6 +19,7 @@
 package compiler.binding.context
 
 import compiler.InternalCompilerError
+import compiler.binding.type.BaseType
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
@@ -77,5 +78,11 @@ class SoftwareContext {
      */
     fun toBackendIr(): IrSoftwareContext {
         return IrSoftwareContextImpl(modules)
+    }
+
+    val unitBaseType: BaseType by lazy {
+        getPackage(listOf("emerge", "core"))!!
+            .types
+            .single { it.fullyQualifiedName.last == "Unit" }
     }
 }

@@ -45,10 +45,6 @@ object BuiltinNothing : BuiltinType("Nothing") {
     override val isAtomic = true
 }
 
-object BuiltinUnit : BuiltinType("Unit", BuiltinAny) {
-    override val isAtomic = true
-}
-
 object BuiltinNumber : BuiltinType("Number", BuiltinAny) {
     override val isAtomic = true
 }

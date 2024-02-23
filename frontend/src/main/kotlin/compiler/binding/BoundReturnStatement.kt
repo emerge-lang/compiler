@@ -23,7 +23,6 @@ import compiler.ast.expression.IdentifierExpression
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.BuiltinUnit
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.reportings.Reporting
@@ -75,7 +74,7 @@ class BoundReturnStatement(
                 }
         }
 
-        if (expectedReturnType != null && expectedReturnType is RootResolvedTypeReference && expectedReturnType.baseType !== BuiltinUnit && expression == null) {
+        if (expectedReturnType != null && expectedReturnType is RootResolvedTypeReference && expectedReturnType.baseType != context.swCtx.unitBaseType && expression == null) {
             reportings.add(Reporting.missingReturnValue(this, expectedReturnType))
         }
 

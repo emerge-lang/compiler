@@ -7,7 +7,6 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.BuiltinUnit
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.reportings.Reporting
@@ -148,7 +147,7 @@ class BoundDeclaredFunction(
                 if (this.code is Body.SingleExpression) {
                     this.returnType = this.code.expression.type
                 } else {
-                    this.returnType = BuiltinUnit.baseReference
+                    this.returnType = context.swCtx.unitBaseType.baseReference
                 }
             }
 
@@ -230,7 +229,7 @@ class BoundDeclaredFunction(
                     // if the function is declared to return Unit a return of Unit is implied and should be inserted by backends
                     // if this is a single-expression function (fun a() = 3), return is implied
                     if (localReturnType == null || this.code !is Body.SingleExpression) {
-                        val isImplicitUnitReturn = localReturnType is RootResolvedTypeReference && localReturnType.baseType === BuiltinUnit
+                        val isImplicitUnitReturn = localReturnType is RootResolvedTypeReference && localReturnType.baseType == context.swCtx.unitBaseType
                         if (!isImplicitUnitReturn) {
                             reportings.add(Reporting.uncertainTermination(this))
                         }

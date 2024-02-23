@@ -18,7 +18,6 @@ import compiler.binding.type.BuiltinUByte
 import compiler.binding.type.BuiltinUInt
 import compiler.binding.type.BuiltinULong
 import compiler.binding.type.BuiltinUShort
-import compiler.binding.type.BuiltinUnit
 import compiler.binding.type.BuiltinUnsignedWord
 import io.github.tmarsteel.emerge.backend.SystemPropertyDelegate.Companion.systemProperty
 import io.github.tmarsteel.emerge.backend.api.DotName
@@ -35,7 +34,6 @@ object CoreIntrinsicsModule {
         val file = SourceFile(NAME, fileContext)
 
         file.context.addBaseType(BuiltinAny)
-        file.context.addBaseType(BuiltinUnit)
         file.context.addBaseType(BuiltinNumber)
         file.context.addBaseType(BuiltinFloat)
         file.context.addBaseType(BuiltinByte)

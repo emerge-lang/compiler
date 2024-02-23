@@ -25,7 +25,6 @@ import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.BuiltinBoolean
-import compiler.binding.type.BuiltinUnit
 import compiler.binding.type.isAssignableTo
 import compiler.nullableAnd
 import compiler.reportings.Reporting
@@ -54,10 +53,12 @@ class BoundIfExpression(
             }
         }
 
-    override var type: BoundTypeReference? = BuiltinUnit.baseReference
+    override var type: BoundTypeReference? = null
         private set
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
+        type = context.swCtx.unitBaseType.baseReference
+
         var reportings = condition.semanticAnalysisPhase1() + thenCode.semanticAnalysisPhase1()
 
         val elseCodeReportings = elseCode?.semanticAnalysisPhase1()

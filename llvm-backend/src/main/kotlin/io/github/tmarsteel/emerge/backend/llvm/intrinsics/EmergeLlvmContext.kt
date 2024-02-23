@@ -138,7 +138,6 @@ class EmergeLlvmContext(
             "emerge.platform.SWordBox" -> boxTypeSWord = emergeStructType
             "emerge.platform.UWordBox" -> boxTypeUWord = emergeStructType
             "emerge.core.Unit" -> {
-                println("unit stored")
                 unitType = emergeStructType
                 pointerToPointerToUnitInstance = addGlobal(undefValue(pointerTo(emergeStructType)), LlvmGlobal.ThreadLocalMode.SHARED)
                 addModuleInitFunction(registerIntrinsic(KotlinLlvmFunction.define(
@@ -292,11 +291,6 @@ class EmergeLlvmContext(
             return
         }
         completed = true
-
-        emergeStructs.forEach {
-            // has to be done late so that [heapAllocatorFunction] is available
-            registerIntrinsic(it.defaultConstructor)
-        }
 
         threadInitializerFn = KotlinLlvmFunction.define(
             "_emerge_thread_init",
