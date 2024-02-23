@@ -8,7 +8,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 
 val EmergeEntrypoint = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>("main", LlvmVoidType) {
     body {
-        call(context.threadInitializerFn.getInContext(context), emptyList())
+        call(context.registerIntrinsic(context.threadInitializerFn), emptyList())
         call(context.mainFunction, emptyList())
         call(context.exitFunction, listOf(context.i32(0)))
         retVoid()

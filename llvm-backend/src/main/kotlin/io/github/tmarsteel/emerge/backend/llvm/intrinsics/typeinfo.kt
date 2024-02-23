@@ -142,7 +142,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 setValue(TypeinfoType.shiftRightAmount, shiftRightAmount)
                 setValue(TypeinfoType.supertypes, dynamicSupertypesGlobal)
                 setValue(TypeinfoType.anyValueVirtuals, EmergeAnyValueVirtualsType.buildConstantIn(context) {
-                    setValue(EmergeAnyValueVirtualsType.finalizeFunction, finalizerFunction.getInContext(context).address)
+                    setValue(EmergeAnyValueVirtualsType.finalizeFunction, context.registerIntrinsic(finalizerFunction).address)
                 })
                 setValue(TypeinfoType.vtableBlob, vtableBlob)
             }
@@ -155,7 +155,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 setValue(TypeinfoType.shiftRightAmount, shiftRightAmount)
                 setValue(TypeinfoType.supertypes, staticSupertypesGlobal)
                 setValue(TypeinfoType.anyValueVirtuals, EmergeAnyValueVirtualsType.buildConstantIn(context) {
-                    setValue(EmergeAnyValueVirtualsType.finalizeFunction, staticObjectFinalizer.getInContext(context).address)
+                    setValue(EmergeAnyValueVirtualsType.finalizeFunction, context.registerIntrinsic(staticObjectFinalizer).address)
                 })
                 setValue(TypeinfoType.vtableBlob, vtableBlob)
             }

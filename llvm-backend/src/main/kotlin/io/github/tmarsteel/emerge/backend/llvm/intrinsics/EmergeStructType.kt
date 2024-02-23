@@ -14,7 +14,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.poi
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.ParameterDelegate
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.indexInLlvmStruct
@@ -85,7 +84,7 @@ internal class EmergeStructType private constructor(
         defaultConstructorIr.llvmName,
         pointerTo(this),
     ) {
-        val params: List<Pair<IrStruct.Member, ParameterDelegate<*>>> = defaultConstructorIr.parameters.map { irParam ->
+        val params: List<Pair<IrStruct.Member, KotlinLlvmFunction.ParameterDelegate<*>>> = defaultConstructorIr.parameters.map { irParam ->
             val member = irStruct.members.single { it.name == irParam.name }
             member to param(context.getReferenceSiteType(irParam.type))
         }

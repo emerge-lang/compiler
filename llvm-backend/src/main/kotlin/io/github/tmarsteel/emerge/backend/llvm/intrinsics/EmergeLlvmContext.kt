@@ -45,6 +45,8 @@ import io.github.tmarsteel.emerge.backend.llvm.llvmType
 import io.github.tmarsteel.emerge.backend.llvm.llvmValueType
 import io.github.tmarsteel.emerge.backend.llvm.rawLlvmRef
 import org.bytedeco.llvm.global.LLVM
+import java.util.Collections
+import java.util.IdentityHashMap
 
 class EmergeLlvmContext(
     target: LlvmTarget
@@ -52,27 +54,27 @@ class EmergeLlvmContext(
     /**
      * The function that allocates heap memory. Semantically equivalent to libcs
      * `void* malloc(size_t size)`.
-     * Must be set by the backend class after [registerFunction]
+     * Must be set by the backend class after [registerIntrinsic]
      */
     lateinit var allocateFunction: LlvmFunction<LlvmPointerType<LlvmVoidType>>
 
     /**
      * The function the deallocates heap memory. Semantically equivalent to libcs
      * `void free(void* memory)`
-     * Must be set by the backend class after [registerFunction]
+     * Must be set by the backend class after [registerIntrinsic]
      */
     lateinit var freeFunction: LlvmFunction<LlvmVoidType>
 
     /**
      * The function that exits the process. Semantically equivalent to libcs
      * `void exit(int status)`
-     * Must be set by the backend class after [registerFunction]
+     * Must be set by the backend class after [registerIntrinsic]
      */
     lateinit var exitFunction: LlvmFunction<LlvmVoidType>
 
     /**
      * The main function of the program. `fun main() -> Unit`
-     * Set by [registerFunction].
+     * Set by [registerIntrinsic].
      */
     lateinit var mainFunction: LlvmFunction<LlvmVoidType>
 
@@ -104,6 +106,7 @@ class EmergeLlvmContext(
     internal lateinit var pointerToPointerToUnitInstance: LlvmGlobal<LlvmPointerType<EmergeStructType>>
 
     private val emergeStructs = ArrayList<EmergeStructType>()
+    private val kotlinLlvmFunctions: MutableMap<KotlinLlvmFunction<in EmergeLlvmContext, *>, KotlinLlvmFunction.DeclaredInContext<in EmergeLlvmContext, *>> = IdentityHashMap()
 
     fun registerStruct(struct: IrStruct) {
         if (struct.rawLlvmRef != null) {
@@ -135,22 +138,32 @@ class EmergeLlvmContext(
             "emerge.platform.SWordBox" -> boxTypeSWord = emergeStructType
             "emerge.platform.UWordBox" -> boxTypeUWord = emergeStructType
             "emerge.core.Unit" -> {
+                println("unit stored")
                 unitType = emergeStructType
                 pointerToPointerToUnitInstance = addGlobal(undefValue(pointerTo(emergeStructType)), LlvmGlobal.ThreadLocalMode.SHARED)
-                addModuleInitFunction(KotlinLlvmFunction.define(
+                addModuleInitFunction(registerIntrinsic(KotlinLlvmFunction.define(
                     "emerge.platform.initUnit",
                     LlvmVoidType,
                 ) {
                     body {
-                        val p = call(emergeStructType.defaultConstructor.getInContext(context), emptyList())
+                        val p = call(registerIntrinsic(emergeStructType.defaultConstructor), emptyList())
                         store(p, pointerToPointerToUnitInstance)
                         retVoid()
                     }
-                }.getInContext(this))
+                }))
             }
         }
 
         emergeStructs.add(emergeStructType)
+    }
+
+    fun <R : LlvmType> registerIntrinsic(fn: KotlinLlvmFunction<in EmergeLlvmContext, R>): LlvmFunction<R> {
+        val rawFn = this.kotlinLlvmFunctions
+            .computeIfAbsent(fn) { it.declareInContext(this) }
+            .function
+
+        @Suppress("UNCHECKED_CAST")
+        return rawFn as LlvmFunction<R>
     }
 
     fun registerFunction(fn: IrFunction): LlvmFunction<*> {
@@ -161,7 +174,7 @@ class EmergeLlvmContext(
         if (fn is IrDeclaredFunction) {
             intrinsicFunctions[fn.fqn.toString()]?.let { intrinsic ->
                 // TODO: different intrinsic per overload
-                val intrinsicImpl = intrinsic.getInContext(this@EmergeLlvmContext)
+                val intrinsicImpl = registerIntrinsic(intrinsic)
                 check(parameterTypes.size == intrinsicImpl.type.parameterTypes.size)
                 intrinsicImpl.type.parameterTypes.forEachIndexed { paramIndex, intrinsicType ->
                     val declaredType = parameterTypes[paramIndex]
@@ -239,7 +252,7 @@ class EmergeLlvmContext(
             structConstructorsRegistered = true
             emergeStructs.forEach {
                 // TODO: this handling is wonky, needs more conceptual work
-                val ref = it.defaultConstructor.getInContext(this)
+                val ref = registerIntrinsic(it.defaultConstructor)
                 it.irStruct.constructors.overloads.single().llvmRef = ref
             }
         }
@@ -282,7 +295,7 @@ class EmergeLlvmContext(
 
         emergeStructs.forEach {
             // has to be done late so that [heapAllocatorFunction] is available
-            it.defaultConstructor.getInContext(this)
+            registerIntrinsic(it.defaultConstructor)
         }
 
         threadInitializerFn = KotlinLlvmFunction.define(
@@ -301,6 +314,24 @@ class EmergeLlvmContext(
                     }
                 }
                 retVoid()
+            }
+        }
+
+        // each intrinsic can introduce new ones that it references, loop until all are known
+        val defined: MutableSet<KotlinLlvmFunction<*, *>> = Collections.newSetFromMap(IdentityHashMap())
+        while (true) {
+            val allInstrinsics = kotlinLlvmFunctions.entries.toList()
+            var anyNewDefined = false
+            for (intrinsic in allInstrinsics) {
+                if (intrinsic.key in defined) {
+                    continue
+                }
+                intrinsic.value.defineBody()
+                defined.add(intrinsic.key)
+                anyNewDefined = true
+            }
+            if (!anyNewDefined) {
+                break
             }
         }
 
@@ -408,7 +439,7 @@ fun <T : LlvmType> BasicBlockBuilder<EmergeLlvmContext, *>.heapAllocate(type: T)
     return heapAllocate(size).reinterpretAs(pointerTo(type))
 }
 
-private val intrinsicFunctions: Map<String, KotlinLlvmFunction<EmergeLlvmContext, *>> = listOf(
+private val intrinsicFunctions: Map<String, KotlinLlvmFunction<in EmergeLlvmContext, *>> = listOf(
     arrayAddressOfFirst,
     arraySize,
 )

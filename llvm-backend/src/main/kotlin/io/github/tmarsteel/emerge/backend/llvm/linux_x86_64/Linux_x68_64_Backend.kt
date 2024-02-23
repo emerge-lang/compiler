@@ -114,7 +114,7 @@ class Linux_x68_64_Backend : EmergeBackend {
             llvmContext.complete()
 
             // assure the entrypoint is in the object file
-            EmergeEntrypoint.getInContext(llvmContext)
+            llvmContext.registerIntrinsic(EmergeEntrypoint)
 
             val errorMessageBuffer = BytePointer(1024 * 10)
 

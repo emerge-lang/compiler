@@ -201,7 +201,7 @@ internal class EmergeArrayType<Element : LlvmType>(
     }
 }
 
-internal val valueArrayFinalize = KotlinLlvmFunction.define<LlvmContext, _>("emerge.platform.finalizeValueArray", LlvmVoidType) {
+internal val valueArrayFinalize = KotlinLlvmFunction.define<EmergeLlvmContext, _>("emerge.platform.finalizeValueArray", LlvmVoidType) {
     param(PointerToAnyEmergeValue)
     body {
         // nothing to do. There are no references, just values, so no dropping needed
@@ -228,7 +228,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementGetter(
                 .get()
                 .dereference()
 
-            val ctor = getBoxType(context).defaultConstructor.getInContext(context)
+            val ctor = context.registerIntrinsic(getBoxType(context).defaultConstructor)
             ret(call(ctor, listOf(raw)).reinterpretAs(PointerToAnyEmergeValue))
         }
     }

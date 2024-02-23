@@ -148,7 +148,7 @@ private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCodeInt
         is IrStringLiteralExpression -> {
             val llvmStructWrapper = context.getAllocationSiteType(expression.evaluatesTo) as EmergeStructType
             val byteArrayPtr = expression.assureByteArrayConstantIn(context)
-            val ctor = llvmStructWrapper.defaultConstructor.getInContext(context)
+            val ctor = context.registerIntrinsic(llvmStructWrapper.defaultConstructor)
             return ExpressionResult.Value(
                 call(ctor, listOf(byteArrayPtr))
             )
@@ -185,7 +185,7 @@ private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCodeInt
         is IrArrayLiteralExpression -> {
             val elementCount = context.word(expression.elements.size)
             val arrayType = context.getAllocationSiteType(expression.evaluatesTo) as EmergeArrayType<*>
-            val arrayPtr = call(arrayType.constructorOfUndefEntries.getInContext(context), listOf(elementCount))
+            val arrayPtr = call(context.registerIntrinsic(arrayType.constructorOfUndefEntries), listOf(elementCount))
             for ((index, elementExpr) in expression.elements.indexed()) {
                 val elementValue = when (val elementExprResult = emitExpressionCode(elementExpr)) {
                     is ExpressionResult.Value -> elementExprResult.value.reinterpretAs(arrayType.elementType)

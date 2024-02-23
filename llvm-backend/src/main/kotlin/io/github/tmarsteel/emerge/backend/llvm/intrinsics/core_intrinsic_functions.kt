@@ -85,7 +85,7 @@ internal fun LlvmValue<out LlvmType>.afterReferenceCreated(
 }
 
 // TODO for exceptions: add dropReferenceInCatch(ref: Any, throwable: Throwable)
-private val dropReferenceFunction = KotlinLlvmFunction.define<LlvmContext, _>(
+private val dropReferenceFunction = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
     "emerge.platform.dropReference",
     LlvmVoidType
 ) {
@@ -95,7 +95,7 @@ private val dropReferenceFunction = KotlinLlvmFunction.define<LlvmContext, _>(
         val decremented = sub(referenceCountPtr.dereference(), context.word(1))
         val isZero = icmp(decremented, IntegerComparison.EQUAL, context.word(0))
         conditionalBranch(isZero, ifTrue = {
-            call(nullWeakReferences.getInContext(context), listOf(objectPtr))
+            call(context.registerIntrinsic(nullWeakReferences), listOf(objectPtr))
             val typeinfoPtr = getelementptr(objectPtr)
                 .member { typeinfo }
                 .get()
@@ -122,19 +122,19 @@ private val dropReferenceFunction = KotlinLlvmFunction.define<LlvmContext, _>(
  * @param isNullable whether, according to the type information given by the frontend ([IrType.isNullable]),
  * the reference is nullable. If true, a runtime null-check will be emitted.
  */
-context(BasicBlockBuilder<*, *>)
+context(BasicBlockBuilder<EmergeLlvmContext, *>)
 internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceDropped(
     isNullable: Boolean,
 ) {
     if (isNullable) {
         conditionalBranch(condition = not(isNull(this)), ifTrue = {
-            call(dropReferenceFunction.getInContext(context), listOf(this@afterReferenceDropped))
+            call(context.registerIntrinsic(dropReferenceFunction), listOf(this@afterReferenceDropped))
             concludeBranch()
         })
         return
     }
 
-    call(dropReferenceFunction.getInContext(context), listOf(this@afterReferenceDropped))
+    call(context.registerIntrinsic(dropReferenceFunction), listOf(this@afterReferenceDropped))
 }
 
 /**
@@ -143,7 +143,7 @@ internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceD
  * Otherwise, emits a call to [dropReferenceFunction], potentially guarded by a null-check if [IrType.isNullable]
  * is `true`.
  */
-context(BasicBlockBuilder<*, *>)
+context(BasicBlockBuilder<EmergeLlvmContext, *>)
 internal fun LlvmValue<out LlvmType>.afterReferenceDropped(
     emergeType: IrType,
 ) {
