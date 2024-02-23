@@ -2,8 +2,6 @@ package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.getLlvmMessage
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMBasicBlockRef
 import org.bytedeco.llvm.LLVM.LLVMBuilderRef
@@ -225,9 +223,8 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun isNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType> {
-        val asInt = LLVM.LLVMBuildPtrToInt(builder, pointer.raw, EmergeWordType.getRawInContext(context), tmpVars.next())
-        val isNullInstr = LLVM.LLVMBuildICmp(builder, LLVM.LLVMIntEQ, asInt, context.word(0).raw, tmpVars.next())
-        return LlvmValue(isNullInstr, LlvmBooleanType)
+        val instr = LLVM.LLVMBuildIsNull(builder, pointer.raw, tmpVars.next())
+        return LlvmValue(instr, LlvmBooleanType)
     }
 
     override fun not(value: LlvmValue<LlvmBooleanType>): LlvmValue<LlvmBooleanType> {
