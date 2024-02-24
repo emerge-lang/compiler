@@ -78,7 +78,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 store(newValue, stackAllocation)
             }
             defer {
-                stackAllocation.afterReferenceDropped(code.type)
+                stackAllocation.dereference().afterReferenceDropped(code.type)
             }
             return ExecutableResult.ImplicitUnit
         }
@@ -126,8 +126,15 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             return ExpressionResult.Terminated(ret(toReturn))
         }
         is IrExpression -> {
-            emitExpressionCodeIgnoringResult(code)
-            return ExecutableResult.ImplicitUnit
+            return inSubScope {
+                when (val exprResult = emitExpressionCode(code)) {
+                    is ExpressionResult.Value<*> -> {
+                        exprResult.value.afterReferenceDropped(code.evaluatesTo)
+                        ExecutableResult.ImplicitUnit
+                    }
+                    is ExpressionResult.Terminated -> exprResult
+                }
+            }
         }
     }
 }
@@ -135,21 +142,22 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
 internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
     expression: IrExpression,
 ): ExpressionResult<*> {
-    return emitExpressionCodeInternal(expression, true)
-}
-
-internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCodeIgnoringResult(
-    expression: IrExpression,
-) {
-    val result = emitExpressionCodeInternal(expression, false)
+    val result = emitExpressionCodeWithoutTemporaryRefcounting(expression)
     if (result is ExpressionResult.Value<*>) {
-        result.value.afterReferenceDropped(expression.evaluatesTo)
+        if (expression !is IrStaticDispatchFunctionInvocationExpression && expression !is IrStringLiteralExpression) {
+            // return values have the reference count increase already included
+            // string literals are a constructor function invocation in disguise, same applies
+            result.value.afterReferenceCreated(expression.evaluatesTo)
+        }
+        defer {
+            result.value.afterReferenceDropped(expression.evaluatesTo)
+        }
     }
+    return result
 }
 
-private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCodeInternal(
+private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCodeWithoutTemporaryRefcounting(
     expression: IrExpression,
-    evaluationResultUsed: Boolean,
 ): ExpressionResult<*> {
     when (expression) {
         is IrStringLiteralExpression -> {
@@ -217,9 +225,6 @@ private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCodeInt
             conditionValue as LlvmValue<LlvmBooleanType>
 
             if (expression.elseBranch == null) {
-                check(!evaluationResultUsed) {
-                    "Cannot use an if as an expression when it doesn't define an else branch"
-                }
                 conditionalBranch(
                     condition = conditionValue,
                     ifTrue = thenBranch@{

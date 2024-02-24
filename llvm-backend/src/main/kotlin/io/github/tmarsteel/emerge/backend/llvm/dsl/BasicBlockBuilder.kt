@@ -38,6 +38,11 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
      */
     fun defer(code: NonTerminalCodeGenerator<C>)
 
+    /**
+     * Generates the given [code] in a new scope for [defer].
+     */
+    fun <SubR> inSubScope(code: BasicBlockBuilder<C, R>.() -> SubR): SubR
+
     fun ret(value: LlvmValue<R>): Termination
     fun unreachable(): Pair<Termination, LlvmValue<LlvmVoidType>>
 
@@ -80,6 +85,10 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     interface LoopBody<C : LlvmContext, R : LlvmType> : AbstractLoop<C, R> {
         /** Transfers control flow back to the loop header. */
         fun loopContinue(): Termination
+    }
+
+    interface DeferSubScope<C : LlvmContext, R : LlvmType> : BasicBlockBuilder<C, R> {
+        fun concludeSubScope(): Termination
     }
 
     companion object {
@@ -234,6 +243,19 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
 
     override fun defer(code: NonTerminalCodeGenerator<C>) {
         scopeTracker.addDeferredStatement(code)
+    }
+
+    override fun <SubR> inSubScope(code: BasicBlockBuilder<C, R>.() -> SubR): SubR {
+        val subBuilder = BasicBlockBuilderImpl<C, R>(context, owningFunction, builder, tmpVars, scopeTracker.createSubScope())
+        val returnValue = subBuilder.code()
+
+        val mostRecentInstruction = LLVM.LLVMGetLastInstruction(LLVM.LLVMGetInsertBlock(builder))
+        if (LLVM.LLVMIsATerminatorInst(mostRecentInstruction) == null) {
+            // the sub-scope code didn't terminate -> need to emit defer code
+            subBuilder.scopeTracker.runLocalDeferredCode()
+        }
+
+        return returnValue
     }
 
     override fun ret(value: LlvmValue<R>): BasicBlockBuilder.Termination {
