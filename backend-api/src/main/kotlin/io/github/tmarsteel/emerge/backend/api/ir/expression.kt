@@ -89,11 +89,6 @@ interface IrStructMemberAccessExpression : IrExpression {
 interface IrVariableAccessExpression : IrExpression {
     val variable: IrVariableDeclaration
 
-    /**
-     * True iff, at this point in time, the variable has been definitely initialized
-     */
-    val isInitialized: Boolean
-
     override val evaluatesTo: IrType
         get() = variable.type
 }

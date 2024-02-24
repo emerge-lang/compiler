@@ -149,7 +149,6 @@ class BoundIdentifierExpression(
         (referral as? ReferringVariable)?.let { referral ->
             IrVariableAccessExpressionImpl(
                 referral.variable.backendIrDeclaration,
-                referral.variable.isInitializedInContext(context),
             )
         } ?: TODO("implement type references")
     }
@@ -164,5 +163,4 @@ class BoundIdentifierExpression(
 
 internal class IrVariableAccessExpressionImpl(
     override val variable: IrVariableDeclaration,
-    override val isInitialized: Boolean,
 ) : IrVariableAccessExpression
