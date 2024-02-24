@@ -136,4 +136,34 @@ Let's look at the reference counters on each line and assume `a` selects `p1`:
 | `val selected = ...` | 2               | 1               | no increment because assignment to a stack variable                                                                                    |
 | `return selected.x`  | 2               | 1               | increment refcount for x (nop because its a value type)                                                                                |
 | end of `b`           | -1 = 1          | - 1 = 0         | `foo1` and `foo2` go out of scope. Because the references have been "leaked" to `a` a proper drop is performed. `foo2` gets finalized. |
-| end of `b`           | -1 = 0          |                 | `selected` goes out of scope. Because it got in touch with the outside world (`a`), a proper drop is performed. `foo1` gets finalized. |                            
+| end of `b`           | -1 = 0          |                 | `selected` goes out of scope. Because it got in touch with the outside world (`a`), a proper drop is performed. `foo1` gets finalized. |
+
+
+## Temporary Values, semi-SSA output of the frontend
+
+When expressions are nested into each other, e.g. `foo(bar(), 3 + 4 + x)`, temporary values need to be created.
+As far as reference counting is concerned, these should be treated exactly as if they were stack-local variables.
+This becomes apparent if we write that expression in semi-SSA form:
+
+    val temp1 = bar()
+    val temp2 = 3 + 4
+    val temp3 = temp2 + x
+    val tempResult = foo(temp1, temp3)
+
+Backends can do this transformation comparatively simply, but it's still work. Also, when then doing non-optimized
+reference counting on this code, the resulting machine code is littered with reference counting all over, arguably
+consisting of >80% just reference counting code.  
+That reference counting code can be optimized to the absolutely needed minimum. LLVM won't do it, the emerge
+compiler has to do it. And as it requires complex analysis of how state mutates in the program, the emerge backends
+are a bit late to the party to be able to pull this of nicely. So, I conclude:
+
+* the frontend should implement
+  * all the logic to figure out when reference counting is needed
+  * including optimizations to reduce that noise
+* the IR communicated to emerge backends should _unambiguously_ contain that information, e.g. nodes such as
+  `IrRefcountIncrementStatement`, `IrRefcountDecrementStatement`. Also, get rid of IR data types that can
+  hold arbitrarily nested expressions and rather introduce non-re-assignable temporaries, e.g.
+  `IrTemporaryCreateStatement` and `IrTemporaryValue`. So e.g. an `IrAssignmentStatement` would
+  no longer reference an arbitrarily nested `IrExpression`, but rather a simple `IrTemporaryValue`.
+  * **!! Attention** reference counting information should also be emitted for integral/primitive types. Treating
+    these as non-heap-allocated data is a pure backend optimization, the frontend musn't care!

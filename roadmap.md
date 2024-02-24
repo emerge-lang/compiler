@@ -163,6 +163,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        should be compiled down to a single loop.
 37. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
 38. optimize reference counting; see [](refcounting optimizations.md)
+    * for this, the logic to determine where reference counts are needed must move from the LLVM backend to
+      the frontend; the frontend has the tools to deal with the complexity, the backend doesn't. Especially
+      temporary values are BAD offenders
 39. some stdlib primitives for filesystem IO
 40. typealiases
 41. smart casts
