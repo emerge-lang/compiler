@@ -28,6 +28,7 @@ import compiler.binding.context.SourceFileRootContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrAssignmentStatementImpl
 import compiler.binding.expression.IrAssignmentStatementTargetVariableImpl
+import compiler.binding.misc_ir.IrCreateReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
@@ -264,6 +265,7 @@ class BoundVariable(
         return IrCodeChunkImpl(listOf(
             backendIrDeclaration,
             initialTemporary,
+            IrCreateReferenceStatementImpl(initialTemporary),
             IrAssignmentStatementImpl(
                 IrAssignmentStatementTargetVariableImpl(backendIrDeclaration),
                 IrTemporaryValueReferenceImpl(initialTemporary),

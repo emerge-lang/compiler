@@ -21,18 +21,18 @@ package compiler.binding.expression
 import compiler.InternalCompilerError
 import compiler.ast.expression.AssignmentExpression
 import compiler.binding.BoundStatement
-import compiler.binding.BoundVariable
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
+import compiler.binding.misc_ir.IrCreateReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrDropReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.struct.StructMember
 import compiler.binding.type.BoundTypeReference
 import compiler.nullableOr
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
-import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
@@ -43,19 +43,13 @@ class BoundAssignmentExpression(
     override val context: CTContext,
     override val declaration: AssignmentExpression,
     val targetExpression: BoundExpression<*>,
-    val valueExpression: BoundExpression<*>
+    val toAssignExpression: BoundExpression<*>
 ) : BoundExpression<AssignmentExpression> {
-    /**
-     * The variable this statement assigns to, if it does assign to a variable (see [assignmentTargetType])
-     */
-    var targetVariable: BoundVariable? = null
-        private set
-
     override val type: BoundTypeReference?
-        get() = valueExpression.type ?: targetExpression.type
+        get() = toAssignExpression.type ?: targetExpression.type
 
     override val isGuaranteedToThrow: Boolean?
-        get() = targetExpression.isGuaranteedToThrow nullableOr valueExpression.isGuaranteedToThrow
+        get() = targetExpression.isGuaranteedToThrow nullableOr toAssignExpression.isGuaranteedToThrow
 
     private val _modifiedContext = MutableCTContext(context)
     override val modifiedContext: CTContext = _modifiedContext
@@ -63,7 +57,7 @@ class BoundAssignmentExpression(
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableListOf<Reporting>()
         reportings.addAll(targetExpression.semanticAnalysisPhase1())
-        reportings.addAll(valueExpression.semanticAnalysisPhase1())
+        reportings.addAll(toAssignExpression.semanticAnalysisPhase1())
 
         target = when (targetExpression) {
             is BoundIdentifierExpression -> when (val ref = targetExpression.referral) {
@@ -93,11 +87,12 @@ class BoundAssignmentExpression(
     private var target: AssignmentTarget? = null
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        valueExpression.markEvaluationResultUsed()
+        toAssignExpression.markEvaluationResultUsed()
+        target?.type?.let(toAssignExpression::setExpectedEvaluationResultType)
 
         val reportings = mutableListOf<Reporting>()
         reportings.addAll(targetExpression.semanticAnalysisPhase2())
-        reportings.addAll(valueExpression.semanticAnalysisPhase2())
+        reportings.addAll(toAssignExpression.semanticAnalysisPhase2())
 
         if (resultUsed) {
             reportings.add(Reporting.assignmentUsedAsExpression(this))
@@ -109,7 +104,7 @@ class BoundAssignmentExpression(
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
         reportings.addAll(targetExpression.semanticAnalysisPhase3())
-        reportings.addAll(valueExpression.semanticAnalysisPhase3())
+        reportings.addAll(toAssignExpression.semanticAnalysisPhase3())
         target?.semanticAnalysisPhase3()?.let(reportings::addAll)
 
         return reportings
@@ -117,12 +112,12 @@ class BoundAssignmentExpression(
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
         val targetReads = target?.findReadsBeyond(boundary) ?: emptyList()
-        return targetReads + valueExpression.findReadsBeyond(boundary)
+        return targetReads + toAssignExpression.findReadsBeyond(boundary)
     }
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
         val targetWrites = target?.findWritesBeyond(boundary) ?: emptyList()
-        return targetWrites + valueExpression.findWritesBeyond(boundary)
+        return targetWrites + toAssignExpression.findWritesBeyond(boundary)
     }
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
@@ -130,7 +125,7 @@ class BoundAssignmentExpression(
     }
 
     override fun toBackendIrStatement(): IrExecutable {
-        return target!!.toBackendIrExecutable(valueExpression)
+        return target!!.toBackendIrExecutable()
     }
 
     override fun toBackendIrExpression(): IrExpression {
@@ -138,27 +133,29 @@ class BoundAssignmentExpression(
     }
 
     sealed interface AssignmentTarget {
+        val type: BoundTypeReference?
         fun semanticAnalysisPhase3(): Collection<Reporting>
         fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>>
         fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>>
-        fun toBackendIrExecutable(toAssign: BoundExpression<*>): IrExecutable
+        fun toBackendIrExecutable(): IrExecutable
     }
 
     inner class VariableTarget(val reference: BoundIdentifierExpression.ReferringVariable) : AssignmentTarget {
+        override val type get() = reference.variable.type
         override fun semanticAnalysisPhase3(): Collection<Reporting> {
             val reportings = mutableListOf<Reporting>()
 
             val isInitialized = reference.variable.isInitializedInContext(this@BoundAssignmentExpression.context)
             if (isInitialized) {
-                if (!targetVariable!!.isAssignable) {
-                    reportings.add(Reporting.illegalAssignment("Cannot assign to value / final variable ${targetVariable!!.name}", this@BoundAssignmentExpression))
+                if (!reference.variable.isAssignable) {
+                    reportings.add(Reporting.illegalAssignment("Cannot assign to value / final variable ${reference.variable.name}", this@BoundAssignmentExpression))
                 }
             } else {
-                _modifiedContext.markVariableInitialized(targetVariable!!)
+                _modifiedContext.markVariableInitialized(reference.variable)
             }
 
             reference.variable.type?.let { targetType ->
-                valueExpression.type?.evaluateAssignabilityTo(targetType, valueExpression.declaration.sourceLocation)
+                toAssignExpression.type?.evaluateAssignabilityTo(targetType, toAssignExpression.declaration.sourceLocation)
                     ?.let(reportings::add)
             }
 
@@ -177,14 +174,26 @@ class BoundAssignmentExpression(
             return listOf(this@BoundAssignmentExpression)
         }
 
-        override fun toBackendIrExecutable(toAssign: BoundExpression<*>): IrExecutable {
-            val toAssignTemporary = IrCreateTemporaryValueImpl(toAssign.toBackendIrExpression())
-            return IrCodeChunkImpl(listOf(
-                toAssignTemporary,
-                IrAssignmentStatementImpl(
-                    IrAssignmentStatementTargetVariableImpl(reference.variable.backendIrDeclaration),
-                    IrTemporaryValueReferenceImpl(toAssignTemporary),
+        override fun toBackendIrExecutable(): IrExecutable {
+            val dropPreviousCode: List<IrExecutable> = if (reference.variable.isInitializedInContext(context)) {
+                val previousTemporary = IrCreateTemporaryValueImpl(
+                    IrVariableAccessExpressionImpl(
+                        reference.variable.backendIrDeclaration,
+                        true,
+                    )
                 )
+                listOf(previousTemporary, IrDropReferenceStatementImpl(previousTemporary))
+            } else emptyList()
+
+            val toAssignTemporary = IrCreateTemporaryValueImpl(toAssignExpression.toBackendIrExpression())
+            val assignStatement = IrAssignmentStatementImpl(
+                IrAssignmentStatementTargetVariableImpl(reference.variable.backendIrDeclaration),
+                IrTemporaryValueReferenceImpl(toAssignTemporary),
+            )
+
+            return IrCodeChunkImpl(dropPreviousCode + listOf(
+                toAssignTemporary,
+                assignStatement
             ))
         }
     }
@@ -192,6 +201,7 @@ class BoundAssignmentExpression(
     inner class ObjectMemberTarget(
         val memberAccess: BoundMemberAccessExpression,
     ) : AssignmentTarget {
+        override val type get() = memberAccess.type
         override fun semanticAnalysisPhase3(): Collection<Reporting> {
             val reportings = mutableListOf<Reporting>()
 
@@ -201,7 +211,7 @@ class BoundAssignmentExpression(
                 }
             }
             memberAccess.type?.let { targetType ->
-                valueExpression.type?.evaluateAssignabilityTo(targetType, valueExpression.declaration.sourceLocation)
+                toAssignExpression.type?.evaluateAssignabilityTo(targetType, toAssignExpression.declaration.sourceLocation)
                     ?.let(reportings::add)
             }
 
@@ -220,20 +230,25 @@ class BoundAssignmentExpression(
             return listOf(this@BoundAssignmentExpression)
         }
 
-        override fun toBackendIrExecutable(toAssign: BoundExpression<*>): IrExecutable {
-            // TODO refcount the base while the temporary is potentially dropping the last reference to it!
+        override fun toBackendIrExecutable(): IrExecutable {
+            val previousTemporary = IrCreateTemporaryValueImpl(memberAccess.toBackendIrExpression())
             val baseTemporary = IrCreateTemporaryValueImpl(memberAccess.valueExpression.toBackendIrExpression())
-            val toAssignTemporary = IrCreateTemporaryValueImpl(toAssign.toBackendIrExpression())
+            val toAssignTemporary = IrCreateTemporaryValueImpl(toAssignExpression.toBackendIrExpression())
             return IrCodeChunkImpl(listOf(
+                previousTemporary,
+                IrDropReferenceStatementImpl(previousTemporary),
                 baseTemporary,
+                IrCreateReferenceStatementImpl(baseTemporary),
                 toAssignTemporary,
+                IrCreateReferenceStatementImpl(toAssignTemporary),
                 IrAssignmentStatementImpl(
                     IrAssignmentStatementTargetStructMemberImpl(
                         (memberAccess.member as StructMember).toBackendIr(),
                         IrTemporaryValueReferenceImpl(baseTemporary),
                     ),
                     IrTemporaryValueReferenceImpl(baseTemporary),
-                )
+                ),
+                IrDropReferenceStatementImpl(baseTemporary),
             ))
         }
     }
