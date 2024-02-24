@@ -22,6 +22,9 @@ import compiler.OnceAction
 import compiler.ast.CodeChunk
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
+import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
+import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.handleCyclicInvocation
 import compiler.reportings.Reporting
@@ -105,7 +108,26 @@ class BoundCodeChunk(
         }
     }
 
-    override fun toBackendIr(): IrCodeChunk {
-        return IrCodeChunkImpl(statements.map { it.toBackendIr() })
+    override fun toBackendIrStatement(): IrCodeChunk {
+        return IrCodeChunkImpl(statements.map { it.toBackendIrStatement() })
+    }
+
+    fun toBackendIrAsImplicitEvaluationExpression(): IrImplicitEvaluationExpressionImpl {
+        val plainStatements = statements
+            .take(statements.size - 1)
+            .map { it.toBackendIrStatement() }
+            .toMutableList()
+
+        val lastStatement = statements.lastOrNull()
+        if (lastStatement is BoundExpression<*>) {
+            val temporary = IrCreateTemporaryValueImpl(lastStatement.toBackendIrExpression())
+            plainStatements += temporary
+            return IrImplicitEvaluationExpressionImpl(
+                IrCodeChunkImpl(plainStatements),
+                IrTemporaryValueReferenceImpl(temporary),
+            )
+        }
+
+        TODO("implicit unit return requires unit reference, doesn't exist yet")
     }
 }

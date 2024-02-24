@@ -84,6 +84,7 @@ class BoundUnaryExpression(
         // overload resolution based on return type is not a thing in Emerge
     }
 
-    override fun toBackendIr() = hiddenInvocation.toBackendIr()
+    override fun toBackendIrStatement() = hiddenInvocation.toBackendIrStatement()
+    override fun toBackendIrExpression() = hiddenInvocation.toBackendIrExpression()
 }
 

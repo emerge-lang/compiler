@@ -1,6 +1,8 @@
 package compiler.binding
 
 import compiler.ast.type.FunctionModifier
+import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrDeclaredFunction
@@ -14,16 +16,24 @@ internal abstract class IrFunctionImpl private constructor(
     private val boundFunction: BoundFunction,
     boundBody: BoundFunction.Body?,
 ) {
-    protected val _parameters: List<IrVariableDeclaration> = boundFunction.parameters.parameters.map { it.backendIrDeclaration }
+    protected val _parameters: List<IrVariableDeclaration> by lazy { boundFunction.parameters.parameters.map { it.backendIrDeclaration } }
     protected val _returnType = boundFunction.returnType!!.toBackendIr()
     protected val _isExternalC = boundFunction.modifiers.any { it is FunctionModifier.External && it.ffiName.value == "C" }
 
-    protected val _body: IrCodeChunk = when (boundBody) {
-        null -> IrCodeChunkImpl(emptyList())
-        is BoundFunction.Body.Full -> boundBody.code.toBackendIr() // TODO: implicit unit return
-        is BoundFunction.Body.SingleExpression -> IrCodeChunkImpl(listOf(object : IrReturnStatement {
-            override val value = boundBody.expression.toBackendIr()
-        }))
+    protected val _body: IrCodeChunk by lazy {
+        when (boundBody) {
+            null -> IrCodeChunkImpl(emptyList())
+            is BoundFunction.Body.Full -> boundBody.code.toBackendIrStatement() // TODO: implicit unit return
+            is BoundFunction.Body.SingleExpression -> {
+                val resultTemporary = IrCreateTemporaryValueImpl(boundBody.expression.toBackendIrExpression())
+                IrCodeChunkImpl(listOf(
+                    resultTemporary,
+                    object : IrReturnStatement {
+                        override val value = IrTemporaryValueReferenceImpl(resultTemporary)
+                    },
+                ))
+            }
+        }
     }
 
     private class IrDeclaredFunctionImpl(

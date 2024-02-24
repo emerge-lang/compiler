@@ -38,15 +38,10 @@ class BoundStringLiteralExpression(
         // nothing to do
     }
 
-    private val _backendIr by lazy {
-        IrStringLiteralExpressionImpl(
-            declaration.content.content.encodeToByteArray(),
-            type!!.toBackendIr(),
-        )
-    }
-    override fun toBackendIr(): IrExpression {
-        return _backendIr
-    }
+    override fun toBackendIrExpression(): IrExpression = IrStringLiteralExpressionImpl(
+        declaration.content.content.encodeToByteArray(),
+        type!!.toBackendIr(),
+    )
 }
 
 private class IrStringLiteralExpressionImpl(

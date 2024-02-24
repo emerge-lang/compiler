@@ -265,8 +265,8 @@ class EmergeLlvmContext(
             }
 
             when (val codeResult = emitCode(fn.body)) {
-                is ExecutableResult.ImplicitUnit,
-                is ExpressionResult.Value<*> -> {
+                is ExecutableResult.ExecutionOngoing,
+                is ExpressionResult.Value -> {
                     (this as BasicBlockBuilder<*, LlvmVoidType>).retVoid()
                 }
                 is ExpressionResult.Terminated -> {

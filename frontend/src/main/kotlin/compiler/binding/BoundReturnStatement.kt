@@ -22,14 +22,16 @@ import compiler.ast.ReturnStatement
 import compiler.ast.expression.IdentifierExpression
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
+import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.reportings.Reporting
 import compiler.reportings.ReturnTypeMismatchReporting
-import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
-import io.github.tmarsteel.emerge.backend.api.ir.IrStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 
 class BoundReturnStatement(
     override val context: CTContext,
@@ -94,8 +96,9 @@ class BoundReturnStatement(
         return this.expression?.findWritesBeyond(boundary) ?: emptySet()
     }
 
-    override fun toBackendIr(): IrStatement {
+    override fun toBackendIrStatement(): IrExecutable {
         val actualExpression: BoundExpression<*> = this.expression ?: run {
+            // TODO: this is a dirty hack, Unit could be aliased in this context
             val ast = IdentifierExpression(IdentifierToken("Unit", declaration.returnKeyword.sourceLocation))
             val bound = ast.bindTo(context)
             check(bound.semanticAnalysisPhase1().isEmpty())
@@ -103,8 +106,12 @@ class BoundReturnStatement(
             check(bound.semanticAnalysisPhase3().isEmpty())
             bound
         }
-        return IrReturnStatementImpl(actualExpression.toBackendIr())
+
+        val valueTemporary = IrCreateTemporaryValueImpl(actualExpression.toBackendIrExpression())
+        return IrCodeChunkImpl(
+            listOf(valueTemporary, IrReturnStatementImpl(IrTemporaryValueReferenceImpl(valueTemporary)))
+        )
     }
 }
 
-private class IrReturnStatementImpl(override val value: IrExpression) : IrReturnStatement
+private class IrReturnStatementImpl(override val value: IrTemporaryValueReference) : IrReturnStatement

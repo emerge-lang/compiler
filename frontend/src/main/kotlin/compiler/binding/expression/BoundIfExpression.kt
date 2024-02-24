@@ -22,15 +22,20 @@ import compiler.ast.Expression
 import compiler.ast.IfExpression
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundExecutable
+import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
+import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
+import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.BuiltinBoolean
 import compiler.binding.type.isAssignableTo
 import compiler.nullableAnd
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIfExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundIfExpression(
@@ -133,19 +138,30 @@ class BoundIfExpression(
         elseCode?.setExpectedReturnType(type)
     }
 
-    override fun toBackendIr(): IrExpression {
-        return IrIfExpressionImpl(
-            condition.toBackendIr(),
-            thenCode.toBackendIr(),
-            elseCode?.toBackendIr(),
-            type!!.toBackendIr(),
+    override fun toBackendIrExpression(): IrExpression {
+        val conditionTemporary = IrCreateTemporaryValueImpl(condition.toBackendIrExpression())
+        val ifTemporary = IrCreateTemporaryValueImpl(
+            IrIfExpressionImpl(
+                IrTemporaryValueReferenceImpl(conditionTemporary),
+                thenCode.toBackendIrAsImplicitEvaluationExpression(),
+                elseCode?.toBackendIrAsImplicitEvaluationExpression(),
+                type!!.toBackendIr(),
+            )
+        )
+
+        return IrImplicitEvaluationExpressionImpl(
+            IrCodeChunkImpl(listOf(
+                conditionTemporary,
+                ifTemporary,
+            )),
+            IrTemporaryValueReferenceImpl(ifTemporary),
         )
     }
 }
 
 private class IrIfExpressionImpl(
-    override val condition: IrExpression,
-    override val thenBranch: IrCodeChunk,
-    override val elseBranch: IrCodeChunk?,
+    override val condition: IrTemporaryValueReference,
+    override val thenBranch: IrImplicitEvaluationExpression,
+    override val elseBranch: IrImplicitEvaluationExpression?,
     override val evaluatesTo: IrType,
 ) : IrIfExpression

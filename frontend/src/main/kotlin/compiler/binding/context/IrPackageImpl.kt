@@ -4,13 +4,11 @@ import compiler.binding.expression.BoundExpression
 import compiler.binding.misc_ir.IrOverloadGroupImpl
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.DotName
-import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrGlobalVariable
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
 import io.github.tmarsteel.emerge.backend.api.ir.IrPackage
 import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
-import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
 internal class IrPackageImpl(
@@ -63,5 +61,5 @@ internal class IrGlobalVariableImpl(
     override val declaration: IrVariableDeclaration,
     private val boundInitialValue: BoundExpression<*>,
 ) : IrGlobalVariable {
-    override val initializer get() = boundInitialValue.toBackendIr()
+    override val initializer get() = boundInitialValue.toBackendIrExpression()
 }

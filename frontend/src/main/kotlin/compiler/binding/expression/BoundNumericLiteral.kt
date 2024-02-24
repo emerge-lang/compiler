@@ -18,6 +18,7 @@
 
 package compiler.binding.expression
 
+import compiler.InternalCompilerError
 import compiler.ast.expression.NumericLiteralExpression
 import compiler.binding.BoundStatement
 import compiler.binding.context.CTContext
@@ -75,6 +76,10 @@ open class BoundNumericLiteral(
 
         expectedNumericType = type.baseType
     }
+
+    override fun toBackendIrExpression(): IrExpression {
+        throw InternalCompilerError("Numeric literal not completely recognized (int vs floating point)")
+    }
 }
 
 class BoundIntegerLiteral(
@@ -121,7 +126,7 @@ class BoundIntegerLiteral(
         return reportings
     }
 
-    override fun toBackendIr(): IrExpression {
+    override fun toBackendIrExpression(): IrExpression {
         return IrIntegerLiteralExpressionImpl(
             integer,
             type.toBackendIr(),
@@ -136,6 +141,10 @@ class BoundFloatingPointLiteral(
     reportings: Collection<Reporting>
 ) : BoundNumericLiteral(context, declaration, reportings) {
     override val type = compiler.binding.type.BuiltinFloat.baseReference
+
+    override fun toBackendIrExpression(): IrExpression {
+        TODO()
+    }
 }
 
 internal class IrIntegerLiteralExpressionImpl(

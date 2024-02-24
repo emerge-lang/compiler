@@ -27,8 +27,9 @@ class ComputedLazyTackDelegate<in R : Any, out T>(
 }
 
 fun <R : Any, T> tackState(computeInitial: R.() -> T) = StateTackDelegate<R, T>(computeInitial)
+fun <T : Any> tackLateInitState() = LateInitStateTackDelegate<T>()
 
-class StateTackDelegate<in R : Any, T : Any?>(private val computeInitial: R.() -> T) {
+class StateTackDelegate<in R : Any, T>(private val computeInitial: R.() -> T) {
     private val data = MapMaker().weakKeys().makeMap<R, T>()
 
     operator fun getValue(thisRef: R, prop: KProperty<*>): T {
@@ -36,6 +37,19 @@ class StateTackDelegate<in R : Any, T : Any?>(private val computeInitial: R.() -
     }
 
     operator fun setValue(thisRef: R, prop: KProperty<*>, value: T) {
+        data[thisRef] = value
+    }
+}
+
+class LateInitStateTackDelegate<T : Any?> {
+    private val data = MapMaker().weakKeys().makeMap<Any, T>()
+
+    operator fun getValue(thisRef: Any, prop: KProperty<*>): T {
+        return data[thisRef]
+            ?: throw UninitializedPropertyAccessException("tacked lateinit ${thisRef::class.simpleName}::${prop.name}")
+    }
+
+    operator fun setValue(thisRef: Any, prop: KProperty<*>, value: T) {
         data[thisRef] = value
     }
 }

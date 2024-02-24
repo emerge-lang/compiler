@@ -90,8 +90,8 @@ class BoundBinaryExpression(
         // is not a thing in Emerge
     }
 
-    override fun toBackendIr(): IrExpression {
-        return hiddenInvocation.toBackendIr()
+    override fun toBackendIrExpression(): IrExpression {
+        return hiddenInvocation.toBackendIrExpression()
     }
 }
 

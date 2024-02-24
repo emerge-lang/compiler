@@ -23,14 +23,21 @@ import compiler.ast.expression.InvocationExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundStatement
+import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
+import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
+import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.*
 import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundInvocationExpression(
     override val context: CTContext,
@@ -240,8 +247,20 @@ class BoundInvocationExpression(
         expectedReturnType = type
     }
 
-    override fun toBackendIr(): IrExpression {
-        return IrStaticDispatchFunctionInvocationImpl(this)
+    override fun toBackendIrExpression(): IrExpression {
+        val argumentExprs = (listOfNotNull(receiverExpression) + valueArguments).map { it.toBackendIrExpression() }
+        val argumentTemporaries = argumentExprs.map { IrCreateTemporaryValueImpl(it) }
+        val resultTemporary = IrCreateTemporaryValueImpl(
+            IrStaticDispatchFunctionInvocationImpl(
+                dispatchedFunction!!.toBackendIr(),
+                argumentTemporaries.map { IrTemporaryValueReferenceImpl(it) },
+                type!!.toBackendIr(),
+            )
+        )
+        return IrImplicitEvaluationExpressionImpl(
+            IrCodeChunkImpl(argumentTemporaries + resultTemporary),
+            IrTemporaryValueReferenceImpl(resultTemporary),
+        )
     }
 }
 
@@ -359,13 +378,7 @@ private data class OverloadCandidateEvaluation(
 }
 
 private class IrStaticDispatchFunctionInvocationImpl(
-    private val invocation: BoundInvocationExpression,
-) : IrStaticDispatchFunctionInvocationExpression {
-    private val irReturnType by lazy { invocation.type!!.toBackendIr() }
-    private val irFunction by lazy { invocation.dispatchedFunction!!.toBackendIr() }
-    private val irArguments by lazy { (listOfNotNull(invocation.receiverExpression) + invocation.valueArguments).map { it.toBackendIr() } }
-
-    override val evaluatesTo get() = irReturnType
-    override val function get() = irFunction
-    override val arguments get() = irArguments
-}
+    override val function: IrFunction,
+    override val arguments: List<IrTemporaryValueReference>,
+    override val evaluatesTo: IrType,
+) : IrStaticDispatchFunctionInvocationExpression

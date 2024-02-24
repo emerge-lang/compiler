@@ -7,7 +7,11 @@ import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundStatement
+import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
+import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
+import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
@@ -18,6 +22,7 @@ import compiler.nullableOr
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrArrayLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundArrayLiteralExpression(
@@ -112,18 +117,31 @@ class BoundArrayLiteralExpression(
         elements.forEach { it.setExpectedEvaluationResultType(expectedElementType!!) }
     }
 
-    private val _backendIr by lazy {
-        IrArrayLiteralExpressionImpl(
+    override fun toBackendIrExpression(): IrExpression {
+        val irType = type!!.toBackendIr()
+        val irElementType = (type as RootResolvedTypeReference).arguments.single().type.toBackendIr()
+        if (elements.isEmpty()) {
+            return IrArrayLiteralExpressionImpl(irType, irElementType, emptyList())
+        }
+
+        val elementTemporaries = elements.map {
+            IrCreateTemporaryValueImpl(it.toBackendIrExpression())
+        }
+        val arrayTemporary = IrCreateTemporaryValueImpl(IrArrayLiteralExpressionImpl(
             type!!.toBackendIr(),
-            (type as RootResolvedTypeReference).arguments.single().type.toBackendIr(),
-            elements.map { it.toBackendIr() },
+            irElementType,
+            elementTemporaries.map(::IrTemporaryValueReferenceImpl),
+        ))
+
+        return IrImplicitEvaluationExpressionImpl(
+            IrCodeChunkImpl(elementTemporaries + listOf(arrayTemporary)),
+            IrTemporaryValueReferenceImpl(arrayTemporary),
         )
     }
-    override fun toBackendIr(): IrExpression = _backendIr
 }
 
 private class IrArrayLiteralExpressionImpl(
     override val evaluatesTo: IrType,
     override val elementType: IrType,
-    override val elements: List<IrExpression>,
+    override val elements: List<IrTemporaryValueReference>,
 ) : IrArrayLiteralExpression

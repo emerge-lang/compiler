@@ -21,7 +21,10 @@ package compiler.binding.expression
 import compiler.ast.Expression
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundStatement
+import compiler.binding.IrCodeChunkImpl
+import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.type.BoundTypeReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
 interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
@@ -67,7 +70,10 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
     override val implicitEvaluationResultType: BoundTypeReference?
         get() = type
 
-    override fun toBackendIr(): IrExpression {
-        TODO("for ${this::class.simpleName}")
+    override fun toBackendIrStatement(): IrExecutable {
+         val temporary = IrCreateTemporaryValueImpl(toBackendIrExpression())
+         return IrCodeChunkImpl(listOf(temporary))
     }
+
+    fun toBackendIrExpression(): IrExpression
 }

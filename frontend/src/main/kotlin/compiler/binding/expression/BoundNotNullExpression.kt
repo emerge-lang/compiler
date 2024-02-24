@@ -24,6 +24,7 @@ import compiler.binding.BoundStatement
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
 class BoundNotNullExpression(
     override val context: CTContext,
@@ -55,10 +56,29 @@ class BoundNotNullExpression(
         return nullableExpression.findReadsBeyond(boundary)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> = emptySet()
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
+        return nullableExpression.findWritesBeyond(boundary)
+    }
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // TODO: do we need to change nullability here before passing it on?
         nullableExpression.setExpectedEvaluationResultType(type)
+    }
+
+    override fun toBackendIrExpression(): IrExpression {
+        /*
+        should be fairly simply once a cast operator and exceptions are available. Declare in emerge.std:
+
+        fun errorIfNull<T : Any>(value: T?): T {
+            if (value != null) {
+                return value as T
+            }
+            throw NullPointerError()
+        }
+
+        then just call this function here
+         */
+
+        TODO("Not yet implemented")
     }
 }

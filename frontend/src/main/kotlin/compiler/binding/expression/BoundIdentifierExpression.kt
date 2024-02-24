@@ -28,8 +28,8 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
-import io.github.tmarsteel.emerge.backend.api.ir.IrVariableReferenceExpression
 
 class BoundIdentifierExpression(
     override val context: CTContext,
@@ -147,14 +147,14 @@ class BoundIdentifierExpression(
 
     private val _backendIr by lazy {
         (referral as? ReferringVariable)?.let { referral ->
-            IrVariableReferenceExpressionImpl(
+            IrVariableAccessExpressionImpl(
                 referral.variable.backendIrDeclaration,
                 referral.variable.isInitializedInContext(context),
             )
         } ?: TODO("implement type references")
     }
 
-    override fun toBackendIr(): IrExpression = _backendIr
+    override fun toBackendIrExpression(): IrExpression = _backendIr
 
     private enum class VariableUsageContext(val requiresInitialization: Boolean) {
         READ(true),
@@ -162,7 +162,7 @@ class BoundIdentifierExpression(
     }
 }
 
-internal class IrVariableReferenceExpressionImpl(
+internal class IrVariableAccessExpressionImpl(
     override val variable: IrVariableDeclaration,
     override val isInitialized: Boolean,
-) : IrVariableReferenceExpression
+) : IrVariableAccessExpression

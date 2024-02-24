@@ -96,8 +96,5 @@ interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
      */
     fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> = emptySet() // TODO remove default impl
 
-    /**
-     * TODO: most classes have a backing lazy field. The method is nonsense, refactor to a val
-     */
-    fun toBackendIr(): IrExecutable
+    fun toBackendIrStatement(): IrExecutable
 }

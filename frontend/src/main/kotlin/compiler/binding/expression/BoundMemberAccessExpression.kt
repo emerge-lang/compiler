@@ -20,14 +20,19 @@ package compiler.binding.expression
 
 import compiler.ast.expression.MemberAccessExpression
 import compiler.binding.BoundStatement
+import compiler.binding.IrCodeChunkImpl
 import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
+import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
+import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.struct.StructMember
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 import io.github.tmarsteel.emerge.backend.api.ir.IrStructMemberAccessExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundMemberAccessExpression(
@@ -44,7 +49,9 @@ class BoundMemberAccessExpression(
     override var type: BoundTypeReference? = null
         private set
 
-    private var member: ObjectMember? = null
+    /** set in [semanticAnalysisPhase2] */
+    var member: ObjectMember? = null
+        private set
 
     override val isGuaranteedToThrow = false // member accessor CAN throw, but must not ALWAYS do so
 
@@ -93,17 +100,23 @@ class BoundMemberAccessExpression(
         // nothing to do, the type of any object member is predetermined
     }
 
-    override fun toBackendIr(): IrExpression {
-        return IrStructMemberAccessExpressionImpl(
-            valueExpression.toBackendIr(),
+    override fun toBackendIrExpression(): IrExpression {
+        val baseTemporary = IrCreateTemporaryValueImpl(valueExpression.toBackendIrExpression())
+        val memberTemporary = IrCreateTemporaryValueImpl(IrStructMemberAccessExpressionImpl(
+            IrTemporaryValueReferenceImpl(baseTemporary),
             (member!! as StructMember).toBackendIr(),
             type!!.toBackendIr(),
+        ))
+
+        return IrImplicitEvaluationExpressionImpl(
+            IrCodeChunkImpl(listOf(baseTemporary, memberTemporary)),
+            IrTemporaryValueReferenceImpl(memberTemporary),
         )
     }
 }
 
 private class IrStructMemberAccessExpressionImpl(
-    override val base: IrExpression,
+    override val base: IrTemporaryValueReference,
     override val member: IrStruct.Member,
     override val evaluatesTo: IrType,
 ) : IrStructMemberAccessExpression

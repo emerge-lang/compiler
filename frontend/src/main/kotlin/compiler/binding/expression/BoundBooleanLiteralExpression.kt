@@ -44,7 +44,7 @@ class BoundBooleanLiteralExpression(
     override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
     override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
 
-    override fun toBackendIr(): IrExpression {
+    override fun toBackendIrExpression(): IrExpression {
         return IrBooleanLiteralExpressionImpl(type.toBackendIr(), value)
     }
 }

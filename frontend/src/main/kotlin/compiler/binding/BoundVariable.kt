@@ -26,8 +26,10 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
 import compiler.binding.context.SourceFileRootContext
 import compiler.binding.expression.BoundExpression
-import compiler.binding.expression.IrAssignmentExpressionImpl
-import compiler.binding.expression.IrVariableReferenceExpressionImpl
+import compiler.binding.expression.IrAssignmentStatementImpl
+import compiler.binding.expression.IrAssignmentStatementTargetVariableImpl
+import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.BuiltinAny
 import compiler.binding.type.TypeUseSite
@@ -253,16 +255,18 @@ class BoundVariable(
 
     val backendIrDeclaration: IrVariableDeclaration by lazy { IrVariableDeclarationImpl(name, type!!.toBackendIr()) }
 
-    override fun toBackendIr(): IrExecutable {
+    override fun toBackendIrStatement(): IrExecutable {
         if (initializerExpression == null) {
             return backendIrDeclaration
         }
 
+        val initialTemporary = IrCreateTemporaryValueImpl(initializerExpression.toBackendIrExpression())
         return IrCodeChunkImpl(listOf(
             backendIrDeclaration,
-            IrAssignmentExpressionImpl(
-                IrVariableReferenceExpressionImpl(backendIrDeclaration, false),
-                initializerExpression.toBackendIr()
+            initialTemporary,
+            IrAssignmentStatementImpl(
+                IrAssignmentStatementTargetVariableImpl(backendIrDeclaration),
+                IrTemporaryValueReferenceImpl(initialTemporary),
             )
         ))
     }
