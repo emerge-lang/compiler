@@ -177,10 +177,7 @@ class BoundAssignmentExpression(
         override fun toBackendIrExecutable(): IrExecutable {
             val dropPreviousCode: List<IrExecutable> = if (reference.variable.isInitializedInContext(context)) {
                 val previousTemporary = IrCreateTemporaryValueImpl(
-                    IrVariableAccessExpressionImpl(
-                        reference.variable.backendIrDeclaration,
-                        true,
-                    )
+                    IrVariableAccessExpressionImpl(reference.variable.backendIrDeclaration)
                 )
                 listOf(previousTemporary, IrDropReferenceStatementImpl(previousTemporary))
             } else emptyList()
