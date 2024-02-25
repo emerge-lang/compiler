@@ -22,6 +22,7 @@ import compiler.ast.ReturnStatement
 import compiler.ast.expression.IdentifierExpression
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
+import compiler.binding.misc_ir.IrCreateReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
@@ -109,7 +110,11 @@ class BoundReturnStatement(
 
         val valueTemporary = IrCreateTemporaryValueImpl(actualExpression.toBackendIrExpression())
         return IrCodeChunkImpl(
-            listOf(valueTemporary, IrReturnStatementImpl(IrTemporaryValueReferenceImpl(valueTemporary)))
+            listOf(
+                valueTemporary,
+                IrCreateReferenceStatementImpl(valueTemporary),
+                IrReturnStatementImpl(IrTemporaryValueReferenceImpl(valueTemporary))
+            )
         )
     }
 }
