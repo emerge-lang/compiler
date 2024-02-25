@@ -19,7 +19,7 @@
 package compiler.ast
 
 import compiler.binding.BoundReturnStatement
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.lexer.KeywordToken
 import compiler.lexer.SourceLocation
 
@@ -37,5 +37,5 @@ class ReturnStatement(
         )
     }
 
-    override fun bindTo(context: CTContext) = BoundReturnStatement(context, this)
+    override fun bindTo(context: ExecutionScopedCTContext) = BoundReturnStatement(context, this)
 }

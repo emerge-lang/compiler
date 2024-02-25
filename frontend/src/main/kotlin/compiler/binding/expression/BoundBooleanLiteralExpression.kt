@@ -19,7 +19,7 @@
 package compiler.binding.expression
 
 import compiler.ast.expression.BooleanLiteralExpression
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.BuiltinBoolean
 import compiler.reportings.Reporting
@@ -28,7 +28,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundBooleanLiteralExpression(
-    override val context: CTContext,
+    override val context: ExecutionScopedCTContext,
     override val declaration: BooleanLiteralExpression,
     val value: Boolean
 ) : BoundExpression<BooleanLiteralExpression> {

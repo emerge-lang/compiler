@@ -19,7 +19,7 @@
 package compiler.ast.expression
 
 import compiler.ast.Expression
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundNotNullExpression
 import compiler.lexer.OperatorToken
 
@@ -31,7 +31,7 @@ class NotNullExpression(
 {
     override val sourceLocation = nullableExpression.sourceLocation
 
-    override fun bindTo(context: CTContext) = BoundNotNullExpression(
+    override fun bindTo(context: ExecutionScopedCTContext) = BoundNotNullExpression(
         context,
         this,
         nullableExpression.bindTo(context)

@@ -21,7 +21,7 @@ package compiler.ast.expression
 import compiler.InternalCompilerError
 import compiler.ast.Expression
 import compiler.ast.type.TypeArgument
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundInvocationExpression
 import compiler.lexer.SourceLocation
 
@@ -40,7 +40,7 @@ class InvocationExpression(
         else -> targetExpression.sourceLocation
     }
 
-    override fun bindTo(context: CTContext): BoundInvocationExpression {
+    override fun bindTo(context: ExecutionScopedCTContext): BoundInvocationExpression {
         // bind all the parameters
         val boundParameterValueExprs = valueArgumentExpressions.map { it.bindTo(context) }
 

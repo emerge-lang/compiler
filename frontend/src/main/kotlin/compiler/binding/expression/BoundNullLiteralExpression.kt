@@ -22,6 +22,7 @@ import compiler.ast.expression.NullLiteralExpression
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundStatement
 import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.BuiltinAny
 import compiler.reportings.Reporting
@@ -30,7 +31,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrNullLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundNullLiteralExpression(
-    override val context: CTContext,
+    override val context: ExecutionScopedCTContext,
     override val declaration: NullLiteralExpression
 ) : BoundExpression<NullLiteralExpression>
 {

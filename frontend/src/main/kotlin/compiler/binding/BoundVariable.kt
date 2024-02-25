@@ -23,7 +23,8 @@ import compiler.ast.VariableDeclaration
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
-import compiler.binding.context.MutableCTContext
+import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.SourceFileRootContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrAssignmentStatementImpl
@@ -46,7 +47,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
  * Refers to the original declaration and contains an override type.
  */
 class BoundVariable(
-    override val context: CTContext,
+    override val context: ExecutionScopedCTContext,
     override val declaration: VariableDeclaration,
     val initializerExpression: BoundExpression<*>?,
     val kind: Kind,
@@ -233,8 +234,8 @@ class BoundVariable(
         }
     }
 
-    override val modifiedContext: CTContext by lazy {
-        val newCtx = MutableCTContext(context)
+    override val modifiedContext: ExecutionScopedCTContext by lazy {
+        val newCtx = MutableExecutionScopedCTContext(context)
         newCtx.addVariable(this)
         if (initializerExpression != null) {
             newCtx.markVariableInitialized(this)
@@ -250,7 +251,7 @@ class BoundVariable(
         return initializerExpression?.findWritesBeyond(boundary) ?: emptySet()
     }
 
-    fun isInitializedInContext(context: CTContext): Boolean {
+    fun isInitializedInContext(context: ExecutionScopedCTContext): Boolean {
         return isGlobal || kind == Kind.PARAMETER || context.initializesVariable(this)
     }
 

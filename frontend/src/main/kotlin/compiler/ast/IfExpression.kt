@@ -18,8 +18,8 @@
 
 package compiler.ast
 
-import compiler.binding.context.CTContext
-import compiler.binding.context.MutableCTContext
+import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundIfExpression
 import compiler.lexer.SourceLocation
 
@@ -30,8 +30,8 @@ class IfExpression (
     val elseCode: Executable?
 ) : Expression {
 
-    override fun bindTo(context: CTContext): BoundIfExpression {
-        val contextBeforeCondition: CTContext = MutableCTContext(context)
+    override fun bindTo(context: ExecutionScopedCTContext): BoundIfExpression {
+        val contextBeforeCondition: ExecutionScopedCTContext = MutableExecutionScopedCTContext(context)
         val boundCondition = condition.bindTo(contextBeforeCondition)
 
         val thenCodeAsChunk: CodeChunk = if (thenCode is CodeChunk) thenCode else CodeChunk(listOf(thenCode as Statement))

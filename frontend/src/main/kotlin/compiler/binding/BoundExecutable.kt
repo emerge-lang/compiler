@@ -20,11 +20,14 @@ package compiler.binding
 
 import compiler.ast.Executable
 import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
 interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
+    override val context: ExecutionScopedCTContext
+
     /**
      * Whether this executable is guaranteed to return to the caller; with or without return value.
      *
@@ -58,7 +61,7 @@ interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
      * A context derived from the one bound to ([context]), containing all the changes the [Executable] applies
      * to its enclosing scope (e.g. a variable declaration add a new variable)
      */
-    val modifiedContext: CTContext
+    val modifiedContext: ExecutionScopedCTContext
         get() = context
 
     /**

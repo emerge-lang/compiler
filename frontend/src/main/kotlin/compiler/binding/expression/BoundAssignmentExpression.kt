@@ -23,7 +23,8 @@ import compiler.ast.expression.AssignmentExpression
 import compiler.binding.BoundStatement
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
-import compiler.binding.context.MutableCTContext
+import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.misc_ir.IrCreateReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropReferenceStatementImpl
@@ -40,7 +41,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
 class BoundAssignmentExpression(
-    override val context: CTContext,
+    override val context: ExecutionScopedCTContext,
     override val declaration: AssignmentExpression,
     val targetExpression: BoundExpression<*>,
     val toAssignExpression: BoundExpression<*>
@@ -51,8 +52,8 @@ class BoundAssignmentExpression(
     override val isGuaranteedToThrow: Boolean?
         get() = targetExpression.isGuaranteedToThrow nullableOr toAssignExpression.isGuaranteedToThrow
 
-    private val _modifiedContext = MutableCTContext(context)
-    override val modifiedContext: CTContext = _modifiedContext
+    private val _modifiedContext = MutableExecutionScopedCTContext(context)
+    override val modifiedContext: ExecutionScopedCTContext = _modifiedContext
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableListOf<Reporting>()

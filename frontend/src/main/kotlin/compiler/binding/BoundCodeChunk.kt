@@ -21,6 +21,7 @@ package compiler.binding
 import compiler.OnceAction
 import compiler.ast.CodeChunk
 import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
@@ -34,7 +35,7 @@ class BoundCodeChunk(
     /**
      * Context that applies to the leftHandSide statement; derivatives are stored within the statements themselves
      */
-    override val context: CTContext,
+    override val context: ExecutionScopedCTContext,
 
     override val declaration: CodeChunk,
 
@@ -49,7 +50,7 @@ class BoundCodeChunk(
     override val mayReturn: Boolean
         get() = statements.any { it.mayReturn }
 
-    override val modifiedContext: CTContext
+    override val modifiedContext: ExecutionScopedCTContext
         get() = statements.last().modifiedContext
 
     override fun setExpectedReturnType(type: BoundTypeReference) {

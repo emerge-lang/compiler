@@ -18,10 +18,8 @@
 
 package compiler.binding.context
 
-import compiler.InternalCompilerError
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
-import compiler.ast.VariableDeclaration
 import compiler.ast.struct.StructDeclaration
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeParameter
@@ -37,8 +35,6 @@ import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.lexer.IdentifierToken
-import java.util.Collections
-import java.util.IdentityHashMap
 
 /**
  * Mutable compile-time context; for explanation, see the doc of [CTContext].
@@ -64,8 +60,6 @@ open class MutableCTContext(
         set(value) {
             _sourceFile = value
         }
-
-    private val hierarchy: Sequence<CTContext> = generateSequence(this as CTContext) { (it as? MutableCTContext)?.parentContext }
 
     /** Maps variable names to their metadata; holds only variables defined in this context */
     protected val _variables: MutableMap<String, BoundVariable> = HashMap()
@@ -142,61 +136,10 @@ open class MutableCTContext(
             ?: UnresolvedType(ref, resolvedParameters)
     }
 
-    override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? {
-        _variables[name]?.let { return it }
-
-        val fromImport = if (fromOwnFileOnly) null else {
-            val importedVars = importsForSimpleName(name)
-                .mapNotNull { it.resolveVariable(name) }
-
-            // TODO: if importedVars.size is > 1 the name is ambiguous; how to handle that?
-            importedVars.firstOrNull()
-        }
-
-        return fromImport ?: parentContext.resolveVariable(name, fromOwnFileOnly)
-    }
-
-    private val initializedVariables: MutableSet<BoundVariable> = Collections.newSetFromMap(IdentityHashMap())
-    fun markVariableInitialized(variable: BoundVariable) {
-        initializedVariables.add(variable)
-    }
-
-    override fun initializesVariable(variable: BoundVariable): Boolean {
-        return variable in initializedVariables || parentContext.initializesVariable(variable)
-    }
-
-    override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean {
-        if (_variables.containsValue(variable)) return true
-
-        if (this === boundary) {
-            return false
-        }
-
-        return parentContext.containsWithinBoundary(variable, boundary)
-    }
-
     open fun addFunction(declaration: FunctionDeclaration): BoundFunction {
         val bound = declaration.bindTo(this)
         _functions.add(bound)
         return bound
-    }
-
-    /**
-     * Adds the given variable to this context; possibly overriding its type with the given type.
-     */
-    open fun addVariable(declaration: VariableDeclaration): BoundVariable {
-        val bound = declaration.bindTo(this)
-
-        return addVariable(bound)
-    }
-
-    open fun addVariable(boundVariable: BoundVariable): BoundVariable {
-        if (boundVariable.context in hierarchy) {
-            _variables[boundVariable.name] = boundVariable
-            return boundVariable
-        }
-
-        throw InternalCompilerError("Cannot add a variable that has been bound to a different context")
     }
 
     override fun resolveFunction(name: String, fromOwnFileOnly: Boolean): Collection<BoundFunction> {
@@ -216,7 +159,7 @@ open class MutableCTContext(
     /**
      * @return All the imported contexts that could contain the given simple name.
      */
-    private fun importsForSimpleName(simpleName: String): Iterable<PackageContext> {
+    protected fun importsForSimpleName(simpleName: String): Iterable<PackageContext> {
         return imports.mapNotNull { import ->
             val importRange = import.identifiers.map(IdentifierToken::value)
             val packageName = importRange.dropLast(1)

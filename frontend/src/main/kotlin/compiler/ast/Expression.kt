@@ -18,9 +18,9 @@
 
 package compiler.ast
 
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 
 interface Expression : Statement {
-    override fun bindTo(context: CTContext): BoundExpression<*>
+    override fun bindTo(context: ExecutionScopedCTContext): BoundExpression<*>
 }

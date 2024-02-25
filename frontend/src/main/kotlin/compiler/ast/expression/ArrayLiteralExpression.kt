@@ -1,7 +1,7 @@
 package compiler.ast.expression
 
 import compiler.ast.Expression
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundArrayLiteralExpression
 import compiler.binding.expression.BoundExpression
 import compiler.lexer.OperatorToken
@@ -20,7 +20,7 @@ class ArrayLiteralExpression(
         rightBracket.sourceLocation.toColumnNumber,
     )
 
-    override fun bindTo(context: CTContext): BoundArrayLiteralExpression {
+    override fun bindTo(context: ExecutionScopedCTContext): BoundArrayLiteralExpression {
         var carryContext = context
         val boundElements = ArrayList<BoundExpression<*>>(elements.size)
         for (element in elements) {

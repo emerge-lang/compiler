@@ -24,6 +24,7 @@ import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.FunctionModifier
 import compiler.binding.BoundStatement
 import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
@@ -33,7 +34,7 @@ import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
 class BoundBinaryExpression(
-    override val context: CTContext,
+    override val context: ExecutionScopedCTContext,
     override val declaration: BinaryExpression,
     val leftHandSide: BoundExpression<*>,
     val operator: Operator,

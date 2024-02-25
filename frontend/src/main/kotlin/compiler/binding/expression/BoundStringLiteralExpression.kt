@@ -4,7 +4,7 @@ import compiler.InternalCompilerError
 import compiler.StandardLibraryModule
 import compiler.ast.expression.StringLiteralExpression
 import compiler.ast.type.TypeMutability
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -12,7 +12,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrStringLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundStringLiteralExpression(
-    override val context: CTContext,
+    override val context: ExecutionScopedCTContext,
     override val declaration: StringLiteralExpression,
 ) : BoundExpression<StringLiteralExpression> {
     override val isGuaranteedToThrow: Boolean = false

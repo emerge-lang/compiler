@@ -23,7 +23,7 @@ import compiler.ast.IfExpression
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundExecutable
 import compiler.binding.IrCodeChunkImpl
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
@@ -39,7 +39,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundIfExpression(
-    override val context: CTContext,
+    override val context: ExecutionScopedCTContext,
     override val declaration: IfExpression,
     val condition: BoundExpression<Expression>,
     val thenCode: BoundCodeChunk,

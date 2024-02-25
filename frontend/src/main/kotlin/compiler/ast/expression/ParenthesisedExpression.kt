@@ -19,7 +19,7 @@
 package compiler.ast.expression;
 
 import compiler.ast.Expression
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.lexer.SourceLocation
 
@@ -31,7 +31,7 @@ class ParenthesisedExpression(
     val nested: Expression,
     override val sourceLocation: SourceLocation,
 ) : Expression {
-    override fun bindTo(context: CTContext): BoundExpression<*> {
+    override fun bindTo(context: ExecutionScopedCTContext): BoundExpression<*> {
         return nested.bindTo(context)
     }
 }

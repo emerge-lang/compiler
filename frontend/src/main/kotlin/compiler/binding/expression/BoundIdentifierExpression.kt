@@ -24,6 +24,7 @@ import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.reportings.Reporting
@@ -32,7 +33,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
 class BoundIdentifierExpression(
-    override val context: CTContext,
+    override val context: ExecutionScopedCTContext,
     override val declaration: IdentifierExpression
 ) : BoundExpression<IdentifierExpression> {
     val identifier: String = declaration.identifier.value

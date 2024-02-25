@@ -9,7 +9,7 @@ import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundFunction
 import compiler.binding.IrFunctionImpl
-import compiler.binding.context.MutableCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
@@ -17,7 +17,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 class StructConstructor(
     val struct: Struct,
 ) : BoundFunction() {
-    override val context = MutableCTContext(struct.context)
+    override val context = MutableExecutionScopedCTContext(struct.context)
     override val declaredAt = struct.declaration.declaredAt
     override val receiverType = null
     override val declaresReceiver = false

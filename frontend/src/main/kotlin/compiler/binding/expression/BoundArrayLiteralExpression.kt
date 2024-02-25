@@ -9,6 +9,7 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.BoundStatement
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
@@ -26,11 +27,11 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundArrayLiteralExpression(
-    override val context: CTContext,
+    override val context: ExecutionScopedCTContext,
     override val declaration: ArrayLiteralExpression,
     val elements: List<BoundExpression<*>>,
 ) : BoundExpression<ArrayLiteralExpression> {
-    override val modifiedContext: CTContext = elements.lastOrNull()?.modifiedContext ?: context
+    override val modifiedContext: ExecutionScopedCTContext = elements.lastOrNull()?.modifiedContext ?: context
     override val isGuaranteedToThrow: Boolean get() = elements.map { it.isGuaranteedToThrow }.reduceOrNull() { a, b -> a nullableOr b } ?: false
     private var expectedEvaluationResultType: BoundTypeReference? = null
     private var expectedElementType: BoundTypeReference? = null

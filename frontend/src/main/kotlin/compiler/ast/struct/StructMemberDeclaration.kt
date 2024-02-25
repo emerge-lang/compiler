@@ -18,11 +18,9 @@
 
 package compiler.ast.struct
 
-import compiler.InternalCompilerError
 import compiler.ast.ASTVisibilityModifier
 import compiler.ast.Expression
 import compiler.ast.type.TypeReference
-import compiler.binding.context.CTContext
 import compiler.binding.struct.StructContext
 import compiler.binding.struct.StructMember
 import compiler.lexer.IdentifierToken
@@ -35,13 +33,16 @@ class StructMemberDeclaration(
     val type: TypeReference,
     val defaultValue: Expression?
 ) {
-    fun bindTo(context: CTContext): StructMember {
-        if (context !is StructContext) throw InternalCompilerError(null)
-
+    init {
+        check(defaultValue == null) {
+            "Default values are not well defined at this point"
+        }
+    }
+    fun bindTo(context: StructContext): StructMember {
         return StructMember(
             context,
             this,
-            defaultValue?.bindTo(context)
+            null,
         )
     }
 }

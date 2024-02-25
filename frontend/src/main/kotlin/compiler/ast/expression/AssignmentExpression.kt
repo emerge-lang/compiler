@@ -19,7 +19,7 @@
 package compiler.ast.expression
 
 import compiler.ast.Expression
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundAssignmentExpression
 import compiler.lexer.OperatorToken
 
@@ -31,7 +31,7 @@ class AssignmentExpression(
 
     override val sourceLocation = targetExpression.sourceLocation
 
-    override fun bindTo(context: CTContext) = BoundAssignmentExpression(
+    override fun bindTo(context: ExecutionScopedCTContext) = BoundAssignmentExpression(
         context,
         this,
         targetExpression.bindTo(context),

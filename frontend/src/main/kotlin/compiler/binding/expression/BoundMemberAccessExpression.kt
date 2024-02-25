@@ -23,6 +23,7 @@ import compiler.binding.BoundStatement
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
@@ -36,7 +37,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundMemberAccessExpression(
-    override val context: CTContext,
+    override val context: ExecutionScopedCTContext,
     override val declaration: MemberAccessExpression,
     val valueExpression: BoundExpression<*>,
     val isNullSafeAccess: Boolean,

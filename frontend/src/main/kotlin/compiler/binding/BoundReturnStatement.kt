@@ -21,6 +21,7 @@ package compiler.binding
 import compiler.ast.ReturnStatement
 import compiler.ast.expression.IdentifierExpression
 import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.misc_ir.IrCreateReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -35,7 +36,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 
 class BoundReturnStatement(
-    override val context: CTContext,
+    override val context: ExecutionScopedCTContext,
     override val declaration: ReturnStatement
 ) : BoundStatement<ReturnStatement> {
 

@@ -25,6 +25,7 @@ import compiler.binding.BoundFunction
 import compiler.binding.BoundStatement
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropReferenceStatementImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
@@ -42,7 +43,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundInvocationExpression(
-    override val context: CTContext,
+    override val context: ExecutionScopedCTContext,
     override val declaration: InvocationExpression,
     /** The receiver expression; is null if not specified in the source */
     val receiverExpression: BoundExpression<*>?,

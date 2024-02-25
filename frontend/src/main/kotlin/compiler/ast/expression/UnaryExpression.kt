@@ -19,7 +19,7 @@
 package compiler.ast.expression
 
 import compiler.ast.Expression
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundUnaryExpression
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
@@ -31,7 +31,7 @@ class UnaryExpression(
 ):Expression {
     override val sourceLocation = valueExpression.sourceLocation
 
-    override fun bindTo(context: CTContext): BoundUnaryExpression {
+    override fun bindTo(context: ExecutionScopedCTContext): BoundUnaryExpression {
         val functionName = operatorFunctionName(operatorToken.operator)
         val hiddenInvocation = InvocationExpression(
             MemberAccessExpression(

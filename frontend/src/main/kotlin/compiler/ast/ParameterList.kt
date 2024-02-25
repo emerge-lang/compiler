@@ -20,7 +20,7 @@ package compiler.ast
 
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundParameterList
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 
 class ParameterList (
     val parameters: List<VariableDeclaration> = emptyList()
@@ -28,7 +28,7 @@ class ParameterList (
     /** The types; null values indicate non-specified parameters */
     val types: List<TypeReference?> = parameters.map { it.type }
 
-    fun bindTo(context: CTContext) = BoundParameterList(
+    fun bindTo(context: ExecutionScopedCTContext) = BoundParameterList(
         context,
         this,
         parameters.map { it.bindToAsParameter(context) }

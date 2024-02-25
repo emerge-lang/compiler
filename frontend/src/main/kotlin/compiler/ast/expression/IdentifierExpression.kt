@@ -19,7 +19,7 @@
 package compiler.ast.expression
 
 import compiler.ast.Expression
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.lexer.IdentifierToken
 
@@ -35,7 +35,7 @@ import compiler.lexer.IdentifierToken
 class IdentifierExpression(val identifier: IdentifierToken) :Expression {
     override val sourceLocation = identifier.sourceLocation
 
-    override fun bindTo(context: CTContext): BoundIdentifierExpression {
+    override fun bindTo(context: ExecutionScopedCTContext): BoundIdentifierExpression {
         return BoundIdentifierExpression(context, this)
     }
 }

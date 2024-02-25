@@ -19,7 +19,7 @@
 package compiler.ast.expression
 
 import compiler.ast.Expression
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundFloatingPointLiteral
 import compiler.binding.expression.BoundIntegerLiteral
 import compiler.binding.expression.BoundNumericLiteral
@@ -41,7 +41,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
 
     override val sourceLocation = literalToken.sourceLocation
 
-    override fun bindTo(context: CTContext): BoundNumericLiteral {
+    override fun bindTo(context: ExecutionScopedCTContext): BoundNumericLiteral {
         validate()
 
         if (integerValue != null) {

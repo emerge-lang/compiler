@@ -26,7 +26,8 @@ import compiler.binding.BoundFunction
 import compiler.binding.BoundParameter
 import compiler.binding.BoundParameterList
 import compiler.binding.context.CTContext
-import compiler.binding.context.MutableCTContext
+import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 
@@ -45,10 +46,10 @@ class FunctionDeclaration(
     val returnType: TypeReference? = parsedReturnType
 
     fun bindTo(context: CTContext): BoundDeclaredFunction {
-        val functionContext = MutableCTContext(context)
+        val functionContext = MutableExecutionScopedCTContext(context)
         val boundTypeParams = typeParameters.map(functionContext::addTypeParameter)
 
-        var contextAfterValueParameters: CTContext = functionContext
+        var contextAfterValueParameters: ExecutionScopedCTContext = functionContext
         val boundParameters = ArrayList<BoundParameter>(parameters.parameters.size)
         for (parameter in parameters.parameters) {
             val bound = parameter.bindToAsParameter(contextAfterValueParameters)
@@ -67,10 +68,10 @@ class FunctionDeclaration(
     }
 
     sealed interface Body {
-        fun bindTo(context: CTContext): BoundFunction.Body
+        fun bindTo(context: ExecutionScopedCTContext): BoundFunction.Body
 
         class SingleExpression(val expression: Expression) : Body {
-            override fun bindTo(context: CTContext): BoundFunction.Body {
+            override fun bindTo(context: ExecutionScopedCTContext): BoundFunction.Body {
                 return BoundFunction.Body.SingleExpression(
                     expression.bindTo(context)
                 )
@@ -78,7 +79,7 @@ class FunctionDeclaration(
         }
 
         class Full(val code: CodeChunk) : Body {
-            override fun bindTo(context: CTContext): BoundFunction.Body {
+            override fun bindTo(context: ExecutionScopedCTContext): BoundFunction.Body {
                 return BoundFunction.Body.Full(code.bindTo(context))
             }
         }

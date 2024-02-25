@@ -2,6 +2,7 @@ package compiler.binding.context
 
 import compiler.InternalCompilerError
 import compiler.ast.type.TypeReference
+import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
 import compiler.binding.struct.Struct
@@ -13,7 +14,7 @@ import compiler.binding.type.UnresolvedType
 
 class SourceFileRootContext(
     val packageContext: PackageContext,
-) : MutableCTContext(
+) : MutableExecutionScopedCTContext(
     SourceFileParentContext(packageContext),
 ) {
     override var moduleContext: ModuleContext = packageContext.moduleContext
@@ -24,8 +25,20 @@ class SourceFileRootContext(
     val structs: Collection<Struct> = _structs
     val types: Collection<BaseType> = _types
 
+    override fun addDeferredCode(code: BoundExecutable<*>) {
+        throw InternalCompilerError("Deferred code on source-file level is currently not possible. Maybe implement as global destructors in the future?")
+    }
+
+    override fun getLocalDeferredCode(): Sequence<BoundExecutable<*>> {
+        throw InternalCompilerError("Deferred code on source-file level is currently not possible. Maybe implement as global destructors in the future?")
+    }
+
+    override fun getAllDeferredCode(): Sequence<BoundExecutable<*>> {
+        throw InternalCompilerError("Deferred code on source-file level is currently not possible. Maybe implement as global destructors in the future?")
+    }
+
     private companion object {
-        val EMPTY = object : CTContext {
+        val EMPTY = object : ExecutionScopedCTContext {
             override val swCtx: SoftwareContext
                 get() = throw InternalCompilerError("${this::swCtx.name} not initialized yet")
 
@@ -45,10 +58,17 @@ class SourceFileRootContext(
                 ref.arguments.map { BoundTypeArgument(it, it.variance, this.resolveType(it.type)) },
             )
             override fun resolveFunction(name: String, fromOwnFileOnly: Boolean): Collection<BoundFunction> = emptySet()
+            override fun getLocalDeferredCode(): Sequence<BoundExecutable<*>> {
+                throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
+            }
+
+            override fun getAllDeferredCode(): Sequence<BoundExecutable<*>> {
+                throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
+            }
         }
     }
 
-    private class SourceFileParentContext(val packageContext: PackageContext) : CTContext by EMPTY {
+    private class SourceFileParentContext(val packageContext: PackageContext) : ExecutionScopedCTContext by EMPTY {
         override val moduleContext = packageContext.moduleContext
 
         override val sourceFile: SourceFile

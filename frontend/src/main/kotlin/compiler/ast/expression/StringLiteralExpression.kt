@@ -1,7 +1,7 @@
 package compiler.ast.expression
 
 import compiler.ast.Expression
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundStringLiteralExpression
 import compiler.lexer.OperatorToken
 import compiler.lexer.SourceLocation
@@ -20,7 +20,7 @@ class StringLiteralExpression(
         endingDelimiter.sourceLocation.toColumnNumber,
     )
 
-    override fun bindTo(context: CTContext): BoundStringLiteralExpression {
+    override fun bindTo(context: ExecutionScopedCTContext): BoundStringLiteralExpression {
         return BoundStringLiteralExpression(context, this)
     }
 }

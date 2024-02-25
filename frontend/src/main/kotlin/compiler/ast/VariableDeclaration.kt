@@ -21,7 +21,7 @@ package compiler.ast
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundVariable
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 
@@ -35,9 +35,9 @@ open class VariableDeclaration(
 ) : Statement, AstFileLevelDeclaration {
     override val sourceLocation get() = declaredAt
 
-    override fun bindTo(context: CTContext): BoundVariable = bindTo(context, BoundVariable.Kind.VARIABLE)
-    fun bindToAsParameter(context: CTContext): BoundVariable = bindTo(context, BoundVariable.Kind.PARAMETER)
-    private fun bindTo(context: CTContext, kind: BoundVariable.Kind): BoundVariable = BoundVariable(
+    override fun bindTo(context: ExecutionScopedCTContext): BoundVariable = bindTo(context, BoundVariable.Kind.VARIABLE)
+    fun bindToAsParameter(context: ExecutionScopedCTContext): BoundVariable = bindTo(context, BoundVariable.Kind.PARAMETER)
+    private fun bindTo(context: ExecutionScopedCTContext, kind: BoundVariable.Kind): BoundVariable = BoundVariable(
         context,
         this,
         initializerExpression?.bindTo(context),

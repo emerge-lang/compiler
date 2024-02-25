@@ -19,7 +19,7 @@
 package compiler.ast.expression
 
 import compiler.ast.Expression
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundNullLiteralExpression
 import compiler.lexer.SourceLocation
 
@@ -30,5 +30,5 @@ class NullLiteralExpression(
     override val sourceLocation: SourceLocation
 
 ) :Expression {
-    override fun bindTo(context: CTContext) = BoundNullLiteralExpression(context, this)
+    override fun bindTo(context: ExecutionScopedCTContext) = BoundNullLiteralExpression(context, this)
 }

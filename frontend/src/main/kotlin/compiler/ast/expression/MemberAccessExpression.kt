@@ -19,7 +19,7 @@
 package compiler.ast.expression
 
 import compiler.ast.Expression
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundMemberAccessExpression
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
@@ -41,7 +41,7 @@ class MemberAccessExpression(
 ) :Expression {
     override val sourceLocation = valueExpression.sourceLocation
 
-    override fun bindTo(context: CTContext): BoundMemberAccessExpression {
+    override fun bindTo(context: ExecutionScopedCTContext): BoundMemberAccessExpression {
         return BoundMemberAccessExpression(
             context,
             this,

@@ -19,7 +19,7 @@
 package compiler.ast.expression
 
 import compiler.ast.Expression
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundBinaryExpression
 import compiler.lexer.OperatorToken
 
@@ -31,7 +31,7 @@ class BinaryExpression(
     override val sourceLocation = leftHandSide.sourceLocation
 
     // simply rewrite to an invocation
-    override fun bindTo(context: CTContext) = BoundBinaryExpression(
+    override fun bindTo(context: ExecutionScopedCTContext) = BoundBinaryExpression(
             context,
             this,
             leftHandSide.bindTo(context),

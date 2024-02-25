@@ -18,9 +18,11 @@
 
 package compiler.ast
 
+import compiler.InternalCompilerError
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundExecutable
 import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.lexer.SourceLocation
 
 /**
@@ -33,7 +35,7 @@ class CodeChunk(
 
     fun bindTo(context: CTContext): BoundCodeChunk {
         val boundStatements = ArrayList<BoundExecutable<*>>(statements.size)
-        var contextCarry = context
+        var contextCarry = context as? ExecutionScopedCTContext ?: throw InternalCompilerError("Can this ever happen? If yes: easy fix right here")
         for (astStatement in statements) {
             val boundStatement = astStatement.bindTo(contextCarry)
             boundStatements.add(boundStatement)

@@ -22,12 +22,13 @@ import compiler.ast.expression.NotNullExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundStatement
 import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
 class BoundNotNullExpression(
-    override val context: CTContext,
+    override val context: ExecutionScopedCTContext,
     override val declaration: NotNullExpression,
     val nullableExpression: BoundExpression<*>
 ) : BoundExpression<NotNullExpression>, BoundExecutable<NotNullExpression> {

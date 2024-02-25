@@ -22,6 +22,7 @@ import compiler.InternalCompilerError
 import compiler.ast.expression.NumericLiteralExpression
 import compiler.binding.BoundStatement
 import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.BuiltinByte
 import compiler.binding.type.BuiltinInt
@@ -46,7 +47,7 @@ import java.math.BigInteger
  * [BoundIntegerLiteral] and [BoundFloatingPointLiteral].
  */
 open class BoundNumericLiteral(
-    override val context: CTContext,
+    override val context: ExecutionScopedCTContext,
     override val declaration: NumericLiteralExpression,
     private val reportings: Collection<Reporting>
 ) : BoundExpression<NumericLiteralExpression> {
@@ -83,7 +84,7 @@ open class BoundNumericLiteral(
 }
 
 class BoundIntegerLiteral(
-    context: CTContext,
+    context: ExecutionScopedCTContext,
     declaration: NumericLiteralExpression,
     val integer: BigInteger,
     reportings: Collection<Reporting>
@@ -135,7 +136,7 @@ class BoundIntegerLiteral(
 }
 
 class BoundFloatingPointLiteral(
-    context: CTContext,
+    context: ExecutionScopedCTContext,
     declaration: NumericLiteralExpression,
     val float: BigDecimal,
     reportings: Collection<Reporting>

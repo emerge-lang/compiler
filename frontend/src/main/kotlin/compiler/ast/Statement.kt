@@ -19,7 +19,7 @@
 package compiler.ast
 
 import compiler.binding.BoundStatement
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 
 /**
  * Something that can be executed. All expressions are executable (because executing an expression means evaluating
@@ -27,5 +27,5 @@ import compiler.binding.context.CTContext
  * declare one variable. [CodeChunk]s, by nature, can declare many.
  */
 interface Statement : Executable {
-    fun bindTo(context: CTContext): BoundStatement<*>
+    fun bindTo(context: ExecutionScopedCTContext): BoundStatement<*>
 }
