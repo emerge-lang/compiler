@@ -26,6 +26,7 @@ import compiler.binding.BoundStatement
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrDropReferenceStatementImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.*
@@ -33,6 +34,7 @@ import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
@@ -247,7 +249,7 @@ class BoundInvocationExpression(
         expectedReturnType = type
     }
 
-    override fun toBackendIrExpression(): IrExpression {
+    private fun toBackendIrCallOnly(): Pair<List<IrExecutable>, IrTemporaryValueReference> {
         val argumentExprs = (listOfNotNull(receiverExpression) + valueArguments).map { it.toBackendIrExpression() }
         val argumentTemporaries = argumentExprs.map { IrCreateTemporaryValueImpl(it) }
         val resultTemporary = IrCreateTemporaryValueImpl(
@@ -257,10 +259,23 @@ class BoundInvocationExpression(
                 type!!.toBackendIr(),
             )
         )
+
+        return Pair(argumentTemporaries, IrTemporaryValueReferenceImpl(resultTemporary))
+    }
+
+    override fun toBackendIrExpression(): IrExpression {
+        val (argumentTemps, resultTempRef) = toBackendIrCallOnly()
         return IrImplicitEvaluationExpressionImpl(
-            IrCodeChunkImpl(argumentTemporaries + resultTemporary),
-            IrTemporaryValueReferenceImpl(resultTemporary),
+            IrCodeChunkImpl(argumentTemps),
+            resultTempRef,
         )
+    }
+
+    override fun toBackendIrStatement(): IrExecutable {
+        val (argumentTemps, resultTempRef) = toBackendIrCallOnly()
+        return IrCodeChunkImpl(argumentTemps + listOf(
+            IrDropReferenceStatementImpl(resultTempRef.declaration)
+        ))
     }
 }
 
