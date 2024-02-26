@@ -66,6 +66,8 @@ class BoundNotNullExpression(
         nullableExpression.setExpectedEvaluationResultType(type)
     }
 
+    override val isEvaluationResultReferenceCounted get() = TODO("not implemented yet")
+
     override fun toBackendIrExpression(): IrExpression {
         /*
         should be fairly simply once a cast operator and exceptions are available. Declare in emerge.std:

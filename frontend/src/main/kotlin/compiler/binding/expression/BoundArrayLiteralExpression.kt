@@ -118,7 +118,10 @@ class BoundArrayLiteralExpression(
         elements.forEach { it.setExpectedEvaluationResultType(expectedElementType!!) }
     }
 
+    override val isEvaluationResultReferenceCounted = true
+
     override fun toBackendIrExpression(): IrExpression {
+        // TODO: refcount the temporaries, this is a function call to the array ctor in disguise!
         val irType = type!!.toBackendIr()
         val irElementType = (type as RootResolvedTypeReference).arguments.single().type.toBackendIr()
         if (elements.isEmpty()) {

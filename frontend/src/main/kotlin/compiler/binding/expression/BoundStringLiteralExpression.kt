@@ -38,6 +38,8 @@ class BoundStringLiteralExpression(
         // nothing to do
     }
 
+    override val isEvaluationResultReferenceCounted = false
+
     override fun toBackendIrExpression(): IrExpression = IrStringLiteralExpressionImpl(
         declaration.content.content.encodeToByteArray(),
         type!!.toBackendIr(),

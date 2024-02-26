@@ -53,6 +53,8 @@ class BoundNullLiteralExpression(
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> = emptySet()
 
+    override val isEvaluationResultReferenceCounted = false
+
     override fun toBackendIrExpression(): IrExpression {
         return IrNullLiteralExpressionImpl(type?.toBackendIr() ?: BuiltinAny.baseReference.withCombinedNullability(TypeReference.Nullability.NULLABLE).toBackendIr())
     }

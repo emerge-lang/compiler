@@ -138,13 +138,27 @@ class BoundIfExpression(
         elseCode?.setExpectedReturnType(type)
     }
 
+    override val isEvaluationResultReferenceCounted get() = when {
+        elseCode != null -> {
+            // if either is implicitly refcounted, we have to add the reference counting on the other
+            thenCode.isImplicitEvaluationResultReferenceCounted || elseCode.isImplicitEvaluationResultReferenceCounted
+        }
+        else -> {
+            // elseCode == null, doesn't evaluate to either branch but to implicit unit -> not refcounted
+            false
+        }
+    }
+
     override fun toBackendIrExpression(): IrExpression {
+        val thenResultNeedsToIncludeRefCount = isEvaluationResultReferenceCounted && !thenCode.isImplicitEvaluationResultReferenceCounted
+        val elseResultNeedsToIncludeRefCount = isEvaluationResultReferenceCounted && !(elseCode?.isImplicitEvaluationResultReferenceCounted ?: true)
+
         val conditionTemporary = IrCreateTemporaryValueImpl(condition.toBackendIrExpression())
         val ifTemporary = IrCreateTemporaryValueImpl(
             IrIfExpressionImpl(
                 IrTemporaryValueReferenceImpl(conditionTemporary),
-                thenCode.toBackendIrAsImplicitEvaluationExpression(),
-                elseCode?.toBackendIrAsImplicitEvaluationExpression(),
+                thenCode.toBackendIrAsImplicitEvaluationExpression(thenResultNeedsToIncludeRefCount),
+                elseCode?.toBackendIrAsImplicitEvaluationExpression(elseResultNeedsToIncludeRefCount),
                 type!!.toBackendIr(),
             )
         )

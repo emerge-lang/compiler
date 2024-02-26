@@ -91,7 +91,11 @@ abstract class BoundFunction : SemanticallyAnalyzable {
     internal abstract fun toBackendIr(): IrFunction
 
     sealed interface Body : BoundExecutable<Executable> {
-        class SingleExpression(val expression: BoundExpression<*>) : Body, BoundExecutable<Executable> by expression
+        class SingleExpression(val expression: BoundExpression<*>) : Body, BoundExecutable<Executable> by expression {
+            override fun setExpectedReturnType(type: BoundTypeReference) {
+                expression.setExpectedEvaluationResultType(type)
+            }
+        }
         class Full(val code: BoundCodeChunk) : Body, BoundExecutable<Executable> by code
     }
 }

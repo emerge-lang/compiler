@@ -101,6 +101,8 @@ class BoundMemberAccessExpression(
         // nothing to do, the type of any object member is predetermined
     }
 
+    override val isEvaluationResultReferenceCounted = false
+
     override fun toBackendIrExpression(): IrExpression {
         val baseTemporary = IrCreateTemporaryValueImpl(valueExpression.toBackendIrExpression())
         val memberTemporary = IrCreateTemporaryValueImpl(IrStructMemberAccessExpressionImpl(

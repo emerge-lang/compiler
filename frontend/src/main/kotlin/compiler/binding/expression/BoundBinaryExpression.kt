@@ -91,6 +91,8 @@ class BoundBinaryExpression(
         // is not a thing in Emerge
     }
 
+    override val isEvaluationResultReferenceCounted = hiddenInvocation.isEvaluationResultReferenceCounted
+
     override fun toBackendIrExpression(): IrExpression {
         return hiddenInvocation.toBackendIrExpression()
     }

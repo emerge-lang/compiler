@@ -146,6 +146,8 @@ class BoundIdentifierExpression(
         }
     }
 
+    override val isEvaluationResultReferenceCounted = false
+
     private val _backendIr by lazy {
         (referral as? ReferringVariable)?.let { referral ->
             IrVariableAccessExpressionImpl(

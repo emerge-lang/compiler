@@ -264,10 +264,11 @@ class BoundVariable(
         }
 
         val initialTemporary = IrCreateTemporaryValueImpl(initializerExpression.toBackendIrExpression())
-        return IrCodeChunkImpl(listOf(
+        val initialTemporaryRefIncrement = IrCreateReferenceStatementImpl(initialTemporary).takeUnless { initializerExpression.isEvaluationResultReferenceCounted }
+        return IrCodeChunkImpl(listOfNotNull(
             backendIrDeclaration,
             initialTemporary,
-            IrCreateReferenceStatementImpl(initialTemporary),
+            initialTemporaryRefIncrement,
             IrAssignmentStatementImpl(
                 IrAssignmentStatementTargetVariableImpl(backendIrDeclaration),
                 IrTemporaryValueReferenceImpl(initialTemporary),

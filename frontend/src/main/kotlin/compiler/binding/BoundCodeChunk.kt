@@ -24,6 +24,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrIntegerLiteralExpressionImpl
+import compiler.binding.misc_ir.IrCreateReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
@@ -32,6 +33,7 @@ import compiler.binding.type.BuiltinUInt
 import compiler.handleCyclicInvocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
+import io.github.tmarsteel.emerge.backend.api.ir.IrCreateReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import java.math.BigInteger
 
@@ -123,7 +125,18 @@ class BoundCodeChunk(
         )
     }
 
-    fun toBackendIrAsImplicitEvaluationExpression(): IrImplicitEvaluationExpressionImpl {
+    /**
+     * the equivalent of [BoundExpression.isEvaluationResultReferenceCounted]
+     */
+    val isImplicitEvaluationResultReferenceCounted: Boolean
+        get() = (statements.lastOrNull() as? BoundExpression<*>)?.isEvaluationResultReferenceCounted ?: false
+
+    /**
+     * @param assureResultHasReferenceCountIncrement if true and if the implicit result has
+     * [BoundExpression.isEvaluationResultReferenceCounted] == `false`, will include an [IrCreateReferenceStatement]
+     * for the temporary implicit result.
+     */
+    fun toBackendIrAsImplicitEvaluationExpression(assureResultHasReferenceCountIncrement: Boolean): IrImplicitEvaluationExpressionImpl {
         val plainStatements = statements
             .take(statements.size - 1)
             .map { it.toBackendIrStatement() }
@@ -132,11 +145,18 @@ class BoundCodeChunk(
         val lastStatement = statements.lastOrNull()
 
         if (lastStatement is BoundExpression<*>) {
-            val temporary = IrCreateTemporaryValueImpl(lastStatement.toBackendIrExpression())
-            plainStatements += temporary
+            val implicitValueTemporary = IrCreateTemporaryValueImpl(lastStatement.toBackendIrExpression())
+            plainStatements += implicitValueTemporary
+            if (lastStatement.isEvaluationResultReferenceCounted) {
+                check(!assureResultHasReferenceCountIncrement) {
+                    "Reference counting bug: the implicit result is implicitly reference counted (${lastStatement::class.simpleName}) but the code using the result isn't aware."
+                }
+            } else if (assureResultHasReferenceCountIncrement) {
+                plainStatements += IrCreateReferenceStatementImpl(implicitValueTemporary)
+            }
             return IrImplicitEvaluationExpressionImpl(
                 IrCodeChunkImpl(plainStatements + getDeferredCodeAtEndOfChunk()),
-                IrTemporaryValueReferenceImpl(temporary),
+                IrTemporaryValueReferenceImpl(implicitValueTemporary),
             )
         }
 

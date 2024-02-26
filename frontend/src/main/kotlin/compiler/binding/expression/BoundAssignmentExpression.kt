@@ -125,6 +125,9 @@ class BoundAssignmentExpression(
         // nothing to do because assignments are not expressions
     }
 
+    override val isEvaluationResultReferenceCounted: Boolean
+        get() = throw InternalCompilerError("Assignment used as expression")
+
     override fun toBackendIrStatement(): IrExecutable {
         return target!!.toBackendIrExecutable()
     }
@@ -231,14 +234,16 @@ class BoundAssignmentExpression(
         override fun toBackendIrExecutable(): IrExecutable {
             val previousTemporary = IrCreateTemporaryValueImpl(memberAccess.toBackendIrExpression())
             val baseTemporary = IrCreateTemporaryValueImpl(memberAccess.valueExpression.toBackendIrExpression())
+            val baseTemporaryRefIncrement = IrCreateReferenceStatementImpl(baseTemporary).takeUnless { memberAccess.valueExpression.isEvaluationResultReferenceCounted }
             val toAssignTemporary = IrCreateTemporaryValueImpl(toAssignExpression.toBackendIrExpression())
-            return IrCodeChunkImpl(listOf(
+            val toAssignTemporaryRefIncrement = IrCreateReferenceStatementImpl(toAssignTemporary).takeUnless { toAssignExpression.isEvaluationResultReferenceCounted }
+            return IrCodeChunkImpl(listOfNotNull(
                 previousTemporary,
                 IrDropReferenceStatementImpl(previousTemporary),
                 baseTemporary,
-                IrCreateReferenceStatementImpl(baseTemporary),
+                baseTemporaryRefIncrement,
                 toAssignTemporary,
-                IrCreateReferenceStatementImpl(toAssignTemporary),
+                toAssignTemporaryRefIncrement,
                 IrAssignmentStatementImpl(
                     IrAssignmentStatementTargetStructMemberImpl(
                         (memberAccess.member as StructMember).toBackendIr(),

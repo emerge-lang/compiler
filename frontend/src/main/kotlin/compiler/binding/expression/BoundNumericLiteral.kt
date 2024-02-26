@@ -78,6 +78,8 @@ open class BoundNumericLiteral(
         expectedNumericType = type.baseType
     }
 
+    override val isEvaluationResultReferenceCounted = false
+
     override fun toBackendIrExpression(): IrExpression {
         throw InternalCompilerError("Numeric literal not completely recognized (int vs floating point)")
     }

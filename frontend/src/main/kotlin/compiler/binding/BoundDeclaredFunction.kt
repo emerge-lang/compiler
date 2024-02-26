@@ -119,6 +119,9 @@ class BoundDeclaredFunction(
 
             if (declaration.returnType != null) {
                 returnType = context.resolveType(declaration.returnType)
+                returnType?.let {
+                    code?.setExpectedReturnType(it)
+                }
             }
 
             this.code?.semanticAnalysisPhase1()?.let(reportings::addAll)
@@ -185,10 +188,6 @@ class BoundDeclaredFunction(
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
 
             if (code != null) {
-                if (returnType != null) {
-                    code.setExpectedReturnType(returnType!!)
-                }
-
                 reportings += code.semanticAnalysisPhase3()
 
                 // readonly and purity checks
