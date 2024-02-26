@@ -235,10 +235,11 @@ class BoundVariable(
     }
 
     override val modifiedContext: ExecutionScopedCTContext by lazy {
-        val newCtx = MutableExecutionScopedCTContext(context)
+        val newCtx = MutableExecutionScopedCTContext.deriveFrom(context)
         newCtx.addVariable(this)
         if (initializerExpression != null) {
             newCtx.markVariableInitialized(this)
+            newCtx.addDeferredCode(DropLocalVariableStatement(this))
         }
         newCtx
     }
