@@ -111,11 +111,9 @@ class BoundReturnStatement(
 
         val valueTemporary = IrCreateTemporaryValueImpl(actualExpression.toBackendIrExpression())
         return IrCodeChunkImpl(
-            listOf(
-                valueTemporary,
-                IrCreateReferenceStatementImpl(valueTemporary),
-                IrReturnStatementImpl(IrTemporaryValueReferenceImpl(valueTemporary))
-            )
+            listOf(valueTemporary, IrCreateReferenceStatementImpl(valueTemporary)) +
+            context.getFunctionDeferredCode().map { it.toBackendIrStatement() }.toList() +
+            listOf(IrReturnStatementImpl(IrTemporaryValueReferenceImpl(valueTemporary)))
         )
     }
 }

@@ -261,20 +261,20 @@ class BoundInvocationExpression(
             )
         )
 
-        return Pair(argumentTemporaries, IrTemporaryValueReferenceImpl(resultTemporary))
+        return Pair(argumentTemporaries + listOf(resultTemporary), IrTemporaryValueReferenceImpl(resultTemporary))
     }
 
     override fun toBackendIrExpression(): IrExpression {
-        val (argumentTemps, resultTempRef) = toBackendIrCallOnly()
+        val (getResultStatements, resultTempRef) = toBackendIrCallOnly()
         return IrImplicitEvaluationExpressionImpl(
-            IrCodeChunkImpl(argumentTemps),
+            IrCodeChunkImpl(getResultStatements),
             resultTempRef,
         )
     }
 
     override fun toBackendIrStatement(): IrExecutable {
-        val (argumentTemps, resultTempRef) = toBackendIrCallOnly()
-        return IrCodeChunkImpl(argumentTemps + listOf(
+        val (getResultStatements, resultTempRef) = toBackendIrCallOnly()
+        return IrCodeChunkImpl(getResultStatements + listOf(
             IrDropReferenceStatementImpl(resultTempRef.declaration)
         ))
     }

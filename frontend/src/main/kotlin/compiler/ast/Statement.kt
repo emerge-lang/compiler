@@ -18,6 +18,7 @@
 
 package compiler.ast
 
+import compiler.binding.BoundExecutable
 import compiler.binding.BoundStatement
 import compiler.binding.context.ExecutionScopedCTContext
 
@@ -28,4 +29,19 @@ import compiler.binding.context.ExecutionScopedCTContext
  */
 interface Statement : Executable {
     fun bindTo(context: ExecutionScopedCTContext): BoundStatement<*>
+
+    companion object {
+        fun Sequence<Statement>.chain(initialContext: ExecutionScopedCTContext): Sequence<BoundExecutable<*>> {
+            return sequence {
+                val iterator = iterator()
+                var contextCarry = initialContext
+                while (iterator.hasNext()) {
+                    val next = iterator.next().bindTo(contextCarry)
+                    yield(next)
+                    contextCarry = next.modifiedContext
+                }
+            }
+        }
+        fun Iterable<Statement>.chain(initialContext: ExecutionScopedCTContext): Sequence<BoundExecutable<*>> = asSequence().chain(initialContext)
+    }
 }

@@ -31,7 +31,7 @@ class IfExpression (
 ) : Expression {
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundIfExpression {
-        val contextBeforeCondition: ExecutionScopedCTContext = MutableExecutionScopedCTContext(context)
+        val contextBeforeCondition: ExecutionScopedCTContext = MutableExecutionScopedCTContext.deriveFrom(context)
         val boundCondition = condition.bindTo(contextBeforeCondition)
 
         val thenCodeAsChunk: CodeChunk = if (thenCode is CodeChunk) thenCode else CodeChunk(listOf(thenCode as Statement))

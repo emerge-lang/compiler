@@ -46,7 +46,7 @@ class FunctionDeclaration(
     val returnType: TypeReference? = parsedReturnType
 
     fun bindTo(context: CTContext): BoundDeclaredFunction {
-        val functionContext = MutableExecutionScopedCTContext(context)
+        val functionContext = MutableExecutionScopedCTContext.functionRootIn(context)
         val boundTypeParams = typeParameters.map(functionContext::addTypeParameter)
 
         var contextAfterValueParameters: ExecutionScopedCTContext = functionContext

@@ -52,7 +52,7 @@ class BoundAssignmentExpression(
     override val isGuaranteedToThrow: Boolean?
         get() = targetExpression.isGuaranteedToThrow nullableOr toAssignExpression.isGuaranteedToThrow
 
-    private val _modifiedContext = MutableExecutionScopedCTContext(context)
+    private val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(context)
     override val modifiedContext: ExecutionScopedCTContext = _modifiedContext
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {

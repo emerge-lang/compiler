@@ -1,6 +1,9 @@
 package compiler.binding.context
 
 import compiler.InternalCompilerError
+import compiler.TakeWhileAndNextIterator.Companion.takeWhileAndNext
+import compiler.ast.Statement
+import compiler.ast.Statement.Companion.chain
 import compiler.ast.VariableDeclaration
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundVariable
@@ -12,6 +15,21 @@ import java.util.IdentityHashMap
  * stuff lives in an [ExecutionScopedCTContext]; Pure [CTContext] is for declaration-only situations.
  */
 interface ExecutionScopedCTContext : CTContext {
+    /**
+     * Whether this scope marks the boundary of a scope. A scope in this sense is a collection of
+     * [BoundExecutable]s at which's end the deferred code will be executed by default.
+     */
+    val isScopeBoundary: Boolean
+
+    /**
+     * Whether this scope marks the root of a function. Deferred statements further up in the
+     * tree of [CTContext]s will not be executed when this scope (or any of its child scopes)
+     * exit.
+     *
+     * [isFunctionRoot] implies [isScopeBoundary]
+     */
+    val isFunctionRoot: Boolean
+
     /**
      * @return The variable accessible under the given name, shadowing included.
      */
@@ -32,39 +50,99 @@ interface ExecutionScopedCTContext : CTContext {
     fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean
 
     /**
-     * @return all code that has been deferred in the scope of *this very* [ExecutionScopedCTContext], in the
-     * **reverse** order of how it was added to [MutableExecutionScopedCTContext.addDeferredCode].
+     * @return code that has been deferred in _this very_ [ExecutionScopedCTContext], in the **reverse** order
+     * of how it was added to [MutableExecutionScopedCTContext.addDeferredCode].
      */
-    fun getLocalDeferredCode(): Sequence<BoundExecutable<*>>
+    fun getContextLocalDeferredCode(): Sequence<BoundExecutable<*>>
 
     /**
-     * @return all code that has been deferred in this scope and all of its parent [ExecutionScopedCTContext]s, in the
+     * @return all code that has been deferred in this [ExecutionScopedCTContext]s scope, in the
      * **reverse** order of how it was added to [MutableExecutionScopedCTContext.addDeferredCode].
      */
-    fun getAllDeferredCode(): Sequence<BoundExecutable<*>>
+    fun getScopeLocalDeferredCode(): Sequence<BoundExecutable<*>>
+
+    /**
+     * @return all code that has been deferred in this scope and all of its parent [ExecutionScopedCTContext]s up until
+     * the [isFunctionRoot] context, in the **reverse** order of how it was added to
+     * [MutableExecutionScopedCTContext.addDeferredCode].
+     */
+    fun getFunctionDeferredCode(): Sequence<BoundExecutable<*>>
 }
 
-open class MutableExecutionScopedCTContext(
+open class MutableExecutionScopedCTContext protected constructor(
     val parentContext: CTContext,
+    override val isScopeBoundary: Boolean,
+    override val isFunctionRoot: Boolean,
 ) : MutableCTContext(parentContext), ExecutionScopedCTContext {
+    init {
+        if (isFunctionRoot) {
+            require(isScopeBoundary) { "Invariant violated" }
+        }
+    }
+
     private val hierarchy: Sequence<CTContext> = generateSequence(this as CTContext) { (it as? MutableExecutionScopedCTContext)?.parentContext }
 
-    private val localDeferredCode = ArrayList<BoundExecutable<*>>()
+    private val parentScopeContext: ExecutionScopedCTContext? by lazy {
+        val parent = hierarchy.drop(1)
+            .filterIsInstance<ExecutionScopedCTContext>()
+            .firstOrNull { it.isScopeBoundary }
+
+        if (parent == null) {
+            check(isScopeBoundary) {
+                "This is an edge ${ExecutionScopedCTContext::class.simpleName} (topmost level), must be a scope boundary. But ${this::isScopeBoundary.name} is false."
+            }
+        }
+        parent
+    }
+
+    private val parentFunctionContext: ExecutionScopedCTContext? by lazy {
+        val parent = hierarchy.drop(1)
+            .filterIsInstance<ExecutionScopedCTContext>()
+            .firstOrNull { it.isFunctionRoot }
+
+        if (parent == null) {
+            check(isFunctionRoot) {
+                "This is an edge ${ExecutionScopedCTContext::class.simpleName} (topmost level), must be a function root. But ${this::isFunctionRoot} is false."
+            }
+        }
+        parent
+    }
+
+    private var localDeferredCode: ArrayList<Statement>? = null
 
     /**
-     * Adds code to be returned from [getLocalDeferredCode] and [getAllDeferredCode]
+     * Adds code to be returned from [getScopeLocalDeferredCode] and [getFunctionDeferredCode]
      */
-    open fun addDeferredCode(code: BoundExecutable<*>) {
-        localDeferredCode.add(code)
+    open fun addDeferredCode(code: Statement) {
+        if (localDeferredCode == null) {
+            localDeferredCode = ArrayList()
+        }
+        localDeferredCode!!.add(code)
     }
 
-    override fun getLocalDeferredCode(): Sequence<BoundExecutable<*>> {
-        return localDeferredCode.asReversed().asSequence()
+    private fun getDeferredCodeUpToIncluding(boundary: CTContext): Sequence<BoundExecutable<*>> {
+        return hierarchy
+            .takeWhileAndNext { it !== boundary }
+            .flatMap {
+                (it as? MutableExecutionScopedCTContext)?.localDeferredCode?.asReversed() ?: emptyList()
+            }
+            .chain(this)
     }
 
-    override fun getAllDeferredCode(): Sequence<BoundExecutable<*>> {
-        val fromParent = (parentContext as? ExecutionScopedCTContext)?.getAllDeferredCode() ?: emptySequence()
-        return fromParent + getLocalDeferredCode()
+    override fun getContextLocalDeferredCode(): Sequence<BoundExecutable<*>> {
+        return (localDeferredCode ?: emptyList()).asReversed().chain(this)
+    }
+
+    override fun getScopeLocalDeferredCode(): Sequence<BoundExecutable<*>> {
+        if (isScopeBoundary) {
+            return getContextLocalDeferredCode()
+        }
+
+        return getDeferredCodeUpToIncluding(parentScopeContext ?: this)
+    }
+
+    override fun getFunctionDeferredCode(): Sequence<BoundExecutable<*>> {
+        return getDeferredCodeUpToIncluding(parentFunctionContext ?: this)
     }
 
     /**
@@ -116,5 +194,19 @@ open class MutableExecutionScopedCTContext(
         }
 
         return (parentContext as? ExecutionScopedCTContext)?.containsWithinBoundary(variable, boundary) ?: false
+    }
+
+    companion object {
+        fun functionRootIn(parentContext: CTContext): MutableExecutionScopedCTContext {
+            return MutableExecutionScopedCTContext(parentContext, isScopeBoundary = true, isFunctionRoot = true)
+        }
+
+        fun deriveNewScopeFrom(parentContext: ExecutionScopedCTContext): MutableExecutionScopedCTContext {
+            return MutableExecutionScopedCTContext(parentContext, isScopeBoundary = true, isFunctionRoot = false)
+        }
+
+        fun deriveFrom(parentContext: ExecutionScopedCTContext): MutableExecutionScopedCTContext {
+            return MutableExecutionScopedCTContext(parentContext, isScopeBoundary = false, isFunctionRoot = false)
+        }
     }
 }

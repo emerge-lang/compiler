@@ -23,13 +23,17 @@ import compiler.ast.CodeChunk
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.IrIntegerLiteralExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.BuiltinUInt
 import compiler.handleCyclicInvocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
+import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
+import java.math.BigInteger
 
 class BoundCodeChunk(
     /**
@@ -109,8 +113,14 @@ class BoundCodeChunk(
         }
     }
 
+    private fun getDeferredCodeAtEndOfChunk(): List<IrExecutable> {
+        return modifiedContext.getScopeLocalDeferredCode().map { it.toBackendIrStatement() }.toList()
+    }
+
     override fun toBackendIrStatement(): IrCodeChunk {
-        return IrCodeChunkImpl(statements.map { it.toBackendIrStatement() })
+        return IrCodeChunkImpl(
+            statements.map { it.toBackendIrStatement() } + getDeferredCodeAtEndOfChunk()
+        )
     }
 
     fun toBackendIrAsImplicitEvaluationExpression(): IrImplicitEvaluationExpressionImpl {
@@ -120,15 +130,21 @@ class BoundCodeChunk(
             .toMutableList()
 
         val lastStatement = statements.lastOrNull()
+
         if (lastStatement is BoundExpression<*>) {
             val temporary = IrCreateTemporaryValueImpl(lastStatement.toBackendIrExpression())
             plainStatements += temporary
             return IrImplicitEvaluationExpressionImpl(
-                IrCodeChunkImpl(plainStatements),
+                IrCodeChunkImpl(plainStatements + getDeferredCodeAtEndOfChunk()),
                 IrTemporaryValueReferenceImpl(temporary),
             )
         }
 
-        TODO("implicit unit return requires unit reference, doesn't exist yet")
+        // TODO: implicit unit return requires unit reference, doesn't exist yet
+        val standInLiteralTemporary = IrCreateTemporaryValueImpl(IrIntegerLiteralExpressionImpl(BigInteger.ZERO, BuiltinUInt.baseReference.toBackendIr()))
+        return IrImplicitEvaluationExpressionImpl(
+            IrCodeChunkImpl(plainStatements + listOfNotNull(lastStatement?.toBackendIrStatement()) + getDeferredCodeAtEndOfChunk() + listOf(standInLiteralTemporary)),
+            IrTemporaryValueReferenceImpl(standInLiteralTemporary),
+        )
     }
 }
