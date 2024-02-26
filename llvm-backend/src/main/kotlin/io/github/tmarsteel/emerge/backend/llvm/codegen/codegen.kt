@@ -136,9 +136,16 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             val byteArrayPtr = expression.assureByteArrayConstantIn(context)
             val ctor = context.registerIntrinsic(llvmStructWrapper.defaultConstructor)
             val stringTemporary = call(ctor, listOf(byteArrayPtr))
-            defer {
-                stringTemporary.afterReferenceDropped(false)
-            }
+
+            // super dirty hack: the frontend assumes string literals are constants/statics, but they aren't
+            // the frontend also assumes it has to do refcounting here, because it's not aware we're invoking
+            // a constructor here. So, to workaround for now .... until string literals can become actual constants
+            val stringRefcountPtr = stringTemporary.anyValueBase().member { strongReferenceCount }.get()
+            store(
+                sub(stringRefcountPtr.dereference(), context.word(1)),
+                stringRefcountPtr,
+            )
+
             return ExpressionResult.Value(stringTemporary)
         }
         is IrStructMemberAccessExpression -> {
