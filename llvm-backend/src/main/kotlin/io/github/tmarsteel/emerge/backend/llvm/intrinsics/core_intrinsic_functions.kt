@@ -1,7 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
-import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
@@ -37,8 +36,39 @@ internal val getSupertypePointers = KotlinLlvmFunction.define<LlvmContext, _>(
             .get()
             .dereference()
 
-        arrayPointer.afterReferenceCreated(false)
+        // refcounting not needed, typeinfo is always static
         return@body ret(arrayPointer)
+    }
+}
+
+// TODO: mark with alwaysinline
+private val afterReferenceCreatedNonNullable = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+    "emerge.platform.afterReferenceCreatedNonNullable",
+    LlvmVoidType,
+) {
+    val inputRef by param(PointerToAnyEmergeValue)
+    body {
+        val referenceCountPtr = getelementptr(inputRef).member { strongReferenceCount }.get()
+
+        store(
+            add(referenceCountPtr.dereference(), context.word(1)),
+            referenceCountPtr,
+        )
+        retVoid()
+    }
+}
+
+private val afterReferenceCreatedNullable = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+    "emerge.platform.afterReferenceCreatedNullable",
+    LlvmVoidType,
+) {
+    val inputRef by param(PointerToAnyEmergeValue)
+    body {
+        conditionalBranch(not(isNull(inputRef)), ifTrue = {
+            call(context.registerIntrinsic(afterReferenceCreatedNonNullable), listOf(inputRef))
+            concludeBranch()
+        })
+        retVoid()
     }
 }
 
@@ -46,24 +76,15 @@ internal val getSupertypePointers = KotlinLlvmFunction.define<LlvmContext, _>(
  * @param isNullable whether, according to the type information given by the frontend ([IrType.isNullable]),
  * the reference is nullable. If true, a runtime null-check will be emitted.
  */
-context(BasicBlockBuilder<*, *>)
+context(BasicBlockBuilder<EmergeLlvmContext, *>)
 internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceCreated(
     isNullable: Boolean,
 ) {
     if (isNullable) {
-        conditionalBranch(not(isNull(this)), ifTrue = {
-            afterReferenceCreated(false)
-            concludeBranch()
-        })
-        return
+        call(context.registerIntrinsic(afterReferenceCreatedNullable), listOf(this))
+    } else {
+        call(context.registerIntrinsic(afterReferenceCreatedNonNullable), listOf(this))
     }
-
-    val referenceCountPtr = this.anyValueBase().member { strongReferenceCount }.get()
-
-    store(
-        add(referenceCountPtr.dereference(), context.word(1)),
-        referenceCountPtr,
-    )
 }
 
 /**
@@ -72,7 +93,7 @@ internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceC
  * Otherwise, increments the reference counter, potentially guarded by a null-check if [IrType.isNullable]
  * is `true`.
  */
-context(BasicBlockBuilder<*, *>)
+context(BasicBlockBuilder<EmergeLlvmContext, *>)
 internal fun LlvmValue<out LlvmType>.afterReferenceCreated(
     emergeType: IrType,
 ) {
