@@ -37,7 +37,6 @@ class StructConstructor(
                 null,
                 member.declaration.name,
                 member.declaration.type,
-                false,
                 null,
             )
         })

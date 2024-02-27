@@ -27,14 +27,12 @@ import compiler.ast.PrivateASTVisibilityModifier
 import compiler.ast.ProtectedASTVisibilityModifier
 import compiler.ast.QualifiedASTProtectedVisibilityModifier
 import compiler.ast.VariableDeclaration
-import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword.EXPORT
 import compiler.lexer.Keyword.INTERNAL
 import compiler.lexer.Keyword.PRIVATE
 import compiler.lexer.Keyword.PROTECTED
-import compiler.lexer.Keyword.VAL
 import compiler.lexer.Keyword.VAR
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator.ASSIGNMENT
@@ -47,75 +45,80 @@ import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.grammar.rule.Rule
 
-val VariableDeclaration = sequence("variable declaration") {
-
-    optional {
-        ref(TypeMutability)
-    }
-
+val VariableDeclarationInitializingAssignment = sequence {
+    operator(ASSIGNMENT)
     optionalWhitespace()
+    ref(Expression)
+}
 
-    eitherOf {
-        keyword(VAR)
-        keyword(VAL)
-    }
-
-    optionalWhitespace()
-
+private val ReAssignableVariableDeclaration = sequence("re-assignable variable declaration") {
+    keyword(VAR)
     identifier()
-
     optional {
         operator(COLON)
         ref(Type)
     }
-
     optional {
-        optionalWhitespace()
-        operator(ASSIGNMENT)
-        ref(Expression)
+        ref(VariableDeclarationInitializingAssignment)
     }
 }
+
+val FinalVariableDeclaration = sequence("final variable declaration") {
+    identifier()
+    eitherOf {
+        ref(VariableDeclarationInitializingAssignment)
+        sequence {
+            operator(COLON)
+            ref(Type)
+            optional {
+                ref(VariableDeclarationInitializingAssignment)
+            }
+        }
+    }
+}
+
+val VariableDeclaration = eitherOf("variable declaration") {
+    ref(FinalVariableDeclaration)
+    ref(ReAssignableVariableDeclaration)
+}
     .astTransformation { tokens ->
-        val modifierOrKeyword = tokens.next()!!
+        val varKeywordOrName = tokens.next()!!
 
-        val typeMutability: TypeMutability?
-        val declarationKeyword: KeywordToken
+        val varKeywordToken: KeywordToken?
+        val nameToken: IdentifierToken
 
-        if (modifierOrKeyword is TypeMutability) {
-            typeMutability = modifierOrKeyword
-            declarationKeyword = tokens.next()!! as KeywordToken
+        if (varKeywordOrName is KeywordToken) {
+            varKeywordToken = varKeywordOrName
+            nameToken = tokens.next()!! as IdentifierToken
         }
         else {
-            typeMutability = null
-            declarationKeyword = modifierOrKeyword as KeywordToken
+            varKeywordToken = null
+            nameToken = varKeywordOrName as IdentifierToken
         }
-
-        val name = tokens.next()!! as IdentifierToken
 
         var type: TypeReference? = null
 
-        var colonOrEqualsOrNewline = tokens.next()
+        var colonOrAssignmentOp = tokens.next()
 
-        if (colonOrEqualsOrNewline == OperatorToken(COLON)) {
+        if (colonOrAssignmentOp == OperatorToken(COLON)) {
             type = tokens.next()!! as TypeReference
-            colonOrEqualsOrNewline = tokens.next()
+            colonOrAssignmentOp = tokens.next()
         }
 
-        var assignExpression: Expression? = null
+        var initializer: Expression? = null
 
-        val equalsOrNewline = colonOrEqualsOrNewline
+        val assignmentOpOrNewline = colonOrAssignmentOp
 
-        if (equalsOrNewline == OperatorToken(ASSIGNMENT)) {
-            assignExpression = tokens.next()!! as Expression
+        if (assignmentOpOrNewline == OperatorToken(ASSIGNMENT)) {
+            initializer = tokens.next()!! as Expression
         }
 
         VariableDeclaration(
-            declarationKeyword.sourceLocation,
-            typeMutability,
-            name,
+            varKeywordToken?.sourceLocation ?: nameToken.sourceLocation,
+            varKeywordToken,
+            nameToken,
             type,
-            declarationKeyword.keyword == VAR,
-            assignExpression
+            initializer
         )
     }
 

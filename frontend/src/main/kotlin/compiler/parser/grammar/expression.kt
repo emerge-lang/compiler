@@ -42,7 +42,6 @@ import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.StringLiteralContentToken
 import compiler.lexer.TokenType
-import compiler.parser.AssignmentExpressionPostfix
 import compiler.parser.BinaryExpressionPostfix
 import compiler.parser.ExpressionPostfix
 import compiler.parser.InvocationExpressionPostfix
@@ -352,14 +351,6 @@ val ExpressionPostfixMemberAccess = sequence("member access") {
         MemberAccessExpressionPostfix(accessOperator, memberNameToken)
     }
 
-val ExpressionPostfixAssignment = sequence("assignment") {
-    operator(Operator.ASSIGNMENT)
-    ref(Expression)
-}
-    .astTransformation { tokens ->
-        AssignmentExpressionPostfix(tokens.next() as OperatorToken, tokens.next() as Expression)
-    }
-
 val ExpressionPostfixBinaryOperation = sequence("binary expression") {
     repeatingAtLeastOnce {
         eitherOf(*binaryOperators)
@@ -374,7 +365,6 @@ val ExpressionPostfixExcludingBinary = eitherOf {
     ref(ExpressionPostfixNotNull)
     ref(ExpressionPostfixInvocation)
     ref(ExpressionPostfixMemberAccess)
-    ref(ExpressionPostfixAssignment)
 }
 
 val ExpressionPostfix = eitherOf {

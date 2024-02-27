@@ -114,32 +114,73 @@ Type inference as in Kotlin (or as in D with auto).
 
 ### Variable Declaration
 
-As in Kotlin, Variables are introduced with `val` and `val`. `var` Variables can be reassigned, `val` ones cannot.
+Stealing from the Vale language, non-writable variables are generally declared without a special keyword.
+Assignment, being the operation far less common, takes a keyword instead. The type of a variable will be
+inferred from its initializing expression, if the variable is immediately initialized at declaration.
 
-    val a = 5
-	a = 3 // Error: Cannot reassign val a
+    a = 5 // is inferred to be Int
+	set a = 3 // Error: Cannot reassign val a
 
 	var b = "Foo"
-    b = "Hello" // OK
+    set b = "Hello" // OK
 
-Type modifiers can be written before the `var` and `val` keyword. That is syntax sugar that assures the modifier on the variable type. Note that, however, a `var` of type `immutable X` can be assigned new values, as long as
-those are `immutable`, too.
+Types can be explicitly specified with a `:` after the variable name
 
-    readonly var a = 3 // is equal to
-    var a: readonly Int = 3
+    a: Int = 5
+    var b: String = "Foo"
 
-    reaonly var foo: Int = 3 // is equal to
-    var foo: readonly Int = 3
+`var`s have `mutable` types by default, whereas constants have `immutable` types by default. This can be
+changed by specifying the mutability with the type:
 
-    readonly var a = 5
-    var b = a
-    b = 3 // OK
-    a = b // error, cannot convert Int to readonly(Int)
+    a: SomeType // is equivalent to
+    a: immutalbe SomeType // but this is also valid:
+    a: mutable SomeType
 
-    immutable a = 5
-    b = a
-    b = 3 // OK
-    a = 3 // error, a is immutable
+    var b: SomeType // is equivalent to
+    var b: mutable SomeType // but this is also valid:
+    var b: immutable SomeType
+
+It is possible to use both explicit mutability and type inference on a variable declaration
+by declaring the type to be `_`
+
+    var a: immutable _ = SomeType() // re-assignable, but the value is immutable
+
+This also applies to nullability:
+    
+    // infers, but keeps the type of the variable nullable. Handy if you assign null later on
+    var x: _? = someExpression()
+
+Full overview:
+
+| re-assignable? | immutable          | readonly          | mutable      |
+|----------------|--------------------|-------------------|--------------|
+| no             | a: T               | a: readonly T     | a: mutable T |
+| yes            | var a: immutable T | var a: readonly T | var a: T     |
+
+Also, note that the re-assignability implies a mutability. The variable isn't forced to take that mutability, though,
+as some wiggle room is necessary. E.g. `x: readonly T` and `y = x` are valid, and `y` will be `readonly T`, too.
+
+Nullability is not affected by re-assignability. The Variable will always have the nullability as declared, or completely
+inferred from the initializer.
+
+| declared mutability | initializer mutability                    | re-assignable? | variable type              |
+|---------------------|-------------------------------------------|----------------|----------------------------|
+| _explicitly given_  | _irrelevant_                              | _irrelevant_   | _as declared_              |
+| _unspecified_       | _explicitly known_                        | _irrelevant_   | _identical to initializer_ |
+| _unspecified_       | _no initializer / constructor invocation_ | no             | `immutable T`              |
+| _unspecified_       | _exclusive_                               | yes            | `mutable T`                |
+
+#### Why this syntax
+
+Immutability should be the default. This includes non-reassignable variables. If you don't reassign
+your variables often, why add a keyword to all declarations? Assignment (and mutability in extension)
+is the edge case, so it gets the extra effort.
+
+Notice how this makes the two most common cases, immutable + not-reassignable and mutable + reassignable,
+concise.
+
+Lastly, this syntax removes a lot of tricky-to-deal-with left-recursion from the grammar.
+
 
 ### Functions can be Values; Function Type Syntax
 

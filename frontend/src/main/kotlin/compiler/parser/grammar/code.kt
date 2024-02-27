@@ -19,6 +19,7 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
+import compiler.ast.AssignmentStatement
 import compiler.ast.CodeChunk
 import compiler.ast.Expression
 import compiler.ast.ReturnStatement
@@ -26,6 +27,7 @@ import compiler.ast.Statement
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.grammar.rule.Rule
@@ -43,19 +45,26 @@ val ReturnStatement = sequence("return statement") {
         ReturnStatement(keyword, expression)
     }
 
-val Assignable = sequence("assignable") {
-    // TODO: refine grammar
-    ref(ExpressionExcludingBinaryPostfix)
+val AssignmentStatement = sequence("assignment statement") {
+    keyword(Keyword.SET)
+    ref(Expression)
+    operator(Operator.ASSIGNMENT)
+    ref(Expression)
 }
     .astTransformation { tokens ->
-        val expression = tokens.next()!! as Expression
-        expression
+        val setKeyword = tokens.next()!! as KeywordToken
+        val target = tokens.next()!! as Expression
+        val assignmentOperator = tokens.next()!! as OperatorToken
+        val value = tokens.next()!! as Expression
+
+        AssignmentStatement(setKeyword, target, assignmentOperator, value)
     }
 
 val LineOfCode = sequence {
     eitherOf {
-        ref(VariableDeclaration)
+        ref(AssignmentStatement)
         ref(ReturnStatement)
+        ref(VariableDeclaration)
         ref(Expression)
     }
 

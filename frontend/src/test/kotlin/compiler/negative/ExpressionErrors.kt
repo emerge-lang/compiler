@@ -27,7 +27,7 @@ class ExpressionErrors : FreeSpec({
         "return - should not error" {
             validateModule("""
                 fun foo() -> Int {
-                    val x: Boolean = if true {
+                    x: Boolean = if true {
                         return 3
                     } else {
                         return 2
@@ -40,8 +40,8 @@ class ExpressionErrors : FreeSpec({
         "variable declaration" {
             validateModule("""
                 fun foo() {
-                    val x: Boolean = if true {
-                        val y = 3 
+                    x: Boolean = if true {
+                        y = 3 
                     } else {
                         false
                     }

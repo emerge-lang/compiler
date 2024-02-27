@@ -31,7 +31,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
                 sequence {
                     keyword(Keyword.OPERATOR)
                     keyword(Keyword.READONLY)
-                    keyword(Keyword.VAL)
+                    keyword(Keyword.VAR)
                 }
             }
         }.flatten().mapResult { it.remainingToList() }
@@ -50,14 +50,14 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
         }
 
         "match second path with backtracing" {
-            val tokens = lexCode("intrinsic operator readonly val", addPackageDeclaration = false)
+            val tokens = lexCode("intrinsic operator readonly var", addPackageDeclaration = false)
             val result = grammar.match(MatchingContext.None, tokens)
 
             result.item.shouldBeInstanceOf<List<Any>>()
             (result.item as List<Any>)[0] shouldBe KeywordToken(Keyword.INTRINSIC)
             (result.item as List<Any>)[1] shouldBe KeywordToken(Keyword.OPERATOR)
             (result.item as List<Any>)[2] shouldBe KeywordToken(Keyword.READONLY)
-            (result.item as List<Any>)[3] shouldBe KeywordToken(Keyword.VAL)
+            (result.item as List<Any>)[3] shouldBe KeywordToken(Keyword.VAR)
             result.reportings should beEmpty()
             result.isAmbiguous shouldBe false
         }
@@ -90,7 +90,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
             result.item shouldBe null
             result.isAmbiguous shouldBe false
             result.reportings.shouldReport<ParsingMismatchReporting> {
-                it.expected shouldBe "keyword val"
+                it.expected shouldBe "keyword var"
                 it.actual shouldBe "keyword struct"
             }
         }

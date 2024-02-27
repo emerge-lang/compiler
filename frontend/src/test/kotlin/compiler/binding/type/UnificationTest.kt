@@ -24,7 +24,7 @@ class UnificationTest : FreeSpec({
                 struct A<T> {
                     prop: T
                 }
-                val x = A::<Int>(false)
+                x = A::<Int>(false)
             """.trimIndent()
             )
                 .shouldReport<ValueNotAssignableReporting> {
@@ -39,7 +39,7 @@ class UnificationTest : FreeSpec({
                 struct A<T> {
                     prop: T
                 }
-                val x: A<Int> = A(false)
+                x: A<Int> = A(false)
             """.trimIndent()
             )
                 .shouldReport<ValueNotAssignableReporting> {
@@ -63,7 +63,7 @@ class UnificationTest : FreeSpec({
         validateModule(
             """
                 fun foo<T, E>(p1: T, p2: E) -> T {
-                    val x: E = foo(p2, p1)
+                    x: E = foo(p2, p1)
                     return p1
                 }
             """.trimIndent()
@@ -75,7 +75,7 @@ class UnificationTest : FreeSpec({
         "positive" {
             validateModule("""
                 fun foo<A, B : A>(someA: A, someB: B) {
-                    val otherA: A = someB
+                    otherA: A = someB
                 }
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
@@ -85,7 +85,7 @@ class UnificationTest : FreeSpec({
             // as compared to the positive case, B does not have A as the bound, so the assignment becomes illegal
             validateModule("""
                 fun foo<A, B>(someA: A, someB: B) {
-                    val otherA: A = someB
+                    otherA: A = someB
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
@@ -98,7 +98,7 @@ class UnificationTest : FreeSpec({
             // as compared to the positive case, the type hierarchy is flipped, also making the assignment illegal
             validateModule("""
                 fun foo<A : B, B>(someA: A, someB: B) {
-                    val otherA: A = someB
+                    otherA: A = someB
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {

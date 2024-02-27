@@ -1,22 +1,23 @@
 package compiler.compiler.negative
 
+import compiler.reportings.ExplicitInferTypeWithArgumentsReporting
 import compiler.reportings.TypeDeductionErrorReporting
 import io.kotest.core.spec.style.FreeSpec
 
 class TypeInferenceErrors : FreeSpec({
     "cyclic inference in variables (2)" {
         validateModule("""
-            val x = y
-            val y = x
+            x = y
+            y = x
         """.trimIndent())
             .shouldReport<TypeDeductionErrorReporting>()
     }
 
     "cyclic inference in variables (3)" {
         validateModule("""
-            val x = y
-            val y = z
-            val z = x
+            x = y
+            y = z
+            z = x
         """.trimIndent())
             .shouldReport<TypeDeductionErrorReporting>()
     }
@@ -31,10 +32,10 @@ class TypeInferenceErrors : FreeSpec({
 
     "cyclic inference in variables and functions (mixed)" {
         validateModule("""
-            val x = y
-            val y = a()
+            x = y
+            y = a()
             fun a() = z
-            val z = x
+            z = x
         """.trimIndent())
             .shouldReport<TypeDeductionErrorReporting>()
     }
@@ -42,9 +43,19 @@ class TypeInferenceErrors : FreeSpec({
     "cannot infer for variable without initializer expression" {
         validateModule("""
             fun foo() {
-                val x
+                x: _
             }
         """.trimIndent())
             .shouldReport<TypeDeductionErrorReporting>()
+    }
+
+    "explicit inference type cannot have parameters" {
+        validateModule("""
+            struct S<T> {}
+            fun foo() {
+                x: _<Int> = S()
+            }
+        """.trimIndent())
+            .shouldReport<ExplicitInferTypeWithArgumentsReporting>()
     }
 })

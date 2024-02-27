@@ -37,10 +37,16 @@ import compiler.binding.type.BuiltinAny
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
 import compiler.handleCyclicInvocation
+import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
+
+/**
+ * If the type of a variable is declared with this name, the base type will be inferred from the initializer.
+ */
+private const val DECLARATION_TYPE_NAME_INFER = "_"
 
 /**
  * Describes the presence/availability of a (class member) variable or (class member) value in a context.
@@ -52,12 +58,12 @@ class BoundVariable(
     val initializerExpression: BoundExpression<*>?,
     val kind: Kind,
 ) : BoundStatement<VariableDeclaration> {
-    val isAssignable: Boolean = declaration.isAssignable
-    private val implicitMutability: TypeMutability = declaration.typeMutability
-        ?: if (isAssignable) TypeMutability.MUTABLE else kind.defaultMutability
-
     val name: String = declaration.name.value
     private val isGlobal = context is SourceFileRootContext
+
+    val isReAssignable: Boolean = declaration.isReAssignable
+    private val implicitMutability: TypeMutability = if (isReAssignable) TypeMutability.MUTABLE else kind.implicitMutabilityWhenNotReAssignable
+    private val shouldInferBaseType: Boolean = declaration.type == null || declaration.type.simpleName == DECLARATION_TYPE_NAME_INFER
 
     /**
      * The base type reference; null if not determined yet or if it cannot be determined due to semantic errors.
@@ -79,10 +85,6 @@ class BoundVariable(
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
             val reportings = mutableSetOf<Reporting>()
 
-            if (declaration.typeMutability != null && declaration.type != null) {
-                reportings.add(Reporting.variableDeclaredWithSplitType(declaration))
-            }
-
             context.resolveVariable(this.name)
                 ?.takeUnless { it === this }
                 ?.let { firstDeclarationOfVariable ->
@@ -98,9 +100,7 @@ class BoundVariable(
                 reportings.add(Reporting.globalVariableNotInitialized(this))
             }
 
-            // type-related stuff
-            // unknown type
-            if (declaration.initializerExpression == null && declaration.type == null) {
+            if (declaration.initializerExpression == null && shouldInferBaseType) {
                 reportings.add(
                     Reporting.typeDeductionError(
                         "Cannot determine type of $kind $name; neither type nor initializer is specified.",
@@ -110,6 +110,7 @@ class BoundVariable(
             }
 
             declaration.type
+                ?.takeUnless { shouldInferBaseType }
                 ?.let(context::resolveType)
                 ?.defaultMutabilityTo(implicitMutability)
                 ?.let { resolvedDeclaredType ->
@@ -119,9 +120,17 @@ class BoundVariable(
 
             initializerExpression?.setExpectedEvaluationResultType(
                 this.resolvedDeclaredType ?: BuiltinAny.baseReference
-                    .withCombinedNullability(TypeReference.Nullability.NULLABLE)
-                    .withMutability(implicitMutability)
+                    .withCombinedNullability(declaration.type?.nullability ?: TypeReference.Nullability.NULLABLE)
+                    .withMutability(declaration.type?.mutability ?: implicitMutability)
             )
+
+            if (shouldInferBaseType && declaration.type?.arguments?.isNotEmpty() == true) {
+                reportings.add(Reporting.explicitInferTypeWithArguments(declaration.type))
+            }
+
+            if (declaration.type != null && shouldInferBaseType && !kind.allowsExplicitBaseTypeInfer) {
+                reportings.add(Reporting.explicitInferTypeNotAllowed(declaration.type))
+            }
 
             if (initializerExpression != null) {
                 reportings.addAll(initializerExpression.semanticAnalysisPhase1())
@@ -165,62 +174,39 @@ class BoundVariable(
                     },
                 )
 
-                // if declaration doesn't mention mutability, try to infer it from the initializer
-                // instead of using the default mutability
-                var targetTypeToVerifyAgainst: BoundTypeReference? = null
-                if (declaration.typeMutability == null && declaration.type?.mutability == null) {
-                    type?.let { resolvedDeclaredType ->
-                        initializerExpression.type?.let { initializerType ->
-                            type = resolvedDeclaredType.withMutability(initializerType.mutability)
-                            targetTypeToVerifyAgainst = type!!
-                        }
-                    }
+                if (declaration.type == null) {
+                    // full inference
+                    type = initializerExpression.type
                 } else {
-                    targetTypeToVerifyAgainst = resolvedDeclaredType
-                }
+                    val finalNullability = declaration.type.nullability
+                    val finalMutability = declaration.type.mutability ?: initializerExpression.type?.mutability ?: implicitMutability
+                    type = resolvedDeclaredType
+                        .takeUnless { shouldInferBaseType }
+                        ?: BuiltinAny.baseReference
+                    type = type!!
+                        .withMutability(finalMutability)
+                        .withCombinedNullability(finalNullability)
 
-                // verify compatibility declared type <-> initializer type
-                if (targetTypeToVerifyAgainst != null) {
                     initializerExpression.type?.let { initializerType ->
                         // discrepancy between assign expression and declared type
                         if (initializerType !is UnresolvedType) {
-                            initializerType.evaluateAssignabilityTo(targetTypeToVerifyAgainst!!, declaration.initializerExpression!!.sourceLocation)
+                            initializerType.evaluateAssignabilityTo(
+                                type!!,
+                                declaration.initializerExpression!!.sourceLocation
+                            )
                                 ?.let(reportings::add)
                         }
                     }
-
-                    // if the initializer type cannot be resolved the reporting is already done and
-                    // should have returned it; so: we don't care :)
                 }
             }
 
-            // infer the type
-            val initializerType = initializerExpression?.type
-            if (type == null && initializerType != null) {
-                if (declaration.typeMutability != null) {
-                    if (!initializerType.mutability.isAssignableTo(declaration.typeMutability)) {
-                        reportings.add(Reporting.valueNotAssignable(
-                            initializerType.withMutability(declaration.typeMutability),
-                            initializerType,
-                            "Cannot assign a ${initializerType.mutability.name.lowercase()} value to a ${declaration.typeMutability.name.lowercase()} reference",
-                            initializerExpression!!.declaration.sourceLocation,
-                        ))
-                    }
-                    type = initializerType.withMutability(declaration.typeMutability)
-                } else {
-                    type = initializerType.withCombinedMutability(implicitMutability)
-                }
-            }
-
+            // handle no initializer case
             if (type == null) {
                 type = resolvedDeclaredType
             }
 
             if (resolvedDeclaredType != null) {
-                val useSite = when (kind) {
-                    Kind.VARIABLE -> TypeUseSite.Irrelevant
-                    Kind.PARAMETER -> TypeUseSite.InUsage(declaration.sourceLocation)
-                }
+                val useSite = kind.getTypeUseSite(declaration.sourceLocation)
                 resolvedDeclaredType!!.validate(useSite).let(reportings::addAll)
             }
 
@@ -277,13 +263,18 @@ class BoundVariable(
     }
 
     enum class Kind(
-        val defaultMutability: TypeMutability,
+        val implicitMutabilityWhenNotReAssignable: TypeMutability,
+        val allowsExplicitBaseTypeInfer: Boolean,
     ) {
-        VARIABLE(TypeMutability.IMMUTABLE),
-        PARAMETER(TypeMutability.READONLY),
+        VARIABLE(TypeMutability.IMMUTABLE, true),
+        PARAMETER(TypeMutability.READONLY, false),
         ;
 
         override fun toString() = name.lowercase()
+        fun getTypeUseSite(location: SourceLocation): TypeUseSite = when (this) {
+            VARIABLE -> TypeUseSite.Irrelevant
+            PARAMETER -> TypeUseSite.InUsage(location)
+        }
     }
 }
 

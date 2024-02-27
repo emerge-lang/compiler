@@ -2,9 +2,16 @@
 package compiler.parser.grammar.dsl
 
 import compiler.parser.TokenSequence
+import compiler.parser.grammar.rule.EitherOfRule
+import compiler.parser.grammar.rule.ExpectedToken
+import compiler.parser.grammar.rule.LazyRule
 import compiler.parser.grammar.rule.MatchingContext
-import compiler.parser.grammar.rule.*
+import compiler.parser.grammar.rule.MatchingResult
+import compiler.parser.grammar.rule.Rule
+import compiler.parser.grammar.rule.SequenceRule
 
+// TODO: replace with delegate, derive name from declaration?
+// val ReturnStatement by sequence { ... }, infers name = "return statement"
 fun sequence(explicitName: String? = null, grammar: Grammar): Rule<*> {
     return LazyRule {
         RuleCollectingGrammarReceiver.collect(

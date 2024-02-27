@@ -26,7 +26,6 @@ import compiler.ast.ParameterList
 import compiler.ast.TypeParameterBundle
 import compiler.ast.VariableDeclaration
 import compiler.ast.type.FunctionModifier
-import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
@@ -40,16 +39,8 @@ import compiler.parser.grammar.dsl.sequence
 import java.util.LinkedList
 
 val Parameter = sequence("parameter declaration") {
-
     optional {
-        ref(TypeMutability)
-    }
-
-    optional {
-        eitherOf {
-            keyword(Keyword.VAR)
-            keyword(Keyword.VAL)
-        }
+        keyword(Keyword.VAR)
     }
 
     identifier()
@@ -65,43 +56,38 @@ val Parameter = sequence("parameter declaration") {
     }
 }
     .astTransformation { tokens ->
-        var declarationKeyword: Keyword? = null
-        var typeMutability: TypeMutability? = null
-        val name: IdentifierToken
-        var type: TypeReference? = null
-        var initializer: Expression? = null
-
-        var next = tokens.next()!!
+        val varKeywordToken: KeywordToken?
+        var next: Any? = tokens.next()!!
 
         if (next is KeywordToken) {
-            declarationKeyword = next.keyword
+            varKeywordToken = next
             next = tokens.next()!!
+        } else {
+            varKeywordToken = null
+        }
+        val name = next as IdentifierToken
+        next = tokens.next() as OperatorToken?
+
+        var type: TypeReference? = null
+        if (next != null && next.operator == Operator.COLON) {
+            type = tokens.next() as TypeReference
+            next = tokens.next()
+        } else {
+            type = null
         }
 
-        if (next is TypeMutability) {
-            typeMutability = next
-            next = tokens.next()!!
-        }
-
-        name = next as IdentifierToken
-
-        if (tokens.peek() == OperatorToken(Operator.COLON)) {
-            tokens.next()
-            type = tokens.next()!! as TypeReference
-        }
-
-        if (tokens.peek() == OperatorToken(Operator.ASSIGNMENT)) {
-            tokens.next()
-            initializer = tokens.next()!! as Expression
+        val defaultValue: Expression? = if (next != null) {
+            tokens.next() as Expression
+        } else {
+            null
         }
 
         VariableDeclaration(
             name.sourceLocation,
-            typeMutability,
+            varKeywordToken,
             name,
             type,
-            declarationKeyword == Keyword.VAR,
-            initializer,
+            defaultValue,
         )
     }
 
@@ -201,7 +187,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
     keyword(Keyword.FUNCTION)
 
     optionalWhitespace()
-    identifier()
+    identifier(acceptedKeywords = Keyword.entries)
     optionalWhitespace()
     optional {
         ref(BracedTypeParameters)

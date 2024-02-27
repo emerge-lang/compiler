@@ -18,8 +18,7 @@
 
 package compiler.binding.expression
 
-import compiler.InternalCompilerError
-import compiler.ast.expression.AssignmentExpression
+import compiler.ast.AssignmentStatement
 import compiler.binding.BoundStatement
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
@@ -40,20 +39,19 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
-class BoundAssignmentExpression(
+class BoundAssignmentStatement(
     override val context: ExecutionScopedCTContext,
-    override val declaration: AssignmentExpression,
+    override val declaration: AssignmentStatement,
     val targetExpression: BoundExpression<*>,
     val toAssignExpression: BoundExpression<*>
-) : BoundExpression<AssignmentExpression> {
-    override val type: BoundTypeReference?
-        get() = toAssignExpression.type ?: targetExpression.type
-
+) : BoundStatement<AssignmentStatement> {
     override val isGuaranteedToThrow: Boolean?
         get() = targetExpression.isGuaranteedToThrow nullableOr toAssignExpression.isGuaranteedToThrow
 
     private val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(context)
     override val modifiedContext: ExecutionScopedCTContext = _modifiedContext
+
+    override val implicitEvaluationResultType: BoundTypeReference? = null
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableListOf<Reporting>()
@@ -79,9 +77,9 @@ class BoundAssignmentExpression(
         return reportings
     }
 
-    private var resultUsed = false
-    override fun markEvaluationResultUsed() {
-        resultUsed = true
+    private var implicitEvaluationRequired = false
+    override fun requireImplicitEvaluationTo(type: BoundTypeReference) {
+        implicitEvaluationRequired = true
     }
 
     /** set in [semanticAnalysisPhase2], null if it cannot be determined */
@@ -95,7 +93,7 @@ class BoundAssignmentExpression(
         reportings.addAll(targetExpression.semanticAnalysisPhase2())
         reportings.addAll(toAssignExpression.semanticAnalysisPhase2())
 
-        if (resultUsed) {
+        if (implicitEvaluationRequired) {
             reportings.add(Reporting.assignmentUsedAsExpression(this))
         }
 
@@ -121,19 +119,8 @@ class BoundAssignmentExpression(
         return targetWrites + toAssignExpression.findWritesBeyond(boundary)
     }
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
-        // nothing to do because assignments are not expressions
-    }
-
-    override val isEvaluationResultReferenceCounted: Boolean
-        get() = throw InternalCompilerError("Assignment used as expression")
-
     override fun toBackendIrStatement(): IrExecutable {
         return target!!.toBackendIrExecutable()
-    }
-
-    override fun toBackendIrExpression(): IrExpression {
-        throw InternalCompilerError("Assignment used as expression made it to the code generation phase - should have been stopped in semantic analysis")
     }
 
     sealed interface AssignmentTarget {
@@ -149,10 +136,10 @@ class BoundAssignmentExpression(
         override fun semanticAnalysisPhase3(): Collection<Reporting> {
             val reportings = mutableListOf<Reporting>()
 
-            val isInitialized = reference.variable.isInitializedInContext(this@BoundAssignmentExpression.context)
+            val isInitialized = reference.variable.isInitializedInContext(this@BoundAssignmentStatement.context)
             if (isInitialized) {
-                if (!reference.variable.isAssignable) {
-                    reportings.add(Reporting.illegalAssignment("Cannot assign to value / final variable ${reference.variable.name}", this@BoundAssignmentExpression))
+                if (!reference.variable.isReAssignable) {
+                    reportings.add(Reporting.illegalAssignment("Cannot assign to value / final variable ${reference.variable.name}", this@BoundAssignmentStatement))
                 }
             } else {
                 _modifiedContext.markVariableInitialized(reference.variable)
@@ -175,7 +162,7 @@ class BoundAssignmentExpression(
                 return emptyList()
             }
 
-            return listOf(this@BoundAssignmentExpression)
+            return listOf(this@BoundAssignmentStatement)
         }
 
         override fun toBackendIrExecutable(): IrExecutable {
@@ -208,7 +195,7 @@ class BoundAssignmentExpression(
 
             memberAccess.valueExpression.type?.let { memberOwnerType ->
                 if (!memberOwnerType.mutability.isMutable) {
-                    reportings += Reporting.illegalAssignment("Cannot mutate a value of type $memberOwnerType", this@BoundAssignmentExpression)
+                    reportings += Reporting.illegalAssignment("Cannot mutate a value of type $memberOwnerType", this@BoundAssignmentStatement)
                 }
             }
             memberAccess.type?.let { targetType ->
@@ -228,7 +215,7 @@ class BoundAssignmentExpression(
                 return emptyList()
             }
 
-            return listOf(this@BoundAssignmentExpression)
+            return listOf(this@BoundAssignmentStatement)
         }
 
         override fun toBackendIrExecutable(): IrExecutable {
@@ -258,8 +245,8 @@ class BoundAssignmentExpression(
 }
 
 /**
- * [BoundAssignmentExpression] is a [BoundExpression] because the compiler wants to detect accidental use of `=` instead
- * of `==`. So [BoundAssignmentExpression.toBackendIrStatement] must return an [IrExpression], as per the [BoundExpression]
+ * [BoundAssignmentStatement] is a [BoundExpression] because the compiler wants to detect accidental use of `=` instead
+ * of `==`. So [BoundAssignmentStatement.toBackendIrStatement] must return an [IrExpression], as per the [BoundExpression]
  * contract. Consequently, this class must also implement [IrExpression] even though it's not. Unavoidable.
  */
 internal class IrAssignmentStatementImpl(

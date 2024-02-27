@@ -11,7 +11,7 @@ class OperatorOverloadErrors : FreeSpec({
     "unary minus not declared" {
         validateModule("""
             fun foo() {
-                val a = - false
+                a = - false
             }
         """.trimIndent())
             .shouldReport<OperatorNotDeclaredReporting>()
@@ -20,7 +20,7 @@ class OperatorOverloadErrors : FreeSpec({
     "binary plus not declared" {
         validateModule("""
             fun foo() {
-                val a = false + true
+                a = false + true
             }
         """.trimIndent())
             .shouldReport<UnresolvableFunctionOverloadReporting>()
@@ -30,7 +30,7 @@ class OperatorOverloadErrors : FreeSpec({
         validateModule("""
             external(C) fun unaryMinus(self: Boolean) -> Boolean
             fun foo() {
-                val x = -false
+                x = -false
             }
         """.trimIndent())
             .shouldReport<FunctionMissingModifierReporting> {

@@ -2,20 +2,25 @@ package compiler.compiler.negative
 
 import compiler.CoreIntrinsicsModule
 import compiler.ast.type.TypeReference
-import compiler.ast.type.TypeVariance.*
+import compiler.ast.type.TypeVariance.IN
+import compiler.ast.type.TypeVariance.OUT
+import compiler.ast.type.TypeVariance.UNSPECIFIED
 import compiler.binding.context.SoftwareContext
-import compiler.binding.type.*
+import compiler.binding.type.BaseType
+import compiler.binding.type.BoundTypeArgument
+import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.lexer.SourceLocation
 import compiler.reportings.ValueNotAssignableReporting
 import io.kotest.core.spec.style.FreeSpec
-import compiler.binding.type.BuiltinNumber as BuiltinNumberType
-import compiler.binding.type.BuiltinInt as BuiltinIntType
 import io.kotest.matchers.Matcher
 import io.kotest.matchers.MatcherResult
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNot
 import io.mockk.mockk
+import compiler.binding.type.BuiltinInt as BuiltinIntType
+import compiler.binding.type.BuiltinNumber as BuiltinNumberType
 
 
 class VarianceErrors : FreeSpec({
@@ -169,9 +174,9 @@ class VarianceErrors : FreeSpec({
                     p: T
                 }
                 fun test<T : Number>() {
-                    val a: A<in Int> = A(2)
+                    a: A<in Int> = A(2)
                     var x: T
-                    x = a.p
+                    set x = a.p
                 }
             """.trimIndent())
             .shouldReport<ValueNotAssignableReporting> {

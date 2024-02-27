@@ -57,7 +57,7 @@ class BoundCodeChunk(
         get() = statements.any { it.mayReturn }
 
     override val modifiedContext: ExecutionScopedCTContext
-        get() = statements.last().modifiedContext
+        get() = statements.lastOrNull()?.modifiedContext ?: context
 
     override fun setExpectedReturnType(type: BoundTypeReference) {
         this.statements.forEach {

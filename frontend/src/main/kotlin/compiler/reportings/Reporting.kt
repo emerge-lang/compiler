@@ -113,9 +113,6 @@ abstract class Reporting internal constructor(
         fun variableDeclaredMoreThanOnce(acceptedDeclaration: VariableDeclaration, additionalDeclaration: VariableDeclaration)
             = MultipleVariableDeclarationsReporting(acceptedDeclaration, additionalDeclaration)
 
-        fun variableDeclaredWithSplitType(declaration: VariableDeclaration)
-            = VariableDeclaredWithSplitTypeReporting(declaration)
-
         fun globalVariableNotInitialized(variable: BoundVariable)
             = GlobalVariableNotInitializedReporting(variable.declaration)
 
@@ -152,7 +149,7 @@ abstract class Reporting internal constructor(
         fun erroneousLiteralExpression(message: String, location: SourceLocation)
             = ErroneousLiteralExpressionReporting(message, location)
 
-        fun illegalAssignment(message: String, assignmentStatement: BoundAssignmentExpression)
+        fun illegalAssignment(message: String, assignmentStatement: BoundAssignmentStatement)
             = IllegalAssignmentReporting(message, assignmentStatement)
 
         fun illegalFunctionBody(function: FunctionDeclaration)
@@ -181,6 +178,12 @@ abstract class Reporting internal constructor(
 
         fun typeDeductionError(message: String, location: SourceLocation)
             = TypeDeductionErrorReporting(message, location)
+
+        fun explicitInferTypeWithArguments(type: TypeReference)
+            = ExplicitInferTypeWithArgumentsReporting(type)
+
+        fun explicitInferTypeNotAllowed(type: TypeReference)
+            = ExplicitInferTypeNotAllowedReporting(type)
 
         fun modifierError(message: String, location: SourceLocation)
             = ModifierErrorReporting(message, location)
@@ -231,7 +234,7 @@ abstract class Reporting internal constructor(
         fun duplicateTypeMembers(struct: Struct, duplicateMembers: Set<StructMember>) =
             DuplicateStructMemberReporting(struct, duplicateMembers)
 
-        fun assignmentUsedAsExpression(assignment: BoundAssignmentExpression)
+        fun assignmentUsedAsExpression(assignment: BoundAssignmentStatement)
             = AssignmenUsedAsExpressionReporting(assignment.declaration)
 
         fun mutationInCondition(mutation: BoundExecutable<*>)
@@ -261,7 +264,7 @@ abstract class Reporting internal constructor(
                     return ModifyingInvocationInReadonlyContextReporting(violation, context)
                 }
             }
-            else if (violation is BoundAssignmentExpression) {
+            else if (violation is BoundAssignmentStatement) {
                 return StateModificationOutsideOfPurityBoundaryReporting(violation, context)
             }
 

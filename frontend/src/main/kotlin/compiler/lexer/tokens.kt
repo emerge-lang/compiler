@@ -35,8 +35,8 @@ enum class Keyword(val text: String)
     IMPORT("import"),
 
     FUNCTION("fun"),
-    VAL("val"),
     VAR("var"),
+    SET("set"),
     MUTABLE("mutable"),
     READONLY("readonly"),
     IMMUTABLE("immutable"),
@@ -64,12 +64,12 @@ enum class Keyword(val text: String)
 
 enum class Operator(val text: String, private val _humanReadableName: String? = null)
 {
-    PARANT_OPEN           ("(", "left parenthesis"),
-    PARANT_CLOSE          (")", "right parenthesis"),
-    CBRACE_OPEN           ("{", "left curly brace"),
-    CBRACE_CLOSE          ("}", "right curly brace"),
-    SBRACE_OPEN           ("[", "left square brace"),
-    SBRACE_CLOSE          ("]", "right square brace"),
+    PARANT_OPEN           ("(", "opening parenthesis"),
+    PARANT_CLOSE          (")", "closing parenthesis"),
+    CBRACE_OPEN           ("{", "opening curly brace"),
+    CBRACE_CLOSE          ("}", "closing curly brace"),
+    SBRACE_OPEN           ("[", "opening square brace"),
+    SBRACE_CLOSE          ("]", "closing square brace"),
     DOT                   (".", "dot"),
     SAFEDOT               ("?."),
     TIMES                 ("*"),

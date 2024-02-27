@@ -21,6 +21,7 @@ package compiler.parser.grammar
 import compiler.ast.ASTPackageDeclaration
 import compiler.ast.ASTPackageName
 import compiler.ast.ImportDeclaration
+import compiler.ast.VariableDeclaration
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
@@ -104,6 +105,12 @@ val ImportDeclaration = sequence("import declaration") {
         ImportDeclaration(keyword.sourceLocation, identifiers)
     }
 
+val TopLevelVariableDeclaration = sequence("variable declaration") {
+    ref(VariableDeclaration)
+    operator(Operator.NEWLINE)
+}
+    .astTransformation { tokens -> tokens.next()!! as VariableDeclaration }
+
 val SourceFileGrammar: Rule<TransactionalSequence<Any, Position>> = sequence("source file") {
     repeatingAtLeastOnce {
         optionalWhitespace()
@@ -111,7 +118,7 @@ val SourceFileGrammar: Rule<TransactionalSequence<Any, Position>> = sequence("so
             endOfInput()
             ref(PackageDeclaration)
             ref(ImportDeclaration)
-            ref(VariableDeclaration)
+            ref(TopLevelVariableDeclaration)
             ref(StandaloneFunctionDeclaration)
             ref(StructDefinition)
         }

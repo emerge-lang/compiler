@@ -1,11 +1,11 @@
 package compiler.reportings
 
-import compiler.ast.expression.AssignmentExpression
+import compiler.ast.AssignmentStatement
 
 class AssignmenUsedAsExpressionReporting(
-    val assignment: AssignmentExpression,
+    val assignment: AssignmentStatement,
 ) : Reporting(
     Level.ERROR,
-    "Assignments are not expressions. Did you mean to use == ?",
+    "Assignments are not expressions.",
     assignment.assignmentOperatorToken.sourceLocation,
 )

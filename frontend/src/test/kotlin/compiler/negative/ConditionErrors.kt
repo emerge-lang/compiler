@@ -1,6 +1,5 @@
 package compiler.compiler.negative
 
-import compiler.reportings.AssignmenUsedAsExpressionReporting
 import compiler.reportings.ConditionNotBooleanReporting
 import compiler.reportings.MutationInConditionReporting
 import io.kotest.core.spec.style.FreeSpec
@@ -17,23 +16,11 @@ class ConditionErrors : FreeSpec({
             .shouldReport<ConditionNotBooleanReporting>()
     }
 
-    "if containing assignment" {
-        validateModule("""
-            fun test() {
-                var x = false
-                if x = true {
-                    
-                }
-            }
-        """.trimIndent())
-            .shouldReport<AssignmenUsedAsExpressionReporting>()
-    }
-
     "if containing mutation" {
         validateModule("""
             var x = 0
             fun modifyingFn() -> Boolean {
-                x = 1
+                set x = 1
                 return true
             }
             fun test() {

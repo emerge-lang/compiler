@@ -42,7 +42,7 @@ class StructErrors : FreeSpec({
             }
             
             fun foo() {
-                val x = X(true)
+                x = X(true)
             }
         """.trimIndent())
             .shouldReport<ValueNotAssignableReporting>()
@@ -50,7 +50,7 @@ class StructErrors : FreeSpec({
 
     "calling a hypothetical constructor of a non-existent type" {
         validateModule("""
-            val x = Nonexistent()
+            x = Nonexistent()
         """.trimIndent())
     }
 

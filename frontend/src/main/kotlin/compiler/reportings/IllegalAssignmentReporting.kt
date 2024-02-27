@@ -18,11 +18,11 @@
 
 package compiler.reportings
 
-import compiler.binding.expression.BoundAssignmentExpression
+import compiler.binding.expression.BoundAssignmentStatement
 
 class IllegalAssignmentReporting(
     message: String,
-    val statement: BoundAssignmentExpression
+    val statement: BoundAssignmentStatement
 ) : Reporting(
     Level.ERROR,
     message,

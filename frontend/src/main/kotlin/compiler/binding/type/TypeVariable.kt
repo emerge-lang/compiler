@@ -96,7 +96,7 @@ class TypeVariable(
     }
 
     override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
-        return context.bindings[this] ?: this
+        return context.bindings[this] ?: this.parameter.bound
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {

@@ -1,5 +1,6 @@
 package compiler.compiler.negative
 
+import compiler.reportings.ExplicitInferTypeNotAllowedReporting
 import compiler.reportings.IllegalFunctionBodyReporting
 import compiler.reportings.MissingFunctionBodyReporting
 import compiler.reportings.MissingParameterTypeReporting
@@ -51,12 +52,19 @@ class FunctionErrors : FreeSpec({
 
         "parameter name duplicate" {
             validateModule("""
-            fun foo(a: Int, a: Boolean, b: Int) {}
-        """.trimIndent())
-                .shouldReport<MultipleParameterDeclarationsReporting> {
-                    it.firstDeclaration.name.value shouldBe "a"
-                    it.additionalDeclaration.name.value shouldBe "a"
-                }
+                fun foo(a: Int, a: Boolean, b: Int) {}
+            """.trimIndent())
+                    .shouldReport<MultipleParameterDeclarationsReporting> {
+                        it.firstDeclaration.name.value shouldBe "a"
+                        it.additionalDeclaration.name.value shouldBe "a"
+                    }
+        }
+
+        "explicit type inference on parameters is not allowed" {
+            validateModule("""
+                fun foo(p: _) {}
+            """.trimIndent())
+                .shouldReport<ExplicitInferTypeNotAllowedReporting>()
         }
     }
 

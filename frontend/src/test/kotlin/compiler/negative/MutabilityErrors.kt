@@ -17,8 +17,8 @@ class MutabilityErrors : FreeSpec({
                     a: Int
                 }
                 fun test() {
-                    val myX = X(2)
-                    myX.a = 3
+                    myX = X(2)
+                    set myX.a = 3
                 }
             """.trimIndent())
                     .shouldReport<IllegalAssignmentReporting> {
@@ -35,7 +35,7 @@ class MutabilityErrors : FreeSpec({
                     a: Int
                 }
                 fun test() {
-                    val myX = X(2)
+                    myX = X(2)
                     var otherX: mutable X = myX
                 }
             """.trimIndent())
@@ -50,8 +50,8 @@ class MutabilityErrors : FreeSpec({
                     a: Int
                 }
                 fun test() {
-                    val myX = X(2)
-                    val otherX: immutable X = myX
+                    myX = X(2)
+                    otherX: immutable X = myX
                 }
             """.trimIndent()) should haveNoDiagnostics()
         }
@@ -67,9 +67,9 @@ class MutabilityErrors : FreeSpec({
                     genericVal: T
                 }
                 fun test() {
-                    mutable val myB = B::<immutable A>(A(3))
-                    myB.genericVal = A(2)
-                    myB.genericVal.someVal = 5
+                    myB: mutable B<immutable A> = B::<immutable A>(A(3))
+                    set myB.genericVal = A(2)
+                    set myB.genericVal.someVal = 5
                 }
             """.trimIndent())
                 .shouldReport<IllegalAssignmentReporting> {

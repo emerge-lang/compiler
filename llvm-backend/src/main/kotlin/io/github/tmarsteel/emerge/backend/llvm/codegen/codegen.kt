@@ -81,7 +81,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         }
         is IrCodeChunk -> {
             val resultAfterNonImplicitCode = code.components.asSequence()
-                .take(code.components.size - 1)
+                .take((code.components.size - 1).coerceAtLeast(0))
                 .fold(ExecutableResult.ExecutionOngoing as ExecutableResult) { accResult, component ->
                     if (accResult !is ExpressionResult.Terminated) {
                         emitCode(component)

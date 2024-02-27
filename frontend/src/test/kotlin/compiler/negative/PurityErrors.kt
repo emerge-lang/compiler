@@ -11,7 +11,7 @@ class PurityErrors : FreeSpec({
         validateModule("""
             var x = 1
             fun a() {
-                val y = x + 1
+                y = x + 1
             }
             pure fun b() {
                 a()
@@ -24,7 +24,7 @@ class PurityErrors : FreeSpec({
         validateModule("""
             var x = 1
             fun a() {
-                x = 2
+                set x = 2
             }
             pure fun b() {
                 a()
@@ -37,7 +37,7 @@ class PurityErrors : FreeSpec({
         validateModule("""
             var x = 1
             fun a() {
-                x = 2
+                set x = 2
             }
             readonly fun b() {
                 a()
@@ -48,7 +48,7 @@ class PurityErrors : FreeSpec({
 
     "reading from outside a pure context" {
         validateModule("""
-            val x = 1
+            x = 1
             pure fun a() {
                 x
             }
@@ -58,7 +58,7 @@ class PurityErrors : FreeSpec({
 
     "reading outside of a pure context" {
         validateModule("""
-            val x = 0
+            x = 0
             pure fun a() -> Int {
                 return x
             }
@@ -70,7 +70,7 @@ class PurityErrors : FreeSpec({
         validateModule("""
             var x = 1
             pure fun a() {
-                x = 2
+                set x = 2
             }
         """.trimIndent())
             .shouldReport<StateModificationOutsideOfPurityBoundaryReporting>()
@@ -80,7 +80,7 @@ class PurityErrors : FreeSpec({
         validateModule("""
             var x = 1
             readonly fun a() {
-                x = 2
+                set x = 2
             }
         """.trimIndent())
             .shouldReport<StateModificationOutsideOfPurityBoundaryReporting>()

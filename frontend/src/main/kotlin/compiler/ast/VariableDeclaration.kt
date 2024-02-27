@@ -18,22 +18,22 @@
 
 package compiler.ast
 
-import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundVariable
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.lexer.IdentifierToken
+import compiler.lexer.KeywordToken
 import compiler.lexer.SourceLocation
 
 open class VariableDeclaration(
     override val declaredAt: SourceLocation,
-    val typeMutability: TypeMutability?,
+    val varToken: KeywordToken?,
     val name: IdentifierToken,
     val type: TypeReference?,
-    val isAssignable: Boolean,
     val initializerExpression: Expression?
 ) : Statement, AstFileLevelDeclaration {
     override val sourceLocation get() = declaredAt
+    val isReAssignable: Boolean = varToken != null
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundVariable = bindTo(context, BoundVariable.Kind.VARIABLE)
     fun bindToAsParameter(context: ExecutionScopedCTContext): BoundVariable = bindTo(context, BoundVariable.Kind.PARAMETER)

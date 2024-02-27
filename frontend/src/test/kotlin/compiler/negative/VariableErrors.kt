@@ -9,7 +9,6 @@ import compiler.reportings.UndefinedIdentifierReporting
 import compiler.reportings.UnknownTypeReporting
 import compiler.reportings.ValueNotAssignableReporting
 import compiler.reportings.VariableAccessedBeforeInitializationReporting
-import compiler.reportings.VariableDeclaredWithSplitTypeReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -18,7 +17,7 @@ class VariableErrors : FreeSpec({
     "toplevel" - {
         "Variable assignment type mismatch" {
             validateModule("""
-                val foo: Int = false
+                foo: Int = false
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
                     it.sourceType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType.fullyQualifiedName.toString() shouldBe "emerge.core.Boolean"
@@ -28,21 +27,14 @@ class VariableErrors : FreeSpec({
 
         "variable type must be known" {
             validateModule("""
-                val foo
+                var foo
             """.trimIndent())
                 .shouldReport<TypeDeductionErrorReporting>()
         }
 
-        "explicit modifier conflict" {
-            validateModule("""
-                mutable val foo: immutable Int
-            """.trimIndent())
-                .shouldReport<VariableDeclaredWithSplitTypeReporting>()
-        }
-
         "unknown declared type" {
             validateModule("""
-                val foo: Foo
+                foo: Foo
             """.trimIndent())
                 .shouldReport<UnknownTypeReporting>()
         }
@@ -52,8 +44,8 @@ class VariableErrors : FreeSpec({
         "cannot assign to final variable" {
             validateModule("""
                 fun foo() {
-                    val a = 3
-                    a = 5
+                    a = 3
+                    set a = 5
                 }
             """.trimIndent())
                 .shouldReport<IllegalAssignmentReporting>()
@@ -62,7 +54,7 @@ class VariableErrors : FreeSpec({
         "cannot assign to a type" {
             validateModule("""
                 fun foo() {
-                    Int = 3
+                    set Int = 3
                 }
             """.trimIndent())
                 .shouldReport<IllegalAssignmentReporting>()
@@ -71,7 +63,7 @@ class VariableErrors : FreeSpec({
         "cannot assign to value" {
             validateModule("""
                 fun foo() {
-                    false  = 3
+                    set false  = 3
                 }
             """.trimIndent())
                 .shouldReport<IllegalAssignmentReporting>()
@@ -80,7 +72,7 @@ class VariableErrors : FreeSpec({
         "cannot assign to parameter" {
             validateModule("""
                 fun foo(p: Int) {
-                    p = 2
+                    set p = 2
                 }
             """.trimIndent())
                 .shouldReport<IllegalAssignmentReporting>()
@@ -89,9 +81,9 @@ class VariableErrors : FreeSpec({
         "variable declared multiple times" {
             validateModule("""
                 fun foo() {
-                    val x = 3
-                    val a = 1
-                    val x = true
+                    x = 3
+                    a = 1
+                    x = true
                 }
             """.trimIndent())
                 .shouldReport<MultipleVariableDeclarationsReporting> {
@@ -102,15 +94,17 @@ class VariableErrors : FreeSpec({
 
         "accessing undeclared variable" {
             validateModule("""
-                val x: Int = y
+                x = y
             """.trimIndent())
-                .shouldReport<UndefinedIdentifierReporting>()
+                .shouldReport<UndefinedIdentifierReporting> {
+                    it.expr.identifier.value shouldBe "y"
+                }
         }
 
         "unknown declared type" {
             validateModule("""
                 fun test() {
-                    val foo: Foo
+                    foo: Foo
                 }
             """.trimIndent())
                 .shouldReport<UnknownTypeReporting>()
@@ -119,7 +113,7 @@ class VariableErrors : FreeSpec({
         "assignment status tracking" - {
             "global variable must be assigned at declaration" {
                 validateModule("""
-                    val a: Int
+                    a: Int
                 """.trimIndent())
                     .shouldReport<GlobalVariableNotInitializedReporting>()
             }
@@ -129,9 +123,9 @@ class VariableErrors : FreeSpec({
                     fun bar(p: Int) {
                     }
                     fun foo() {
-                        val a: Int
+                        a: Int
                         bar(1)
-                        a = 3
+                        set a = 3
                         bar(a)
                     }
                 """.trimIndent())
@@ -142,9 +136,9 @@ class VariableErrors : FreeSpec({
                 validateModule("""
                     fun bar(p: Int) {}
                     fun foo() {
-                        val a: Int
+                        a: Int
                         bar(a)
-                        a = 3
+                        set a = 3
                     }
                 """.trimIndent())
                     .shouldReport<VariableAccessedBeforeInitializationReporting>()
@@ -157,9 +151,9 @@ class VariableErrors : FreeSpec({
                     fun foo() {
                         var a: Int
                         bar(1)
-                        a = 3
+                        set a = 3
                         bar(a)
-                        a = 4
+                        set a = 4
                     }
                 """.trimIndent())
                     .shouldHaveNoDiagnostics()
@@ -183,9 +177,9 @@ class VariableErrors : FreeSpec({
         "in function - forbidden" {
             validateModule("""
                 fun foo() {
-                    val a = 3
+                    a = 3
                     if true {
-                        val a = 3
+                        a = 3
                     }
                 }
             """.trimIndent())
@@ -198,7 +192,7 @@ class VariableErrors : FreeSpec({
         "in function - shadowing parameter" {
             validateModule("""
                 fun foo(a: Int) {
-                    val a = false
+                    a = false
                 }
             """.trimIndent())
                 .shouldReport<MultipleVariableDeclarationsReporting> {
@@ -209,9 +203,9 @@ class VariableErrors : FreeSpec({
 
         "in function - shadowing global" {
             validateModule("""
-                val a = 3
+                a = 3
                 fun foo() {
-                    val a = false
+                    a = false
                 }
             """.trimIndent())
                 .shouldReport<MultipleVariableDeclarationsReporting> {
@@ -222,7 +216,7 @@ class VariableErrors : FreeSpec({
 
         "in function - parameter shadowing global" {
             validateModule("""
-                val a = 3
+                a = 3
                 fun foo(a: Boolean) {
                 }
             """.trimIndent())
@@ -238,7 +232,7 @@ class VariableErrors : FreeSpec({
             validateModule("""
                 fun foo() -> Int {
                     if true {
-                        val a = 3
+                        a = 3
                     }
                     return a
                 }

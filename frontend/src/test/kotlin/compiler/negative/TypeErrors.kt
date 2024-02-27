@@ -24,7 +24,7 @@ class TypeErrors : FreeSpec({
                 
                 fun foo() {
                     var myX: X<out Number> = X(2)
-                    myX.prop = 2
+                    set myX.prop = 2
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting>()
@@ -33,7 +33,7 @@ class TypeErrors : FreeSpec({
         "assignment of generically typed value to directly typed variable" {
             validateModule("""
                 fun foo<T>(p: T) {
-                    val x: Any? = p
+                    x: Any? = p
                 }
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
@@ -42,7 +42,7 @@ class TypeErrors : FreeSpec({
         "assignment of directly typed value to generically typed variable" {
             validateModule("""
                 fun foo<T>() {
-                    val x: T = false
+                    x: T = false
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
@@ -56,7 +56,7 @@ class TypeErrors : FreeSpec({
                 validateModule("""
                     struct X<T : Number> {}
                     
-                    val x: X<Any>
+                    x: X<Any>
                 """.trimIndent())
                         .shouldReport<TypeArgumentOutOfBoundsReporting>()
             }
@@ -65,7 +65,7 @@ class TypeErrors : FreeSpec({
                 validateModule("""
                     struct X<out T : Number> {}
                     
-                    val x: X<Any>
+                    x: X<Any>
                 """.trimIndent())
                         .shouldReport<TypeArgumentOutOfBoundsReporting>()
             }
@@ -74,7 +74,7 @@ class TypeErrors : FreeSpec({
                 validateModule("""
                     struct X<in T : Number> {}
                     
-                    val x: X<Any>
+                    x: X<Any>
                 """.trimIndent())
                         .shouldReport<TypeArgumentOutOfBoundsReporting>()
             }
@@ -83,7 +83,7 @@ class TypeErrors : FreeSpec({
         "reference to generic type with no type arguments when they are required" {
             validateModule("""
                 struct X<T> {}
-                val x: X
+                x: X
             """.trimIndent())
                 .shouldReport<MissingTypeArgumentReporting> {
                     it.parameter.name.value shouldBe "T"
@@ -93,7 +93,7 @@ class TypeErrors : FreeSpec({
         "reference to generic type with too many type arguments when they are required" {
             validateModule("""
                 struct X<T> {}
-                val x: X<Int, Int, Boolean>
+                x: X<Int, Int, Boolean>
             """.trimIndent())
                 .shouldReport<SuperfluousTypeArgumentsReporting> {
                     it.nExpected shouldBe 1
@@ -104,13 +104,13 @@ class TypeErrors : FreeSpec({
         "reference to generic type with mismatching parameter variance" {
             validateModule("""
                 struct X<in T> {}
-                val x: X<out Any>
+                x: X<out Any>
             """.trimIndent())
                 .shouldReport<TypeArgumentVarianceMismatchReporting>()
 
             validateModule("""
                 struct X<out T> {}
-                val x: X<in Any>
+                x: X<in Any>
             """.trimIndent())
                 .shouldReport<TypeArgumentVarianceMismatchReporting>()
         }
@@ -118,7 +118,7 @@ class TypeErrors : FreeSpec({
         "reference to generic type with superfluous parameter variance" {
             validateModule("""
                 struct X<in T> {}
-                val x: X<in Any>
+                x: X<in Any>
             """.trimIndent())
                 .shouldReport<TypeArgumentVarianceSuperfluousReporting>()
         }
@@ -141,7 +141,7 @@ class TypeErrors : FreeSpec({
                     struct A<T : mutable Any> {
                         prop: T
                     }
-                    val x = A(2)
+                    x = A(2)
                 """.trimIndent())
                     .shouldReport<ValueNotAssignableReporting> {
                         it.sourceType.toString() shouldBe "immutable Int"
@@ -157,7 +157,7 @@ class TypeErrors : FreeSpec({
                     propOne: T
                     propTwo: T
                 }
-                val x: A<Int> = A(2, false)
+                x: A<Int> = A(2, false)
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
                     it.sourceType.toString() shouldBe "immutable Any"
@@ -189,8 +189,8 @@ class TypeErrors : FreeSpec({
     "array literal" - {
         "with no elements is Array<Any>" {
             validateModule("""
-                val x = []
-                val y: Array<String> = x
+                x = []
+                y: Array<String> = x
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
                     it.sourceType.toString() shouldBe "immutable Any"
@@ -201,8 +201,8 @@ class TypeErrors : FreeSpec({
         "infers array type from elements" - {
             "all the same" {
                 validateModule("""
-                    val x = [1, 2, 3]
-                    val y: Array<String> = x
+                    x = [1, 2, 3]
+                    y: Array<String> = x
                 """.trimIndent())
                     .shouldReport<ValueNotAssignableReporting> {
                         it.sourceType.toString() shouldBe "immutable Int"
@@ -212,8 +212,8 @@ class TypeErrors : FreeSpec({
 
             "different types" {
                 validateModule("""
-                    val x = [1, 1.2, 2, 2.5]
-                    val y: Array<String> = x
+                    x = [1, 1.2, 2, 2.5]
+                    y: Array<String> = x
                 """.trimIndent())
                     .shouldReport<ValueNotAssignableReporting> {
                         it.sourceType.toString() shouldBe "immutable Number"
@@ -224,8 +224,8 @@ class TypeErrors : FreeSpec({
 
         "uses element type from expected return" {
             validateModule("""
-                val x: Array<Number> = [1, 2, 3, 4]
-                val y: Array<String> = x
+                x: Array<Number> = [1, 2, 3, 4]
+                y: Array<String> = x
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
                     it.sourceType.toString() shouldBe "immutable Number"
@@ -235,7 +235,7 @@ class TypeErrors : FreeSpec({
 
         "validates expected return element type against elements" {
             validateModule("""
-                val x: Array<Int> = [1, 2, 3, "4"]
+                x: Array<Int> = [1, 2, 3, "4"]
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
                     it.sourceType.toString() shouldBe "immutable String"

@@ -122,13 +122,9 @@ class BoundIfExpression(
             }
         }
 
-        condition.findWritesBeyond(context).forEach { mutationInCondition ->
-            if (mutationInCondition is BoundAssignmentExpression) {
-                reportings.add(Reporting.assignmentUsedAsExpression(mutationInCondition))
-            } else {
-                reportings.add(Reporting.mutationInCondition(mutationInCondition))
-            }
-        }
+        condition.findWritesBeyond(context)
+            .map(Reporting::mutationInCondition)
+            .forEach(reportings::add)
 
         return reportings
     }
