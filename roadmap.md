@@ -54,7 +54,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       `val`s.~~
 20. resolve any reasonably resolvable TODO in the llvm backend, including
     * ~~array deallocation, needs code in the DSL for creating loops~~ 
-    * reference counting - currently not done at all. Needs work in the frontend and in the backend.
+    * ~~reference counting - currently not done at all. Needs work in the frontend and in the backend.~~
       * no need to optimize rn, can be done later
 21. sane defaults, mutability and purity
     * currently mutable and impure by default. Other languages show clearly that this is not needed. Makes sense,
