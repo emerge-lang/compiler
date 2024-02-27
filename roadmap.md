@@ -93,19 +93,24 @@ This file describes the Items that are next on the TODO list. **This list is NOT
          test the implementation.
     4. deal with the wrapper mutability problem: do types need to be generic on mutability?
     5. add `sealed` interfaces as in Kotlin
-24. get rid of BuiltinBaseType: declare all builtins in emerge source. Unit, Any, Int, ...
+24. move intrinsic types 100% into emerge source. Both frontend and backend should
+    have the necessary toolset now to still hook in and handle them correctly
 25. implement weak references
 26. extend InvocationExpression
     1. ~~handle constructors~~
     2. when checking `objRef.method()` error if `method` is a property  
       (will be implemented with function types later on)
 27. error handling
-    1. `throw` statement
-    2. `Throwable` for everything that can be thrown, `Exception : Throwable` for recoverable errors,
+    1. this is going to touch the runtime significantly. Use this opportunity to
+       1. find out what all the gnu gcc runtime libs do, which and why they're needed
+       2. bundle the ones for x86_64 into the compiler, so they're available wherever the compiler can run
+       3. implement some method for using an LLVM installation on windows, so windows -> linux cross-compilation is possible
+    2. `throw` statement
+    3. `Throwable` for everything that can be thrown, `Exception : Throwable` for recoverable errors,
        `Error : Throwable` for unrecoverable errors. `Error` cannot be `catch`ed
-    3. `Exception`s are checked - must be declared on the signature. Errors can be omitted. This removes the need for
+    4. `Exception`s are checked - must be declared on the signature. Errors can be omitted. This removes the need for
        a `nothrow` modifier
-    4. try+catch+finally
+    5. try+catch+finally
 28. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
     1. index access can always throw IndexOutOfBounds; work out a nothrow alternative. Maybe `.safeGet(index)` returning `Either`?
 29. limit c-interface to standard library
@@ -117,8 +122,6 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     4. special rule: only emerge.platform may depend on emerge.ffi.c
 30. Stdlib _absolute_ Basics
     * get type names in order: decide on i8+u8 vs s8+u8 vs Byte, ...
-    * move intrinsic types 100% into emerge source. Both frontend and backend should
-      have the necessary toolset now to still hook in and handle them correctly
     * arithmetic
         * overflow-safe implementations of the actual operators + - * ...
         * overflow-unsafe intrinsics, e.g. `emerge.std.math.addWithOverflow(a: i32, b: i32)`
@@ -130,7 +133,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       * it would be great to be able to do == on Any
     * hashCodes: again, Java-style is overkill, have an explicit Hashable interface 
 31. while + do-while loops
-32. for each loops over arrays
+32. general iterable types
+    * Like Java Iterable<T>, D ranges, ... ?
+    * for each over iterable
+33. for each loops over arrays
     ```
     for each item in iterable { /* ... */ }
     // is actually
@@ -144,9 +150,6 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     // gets rewritten to
     for i in 0.rangeTo(10) { /* ... */ }
     ```
-33. general iterable types
-    * Like Java Iterable<T>, D ranges, ... ?
-    * for each over iterable
 34. Stdlib basics
     * some good standard collections
     * ArrayList, LinkedList, (De)Queue, Stack, ...
