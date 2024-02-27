@@ -3,6 +3,7 @@ package compiler.binding
 import compiler.*
 import compiler.ast.FunctionDeclaration
 import compiler.ast.type.FunctionModifier
+import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
@@ -119,6 +120,10 @@ class BoundDeclaredFunction(
 
             if (declaration.returnType != null) {
                 returnType = context.resolveType(declaration.returnType)
+                if (code !is Body.SingleExpression) {
+                    returnType = returnType?.defaultMutabilityTo(TypeMutability.IMMUTABLE)
+                }
+
                 returnType?.let {
                     code?.setExpectedReturnType(it)
                 }
@@ -151,6 +156,7 @@ class BoundDeclaredFunction(
                     this.returnType = this.code.expression.type
                 } else {
                     this.returnType = context.swCtx.unitBaseType.baseReference
+                        .withMutability(TypeMutability.READONLY)
                 }
             }
 
