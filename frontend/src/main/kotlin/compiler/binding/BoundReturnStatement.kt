@@ -110,9 +110,9 @@ class BoundReturnStatement(
         }
 
         val valueTemporary = IrCreateTemporaryValueImpl(actualExpression.toBackendIrExpression())
-        val valueTemporaryRefDrop = IrCreateReferenceStatementImpl(valueTemporary).takeUnless { actualExpression.isEvaluationResultReferenceCounted }
+        val valueTemporaryRefIncrement = IrCreateReferenceStatementImpl(valueTemporary).takeUnless { actualExpression.isEvaluationResultReferenceCounted }
         return IrCodeChunkImpl(
-            listOfNotNull(valueTemporary, valueTemporaryRefDrop) +
+            listOfNotNull(valueTemporary, valueTemporaryRefIncrement) +
             context.getFunctionDeferredCode().map { it.toBackendIrStatement() }.toList() +
             listOf(IrReturnStatementImpl(IrTemporaryValueReferenceImpl(valueTemporary)))
         )

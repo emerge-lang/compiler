@@ -69,7 +69,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             return ExecutableResult.ExecutionOngoing
         }
         is IrDropReferenceStatement -> {
-            code.reference.llvmValue.afterReferenceDropped(code.reference.type)
+            code.reference.declaration.llvmValue.afterReferenceDropped(code.reference.type)
             return ExecutableResult.ExecutionOngoing
         }
         is IrCreateTemporaryValue -> {

@@ -7,12 +7,8 @@ import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundStatement
-import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
-import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
-import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
@@ -121,25 +117,12 @@ class BoundArrayLiteralExpression(
     override val isEvaluationResultReferenceCounted = true
 
     override fun toBackendIrExpression(): IrExpression {
-        // TODO: refcount the temporaries, this is a function call to the array ctor in disguise!
         val irType = type!!.toBackendIr()
         val irElementType = (type as RootResolvedTypeReference).arguments.single().type.toBackendIr()
-        if (elements.isEmpty()) {
-            return IrArrayLiteralExpressionImpl(irType, irElementType, emptyList())
-        }
 
-        val elementTemporaries = elements.map {
-            IrCreateTemporaryValueImpl(it.toBackendIrExpression())
-        }
-        val arrayTemporary = IrCreateTemporaryValueImpl(IrArrayLiteralExpressionImpl(
-            type!!.toBackendIr(),
-            irElementType,
-            elementTemporaries.map(::IrTemporaryValueReferenceImpl),
-        ))
-
-        return IrImplicitEvaluationExpressionImpl(
-            IrCodeChunkImpl(elementTemporaries + listOf(arrayTemporary)),
-            IrTemporaryValueReferenceImpl(arrayTemporary),
+        return buildInvocationLikeIr(
+            elements,
+            { args -> IrArrayLiteralExpressionImpl(irType, irElementType, args) },
         )
     }
 }

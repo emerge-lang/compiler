@@ -40,7 +40,7 @@ interface IrCreateReferenceStatement : IrExecutable {
  * **Attention!!:** there are caveats, see [IrCreateReferenceStatement]
  */
 interface IrDropReferenceStatement : IrExecutable {
-    val reference: IrCreateTemporaryValue
+    val reference: IrTemporaryValueReference
 }
 
 /**

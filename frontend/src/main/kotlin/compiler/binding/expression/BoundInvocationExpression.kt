@@ -40,6 +40,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -254,50 +255,27 @@ class BoundInvocationExpression(
 
     override val isEvaluationResultReferenceCounted = true
 
-    private fun toBackendIrCallOnly(): Pair<List<IrExecutable>, IrTemporaryValueReference> {
-        val boundArgumentExprs = listOfNotNull(receiverExpression) + valueArguments
-        val prepareArgumentsCode = ArrayList<IrExecutable>(boundArgumentExprs.size * 2)
-        val argumentTemporaries = ArrayList<IrCreateTemporaryValue>(boundArgumentExprs.size)
-        val cleanUpArgumentsCode = ArrayList<IrExecutable>(boundArgumentExprs.size)
-
-        for (boundArgumentExpr in boundArgumentExprs) {
-            val irExpr = boundArgumentExpr.toBackendIrExpression()
-            val temporary = IrCreateTemporaryValueImpl(irExpr)
-            argumentTemporaries.add(temporary)
-            prepareArgumentsCode.add(temporary)
-            if (!boundArgumentExpr.isEvaluationResultReferenceCounted) {
-                prepareArgumentsCode.add(IrCreateReferenceStatementImpl(temporary))
-            }
-            cleanUpArgumentsCode.add(IrDropReferenceStatementImpl(temporary))
-        }
-
-        val resultTemporary = IrCreateTemporaryValueImpl(
-            IrStaticDispatchFunctionInvocationImpl(
-                dispatchedFunction!!.toBackendIr(),
-                argumentTemporaries.map { IrTemporaryValueReferenceImpl(it) },
-                type!!.toBackendIr(),
-            )
-        )
-
-        return Pair(
-            prepareArgumentsCode + resultTemporary + cleanUpArgumentsCode,
-            IrTemporaryValueReferenceImpl(resultTemporary)
+    private fun buildBackendIrInvocation(arguments: List<IrTemporaryValueReference>): IrExpression {
+        return IrStaticDispatchFunctionInvocationImpl(
+            dispatchedFunction!!.toBackendIr(),
+            arguments,
+            type!!.toBackendIr(),
         )
     }
 
     override fun toBackendIrExpression(): IrExpression {
-        val (getResultStatements, resultTempRef) = toBackendIrCallOnly()
-        return IrImplicitEvaluationExpressionImpl(
-            IrCodeChunkImpl(getResultStatements),
-            resultTempRef,
+        return buildInvocationLikeIr(
+            listOfNotNull(receiverExpression) + valueArguments,
+            ::buildBackendIrInvocation,
         )
     }
 
     override fun toBackendIrStatement(): IrExecutable {
-        val (getResultStatements, resultTempRef) = toBackendIrCallOnly()
-        return IrCodeChunkImpl(getResultStatements + listOf(
-            IrDropReferenceStatementImpl(resultTempRef.declaration)
-        ))
+        return buildInvocationLikeIr(
+            listOfNotNull(receiverExpression) + valueArguments,
+            ::buildBackendIrInvocation,
+            { listOf(IrDropReferenceStatementImpl(it)) },
+        ).code
     }
 }
 
@@ -419,3 +397,39 @@ private class IrStaticDispatchFunctionInvocationImpl(
     override val arguments: List<IrTemporaryValueReference>,
     override val evaluatesTo: IrType,
 ) : IrStaticDispatchFunctionInvocationExpression
+
+/**
+ * Contains logic for invocation-like IR. Used for actual invocations, but also e.g. for [BoundArrayLiteralExpression].
+ * Doesn't assume any value for [BoundExpression.isEvaluationResultReferenceCounted]; refcounting logic can be cleanly
+ * customized with [buildResultCleanup].
+ */
+internal fun buildInvocationLikeIr(
+    boundArgumentExprs: List<BoundExpression<*>>,
+    buildActualCall: (arguments: List<IrTemporaryValueReference>) -> IrExpression,
+    buildResultCleanup: (IrTemporaryValueReference) -> List<IrExecutable> = { emptyList() },
+): IrImplicitEvaluationExpression {
+    val prepareArgumentsCode = ArrayList<IrExecutable>(boundArgumentExprs.size * 2)
+    val argumentTemporaries = ArrayList<IrCreateTemporaryValue>(boundArgumentExprs.size)
+    val cleanUpArgumentsCode = ArrayList<IrExecutable>(boundArgumentExprs.size)
+
+    for (boundArgumentExpr in boundArgumentExprs) {
+        val irExpr = boundArgumentExpr.toBackendIrExpression()
+        val temporary = IrCreateTemporaryValueImpl(irExpr)
+        argumentTemporaries.add(temporary)
+        prepareArgumentsCode.add(temporary)
+        if (!boundArgumentExpr.isEvaluationResultReferenceCounted) {
+            prepareArgumentsCode.add(IrCreateReferenceStatementImpl(temporary))
+        }
+        cleanUpArgumentsCode.add(IrDropReferenceStatementImpl(temporary))
+    }
+
+    val returnValueTemporary = IrCreateTemporaryValueImpl(
+        buildActualCall(argumentTemporaries.map { IrTemporaryValueReferenceImpl(it) })
+    )
+    val returnValueTemporaryRef = IrTemporaryValueReferenceImpl(returnValueTemporary)
+    val cleanupCode = buildResultCleanup(returnValueTemporaryRef)
+    return IrImplicitEvaluationExpressionImpl(
+        IrCodeChunkImpl(prepareArgumentsCode + returnValueTemporary + cleanUpArgumentsCode + cleanupCode),
+        returnValueTemporaryRef,
+    )
+}
