@@ -61,7 +61,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       mutability and impurity are a complexity, that should only be added when needed
     * so: objects created on the stack: immutable by default
     * objects referenced from other objects: immutable by default
-    * function parameters: readonly be default. Functions are an API and should provide best compatibility
+    * ~~function parameters: readonly be default. Functions are an API and should provide best compatibility~~
+    * ~~function return types: immutable by default. Functions are an API and should provide high guarantees~~
     * functions: pure by default? at least readonly! impure/mutable should be opt-in
       * this is already eased by having the receiver be an explicit parameter that can get an explicit mutability
 22. implement overload resolution algorithm, marked with TODOs
