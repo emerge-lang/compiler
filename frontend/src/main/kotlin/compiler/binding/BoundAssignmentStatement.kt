@@ -16,14 +16,16 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package compiler.binding.expression
+package compiler.binding
 
 import compiler.ast.AssignmentStatement
-import compiler.binding.BoundStatement
-import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.BoundIdentifierExpression
+import compiler.binding.expression.BoundMemberAccessExpression
+import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropReferenceStatementImpl

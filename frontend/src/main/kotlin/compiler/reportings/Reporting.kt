@@ -28,6 +28,7 @@ import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
+import compiler.binding.BoundAssignmentStatement
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundReturnStatement

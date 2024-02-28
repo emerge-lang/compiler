@@ -18,8 +18,8 @@
 
 package compiler.ast
 
+import compiler.binding.BoundAssignmentStatement
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.binding.expression.BoundAssignmentStatement
 import compiler.lexer.KeywordToken
 import compiler.lexer.OperatorToken
 

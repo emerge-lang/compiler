@@ -19,9 +19,9 @@
 package compiler.reportings
 
 import compiler.ast.type.FunctionModifier
+import compiler.binding.BoundAssignmentStatement
 import compiler.binding.BoundFunction
 import compiler.binding.BoundStatement
-import compiler.binding.expression.BoundAssignmentStatement
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundInvocationExpression
 

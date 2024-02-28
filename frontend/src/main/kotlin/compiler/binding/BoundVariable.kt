@@ -27,8 +27,6 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.SourceFileRootContext
 import compiler.binding.expression.BoundExpression
-import compiler.binding.expression.IrAssignmentStatementImpl
-import compiler.binding.expression.IrAssignmentStatementTargetVariableImpl
 import compiler.binding.misc_ir.IrCreateReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl

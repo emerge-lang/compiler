@@ -18,7 +18,7 @@
 
 package compiler.reportings
 
-import compiler.binding.expression.BoundAssignmentStatement
+import compiler.binding.BoundAssignmentStatement
 
 class IllegalAssignmentReporting(
     message: String,
