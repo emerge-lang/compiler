@@ -19,7 +19,7 @@ class ConditionErrors : FreeSpec({
     "if containing mutation" {
         validateModule("""
             var x = 0
-            fun modifyingFn() -> Boolean {
+            mutable fun modifyingFn() -> Boolean {
                 set x = 1
                 return true
             }

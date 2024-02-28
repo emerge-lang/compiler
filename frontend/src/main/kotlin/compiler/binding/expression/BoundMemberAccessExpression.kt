@@ -102,6 +102,7 @@ class BoundMemberAccessExpression(
     }
 
     override val isEvaluationResultReferenceCounted = false
+    override val isCompileTimeConstant get() = valueExpression.isCompileTimeConstant
 
     override fun toBackendIrExpression(): IrExpression {
         val baseTemporary = IrCreateTemporaryValueImpl(valueExpression.toBackendIrExpression())

@@ -63,12 +63,15 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * objects referenced from other objects: immutable by default
     * ~~function parameters: readonly be default. Functions are an API and should provide best compatibility~~
     * ~~function return types: immutable by default. Functions are an API and should provide high guarantees~~
-    * functions: pure by default? at least readonly! impure/mutable should be opt-in
+    * ~~functions: pure by default~~
       * this is already eased by having the receiver be an explicit parameter that can get an explicit mutability
+      * reading compile-time-constant data must be considered pure, too. There is no effective difference between a compile-time
+        constant/literal in a function or outside of it. The type system should already enable this: global var, which
+        implies immediately initialized, immutable. This could still entail reading runtime-dependent data... how to solve this?
 22. implement overload resolution algorithm, marked with TODOs
     * attention: currently, when an overload doesn't match just because of mutability that is reported as "function not defined".
       while technically correct, its very negative-helpful. E.g. when assignee is `readonly` and target is `mutable` the
-      error message should say someting like "can't mutate ..."
+      error message should say something like "can't mutate ..."
     * Also: what about overloading only based on mutabliltiy? Deny by incorporating mutability into the disjoint logic
       somehow?
 23. object model

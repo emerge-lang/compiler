@@ -5,7 +5,6 @@ import compiler.reportings.IllegalFunctionBodyReporting
 import compiler.reportings.MissingFunctionBodyReporting
 import compiler.reportings.MissingParameterTypeReporting
 import compiler.reportings.MissingReturnValueReporting
-import compiler.reportings.ModifierInefficiencyReporting
 import compiler.reportings.MultipleParameterDeclarationsReporting
 import compiler.reportings.ReturnTypeMismatchReporting
 import compiler.reportings.UncertainTerminationReporting
@@ -65,22 +64,6 @@ class FunctionErrors : FreeSpec({
                 fun foo(p: _) {}
             """.trimIndent())
                 .shouldReport<ExplicitInferTypeNotAllowedReporting>()
-        }
-    }
-
-    "modifier" - {
-        "readonly+pure redundancy" {
-            validateModule("""
-            readonly pure fun foo() {}
-        """.trimIndent())
-                .shouldReport<ModifierInefficiencyReporting>()
-        }
-
-        "redundant modifiers readonly + pure" {
-            validateModule("""
-            readonly pure fun a() {}
-        """.trimIndent())
-                .shouldReport<ModifierInefficiencyReporting>()
         }
     }
 

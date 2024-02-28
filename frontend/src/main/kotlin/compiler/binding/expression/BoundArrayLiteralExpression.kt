@@ -116,6 +116,9 @@ class BoundArrayLiteralExpression(
 
     override val isEvaluationResultReferenceCounted = true
 
+    override val isCompileTimeConstant: Boolean
+        get() = elements.all { it.isCompileTimeConstant }
+
     override fun toBackendIrExpression(): IrExpression {
         val irType = type!!.toBackendIr()
         val irElementType = (type as RootResolvedTypeReference).arguments.single().type.toBackendIr()

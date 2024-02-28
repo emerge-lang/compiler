@@ -25,21 +25,26 @@ sealed class FunctionModifier {
     open val impliesNoBody: Boolean = false
 
     /**
+     * The function may read and write from/to its enclosing context and invoke other functions without restrictions.
+     */
+    data object Modifying : FunctionModifier()
+
+    /**
      * The function may only read from its enclosing context and only invoke other functions that are marked with
      * [Readonly] or that don't actually read from their enclosing context.
      */
     data object Readonly : FunctionModifier()
 
     /**
-     * The function may not throw exceptions nor may it call other functions that throw exceptions.
-     */
-    data object Nothrow : FunctionModifier()
-
-    /**
      * The function must not interact with its enclosing scope nor may it call other functions that do. That
      * assures that the function is deterministic and allows for aggressive optimization using CTFE.
      */
     data object Pure : FunctionModifier()
+
+    /**
+     * The function may not throw exceptions nor may it call other functions that throw exceptions.
+     */
+    data object Nothrow : FunctionModifier()
 
     /**
      * The function defines or overrides an operator.

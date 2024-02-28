@@ -145,6 +145,8 @@ class BoundIfExpression(
         }
     }
 
+    override val isCompileTimeConstant = false
+
     override fun toBackendIrExpression(): IrExpression {
         val thenResultNeedsToIncludeRefCount = isEvaluationResultReferenceCounted && !thenCode.isImplicitEvaluationResultReferenceCounted
         val elseResultNeedsToIncludeRefCount = isEvaluationResultReferenceCounted && !(elseCode?.isImplicitEvaluationResultReferenceCounted ?: true)

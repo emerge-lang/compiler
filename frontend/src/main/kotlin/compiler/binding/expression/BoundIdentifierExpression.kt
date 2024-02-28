@@ -77,6 +77,8 @@ class BoundIdentifierExpression(
         referral?.markEvaluationResultUsed()
     }
 
+    override val isCompileTimeConstant get() = referral?.isCompileTimeConstant ?: false
+
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = mutableListOf<Reporting>()
         if (type == null) {
@@ -111,6 +113,7 @@ class BoundIdentifierExpression(
         override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
         fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>>
         fun markEvaluationResultUsed()
+        val isCompileTimeConstant: Boolean
     }
     inner class ReferringVariable(val variable: BoundVariable) : Referral {
         private var usageContext = VariableUsageContext.WRITE
@@ -128,12 +131,15 @@ class BoundIdentifierExpression(
         }
 
         override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-            return if (context.containsWithinBoundary(variable, boundary)) {
-                emptySet()
-            } else {
-                setOf(this@BoundIdentifierExpression)
+            return when {
+                context.containsWithinBoundary(variable, boundary) -> emptySet()
+                isCompileTimeConstant -> emptySet()
+                else -> setOf(this@BoundIdentifierExpression)
             }
         }
+
+        override val isCompileTimeConstant: Boolean
+            get() = !variable.isReAssignable && variable.initializerExpression?.isCompileTimeConstant == true
     }
     inner class ReferringType(val reference: BoundTypeReference) : Referral {
         override fun markEvaluationResultUsed() {
@@ -141,9 +147,11 @@ class BoundIdentifierExpression(
         }
 
         override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-            // TODO is reading type information of types declared outside the boundary considered impure?
+            // reading type information outside the boundary is pure because type information is compile-time constant
             return emptySet()
         }
+
+        override val isCompileTimeConstant = true
     }
 
     override val isEvaluationResultReferenceCounted = false

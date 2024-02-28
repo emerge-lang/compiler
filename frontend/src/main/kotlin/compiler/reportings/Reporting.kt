@@ -18,9 +18,7 @@
 
 package compiler.reportings
 
-import compiler.InternalCompilerError
 import compiler.ast.ASTPackageName
-import compiler.ast.Executable
 import compiler.ast.Expression
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
@@ -162,6 +160,9 @@ abstract class Reporting internal constructor(
         fun inefficientModifiers(message: String, location: SourceLocation)
             = ModifierInefficiencyReporting(message, location)
 
+        fun conflictingModifiers(message: String, location: SourceLocation)
+            = ConflictingFunctionModifiersReporting(message, location)
+
         fun noMatchingFunctionOverload(functionNameReference: IdentifierToken, receiverType: BoundTypeReference?, valueArguments: List<BoundExpression<*>>, functionDeclaredAtAll: Boolean)
             = UnresolvableFunctionOverloadReporting(functionNameReference, receiverType, valueArguments.map { it.type }, functionDeclaredAtAll)
 
@@ -206,14 +207,12 @@ abstract class Reporting internal constructor(
         fun superfluousSafeObjectTraversal(nonNullExpression: BoundExpression<*>, superfluousSafeOperator: OperatorToken)
             = SuperfluousSafeObjectTraversal(nonNullExpression, superfluousSafeOperator)
 
-        fun purityViolations(readingViolations: Collection<BoundExecutable<Executable>>, writingViolations: Collection<BoundExecutable<Executable>>, context: BoundFunction): Collection<Reporting> {
-            return (readingViolations + writingViolations).map { purityOrReadonlyViolationToReporting(it, context) }
+        fun purityViolations(readingViolations: Collection<BoundExpression<*>>, writingViolations: Collection<BoundStatement<*>>, context: BoundFunction): Collection<Reporting> {
+            return readingViolations.map { readingPurityViolationToReporting(it, context) } + writingViolations.map { modifyingPurityViolationToReporting(it, context) }
         }
 
-        fun readonlyViolations(writingViolations: Collection<BoundExecutable<Executable>>, readonlyFunction: BoundFunction): Collection<Reporting> {
-            return writingViolations.map { violator ->
-                purityOrReadonlyViolationToReporting(violator, readonlyFunction)
-            }
+        fun readonlyViolations(writingViolations: Collection<BoundStatement<*>>, readonlyFunction: BoundFunction): Collection<Reporting> {
+            return purityViolations(emptySet(), writingViolations, readonlyFunction)
         }
 
         fun missingReturnValue(returnStatement: BoundReturnStatement, expectedType: BoundTypeReference) = MissingReturnValueReporting(
@@ -247,29 +246,25 @@ abstract class Reporting internal constructor(
         fun integerLiteralOutOfRange(literal: Expression, expectedType: BaseType, expectedRange: ClosedRange<BigInteger>)
             = IntegerLiteralOutOfRangeReporting(literal, expectedType, expectedRange)
 
-        /**
-         * Converts a violation of purity or readonlyness into an appropriate error.
-         * @param violationIsWrite Whether the violiation is a writing violation or a reading violation (true = writing, false = reading)
-         */
-        private fun purityOrReadonlyViolationToReporting(violation: BoundExecutable<Executable>, context: BoundFunction): Reporting {
-            // violations can only be variable reads + writes as well as function invocations
+        private fun readingPurityViolationToReporting(violation: BoundExpression<*>, context: BoundFunction): Reporting {
             if (violation is BoundIdentifierExpression) {
-                if (FunctionModifier.Pure !in context.modifiers) throw InternalCompilerError("This is not a purity violation")
                 return ReadInPureContextReporting(violation, context)
             }
-            else if (violation is BoundInvocationExpression) {
-                if (FunctionModifier.Pure in context.modifiers) {
-                    return ImpureInvocationInPureContextReporting(violation, context)
-                }
-                else {
-                    return ModifyingInvocationInReadonlyContextReporting(violation, context)
-                }
-            }
-            else if (violation is BoundAssignmentStatement) {
+            check(violation is BoundInvocationExpression)
+            return ImpureInvocationInPureContextReporting(violation, context)
+        }
+
+        private fun modifyingPurityViolationToReporting(violation: BoundStatement<*>, context: BoundFunction): Reporting {
+            if (violation is BoundAssignmentStatement) {
                 return StateModificationOutsideOfPurityBoundaryReporting(violation, context)
             }
 
-            throw InternalCompilerError("Cannot handle ${violation.javaClass.simpleName} as a purity or readonlyness violation")
+            check(violation is BoundInvocationExpression)
+            if (violation.dispatchedFunction?.isDeclaredReadonly == false) {
+                return ModifyingInvocationInReadonlyContextReporting(violation, context)
+            } else {
+                return ImpureInvocationInPureContextReporting(violation, context)
+            }
         }
     }
 }

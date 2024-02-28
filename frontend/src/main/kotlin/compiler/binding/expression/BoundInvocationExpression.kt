@@ -254,6 +254,15 @@ class BoundInvocationExpression(
     }
 
     override val isEvaluationResultReferenceCounted = true
+    override val isCompileTimeConstant: Boolean
+        get() {
+            val localDispatchedFunction = dispatchedFunction ?: return false
+            if (localDispatchedFunction.isPure != true) {
+                return false
+            }
+            val receiverIsConstant = receiverExpression?.isCompileTimeConstant ?: true
+            return receiverIsConstant && valueArguments.all { it.isCompileTimeConstant }
+        }
 
     private fun buildBackendIrInvocation(arguments: List<IrTemporaryValueReference>): IrExpression {
         return IrStaticDispatchFunctionInvocationImpl(

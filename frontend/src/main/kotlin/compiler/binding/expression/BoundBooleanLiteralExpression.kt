@@ -45,6 +45,7 @@ class BoundBooleanLiteralExpression(
     override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
 
     override val isEvaluationResultReferenceCounted = false
+    override val isCompileTimeConstant = false
 
     override fun toBackendIrExpression(): IrExpression {
         return IrBooleanLiteralExpressionImpl(type.toBackendIr(), value)

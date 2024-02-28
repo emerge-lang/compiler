@@ -67,6 +67,7 @@ class BoundNotNullExpression(
     }
 
     override val isEvaluationResultReferenceCounted get() = TODO("not implemented yet")
+    override val isCompileTimeConstant get() = nullableExpression.isCompileTimeConstant
 
     override fun toBackendIrExpression(): IrExpression {
         /*

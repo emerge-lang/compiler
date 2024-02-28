@@ -151,9 +151,10 @@ val ParameterList = sequence("parenthesised parameter list") {
 
 val FunctionModifier = sequence {
     eitherOf {
+        keyword(Keyword.MUTABLE)
         keyword(Keyword.READONLY)
-        keyword(Keyword.NOTHROW)
         keyword(Keyword.PURE)
+        keyword(Keyword.NOTHROW)
         keyword(Keyword.OPERATOR)
         keyword(Keyword.INTRINSIC)
         sequence {
@@ -165,9 +166,10 @@ val FunctionModifier = sequence {
     }
 }
     .astTransformation { tokens -> when((tokens.next()!! as KeywordToken).keyword) {
+        Keyword.MUTABLE   -> compiler.ast.type.FunctionModifier.Modifying
         Keyword.READONLY  -> compiler.ast.type.FunctionModifier.Readonly
-        Keyword.NOTHROW   -> compiler.ast.type.FunctionModifier.Nothrow
         Keyword.PURE      -> compiler.ast.type.FunctionModifier.Pure
+        Keyword.NOTHROW   -> compiler.ast.type.FunctionModifier.Nothrow
         Keyword.OPERATOR  -> compiler.ast.type.FunctionModifier.Operator
         Keyword.INTRINSIC -> compiler.ast.type.FunctionModifier.Intrinsic
         Keyword.EXTERNAL  -> {
@@ -223,7 +225,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
     }
 }
     .astTransformation { tokens ->
-        val modifiers = mutableSetOf<FunctionModifier>()
+        val modifiers = mutableListOf<FunctionModifier>()
         var next: Any? = tokens.next()!!
         while (next is FunctionModifier) {
             modifiers.add(next)

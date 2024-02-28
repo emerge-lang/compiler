@@ -156,7 +156,8 @@ class BoundAssignmentStatement(
         }
 
         override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-            return reference.findReadsBeyond(boundary)
+            // we are writing to the variable, not reading from it
+            return emptySet()
         }
 
         override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {

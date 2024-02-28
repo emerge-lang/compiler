@@ -81,6 +81,7 @@ class BoundUnaryExpression(
     }
 
     override val isEvaluationResultReferenceCounted get() = hiddenInvocation.isEvaluationResultReferenceCounted
+    override val isCompileTimeConstant get() = hiddenInvocation.isCompileTimeConstant
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // nothing to do here: the only way to use this information would be the return type of the operator function

@@ -51,12 +51,13 @@ class BoundDeclaredFunction(
         }
     }
 
-    override val modifiers = declaration.modifiers + impliedModifiers
+    override val modifiers = (declaration.modifiers + impliedModifiers).toSet()
 
     override var returnType: BoundTypeReference? = null
         private set
 
-    val isDeclaredPure: Boolean = FunctionModifier.Pure in declaration.modifiers
+    override val isDeclaredPure: Boolean = modifiers.none { it == FunctionModifier.Readonly || it == FunctionModifier.Modifying } ||
+            modifiers.any { it == FunctionModifier.Pure }
 
     /**
      * Whether this functions code is behaves in a pure way. Is null if that has not yet been determined (see semantic
@@ -65,7 +66,8 @@ class BoundDeclaredFunction(
     var isEffectivelyPure: Boolean? = null
         private set
 
-    val isDeclaredReadonly: Boolean = FunctionModifier.Readonly in declaration.modifiers
+    override val isDeclaredReadonly: Boolean = modifiers.none { it == FunctionModifier.Modifying } ||
+            modifiers.any { it == FunctionModifier.Readonly || it == FunctionModifier.Pure }
 
     /**
      * Whether this functions code behaves in a readonly way. Is null if that has not yet been determined (see semantic
@@ -106,13 +108,35 @@ class BoundDeclaredFunction(
                 reportings.add(Reporting.missingFunctionBody(declaration))
             }
 
-            if (FunctionModifier.Pure in modifiers && FunctionModifier.Readonly in modifiers) {
-                reportings.add(
-                    Reporting.inefficientModifiers(
-                        "The modifier readonly is superfluous: the function is also pure and pure implies readonly.",
-                        declaredAt
+            if (FunctionModifier.Pure in modifiers) {
+                reportings.add(Reporting.inefficientModifiers(
+                    "The pure modifier is superfluous, functions are pure by default.",
+                    declaredAt,
+                ))
+
+                if (FunctionModifier.Readonly in modifiers) {
+                    reportings.add(
+                        Reporting.inefficientModifiers(
+                            "The modifier readonly is superfluous: the function is also pure and pure implies readonly.",
+                            declaredAt,
+                        )
                     )
-                )
+                }
+                if (FunctionModifier.Modifying in modifiers) {
+                    reportings.add(
+                        Reporting.conflictingModifiers(
+                            "A function cannot be declared both mutable and pure",
+                            declaredAt,
+                        )
+                    )
+                }
+            }
+
+            if (FunctionModifier.Modifying in modifiers && FunctionModifier.Readonly in modifiers) {
+                reportings.add(Reporting.conflictingModifiers(
+                    "A function cannot be declared both mutable and readonly",
+                    declaredAt,
+                ))
             }
 
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase1).forEach(reportings::addAll)

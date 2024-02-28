@@ -41,12 +41,16 @@ data class ReadInPureContextReporting internal constructor(val readingExpression
 data class ImpureInvocationInPureContextReporting internal constructor(val invcExpr: BoundInvocationExpression, val function: BoundFunction) : PurityViolationReporting(
     invcExpr,
     "pure function ${function.name} cannot invoke impure function ${invcExpr.dispatchedFunction!!.name}"
-)
+) {
+    override fun toString() = super.toString()
+}
 
 data class ModifyingInvocationInReadonlyContextReporting internal constructor(val invcExpr: BoundInvocationExpression, val function: BoundFunction) : PurityViolationReporting(
     invcExpr,
     "readonly function ${function.name} cannot invoke modifying function ${invcExpr.dispatchedFunction!!.name}"
-)
+) {
+    override fun toString() = super.toString()
+}
 
 data class StateModificationOutsideOfPurityBoundaryReporting internal constructor(val assignment: BoundAssignmentStatement, val function: BoundFunction) : PurityViolationReporting(
     assignment,

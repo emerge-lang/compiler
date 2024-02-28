@@ -7,13 +7,36 @@ import compiler.reportings.StateModificationOutsideOfPurityBoundaryReporting
 import io.kotest.core.spec.style.FreeSpec
 
 class PurityErrors : FreeSpec({
+    "reading compile-time constant globals is okay from a pure context" {
+        validateModule("""
+            fun computeSomething(y: Int) -> Int {
+                return y
+            }
+            x = computeSomething(2)
+            fun test() -> Int {
+                return x
+            }
+        """.trimIndent()).shouldHaveNoDiagnostics()
+    }
+
+    "reading runtime-dependent final globals is not okay in a pure context" {
+        validateModule("""
+            intrinsic readonly fun readRuntimeState() -> Int
+            x = readRuntimeState()
+            fun test() -> Int {
+                return x
+            }
+        """.trimIndent())
+            .shouldReport<ReadInPureContextReporting>()
+    }
+
     "calling a readonly function from a pure context" {
         validateModule("""
             var x = 1
-            fun a() {
+            readonly fun a() {
                 y = x + 1
             }
-            pure fun b() {
+            fun b() {
                 a()
             }
         """.trimIndent())
@@ -23,7 +46,7 @@ class PurityErrors : FreeSpec({
     "calling a modifying function from a pure context" {
         validateModule("""
             var x = 1
-            fun a() {
+            mutable fun a() {
                 set x = 2
             }
             pure fun b() {
@@ -36,7 +59,7 @@ class PurityErrors : FreeSpec({
     "calling a modifying function from a readonly context" {
         validateModule("""
             var x = 1
-            fun a() {
+            mutable fun a() {
                 set x = 2
             }
             readonly fun b() {
@@ -48,19 +71,9 @@ class PurityErrors : FreeSpec({
 
     "reading from outside a pure context" {
         validateModule("""
-            x = 1
+            var x = 1
             pure fun a() {
                 x
-            }
-        """.trimIndent())
-            .shouldReport<ReadInPureContextReporting>()
-    }
-
-    "reading outside of a pure context" {
-        validateModule("""
-            x = 0
-            pure fun a() -> Int {
-                return x
             }
         """.trimIndent())
             .shouldReport<ReadInPureContextReporting>()

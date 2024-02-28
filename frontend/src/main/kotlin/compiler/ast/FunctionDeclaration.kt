@@ -33,7 +33,7 @@ import compiler.lexer.SourceLocation
 
 class FunctionDeclaration(
     override val declaredAt: SourceLocation,
-    val modifiers: Set<FunctionModifier>,
+    val modifiers: List<FunctionModifier>,
     val name: IdentifierToken,
     val typeParameters: List<TypeParameter>,
     val parameters: ParameterList,

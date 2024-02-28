@@ -61,6 +61,12 @@ abstract class BoundFunction : SemanticallyAnalyzable {
     abstract val isPure: Boolean?
 
     /**
+     * Whether this function is pure as per its declaration. Functions are pure by default, so this is the case
+     * if neither [FunctionModifier.Readonly] nor [FunctionModifier.Modifying] is present.
+     */
+    abstract val isDeclaredPure: Boolean
+
+    /**
      * Whether this function should be considered readonly by other code using it. This is true if the function is
      * declared readonly or pure. If that is not the case the function is still considered readonly if the declared
      * body behaves in a readonly way.
@@ -69,6 +75,12 @@ abstract class BoundFunction : SemanticallyAnalyzable {
      * @see [BoundDeclaredFunction.isEffectivelyReadonly]
      */
     abstract val isReadonly: Boolean?
+
+    /**
+     * Whether this function is readonly or pure as per its declaration. Functions are pure by default, so this is the case
+     * if [FunctionModifier.Modifying] is not present.
+     */
+    abstract val isDeclaredReadonly: Boolean
 
     abstract val isGuaranteedToThrow: Boolean?
 

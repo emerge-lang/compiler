@@ -77,6 +77,12 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
      */
     val isEvaluationResultReferenceCounted: Boolean
 
+    /**
+     * Whether the result of this expression could be determined at compile time. Need not be meaningful until
+     * [semanticAnalysisPhase3] starts.
+     */
+    val isCompileTimeConstant: Boolean
+
     override val implicitEvaluationResultType: BoundTypeReference?
         get() = type
 

@@ -19,22 +19,32 @@
 package compiler.reportings
 
 import compiler.ast.VariableDeclaration
+import textutils.indentByFromSecondLine
 
 /**
  * Reported when a variable is declared within a context where a variable with the same name
  * already exists and cannot be shadowed.
  */
-class MultipleVariableDeclarationsReporting(
+data class MultipleVariableDeclarationsReporting(
     val originalDeclaration: VariableDeclaration,
     val additionalDeclaration: VariableDeclaration
 ) : Reporting(
     Level.ERROR,
     run {
-        var msg = "Variable ${additionalDeclaration.name.value} has already been declared in ${originalDeclaration.sourceLocation}."
+        var msg = "Variable ${additionalDeclaration.name.value} has already been declared."
         if (originalDeclaration.isReAssignable) {
             msg += " Write set ${originalDeclaration.name.value} = ... to assign a new value to a variable."
         }
         msg
     },
     additionalDeclaration.sourceLocation
-)
+) {
+    override fun toString(): String {
+        if (originalDeclaration.sourceLocation.file == additionalDeclaration.sourceLocation.file) {
+            val illustration = getIllustrationForHighlightedLines(listOf(originalDeclaration.sourceLocation, additionalDeclaration.sourceLocation))
+            return "($level) ${message.indentByFromSecondLine(2)}\n$illustration\nin ${additionalDeclaration.sourceLocation.fileLineColumnText}"
+        } else {
+            return "($level) ${message.indentByFromSecondLine(2)}\nOriginally declared here:\n${originalDeclaration.sourceLocation}\ndeclared again here:\n${additionalDeclaration.declaredAt}"
+        }
+    }
+}
