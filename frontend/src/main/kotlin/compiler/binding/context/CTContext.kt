@@ -21,6 +21,7 @@ package compiler.binding.context
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundFunction
+import compiler.binding.BoundImportDeclaration
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
@@ -64,6 +65,8 @@ interface CTContext {
 
     /** The file this context belongs to, right beneath the module context in the tree */
     val sourceFile: SourceFile
+
+    val imports: Iterable<BoundImportDeclaration>
 
     fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean = false): BaseType?
 

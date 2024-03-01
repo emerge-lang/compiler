@@ -5,6 +5,7 @@ import compiler.ast.Statement
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
+import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundVariable
 import compiler.binding.struct.Struct
 import compiler.binding.type.BaseType
@@ -57,6 +58,7 @@ class SourceFileRootContext(
 
             override val isScopeBoundary = false
             override val isFunctionRoot = false
+            override val imports = emptySet<BoundImportDeclaration>()
 
             override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? = null
             override fun initializesVariable(variable: BoundVariable): Boolean = false

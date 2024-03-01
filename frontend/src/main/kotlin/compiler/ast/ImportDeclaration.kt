@@ -18,6 +18,8 @@
 
 package compiler.ast
 
+import compiler.binding.BoundImportDeclaration
+import compiler.binding.context.CTContext
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 
@@ -29,6 +31,10 @@ class ImportDeclaration(
     /** The identifiers in order of the source: `import pkg1.pkg2.component` => `[pkg1, pkg2, component]` */
     val identifiers: List<IdentifierToken>
 ) : AstFileLevelDeclaration {
+
+    fun bindTo(context: CTContext): BoundImportDeclaration {
+        return BoundImportDeclaration(context, this)
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

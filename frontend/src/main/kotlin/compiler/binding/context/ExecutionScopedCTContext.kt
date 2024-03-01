@@ -176,11 +176,10 @@ open class MutableExecutionScopedCTContext protected constructor(
         _variables[name]?.let { return it }
 
         val fromImport = if (fromOwnFileOnly) null else {
-            val importedVars = importsForSimpleName(name)
-                .mapNotNull { it.resolveVariable(name) }
-
-            // TODO: if importedVars.size is > 1 the name is ambiguous; how to handle that?
-            importedVars.firstOrNull()
+            imports
+                .asSequence()
+                .mapNotNull { it.getVariableOfName(name) }
+                .firstOrNull()
         }
 
         return fromImport ?: (parentContext as? ExecutionScopedCTContext)?.resolveVariable(name, fromOwnFileOnly)

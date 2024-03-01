@@ -25,6 +25,7 @@ import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundFunction
+import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundVariable
 import compiler.binding.struct.Struct
 import compiler.binding.type.BaseType
@@ -34,7 +35,6 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.UnresolvedType
-import compiler.lexer.IdentifierToken
 
 /**
  * Mutable compile-time context; for explanation, see the doc of [CTContext].
@@ -45,7 +45,8 @@ open class MutableCTContext(
      */
     private val parentContext: CTContext,
 ) : CTContext {
-    private val imports: MutableSet<ImportDeclaration> = HashSet()
+    private val _imports: MutableSet<BoundImportDeclaration> = HashSet()
+    override val imports: Iterable<BoundImportDeclaration> = _imports
 
     private var _moduleContext: ModuleContext? = null
     override var moduleContext: ModuleContext
@@ -74,7 +75,7 @@ open class MutableCTContext(
     protected val _types: MutableSet<BaseType> = HashSet()
 
     fun addImport(decl: ImportDeclaration) {
-        this.imports.add(decl)
+        this._imports.add(decl.bindTo(this))
     }
 
     /**
@@ -111,11 +112,10 @@ open class MutableCTContext(
         _types.find { it.simpleName == simpleName }?.let { return it }
 
         val fromImport = if (fromOwnFileOnly) null else {
-            val importedTypes = importsForSimpleName(simpleName)
-                .mapNotNull { it.resolveBaseType(simpleName) }
-
-            // TODO: if importedTypes.size is > 1 the reference is ambiguous; how to handle that?
-            importedTypes.firstOrNull()
+            _imports
+                .asSequence()
+                .mapNotNull { it.getBaseTypeOfName(simpleName) }
+                .firstOrNull()
         }
 
         return fromImport ?: parentContext.resolveBaseType(simpleName, fromOwnFileOnly)
@@ -148,28 +148,11 @@ open class MutableCTContext(
 
         // look through the imports
         val importedTypes = if (fromOwnFileOnly) emptySet() else {
-            importsForSimpleName(name)
-                .map { it.resolveFunction(name) }
+            _imports
+                .mapNotNull { it.getFunctionOfName(name) }
                 .flatten()
         }
 
         return (selfDefined + importedTypes + parentContext.resolveFunction(name, fromOwnFileOnly)).toSet()
-    }
-
-    /**
-     * @return All the imported contexts that could contain the given simple name.
-     */
-    protected fun importsForSimpleName(simpleName: String): Iterable<PackageContext> {
-        return imports.mapNotNull { import ->
-            val importRange = import.identifiers.map(IdentifierToken::value)
-            val packageName = importRange.dropLast(1)
-            val importSimpleName = importRange.last()
-
-            if (importSimpleName != "*" && importSimpleName != simpleName) {
-                return@mapNotNull null
-            }
-
-            return@mapNotNull swCtx.getPackage(packageName)
-        }
     }
 }

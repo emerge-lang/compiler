@@ -18,10 +18,6 @@
 
 package compiler.binding.context
 
-import compiler.binding.BoundFunction
-import compiler.binding.BoundVariable
-import compiler.binding.struct.Struct
-import compiler.binding.type.BaseType
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.DotName
 
@@ -40,30 +36,50 @@ class SourceFile(
      * collects the results and returns them. Also returns the [Reporting]s found when binding
      * elements to the file (such as doubly declared variables).
      */
-    fun semanticAnalysisPhase1(): Collection<Reporting> =
-        bindTimeReportings +
-        context.types.flatMap(BaseType::semanticAnalysisPhase1) +
-        context.variables.flatMap(BoundVariable::semanticAnalysisPhase1) +
-        context.functions.flatMap(BoundFunction::semanticAnalysisPhase1) +
-        context.structs.flatMap(Struct::semanticAnalysisPhase1)
+    fun semanticAnalysisPhase1(): Collection<Reporting> {
+        val reportings = bindTimeReportings.toMutableList()
+        context.imports.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
+        context.types.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
+        context.variables.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
+        context.functions.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
+        context.structs.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
+
+        context.imports
+            .asSequence()
+            .filter { it.simpleName != null }
+            .groupBy { it.simpleName!! }
+            .values
+            .filter { imports -> imports.size > 1 }
+            .forEach { ambiguousImports ->
+                reportings.add(Reporting.ambiguousImports(ambiguousImports))
+            }
+
+        return reportings
+    }
 
     /**
      * Delegates to semantic analysis phase 2 of all components that make up this file;
      * collects the results and returns them.
      */
-    fun semanticAnalysisPhase2(): Collection<Reporting> =
-        context.types.flatMap(BaseType::semanticAnalysisPhase2) +
-        context.variables.flatMap(BoundVariable::semanticAnalysisPhase2) +
-        context.functions.flatMap(BoundFunction::semanticAnalysisPhase2) +
-        context.structs.flatMap(Struct::semanticAnalysisPhase2)
+    fun semanticAnalysisPhase2(): Collection<Reporting> {
+        val reportings = ArrayList<Reporting>()
+        context.types.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
+        context.variables.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
+        context.functions.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
+        context.structs.forEach { reportings.addAll(it.semanticAnalysisPhase2())  }
+        return reportings
+    }
 
     /**
      * Delegates to semantic analysis phase 3 of all components that make up this file;
      * collects the results and returns them.
      */
-    fun semanticAnalysisPhase3(): Collection<Reporting> =
-        context.types.flatMap(BaseType::semanticAnalysisPhase3) +
-        context.variables.flatMap(BoundVariable::semanticAnalysisPhase3) +
-        context.functions.flatMap(BoundFunction::semanticAnalysisPhase3) +
-        context.structs.flatMap(Struct::semanticAnalysisPhase3)
+    fun semanticAnalysisPhase3(): Collection<Reporting> {
+        val reportings = ArrayList<Reporting>()
+        context.types.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
+        context.variables.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
+        context.functions.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
+        context.structs.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
+        return reportings
+    }
 }

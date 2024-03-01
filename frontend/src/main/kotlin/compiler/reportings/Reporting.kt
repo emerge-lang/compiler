@@ -29,6 +29,7 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.BoundAssignmentStatement
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
+import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundReturnStatement
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
@@ -171,6 +172,15 @@ abstract class Reporting internal constructor(
 
         fun unresolvableMemberVariable(accessExpression: BoundMemberAccessExpression, hostType: BoundTypeReference)
             = UnresolvedMemberVariableReporting(accessExpression.declaration, hostType)
+
+        fun unresolvablePackageName(name: DotName, location: SourceLocation)
+            = UnresolvablePackageNameReporting(name, location)
+
+        fun unresolvableImport(import: BoundImportDeclaration)
+            = UnresolvableImportReporting(import)
+
+        fun ambiguousImports(imports: Iterable<BoundImportDeclaration>)
+            = AmbiguousImportsReporting(imports.map { it.declaration }, imports.first().simpleName!!)
 
         fun implicitlyEvaluatingAStatement(statement: BoundStatement<*>)
             = ImplicitlyEvaluatedStatementReporting(statement.declaration)
