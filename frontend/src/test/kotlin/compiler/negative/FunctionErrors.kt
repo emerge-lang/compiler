@@ -86,19 +86,19 @@ class FunctionErrors : FreeSpec({
     }
 
     "overloads" - {
-        "calling non-existent function overload".config(enabled = false) {
+        "calling non-existent function overload" {
             // disabled because with the overload resolution algorithm not fleshed out completely
             // this test cannot run
             validateModule("""
-            struct A {}
-            struct B {}
-            fun foo(p1: A) {}
-            fun foo(p1: B) {}            
-            fun test() {
-                foo(true)
-            }
-        """.trimIndent())
-                .shouldReport<UnresolvableFunctionOverloadReporting>()
+                struct A {}
+                struct B {}
+                fun foo(p1: A) {}
+                fun foo(p1: B) {}            
+                fun test() {
+                    foo(true)
+                }
+            """.trimIndent())
+                    .shouldReport<UnresolvableFunctionOverloadReporting>()
         }
 
         "overload-set with single non-disjoint parameter is not valid" {
@@ -123,6 +123,16 @@ class FunctionErrors : FreeSpec({
                 fun foo(a: Int, b: String, c: String, d: Number) {}
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
+        }
+
+        "ambiguous invocation involving valid overload sets" {
+            validateModule("""
+                fun println(p: Any) {}
+                
+                fun main() {
+                    println("Hello, World!")
+                }
+            """.trimIndent())
         }
     }
 

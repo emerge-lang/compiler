@@ -179,12 +179,17 @@ class BoundInvocationExpression(
             reportings.add(Reporting.ambiguousInvocation(this, evaluations.map { it.candidate }))
         }
         if (legalMatches.isEmpty()) {
-            // if there is only a single candidate, the errors found in validating are 100% applicable to be shown to the user
-            evaluations
-                .singleOrNull()
-                ?.unification
-                ?.reportings
-                ?.let(reportings::addAll)
+            if (evaluations.size == 1) {
+                // if there is only a single candidate, the errors found in validating are 100% applicable to be shown to the user
+                reportings.addAll(evaluations.single().unification.reportings.also {
+                    check(it.any { it.level >= Reporting.Level.ERROR }) {
+                        "Cannot choose overload to invoke, but evaluation of single overload candidate didn't yield any error -- what?"
+                    }
+                })
+            } else {
+                // TODO: make the error more helpful, e.g. ignoring the evaluations for candidates that have errors for a disjointly typed parameter
+                reportings.add(Reporting.noMatchingFunctionOverload(functionNameToken, receiverExpression?.type, valueArguments, true))
+            }
         }
 
         return legalMatches.firstOrNull() ?: evaluations.firstOrNull()
@@ -348,7 +353,7 @@ private fun Iterable<BoundOverloadSet>.filterAndSortByMatchForInvocationTypes(
 
             unification = argumentsIncludingReceiver
                 .zip(rightSideTypes)
-                .fold(unification) { unification, (argument, parameterType) ->
+                .foldIndexed(unification) { parameterIndex, unification, (argument, parameterType) ->
                     parameterType.unify(argument.type!!, argument.declaration.sourceLocation, unification)
                 }
 
@@ -357,35 +362,6 @@ private fun Iterable<BoundOverloadSet>.filterAndSortByMatchForInvocationTypes(
                 unification,
                 returnTypeWithVariables?.instantiateFreeVariables(unification),
             )
-        }
-        /*
-        The following idea seems good after some thought:
-        * A set of Types are "disjoint" if there is no value other than Nothing that can be assigned to
-          all types. Put differently: if their closestCommonSupertype does not equal any of the input types
-
-          This means that two overloads of the same function that use disjoint types for the same parameter
-          it is possible to disambiguate/choose the overload using that parameter only.
-          This makes it impossible to overload a function for a more specific type. That is intentional, as it
-          also removes the confusing behavior of runtime vs compile time overload resolution. Runtime overload
-          resolution/multiple dispatch by-the-language (see groovy) seems unattractive. Its also easily implemented
-          using a when { is } construct where needed. explicit is better than magic.
-        * To be validated on the overloading declaration: for any set of overloads there must be at least one parameter
-          whose types across all overloads are disjoint. That way, this parameter can disambiguate any call to that function
-          instantly.
-          This is aided by the fact that function parameter types must always be stated explicitly, so they are fully
-          resolved after semanticAnalysisPhase1. That allows us to do overload resolution in phase 2 and thus infer types
-          from overloaded invocations.
-        * lambda literals with untyped parameters cannot contribute to overload resolution because they can change
-          their output based on the input, making the whole unification complex an order of magnitude more complicated.
-          It should still be possible for function types to be disambiguators (see above). In that case there should be
-          a warning, though, saying that the disambiguation on a function type prevents users from passing a lambda
-          literal argument to that function.
-        * optional parameters: once they are added, the overload validation has to consider them, too. In that case
-          the disjoint parameter constraint only applies within the set of overload that has the same amount of
-          required parameters.
-         */
-        .sortedBy {
-            TODO("overload resolution is not yet implemented. For now you can only have one function per name, sorry.")
         }
         .toList()
 }
