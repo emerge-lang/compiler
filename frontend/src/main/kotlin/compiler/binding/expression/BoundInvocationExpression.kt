@@ -37,7 +37,7 @@ import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.pivot
-import compiler.reportings.NonDisjointParametersInOverloadSetReporting
+import compiler.reportings.OverloadSetHasNoDisjointParameterReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -291,31 +291,32 @@ class BoundInvocationExpression(
     }
 }
 
-fun Iterable<BoundFunction>.validateOverloadSet(): Collection<Reporting> {
-    val sampleFunction = firstOrNull() ?: return emptySet()
-    return this
+fun Collection<BoundFunction>.validateOverloadSet(): Collection<Reporting> {
+    if (size == 1) {
+        // not actually overloaded
+        return emptySet()
+    }
+
+    val hasAtLeastOneDisjointParameter = this
         .map { it.parameters.parameters.asSequence() }
         .asSequence()
         .pivot()
-        .mapIndexed { index, parametersAtIndex ->
+        .filter { parametersAtIndex ->
             assert(parametersAtIndex.all { it != null })
             @Suppress("UNCHECKED_CAST")
             parametersAtIndex as List<BoundParameter>
-            val nonDisjointParams = parametersAtIndex
+            val parameterIsDisjoint = parametersAtIndex
                 .nonDisjointPairs()
-                .flatMap { listOf(it.first, it.second) }
-                .toSet()
-
-            Pair(index, nonDisjointParams)
+                .none()
+            return@filter parameterIsDisjoint
         }
-        .filter { (_, nonDisjointParams) -> nonDisjointParams.isNotEmpty() }
-        .map { (parameterIndex, nonDisjointParams) -> NonDisjointParametersInOverloadSetReporting(
-            sampleFunction.fullyQualifiedName,
-            sampleFunction.parameters.parameters.size,
-            parameterIndex,
-            nonDisjointParams.map { it.declaration },
-        )}
-        .toList()
+        .any()
+
+    if (hasAtLeastOneDisjointParameter) {
+        return emptySet()
+    }
+
+    return setOf(OverloadSetHasNoDisjointParameterReporting(this))
 }
 
 /**

@@ -68,7 +68,8 @@ class SoftwareContext {
     fun doSemanticAnalysis(): Collection<Reporting> {
         return (modules.flatMap { it.semanticAnalysisPhase1() } +
                 modules.flatMap { it.semanticAnalysisPhase2() } +
-                modules.flatMap { it.semanticAnalysisPhase3() })
+                modules.flatMap { it.semanticAnalysisPhase3() } +
+                packageCache.values.flatMap { it.semanticAnalysisPhase3() })
             .toSet()
     }
 

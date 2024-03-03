@@ -30,15 +30,8 @@ class ModuleContext(
         _sourceFiles.add(sourceFile)
     }
 
-    lateinit var packages: Set<PackageContext>
-        private set
-
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
-            packages = _sourceFiles
-                .groupBy { it.packageName }
-                .map { (packageName, files) -> PackageContext(packageName, files) }
-                .toSet()
             _sourceFiles.flatMap { it.semanticAnalysisPhase1() }
         }
     }

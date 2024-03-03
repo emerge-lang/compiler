@@ -6,6 +6,7 @@ import compiler.reportings.MissingFunctionBodyReporting
 import compiler.reportings.MissingParameterTypeReporting
 import compiler.reportings.MissingReturnValueReporting
 import compiler.reportings.MultipleParameterDeclarationsReporting
+import compiler.reportings.OverloadSetHasNoDisjointParameterReporting
 import compiler.reportings.ReturnTypeMismatchReporting
 import compiler.reportings.UncertainTerminationReporting
 import compiler.reportings.UnknownTypeReporting
@@ -84,10 +85,11 @@ class FunctionErrors : FreeSpec({
             .shouldReport<UnknownTypeReporting>()
     }
 
-    "calling non-existent function overload".config(enabled = false) {
-        // disabled because with the overload resolution algorithm not fleshed out completely
-        // this test cannot run
-        validateModule("""
+    "overloads" - {
+        "calling non-existent function overload".config(enabled = false) {
+            // disabled because with the overload resolution algorithm not fleshed out completely
+            // this test cannot run
+            validateModule("""
             struct A {}
             struct B {}
             fun foo(p1: A) {}
@@ -96,7 +98,32 @@ class FunctionErrors : FreeSpec({
                 foo(true)
             }
         """.trimIndent())
-            .shouldReport<UnresolvableFunctionOverloadReporting>()
+                .shouldReport<UnresolvableFunctionOverloadReporting>()
+        }
+
+        "overload-set with single non-disjoint parameter is not valid" {
+            validateModule("""
+                fun foo(a: Number) {}
+                fun foo(a: Int) {}
+            """.trimIndent())
+                .shouldReport<OverloadSetHasNoDisjointParameterReporting>()
+        }
+
+        "overload-set with multiple parameters, none of which has disjoint types, is not valid" {
+            validateModule("""
+                fun foo(a: Number, b: Any) {}
+                fun foo(a: Any, b: Number) {}
+            """.trimIndent())
+                .shouldReport<OverloadSetHasNoDisjointParameterReporting>()
+        }
+
+        "overload set with multiple parameters, only one of which has disjoint types, is valid" {
+            validateModule("""
+                fun foo(a: Any, b: Any, c: Int, d: Any) {}
+                fun foo(a: Int, b: String, c: String, d: Number) {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
     }
 
     "calling a function that doesn't exist by name" {

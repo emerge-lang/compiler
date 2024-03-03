@@ -15,7 +15,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.UnresolvedType
 
 class SourceFileRootContext(
-    override var moduleContext: ModuleContext,
+    packageContext: PackageContext,
 ) : MutableExecutionScopedCTContext(
     SourceFileParentContext(packageContext),
     true,

@@ -2,16 +2,19 @@ package compiler.binding.context
 
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
-import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.expression.validateOverloadSet
 import compiler.binding.type.BaseType
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.DotName
 
 class PackageContext(
+    val moduleContext: ModuleContext,
     val packageName: DotName,
-    val sourceFiles: Collection<SourceFile>,
-) : SemanticallyAnalyzable {
+) {
+    private val sourceFiles: Sequence<SourceFile> = sequence {
+        yieldAll(moduleContext.sourceFiles)
+    }.filter { it.packageName == packageName }
+
     val types: Sequence<BaseType> get() {
         return sourceFiles
             .asSequence()
@@ -30,6 +33,7 @@ class PackageContext(
     fun resolveFunction(simpleName: String): Collection<BoundFunction> {
         return sourceFiles
             .flatMap { it.context.resolveFunction(simpleName, true) }
+            .toList()
     }
 
     fun resolveVariable(simpleName: String): BoundVariable? {
@@ -39,15 +43,7 @@ class PackageContext(
             .firstOrNull()
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return emptySet()
-    }
-
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return emptySet()
-    }
-
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+    fun semanticAnalysisPhase3(): Collection<Reporting> {
         return sourceFiles
             .flatMap { it.context.functions }
             .groupBy { Pair(it.name, it.parameters.parameters.size) }
