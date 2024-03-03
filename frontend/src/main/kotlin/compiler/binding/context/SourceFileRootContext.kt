@@ -6,6 +6,7 @@ import compiler.ast.type.TypeReference
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundImportDeclaration
+import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.struct.Struct
 import compiler.binding.type.BaseType
@@ -68,7 +69,7 @@ class SourceFileRootContext(
                 ref,
                 ref.arguments.map { BoundTypeArgument(it, it.variance, this.resolveType(it.type)) },
             )
-            override fun resolveFunction(name: String, fromOwnFileOnly: Boolean): Collection<BoundFunction> = emptySet()
+            override fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet> = emptySet()
 
             override fun getContextLocalDeferredCode(): Sequence<BoundExecutable<*>> {
                 throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
@@ -104,12 +105,8 @@ class SourceFileRootContext(
             return packageContext.resolveBaseType(simpleName)
         }
 
-        override fun resolveFunction(name: String, fromOwnFileOnly: Boolean): Collection<BoundFunction> {
-            if (fromOwnFileOnly) {
-                return EMPTY.resolveFunction(name, fromOwnFileOnly)
-            }
-
-            return packageContext.resolveFunction(name)
+        override fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet> {
+            return packageContext.getTopLevelFunctionOverloadSetsBySimpleName(name)
         }
     }
 }

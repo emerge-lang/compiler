@@ -20,8 +20,8 @@ package compiler.binding.context
 
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
-import compiler.binding.BoundFunction
 import compiler.binding.BoundImportDeclaration
+import compiler.binding.BoundOverloadSet
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
@@ -78,5 +78,5 @@ interface CTContext {
 
     fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean = false): BoundTypeReference
 
-    fun resolveFunction(name: String, fromOwnFileOnly: Boolean = false): Collection<BoundFunction>
+    fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet>
 }

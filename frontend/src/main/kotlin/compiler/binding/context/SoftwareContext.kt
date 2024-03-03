@@ -50,26 +50,40 @@ class SoftwareContext {
         return modules.find { it.moduleName == name } ?: throw IllegalStateException("Module $name has not been registered")
     }
 
-    private val packageCache = HashMap<List<String>, PackageContext>()
+    private val packages = HashMap<DotName, PackageContext>()
 
     /**
      * @return a reference to the requested package in this software context, or null if no module is known that
      * contains the package (see [registerModule]).
      */
-    fun getPackage(name: List<String>): PackageContext? {
-        packageCache[name]?.let { return it }
-        val module = modules.singleOrNull { it.moduleName.containsOrEquals(name) } ?: return null
-        val ctx = PackageContext(module, DotName(name))
-        packageCache[name] = ctx
-        return ctx
+    fun getPackage(name: DotName): PackageContext? {
+        packages[name]?.let { return it }
+        // there is no source file in the package, but the requested package may still be in the responsibility
+        // of one of the known modules, so we should return an empty package context
+        val emptyPackage = modules
+            .find { name.containsOrEquals(it.moduleName) }
+            ?.let { PackageContext(it, name) }
+            ?: return null
+
+        packages[name] = emptyPackage
+        return emptyPackage
     }
-    fun getPackage(name: DotName): PackageContext? = getPackage(name.components)
 
     fun doSemanticAnalysis(): Collection<Reporting> {
+        modules
+            .asSequence()
+            .flatMap { it.sourceFiles }
+            .onEach {
+                check(it.packageName in packages) {
+                    "All packages explicitly mentioned in package declarations should have been registered until now"
+                }
+            }
+
         return (modules.flatMap { it.semanticAnalysisPhase1() } +
+                packages.values.flatMap { it.semanticAnalysisPhase1() } +
                 modules.flatMap { it.semanticAnalysisPhase2() } +
                 modules.flatMap { it.semanticAnalysisPhase3() } +
-                packageCache.values.flatMap { it.semanticAnalysisPhase3() })
+                packages.values.flatMap { it.semanticAnalysisPhase3() })
             .toSet()
     }
 
@@ -82,7 +96,7 @@ class SoftwareContext {
     }
 
     val unitBaseType: BaseType by lazy {
-        getPackage(listOf("emerge", "core"))!!
+        getPackage(DotName(listOf("emerge", "core")))!!
             .types
             .single { it.fullyQualifiedName.last == "Unit" }
     }

@@ -48,6 +48,10 @@ class ModuleContext(
         }
     }
 
+    val nonEmptyPackages: Sequence<PackageContext> get() = _sourceFiles
+        .asSequence()
+        .map { softwareContext.getPackage(it.packageName)!! }
+
     override fun toString() = moduleName.toString()
 
     fun toBackendIr(): IrModule = IrModuleImpl(this)

@@ -252,7 +252,7 @@ class EmergeLlvmContext(
             emergeStructs.forEach {
                 // TODO: this handling is wonky, needs more conceptual work
                 val ref = registerIntrinsic(it.defaultConstructor)
-                it.irStruct.constructors.overloads.single().llvmRef = ref
+                it.irStruct.constructors.single().overloads.single().llvmRef = ref
             }
         }
 

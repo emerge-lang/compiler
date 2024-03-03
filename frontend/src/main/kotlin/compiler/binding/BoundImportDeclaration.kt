@@ -23,9 +23,9 @@ class BoundImportDeclaration(
             return@lazy ResolutionResult.EntirePackage(packageContext)
         }
 
-        val functions = packageContext.resolveFunction(simpleNameRaw)
-        if (functions.isNotEmpty()) {
-            return@lazy ResolutionResult.Function(simpleNameRaw, functions)
+        val overloadSets = packageContext.getTopLevelFunctionOverloadSetsBySimpleName(simpleNameRaw)
+        if (overloadSets.isNotEmpty()) {
+            return@lazy ResolutionResult.OverloadSets(simpleNameRaw, overloadSets)
         }
 
         val baseType = packageContext.resolveBaseType(simpleNameRaw)
@@ -41,18 +41,18 @@ class BoundImportDeclaration(
         return@lazy ResolutionResult.Erroneous(Reporting.unresolvableImport(this))
     }
 
-    fun getFunctionOfName(simpleName: String): Collection<BoundFunction>? = when(val result = resolutionResult) {
-        is ResolutionResult.EntirePackage -> result.packageContext.resolveFunction(simpleName)
-        is ResolutionResult.Function -> if (result.simpleName == simpleName) result.overloads else null
+    fun getOverloadSetsBySimpleName(simpleName: String): Collection<BoundOverloadSet> = when(val result = resolutionResult) {
+        is ResolutionResult.EntirePackage -> result.packageContext.getTopLevelFunctionOverloadSetsBySimpleName(simpleName)
+        is ResolutionResult.OverloadSets -> if (result.simpleName == simpleName) result.sets else emptySet()
         is ResolutionResult.BaseType,
         is ResolutionResult.Variable,
-        is ResolutionResult.Erroneous -> null
+        is ResolutionResult.Erroneous -> emptySet()
     }
 
     fun getBaseTypeOfName(simpleName: String): compiler.binding.type.BaseType? = when(val result = resolutionResult) {
         is ResolutionResult.EntirePackage -> result.packageContext.resolveBaseType(simpleName)
         is ResolutionResult.BaseType -> result.baseType.takeIf { it.simpleName == simpleName }
-        is ResolutionResult.Function,
+        is ResolutionResult.OverloadSets,
         is ResolutionResult.Variable,
         is ResolutionResult.Erroneous -> null
     }
@@ -61,7 +61,7 @@ class BoundImportDeclaration(
         is ResolutionResult.EntirePackage -> result.packageContext.resolveVariable(simpleName)
         is ResolutionResult.Variable -> result.variable.takeIf { it.name == simpleName }
         is ResolutionResult.BaseType,
-        is ResolutionResult.Function,
+        is ResolutionResult.OverloadSets,
         is ResolutionResult.Erroneous -> null
     }
 
@@ -75,7 +75,7 @@ class BoundImportDeclaration(
 
     private sealed interface ResolutionResult {
         class EntirePackage(val packageContext: PackageContext) : ResolutionResult
-        class Function(val simpleName: String, val overloads: Collection<BoundFunction>) : ResolutionResult
+        class OverloadSets(val simpleName: String, val sets: Collection<BoundOverloadSet>) : ResolutionResult
         class BaseType(val baseType: compiler.binding.type.BaseType) : ResolutionResult
         class Variable(val variable: BoundVariable) : ResolutionResult
         class Erroneous(error: Reporting) : ResolutionResult {

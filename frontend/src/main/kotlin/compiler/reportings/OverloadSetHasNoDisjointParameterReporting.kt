@@ -1,20 +1,20 @@
 package compiler.reportings
 
-import compiler.binding.BoundFunction
+import compiler.binding.BoundOverloadSet
 
 class OverloadSetHasNoDisjointParameterReporting(
-    val overloads: Iterable<BoundFunction>,
+    val overloadSet: BoundOverloadSet,
 ) : Reporting(
     Level.ERROR,
     "This overload-set is ambiguous. The types of least one parameter must be disjoint, this set has none.",
-    overloads.first().declaredAt,
+    overloadSet.overloads.first().declaredAt,
 ) {
-    val overloadSetName = overloads.first().fullyQualifiedName
-    val overloadSetParameterCount = overloads.first().parameters.parameters.size
+    val overloadSetName = overloadSet.overloads.first().fullyQualifiedName
+    val overloadSetParameterCount = overloadSet.overloads.first().parameters.parameters.size
 
     override fun toString(): String {
         var str = levelAndMessage
-        overloads
+        overloadSet.overloads
             .groupBy { it.declaredAt.file }
             .forEach { (file, overloadsInFile) ->
                 str += "\nin $file:\n"

@@ -12,23 +12,22 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
 internal class IrPackageImpl(
-    override val name: DotName,
-    files: Iterable<SourceFile>,
+    packageContext: PackageContext,
 ) : IrPackage {
-    override val functions: Set<IrOverloadGroup<IrFunction>> = files
-        .flatMap { it.context.functions }
-        .groupBy { it.name }
-        .map { (functionName, overloads) ->
-            IrOverloadGroupImpl(name + functionName, overloads)
+    override val name: DotName = packageContext.packageName
+    override val functions: Set<IrOverloadGroup<IrFunction>> = packageContext
+        .allToplevelFunctionOverloadSets
+        .map {
+            IrOverloadGroupImpl(it.fqn, it.parameterCount, it.overloads)
         }
         .toSet()
 
-    override val structs: Set<IrStruct> = files
+    override val structs: Set<IrStruct> = packageContext.sourceFiles
         .flatMap { it.context.structs }
         .map { it.toBackendIr() }
         .toSet()
 
-    override val variables: Set<IrGlobalVariable> = files
+    override val variables: Set<IrGlobalVariable> = packageContext.sourceFiles
         .flatMap { it.context.variables }
         .map {
             val initializer = it.initializerExpression

@@ -22,13 +22,12 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
-import compiler.binding.BoundFunction
+import compiler.binding.BoundOverloadSet
 import compiler.binding.ObjectMember
 import compiler.binding.SemanticallyAnalyzable
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
-import io.github.tmarsteel.emerge.backend.api.ir.IrIntrinsicType
 import kotlinext.get
 
 /**
@@ -56,7 +55,7 @@ interface BaseType : SemanticallyAnalyzable {
     val superTypes: Set<BaseType>
         get() = emptySet()
 
-    val constructors: Set<BoundFunction>
+    val constructors: Collection<BoundOverloadSet>
         get() = emptySet()
 
     val typeParameters: List<BoundTypeParameter>

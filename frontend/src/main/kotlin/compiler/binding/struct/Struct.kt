@@ -23,6 +23,7 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.struct.StructDeclaration
 import compiler.binding.BoundElement
 import compiler.binding.BoundFunction
+import compiler.binding.BoundOverloadSet
 import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
 import compiler.binding.misc_ir.IrOverloadGroupImpl
@@ -49,7 +50,7 @@ class Struct(
 
     // this can only be initialized in semanticAnalysisPhase1 because the types referenced in the members
     // can be declared later than the struct
-    override lateinit var constructors: Set<BoundFunction>
+    override lateinit var constructors: Collection<BoundOverloadSet>
         private set
 
     override fun resolveMemberFunction(name: String): Collection<FunctionDeclaration> = emptySet()
@@ -69,7 +70,9 @@ class Struct(
                 reportings.add(Reporting.duplicateTypeMembers(this, dupMembers))
             }
 
-            constructors = setOf(StructConstructor(this))
+            constructors = setOf(BoundOverloadSet.fromSingle(StructConstructor(this)))
+            constructors.flatMap { it.overloads }.map { it.semanticAnalysisPhase1() }.forEach(reportings::addAll)
+            constructors.map { it.semanticAnalysisPhase1() }.forEach(reportings::addAll)
 
             return@getResult reportings
         }
@@ -78,7 +81,8 @@ class Struct(
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
             val reportings = members.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
-            constructors.map(BoundFunction::semanticAnalysisPhase2).forEach(reportings::addAll)
+            constructors.flatMap { it.overloads }.map(BoundFunction::semanticAnalysisPhase2).forEach(reportings::addAll)
+            constructors.map { it.semanticAnalysisPhase2() }.forEach(reportings::addAll)
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase2).forEach(reportings::addAll)
             return@getResult reportings
         }
@@ -87,7 +91,8 @@ class Struct(
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
             val reportings = members.flatMap { it.semanticAnalysisPhase3() }.toMutableList()
-            constructors.map(BoundFunction::semanticAnalysisPhase3).forEach(reportings::addAll)
+            constructors.flatMap { it.overloads }.map(BoundFunction::semanticAnalysisPhase3).forEach(reportings::addAll)
+            constructors.map { it.semanticAnalysisPhase3() }.forEach(reportings::addAll)
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
             return@getResult reportings
         }
@@ -105,5 +110,7 @@ private class IrStructImpl(
     override val fqn: DotName = struct.fullyQualifiedName
     override val parameters = struct.typeParameters.map { it.toBackendIr() }
     override val members = struct.members.map { it.toBackendIr() }
-    override val constructors = IrOverloadGroupImpl(struct.fullyQualifiedName, struct.constructors)
+    override val constructors = struct.constructors.map {
+        IrOverloadGroupImpl(it.fqn, it.parameterCount, it.overloads)
+    }.toSet()
 }

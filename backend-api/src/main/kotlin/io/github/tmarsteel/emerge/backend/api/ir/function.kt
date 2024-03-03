@@ -16,9 +16,10 @@ interface IrImplementedFunction : IrFunction {
 interface IrDeclaredFunction : IrFunction
 
 /**
- * A group of function declarations, all with the same name
+ * A group of function declarations, all with the same name and parameter count (receiver/self is always counted)
  */
 interface IrOverloadGroup<out T> {
     val fqn: DotName
+    val parameterCount: Int
     val overloads: Set<T>
 }

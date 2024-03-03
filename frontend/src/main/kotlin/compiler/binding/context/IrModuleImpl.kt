@@ -8,10 +8,9 @@ internal class IrModuleImpl(
     private val _context: ModuleContext
 ) : IrModule {
     override val name: DotName = _context.moduleName
-    override val packages: Set<IrPackage> = _context.sourceFiles
-        .groupBy { it.packageName }
-        .map { (packageName, sourceFiles) ->
-            IrPackageImpl(packageName, sourceFiles)
+    override val packages: Set<IrPackage> = _context.nonEmptyPackages
+        .map { packageContext ->
+            IrPackageImpl(packageContext)
         }
         .toSet()
 

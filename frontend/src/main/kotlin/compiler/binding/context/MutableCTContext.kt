@@ -26,6 +26,7 @@ import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundFunction
 import compiler.binding.BoundImportDeclaration
+import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.struct.Struct
 import compiler.binding.type.BaseType
@@ -142,17 +143,8 @@ open class MutableCTContext(
         return bound
     }
 
-    override fun resolveFunction(name: String, fromOwnFileOnly: Boolean): Collection<BoundFunction> {
-        // try to resolve from this context
-        val selfDefined = _functions.filter { it.name == name }
-
-        // look through the imports
-        val importedTypes = if (fromOwnFileOnly) emptySet() else {
-            _imports
-                .mapNotNull { it.getFunctionOfName(name) }
-                .flatten()
-        }
-
-        return (selfDefined + importedTypes + parentContext.resolveFunction(name, fromOwnFileOnly)).toSet()
+    override fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet> {
+        val imported = _imports.flatMap { it.getOverloadSetsBySimpleName(name) }
+        return imported + parentContext.getToplevelFunctionOverloadSetsBySimpleName(name)
     }
 }

@@ -22,7 +22,7 @@ import compiler.OnceAction
 import compiler.ast.expression.InvocationExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
-import compiler.binding.BoundParameter
+import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundStatement
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
@@ -36,8 +36,6 @@ import compiler.binding.type.*
 import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
-import compiler.pivot
-import compiler.reportings.OverloadSetHasNoDisjointParameterReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -144,20 +142,15 @@ class BoundInvocationExpression(
         }
 
         val candidateConstructors = if (receiverExpression != null) null else context.resolveBaseType(functionNameToken.value)?.constructors
-        val candidateFunctions = context.resolveFunction(functionNameToken.value)
+        val candidateFunctions = context.getToplevelFunctionOverloadSetsBySimpleName(functionNameToken.value)
 
         if (candidateConstructors.isNullOrEmpty() && candidateFunctions.isEmpty()) {
             reportings.add(Reporting.noMatchingFunctionOverload(functionNameToken, receiverExpression?.type, valueArguments, false))
             return null
         }
 
-        val evaluations: List<OverloadCandidateEvaluation> = if (candidateConstructors != null) {
-            candidateConstructors
-                .filterAndSortByMatchForInvocationTypes(null, valueArguments, typeArguments, expectedReturnType)
-        } else {
-            candidateFunctions
-                .filterAndSortByMatchForInvocationTypes(receiverExpression, valueArguments, typeArguments, expectedReturnType)
-        }
+        val allCandidates = (candidateConstructors ?: emptySet()) + candidateFunctions
+        val evaluations = allCandidates.filterAndSortByMatchForInvocationTypes(receiverExpression, valueArguments, typeArguments, expectedReturnType)
 
         if (evaluations.isEmpty()) {
             // TODO: pass on the mismatch reason for all candidates?
@@ -291,34 +284,6 @@ class BoundInvocationExpression(
     }
 }
 
-fun Collection<BoundFunction>.validateOverloadSet(): Collection<Reporting> {
-    if (size == 1) {
-        // not actually overloaded
-        return emptySet()
-    }
-
-    val hasAtLeastOneDisjointParameter = this
-        .map { it.parameters.parameters.asSequence() }
-        .asSequence()
-        .pivot()
-        .filter { parametersAtIndex ->
-            assert(parametersAtIndex.all { it != null })
-            @Suppress("UNCHECKED_CAST")
-            parametersAtIndex as List<BoundParameter>
-            val parameterIsDisjoint = parametersAtIndex
-                .nonDisjointPairs()
-                .none()
-            return@filter parameterIsDisjoint
-        }
-        .any()
-
-    if (hasAtLeastOneDisjointParameter) {
-        return emptySet()
-    }
-
-    return setOf(OverloadSetHasNoDisjointParameterReporting(this))
-}
-
 /**
  * Given the invocation types `receiverType` and `parameterTypes` of an invocation site
  * returns the functions matching the types sorted by matching quality to the given
@@ -331,7 +296,7 @@ fun Collection<BoundFunction>.validateOverloadSet(): Collection<Reporting> {
  * The list is sorted by best-match first, worst-match last. However, if the return value has more than one element,
  * it has to be treated as an error because the invocation is ambiguous.
  */
-private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(
+private fun Iterable<BoundOverloadSet>.filterAndSortByMatchForInvocationTypes(
     receiver: BoundExpression<*>?,
     valueArguments: List<BoundExpression<*>>,
     typeArguments: List<BoundTypeArgument>,
@@ -342,6 +307,8 @@ private fun Iterable<BoundFunction>.filterAndSortByMatchForInvocationTypes(
     val argumentsIncludingReceiver = listOfNotNull(receiver) + valueArguments
     return this
         .asSequence()
+        .filter { it.parameterCount == argumentsIncludingReceiver.size }
+        .flatMap { it.overloads }
         // filter by (declared receiver)
         .filter { candidateFn ->
             if ((receiverType != null) != candidateFn.declaresReceiver) {

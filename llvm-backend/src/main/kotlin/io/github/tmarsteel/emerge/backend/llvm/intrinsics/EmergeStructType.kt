@@ -79,7 +79,7 @@ internal class EmergeStructType private constructor(
         context.addGlobal(constant, LlvmGlobal.ThreadLocalMode.SHARED)
     }
 
-    private val defaultConstructorIr: IrFunction = irStruct.constructors.overloads.single()
+    private val defaultConstructorIr: IrFunction = irStruct.constructors.single().overloads.single()
     val defaultConstructor: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeStructType>> = KotlinLlvmFunction.define(
         defaultConstructorIr.llvmName,
         pointerTo(this),
