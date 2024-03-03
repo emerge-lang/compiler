@@ -30,7 +30,7 @@ class DuplicateStructMemberReporting(
     struct.declaration.declaredAt
 ) {
     override fun toString(): String {
-        var txt = "($level) $message\n\nin ${struct.declaration.declaredAt}\n"
+        var txt = "$levelAndMessage\nin ${struct.declaration.declaredAt}\n"
 
         txt += getIllustrationForHighlightedLines(
             duplicates.map { it.declaration.declaredAt },

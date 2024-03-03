@@ -1,5 +1,6 @@
 package compiler.binding.context
 
+import compiler.OnceAction
 import compiler.ast.ASTSourceFile
 import compiler.binding.SemanticallyAnalyzable
 import compiler.reportings.Reporting
@@ -13,29 +14,45 @@ class ModuleContext(
     val moduleName: DotName,
     val softwareContext: SoftwareContext,
 ) : SemanticallyAnalyzable {
+    private val onceAction = OnceAction()
+
     private val _sourceFiles: MutableSet<SourceFile> = HashSet()
     val sourceFiles: Set<SourceFile> = _sourceFiles
 
     fun addSourceFile(sourceFile: ASTSourceFile): SourceFile {
         val bound = sourceFile.bindTo(this)
-        _sourceFiles.add(bound)
+        addSourceFile(bound)
         return bound
     }
 
     fun addSourceFile(sourceFile: SourceFile) {
+        onceAction.requireActionNotDone(OnceAction.SemanticAnalysisPhase1)
         _sourceFiles.add(sourceFile)
     }
 
+    lateinit var packages: Set<PackageContext>
+        private set
+
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return _sourceFiles.flatMap { it.semanticAnalysisPhase1() }
+        return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
+            packages = _sourceFiles
+                .groupBy { it.packageName }
+                .map { (packageName, files) -> PackageContext(packageName, files) }
+                .toSet()
+            _sourceFiles.flatMap { it.semanticAnalysisPhase1() }
+        }
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return _sourceFiles.flatMap { it.semanticAnalysisPhase2() }
+        return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
+            _sourceFiles.flatMap { it.semanticAnalysisPhase2() }
+        }
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return _sourceFiles.flatMap { it.semanticAnalysisPhase3() }
+        return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
+            _sourceFiles.flatMap { it.semanticAnalysisPhase3() }
+        }
     }
 
     override fun toString() = moduleName.toString()

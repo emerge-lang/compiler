@@ -22,6 +22,7 @@ import compiler.OnceAction
 import compiler.ast.expression.InvocationExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
+import compiler.binding.BoundParameter
 import compiler.binding.BoundStatement
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
@@ -35,6 +36,8 @@ import compiler.binding.type.*
 import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
+import compiler.pivot
+import compiler.reportings.NonDisjointParametersInOverloadSetReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -288,6 +291,32 @@ class BoundInvocationExpression(
     }
 }
 
+fun Iterable<BoundFunction>.validateOverloadSet(): Collection<Reporting> {
+    val sampleFunction = firstOrNull() ?: return emptySet()
+    return this
+        .map { it.parameters.parameters.asSequence() }
+        .asSequence()
+        .pivot()
+        .mapIndexed { index, parametersAtIndex ->
+            assert(parametersAtIndex.all { it != null })
+            @Suppress("UNCHECKED_CAST")
+            parametersAtIndex as List<BoundParameter>
+            val nonDisjointParams = parametersAtIndex
+                .nonDisjointPairs()
+                .flatMap { listOf(it.first, it.second) }
+                .toSet()
+
+            Pair(index, nonDisjointParams)
+        }
+        .filter { (_, nonDisjointParams) -> nonDisjointParams.isNotEmpty() }
+        .map { (parameterIndex, nonDisjointParams) -> NonDisjointParametersInOverloadSetReporting(
+            sampleFunction.fullyQualifiedName,
+            sampleFunction.parameters.parameters.size,
+            parameterIndex,
+            nonDisjointParams.map { it.declaration },
+        )}
+        .toList()
+}
 
 /**
  * Given the invocation types `receiverType` and `parameterTypes` of an invocation site

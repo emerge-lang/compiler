@@ -65,10 +65,12 @@ abstract class Reporting internal constructor(
 
     fun toException(): ReportingException = ReportingException(this)
 
+    protected val levelAndMessage: String get() = "($level) $message".indentByFromSecondLine(2)
+
     /**
      * TODO: currently, all subclasses must override this with super.toString(), because `data` is needed to detect double-reporting the same problem
      */
-    override fun toString() = "($level) $message".indentByFromSecondLine(2) + "\nin $sourceLocation"
+    override fun toString() = "$levelAndMessage\nin $sourceLocation"
 
     enum class Level(val level: Int) {
         CONSECUTIVE(0),

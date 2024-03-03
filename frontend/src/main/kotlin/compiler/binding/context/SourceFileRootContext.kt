@@ -15,13 +15,12 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.UnresolvedType
 
 class SourceFileRootContext(
-    val packageContext: PackageContext,
+    override var moduleContext: ModuleContext,
 ) : MutableExecutionScopedCTContext(
     SourceFileParentContext(packageContext),
     true,
     false,
 ) {
-    override var moduleContext: ModuleContext = packageContext.moduleContext
     override lateinit var sourceFile: SourceFile
 
     val variables: Collection<BoundVariable> = _variables.values

@@ -138,4 +138,18 @@ fun <T : Any> Sequence<Sequence<T>>.pivot(): Sequence<List<T?>> {
     }
 }
 
+fun <T> List<T>.twoElementPermutationsUnordered(): Sequence<Pair<T, T>> {
+    require(this is RandomAccess)
+    return sequence {
+        for (outerIndex in 0..this@twoElementPermutationsUnordered.lastIndex) {
+            for (innerIndex in outerIndex + 1 .. this@twoElementPermutationsUnordered.lastIndex) {
+                yield(Pair(
+                    this@twoElementPermutationsUnordered[outerIndex],
+                    this@twoElementPermutationsUnordered[innerIndex],
+                ))
+            }
+        }
+    }
+}
+
 infix fun <Input, Intermediate, Result> ((Input) -> Intermediate).andThen(other: (Intermediate) -> Result): (Input) -> Result = { other(this(it)) }

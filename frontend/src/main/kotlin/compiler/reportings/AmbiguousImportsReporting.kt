@@ -10,5 +10,5 @@ data class AmbiguousImportsReporting(
     "These imports are ambiguous, they all import the symbol $commonSimpleName",
     imports.first().declaredAt,
 ) {
-    override fun toString() = "($level) $message\n${getIllustrationForHighlightedLines(imports.map { it.declaredAt }, 1u)}"
+    override fun toString() = "$levelAndMessage\n${getIllustrationForHighlightedLines(imports.map { it.declaredAt }, 1u)}"
 }

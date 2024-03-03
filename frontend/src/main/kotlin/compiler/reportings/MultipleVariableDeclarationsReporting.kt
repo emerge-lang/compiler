@@ -19,7 +19,6 @@
 package compiler.reportings
 
 import compiler.ast.VariableDeclaration
-import textutils.indentByFromSecondLine
 
 /**
  * Reported when a variable is declared within a context where a variable with the same name
@@ -42,9 +41,9 @@ data class MultipleVariableDeclarationsReporting(
     override fun toString(): String {
         if (originalDeclaration.sourceLocation.file == additionalDeclaration.sourceLocation.file) {
             val illustration = getIllustrationForHighlightedLines(listOf(originalDeclaration.sourceLocation, additionalDeclaration.sourceLocation))
-            return "($level) ${message.indentByFromSecondLine(2)}\n$illustration\nin ${additionalDeclaration.sourceLocation.fileLineColumnText}"
+            return "$levelAndMessage\n$illustration\nin ${additionalDeclaration.sourceLocation.fileLineColumnText}"
         } else {
-            return "($level) ${message.indentByFromSecondLine(2)}\nOriginally declared here:\n${originalDeclaration.sourceLocation}\ndeclared again here:\n${additionalDeclaration.declaredAt}"
+            return "$levelAndMessage\nOriginally declared here:\n${originalDeclaration.sourceLocation}\ndeclared again here:\n${additionalDeclaration.declaredAt}"
         }
     }
 }

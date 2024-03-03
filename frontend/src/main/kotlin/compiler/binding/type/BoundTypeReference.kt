@@ -20,11 +20,13 @@ package compiler.binding.type
 
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.binding.BoundParameter
 import compiler.binding.ObjectMember
 import compiler.binding.SemanticallyAnalyzable
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import compiler.reportings.ValueNotAssignableReporting
+import compiler.twoElementPermutationsUnordered
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import java.util.IdentityHashMap
 
@@ -184,10 +186,9 @@ sealed interface BoundTypeReference {
      */
     fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean
 
-    /**
-     * @return `true` iff the only value that [isAssignableTo] both `this` and [other] is [BuiltinNothing].
-     */
-    fun isDisjointWith(other: BoundTypeReference): Boolean = TODO("only present right now for reference in comments currently")
+    fun isDisjointWith(other: BoundTypeReference): Boolean {
+        return !(this isAssignableTo other) && !(other isAssignableTo this)
+    }
 
     /**
      * For parameterized types contains the bindings already resulting from that parameterization
@@ -199,6 +200,18 @@ sealed interface BoundTypeReference {
     val inherentTypeBindings: TypeUnification
 
     fun toBackendIr(): IrType
+}
+
+fun List<BoundParameter>.nonDisjointPairs(): Sequence<Pair<BoundParameter, BoundParameter>> {
+    /*
+    this has approximately O(2n²) performance; not good. Maye it can be improved by implementing
+    closestCommonSupertypeOf(List<BoundTypeReference>) and using it here. Thats pretty complex to do
+    soll i'll do it if i can confirm that the overloading semantics based on this are actually good/what i want.
+    */
+    return this
+        .filter { it.type != null }
+        .twoElementPermutationsUnordered()
+        .filterNot { (a, b) -> a.type!!.isDisjointWith(b.type!!) }
 }
 
 infix fun BoundTypeReference.isAssignableTo(other: BoundTypeReference): Boolean {
