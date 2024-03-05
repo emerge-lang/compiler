@@ -45,4 +45,17 @@ class UnresolvableFunctionOverloadReporting(
         message
     },
     functionNameReference.sourceLocation,
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is UnresolvableFunctionOverloadReporting) return false
+
+        if (functionNameReference != other.functionNameReference) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return functionNameReference.hashCode()
+    }
+}

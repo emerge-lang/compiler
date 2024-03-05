@@ -175,24 +175,44 @@ class BoundInvocationExpression(
         }
 
         val legalMatches = evaluations.filter { !it.hasErrors }
-        if (legalMatches.size > 1) {
-            reportings.add(Reporting.ambiguousInvocation(this, evaluations.map { it.candidate }))
-        }
-        if (legalMatches.isEmpty()) {
-            if (evaluations.size == 1) {
-                // if there is only a single candidate, the errors found in validating are 100% applicable to be shown to the user
-                reportings.addAll(evaluations.single().unification.reportings.also {
-                    check(it.any { it.level >= Reporting.Level.ERROR }) {
-                        "Cannot choose overload to invoke, but evaluation of single overload candidate didn't yield any error -- what?"
+        when (legalMatches.size) {
+            0 -> {
+                if (evaluations.size == 1) {
+                    val singleEval = evaluations.single()
+                    // if there is only a single candidate, the errors found in validating are 100% applicable to be shown to the user
+                    reportings.addAll(singleEval.unification.reportings.also {
+                        check(it.any { it.level >= Reporting.Level.ERROR }) {
+                            "Cannot choose overload to invoke, but evaluation of single overload candidate didn't yield any error -- what?"
+                        }
+                    })
+                    return singleEval
+                } else {
+                    val disjointParameterIndices = evaluations.indicesOfDisjointlyTypedParameters().toSet()
+                    val reducedEvaluations =
+                        evaluations.filter { it.indicesOfErroneousParameters.none { it in disjointParameterIndices } }
+                    if (reducedEvaluations.size == 1) {
+                        val singleEval = reducedEvaluations.single()
+                        reportings.addAll(singleEval.unification.reportings)
+                        return singleEval
+                    } else {
+                        reportings.add(
+                            Reporting.noMatchingFunctionOverload(
+                                functionNameToken,
+                                receiverExpression?.type,
+                                valueArguments,
+                                true
+                            )
+                        )
+                        return evaluations.firstOrNull()
                     }
-                })
-            } else {
-                // TODO: make the error more helpful, e.g. ignoring the evaluations for candidates that have errors for a disjointly typed parameter
-                reportings.add(Reporting.noMatchingFunctionOverload(functionNameToken, receiverExpression?.type, valueArguments, true))
+                }
+            }
+            1 -> return legalMatches.single()
+            else -> {
+                reportings.add(Reporting.ambiguousInvocation(this, evaluations.map { it.candidate }))
+                return legalMatches.firstOrNull()
             }
         }
-
-        return legalMatches.firstOrNull() ?: evaluations.firstOrNull()
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
@@ -315,18 +335,7 @@ private fun Iterable<BoundOverloadSet>.filterAndSortByMatchForInvocationTypes(
         .filter { it.parameterCount == argumentsIncludingReceiver.size }
         .flatMap { it.overloads }
         // filter by (declared receiver)
-        .filter { candidateFn ->
-            if ((receiverType != null) != candidateFn.declaresReceiver) {
-                return@filter false
-            }
-
-            if (receiverType == null) {
-                return@filter true
-            }
-
-            val receiverTypeUnification = candidateFn.receiverType!!.withTypeVariables(candidateFn.typeParameters).unify(receiverType, SourceLocation.UNKNOWN, TypeUnification.EMPTY)
-            receiverTypeUnification.reportings.none { it.level >= Reporting.Level.ERROR }
-        }
+        .filter { candidateFn -> (receiverType != null) == candidateFn.declaresReceiver }
         // filter by incompatible number of parameters
         .filter { it.parameters.parameters.size == argumentsIncludingReceiver.size }
         .mapNotNull { candidateFn ->
@@ -351,16 +360,22 @@ private fun Iterable<BoundOverloadSet>.filterAndSortByMatchForInvocationTypes(
                 .map { it.withTypeVariables(candidateFn.typeParameters) }
             check(rightSideTypes.size == argumentsIncludingReceiver.size)
 
+            val indicesOfErroneousParameters = ArrayList<Int>(argumentsIncludingReceiver.size)
             unification = argumentsIncludingReceiver
                 .zip(rightSideTypes)
-                .foldIndexed(unification) { parameterIndex, unification, (argument, parameterType) ->
-                    parameterType.unify(argument.type!!, argument.declaration.sourceLocation, unification)
+                .foldIndexed(unification) { parameterIndex, carryUnification, (argument, parameterType) ->
+                    val unificationAfterParameter = parameterType.unify(argument.type!!, argument.declaration.sourceLocation, carryUnification)
+                    if (unificationAfterParameter.getErrorsNotIn(carryUnification).any()) {
+                        indicesOfErroneousParameters.add(parameterIndex)
+                    }
+                    unificationAfterParameter
                 }
 
             OverloadCandidateEvaluation(
                 candidateFn,
                 unification,
                 returnTypeWithVariables?.instantiateFreeVariables(unification),
+                indicesOfErroneousParameters,
             )
         }
         .toList()
@@ -370,8 +385,18 @@ private data class OverloadCandidateEvaluation(
     val candidate: BoundFunction,
     val unification: TypeUnification,
     val returnType: BoundTypeReference?,
+    val indicesOfErroneousParameters: Collection<Int>,
 ) {
     val hasErrors = unification.reportings.any { it.level >= Reporting.Level.ERROR }
+}
+
+private fun Collection<OverloadCandidateEvaluation>.indicesOfDisjointlyTypedParameters(): Sequence<Int> {
+    require(isNotEmpty())
+    return (0 until first().candidate.parameters.parameters.size).asSequence()
+        .filter { parameterIndex ->
+            val parameterTypesAtIndex = this.map { it.candidate.parameters.parameters[parameterIndex] }
+            parameterTypesAtIndex.nonDisjointPairs().none()
+        }
 }
 
 private class IrStaticDispatchFunctionInvocationImpl(

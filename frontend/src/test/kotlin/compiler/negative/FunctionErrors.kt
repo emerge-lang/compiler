@@ -1,5 +1,6 @@
 package compiler.compiler.negative
 
+import compiler.reportings.AmbiguousInvocationReporting
 import compiler.reportings.ExplicitInferTypeNotAllowedReporting
 import compiler.reportings.IllegalFunctionBodyReporting
 import compiler.reportings.MissingFunctionBodyReporting
@@ -11,9 +12,14 @@ import compiler.reportings.ReturnTypeMismatchReporting
 import compiler.reportings.UncertainTerminationReporting
 import compiler.reportings.UnknownTypeReporting
 import compiler.reportings.UnresolvableFunctionOverloadReporting
+import compiler.reportings.ValueNotAssignableReporting
 import compiler.reportings.VarianceOnFunctionTypeParameterReporting
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.inspectors.forOne
+import io.kotest.matchers.collections.haveSize
+import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class FunctionErrors : FreeSpec({
     "body" - {
@@ -133,6 +139,46 @@ class FunctionErrors : FreeSpec({
                     println("Hello, World!")
                 }
             """.trimIndent())
+                .shouldReport<AmbiguousInvocationReporting>()
+        }
+
+        "no argument assignable to a disjointly typed parameter" {
+            validateModule("""
+                struct A {}
+                struct B {}
+                fun foo(disjoint: A, p: Int) {}
+                fun foo(disjoint: B, p: Int) {}
+                fun test() {
+                    foo(0, 0)
+                }
+            """.trimIndent())
+                .shouldReport<UnresolvableFunctionOverloadReporting>()
+        }
+
+        "argument not assignable to non-disjointly typed parameter" {
+            val (_, reportings) = validateModule("""
+                struct A {}
+                struct B {}
+                fun foo(disjoint: A, p1: Int, p2: Int) {}
+                fun foo(disjoint: B, p1: Int, p2: Int) {}
+                fun test() {
+                    foo(A(), "123", B())
+                }
+            """.trimIndent())
+
+            reportings should haveSize(2)
+            reportings.forOne {
+                it.shouldBeInstanceOf<ValueNotAssignableReporting>().also {
+                    it.sourceType.toString() shouldBe "immutable String"
+                    it.targetType.toString() shouldBe "immutable Int"
+                }
+            }
+            reportings.forOne {
+                it.shouldBeInstanceOf<ValueNotAssignableReporting>().also {
+                    it.sourceType.toString() shouldBe "immutable testmodule.B"
+                    it.targetType.toString() shouldBe "immutable Int"
+                }
+            }
         }
     }
 
