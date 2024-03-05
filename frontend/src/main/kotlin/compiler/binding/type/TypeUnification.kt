@@ -28,7 +28,7 @@ interface TypeUnification {
     }
 
     fun getErrorsNotIn(previous: TypeUnification): Sequence<Reporting> {
-        return previous.reportings.asSequence()
+        return reportings.asSequence()
             .filter { it.level >= Reporting.Level.ERROR }
             .filter { it !in previous.reportings }
     }
