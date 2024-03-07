@@ -20,7 +20,7 @@ package compiler.binding.context
 
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
-import compiler.ast.struct.StructDeclaration
+import compiler.ast.classdef.ClassDeclaration
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
@@ -28,7 +28,7 @@ import compiler.binding.BoundFunction
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
-import compiler.binding.struct.Struct
+import compiler.binding.classdef.BoundClassDefinition
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
@@ -69,8 +69,8 @@ open class MutableCTContext(
     /** Holds all the toplevel functions defined in this context */
     protected val _functions: MutableSet<BoundFunction> = HashSet()
 
-    /** Holds all the toplevel structs defined in this context */
-    protected val _structs: MutableSet<Struct> = HashSet()
+    /** Holds all the classes defined in this context */
+    protected val _classes: MutableSet<BoundClassDefinition> = HashSet()
 
     /** Holds all the base types defined in this context */
     protected val _types: MutableSet<BaseType> = HashSet()
@@ -84,13 +84,13 @@ open class MutableCTContext(
      */
     open fun addBaseType(type: BaseType) {
         _types.add(type)
-        if (type is Struct) _structs.add(type)
+        if (type is BoundClassDefinition) _classes.add(type)
     }
 
-    open fun addStruct(definition: StructDeclaration): Struct {
+    open fun addClass(definition: ClassDeclaration): BoundClassDefinition {
         val bound = definition.bindTo(this)
         _types.add(bound)
-        _structs.add(bound)
+        _classes.add(bound)
         return bound
     }
 

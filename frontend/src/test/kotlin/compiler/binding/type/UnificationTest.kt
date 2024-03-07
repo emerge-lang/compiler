@@ -13,7 +13,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 
 class UnificationTest : FreeSpec({
     "Explicit type argument does not widen" - {
-        // assigning false for the parameter of the struct is okay since its bound is Any
+        // assigning false for the parameter of the class is okay since its bound is Any
         // but the type parameter explicitly states Int, so false is not acceptable
         // the point of this test is to make sure the compiler reports this as a problem with the
         // argument false rather than as a problem with the type arguments or parameters
@@ -21,7 +21,7 @@ class UnificationTest : FreeSpec({
         "invocation-declared type argument" {
             validateModule(
                 """
-                struct A<T> {
+                class A<T> {
                     prop: T
                 }
                 x = A::<Int>(false)
@@ -36,7 +36,7 @@ class UnificationTest : FreeSpec({
         "expected-return-type-declared type argument" {
             validateModule(
                 """
-                struct A<T> {
+                class A<T> {
                     prop: T
                 }
                 x: A<Int> = A(false)

@@ -16,28 +16,33 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package compiler.ast.struct
+package compiler.ast.classdef
 
-import compiler.ast.AstFileLevelDeclaration
-import compiler.ast.type.TypeParameter
-import compiler.binding.context.CTContext
-import compiler.binding.struct.Struct
-import compiler.binding.struct.StructContext
+import compiler.ast.ASTVisibilityModifier
+import compiler.ast.Expression
+import compiler.ast.type.TypeReference
+import compiler.binding.classdef.ClassContext
+import compiler.binding.classdef.ClassMemberVariable
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 
-class StructDeclaration(
-    override val declaredAt: SourceLocation,
+class ClassMemberDeclaration(
+    val declaredAt: SourceLocation,
+    val visibilityModifier: ASTVisibilityModifier?,
     val name: IdentifierToken,
-    val memberDeclarations: Set<StructMemberDeclaration>,
-    val typeParameters: List<TypeParameter>,
-) : AstFileLevelDeclaration {
-    fun bindTo(context: CTContext): Struct {
-        val structContext = StructContext(context, typeParameters)
-        return Struct(
-            structContext,
+    val type: TypeReference,
+    val defaultValue: Expression?
+) {
+    init {
+        check(defaultValue == null) {
+            "Default values are not well defined at this point"
+        }
+    }
+    fun bindTo(context: ClassContext): ClassMemberVariable {
+        return ClassMemberVariable(
+            context,
             this,
-            memberDeclarations.map { it.bindTo(structContext) },
+            null,
         )
     }
 }

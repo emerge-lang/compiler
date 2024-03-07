@@ -1,5 +1,5 @@
 package emerge.std
 
-struct String {
+class String {
     utf8Data: Array<Byte>
 }

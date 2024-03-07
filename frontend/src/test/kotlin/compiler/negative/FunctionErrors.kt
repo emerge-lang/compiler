@@ -96,8 +96,8 @@ class FunctionErrors : FreeSpec({
             // disabled because with the overload resolution algorithm not fleshed out completely
             // this test cannot run
             validateModule("""
-                struct A {}
-                struct B {}
+                class A {}
+                class B {}
                 fun foo(p1: A) {}
                 fun foo(p1: B) {}            
                 fun test() {
@@ -144,8 +144,8 @@ class FunctionErrors : FreeSpec({
 
         "no argument assignable to a disjointly typed parameter" {
             validateModule("""
-                struct A {}
-                struct B {}
+                class A {}
+                class B {}
                 fun foo(disjoint: A, p: Int) {}
                 fun foo(disjoint: B, p: Int) {}
                 fun test() {
@@ -157,8 +157,8 @@ class FunctionErrors : FreeSpec({
 
         "argument not assignable to non-disjointly typed parameter" {
             val (_, reportings) = validateModule("""
-                struct A {}
-                struct B {}
+                class A {}
+                class B {}
                 fun foo(disjoint: A, p1: Int, p2: Int) {}
                 fun foo(disjoint: B, p1: Int, p2: Int) {}
                 fun test() {

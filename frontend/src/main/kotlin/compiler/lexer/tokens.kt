@@ -50,7 +50,7 @@ enum class Keyword(val text: String)
 
     RETURN("return"),
 
-    STRUCT_DEFINITION("struct"),
+    CLASS_DEFINITION("class"),
 
     VARIANCE_IN("in"),
     VARIANCE_OUT("out"),

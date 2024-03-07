@@ -61,9 +61,9 @@ interface IrAssignmentStatement : IrExecutable {
         interface Variable : Target {
             val declaration: IrVariableDeclaration
         }
-        interface StructMember : Target {
-            val structValue: IrTemporaryValueReference
-            val member: IrStruct.Member
+        interface ClassMemberVariable : Target {
+            val objectValue: IrTemporaryValueReference
+            val memberVariable: IrClass.MemberVariable
         }
     }
 }

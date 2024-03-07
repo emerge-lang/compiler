@@ -39,7 +39,7 @@ interface TypeUnification {
         /**
          * For a type reference or function call, builds a [TypeUnification] that contains the explicit type arguments. E.g.:
          *
-         *     struct X<E, T> {}
+         *     class X<E, T> {}
          *
          *     val foo: X<Int, Boolean>
          *

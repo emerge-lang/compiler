@@ -19,6 +19,7 @@
 package compiler.binding
 
 import compiler.ast.AssignmentStatement
+import compiler.binding.classdef.ClassMemberVariable
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -30,14 +31,13 @@ import compiler.binding.misc_ir.IrCreateReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
-import compiler.binding.struct.StructMember
 import compiler.binding.type.BoundTypeReference
 import compiler.nullableOr
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
@@ -235,8 +235,8 @@ class BoundAssignmentStatement(
                 toAssignTemporary,
                 toAssignTemporaryRefIncrement,
                 IrAssignmentStatementImpl(
-                    IrAssignmentStatementTargetStructMemberImpl(
-                        (memberAccess.member as StructMember).toBackendIr(),
+                    IrAssignmentStatementTargetClassMemberVariableImpl(
+                        (memberAccess.member as ClassMemberVariable).toBackendIr(),
                         IrTemporaryValueReferenceImpl(baseTemporary),
                     ),
                     IrTemporaryValueReferenceImpl(toAssignTemporary),
@@ -261,7 +261,7 @@ internal class IrAssignmentStatementTargetVariableImpl(
     override val declaration: IrVariableDeclaration,
 ): IrAssignmentStatement.Target.Variable
 
-private class IrAssignmentStatementTargetStructMemberImpl(
-    override val member: IrStruct.Member,
-    override val structValue: IrTemporaryValueReference,
-) : IrAssignmentStatement.Target.StructMember
+private class IrAssignmentStatementTargetClassMemberVariableImpl(
+    override val memberVariable: IrClass.MemberVariable,
+    override val objectValue: IrTemporaryValueReference,
+) : IrAssignmentStatement.Target.ClassMemberVariable

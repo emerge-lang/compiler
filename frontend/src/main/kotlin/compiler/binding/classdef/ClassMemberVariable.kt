@@ -16,24 +16,24 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package compiler.binding.struct
+package compiler.binding.classdef
 
-import compiler.ast.struct.StructMemberDeclaration
+import compiler.ast.classdef.ClassMemberDeclaration
 import compiler.binding.BoundElement
 import compiler.binding.ObjectMember
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
+import compiler.reportings.ClassMemberVariableDefaultValueNotAssignableReporting
 import compiler.reportings.Reporting
-import compiler.reportings.StructMemberDefaultValueNotAssignableReporting
-import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
+import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
-class StructMember(
-    override val context: StructContext,
-    override val declaration: StructMemberDeclaration,
+class ClassMemberVariable(
+    override val context: ClassContext,
+    override val declaration: ClassMemberDeclaration,
     val defaultValue: BoundExpression<*>?
-) : BoundElement<StructMemberDeclaration>, ObjectMember {
+) : BoundElement<ClassMemberDeclaration>, ObjectMember {
     override val name = declaration.name.value
     override val isMutable = true
 
@@ -71,7 +71,7 @@ class StructMember(
             if (defaultValueType != null && type != null) {
                 defaultValueType.evaluateAssignabilityTo(type!!, this.declaration.declaredAt)
                     ?.let {
-                        reportings.add(StructMemberDefaultValueNotAssignableReporting(this, it))
+                        reportings.add(ClassMemberVariableDefaultValueNotAssignableReporting(this, it))
                     }
             }
         }
@@ -79,11 +79,11 @@ class StructMember(
         return reportings
     }
 
-    private val _backendIr by lazy { IrStructMemberImpl(name, type!!.toBackendIr()) }
-    fun toBackendIr(): IrStruct.Member = _backendIr
+    private val _backendIr by lazy { IrClassMemberVariableImplVariable(name, type!!.toBackendIr()) }
+    fun toBackendIr(): IrClass.MemberVariable = _backendIr
 }
 
-private class IrStructMemberImpl(
+private class IrClassMemberVariableImplVariable(
     override val name: String,
     override val type: IrType,
-) : IrStruct.Member
+) : IrClass.MemberVariable

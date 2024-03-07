@@ -1,4 +1,4 @@
-package compiler.binding.struct
+package compiler.binding.classdef
 
 import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
@@ -17,15 +17,15 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 
-class StructConstructor(
-    val struct: Struct,
+class ClassConstructor(
+    val classDef: BoundClassDefinition,
 ) : BoundFunction() {
-    override val context: CTContext = MutableCTContext(struct.context)
+    override val context: CTContext = MutableCTContext(classDef.context)
     val constructorCodeContext: ExecutionScopedCTContext = MutableExecutionScopedCTContext.functionRootIn(context)
-    override val declaredAt = struct.declaration.declaredAt
+    override val declaredAt = classDef.declaration.declaredAt
     override val receiverType = null
     override val declaresReceiver = false
-    override val name = struct.simpleName
+    override val name = classDef.simpleName
     override val modifiers = setOf(FunctionModifier.Pure)
     override val isPure = true
     override val isDeclaredPure = true
@@ -33,7 +33,7 @@ class StructConstructor(
     override val isDeclaredReadonly = true
     override val returnsExclusiveValue = true
     override val parameters = run {
-        val astParameterList = ParameterList(struct.members.map { member ->
+        val astParameterList = ParameterList(classDef.members.map { member ->
             VariableDeclaration(
                 member.declaration.declaredAt,
                 null,
@@ -48,15 +48,15 @@ class StructConstructor(
     }
 
     override val typeParameters: List<BoundTypeParameter>
-        get() = struct.typeParameters
+        get() = classDef.typeParameters
 
     override val returnType = context.resolveType(
         TypeReference(
-            struct.simpleName,
+            classDef.simpleName,
             TypeReference.Nullability.NOT_NULLABLE,
             TypeMutability.IMMUTABLE,
-            struct.declaration.name,
-            struct.typeParameters.map {
+            classDef.declaration.name,
+            classDef.typeParameters.map {
                 TypeArgument(
                     TypeVariance.UNSPECIFIED,
                     TypeReference(it.astNode.name),

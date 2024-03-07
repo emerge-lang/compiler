@@ -2,6 +2,7 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
+import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrDeclaredFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
@@ -10,7 +11,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrImplementedFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntrinsicType
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
-import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -108,7 +108,7 @@ class EmergeLlvmContext(
     private val emergeStructs = ArrayList<EmergeStructType>()
     private val kotlinLlvmFunctions: MutableMap<KotlinLlvmFunction<in EmergeLlvmContext, *>, KotlinLlvmFunction.DeclaredInContext<in EmergeLlvmContext, *>> = IdentityHashMap()
 
-    fun registerStruct(struct: IrStruct) {
+    fun registerStruct(struct: IrClass) {
         if (struct.rawLlvmRef != null) {
             return
         }
@@ -252,7 +252,7 @@ class EmergeLlvmContext(
             emergeStructs.forEach {
                 // TODO: this handling is wonky, needs more conceptual work
                 val ref = registerIntrinsic(it.defaultConstructor)
-                it.irStruct.constructors.single().overloads.single().llvmRef = ref
+                it.irClass.constructors.single().overloads.single().llvmRef = ref
             }
         }
 
@@ -402,7 +402,7 @@ class EmergeLlvmContext(
                 }
 
                 // there are no other possibilities AFAICT right now
-                return (type.baseType as IrStruct).llvmType
+                return (type.baseType as IrClass).llvmType
                     ?: throw CodeGenerationException("Encountered Emerge struct type ${type.baseType.fqn} that wasn't registered through ${EmergeLlvmContext::registerStruct.name}")
             }
         }

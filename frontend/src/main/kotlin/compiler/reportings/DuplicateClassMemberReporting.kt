@@ -16,33 +16,26 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package compiler.ast.struct
+package compiler.reportings
 
-import compiler.ast.ASTVisibilityModifier
-import compiler.ast.Expression
-import compiler.ast.type.TypeReference
-import compiler.binding.struct.StructContext
-import compiler.binding.struct.StructMember
-import compiler.lexer.IdentifierToken
-import compiler.lexer.SourceLocation
+import compiler.binding.classdef.BoundClassDefinition
+import compiler.binding.classdef.ClassMemberVariable
 
-class StructMemberDeclaration(
-    val declaredAt: SourceLocation,
-    val visibilityModifier: ASTVisibilityModifier?,
-    val name: IdentifierToken,
-    val type: TypeReference,
-    val defaultValue: Expression?
+class DuplicateClassMemberReporting(
+    val classDef: BoundClassDefinition,
+    val duplicates: Set<ClassMemberVariable>
+) : Reporting(
+    Level.ERROR,
+    "Class member ${duplicates.iterator().next().name} declared multiple times",
+    classDef.declaration.declaredAt
 ) {
-    init {
-        check(defaultValue == null) {
-            "Default values are not well defined at this point"
-        }
-    }
-    fun bindTo(context: StructContext): StructMember {
-        return StructMember(
-            context,
-            this,
-            null,
+    override fun toString(): String {
+        var txt = "$levelAndMessage\nin ${classDef.declaration.declaredAt}\n"
+
+        txt += getIllustrationForHighlightedLines(
+            duplicates.map { it.declaration.declaredAt },
         )
+
+        return txt.trimEnd()
     }
 }

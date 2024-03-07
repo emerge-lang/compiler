@@ -10,10 +10,10 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 class MutabilityErrors : FreeSpec({
-    "struct initialized in a val is immutable" - {
+    "class initialized in a val is immutable" - {
         "members cannot be mutated" {
             validateModule("""
-                struct X {
+                class X {
                     a: Int
                 }
                 fun test() {
@@ -31,7 +31,7 @@ class MutabilityErrors : FreeSpec({
 
         "cannot be assigned to a mutable reference" {
             validateModule("""
-                struct X {
+                class X {
                     a: Int
                 }
                 fun test() {
@@ -46,7 +46,7 @@ class MutabilityErrors : FreeSpec({
 
         "can be assigned to an immutable reference" {
             validateModule("""
-                struct X {
+                class X {
                     a: Int
                 }
                 fun test() {
@@ -60,10 +60,10 @@ class MutabilityErrors : FreeSpec({
     "mutability from use-site generics" - {
         "prohibits writes to immutable element" {
             validateModule("""
-                struct A {
+                class A {
                     someVal: Int
                 }
-                struct B<T> {
+                class B<T> {
                     genericVal: T
                 }
                 fun test() {
@@ -81,7 +81,7 @@ class MutabilityErrors : FreeSpec({
     "mutability errors when calling functions" - {
         "mutable value to immutable parameter" {
             validateModule("""
-                struct S {
+                class S {
                     field: Int
                 }
                 fun foo(p: immutable S) {}
@@ -96,7 +96,7 @@ class MutabilityErrors : FreeSpec({
 
         "readonly value to mutable parameter" {
             validateModule("""
-                struct S {
+                class S {
                     field: Int
                 }
                 fun foo(p: mutable S) {}
@@ -111,7 +111,7 @@ class MutabilityErrors : FreeSpec({
 
         "readonly value to immutable parameter" {
             validateModule("""
-                struct S {
+                class S {
                     field: Int
                 }
                 fun foo(p: immutable S) {}
@@ -126,7 +126,7 @@ class MutabilityErrors : FreeSpec({
 
         "immutable value to mutable parameter" {
             validateModule("""
-                struct S {
+                class S {
                     field: Int
                 }
                 fun foo(p: mutable S) {}

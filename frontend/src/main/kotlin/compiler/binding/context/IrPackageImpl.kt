@@ -4,11 +4,11 @@ import compiler.binding.expression.BoundExpression
 import compiler.binding.misc_ir.IrOverloadGroupImpl
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrGlobalVariable
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
 import io.github.tmarsteel.emerge.backend.api.ir.IrPackage
-import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
 internal class IrPackageImpl(
@@ -22,8 +22,8 @@ internal class IrPackageImpl(
         }
         .toSet()
 
-    override val structs: Set<IrStruct> = packageContext.sourceFiles
-        .flatMap { it.context.structs }
+    override val classes: Set<IrClass> = packageContext.sourceFiles
+        .flatMap { it.context.classes }
         .map { it.toBackendIr() }
         .toSet()
 

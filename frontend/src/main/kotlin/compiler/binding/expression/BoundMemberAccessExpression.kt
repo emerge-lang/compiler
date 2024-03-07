@@ -22,17 +22,17 @@ import compiler.ast.expression.MemberAccessExpression
 import compiler.binding.BoundStatement
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.ObjectMember
+import compiler.binding.classdef.ClassMemberVariable
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
-import compiler.binding.struct.StructMember
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrClass
+import io.github.tmarsteel.emerge.backend.api.ir.IrClassMemberVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
-import io.github.tmarsteel.emerge.backend.api.ir.IrStructMemberAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
@@ -106,9 +106,9 @@ class BoundMemberAccessExpression(
 
     override fun toBackendIrExpression(): IrExpression {
         val baseTemporary = IrCreateTemporaryValueImpl(valueExpression.toBackendIrExpression())
-        val memberTemporary = IrCreateTemporaryValueImpl(IrStructMemberAccessExpressionImpl(
+        val memberTemporary = IrCreateTemporaryValueImpl(IrClassMemberVariableAccessExpressionImpl(
             IrTemporaryValueReferenceImpl(baseTemporary),
-            (member!! as StructMember).toBackendIr(),
+            (member!! as ClassMemberVariable).toBackendIr(),
             type!!.toBackendIr(),
         ))
 
@@ -119,8 +119,8 @@ class BoundMemberAccessExpression(
     }
 }
 
-private class IrStructMemberAccessExpressionImpl(
+private class IrClassMemberVariableAccessExpressionImpl(
     override val base: IrTemporaryValueReference,
-    override val member: IrStruct.Member,
+    override val memberVariable: IrClass.MemberVariable,
     override val evaluatesTo: IrType,
-) : IrStructMemberAccessExpression
+) : IrClassMemberVariableAccessExpression

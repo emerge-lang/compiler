@@ -81,9 +81,9 @@ interface IrStaticDispatchFunctionInvocationExpression : IrExpression {
     val arguments: List<IrTemporaryValueReference>
 }
 
-interface IrStructMemberAccessExpression : IrExpression {
+interface IrClassMemberVariableAccessExpression : IrExpression {
     val base: IrTemporaryValueReference
-    val member: IrStruct.Member
+    val memberVariable: IrClass.MemberVariable
 }
 
 interface IrVariableAccessExpression : IrExpression {

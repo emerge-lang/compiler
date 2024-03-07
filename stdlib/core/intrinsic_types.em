@@ -1,3 +1,3 @@
 package emerge.core
 
-struct Unit {}
+class Unit {}

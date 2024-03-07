@@ -72,26 +72,26 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
         }
 
         "mismatch after disambiguifying token in first branch" {
-            val tokens = lexCode("intrinsic operator nothrow struct", addPackageDeclaration = false)
+            val tokens = lexCode("intrinsic operator nothrow class", addPackageDeclaration = false)
             val result = grammar.match(MatchingContext.None, tokens)
 
             result.item shouldBe null
             result.isAmbiguous shouldBe false
             result.reportings.shouldReport<ParsingMismatchReporting> {
                 it.expected shouldBe "keyword fun"
-                it.actual shouldBe "keyword struct"
+                it.actual shouldBe "keyword class"
             }
         }
 
         "mismatch after disambiguifying token in second branch" {
-            val tokens = lexCode("intrinsic operator readonly struct", addPackageDeclaration = false)
+            val tokens = lexCode("intrinsic operator readonly class", addPackageDeclaration = false)
             val result = grammar.match(MatchingContext.None, tokens)
 
             result.item shouldBe null
             result.isAmbiguous shouldBe false
             result.reportings.shouldReport<ParsingMismatchReporting> {
                 it.expected shouldBe "keyword var"
-                it.actual shouldBe "keyword struct"
+                it.actual shouldBe "keyword class"
             }
         }
 

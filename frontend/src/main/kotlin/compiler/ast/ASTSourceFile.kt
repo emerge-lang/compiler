@@ -19,7 +19,7 @@
 package compiler.ast
 
 import compiler.InternalCompilerError
-import compiler.ast.struct.StructDeclaration
+import compiler.ast.classdef.ClassDeclaration
 import compiler.binding.context.ModuleContext
 import compiler.binding.context.SoftwareContext
 import compiler.binding.context.SourceFile
@@ -42,7 +42,7 @@ class ASTSourceFile(
 
     val functions: MutableList<FunctionDeclaration> = mutableListOf()
 
-    val structs: MutableList<StructDeclaration> = mutableListOf()
+    val classes: MutableList<ClassDeclaration> = mutableListOf()
 
     /**
      * Works by the same principle as [Bindable.bindTo]; but since binds to a [SoftwareContext] (rather than a
@@ -56,7 +56,7 @@ class ASTSourceFile(
 
         imports.forEach(fileContext::addImport)
         functions.forEach(fileContext::addFunction)
-        structs.forEach(fileContext::addStruct)
+        classes.forEach(fileContext::addClass)
 
         variables.forEach { declaredVariable ->
             // check double declare

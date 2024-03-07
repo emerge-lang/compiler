@@ -249,7 +249,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementSetter(
         val valueBoxAny by param(PointerToAnyEmergeValue)
         body {
             val boxType = getBoxType(context)
-            val valueMember = boxType.irStruct.members.single()
+            val valueMember = boxType.irClass.members.single()
             check(valueMember.name == "value")
             check(context.getReferenceSiteType(valueMember.type) == arrayType.elementType)
 
@@ -257,7 +257,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementSetter(
 
             // TODO: bounds check!
             val raw = getelementptr(valueBox)
-                .member(boxType.irStruct.members.single())
+                .member(boxType.irClass.members.single())
                 .get()
                 .dereference()
                 .reinterpretAs(arrayType.elementType)

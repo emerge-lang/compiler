@@ -42,7 +42,7 @@ class SourceFile(
         context.types.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
         context.variables.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
         context.functions.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
-        context.structs.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
+        context.classes.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
 
         context.imports
             .asSequence()
@@ -66,7 +66,7 @@ class SourceFile(
         context.types.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
         context.variables.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
         context.functions.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
-        context.structs.forEach { reportings.addAll(it.semanticAnalysisPhase2())  }
+        context.classes.forEach { reportings.addAll(it.semanticAnalysisPhase2())  }
         return reportings
     }
 
@@ -79,7 +79,7 @@ class SourceFile(
         context.types.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
         context.variables.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
         context.functions.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
-        context.structs.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
+        context.classes.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
         return reportings
     }
 }

@@ -77,7 +77,7 @@ fun validateModule(
     }
     val lexicalReportings = result.reportings
     val sourceFile = result.item!!
-    val nTopLevelDeclarations = sourceFile.functions.size + sourceFile.structs.size + sourceFile.variables.size
+    val nTopLevelDeclarations = sourceFile.functions.size + sourceFile.classes.size + sourceFile.variables.size
     check(nTopLevelDeclarations > 0) { "Found no top-level declarations in the test source. Very likely a parsing bug." }
 
     val swCtxt = SoftwareContext()

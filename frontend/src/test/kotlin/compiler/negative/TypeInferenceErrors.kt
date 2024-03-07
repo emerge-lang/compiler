@@ -51,7 +51,7 @@ class TypeInferenceErrors : FreeSpec({
 
     "explicit inference type cannot have parameters" {
         validateModule("""
-            struct S<T> {}
+            class S<T> {}
             fun foo() {
                 x: _<Int> = S()
             }

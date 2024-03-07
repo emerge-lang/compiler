@@ -16,7 +16,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package compiler.binding.struct
+package compiler.binding.classdef
 
 import compiler.ast.type.TypeParameter
 import compiler.binding.context.CTContext
@@ -24,10 +24,10 @@ import compiler.binding.context.MutableCTContext
 import compiler.binding.type.BoundTypeParameter
 
 /**
- * The context within a struct (where struct members are defined and where struct member default value
+ * The context within a class (where class members are defined and where class member default value
  * expressions are located)
  */
-class StructContext(
+class ClassContext(
     fileContext: CTContext,
     typeParameters: List<TypeParameter>,
 ) : MutableCTContext(fileContext) {

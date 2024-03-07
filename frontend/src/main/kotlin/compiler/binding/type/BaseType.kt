@@ -63,7 +63,7 @@ interface BaseType : SemanticallyAnalyzable {
 
     /**
      * If true, values of this type can by design not change. This is the case for primitives like booleans
-     * and ints, but could also apply to classes and structs who are declared as "immutable".
+     * and ints, but could also apply to classes who are declared as "immutable".
      */
     val isAtomic: Boolean
         get() = false

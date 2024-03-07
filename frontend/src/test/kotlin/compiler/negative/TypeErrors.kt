@@ -18,7 +18,7 @@ class TypeErrors : FreeSpec({
     "generics" - {
         "assign to out-variant type parameter" {
             validateModule("""
-                struct X<T> {
+                class X<T> {
                     prop: T
                 }
                 
@@ -54,7 +54,7 @@ class TypeErrors : FreeSpec({
         "reference to generic type with arguments out of bounds" - {
             "unspecified variance" {
                 validateModule("""
-                    struct X<T : Number> {}
+                    class X<T : Number> {}
                     
                     x: X<Any>
                 """.trimIndent())
@@ -63,7 +63,7 @@ class TypeErrors : FreeSpec({
 
             "out variance" {
                 validateModule("""
-                    struct X<out T : Number> {}
+                    class X<out T : Number> {}
                     
                     x: X<Any>
                 """.trimIndent())
@@ -72,7 +72,7 @@ class TypeErrors : FreeSpec({
 
             "in variance" {
                 validateModule("""
-                    struct X<in T : Number> {}
+                    class X<in T : Number> {}
                     
                     x: X<Any>
                 """.trimIndent())
@@ -82,7 +82,7 @@ class TypeErrors : FreeSpec({
 
         "reference to generic type with no type arguments when they are required" {
             validateModule("""
-                struct X<T> {}
+                class X<T> {}
                 x: X
             """.trimIndent())
                 .shouldReport<MissingTypeArgumentReporting> {
@@ -92,7 +92,7 @@ class TypeErrors : FreeSpec({
 
         "reference to generic type with too many type arguments when they are required" {
             validateModule("""
-                struct X<T> {}
+                class X<T> {}
                 x: X<Int, Int, Boolean>
             """.trimIndent())
                 .shouldReport<SuperfluousTypeArgumentsReporting> {
@@ -103,13 +103,13 @@ class TypeErrors : FreeSpec({
 
         "reference to generic type with mismatching parameter variance" {
             validateModule("""
-                struct X<in T> {}
+                class X<in T> {}
                 x: X<out Any>
             """.trimIndent())
                 .shouldReport<TypeArgumentVarianceMismatchReporting>()
 
             validateModule("""
-                struct X<out T> {}
+                class X<out T> {}
                 x: X<in Any>
             """.trimIndent())
                 .shouldReport<TypeArgumentVarianceMismatchReporting>()
@@ -117,7 +117,7 @@ class TypeErrors : FreeSpec({
 
         "reference to generic type with superfluous parameter variance" {
             validateModule("""
-                struct X<in T> {}
+                class X<in T> {}
                 x: X<in Any>
             """.trimIndent())
                 .shouldReport<TypeArgumentVarianceSuperfluousReporting>()
@@ -126,7 +126,7 @@ class TypeErrors : FreeSpec({
         "reference to generic type with incompatible type argument mutability" - {
             "declaration-site" {
                 validateModule("""
-                    struct A<T : mutable Any> {
+                    class A<T : mutable Any> {
                         prop: T
                     }
                     fun foo(p: A<immutable Int>) {}
@@ -138,7 +138,7 @@ class TypeErrors : FreeSpec({
 
             "use-site" {
                 validateModule("""
-                    struct A<T : mutable Any> {
+                    class A<T : mutable Any> {
                         prop: T
                     }
                     x = A(2)
@@ -153,7 +153,7 @@ class TypeErrors : FreeSpec({
 
         "generic validation involving multiple values of different types" {
             validateModule("""
-                struct A<T> {
+                class A<T> {
                     propOne: T
                     propTwo: T
                 }
@@ -166,18 +166,18 @@ class TypeErrors : FreeSpec({
         }
 
         "use-site variance errors" - {
-            "out type at struct member" {
+            "out type at class member" {
                 validateModule("""
-                    struct X<out T> {
+                    class X<out T> {
                         prop: T
                     }
                 """.trimIndent())
                     .shouldReport<UnsupportedTypeUsageVarianceReporting>()
             }
 
-            "in type at struct member" {
+            "in type at class member" {
                 validateModule("""
-                    struct X<in T> {
+                    class X<in T> {
                         prop: T
                     }
                 """.trimIndent())

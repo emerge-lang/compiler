@@ -11,7 +11,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 class ExpressionErrors : FreeSpec({
     "unsafe object traversal" {
         validateModule("""
-            struct X {
+            class X {
                 a: Int
             }
             fun foo(p: X?) -> Int {

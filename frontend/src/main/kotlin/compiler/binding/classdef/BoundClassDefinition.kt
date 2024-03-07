@@ -16,11 +16,11 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package compiler.binding.struct
+package compiler.binding.classdef
 
 import compiler.OnceAction
 import compiler.ast.FunctionDeclaration
-import compiler.ast.struct.StructDeclaration
+import compiler.ast.classdef.ClassDeclaration
 import compiler.binding.BoundElement
 import compiler.binding.BoundFunction
 import compiler.binding.BoundOverloadSet
@@ -32,24 +32,24 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BuiltinAny
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.DotName
-import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
+import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import kotlinext.duplicatesBy
 
-class Struct(
-    private val structContext: StructContext,
-    override val declaration: StructDeclaration,
-    val members: List<StructMember>
-) : BaseType, BoundElement<StructDeclaration> {
+class BoundClassDefinition(
+    private val classContext: ClassContext,
+    override val declaration: ClassDeclaration,
+    val members: List<ClassMemberVariable>
+) : BaseType, BoundElement<ClassDeclaration> {
     private val onceAction = OnceAction()
 
-    override val context: CTContext = structContext
-    override val fullyQualifiedName get() = structContext.sourceFile.packageName + declaration.name.value
+    override val context: CTContext = classContext
+    override val fullyQualifiedName get() = classContext.sourceFile.packageName + declaration.name.value
     override val simpleName: String = declaration.name.value
-    override val typeParameters: List<BoundTypeParameter> = structContext.typeParameters
+    override val typeParameters: List<BoundTypeParameter> = classContext.typeParameters
     override val superTypes: Set<BaseType> = setOf(BuiltinAny)
 
     // this can only be initialized in semanticAnalysisPhase1 because the types referenced in the members
-    // can be declared later than the struct
+    // can be declared later than the class
     override lateinit var constructors: Collection<BoundOverloadSet>
         private set
 
@@ -66,11 +66,11 @@ class Struct(
             }
 
             // duplicate members
-            members.duplicatesBy(StructMember::name).forEach { (_, dupMembers) ->
+            members.duplicatesBy(ClassMemberVariable::name).forEach { (_, dupMembers) ->
                 reportings.add(Reporting.duplicateTypeMembers(this, dupMembers))
             }
 
-            constructors = setOf(BoundOverloadSet.fromSingle(StructConstructor(this)))
+            constructors = setOf(BoundOverloadSet.fromSingle(ClassConstructor(this)))
             constructors.flatMap { it.overloads }.map { it.semanticAnalysisPhase1() }.forEach(reportings::addAll)
             constructors.map { it.semanticAnalysisPhase1() }.forEach(reportings::addAll)
 
@@ -100,17 +100,17 @@ class Struct(
 
     override fun resolveMemberVariable(name: String): ObjectMember? = members.find { it.name == name }
 
-    private val backendIr by lazy { IrStructImpl(this) }
-    override fun toBackendIr(): IrStruct = backendIr
+    private val backendIr by lazy { IrClassImpl(this) }
+    override fun toBackendIr(): IrClass = backendIr
 }
 
-private class IrStructImpl(
-    struct: Struct,
-) : IrStruct {
-    override val fqn: DotName = struct.fullyQualifiedName
-    override val parameters = struct.typeParameters.map { it.toBackendIr() }
-    override val members = struct.members.map { it.toBackendIr() }
-    override val constructors = struct.constructors.map {
+private class IrClassImpl(
+    classDef: BoundClassDefinition,
+) : IrClass {
+    override val fqn: DotName = classDef.fullyQualifiedName
+    override val parameters = classDef.typeParameters.map { it.toBackendIr() }
+    override val members = classDef.members.map { it.toBackendIr() }
+    override val constructors = classDef.constructors.map {
         IrOverloadGroupImpl(it.fqn, it.parameterCount, it.overloads)
     }.toSet()
 }

@@ -1,6 +1,6 @@
 package compiler.compiler.negative
 
-import compiler.reportings.DuplicateStructMemberReporting
+import compiler.reportings.DuplicateClassMemberReporting
 import compiler.reportings.UnknownTypeReporting
 import compiler.reportings.ValueNotAssignableReporting
 import io.kotest.core.spec.style.FreeSpec
@@ -9,16 +9,16 @@ import io.kotest.matchers.collections.haveSize
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 
-class StructErrors : FreeSpec({
+class ClassErrors : FreeSpec({
     "duplicate member" {
         validateModule("""
-            struct X {
+            class X {
                 a: Int
                 b: Int
                 a: Boolean
             }
         """.trimIndent())
-            .shouldReport<DuplicateStructMemberReporting> {
+            .shouldReport<DuplicateClassMemberReporting> {
                 it.duplicates should haveSize(2)
                 it.duplicates.forAll {
                     it.name shouldBe "a"
@@ -28,7 +28,7 @@ class StructErrors : FreeSpec({
 
     "unknown declared member type" {
         validateModule("""
-            struct X {
+            class X {
                 a: Foo
             }
         """.trimIndent())
@@ -37,7 +37,7 @@ class StructErrors : FreeSpec({
 
     "calling a constructor with incorrect argument types" {
         validateModule("""
-            struct X {
+            class X {
                 a: Int
             }
             
@@ -57,7 +57,7 @@ class StructErrors : FreeSpec({
     "generics" - {
         "type parameter with unresolvable bound" {
             validateModule("""
-                struct X<T : Bla> {}
+                class X<T : Bla> {}
             """.trimIndent())
                 .shouldReport<UnknownTypeReporting> {
                     it.erroneousReference.simpleName shouldBe "Bla"

@@ -8,7 +8,7 @@ import compiler.ast.AstFileLevelDeclaration
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
 import compiler.ast.VariableDeclaration
-import compiler.ast.struct.StructDeclaration
+import compiler.ast.classdef.ClassDeclaration
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.parser.grammar.SourceFileGrammar
@@ -58,8 +58,8 @@ object SourceFileRule {
             else if (declaration is FunctionDeclaration) {
                 astSourceFile.functions.add(declaration)
             }
-            else if (declaration is StructDeclaration) {
-                astSourceFile.structs.add(declaration)
+            else if (declaration is ClassDeclaration) {
+                astSourceFile.classes.add(declaration)
             }
             else {
                 reportings.add(

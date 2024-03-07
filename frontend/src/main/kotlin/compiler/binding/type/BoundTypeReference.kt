@@ -103,7 +103,7 @@ sealed interface BoundTypeReference {
     /**
      * Used to derive information about generic types in concrete situations, so e.g.:
      *
-     *     struct S<T> {
+     *     class S<T> {
      *       prop: T
      *     }
      *
@@ -118,9 +118,9 @@ sealed interface BoundTypeReference {
      * Then the two `S` will match, and the type arguments will be aligned with each other, associating the
      * `T` type parameter with the `Int` type argument: the result is `mapOf(T to Int)`
      *
-     * Note that the names on both sides are kept isolated from each other. E.g. we might have another struct `F<T>`:
+     * Note that the names on both sides are kept isolated from each other. E.g. we might have another class `F<T>`:
      *
-     *     struct F<T> {
+     *     class F<T> {
      *       someS: S<T>
      *     }
      *
@@ -194,7 +194,7 @@ sealed interface BoundTypeReference {
      * For parameterized types contains the bindings already resulting from that parameterization
      * in the [TypeUnification.left] part:
      *
-     * given a `struct S<T>` [BaseType] and a `S<Int>` [BoundTypeReference], returns
+     * given a `class S<T>` [BaseType] and a `S<Int>` [BoundTypeReference], returns
      * `T => Int` in [TypeUnification.left]
      */
     val inherentTypeBindings: TypeUnification

@@ -120,7 +120,7 @@ val SourceFileGrammar: Rule<TransactionalSequence<Any, Position>> = sequence("so
             ref(ImportDeclaration)
             ref(TopLevelVariableDeclaration)
             ref(StandaloneFunctionDeclaration)
-            ref(StructDefinition)
+            ref(ClassDefinition)
         }
     }
     endOfInput()

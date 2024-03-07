@@ -21,12 +21,12 @@ package compiler.parser.grammar
 import compiler.ast.ASTVisibilityModifier
 import compiler.ast.Expression
 import compiler.ast.TypeParameterBundle
-import compiler.ast.struct.StructDeclaration
-import compiler.ast.struct.StructMemberDeclaration
+import compiler.ast.classdef.ClassDeclaration
+import compiler.ast.classdef.ClassMemberDeclaration
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
-import compiler.lexer.Keyword.STRUCT_DEFINITION
+import compiler.lexer.Keyword.CLASS_DEFINITION
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.Operator.ASSIGNMENT
@@ -38,7 +38,7 @@ import compiler.lexer.OperatorToken
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.sequence
 
-val StructMemberDefinition = sequence("struct member declaration") {
+val ClassMemberVariableDefinition = sequence("class member variable declaration") {
     optional {
         ref(VisibilityModifier)
     }
@@ -77,7 +77,7 @@ val StructMemberDefinition = sequence("struct member declaration") {
             tokens.next()!! as Expression?
         } else null
 
-        StructMemberDeclaration(
+        ClassMemberDeclaration(
             name.sourceLocation,
             visibilityModifier,
             name,
@@ -86,8 +86,8 @@ val StructMemberDefinition = sequence("struct member declaration") {
         )
     }
 
-val StructDefinition = sequence("struct definition") {
-    keyword(STRUCT_DEFINITION)
+val ClassDefinition = sequence("class definition") {
+    keyword(CLASS_DEFINITION)
 
     optionalWhitespace()
 
@@ -104,18 +104,18 @@ val StructDefinition = sequence("struct definition") {
     optionalWhitespace()
 
     optional {
-        ref(StructMemberDefinition)
+        ref(ClassMemberVariableDefinition)
     }
     repeating {
         operator(NEWLINE)
-        ref(StructMemberDefinition)
+        ref(ClassMemberVariableDefinition)
     }
 
     optionalWhitespace()
     operator(CBRACE_CLOSE)
 }
     .astTransformation { tokens ->
-        val declarationKeyword = tokens.next()!! as KeywordToken // struct keyword
+        val declarationKeyword = tokens.next()!! as KeywordToken // class keyword
 
         val name = tokens.next()!! as IdentifierToken
 
@@ -129,10 +129,10 @@ val StructDefinition = sequence("struct definition") {
             typeParameters = emptyList()
         }
 
-        val memberDeclarations = mutableSetOf<StructMemberDeclaration>()
+        val memberDeclarations = mutableSetOf<ClassMemberDeclaration>()
 
         next = tokens.next()!! // until CBRACE_CLOSE
-        while (next is StructMemberDeclaration) {
+        while (next is ClassMemberDeclaration) {
             memberDeclarations += next
             next = tokens.next()!! as OperatorToken
 
@@ -141,7 +141,7 @@ val StructDefinition = sequence("struct definition") {
             }
         }
 
-        StructDeclaration(
+        ClassDeclaration(
             declarationKeyword.sourceLocation,
             name,
             memberDeclarations,

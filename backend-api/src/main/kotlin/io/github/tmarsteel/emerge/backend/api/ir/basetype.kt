@@ -15,11 +15,11 @@ interface IrBaseType {
 
 interface IrIntrinsicType : IrBaseType
 
-interface IrStruct : IrBaseType {
-    val members: List<Member>
+interface IrClass : IrBaseType {
+    val members: List<MemberVariable>
     val constructors: Set<IrOverloadGroup<IrFunction>>
 
-    interface Member {
+    interface MemberVariable {
         val name: String
         val type: IrType
     }

@@ -1,10 +1,10 @@
 package io.github.tmarsteel.emerge.backend.llvm
 
+import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrPackage
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
-import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
@@ -59,15 +59,15 @@ internal val IrType.llvmValueType: LlvmType? by tackLazyVal {
 }
 internal val IrType.isUnit by tackLazyVal { this is IrSimpleType && this.baseType.fqn.toString() == "emerge.core.Unit" }
 
-internal var IrStruct.rawLlvmRef: LLVMTypeRef? by tackState { null }
-internal val IrStruct.llvmName: String get() = this.fqn.toString()
-internal var IrStruct.llvmType: EmergeStructType? by tackState { null }
-internal var IrStruct.Member.indexInLlvmStruct: Int? by tackState { null }
+internal var IrClass.rawLlvmRef: LLVMTypeRef? by tackState { null }
+internal val IrClass.llvmName: String get() = this.fqn.toString()
+internal var IrClass.llvmType: EmergeStructType? by tackState { null }
+internal var IrClass.MemberVariable.indexInLlvmStruct: Int? by tackState { null }
 
 /**
  * True only for the member `pointed` of `emerge.ffi.c.CPointer`
  */
-internal var IrStruct.Member.isCPointerPointed: Boolean by tackState { false }
+internal var IrClass.MemberVariable.isCPointerPointed: Boolean by tackState { false }
 
 internal var IrFunction.llvmRef: LlvmFunction<LlvmType>? by tackState { null }
 internal var IrFunction.bodyDefined: Boolean by tackState { false }

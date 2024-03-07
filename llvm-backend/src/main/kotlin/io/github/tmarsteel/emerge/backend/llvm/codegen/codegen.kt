@@ -4,6 +4,8 @@ import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrArrayLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrBooleanLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrClass
+import io.github.tmarsteel.emerge.backend.api.ir.IrClassMemberVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
@@ -19,8 +21,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStringLiteralExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
-import io.github.tmarsteel.emerge.backend.api.ir.IrStructMemberAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
@@ -113,8 +113,8 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 is IrAssignmentStatement.Target.Variable -> {
                     localTarget.declaration.emitWrite!!(this, code.value.declaration.llvmValue)
                 }
-                is IrAssignmentStatement.Target.StructMember -> {
-                    val memberPointer = getPointerToStructMember(localTarget.structValue.declaration.llvmValue, localTarget.member)
+                is IrAssignmentStatement.Target.ClassMemberVariable -> {
+                    val memberPointer = getPointerToStructMember(localTarget.objectValue.declaration.llvmValue, localTarget.memberVariable)
                     store(code.value.declaration.llvmValue, memberPointer)
                 }
             }
@@ -148,10 +148,10 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
 
             return ExpressionResult.Value(stringTemporary)
         }
-        is IrStructMemberAccessExpression -> {
+        is IrClassMemberVariableAccessExpression -> {
             val memberPointer = getPointerToStructMember(
                 expression.base.declaration.llvmValue,
-                expression.member,
+                expression.memberVariable,
             )
             return ExpressionResult.Value(memberPointer.dereference())
         }
@@ -291,7 +291,7 @@ internal fun IrStringLiteralExpression.assureByteArrayConstantIn(context: Emerge
 
 private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.getPointerToStructMember(
     structPointer: LlvmValue<*>,
-    member: IrStruct.Member
+    member: IrClass.MemberVariable
 ): LlvmValue<LlvmPointerType<LlvmType>> {
     check(structPointer.type is LlvmPointerType<*>)
     @Suppress("UNCHECKED_CAST")

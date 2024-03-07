@@ -170,7 +170,7 @@ class VarianceErrors : FreeSpec({
 
     "in-variant type argument assumes type readonly Any? in out-position" {
         validateModule("""
-                struct A<T : Number> {
+                class A<T : Number> {
                     p: T
                 }
                 fun test<T : Number>() {

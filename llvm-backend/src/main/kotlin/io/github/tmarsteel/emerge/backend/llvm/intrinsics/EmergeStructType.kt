@@ -1,7 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
+import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrStruct
 import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
@@ -27,7 +27,7 @@ import org.bytedeco.llvm.global.LLVM
 internal class EmergeStructType private constructor(
     val context: EmergeLlvmContext,
     val structRef: LLVMTypeRef,
-    val irStruct: IrStruct,
+    val irClass: IrClass,
 ) : LlvmType, EmergeHeapAllocated {
     init {
         assureReinterpretableAsAnyValue(context, structRef)
@@ -43,20 +43,20 @@ internal class EmergeStructType private constructor(
     }
 
     private val typeinfo = StaticAndDynamicTypeInfo.define(
-        irStruct.llvmName,
+        irClass.llvmName,
         emptyList(),
         KotlinLlvmFunction.define(
-            "${irStruct.llvmName}__finalize",
+            "${irClass.llvmName}__finalize",
             LlvmVoidType,
         ) {
             val self by param(pointerTo(this@EmergeStructType))
             body {
-                if (irStruct.fqn.toString() in setOf("emerge.ffi.c.CPointer", "emerge.ffi.c.COpaquePointer", "emerge.ffi.c.CValue")) {
+                if (irClass.fqn.toString() in setOf("emerge.ffi.c.CPointer", "emerge.ffi.c.COpaquePointer", "emerge.ffi.c.CValue")) {
                     // transparent type, no action needed
                     // TODO: throw, this should never be called!
                     return@body retVoid()
                 }
-                irStruct.members
+                irClass.members
                     .filter { it.type.llvmValueType == null } // value types need not be dropped
                     .forEach {
                         val referenceAsPointer = getelementptr(self).member(it).get().dereference()
@@ -79,13 +79,13 @@ internal class EmergeStructType private constructor(
         context.addGlobal(constant, LlvmGlobal.ThreadLocalMode.SHARED)
     }
 
-    private val defaultConstructorIr: IrFunction = irStruct.constructors.single().overloads.single()
+    private val defaultConstructorIr: IrFunction = irClass.constructors.single().overloads.single()
     val defaultConstructor: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeStructType>> = KotlinLlvmFunction.define(
         defaultConstructorIr.llvmName,
         pointerTo(this),
     ) {
-        val params: List<Pair<IrStruct.Member, KotlinLlvmFunction.ParameterDelegate<*>>> = defaultConstructorIr.parameters.map { irParam ->
-            val member = irStruct.members.single { it.name == irParam.name }
+        val params: List<Pair<IrClass.MemberVariable, KotlinLlvmFunction.ParameterDelegate<*>>> = defaultConstructorIr.parameters.map { irParam ->
+            val member = irClass.members.single { it.name == irParam.name }
             member to param(context.getReferenceSiteType(irParam.type))
         }
 
@@ -115,34 +115,34 @@ internal class EmergeStructType private constructor(
     }
 
     override fun toString(): String {
-        return "EmergeStruct[${irStruct.fqn}]"
+        return "EmergeStruct[${irClass.fqn}]"
     }
 
     companion object {
         fun fromLlvmStructWithoutBody(
             context: EmergeLlvmContext,
             structRef: LLVMTypeRef,
-            irStruct: IrStruct,
+            irClass: IrClass,
         ): EmergeStructType {
             val baseElements = listOf(
                 EmergeHeapAllocatedValueBaseType
             ).map { it.getRawInContext(context) }
 
-            irStruct.members.forEachIndexed { index, member ->
+            irClass.members.forEachIndexed { index, member ->
                 member.indexInLlvmStruct = baseElements.size + index
             }
 
-            val emergeMemberTypesRaw = irStruct.members.map { context.getReferenceSiteType(it.type).getRawInContext(context) }
+            val emergeMemberTypesRaw = irClass.members.map { context.getReferenceSiteType(it.type).getRawInContext(context) }
             val llvmMemberTypesRaw = (baseElements + emergeMemberTypesRaw).toTypedArray()
 
             val llvmStructElements = PointerPointer(*llvmMemberTypesRaw)
             LLVM.LLVMStructSetBody(structRef, llvmStructElements, llvmMemberTypesRaw.size, 0)
 
             check(LLVM.LLVMOffsetOfElement(context.targetData.ref, structRef, 0) == 0L) {
-                "Cannot reinterpret emerge type ${irStruct.fqn} as Any"
+                "Cannot reinterpret emerge type ${irClass.fqn} as Any"
             }
 
-            return EmergeStructType(context, structRef, irStruct)
+            return EmergeStructType(context, structRef, irClass)
         }
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
@@ -151,13 +151,13 @@ internal class EmergeStructType private constructor(
         }
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
-        fun GetElementPointerStep<EmergeStructType>.member(member: IrStruct.Member): GetElementPointerStep<LlvmType> {
-            if (member.isCPointerPointed) {
+        fun GetElementPointerStep<EmergeStructType>.member(memberVariable: IrClass.MemberVariable): GetElementPointerStep<LlvmType> {
+            if (memberVariable.isCPointerPointed) {
                 return this as GetElementPointerStep<LlvmType>
             }
 
-            check(member in this@member.pointeeType.irStruct.members)
-            return stepUnsafe(context.i32(member.indexInLlvmStruct!!), context.getReferenceSiteType(member.type))
+            check(memberVariable in this@member.pointeeType.irClass.members)
+            return stepUnsafe(context.i32(memberVariable.indexInLlvmStruct!!), context.getReferenceSiteType(memberVariable.type))
         }
     }
 }
