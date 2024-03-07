@@ -37,6 +37,7 @@ import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
+import compiler.reportings.ValueNotAssignableReporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -387,6 +388,13 @@ private data class OverloadCandidateEvaluation(
     val returnType: BoundTypeReference?,
     val indicesOfErroneousParameters: Collection<Int>,
 ) {
+    init {
+        unification.reportings.asSequence()
+            .filterIsInstance<ValueNotAssignableReporting>()
+            .onEach {
+                it.simplifyMessageWhenCausedSolelyByMutability = true
+            }
+    }
     val hasErrors = unification.reportings.any { it.level >= Reporting.Level.ERROR }
 }
 

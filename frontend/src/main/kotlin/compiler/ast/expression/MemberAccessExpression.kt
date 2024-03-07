@@ -39,7 +39,7 @@ class MemberAccessExpression(
     val accessOperatorToken: OperatorToken,
     val memberName: IdentifierToken
 ) :Expression {
-    override val sourceLocation = valueExpression.sourceLocation
+    override val sourceLocation = memberName.sourceLocation
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundMemberAccessExpression {
         return BoundMemberAccessExpression(

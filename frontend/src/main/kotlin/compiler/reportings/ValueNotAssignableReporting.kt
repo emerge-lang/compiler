@@ -18,7 +18,10 @@
 
 package compiler.reportings
 
+import compiler.InternalCompilerError
+import compiler.ast.type.TypeMutability
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.isAssignableTo
 import compiler.lexer.SourceLocation
 
 /**
@@ -39,4 +42,42 @@ open class ValueNotAssignableReporting(
     Level.ERROR,
     "Cannot assign a value of type $sourceType to a reference of type $targetType: $reason",
     assignmentLocation
-)
+) {
+    /**
+     * When [true], [message] will return a simplified text in case the problem arises only from the
+     * [BoundTypeReference.mutability] in [sourceType]. E.g. would turn the bulky
+     *
+     *     Cannot assign a value of type immutable String to a reference of type mutable String: cannot assign an immutable value to a mutable reference
+     *
+     * into
+     *
+     *     Cannot mutate this value. In fact, this is an immutable value.
+     */
+    var simplifyMessageWhenCausedSolelyByMutability: Boolean = false
+
+    override val message: String get() {
+        val mutabilityUnconflictedSourceType = sourceType.withMutability(targetType.mutability)
+        if (!(mutabilityUnconflictedSourceType isAssignableTo targetType)) {
+            // error due to more than mutability => standard message is fine
+            return super.message
+        }
+
+        when (sourceType.mutability) {
+            TypeMutability.MUTABLE -> when (targetType.mutability) {
+                TypeMutability.IMMUTABLE -> return "An immutable value is needed here, this one is immutable."
+                TypeMutability.READONLY,
+                TypeMutability.MUTABLE -> throw InternalCompilerError("This should not have happened")
+            }
+            TypeMutability.READONLY -> when (targetType.mutability) {
+                TypeMutability.MUTABLE -> return "Cannot mutate this value, this is a readonly reference."
+                TypeMutability.READONLY -> throw InternalCompilerError("This should not have happened")
+                TypeMutability.IMMUTABLE -> return "An immutable value is needed here. This is a readonly reference, immutability is not guaranteed."
+            }
+            TypeMutability.IMMUTABLE -> when (targetType.mutability) {
+                TypeMutability.MUTABLE -> return "Cannot mutate this value. In fact, this is an immutable value."
+                TypeMutability.READONLY,
+                TypeMutability.IMMUTABLE -> throw InternalCompilerError("This should not have happened")
+            }
+        }
+    }
+}

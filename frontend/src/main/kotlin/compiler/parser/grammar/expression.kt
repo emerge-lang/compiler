@@ -34,6 +34,7 @@ import compiler.ast.expression.StringLiteralExpression
 import compiler.ast.expression.UnaryExpression
 import compiler.ast.type.TypeArgument
 import compiler.lexer.IdentifierToken
+import compiler.lexer.Keyword
 import compiler.lexer.Keyword.ELSE
 import compiler.lexer.Keyword.IF
 import compiler.lexer.KeywordToken
@@ -342,7 +343,7 @@ val ExpressionPostfixInvocation = sequence("function invocation") {
 
 val ExpressionPostfixMemberAccess = sequence("member access") {
     eitherOf(Operator.DOT, Operator.SAFEDOT)
-    identifier()
+    identifier(acceptedKeywords = Keyword.entries)
     optionalWhitespace()
 }
     .astTransformation { tokens ->

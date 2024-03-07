@@ -77,4 +77,66 @@ class MutabilityErrors : FreeSpec({
                 }
         }
     }
+
+    "mutability errors when calling functions" - {
+        "mutable value to immutable parameter" {
+            validateModule("""
+                struct S {
+                    field: Int
+                }
+                fun foo(p: immutable S) {}
+                fun test(p: mutable S) {
+                    foo(p)
+                }
+            """.trimIndent())
+                .shouldReport<ValueNotAssignableReporting> {
+                    it.message shouldBe "An immutable value is needed here, this one is immutable."
+                }
+        }
+
+        "readonly value to mutable parameter" {
+            validateModule("""
+                struct S {
+                    field: Int
+                }
+                fun foo(p: mutable S) {}
+                fun test(p: readonly S) {
+                    foo(p)
+                }
+            """.trimIndent())
+                .shouldReport<ValueNotAssignableReporting> {
+                    it.message shouldBe "Cannot mutate this value, this is a readonly reference."
+                }
+        }
+
+        "readonly value to immutable parameter" {
+            validateModule("""
+                struct S {
+                    field: Int
+                }
+                fun foo(p: immutable S) {}
+                fun test(p: readonly S) {
+                    foo(p)
+                }
+            """.trimIndent())
+                .shouldReport<ValueNotAssignableReporting> {
+                    it.message shouldBe "An immutable value is needed here. This is a readonly reference, immutability is not guaranteed."
+                }
+        }
+
+        "immutable value to mutable parameter" {
+            validateModule("""
+                struct S {
+                    field: Int
+                }
+                fun foo(p: mutable S) {}
+                fun test(p: immutable S) {
+                    foo(p)
+                }
+            """.trimIndent())
+                .shouldReport<ValueNotAssignableReporting> {
+                    it.message shouldBe "Cannot mutate this value. In fact, this is an immutable value."
+                }
+        }
+    }
 })
