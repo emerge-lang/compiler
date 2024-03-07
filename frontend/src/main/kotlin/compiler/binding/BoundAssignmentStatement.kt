@@ -239,7 +239,7 @@ class BoundAssignmentStatement(
                         (memberAccess.member as StructMember).toBackendIr(),
                         IrTemporaryValueReferenceImpl(baseTemporary),
                     ),
-                    IrTemporaryValueReferenceImpl(baseTemporary),
+                    IrTemporaryValueReferenceImpl(toAssignTemporary),
                 ),
                 IrDropReferenceStatementImpl(baseTemporary),
             ))
