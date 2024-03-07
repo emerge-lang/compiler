@@ -68,12 +68,12 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       * reading compile-time-constant data must be considered pure, too. There is no effective difference between a compile-time
         constant/literal in a function or outside of it. The type system should already enable this: global var, which
         implies immediately initialized, immutable. This could still entail reading runtime-dependent data... how to solve this?
-22. implement overload resolution algorithm, marked with TODOs
-    * attention: currently, when an overload doesn't match just because of mutability that is reported as "function not defined".
+22. ~~implement overload resolution algorithm, marked with TODOs~~
+    * ~~attention: currently, when an overload doesn't match just because of mutability that is reported as "function not defined".
       while technically correct, its very negative-helpful. E.g. when assignee is `readonly` and target is `mutable` the
-      error message should say something like "can't mutate ..."
-    * Also: what about overloading only based on mutabliltiy? Deny by incorporating mutability into the disjoint logic
-      somehow?
+      error message should say something like "can't mutate ..."~~
+    * ~~Also: what about overloading only based on mutabliltiy? Deny by incorporating mutability into the disjoint logic
+      somehow?~~
 23. object model
     1. ditch struct for class: there is no use for a struct that a `data`/`record` modifier as in Kotlin/Java couldn't
        do; especially because closed-world optimization will produce identically optimal code for a struct and a
