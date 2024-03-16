@@ -2,6 +2,8 @@ package compiler.compiler.negative
 
 import compiler.reportings.ClassMemberVariableNotInitializedReporting
 import compiler.reportings.DuplicateClassMemberReporting
+import compiler.reportings.ImpureInvocationInPureContextReporting
+import compiler.reportings.ReadInPureContextReporting
 import compiler.reportings.UnknownTypeReporting
 import compiler.reportings.ValueNotAssignableReporting
 import io.kotest.core.spec.style.FreeSpec
@@ -55,13 +57,39 @@ class ClassErrors : FreeSpec({
         """.trimIndent())
     }
 
-    "class member variables must be initialized" {
-        validateModule("""
-            class Foo {
-                x: Int
+    "member variables" - {
+        "class member variables must be initialized" {
+            validateModule("""
+                class Foo {
+                    x: Int
+                }
+            """.trimIndent())
+                .shouldReport<ClassMemberVariableNotInitializedReporting>()
+        }
+
+        "class member variable initializers are pure" - {
+            "cannot read" {
+                validateModule("""
+                    var x: Int = 3
+                    class Foo {
+                        y: Int = x
+                    }
+                """.trimIndent())
+                    .shouldReport<ReadInPureContextReporting>()
             }
-        """.trimIndent())
-            .shouldReport<ClassMemberVariableNotInitializedReporting>()
+
+            "cannot call readonly functions" {
+                validateModule("""
+                    intrinsic readonly fun bar() -> Int
+                    class Foo {
+                        x: Int = bar()
+                    }
+                """.trimIndent())
+                    .shouldReport<ImpureInvocationInPureContextReporting>()
+            }
+
+            // TODO: as soon as there are lambdas, add a test to verify a run { ... } initializer can't write
+        }
     }
 
     "generics" - {

@@ -56,14 +56,7 @@ class BoundClassMemberVariable(
     override val type: BoundTypeReference? get() = boundEffectiveVariableDeclaration.type
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        reportings.addAll(boundEffectiveVariableDeclaration.semanticAnalysisPhase1())
-
-        if (boundEffectiveVariableDeclaration.initializerExpression == null && !isDefaultConstructorInitialized) {
-            reportings.add(ClassMemberVariableNotInitializedReporting(declaration))
-        }
-
-        return reportings
+        return boundEffectiveVariableDeclaration.semanticAnalysisPhase1()
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
@@ -73,7 +66,20 @@ class BoundClassMemberVariable(
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return boundEffectiveVariableDeclaration.semanticAnalysisPhase3()
+        val reportings = mutableListOf<Reporting>()
+        reportings.addAll(boundEffectiveVariableDeclaration.semanticAnalysisPhase3())
+
+        if (boundEffectiveVariableDeclaration.initializerExpression != null) {
+            reportings.addAll(Reporting.purityViolations(
+                boundEffectiveVariableDeclaration.initializerExpression.findReadsBeyond(context),
+                boundEffectiveVariableDeclaration.initializerExpression.findWritesBeyond(context),
+                this,
+            ))
+        } else if (!isDefaultConstructorInitialized) {
+            reportings.add(ClassMemberVariableNotInitializedReporting(declaration))
+        }
+
+        return reportings
     }
 
     private val _backendIr by lazy { IrClassMemberVariableImplVariable(name, type!!.toBackendIr()) }
