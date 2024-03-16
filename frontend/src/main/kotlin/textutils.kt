@@ -26,7 +26,7 @@ fun String.indentByFromSecondLine(n: Int, what: String = " "): String {
     buf.append('\n')
 
     if (lines.size > 1) {
-        for (line in lines.subList(1, lines.lastIndex)) {
+        for (line in lines.subList(1, lines.size)) {
             buf.append(what.repeat(n))
             buf.append(line)
             buf.append("\n")

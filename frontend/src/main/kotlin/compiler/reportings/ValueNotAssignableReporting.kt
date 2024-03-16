@@ -40,7 +40,7 @@ open class ValueNotAssignableReporting(
     assignmentLocation: SourceLocation
 ) : Reporting(
     Level.ERROR,
-    "Cannot assign a value of type $sourceType to a reference of type $targetType: $reason",
+    "Type mismatch: $reason",
     assignmentLocation
 ) {
     /**
@@ -80,4 +80,6 @@ open class ValueNotAssignableReporting(
             }
         }
     }
+
+    override fun toString() = "$levelAndMessage\n  Required: $targetType\nFound:    $sourceType\n$sourceLocation"
 }
