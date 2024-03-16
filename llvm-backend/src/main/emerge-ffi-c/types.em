@@ -1,11 +1,7 @@
 package emerge.ffi.c
 
-struct COpaquePointer {}
+class COpaquePointer {}
 
-struct CPointer<T> {
-    pointed: T
-}
-
-struct CValue<T> {
-    raw: T
+class CPointer<T> {
+    pointed: T = init
 }

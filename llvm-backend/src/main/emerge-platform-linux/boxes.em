@@ -1,45 +1,45 @@
 package emerge.platform
 
-struct S8Box {
-    value: Byte
+class S8Box {
+    value: Byte = init
 }
 
-struct U8Box {
-    value: UByte
+class U8Box {
+    value: UByte = init
 }
 
-struct S16Box {
-    value: Short
+class S16Box {
+    value: Short = init
 }
 
-struct U16Box {
-    value: UShort
+class U16Box {
+    value: UShort = init
 }
 
-struct S32Box {
-    value: Int
+class S32Box {
+    value: Int = init
 }
 
-struct U32Box {
-    value: UInt
+class U32Box {
+    value: UInt = init
 }
 
-struct S64Box {
-    value: Long
+class S64Box {
+    value: Long = init
 }
 
-struct U64Box {
-    value: ULong
+class U64Box {
+    value: ULong = init
 }
 
-struct SWordBox {
-    value: iword
+class SWordBox {
+    value: iword = init
 }
 
-struct UWordBox {
-    value: uword
+class UWordBox {
+    value: uword = init
 }
 
-struct BooleanBox {
-    value: Boolean
+class BooleanBox {
+    value: Boolean = init
 }
