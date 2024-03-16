@@ -18,65 +18,54 @@
 
 package compiler.binding.classdef
 
-import compiler.ast.classdef.ClassMemberDeclaration
+import compiler.ast.ClassMemberDeclaration
+import compiler.ast.ClassMemberVariableDeclaration
+import compiler.ast.expression.IdentifierExpression
 import compiler.binding.BoundElement
-import compiler.binding.ObjectMember
-import compiler.binding.expression.BoundExpression
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
-import compiler.reportings.ClassMemberVariableDefaultValueNotAssignableReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
-class ClassMemberVariable(
-    override val context: ClassContext,
-    override val declaration: ClassMemberDeclaration,
-    val defaultValue: BoundExpression<*>?
-) : BoundElement<ClassMemberDeclaration>, ObjectMember {
+class BoundClassMemberVariable(
+    override val context: ExecutionScopedCTContext,
+    override val declaration: ClassMemberVariableDeclaration,
+) : BoundElement<ClassMemberDeclaration>, BoundClassMember {
     override val name = declaration.name.value
     override val isMutable = true
+
+    val isDefaultConstructorInitialized = if (declaration.variableDeclaration.initializerExpression is IdentifierExpression) {
+        declaration.variableDeclaration.initializerExpression.identifier.value == "init"
+    } else {
+        false
+    }
+
+    private val effectiveVariableDeclaration = if (!isDefaultConstructorInitialized) declaration.variableDeclaration else {
+        declaration.variableDeclaration.copy(initializerExpression = null)
+    }
+    private val boundEffectiveVariableDeclaration = effectiveVariableDeclaration.bindTo(context)
+
+    val modifiedContext: ExecutionScopedCTContext get() = boundEffectiveVariableDeclaration.modifiedContext
 
     /**
      * The type of the member; is null if not yet determined or if it cannot be determined.
      */
-    override var type: BoundTypeReference? = null
-        private set
+    override val type: BoundTypeReference? get() = boundEffectiveVariableDeclaration.type
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
-        type = context.resolveType(declaration.type)
-
-        if (defaultValue != null) {
-            reportings.addAll(defaultValue.semanticAnalysisPhase1())
-        }
-
-        return reportings
+        return boundEffectiveVariableDeclaration.semanticAnalysisPhase1()
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
-        reportings.addAll(type!!.validate(TypeUseSite.InvariantUsage(declaration.type.sourceLocation ?: declaration.declaredAt)))
-        defaultValue?.semanticAnalysisPhase2()?.let(reportings::addAll)
+        val reportings = boundEffectiveVariableDeclaration.semanticAnalysisPhase2().toMutableList()
+        reportings.addAll(type!!.validate(TypeUseSite.InvariantUsage(declaration.variableDeclaration.type?.sourceLocation ?: declaration.declaredAt)))
         return reportings
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
-
-        if (defaultValue != null) {
-            reportings.addAll(defaultValue.semanticAnalysisPhase3())
-
-            val defaultValueType = defaultValue.type
-            if (defaultValueType != null && type != null) {
-                defaultValueType.evaluateAssignabilityTo(type!!, this.declaration.declaredAt)
-                    ?.let {
-                        reportings.add(ClassMemberVariableDefaultValueNotAssignableReporting(this, it))
-                    }
-            }
-        }
-
-        return reportings
+        return boundEffectiveVariableDeclaration.semanticAnalysisPhase3()
     }
 
     private val _backendIr by lazy { IrClassMemberVariableImplVariable(name, type!!.toBackendIr()) }

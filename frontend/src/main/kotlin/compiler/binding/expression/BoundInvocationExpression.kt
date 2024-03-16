@@ -399,7 +399,10 @@ private data class OverloadCandidateEvaluation(
 }
 
 private fun Collection<OverloadCandidateEvaluation>.indicesOfDisjointlyTypedParameters(): Sequence<Int> {
-    require(isNotEmpty())
+    if (isEmpty()) {
+        return emptySequence()
+    }
+
     return (0 until first().candidate.parameters.parameters.size).asSequence()
         .filter { parameterIndex ->
             val parameterTypesAtIndex = this.map { it.candidate.parameters.parameters[parameterIndex] }

@@ -5,10 +5,10 @@ import compiler.StandardLibraryModule
 import compiler.ast.ASTPackageDeclaration
 import compiler.ast.ASTSourceFile
 import compiler.ast.AstFileLevelDeclaration
+import compiler.ast.ClassDeclaration
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
 import compiler.ast.VariableDeclaration
-import compiler.ast.classdef.ClassDeclaration
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.parser.grammar.SourceFileGrammar

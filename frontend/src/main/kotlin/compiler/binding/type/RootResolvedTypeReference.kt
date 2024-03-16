@@ -5,7 +5,7 @@ import compiler.InternalCompilerError
 import compiler.StandardLibraryModule
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.ObjectMember
+import compiler.binding.classdef.BoundClassMember
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
@@ -121,7 +121,7 @@ class RootResolvedTypeReference private constructor(
         }
     }
 
-    override fun findMemberVariable(name: String): ObjectMember? = baseType.resolveMemberVariable(name)
+    override fun findMemberVariable(name: String): BoundClassMember? = baseType.resolveMemberVariable(name)
 
     override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeReference {
         return RootResolvedTypeReference(

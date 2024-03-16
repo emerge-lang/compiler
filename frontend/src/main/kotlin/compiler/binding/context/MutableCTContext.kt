@@ -18,9 +18,9 @@
 
 package compiler.binding.context
 
+import compiler.ast.ClassDeclaration
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
-import compiler.ast.classdef.ClassDeclaration
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference

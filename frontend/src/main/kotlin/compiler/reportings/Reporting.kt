@@ -34,7 +34,7 @@ import compiler.binding.BoundReturnStatement
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.classdef.BoundClassDefinition
-import compiler.binding.classdef.ClassMemberVariable
+import compiler.binding.classdef.BoundClassMemberVariable
 import compiler.binding.expression.*
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
@@ -243,7 +243,7 @@ abstract class Reporting internal constructor(
             return ConditionNotBooleanReporting(condition, location)
         }
 
-        fun duplicateTypeMembers(classDef: BoundClassDefinition, duplicateMembers: Set<ClassMemberVariable>) =
+        fun duplicateTypeMembers(classDef: BoundClassDefinition, duplicateMembers: Set<BoundClassMemberVariable>) =
             DuplicateClassMemberReporting(classDef, duplicateMembers)
 
         fun assignmentUsedAsExpression(assignment: BoundAssignmentStatement)

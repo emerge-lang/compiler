@@ -21,8 +21,8 @@ package compiler.binding.expression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.binding.BoundStatement
 import compiler.binding.IrCodeChunkImpl
-import compiler.binding.ObjectMember
-import compiler.binding.classdef.ClassMemberVariable
+import compiler.binding.classdef.BoundClassMember
+import compiler.binding.classdef.BoundClassMemberVariable
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -51,7 +51,7 @@ class BoundMemberAccessExpression(
         private set
 
     /** set in [semanticAnalysisPhase2] */
-    var member: ObjectMember? = null
+    var member: BoundClassMember? = null
         private set
 
     override val isGuaranteedToThrow = false // member accessor CAN throw, but must not ALWAYS do so
@@ -108,7 +108,7 @@ class BoundMemberAccessExpression(
         val baseTemporary = IrCreateTemporaryValueImpl(valueExpression.toBackendIrExpression())
         val memberTemporary = IrCreateTemporaryValueImpl(IrClassMemberVariableAccessExpressionImpl(
             IrTemporaryValueReferenceImpl(baseTemporary),
-            (member!! as ClassMemberVariable).toBackendIr(),
+            (member!! as BoundClassMemberVariable).toBackendIr(),
             type!!.toBackendIr(),
         ))
 

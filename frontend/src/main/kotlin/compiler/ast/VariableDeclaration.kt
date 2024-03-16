@@ -25,7 +25,7 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 import compiler.lexer.SourceLocation
 
-open class VariableDeclaration(
+data class VariableDeclaration(
     override val declaredAt: SourceLocation,
     val varToken: KeywordToken?,
     val name: IdentifierToken,

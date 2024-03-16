@@ -19,7 +19,6 @@
 package compiler.ast
 
 import compiler.InternalCompilerError
-import compiler.ast.classdef.ClassDeclaration
 import compiler.binding.context.ModuleContext
 import compiler.binding.context.SoftwareContext
 import compiler.binding.context.SourceFile

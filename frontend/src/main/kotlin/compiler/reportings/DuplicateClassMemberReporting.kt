@@ -19,11 +19,11 @@
 package compiler.reportings
 
 import compiler.binding.classdef.BoundClassDefinition
-import compiler.binding.classdef.ClassMemberVariable
+import compiler.binding.classdef.BoundClassMemberVariable
 
 class DuplicateClassMemberReporting(
     val classDef: BoundClassDefinition,
-    val duplicates: Set<ClassMemberVariable>
+    val duplicates: Set<BoundClassMemberVariable>
 ) : Reporting(
     Level.ERROR,
     "Class member ${duplicates.iterator().next().name} declared multiple times",

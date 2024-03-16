@@ -22,7 +22,7 @@ class UnificationTest : FreeSpec({
             validateModule(
                 """
                 class A<T> {
-                    prop: T
+                    prop: T = init
                 }
                 x = A::<Int>(false)
             """.trimIndent()
@@ -37,7 +37,7 @@ class UnificationTest : FreeSpec({
             validateModule(
                 """
                 class A<T> {
-                    prop: T
+                    prop: T = init
                 }
                 x: A<Int> = A(false)
             """.trimIndent()

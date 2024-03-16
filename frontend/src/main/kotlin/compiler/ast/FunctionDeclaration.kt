@@ -31,20 +31,15 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 
-class FunctionDeclaration(
+data class FunctionDeclaration(
     override val declaredAt: SourceLocation,
     val modifiers: List<FunctionModifier>,
     val name: IdentifierToken,
     val typeParameters: List<TypeParameter>,
     val parameters: ParameterList,
-    parsedReturnType: TypeReference?,
+    val parsedReturnType: TypeReference?,
     val body: Body?,
 ) : AstFileLevelDeclaration {
-    /**
-     * The return type. Is null if none was declared and it has not been inferred yet (see semantic analysis phase 2)
-     */
-    val returnType: TypeReference? = parsedReturnType
-
     fun bindTo(context: CTContext): BoundDeclaredFunction {
         val functionContext = MutableExecutionScopedCTContext.functionRootIn(context)
         val boundTypeParams = typeParameters.map(functionContext::addTypeParameter)

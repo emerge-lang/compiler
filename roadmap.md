@@ -222,15 +222,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 * syntax opinionation
   * steal from rust
     * use `fn` instead of `fun`?
-    * use `let` instead of `val`?
-      * drop `var` and do `let mut` then, too?
     * numeric types: `i8`, `i16`, `i32`, `i64` instead of `Byte`, `Short`, `Int` and `Long`?
-    * use explicit parameter `self` in methods and functions with receiver to simplify
-      type constraints/modifications for the `self`/`this` argument
-  * steal from vale
-    * allow declaration of immutable/readonly variables without keyword (`x = 3`), require keyword for assignment
   * shorter keywords for mutability
     * `imm`, `mut`, `read`?
+  * type names MUST start with an uppercase letter, identifiers MUST start with a lowercase letter
 
 -----
 

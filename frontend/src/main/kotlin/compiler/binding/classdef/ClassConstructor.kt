@@ -20,7 +20,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 class ClassConstructor(
     val classDef: BoundClassDefinition,
 ) : BoundFunction() {
-    override val context: CTContext = MutableCTContext(classDef.context)
+    override val context: CTContext = MutableCTContext(classDef.classRootContext)
     val constructorCodeContext: ExecutionScopedCTContext = MutableExecutionScopedCTContext.functionRootIn(context)
     override val declaredAt = classDef.declaration.declaredAt
     override val receiverType = null
@@ -33,15 +33,17 @@ class ClassConstructor(
     override val isDeclaredReadonly = true
     override val returnsExclusiveValue = true
     override val parameters = run {
-        val astParameterList = ParameterList(classDef.members.map { member ->
-            VariableDeclaration(
-                member.declaration.declaredAt,
-                null,
-                member.declaration.name,
-                member.declaration.type,
-                null,
-            )
-        })
+        val astParameterList = ParameterList(classDef.members
+            .filter { it.isDefaultConstructorInitialized }
+            .map { member ->
+                VariableDeclaration(
+                    member.declaration.declaredAt,
+                    null,
+                    member.declaration.name,
+                    member.declaration.variableDeclaration.type!!,
+                    null,
+                )
+            })
         astParameterList.bindTo(constructorCodeContext).also {
             it.semanticAnalysisPhase1()
         }

@@ -139,7 +139,7 @@ class TypeErrors : FreeSpec({
             "use-site" {
                 validateModule("""
                     class A<T : mutable Any> {
-                        prop: T
+                        prop: T = init
                     }
                     x = A(2)
                 """.trimIndent())
@@ -154,8 +154,8 @@ class TypeErrors : FreeSpec({
         "generic validation involving multiple values of different types" {
             validateModule("""
                 class A<T> {
-                    propOne: T
-                    propTwo: T
+                    propOne: T = init
+                    propTwo: T = init
                 }
                 x: A<Int> = A(2, false)
             """.trimIndent())
@@ -169,7 +169,7 @@ class TypeErrors : FreeSpec({
             "out type at class member" {
                 validateModule("""
                     class X<out T> {
-                        prop: T
+                        prop: T = init
                     }
                 """.trimIndent())
                     .shouldReport<UnsupportedTypeUsageVarianceReporting>()
@@ -178,7 +178,7 @@ class TypeErrors : FreeSpec({
             "in type at class member" {
                 validateModule("""
                     class X<in T> {
-                        prop: T
+                        prop: T = init
                     }
                 """.trimIndent())
                     .shouldReport<UnsupportedTypeUsageVarianceReporting>()

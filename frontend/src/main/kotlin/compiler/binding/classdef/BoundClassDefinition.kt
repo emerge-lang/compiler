@@ -19,12 +19,11 @@
 package compiler.binding.classdef
 
 import compiler.OnceAction
+import compiler.ast.ClassDeclaration
 import compiler.ast.FunctionDeclaration
-import compiler.ast.classdef.ClassDeclaration
 import compiler.binding.BoundElement
 import compiler.binding.BoundFunction
 import compiler.binding.BoundOverloadSet
-import compiler.binding.ObjectMember
 import compiler.binding.context.CTContext
 import compiler.binding.misc_ir.IrOverloadGroupImpl
 import compiler.binding.type.BaseType
@@ -36,16 +35,18 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import kotlinext.duplicatesBy
 
 class BoundClassDefinition(
-    private val classContext: ClassContext,
+    fileContext: CTContext,
+    val classRootContext: CTContext,
+    override val typeParameters: List<BoundTypeParameter>,
     override val declaration: ClassDeclaration,
-    val members: List<ClassMemberVariable>
+    val members: List<BoundClassMemberVariable>, // TODO: widen to BoundClassMember once functions are supported
 ) : BaseType, BoundElement<ClassDeclaration> {
     private val onceAction = OnceAction()
 
-    override val context: CTContext = classContext
-    override val fullyQualifiedName get() = classContext.sourceFile.packageName + declaration.name.value
+    override val context: CTContext = fileContext
+    override val fullyQualifiedName get() = context.sourceFile.packageName + declaration.name.value
     override val simpleName: String = declaration.name.value
-    override val typeParameters: List<BoundTypeParameter> = classContext.typeParameters
+
     override val superTypes: Set<BaseType> = setOf(BuiltinAny)
 
     // this can only be initialized in semanticAnalysisPhase1 because the types referenced in the members
@@ -66,7 +67,7 @@ class BoundClassDefinition(
             }
 
             // duplicate members
-            members.duplicatesBy(ClassMemberVariable::name).forEach { (_, dupMembers) ->
+            members.duplicatesBy(BoundClassMemberVariable::name).forEach { (_, dupMembers) ->
                 reportings.add(Reporting.duplicateTypeMembers(this, dupMembers))
             }
 
@@ -98,7 +99,7 @@ class BoundClassDefinition(
         }
     }
 
-    override fun resolveMemberVariable(name: String): ObjectMember? = members.find { it.name == name }
+    override fun resolveMemberVariable(name: String): BoundClassMember? = members.find { it.name == name }
 
     private val backendIr by lazy { IrClassImpl(this) }
     override fun toBackendIr(): IrClass = backendIr

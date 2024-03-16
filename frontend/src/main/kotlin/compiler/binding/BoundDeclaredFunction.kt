@@ -142,8 +142,8 @@ class BoundDeclaredFunction(
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase1).forEach(reportings::addAll)
             reportings.addAll(parameters.semanticAnalysisPhase1(false))
 
-            if (declaration.returnType != null) {
-                returnType = context.resolveType(declaration.returnType)
+            if (declaration.parsedReturnType != null) {
+                returnType = context.resolveType(declaration.parsedReturnType)
                 if (code !is Body.SingleExpression) {
                     returnType = returnType?.defaultMutabilityTo(TypeMutability.IMMUTABLE)
                 }
@@ -192,7 +192,7 @@ class BoundDeclaredFunction(
             }
             returnType?.let {
                 val returnTypeUseSite = TypeUseSite.OutUsage(
-                    declaration.returnType?.declaringNameToken?.sourceLocation
+                    declaration.parsedReturnType?.declaringNameToken?.sourceLocation
                         ?: this.declaredAt
                 )
                 reportings.addAll(it.validate(returnTypeUseSite))

@@ -19,7 +19,7 @@
 package compiler.binding
 
 import compiler.ast.AssignmentStatement
-import compiler.binding.classdef.ClassMemberVariable
+import compiler.binding.classdef.BoundClassMemberVariable
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -236,7 +236,7 @@ class BoundAssignmentStatement(
                 toAssignTemporaryRefIncrement,
                 IrAssignmentStatementImpl(
                     IrAssignmentStatementTargetClassMemberVariableImpl(
-                        (memberAccess.member as ClassMemberVariable).toBackendIr(),
+                        (memberAccess.member as BoundClassMemberVariable).toBackendIr(),
                         IrTemporaryValueReferenceImpl(baseTemporary),
                     ),
                     IrTemporaryValueReferenceImpl(toAssignTemporary),

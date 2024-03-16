@@ -14,7 +14,7 @@ class MutabilityErrors : FreeSpec({
         "members cannot be mutated" {
             validateModule("""
                 class X {
-                    a: Int
+                    a: Int = init
                 }
                 fun test() {
                     myX = X(2)
@@ -32,7 +32,7 @@ class MutabilityErrors : FreeSpec({
         "cannot be assigned to a mutable reference" {
             validateModule("""
                 class X {
-                    a: Int
+                    a: Int = init
                 }
                 fun test() {
                     myX = X(2)
@@ -47,7 +47,7 @@ class MutabilityErrors : FreeSpec({
         "can be assigned to an immutable reference" {
             validateModule("""
                 class X {
-                    a: Int
+                    a: Int = init
                 }
                 fun test() {
                     myX = X(2)
@@ -61,10 +61,10 @@ class MutabilityErrors : FreeSpec({
         "prohibits writes to immutable element" {
             validateModule("""
                 class A {
-                    someVal: Int
+                    someVal: Int = init
                 }
                 class B<T> {
-                    genericVal: T
+                    genericVal: T = init
                 }
                 fun test() {
                     myB: mutable B<immutable A> = B::<immutable A>(A(3))

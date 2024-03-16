@@ -23,8 +23,8 @@ import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundOverloadSet
-import compiler.binding.ObjectMember
 import compiler.binding.SemanticallyAnalyzable
+import compiler.binding.classdef.BoundClassMember
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
@@ -79,7 +79,7 @@ interface BaseType : SemanticallyAnalyzable {
     /** @return The member function overloads for the given name or an empty collection if no such member function is defined. */
     fun resolveMemberFunction(name: String): Collection<FunctionDeclaration> = emptySet()
 
-    fun resolveMemberVariable(name: String): ObjectMember? = null
+    fun resolveMemberVariable(name: String): BoundClassMember? = null
 
     fun toBackendIr(): IrBaseType
 

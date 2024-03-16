@@ -19,107 +19,85 @@
 package compiler.parser.grammar
 
 import compiler.ast.ASTVisibilityModifier
-import compiler.ast.Expression
+import compiler.ast.ClassDeclaration
+import compiler.ast.ClassMemberDeclaration
+import compiler.ast.ClassMemberVariableDeclaration
+import compiler.ast.FunctionDeclaration
 import compiler.ast.TypeParameterBundle
-import compiler.ast.classdef.ClassDeclaration
-import compiler.ast.classdef.ClassMemberDeclaration
+import compiler.ast.VariableDeclaration
 import compiler.ast.type.TypeParameter
-import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword.CLASS_DEFINITION
 import compiler.lexer.KeywordToken
-import compiler.lexer.Operator
-import compiler.lexer.Operator.ASSIGNMENT
 import compiler.lexer.Operator.CBRACE_CLOSE
 import compiler.lexer.Operator.CBRACE_OPEN
-import compiler.lexer.Operator.COLON
 import compiler.lexer.Operator.NEWLINE
 import compiler.lexer.OperatorToken
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.sequence
 
-val ClassMemberVariableDefinition = sequence("class member variable declaration") {
+val ClassMemberVariableDeclaration = sequence("class member variable declaration") {
     optional {
         ref(VisibilityModifier)
     }
 
-    optionalWhitespace()
-
-    identifier()
-
-    operator(COLON)
-    ref(Type)
-
-    optional {
-        optionalWhitespace()
-        operator(ASSIGNMENT)
-        ref(Expression)
-    }
+    ref(VariableDeclaration)
+    operator(NEWLINE)
 }
     .astTransformation { tokens ->
-        var next = tokens.next()!!
+        var next = tokens.next()
+        val visibility: ASTVisibilityModifier?
+        if (next is ASTVisibilityModifier) {
+            visibility = next
+            next = tokens.next()
+        } else {
+            visibility = null
+        }
 
-        val visibilityModifier = if (next is ASTVisibilityModifier) {
-            val _t = next
-            next = tokens.next()!!
-            _t
-        } else ASTVisibilityModifier.DEFAULT
+        ClassMemberVariableDeclaration(
+            visibility,
+            next as VariableDeclaration,
+        )
+    }
 
-        val name = next as IdentifierToken
-
-        tokens.next()!! as OperatorToken // skip OPERATOR_COLON
-
-        val type = tokens.next()!! as TypeReference
-
-        val defaultValue = if (tokens.hasNext()) {
-            // default value is present
-            tokens.next()!! as OperatorToken // EQUALS
-            tokens.next()!! as Expression?
-        } else null
-
-        ClassMemberDeclaration(
-            name.sourceLocation,
-            visibilityModifier,
-            name,
-            type,
-            defaultValue
+val ClassMemberFunctionDeclaration = sequence("class member function declaration") {
+    ref(StandaloneFunctionDeclaration)
+}
+    .astTransformation { tokens ->
+        val decl = tokens.next() as FunctionDeclaration
+        decl.copy(
+            /* TODO: apply semantic differences for member fns, e.g. allow untyped self parameter */
         )
     }
 
 val ClassDefinition = sequence("class definition") {
     keyword(CLASS_DEFINITION)
-
-    optionalWhitespace()
-
     identifier()
-
-    optionalWhitespace()
-
     optional {
         ref(BracedTypeParameters)
     }
-
-    operator(CBRACE_OPEN)
-
     optionalWhitespace()
-
-    optional {
-        ref(ClassMemberVariableDefinition)
-    }
+    operator(CBRACE_OPEN)
+    optionalWhitespace()
     repeating {
-        operator(NEWLINE)
-        ref(ClassMemberVariableDefinition)
+        eitherOf {
+            ref(ClassMemberVariableDeclaration)
+            ref(ClassMemberFunctionDeclaration)
+        }
     }
-
     optionalWhitespace()
     operator(CBRACE_CLOSE)
+    eitherOf {
+        operator(NEWLINE)
+        endOfInput()
+    }
 }
     .astTransformation { tokens ->
         val declarationKeyword = tokens.next()!! as KeywordToken // class keyword
 
         val name = tokens.next()!! as IdentifierToken
 
-        var next = tokens.next()!!
+        var next: Any? = tokens.next()!!
         val typeParameters: List<TypeParameter>
         if (next is TypeParameterBundle) {
             typeParameters = next.parameters
@@ -129,16 +107,12 @@ val ClassDefinition = sequence("class definition") {
             typeParameters = emptyList()
         }
 
-        val memberDeclarations = mutableSetOf<ClassMemberDeclaration>()
+        val memberDeclarations = ArrayList<ClassMemberDeclaration>()
 
         next = tokens.next()!! // until CBRACE_CLOSE
         while (next is ClassMemberDeclaration) {
             memberDeclarations += next
-            next = tokens.next()!! as OperatorToken
-
-            if (next.operator == Operator.NEWLINE) {
-                next = tokens.next()!!
-            }
+            next = tokens.next()
         }
 
         ClassDeclaration(
