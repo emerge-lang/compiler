@@ -77,10 +77,18 @@ class BoundDeclaredFunction(
         private set
 
     override val isPure: Boolean?
-        get() = if (isDeclaredPure) true else isEffectivelyPure
+        get() = when {
+            isDeclaredPure -> true
+            code == null -> false
+            else -> isEffectivelyPure
+        }
 
     override val isReadonly: Boolean?
-        get() = if (isDeclaredReadonly || isDeclaredPure) true else isEffectivelyReadonly
+        get() = when {
+            isDeclaredPure || isDeclaredReadonly -> true
+            code == null -> false
+            else -> isEffectivelyReadonly
+        }
 
     override val isGuaranteedToThrow: Boolean?
         get() = handleCyclicInvocation(
