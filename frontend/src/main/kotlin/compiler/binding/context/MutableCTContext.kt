@@ -137,6 +137,10 @@ open class MutableCTContext(
             ?: UnresolvedType(ref, resolvedParameters)
     }
 
+    override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? {
+        return parentContext.resolveVariable(name, fromOwnFileOnly)
+    }
+
     open fun addFunction(declaration: FunctionDeclaration): BoundFunction {
         val bound = declaration.bindTo(this)
         _functions.add(bound)

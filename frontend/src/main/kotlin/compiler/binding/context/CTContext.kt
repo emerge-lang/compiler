@@ -22,6 +22,7 @@ import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
+import compiler.binding.BoundVariable
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
@@ -77,6 +78,11 @@ interface CTContext {
     }
 
     fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean = false): BoundTypeReference
+
+    /**
+     * @return The variable accessible under the given name, shadowing included.
+     */
+    fun resolveVariable(name: String, fromOwnFileOnly: Boolean = false): BoundVariable?
 
     fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet>
 }

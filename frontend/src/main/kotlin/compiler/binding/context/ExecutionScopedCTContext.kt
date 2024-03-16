@@ -31,11 +31,6 @@ interface ExecutionScopedCTContext : CTContext {
     val isFunctionRoot: Boolean
 
     /**
-     * @return The variable accessible under the given name, shadowing included.
-     */
-    fun resolveVariable(name: String, fromOwnFileOnly: Boolean = false): BoundVariable?
-
-    /**
      * **This is a helper method for [BoundVariable.isInitializedInContext]! You likely want to use that one.**
      * @return whether this context or any of its parents initializes the given variable.
      *
@@ -182,7 +177,7 @@ open class MutableExecutionScopedCTContext protected constructor(
                 .firstOrNull()
         }
 
-        return fromImport ?: (parentContext as? ExecutionScopedCTContext)?.resolveVariable(name, fromOwnFileOnly)
+        return fromImport ?: parentContext.resolveVariable(name, fromOwnFileOnly)
     }
 
     override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean {
