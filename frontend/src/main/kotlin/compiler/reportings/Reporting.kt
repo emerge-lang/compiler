@@ -220,7 +220,13 @@ abstract class Reporting internal constructor(
             = SuperfluousSafeObjectTraversal(nonNullExpression, superfluousSafeOperator)
 
         fun purityViolations(readingViolations: Collection<BoundExpression<*>>, writingViolations: Collection<BoundStatement<*>>, context: BoundFunction): Collection<Reporting> {
-            return readingViolations.map { readingPurityViolationToReporting(it, context) } + writingViolations.map { modifyingPurityViolationToReporting(it, context) }
+            val boundary = PurityViolationReporting.Boundary.Function(context)
+            return readingViolations.map { readingPurityViolationToReporting(it, boundary) } + writingViolations.map { modifyingPurityViolationToReporting(it, boundary) }
+        }
+
+        fun purityViolations(readingViolations: Collection<BoundExpression<*>>, writingViolations: Collection<BoundStatement<*>>, context: BoundClassMemberVariable): Collection<Reporting> {
+            val boundary = PurityViolationReporting.Boundary.ClassMemberInitializer(context)
+            return readingViolations.map { readingPurityViolationToReporting(it, boundary) } + writingViolations.map { modifyingPurityViolationToReporting(it, boundary) }
         }
 
         fun readonlyViolations(writingViolations: Collection<BoundStatement<*>>, readonlyFunction: BoundFunction): Collection<Reporting> {
@@ -258,24 +264,24 @@ abstract class Reporting internal constructor(
         fun integerLiteralOutOfRange(literal: Expression, expectedType: BaseType, expectedRange: ClosedRange<BigInteger>)
             = IntegerLiteralOutOfRangeReporting(literal, expectedType, expectedRange)
 
-        private fun readingPurityViolationToReporting(violation: BoundExpression<*>, context: BoundFunction): Reporting {
+        private fun readingPurityViolationToReporting(violation: BoundExpression<*>, boundary: PurityViolationReporting.Boundary): Reporting {
             if (violation is BoundIdentifierExpression) {
-                return ReadInPureContextReporting(violation, context)
+                return ReadInPureContextReporting(violation, boundary)
             }
             check(violation is BoundInvocationExpression)
-            return ImpureInvocationInPureContextReporting(violation, context)
+            return ImpureInvocationInPureContextReporting(violation, boundary)
         }
 
-        private fun modifyingPurityViolationToReporting(violation: BoundStatement<*>, context: BoundFunction): Reporting {
+        private fun modifyingPurityViolationToReporting(violation: BoundStatement<*>, boundary: PurityViolationReporting.Boundary): Reporting {
             if (violation is BoundAssignmentStatement) {
-                return StateModificationOutsideOfPurityBoundaryReporting(violation, context)
+                return StateModificationOutsideOfPurityBoundaryReporting(violation, boundary)
             }
 
             check(violation is BoundInvocationExpression)
             if (violation.dispatchedFunction?.isDeclaredReadonly == false) {
-                return ModifyingInvocationInReadonlyContextReporting(violation, context)
+                return ModifyingInvocationInReadonlyContextReporting(violation, boundary)
             } else {
-                return ImpureInvocationInPureContextReporting(violation, context)
+                return ImpureInvocationInPureContextReporting(violation, boundary)
             }
         }
     }

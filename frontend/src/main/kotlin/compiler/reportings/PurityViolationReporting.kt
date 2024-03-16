@@ -18,49 +18,64 @@
 
 package compiler.reportings
 
-import compiler.ast.type.FunctionModifier
 import compiler.binding.BoundAssignmentStatement
 import compiler.binding.BoundFunction
 import compiler.binding.BoundStatement
+import compiler.binding.classdef.BoundClassMemberVariable
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundInvocationExpression
 
 abstract class PurityViolationReporting protected constructor(
     val violation: BoundStatement<*>,
     message: String
-)
-    : Reporting(Level.ERROR, message, violation.declaration.sourceLocation)
+) : Reporting(Level.ERROR, message, violation.declaration.sourceLocation) {
+    sealed class Boundary(
+        val asString: String,
+        /**
+         * if true, the boundary is pure. If false it is readonly.
+         */
+        val isPure: Boolean,
+    ) {
+        override fun toString() = asString
 
-data class ReadInPureContextReporting internal constructor(val readingExpression: BoundIdentifierExpression, val function: BoundFunction) : PurityViolationReporting(
+        class Function(val function: BoundFunction) : Boundary(
+            run {
+                val modifier = if (function.isDeclaredPure) "pure" else "readonly"
+                "$modifier function ${function.name}"
+            },
+            function.isDeclaredPure,
+        )
+        class ClassMemberInitializer(val member: BoundClassMemberVariable) : Boundary("member variable initializer", true)
+    }
+}
+
+data class ReadInPureContextReporting internal constructor(val readingExpression: BoundIdentifierExpression, val boundary: Boundary) : PurityViolationReporting(
     readingExpression,
-    "pure function ${function.name} cannot read ${readingExpression.identifier} (is not within the pure boundary)"
+    "$boundary cannot read ${readingExpression.identifier} (is not within the purity-boundary)"
 ) {
     override fun toString() = super.toString()
 }
 
-data class ImpureInvocationInPureContextReporting internal constructor(val invcExpr: BoundInvocationExpression, val function: BoundFunction) : PurityViolationReporting(
+data class ImpureInvocationInPureContextReporting internal constructor(val invcExpr: BoundInvocationExpression, val boundary: Boundary) : PurityViolationReporting(
     invcExpr,
-    "pure function ${function.name} cannot invoke impure function ${invcExpr.dispatchedFunction!!.name}"
+    "$boundary cannot invoke impure function ${invcExpr.dispatchedFunction!!.name}"
 ) {
     override fun toString() = super.toString()
 }
 
-data class ModifyingInvocationInReadonlyContextReporting internal constructor(val invcExpr: BoundInvocationExpression, val function: BoundFunction) : PurityViolationReporting(
+data class ModifyingInvocationInReadonlyContextReporting internal constructor(val invcExpr: BoundInvocationExpression, val boundary: Boundary) : PurityViolationReporting(
     invcExpr,
-    "readonly function ${function.name} cannot invoke modifying function ${invcExpr.dispatchedFunction!!.name}"
+    "$boundary cannot invoke modifying function ${invcExpr.dispatchedFunction!!.name}"
 ) {
     override fun toString() = super.toString()
 }
 
-data class StateModificationOutsideOfPurityBoundaryReporting internal constructor(val assignment: BoundAssignmentStatement, val function: BoundFunction) : PurityViolationReporting(
+data class StateModificationOutsideOfPurityBoundaryReporting internal constructor(val assignment: BoundAssignmentStatement, val boundary: Boundary) : PurityViolationReporting(
     assignment,
-    {
-        val functionType = if (FunctionModifier.Pure in function.modifiers) FunctionModifier.Pure else FunctionModifier.Readonly
-        val functionTypeAsString = functionType::class.simpleName
-        val boundaryType = if (functionType == FunctionModifier.Pure) "purity" else "readonlyness"
-
-        "$functionTypeAsString function ${function.name} cannot assign state outside of its $boundaryType boundary"
-    }()
+    run {
+        val boundaryType = if (boundary.isPure) "purity" else "readonlyness"
+        "$boundary cannot assign state outside of its $boundaryType boundary"
+    }
 ) {
     override fun toString() = super.toString()
 }

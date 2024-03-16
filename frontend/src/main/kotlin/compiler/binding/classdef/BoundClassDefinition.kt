@@ -66,7 +66,6 @@ class BoundClassDefinition(
                 reportings.addAll(it.semanticAnalysisPhase1())
             }
 
-            // duplicate members
             members.duplicatesBy(BoundClassMemberVariable::name).forEach { (_, dupMembers) ->
                 reportings.add(Reporting.duplicateTypeMembers(this, dupMembers))
             }

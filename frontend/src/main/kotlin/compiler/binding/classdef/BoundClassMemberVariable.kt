@@ -25,6 +25,7 @@ import compiler.binding.BoundElement
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
+import compiler.reportings.ClassMemberVariableNotInitializedReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -55,7 +56,14 @@ class BoundClassMemberVariable(
     override val type: BoundTypeReference? get() = boundEffectiveVariableDeclaration.type
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return boundEffectiveVariableDeclaration.semanticAnalysisPhase1()
+        val reportings = mutableListOf<Reporting>()
+        reportings.addAll(boundEffectiveVariableDeclaration.semanticAnalysisPhase1())
+
+        if (boundEffectiveVariableDeclaration.initializerExpression == null && !isDefaultConstructorInitialized) {
+            reportings.add(ClassMemberVariableNotInitializedReporting(declaration))
+        }
+
+        return reportings
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {

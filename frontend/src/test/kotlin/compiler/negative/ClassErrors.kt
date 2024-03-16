@@ -1,5 +1,6 @@
 package compiler.compiler.negative
 
+import compiler.reportings.ClassMemberVariableNotInitializedReporting
 import compiler.reportings.DuplicateClassMemberReporting
 import compiler.reportings.UnknownTypeReporting
 import compiler.reportings.ValueNotAssignableReporting
@@ -52,6 +53,15 @@ class ClassErrors : FreeSpec({
         validateModule("""
             x = Nonexistent()
         """.trimIndent())
+    }
+
+    "class member variables must be initialized" {
+        validateModule("""
+            class Foo {
+                x: Int
+            }
+        """.trimIndent())
+            .shouldReport<ClassMemberVariableNotInitializedReporting>()
     }
 
     "generics" - {
