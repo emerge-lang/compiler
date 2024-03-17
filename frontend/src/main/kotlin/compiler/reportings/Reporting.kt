@@ -19,11 +19,11 @@
 package compiler.reportings
 
 import compiler.ast.ASTPackageName
+import compiler.ast.AstFunctionAttribute
 import compiler.ast.Expression
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
 import compiler.ast.expression.IdentifierExpression
-import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundAssignmentStatement
@@ -160,11 +160,11 @@ abstract class Reporting internal constructor(
         fun missingFunctionBody(function: FunctionDeclaration)
             = MissingFunctionBodyReporting(function)
 
-        fun inefficientModifiers(message: String, location: SourceLocation)
-            = ModifierInefficiencyReporting(message, location)
+        fun inefficientAttributes(message: String, attributes: Collection<AstFunctionAttribute>)
+            = ModifierInefficiencyReporting(message, attributes)
 
-        fun conflictingModifiers(message: String, location: SourceLocation)
-            = ConflictingFunctionModifiersReporting(message, location)
+        fun conflictingModifiers(attributes: Collection<AstFunctionAttribute>)
+            = ConflictingFunctionModifiersReporting(attributes)
 
         fun noMatchingFunctionOverload(functionNameReference: IdentifierToken, receiverType: BoundTypeReference?, valueArguments: List<BoundExpression<*>>, functionDeclaredAtAll: Boolean)
             = UnresolvableFunctionOverloadReporting(functionNameReference, receiverType, valueArguments.map { it.type }, functionDeclaredAtAll)
@@ -205,8 +205,8 @@ abstract class Reporting internal constructor(
         fun operatorNotDeclared(message: String, expression: Expression)
             = OperatorNotDeclaredReporting(message, expression)
 
-        fun functionIsMissingModifier(function: BoundFunction, usageRequiringModifier: Expression, missingModifier: FunctionModifier)
-            = FunctionMissingModifierReporting(function, usageRequiringModifier, missingModifier)
+        fun functionIsMissingAttribute(function: BoundFunction, usageRequiringModifier: Expression, missingAttribute: String)
+            = FunctionMissingModifierReporting(function, usageRequiringModifier, missingAttribute)
 
         /**
          * An expression is used in a way that requires it to be non-null but the type of the expression is nullable.
@@ -278,7 +278,7 @@ abstract class Reporting internal constructor(
             }
 
             check(violation is BoundInvocationExpression)
-            if (violation.dispatchedFunction?.isDeclaredReadonly == false) {
+            if (violation.dispatchedFunction?.attributes?.isDeclaredReadonly == false) {
                 return ModifyingInvocationInReadonlyContextReporting(violation, boundary)
             } else {
                 return ImpureInvocationInPureContextReporting(violation, boundary)

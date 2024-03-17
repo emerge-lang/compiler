@@ -18,11 +18,22 @@
 
 package compiler.parser.grammar.dsl
 
-import compiler.lexer.*
-import compiler.parser.grammar.rule.Rule
+import compiler.lexer.IdentifierToken
+import compiler.lexer.Keyword
+import compiler.lexer.KeywordToken
+import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
+import compiler.lexer.Token
+import compiler.lexer.TokenType
+import compiler.parser.grammar.rule.EitherOfRule
 import compiler.parser.grammar.rule.EoiRule
+import compiler.parser.grammar.rule.IdentifierRule
 import compiler.parser.grammar.rule.OptionalNewlinesRule
-import compiler.parser.grammar.rule.*
+import compiler.parser.grammar.rule.RepeatingRule
+import compiler.parser.grammar.rule.Rule
+import compiler.parser.grammar.rule.SequenceRule
+import compiler.parser.grammar.rule.SingleTokenByEqualityRule
+import compiler.parser.grammar.rule.SingleTokenByTypeRule
 
 typealias Grammar = GrammarReceiver.() -> Unit
 
@@ -44,6 +55,10 @@ interface GrammarReceiver {
 
     fun keyword(keyword: Keyword) {
         tokenEqualTo(KeywordToken(keyword))
+    }
+
+    fun localKeyword(expectedIdentifier: String) {
+        tokenEqualTo(IdentifierToken(expectedIdentifier))
     }
 
     fun operator(operator: Operator) {

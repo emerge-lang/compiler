@@ -18,32 +18,18 @@
 
 package compiler.parser.grammar
 
-import compiler.InternalCompilerError
-import compiler.ast.ASTVisibilityModifier
-import compiler.ast.ExportASTVisibilityModifier
 import compiler.ast.Expression
-import compiler.ast.InternalASTVisibilityModifier
-import compiler.ast.PrivateASTVisibilityModifier
-import compiler.ast.ProtectedASTVisibilityModifier
-import compiler.ast.QualifiedASTProtectedVisibilityModifier
 import compiler.ast.VariableDeclaration
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
-import compiler.lexer.Keyword.EXPORT
-import compiler.lexer.Keyword.INTERNAL
-import compiler.lexer.Keyword.PRIVATE
-import compiler.lexer.Keyword.PROTECTED
 import compiler.lexer.Keyword.VAR
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator.ASSIGNMENT
 import compiler.lexer.Operator.COLON
-import compiler.lexer.Operator.PARANT_CLOSE
-import compiler.lexer.Operator.PARANT_OPEN
 import compiler.lexer.OperatorToken
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
-import compiler.parser.grammar.rule.Rule
 
 val VariableDeclarationInitializingAssignment = sequence {
     operator(ASSIGNMENT)
@@ -120,37 +106,4 @@ val VariableDeclaration = eitherOf("variable declaration") {
             type,
             initializer
         )
-    }
-
-val VisibilityModifier : Rule<ASTVisibilityModifier> = eitherOf("visibility modifier") {
-    eitherOf {
-        keyword(PRIVATE)
-        keyword(PROTECTED)
-        keyword(EXPORT)
-        sequence {
-            keyword(INTERNAL)
-            optional {
-                operator(PARANT_OPEN)
-                ref(ModuleOrPackageName)
-                operator(PARANT_CLOSE)
-            }
-        }
-    }
-}
-    .astTransformation { tokens ->
-        when (val keyword = (tokens.next()!! as KeywordToken).keyword) {
-            PRIVATE -> PrivateASTVisibilityModifier.INSTANCE
-            INTERNAL -> InternalASTVisibilityModifier.INSTANCE
-            EXPORT -> ExportASTVisibilityModifier.INSTANCE
-            PROTECTED -> if (tokens.hasNext()) {
-                tokens.next()!! as OperatorToken // PARANT_OPEN
-                @Suppress("UNCHECKED_CAST") // ModuleOrPackageName is a Rule<Array<String>>
-                val qualifier = tokens.next()!! as Array<String>
-                tokens.next()!! as OperatorToken // PARANT_CLOSE
-                QualifiedASTProtectedVisibilityModifier(qualifier)
-            } else {
-                ProtectedASTVisibilityModifier.INSTANCE
-            }
-            else -> throw InternalCompilerError("Unknown visibility modifier keyword $keyword")
-        }
     }

@@ -18,15 +18,15 @@
 
 package compiler.reportings
 
-import compiler.lexer.SourceLocation
+import compiler.ast.AstFunctionAttribute
 
 /**
  * Reported when modifiers on a declaration:
  * * cover the same aspect more than once (e.g. readonly + pure)
  * * state a fact that is assured by other means (e.g. abstract functions in interfaces)
  */
-class ModifierInefficiencyReporting(message: String, location: SourceLocation) : Reporting(
+class ModifierInefficiencyReporting(message: String, attributes: Collection<AstFunctionAttribute>) : MultiFunctionAttributeReporting(
     Level.INFO,
     message,
-    location
+    attributes,
 )

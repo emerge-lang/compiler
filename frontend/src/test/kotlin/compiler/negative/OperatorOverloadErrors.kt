@@ -1,6 +1,5 @@
 package compiler.compiler.negative
 
-import compiler.ast.type.FunctionModifier
 import compiler.reportings.FunctionMissingModifierReporting
 import compiler.reportings.OperatorNotDeclaredReporting
 import compiler.reportings.UnresolvableFunctionOverloadReporting
@@ -35,7 +34,7 @@ class OperatorOverloadErrors : FreeSpec({
         """.trimIndent())
             .shouldReport<FunctionMissingModifierReporting> {
                 it.function.name shouldBe "unaryMinus"
-                it.missingModifier shouldBe FunctionModifier.Operator
+                it.missingAttribute shouldBe "operator"
             }
     }
 })

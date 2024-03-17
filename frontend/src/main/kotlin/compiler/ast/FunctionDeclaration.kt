@@ -18,11 +18,11 @@
 
 package compiler.ast
 
-import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundFunction
+import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundParameter
 import compiler.binding.BoundParameterList
 import compiler.binding.context.CTContext
@@ -33,7 +33,7 @@ import compiler.lexer.SourceLocation
 
 data class FunctionDeclaration(
     override val declaredAt: SourceLocation,
-    val modifiers: List<FunctionModifier>,
+    val attributes: List<AstFunctionAttribute>,
     val name: IdentifierToken,
     val typeParameters: List<TypeParameter>,
     val parameters: ParameterList,
@@ -56,6 +56,7 @@ data class FunctionDeclaration(
         return BoundDeclaredFunction(
             functionContext,
             this,
+            BoundFunctionAttributeList(attributes),
             boundTypeParams,
             boundParamList,
             body?.bindTo(contextAfterValueParameters),

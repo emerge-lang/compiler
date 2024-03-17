@@ -1,21 +1,16 @@
 package compiler.reportings
 
 import compiler.ast.Expression
-import compiler.ast.type.FunctionModifier
 import compiler.binding.BoundFunction
 
 data class FunctionMissingModifierReporting(
     val function: BoundFunction,
     val usageRequiringModifier: Expression,
-    val missingModifier: FunctionModifier
+    val missingAttribute: String,
 ) : Reporting(
     Reporting.Level.ERROR,
-    "Missing modifier \"${missingModifier::class.simpleName?.lowercase()}\" on function ${function.fullyQualifiedName}",
+    "Missing modifier \"${missingAttribute::class.simpleName?.lowercase()}\" on function ${function.fullyQualifiedName}",
     usageRequiringModifier.sourceLocation,
 ) {
-    init {
-        check(missingModifier !in function.modifiers)
-    }
-
     override fun toString() = super.toString() + "\ndeclared without this modifier here:\n${function.declaredAt}"
 }

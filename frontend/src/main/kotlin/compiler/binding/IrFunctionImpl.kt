@@ -1,6 +1,5 @@
 package compiler.binding
 
-import compiler.ast.type.FunctionModifier
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import io.github.tmarsteel.emerge.backend.api.DotName
@@ -18,7 +17,7 @@ internal abstract class IrFunctionImpl private constructor(
 ) {
     protected val _parameters: List<IrVariableDeclaration> by lazy { boundFunction.parameters.parameters.map { it.backendIrDeclaration } }
     protected val _returnType = boundFunction.returnType!!.toBackendIr()
-    protected val _isExternalC = boundFunction.modifiers.any { it is FunctionModifier.External && it.ffiName.value == "C" }
+    protected val _isExternalC = boundFunction.attributes.externalAttribute?.ffiName?.value == "C"
 
     protected val _body: IrCodeChunk by lazy {
         when (boundBody) {

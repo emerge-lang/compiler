@@ -21,7 +21,6 @@ package compiler.binding.expression
 import compiler.ast.expression.BinaryExpression
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
-import compiler.ast.type.FunctionModifier
 import compiler.binding.BoundStatement
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -67,7 +66,7 @@ class BoundBinaryExpression(
 
         val opFn = hiddenInvocation.dispatchedFunction
         if (opFn != null) {
-            if (FunctionModifier.Operator !in opFn.modifiers) {
+            if (opFn.attributes.isDeclaredOperator) {
                 reportings.add(Reporting.modifierError("Function $opFn cannot be used as an operator: the operator modifier is missing", declaration.sourceLocation))
             }
         }

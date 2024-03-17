@@ -18,7 +18,6 @@
 
 package compiler.parser.grammar
 
-import compiler.ast.ASTVisibilityModifier
 import compiler.ast.ClassDeclaration
 import compiler.ast.ClassMemberDeclaration
 import compiler.ast.ClassMemberVariableDeclaration
@@ -34,29 +33,16 @@ import compiler.lexer.Operator.CBRACE_OPEN
 import compiler.lexer.Operator.NEWLINE
 import compiler.lexer.OperatorToken
 import compiler.parser.grammar.dsl.astTransformation
+import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
 
 val ClassMemberVariableDeclaration = sequence("class member variable declaration") {
-    optional {
-        ref(VisibilityModifier)
-    }
-
     ref(VariableDeclaration)
     operator(NEWLINE)
 }
     .astTransformation { tokens ->
-        var next = tokens.next()
-        val visibility: ASTVisibilityModifier?
-        if (next is ASTVisibilityModifier) {
-            visibility = next
-            next = tokens.next()
-        } else {
-            visibility = null
-        }
-
         ClassMemberVariableDeclaration(
-            visibility,
-            next as VariableDeclaration,
+            tokens.next() as VariableDeclaration,
         )
     }
 
@@ -70,6 +56,23 @@ val ClassMemberFunctionDeclaration = sequence("class member function declaration
         )
     }
 
+val ClassConstructor = sequence("constructor declaration") {
+    ref(FunctionAttributes)
+    localKeyword("constructor")
+    operator(CBRACE_OPEN)
+    optionalWhitespace()
+    ref(CodeChunk)
+    optionalWhitespace()
+    operator(CBRACE_CLOSE)
+    operator(NEWLINE)
+}
+
+val ClassEntry = eitherOf {
+    ref(ClassMemberVariableDeclaration)
+    ref(ClassMemberFunctionDeclaration)
+    ref(ClassConstructor)
+}
+
 val ClassDefinition = sequence("class definition") {
     keyword(CLASS_DEFINITION)
     identifier()
@@ -80,10 +83,7 @@ val ClassDefinition = sequence("class definition") {
     operator(CBRACE_OPEN)
     optionalWhitespace()
     repeating {
-        eitherOf {
-            ref(ClassMemberVariableDeclaration)
-            ref(ClassMemberFunctionDeclaration)
-        }
+        ref(ClassEntry)
     }
     optionalWhitespace()
     operator(CBRACE_CLOSE)

@@ -2,12 +2,12 @@ package compiler.binding.classdef
 
 import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
-import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundFunction
+import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.IrFunctionImpl
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -17,6 +17,9 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 
+/**
+ * TODO: rename to class default constructor
+ */
 class ClassConstructor(
     val classDef: BoundClassDefinition,
 ) : BoundFunction() {
@@ -26,11 +29,9 @@ class ClassConstructor(
     override val receiverType = null
     override val declaresReceiver = false
     override val name = classDef.simpleName
-    override val modifiers = setOf(FunctionModifier.Pure)
+    override val attributes = BoundFunctionAttributeList(emptyList())
     override val isPure = true
-    override val isDeclaredPure = true
     override val isReadonly = true
-    override val isDeclaredReadonly = true
     override val returnsExclusiveValue = true
     override val parameters = run {
         val astParameterList = ParameterList(classDef.members

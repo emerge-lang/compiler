@@ -2,7 +2,6 @@ package compiler.binding
 
 import compiler.*
 import compiler.ast.FunctionDeclaration
-import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
@@ -21,6 +20,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 class BoundDeclaredFunction(
     override val context: CTContext,
     val declaration: FunctionDeclaration,
+    override val attributes: BoundFunctionAttributeList,
     override val typeParameters: List<BoundTypeParameter>,
     override val parameters: BoundParameterList,
     val code: Body?
@@ -33,41 +33,15 @@ class BoundDeclaredFunction(
 
     override val declaresReceiver = parameters.declaredReceiver != null
 
-    /**
-     * Implied modifiers. Operator functions often have an implied [FunctionModifier.Readonly]
-     * TODO: yeet, these modifiers can go into the stdlib sources
-     */
-    val impliedModifiers: Set<FunctionModifier> = run {
-        // only operator functions have implied modifiers
-        if (FunctionModifier.Operator !in declaration.modifiers) {
-            emptySet<FunctionModifier>()
-        }
-
-        when {
-            name.startsWith("opUnary")                                -> setOf(FunctionModifier.Readonly)
-            name.startsWith("op") && !name.endsWith("Assign") -> setOf(FunctionModifier.Readonly)
-            name == "rangeTo" || name == "contains"                           -> setOf(FunctionModifier.Readonly)
-            else                                                              -> emptySet()
-        }
-    }
-
-    override val modifiers = (declaration.modifiers + impliedModifiers).toSet()
-
     override var returnType: BoundTypeReference? = null
         private set
 
-    override val isDeclaredPure: Boolean = modifiers.none { it == FunctionModifier.Readonly || it == FunctionModifier.Modifying } ||
-            modifiers.any { it == FunctionModifier.Pure }
-
     /**
-     * Whether this functions code is behaves in a pure way. Is null if that has not yet been determined (see semantic
+     * Whether this functions code is pure. Is null if that has not yet been determined (see semantic
      * analysis) or if the function has no body.
      */
     var isEffectivelyPure: Boolean? = null
         private set
-
-    override val isDeclaredReadonly: Boolean = modifiers.none { it == FunctionModifier.Modifying } ||
-            modifiers.any { it == FunctionModifier.Readonly || it == FunctionModifier.Pure }
 
     /**
      * Whether this functions code behaves in a readonly way. Is null if that has not yet been determined (see semantic
@@ -78,14 +52,14 @@ class BoundDeclaredFunction(
 
     override val isPure: Boolean?
         get() = when {
-            isDeclaredPure -> true
+            attributes.isDeclaredPure -> true
             code == null -> false
             else -> isEffectivelyPure
         }
 
     override val isReadonly: Boolean?
         get() = when {
-            isDeclaredPure || isDeclaredReadonly -> true
+            attributes.isDeclaredPure || attributes.isDeclaredReadonly -> true
             code == null -> false
             else -> isEffectivelyReadonly
         }
@@ -105,46 +79,16 @@ class BoundDeclaredFunction(
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
             val reportings = mutableSetOf<Reporting>()
 
+            reportings.addAll(attributes.semanticAnalysisPhase1())
             reportings.addAll(parameters.semanticAnalysisPhase1())
 
             // modifiers
-            if (modifiers.any { it.impliesNoBody }) {
+            if (attributes.impliesNoBody) {
                 if (code != null) {
                     reportings.add(Reporting.illegalFunctionBody(declaration))
                 }
             } else if (code == null) {
                 reportings.add(Reporting.missingFunctionBody(declaration))
-            }
-
-            if (FunctionModifier.Pure in modifiers) {
-                reportings.add(Reporting.inefficientModifiers(
-                    "The pure modifier is superfluous, functions are pure by default.",
-                    declaredAt,
-                ))
-
-                if (FunctionModifier.Readonly in modifiers) {
-                    reportings.add(
-                        Reporting.inefficientModifiers(
-                            "The modifier readonly is superfluous: the function is also pure and pure implies readonly.",
-                            declaredAt,
-                        )
-                    )
-                }
-                if (FunctionModifier.Modifying in modifiers) {
-                    reportings.add(
-                        Reporting.conflictingModifiers(
-                            "A function cannot be declared both mutable and pure",
-                            declaredAt,
-                        )
-                    )
-                }
-            }
-
-            if (FunctionModifier.Modifying in modifiers && FunctionModifier.Readonly in modifiers) {
-                reportings.add(Reporting.conflictingModifiers(
-                    "A function cannot be declared both mutable and readonly",
-                    declaredAt,
-                ))
             }
 
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase1).forEach(reportings::addAll)
@@ -243,7 +187,7 @@ class BoundDeclaredFunction(
                 isEffectivelyReadonly = statementsWritingBeyondFunctionContext.isEmpty()
                 isEffectivelyPure = isEffectivelyReadonly!! && statementsReadingBeyondFunctionContext.isEmpty()
 
-                if (isDeclaredPure) {
+                if (attributes.isDeclaredPure) {
                     if (!isEffectivelyPure!!) {
                         reportings.addAll(
                             Reporting.purityViolations(
@@ -254,7 +198,7 @@ class BoundDeclaredFunction(
                         )
                     }
                     // else: effectively pure means effectively readonly
-                } else if (isDeclaredReadonly && !isEffectivelyReadonly!!) {
+                } else if (attributes.isDeclaredReadonly && !isEffectivelyReadonly!!) {
                     reportings.addAll(Reporting.readonlyViolations(statementsWritingBeyondFunctionContext, this))
                 }
 

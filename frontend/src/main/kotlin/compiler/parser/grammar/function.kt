@@ -19,13 +19,13 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
+import compiler.ast.AstFunctionAttribute
 import compiler.ast.CodeChunk
 import compiler.ast.Expression
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ParameterList
 import compiler.ast.TypeParameterBundle
 import compiler.ast.VariableDeclaration
-import compiler.ast.type.FunctionModifier
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
@@ -35,6 +35,7 @@ import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.Token
 import compiler.parser.grammar.dsl.astTransformation
+import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
 import java.util.LinkedList
 
@@ -149,45 +150,52 @@ val ParameterList = sequence("parenthesised parameter list") {
         throw InternalCompilerError("This line should never have been reached :(")
     }
 
-val FunctionModifier = sequence {
-    eitherOf {
-        keyword(Keyword.MUTABLE)
-        keyword(Keyword.READONLY)
-        keyword(Keyword.PURE)
-        keyword(Keyword.NOTHROW)
-        keyword(Keyword.OPERATOR)
-        keyword(Keyword.INTRINSIC)
-        sequence {
-            keyword(Keyword.EXTERNAL)
-            operator(Operator.PARANT_OPEN)
-            identifier()
-            operator(Operator.PARANT_CLOSE)
-        }
+val FunctionAttribute = eitherOf {
+    keyword(Keyword.MUTABLE)
+    keyword(Keyword.READONLY)
+    keyword(Keyword.PURE)
+    keyword(Keyword.NOTHROW)
+    keyword(Keyword.OPERATOR)
+    keyword(Keyword.INTRINSIC)
+    sequence {
+        keyword(Keyword.EXTERNAL)
+        operator(Operator.PARANT_OPEN)
+        identifier()
+        operator(Operator.PARANT_CLOSE)
     }
 }
-    .astTransformation { tokens -> when((tokens.next()!! as KeywordToken).keyword) {
-        Keyword.MUTABLE   -> compiler.ast.type.FunctionModifier.Modifying
-        Keyword.READONLY  -> compiler.ast.type.FunctionModifier.Readonly
-        Keyword.PURE      -> compiler.ast.type.FunctionModifier.Pure
-        Keyword.NOTHROW   -> compiler.ast.type.FunctionModifier.Nothrow
-        Keyword.OPERATOR  -> compiler.ast.type.FunctionModifier.Operator
-        Keyword.INTRINSIC -> compiler.ast.type.FunctionModifier.Intrinsic
-        Keyword.EXTERNAL  -> {
-            tokens.next()
-            val nameToken = tokens.next() as IdentifierToken
-            tokens.next()
-            compiler.ast.type.FunctionModifier.External(nameToken)
-        }
-        else              -> throw InternalCompilerError("Keyword is not a function modifier")
-    } }
+    .astTransformation { tokens ->
+        val nameToken = tokens.next() as KeywordToken
+        when(nameToken.keyword) {
+            Keyword.MUTABLE -> AstFunctionAttribute.EffectCategory(AstFunctionAttribute.EffectCategory.Category.MODIFYING, nameToken)
+            Keyword.READONLY -> AstFunctionAttribute.EffectCategory(AstFunctionAttribute.EffectCategory.Category.READONLY, nameToken)
+            Keyword.PURE -> AstFunctionAttribute.EffectCategory(AstFunctionAttribute.EffectCategory.Category.PURE, nameToken)
+            Keyword.NOTHROW -> AstFunctionAttribute.Nothrow(nameToken)
+            Keyword.OPERATOR -> AstFunctionAttribute.Operator(nameToken)
+            Keyword.INTRINSIC -> AstFunctionAttribute.Intrinsic(nameToken)
+            Keyword.EXTERNAL -> {
+                tokens.next() // skip parant_open
+                val ffiNameToken = tokens.next() as IdentifierToken
 
-val StandaloneFunctionDeclaration = sequence("function declaration") {
-    repeating {
-        ref(FunctionModifier)
+                AstFunctionAttribute.External(nameToken, ffiNameToken)
+            }
+            else -> throw InternalCompilerError("grammar mismatch with ast transform")
+        }
     }
 
-    keyword(Keyword.FUNCTION)
+val FunctionAttributes = sequence("function attributes") {
+    repeating {
+        ref(FunctionAttribute)
+    }
+}
+    .astTransformation { tokens ->
+        tokens.remainingToList().map { it as AstFunctionAttribute }
+    }
 
+val StandaloneFunctionDeclaration = sequence("function declaration") {
+    ref(FunctionAttributes)
+    optionalWhitespace()
+    keyword(Keyword.FUNCTION)
     optionalWhitespace()
     identifier(acceptedKeywords = Keyword.entries)
     optionalWhitespace()
@@ -225,18 +233,11 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
     }
 }
     .astTransformation { tokens ->
-        val modifiers = mutableListOf<FunctionModifier>()
-        var next: Any? = tokens.next()!!
-        while (next is FunctionModifier) {
-            modifiers.add(next)
-            next = tokens.next()!!
-        }
-
-        val declarationKeyword = next as KeywordToken
-
+        val attributes = tokens.next() as List<AstFunctionAttribute>
+        val declarationKeyword = tokens.next() as KeywordToken
         val name = tokens.next() as IdentifierToken
 
-        next = tokens.next()!!
+        var next: Any? = tokens.next()!!
         val typeParameters: List<TypeParameter>
         if (next is TypeParameterBundle) {
             typeParameters = next.parameters
@@ -262,7 +263,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
 
             return@astTransformation FunctionDeclaration(
                 declarationKeyword.sourceLocation,
-                modifiers,
+                attributes,
                 name,
                 typeParameters,
                 parameterList,
@@ -276,7 +277,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
 
             return@astTransformation FunctionDeclaration(
                 declarationKeyword.sourceLocation,
-                modifiers,
+                attributes,
                 name,
                 typeParameters,
                 parameterList,
@@ -289,7 +290,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
             // function without body with trailing newline or immediately followed by EOF
             return@astTransformation FunctionDeclaration(
                 declarationKeyword.sourceLocation,
-                modifiers,
+                attributes,
                 name,
                 typeParameters,
                 parameterList,

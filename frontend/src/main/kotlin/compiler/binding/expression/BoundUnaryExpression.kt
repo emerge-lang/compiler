@@ -19,7 +19,6 @@
 package compiler.binding.expression
 
 import compiler.ast.expression.UnaryExpression
-import compiler.ast.type.FunctionModifier
 import compiler.binding.BoundStatement
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -56,12 +55,12 @@ class BoundUnaryExpression(
             .let(reportings::addAll)
 
         hiddenInvocation.dispatchedFunction?.let { operatorFunction ->
-            if (FunctionModifier.Operator !in operatorFunction.modifiers) {
+            if (!operatorFunction.attributes.isDeclaredOperator) {
                 reportings.add(
-                    Reporting.functionIsMissingModifier(
+                    Reporting.functionIsMissingAttribute(
                         operatorFunction,
                         this.declaration,
-                        FunctionModifier.Operator
+                        "operator",
                     )
                 )
             }

@@ -54,14 +54,15 @@ class ClassDeclaration(
     }
 }
 
-sealed class ClassMemberDeclaration {
-    abstract val declaredAt: SourceLocation
-    abstract val visibilityModifier: ASTVisibilityModifier?
+sealed interface ClassEntryDeclaration {
+    val declaredAt: SourceLocation
+}
+
+sealed class ClassMemberDeclaration : ClassEntryDeclaration {
     abstract val name: IdentifierToken
 }
 
 class ClassMemberVariableDeclaration(
-    override val visibilityModifier: ASTVisibilityModifier?,
     val variableDeclaration: VariableDeclaration,
 ) : ClassMemberDeclaration() {
     override val declaredAt = variableDeclaration.declaredAt
@@ -74,3 +75,7 @@ class ClassMemberVariableDeclaration(
         )
     }
 }
+
+class ClassConstructorDeclaration(
+
+)

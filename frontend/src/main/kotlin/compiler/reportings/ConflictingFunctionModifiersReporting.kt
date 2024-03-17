@@ -18,10 +18,10 @@
 
 package compiler.reportings
 
-import compiler.lexer.SourceLocation
+import compiler.ast.AstFunctionAttribute
 
-class ConflictingFunctionModifiersReporting(message: String, location: SourceLocation) : Reporting(
+class ConflictingFunctionModifiersReporting(attributes: Collection<AstFunctionAttribute>) : MultiFunctionAttributeReporting(
     Level.ERROR,
-    message,
-    location
+    "These attributes conflict each other",
+    attributes,
 )
