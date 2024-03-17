@@ -1,6 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm.codegen
 
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
+import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrArrayLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrBooleanLiteralExpression
@@ -39,15 +40,16 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i64
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
 import io.github.tmarsteel.emerge.backend.llvm.indexed
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS8ArrayType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceCreated
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceDropped
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
+import io.github.tmarsteel.emerge.backend.llvm.llvmType
 import io.github.tmarsteel.emerge.backend.llvm.tackLateInitState
 import io.github.tmarsteel.emerge.backend.llvm.tackState
 
@@ -132,7 +134,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
 ): ExpressionResult {
     when (expression) {
         is IrStringLiteralExpression -> {
-            val llvmStructWrapper = context.getAllocationSiteType(expression.evaluatesTo) as EmergeStructType
+            val llvmStructWrapper = context.getAllocationSiteType(expression.evaluatesTo) as EmergeClassType
             val byteArrayPtr = expression.assureByteArrayConstantIn(context)
             val ctor = context.registerIntrinsic(llvmStructWrapper.defaultConstructor)
             val stringTemporary = call(ctor, listOf(byteArrayPtr))
@@ -154,6 +156,11 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 expression.memberVariable,
             )
             return ExpressionResult.Value(memberPointer.dereference())
+        }
+        is IrAllocateObjectExpression -> {
+            return ExpressionResult.Value(
+                expression.clazz.llvmType.allocateUninitializedDynamicObject(this),
+            )
         }
         is IrStaticDispatchFunctionInvocationExpression -> {
             return ExpressionResult.Value(
@@ -301,9 +308,9 @@ private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.getPointerToStructMem
         return structPointer
     }
 
-    check(structPointer.type.pointed is EmergeStructType)
+    check(structPointer.type.pointed is EmergeClassType)
     @Suppress("UNCHECKED_CAST")
-    return getelementptr(structPointer as LlvmValue<LlvmPointerType<EmergeStructType>>)
+    return getelementptr(structPointer as LlvmValue<LlvmPointerType<EmergeClassType>>)
         .member(member)
         .get()
 }

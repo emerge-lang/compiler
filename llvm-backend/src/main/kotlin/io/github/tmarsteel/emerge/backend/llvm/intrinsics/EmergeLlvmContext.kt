@@ -79,33 +79,33 @@ class EmergeLlvmContext(
     lateinit var mainFunction: LlvmFunction<LlvmVoidType>
 
     /** `emerge.platform.S8Box` */
-    internal lateinit var boxTypeS8: EmergeStructType
+    internal lateinit var boxTypeS8: EmergeClassType
     /** `emerge.platform.U8Box` */
-    internal lateinit var boxTypeU8: EmergeStructType
+    internal lateinit var boxTypeU8: EmergeClassType
     /** `emerge.platform.S16Box` */
-    internal lateinit var boxTypeS16: EmergeStructType
+    internal lateinit var boxTypeS16: EmergeClassType
     /** `emerge.platform.U16Box` */
-    internal lateinit var boxTypeU16: EmergeStructType
+    internal lateinit var boxTypeU16: EmergeClassType
     /** `emerge.platform.S32Box` */
-    internal lateinit var boxTypeS32: EmergeStructType
+    internal lateinit var boxTypeS32: EmergeClassType
     /** `emerge.platform.U32Box` */
-    internal lateinit var boxTypeU32: EmergeStructType
+    internal lateinit var boxTypeU32: EmergeClassType
     /** `emerge.platform.S64Box` */
-    internal lateinit var boxTypeS64: EmergeStructType
+    internal lateinit var boxTypeS64: EmergeClassType
     /** `emerge.platform.U64Box` */
-    internal lateinit var boxTypeU64: EmergeStructType
+    internal lateinit var boxTypeU64: EmergeClassType
     /** `emerge.platform.SWordBox` */
-    internal lateinit var boxTypeSWord: EmergeStructType
+    internal lateinit var boxTypeSWord: EmergeClassType
     /** `emerge.platform.UWordBox` */
-    internal lateinit var boxTypeUWord: EmergeStructType
+    internal lateinit var boxTypeUWord: EmergeClassType
     /** `emerge.platform.BooleanBox` */
-    internal lateinit var boxTypeBoolean: EmergeStructType
+    internal lateinit var boxTypeBoolean: EmergeClassType
 
     /** `emerge.core.Unit` */
-    internal lateinit var unitType: EmergeStructType
-    internal lateinit var pointerToPointerToUnitInstance: LlvmGlobal<LlvmPointerType<EmergeStructType>>
+    internal lateinit var unitType: EmergeClassType
+    internal lateinit var pointerToPointerToUnitInstance: LlvmGlobal<LlvmPointerType<EmergeClassType>>
 
-    private val emergeStructs = ArrayList<EmergeStructType>()
+    private val emergeStructs = ArrayList<EmergeClassType>()
     private val kotlinLlvmFunctions: MutableMap<KotlinLlvmFunction<in EmergeLlvmContext, *>, KotlinLlvmFunction.DeclaredInContext<in EmergeLlvmContext, *>> = IdentityHashMap()
 
     fun registerStruct(struct: IrClass) {
@@ -116,36 +116,36 @@ class EmergeLlvmContext(
         val structType = LLVM.LLVMStructCreateNamed(ref, struct.llvmName)
         // register here to allow cyclic references
         struct.rawLlvmRef = structType
-        val emergeStructType = EmergeStructType.fromLlvmStructWithoutBody(
+        val emergeClassType = EmergeClassType.fromLlvmStructWithoutBody(
             this,
             structType,
             struct,
         )
-        struct.llvmType = emergeStructType
+        struct.llvmType = emergeClassType
 
         when (struct.fqn.toString()) {
             "emerge.ffi.c.CPointer" -> {
-                struct.members.single { it.name == "pointed" }.isCPointerPointed = true
+                struct.memberVariables.single { it.name == "pointed" }.isCPointerPointed = true
             }
-            "emerge.platform.I8Box" -> boxTypeS8 = emergeStructType
-            "emerge.platform.U8Box" -> boxTypeU8 = emergeStructType
-            "emerge.platform.S16Box" -> boxTypeS16 = emergeStructType
-            "emerge.platform.U16Box" -> boxTypeU16 = emergeStructType
-            "emerge.platform.S32Box" -> boxTypeS32 = emergeStructType
-            "emerge.platform.U32Box" -> boxTypeU32 = emergeStructType
-            "emerge.platform.S64Box" -> boxTypeS64 = emergeStructType
-            "emerge.platform.U64Box" -> boxTypeU64 = emergeStructType
-            "emerge.platform.SWordBox" -> boxTypeSWord = emergeStructType
-            "emerge.platform.UWordBox" -> boxTypeUWord = emergeStructType
+            "emerge.platform.I8Box" -> boxTypeS8 = emergeClassType
+            "emerge.platform.U8Box" -> boxTypeU8 = emergeClassType
+            "emerge.platform.S16Box" -> boxTypeS16 = emergeClassType
+            "emerge.platform.U16Box" -> boxTypeU16 = emergeClassType
+            "emerge.platform.S32Box" -> boxTypeS32 = emergeClassType
+            "emerge.platform.U32Box" -> boxTypeU32 = emergeClassType
+            "emerge.platform.S64Box" -> boxTypeS64 = emergeClassType
+            "emerge.platform.U64Box" -> boxTypeU64 = emergeClassType
+            "emerge.platform.SWordBox" -> boxTypeSWord = emergeClassType
+            "emerge.platform.UWordBox" -> boxTypeUWord = emergeClassType
             "emerge.core.Unit" -> {
-                unitType = emergeStructType
-                pointerToPointerToUnitInstance = addGlobal(undefValue(pointerTo(emergeStructType)), LlvmGlobal.ThreadLocalMode.SHARED)
+                unitType = emergeClassType
+                pointerToPointerToUnitInstance = addGlobal(undefValue(pointerTo(emergeClassType)), LlvmGlobal.ThreadLocalMode.SHARED)
                 addModuleInitFunction(registerIntrinsic(KotlinLlvmFunction.define(
                     "emerge.platform.initUnit",
                     LlvmVoidType,
                 ) {
                     body {
-                        val p = call(registerIntrinsic(emergeStructType.defaultConstructor), emptyList())
+                        val p = call(registerIntrinsic(emergeClassType.defaultConstructor), emptyList())
                         store(p, pointerToPointerToUnitInstance)
                         retVoid()
                     }
@@ -153,7 +153,7 @@ class EmergeLlvmContext(
             }
         }
 
-        emergeStructs.add(emergeStructType)
+        emergeStructs.add(emergeClassType)
     }
 
     fun <R : LlvmType> registerIntrinsic(fn: KotlinLlvmFunction<in EmergeLlvmContext, R>): LlvmFunction<R> {

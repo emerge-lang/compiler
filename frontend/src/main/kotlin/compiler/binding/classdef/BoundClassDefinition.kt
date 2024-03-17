@@ -39,7 +39,7 @@ class BoundClassDefinition(
     val classRootContext: CTContext,
     override val typeParameters: List<BoundTypeParameter>,
     override val declaration: ClassDeclaration,
-    val members: List<BoundClassMemberVariable>, // TODO: widen to BoundClassMember once functions are supported
+    val members: List<BoundClassMember>,
 ) : BaseType, BoundElement<ClassDeclaration> {
     private val onceAction = OnceAction()
 
@@ -48,6 +48,9 @@ class BoundClassDefinition(
     override val simpleName: String = declaration.name.value
 
     override val superTypes: Set<BaseType> = setOf(BuiltinAny)
+
+    val memberVariables: List<BoundClassMemberVariable> = members.filterIsInstance<BoundClassMemberVariable>()
+    val declaredConstructors: List<BoundClassDefaultConstructor> = members.filterIsInstance<BoundClassDefaultConstructor>()
 
     // this can only be initialized in semanticAnalysisPhase1 because the types referenced in the members
     // can be declared later than the class
@@ -66,13 +69,11 @@ class BoundClassDefinition(
                 reportings.addAll(it.semanticAnalysisPhase1())
             }
 
-            members.duplicatesBy(BoundClassMemberVariable::name).forEach { (_, dupMembers) ->
+            memberVariables.duplicatesBy(BoundClassMemberVariable::name).forEach { (_, dupMembers) ->
                 reportings.add(Reporting.duplicateTypeMembers(this, dupMembers))
             }
 
-            constructors = setOf(BoundOverloadSet.fromSingle(ClassConstructor(this)))
-            constructors.flatMap { it.overloads }.map { it.semanticAnalysisPhase1() }.forEach(reportings::addAll)
-            constructors.map { it.semanticAnalysisPhase1() }.forEach(reportings::addAll)
+            TODO("fail if multiple constructors")
 
             return@getResult reportings
         }
@@ -109,7 +110,7 @@ private class IrClassImpl(
 ) : IrClass {
     override val fqn: DotName = classDef.fullyQualifiedName
     override val parameters = classDef.typeParameters.map { it.toBackendIr() }
-    override val members = classDef.members.map { it.toBackendIr() }
+    override val memberVariables = classDef.memberVariables.map { it.toBackendIr() }
     override val constructors = classDef.constructors.map {
         IrOverloadGroupImpl(it.fqn, it.parameterCount, it.overloads)
     }.toSet()

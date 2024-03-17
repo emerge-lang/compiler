@@ -64,12 +64,16 @@ val ClassConstructor = sequence("constructor declaration") {
     operator(CBRACE_CLOSE)
     operator(NEWLINE)
 }
+    .astTransformation { tokens ->
+
+    }
 
 val ClassEntry = eitherOf {
     ref(ClassMemberVariableDeclaration)
     ref(ClassMemberFunctionDeclaration)
     ref(ClassConstructor)
 }
+    .astTransformation { tokens -> tokens.remainingToList().single() as ClassMemberDeclaration }
 
 val ClassDefinition = sequence("class definition") {
     keyword(CLASS_DEFINITION)

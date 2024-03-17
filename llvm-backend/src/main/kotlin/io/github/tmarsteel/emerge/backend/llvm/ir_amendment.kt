@@ -15,7 +15,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
 
@@ -61,7 +61,7 @@ internal val IrType.isUnit by tackLazyVal { this is IrSimpleType && this.baseTyp
 
 internal var IrClass.rawLlvmRef: LLVMTypeRef? by tackState { null }
 internal val IrClass.llvmName: String get() = this.fqn.toString()
-internal var IrClass.llvmType: EmergeStructType? by tackState { null }
+internal var IrClass.llvmType: EmergeClassType by tackLateInitState()
 internal var IrClass.MemberVariable.indexInLlvmStruct: Int? by tackState { null }
 
 /**

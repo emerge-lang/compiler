@@ -261,7 +261,7 @@ internal class IrAssignmentStatementTargetVariableImpl(
     override val declaration: IrVariableDeclaration,
 ): IrAssignmentStatement.Target.Variable
 
-private class IrAssignmentStatementTargetClassMemberVariableImpl(
+internal class IrAssignmentStatementTargetClassMemberVariableImpl(
     override val memberVariable: IrClass.MemberVariable,
     override val objectValue: IrTemporaryValueReference,
 ) : IrAssignmentStatement.Target.ClassMemberVariable

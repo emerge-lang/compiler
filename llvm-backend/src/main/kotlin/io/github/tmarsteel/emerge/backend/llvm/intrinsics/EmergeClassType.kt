@@ -1,5 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
+import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
@@ -24,7 +25,7 @@ import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
 import org.bytedeco.llvm.global.LLVM
 
-internal class EmergeStructType private constructor(
+internal class EmergeClassType private constructor(
     val context: EmergeLlvmContext,
     val structRef: LLVMTypeRef,
     val irClass: IrClass,
@@ -49,14 +50,14 @@ internal class EmergeStructType private constructor(
             "${irClass.llvmName}__finalize",
             LlvmVoidType,
         ) {
-            val self by param(pointerTo(this@EmergeStructType))
+            val self by param(pointerTo(this@EmergeClassType))
             body {
                 if (irClass.fqn.toString() in setOf("emerge.ffi.c.CPointer", "emerge.ffi.c.COpaquePointer", "emerge.ffi.c.CValue")) {
                     // transparent type, no action needed
                     // TODO: throw, this should never be called!
                     return@body retVoid()
                 }
-                irClass.members
+                irClass.memberVariables
                     .filter { it.type.llvmValueType == null } // value types need not be dropped
                     .forEach {
                         val referenceAsPointer = getelementptr(self).member(it).get().dereference()
@@ -79,18 +80,33 @@ internal class EmergeStructType private constructor(
         context.addGlobal(constant, LlvmGlobal.ThreadLocalMode.SHARED)
     }
 
+    /**
+     * The implementation of [IrAllocateObjectExpression], for objects that are supposed to be de-allocate-able.
+     */
+    fun allocateUninitializedDynamicObject(builder: BasicBlockBuilder<EmergeLlvmContext, *>): LlvmValue<LlvmPointerType<EmergeClassType>> {
+        val heapAllocation: LlvmValue<LlvmPointerType<EmergeClassType>>
+        with(builder) {
+            heapAllocation = heapAllocate(this@EmergeClassType)
+            val basePointer = getelementptr(heapAllocation).anyValueBase().get()
+            memcpy(basePointer, anyValueBaseTemplateDynamic, EmergeHeapAllocatedValueBaseType.sizeof(), false)
+        }
+
+        return heapAllocation
+    }
+
     private val defaultConstructorIr: IrFunction = irClass.constructors.single().overloads.single()
-    val defaultConstructor: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeStructType>> = KotlinLlvmFunction.define(
+    val defaultConstructor: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeClassType>> = KotlinLlvmFunction.define(
         defaultConstructorIr.llvmName,
         pointerTo(this),
     ) {
+        TODO("drop this in favor of obtaining the default ctor from the frontend")
         val params: List<Pair<IrClass.MemberVariable, KotlinLlvmFunction.ParameterDelegate<*>>> = defaultConstructorIr.parameters.map { irParam ->
-            val member = irClass.members.single { it.name == irParam.name }
+            val member = irClass.memberVariables.single { it.name == irParam.name }
             member to param(context.getReferenceSiteType(irParam.type))
         }
 
         body {
-            val heapAllocation = heapAllocate(this@EmergeStructType)
+            val heapAllocation = heapAllocate(this@EmergeClassType)
             val basePointer = getelementptr(heapAllocation).anyValueBase().get()
             memcpy(basePointer, anyValueBaseTemplateDynamic, EmergeHeapAllocatedValueBaseType.sizeof(), false)
             for ((irStructMember, llvmParam) in params) {
@@ -108,7 +124,7 @@ internal class EmergeStructType private constructor(
         value: LlvmValue<*>
     ): GetElementPointerStep<EmergeHeapAllocatedValueBaseType> {
         require(value.type is LlvmPointerType<*>)
-        require(value.type.pointed is EmergeStructType)
+        require(value.type.pointed is EmergeClassType)
         @Suppress("UNCHECKED_CAST")
         return builder.getelementptr(value as LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>)
             .stepUnsafe(builder.context.i32(0), EmergeHeapAllocatedValueBaseType)
@@ -123,16 +139,16 @@ internal class EmergeStructType private constructor(
             context: EmergeLlvmContext,
             structRef: LLVMTypeRef,
             irClass: IrClass,
-        ): EmergeStructType {
+        ): EmergeClassType {
             val baseElements = listOf(
                 EmergeHeapAllocatedValueBaseType
             ).map { it.getRawInContext(context) }
 
-            irClass.members.forEachIndexed { index, member ->
+            irClass.memberVariables.forEachIndexed { index, member ->
                 member.indexInLlvmStruct = baseElements.size + index
             }
 
-            val emergeMemberTypesRaw = irClass.members.map { context.getReferenceSiteType(it.type).getRawInContext(context) }
+            val emergeMemberTypesRaw = irClass.memberVariables.map { context.getReferenceSiteType(it.type).getRawInContext(context) }
             val llvmMemberTypesRaw = (baseElements + emergeMemberTypesRaw).toTypedArray()
 
             val llvmStructElements = PointerPointer(*llvmMemberTypesRaw)
@@ -142,21 +158,21 @@ internal class EmergeStructType private constructor(
                 "Cannot reinterpret emerge type ${irClass.fqn} as Any"
             }
 
-            return EmergeStructType(context, structRef, irClass)
+            return EmergeClassType(context, structRef, irClass)
         }
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
-        internal fun GetElementPointerStep<EmergeStructType>.anyValueBase(): GetElementPointerStep<EmergeHeapAllocatedValueBaseType> {
+        internal fun GetElementPointerStep<EmergeClassType>.anyValueBase(): GetElementPointerStep<EmergeHeapAllocatedValueBaseType> {
             return stepUnsafe(context.i32(0), EmergeHeapAllocatedValueBaseType)
         }
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
-        fun GetElementPointerStep<EmergeStructType>.member(memberVariable: IrClass.MemberVariable): GetElementPointerStep<LlvmType> {
+        fun GetElementPointerStep<EmergeClassType>.member(memberVariable: IrClass.MemberVariable): GetElementPointerStep<LlvmType> {
             if (memberVariable.isCPointerPointed) {
                 return this as GetElementPointerStep<LlvmType>
             }
 
-            check(memberVariable in this@member.pointeeType.irClass.members)
+            check(memberVariable in this@member.pointeeType.irClass.memberVariables)
             return stepUnsafe(context.i32(memberVariable.indexInLlvmStruct!!), context.getReferenceSiteType(memberVariable.type))
         }
     }

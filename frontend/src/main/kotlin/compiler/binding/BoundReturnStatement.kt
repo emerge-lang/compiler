@@ -119,4 +119,4 @@ class BoundReturnStatement(
     }
 }
 
-private class IrReturnStatementImpl(override val value: IrTemporaryValueReference) : IrReturnStatement
+internal class IrReturnStatementImpl(override val value: IrTemporaryValueReference) : IrReturnStatement

@@ -56,6 +56,22 @@ sealed interface IrExpression {
     val evaluatesTo: IrType
 }
 
+/**
+ * The result of this expression is a fully functional object/reference as per the backend implementation. However,
+ * the state of the member variables is undefined. It is the frontends responsibility to pair this expression with
+ * more code that initializes the object to a known-good state, as specified by the input program.
+ *
+ * In more detail this means: this expression allocates memory for an object of the given type and initializes
+ * the backend-specific elements of it:
+ * * reference counter initialized to `1`
+ * * runtime type-information as applicable, including e.g.:
+ *    * dynamic dispatch structures, e.g. a vtable
+ *    * reference to reflection data
+ */
+interface IrAllocateObjectExpression : IrExpression {
+    val clazz: IrClass
+}
+
 interface IrStringLiteralExpression : IrExpression {
     val utf8Bytes: ByteArray
 }

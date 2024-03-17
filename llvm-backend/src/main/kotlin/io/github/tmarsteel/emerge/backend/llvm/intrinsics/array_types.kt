@@ -22,7 +22,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeStructType.Companion.member
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
 import org.bytedeco.llvm.global.LLVM
 
@@ -212,7 +212,7 @@ internal val valueArrayFinalize = KotlinLlvmFunction.define<EmergeLlvmContext, _
 private fun <Element : LlvmType> buildValueArrayBoxingElementGetter(
     typeName: String,
     getValueArrayType: () -> EmergeArrayType<Element>,
-    getBoxType: EmergeLlvmContext.() -> EmergeStructType,
+    getBoxType: EmergeLlvmContext.() -> EmergeClassType,
 ): KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>> {
     return KotlinLlvmFunction.define(
         "emerge.platform.valueArrayGetBoxed_${typeName}",
@@ -237,7 +237,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementGetter(
 private fun <Element : LlvmType> buildValueArrayBoxingElementSetter(
     typeName: String,
     getValueArrayType: () -> EmergeArrayType<Element>,
-    getBoxType: EmergeLlvmContext.() -> EmergeStructType,
+    getBoxType: EmergeLlvmContext.() -> EmergeClassType,
 ): KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> {
     return KotlinLlvmFunction.define(
         "emerge.platform.valueArraySetBoxed_${typeName}",
@@ -249,7 +249,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementSetter(
         val valueBoxAny by param(PointerToAnyEmergeValue)
         body {
             val boxType = getBoxType(context)
-            val valueMember = boxType.irClass.members.single()
+            val valueMember = boxType.irClass.memberVariables.single()
             check(valueMember.name == "value")
             check(context.getReferenceSiteType(valueMember.type) == arrayType.elementType)
 
@@ -257,7 +257,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementSetter(
 
             // TODO: bounds check!
             val raw = getelementptr(valueBox)
-                .member(boxType.irClass.members.single())
+                .member(boxType.irClass.memberVariables.single())
                 .get()
                 .dereference()
                 .reinterpretAs(arrayType.elementType)
@@ -275,7 +275,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementSetter(
 private fun <Element : LlvmType> buildValueArrayType(
     elementTypeName: String,
     elementType: Element,
-    getBoxType: EmergeLlvmContext.() -> EmergeStructType,
+    getBoxType: EmergeLlvmContext.() -> EmergeClassType,
 ) : EmergeArrayType<Element> {
     lateinit var arrayTypeHolder: EmergeArrayType<Element>
     val getter = buildValueArrayBoxingElementGetter(elementTypeName, { arrayTypeHolder }, getBoxType)
