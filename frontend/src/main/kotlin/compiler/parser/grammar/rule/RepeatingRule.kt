@@ -10,7 +10,7 @@ class RepeatingRule<T>(
     private val rule: Rule<T>,
     private val requireAtLeastOnce: Boolean,
     private val maxRepeats: Int = Int.MAX_VALUE,
-) : Rule<List<T>> {
+) : Rule<RepeatingRule.RepeatedMatch<T>> {
     init {
         check(maxRepeats >= 1)
         check(!(maxRepeats == 1 && requireAtLeastOnce)) {
@@ -36,7 +36,7 @@ class RepeatingRule<T>(
         buffer.toString()
     }
 
-    override fun match(context: MatchingContext, input: TokenSequence): MatchingResult<List<T>> {
+    override fun match(context: MatchingContext, input: TokenSequence): MatchingResult<RepeatedMatch<T>> {
         input.mark()
 
         val results = ArrayList<MatchingResult<T>>(1)
@@ -72,8 +72,8 @@ class RepeatingRule<T>(
             return MatchingResult(
                 isAmbiguous = results.any { it.isAmbiguous },
                 marksEndOfAmbiguity = results.any { it.marksEndOfAmbiguity },
-                results.mapNotNull { it.item },
-                results.flatMap { it.reportings },
+                RepeatedMatch(results),
+                emptySet(),
             )
         }
 
@@ -99,6 +99,8 @@ class RepeatingRule<T>(
             reportings = errors,
         )
     }
+
+    class RepeatedMatch<T>(val matches: List<MatchingResult<T>>)
 
     override fun markAmbiguityResolved(inContext: MatchingContext) {
         rule.markAmbiguityResolved(inContext)

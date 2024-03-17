@@ -8,7 +8,7 @@ import textutils.indentByFromSecondLine
 class SequenceRule(
     private val subRules: List<Rule<*>>,
     override val explicitName: String? = null,
-) : Rule<List<MatchingResult<*>>> {
+) : Rule<SequenceRule.MatchedSequence> {
     override val descriptionOfAMatchingThing: String by lazy {
         explicitName?.let { return@lazy it }
 
@@ -27,7 +27,7 @@ class SequenceRule(
 
     override fun toString(): String = descriptionOfAMatchingThing
 
-    override fun match(context: MatchingContext, input: TokenSequence): MatchingResult<List<MatchingResult<*>>> {
+    override fun match(context: MatchingContext, input: TokenSequence): MatchingResult<MatchedSequence> {
         input.mark()
 
         val results = mutableListOf<MatchingResult<*>>()
@@ -59,7 +59,7 @@ class SequenceRule(
         return MatchingResult(
             isAmbiguous = false,
             marksEndOfAmbiguity = ambiguityResolved,
-            item = results,
+            item = MatchedSequence(results),
             reportings = reportings,
         )
     }
@@ -120,6 +120,8 @@ class SequenceRule(
             } + suffix
         }
     }
+
+    class MatchedSequence(val subResults: List<MatchingResult<*>>)
 
     private class SequenceDelegatingExpectedToken(
         val delegate: ExpectedToken,

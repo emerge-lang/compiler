@@ -19,15 +19,16 @@
 @file:JvmName("AstDsl")
 package compiler.parser.grammar.dsl
 
-import compiler.parser.grammar.rule.Rule
-import compiler.parser.grammar.rule.MatchingResult
 import compiler.parser.TokenSequence
 import compiler.parser.grammar.rule.MatchingContext
+import compiler.parser.grammar.rule.MatchingResult
+import compiler.parser.grammar.rule.RepeatingRule
+import compiler.parser.grammar.rule.Rule
+import compiler.parser.grammar.rule.SequenceRule
 import compiler.reportings.Reporting
 import compiler.transact.Position
 import compiler.transact.SimpleTransactionalSequence
 import compiler.transact.TransactionalSequence
-import java.util.HashSet
 import java.util.LinkedList
 
 fun <AstNode> Rule<*>.astTransformation(trimWhitespace: Boolean = false, transformer: (TransactionalSequence<Any, *>) -> AstNode): Rule<AstNode> {
@@ -88,26 +89,14 @@ fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
         val itemBucket: MutableList<Any> = LinkedList()
         val reportingsBucket: MutableSet<Reporting> = HashSet()
 
-        fun collectFrom(item: Any?) {
-            if (item == null || item == Unit) return
-
-            if (item is MatchingResult<*>) {
-                collectFrom(item.item)
-                collectFrom(item.reportings)
-            }
-            else if (item is Collection<*>) {
-                for (subResult in item) {
-                    collectFrom(subResult)
-                }
-            }
-            else if (item is TransactionalSequence<*, *>) {
-                itemBucket.addAll(item.remainingToList().filterNotNull())
-            }
-            else if (item is Reporting) {
-                reportingsBucket.add(item)
-            }
-            else {
-                itemBucket.add(item)
+        fun collectFrom(result: MatchingResult<*>) {
+            reportingsBucket.addAll(result.reportings)
+            when (result.item) {
+                is TransactionalSequence<*, *> -> itemBucket.addAll(result.item.remainingToList().filterNotNull())
+                is SequenceRule.MatchedSequence -> result.item.subResults.forEach(::collectFrom)
+                is RepeatingRule.RepeatedMatch<*> -> result.item.matches.forEach(::collectFrom)
+                Unit -> {}
+                else -> result.item?.let(itemBucket::add)
             }
         }
 
