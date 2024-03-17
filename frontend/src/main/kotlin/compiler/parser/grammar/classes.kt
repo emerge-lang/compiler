@@ -60,9 +60,7 @@ val ClassConstructor = sequence("constructor declaration") {
     ref(FunctionAttributes)
     localKeyword("constructor")
     operator(CBRACE_OPEN)
-    optionalWhitespace()
     ref(CodeChunk)
-    optionalWhitespace()
     operator(CBRACE_CLOSE)
     operator(NEWLINE)
 }
@@ -84,6 +82,7 @@ val ClassDefinition = sequence("class definition") {
     optionalWhitespace()
     repeating {
         ref(ClassEntry)
+        optionalWhitespace()
     }
     optionalWhitespace()
     operator(CBRACE_CLOSE)
