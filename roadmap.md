@@ -78,9 +78,11 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     1. ditch struct for class: there is no use for a struct that a `data`/`record` modifier as in Kotlin/Java couldn't
        do; especially because closed-world optimization will produce identically optimal code for a struct and a
        class with just accessors.
-       1. add member methods
-       2. implement visibility
-       3. allow finalizer customization
+       1. constructors: only one per class, see [partial initialization](#constructor-initialized-class-member-variables)
+          and [supplemental initialization](#supplemental-initialization)
+       2. add member methods
+       3. implement visibility
+       4. allow finalizer customization
     2. add interfaces and inheritance class impls interface
        1. implement generic supertypes - yey, another logic monstrosity
        2. class extends class will not be a thing! composition all the way. Probably needs some boilerplate-reduction
@@ -231,6 +233,128 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 
 ## Future features
 
+### constructor-initialized class member variables
+
+The current design requires all class member variables to have an initializer. This has the benefit that
+in the constructor, the `self` variable is not an edge-case: its already full functional. However, it might
+not be possible to assign meaningful pure values to all member variables and the constructor will have to
+change them again. This makes the code less clear than it could be.
+
+The solution: the compiler must track which fields of `self` are initialized during constructor code. This
+is essentially a very limited form of dependent typing on the `self` variable. With this in place, it becomes
+possible to
+* make the partially-initialized `self` variable available in the context of member variable initializers
+* allow member variables without an initializer and instead assure that they get initialized in the constructor
+
+so, e.g. before:
+
+```emerge
+class Foo {
+    x: Int = init
+    y = 0
+    z = 0
+    
+    constructor(self) {
+        self.y = x / 10
+        self.z = transform(self.y)  
+    }
+}
+```
+
+after:
+
+```emerge
+class Foo {
+    x: Int = init
+    y = self.x / 10
+    z: Int
+    a: Boolean
+    
+    constructor(self) {
+        self.z = transform(self.y)
+        // error: Foo.a is not initialized
+    }
+}
+```
+
+### Supplemental initialization
+
+Currently, the _single_ class constructor is the only function that can return an _exclusive_ reference, allowing
+it to be assigned to one of `mutalbe` or `immutalbe`, as per the choice of the code that called the constructor.
+Overloading constructors is a common use-case. Though, I don't find a clear syntax for it that would seem esoteric.
+So: the constraint of one constructor per class will remain. Additional constructors must be implemented as static
+methods on the class. This creates a problem with the exclusive references: passing it through the static function
+necessarily settles it to be either `mutable` or `immutable`, not leaving the choice to the caller of the static function.
+
+The solution: a very simple ownership/borrow tracker and checker:
+
+#### Capturing
+
+Capturing a value in emerge means (possibly) creating a heap reference to it. Once the first heap reference exists,
+it has to be decided whether the value is immutable or mutable. The opposite is borrowing. A function parameter (or value)
+that is borrowed cannot be captured, making sure that any `mutable` or `immutable` reference to it cannot outlive the
+borrowed reference. Consequently, class member variables cannot be `borrowed`.
+
+For `pure` and `readonly` functions, parameters are `borrow` by default. For `mutable` functions, `capture` is
+the default.
+
+An example:
+
+```emerge
+var global: Any? = null
+mutable fun foo(x: immutable Array<Int>) {
+    set global = x
+}
+
+fun test() {
+    ints: exclusive _ = [1, 2, 3]
+    ints[0] = 5 // okay, exclusive can be mutated
+    foo(ints) // here, ints is captured as immutable
+    ints[0] = 6 // error: ints has become immutable by capture on the previous line 
+}
+```
+
+You'll notice that the array mutation doesn't capture the `ints` variable, even though its a method
+call as well. This is because the set method borrows the array:
+
+```emerge
+intrinsic mutable fun set(borrow self: mutable Array<Int>, value: Int) -> Unit
+```
+
+#### Exposing the `exclusive` mutability to the language
+
+With capturing as a tool, `exclusive` can be safely exposed in the language as peer of `mutable`, `readonly`
+and `immutable`. The rules that are needed are simple:
+
+1. member variables cannot be declared `exclusive`
+2. once a local variable is captured, its type mutability changes to that of the captured reference. This must
+   happen very aggressively and be-on-the-safe-side to avoid having to implement any lifetime logic
+
+#### Overloaded constructors as static functions
+
+putting it together:
+
+```emerge
+class Foo {
+    x: Int = init
+    y: Int = init
+    z: Int = 0
+    
+    fun of(value: Int) -> exclusive Foo {
+        derived = deriveWithComplexCalculation(value)
+        exclusive foo = Foo(value, derived)
+        foo.z = 13
+        return foo                
+    }
+}
+```
+
+The static function `of` is declared to return `exclusive Foo`, making it usable just as the constructor. Arbitrary
+computation can be performed in `of` _before_ allocating the object ([something that took Java more than 20 years to implement][1]).
+Arbitrary computations can be performed _after_ initializing the object, just as in the constructor,
+and the results can be stored into the object (just as in the constructor), without affecting the mutability
+of the final reference that is created.
+
 ### Emergent properties
 Statements about the state of an object, e.g. isAbsolute on Path:
 ```
@@ -282,3 +406,5 @@ interfaces in the presence of multiple implementations.
 How complicated? Running stuff is probably easy, deducting *what* to run is probably hard.
 Also, the CTFE needs a strict timeout (maybe user-configurable?) so when it runs an infinite loop,
 it eventually continues.
+
+[1]: https://openjdk.org/jeps/447
