@@ -17,7 +17,7 @@ interface IrIntrinsicType : IrBaseType
 
 interface IrClass : IrBaseType {
     val memberVariables: List<MemberVariable>
-    val constructor: IrFunction
+    val constructor: IrImplementedFunction
 
     interface MemberVariable {
         val name: String

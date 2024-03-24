@@ -110,6 +110,12 @@ class Linux_x68_64_Backend : EmergeBackend {
                     .filterIsInstance<IrImplementedFunction>()
                     .forEach(llvmContext::defineFunctionBody)
             }
+            softwareContext.modules
+                .flatMap { it.packages }
+                .flatMap { it.classes }
+                .forEach {
+                    llvmContext.defineFunctionBody(it.constructor)
+                }
 
             // assure the entrypoint is in the object file
             llvmContext.registerIntrinsic(EmergeEntrypoint)

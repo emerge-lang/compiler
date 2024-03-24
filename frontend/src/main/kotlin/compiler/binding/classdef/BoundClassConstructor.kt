@@ -37,10 +37,8 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
-import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplementedFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
-import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
 /**
  * The constructor of a class that, once compiled, does the basic bootstrapping:
@@ -218,15 +216,11 @@ class BoundClassConstructor(
 
     private val backendIr by lazy {
         val selfTemporary = IrCreateTemporaryValueImpl(IrAllocateObjectExpressionImpl(classDef))
-        val selfVariableIr = object : IrVariableDeclaration {
-            override val name = selfVariableForInitCode.name
-            override val type = selfVariableForInitCode.type!!.toBackendIr()
-        }
         val initIr = ArrayList<IrExecutable>()
-        initIr.add(selfVariableIr)
         initIr.add(selfTemporary)
+        initIr.add(selfVariableForInitCode.backendIrDeclaration)
         initIr.add(IrAssignmentStatementImpl(
-            IrAssignmentStatementTargetVariableImpl(selfVariableIr),
+            IrAssignmentStatementTargetVariableImpl(selfVariableForInitCode.backendIrDeclaration),
             IrTemporaryValueReferenceImpl(selfTemporary),
         ))
         initIr.add(boundMemberVariableInitCodeFromCtorParams.toBackendIrStatement())
@@ -241,7 +235,7 @@ class BoundClassConstructor(
             ))
         )
     }
-    override fun toBackendIr(): IrFunction = backendIr
+    override fun toBackendIr(): IrImplementedFunction = backendIr
 }
 
 private class IrClassSimpleType(val classDef: BoundClassDefinition) : IrSimpleType {
