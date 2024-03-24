@@ -41,7 +41,7 @@ class ClassErrors : FreeSpec({
     "calling a constructor with incorrect argument types" {
         validateModule("""
             class X {
-                a: Int = true
+                a: Int = init
             }
             
             fun foo() {
