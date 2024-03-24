@@ -49,33 +49,77 @@ abstract class PurityViolationReporting protected constructor(
     }
 }
 
-data class ReadInPureContextReporting internal constructor(val readingExpression: BoundIdentifierExpression, val boundary: Boundary) : PurityViolationReporting(
+class ReadInPureContextReporting internal constructor(val readingExpression: BoundIdentifierExpression, val boundary: Boundary) : PurityViolationReporting(
     readingExpression,
     "$boundary cannot read ${readingExpression.identifier} (is not within the purity-boundary)"
 ) {
-    override fun toString() = super.toString()
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ReadInPureContextReporting) return false
+
+        if (readingExpression.declaration.sourceLocation != other.readingExpression.declaration.sourceLocation) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return readingExpression.declaration.sourceLocation.hashCode()
+    }
 }
 
-data class ImpureInvocationInPureContextReporting internal constructor(val invcExpr: BoundInvocationExpression, val boundary: Boundary) : PurityViolationReporting(
+class ImpureInvocationInPureContextReporting internal constructor(val invcExpr: BoundInvocationExpression, val boundary: Boundary) : PurityViolationReporting(
     invcExpr,
     "$boundary cannot invoke impure function ${invcExpr.dispatchedFunction!!.name}"
 ) {
-    override fun toString() = super.toString()
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ImpureInvocationInPureContextReporting) return false
+
+        if (invcExpr.declaration.sourceLocation != other.invcExpr.declaration.sourceLocation) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return invcExpr.declaration.sourceLocation.hashCode()
+    }
 }
 
-data class ModifyingInvocationInReadonlyContextReporting internal constructor(val invcExpr: BoundInvocationExpression, val boundary: Boundary) : PurityViolationReporting(
+class ModifyingInvocationInReadonlyContextReporting internal constructor(val invcExpr: BoundInvocationExpression, val boundary: Boundary) : PurityViolationReporting(
     invcExpr,
     "$boundary cannot invoke modifying function ${invcExpr.dispatchedFunction!!.name}"
 ) {
-    override fun toString() = super.toString()
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ModifyingInvocationInReadonlyContextReporting) return false
+
+        if (invcExpr.declaration.sourceLocation != other.invcExpr.declaration.sourceLocation) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return invcExpr.declaration.sourceLocation.hashCode()
+    }
 }
 
-data class StateModificationOutsideOfPurityBoundaryReporting internal constructor(val assignment: BoundAssignmentStatement, val boundary: Boundary) : PurityViolationReporting(
+class StateModificationOutsideOfPurityBoundaryReporting internal constructor(val assignment: BoundAssignmentStatement, val boundary: Boundary) : PurityViolationReporting(
     assignment,
     run {
         val boundaryType = if (boundary.isPure) "purity" else "readonlyness"
         "$boundary cannot assign state outside of its $boundaryType boundary"
     }
 ) {
-    override fun toString() = super.toString()
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is StateModificationOutsideOfPurityBoundaryReporting) return false
+
+        if (assignment.declaration.sourceLocation != other.assignment.declaration.sourceLocation) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return assignment.declaration.sourceLocation.hashCode()
+    }
 }

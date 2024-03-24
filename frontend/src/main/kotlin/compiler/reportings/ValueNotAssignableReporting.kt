@@ -81,5 +81,5 @@ open class ValueNotAssignableReporting(
         }
     }
 
-    override fun toString() = "$levelAndMessage\n  Required: $targetType\nFound:    $sourceType\n$sourceLocation"
+    override fun toString() = "$levelAndMessage  Required: $targetType\n  Found:    $sourceType\n\nin $sourceLocation"
 }
