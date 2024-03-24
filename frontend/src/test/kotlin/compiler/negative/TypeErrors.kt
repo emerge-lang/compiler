@@ -51,6 +51,37 @@ class TypeErrors : FreeSpec({
                 }
         }
 
+        "assignment to generically typed member variable" - {
+            "matching types should pass" {
+                validateModule("""
+                    class Foo<T> {
+                        var prop: T = init
+                    }
+                    fun test<T>(tInst1: T, tInst2: T) {
+                        var v = Foo(tInst1)
+                        set v.prop = tInst2
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "mismatch should error" {
+                validateModule("""
+                    class Foo<T> {
+                        var x: T = init
+                    }
+                    fun test<T>(tInst1: T) {
+                        var v = Foo(tInst1)
+                        set v.x = false
+                    }
+                """.trimIndent())
+                    .shouldReport<ValueNotAssignableReporting> {
+                        it.sourceType.toString() shouldBe "immutable Boolean"
+                        it.targetType.toString() shouldBe "T"
+                    }
+            }
+        }
+
         "reference to generic type with arguments out of bounds" - {
             "unspecified variance" {
                 validateModule("""

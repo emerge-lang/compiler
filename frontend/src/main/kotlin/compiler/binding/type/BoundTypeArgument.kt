@@ -91,7 +91,7 @@ class BoundTypeArgument(
                 )
             }
             is GenericTypeReference -> {
-                return unify(assigneeType.effectiveBound, assignmentLocation, carry)
+                return type.unify(assigneeType, assignmentLocation, carry)
             }
             is UnresolvedType -> {
                 return unify(assigneeType.standInType, assignmentLocation, carry)
