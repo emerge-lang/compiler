@@ -19,7 +19,6 @@
 package compiler.binding
 
 import compiler.ast.AssignmentStatement
-import compiler.binding.classdef.BoundClassMemberVariable
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -32,14 +31,21 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.IrGenericTypeReferenceImpl
+import compiler.binding.type.IrParameterizedTypeImpl
+import compiler.binding.type.IrSimpleTypeImpl
+import compiler.binding.type.PartiallyInitializedType
 import compiler.nullableOr
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
-import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
+import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
 class BoundAssignmentStatement(
@@ -251,14 +257,21 @@ class BoundAssignmentStatement(
         }
 
         override fun toBackendIrExecutable(): IrExecutable {
-            val previousTemporary = IrCreateTemporaryValueImpl(memberAccess.toBackendIrExpression())
+            var previousType = memberAccess.type!!.toBackendIr()
+            val memberIsPotentiallyUninitialized = (memberAccess.valueExpression.type as? PartiallyInitializedType)
+                ?.uninitializedMemberVariables
+                ?.contains(memberAccess.member!!)
+                ?: false
+            if (memberIsPotentiallyUninitialized) {
+                // forces a null-check on the reference drop, which prevents a nullpointer deref for an empty object
+                previousType = previousType.nullable()
+            }
+
+            val previousTemporary = IrCreateTemporaryValueImpl(memberAccess.toBackendIrExpression(), previousType)
             val baseTemporary = IrCreateTemporaryValueImpl(memberAccess.valueExpression.toBackendIrExpression())
             val baseTemporaryRefIncrement = IrCreateReferenceStatementImpl(baseTemporary).takeUnless { memberAccess.valueExpression.isEvaluationResultReferenceCounted }
             val toAssignTemporary = IrCreateTemporaryValueImpl(toAssignExpression.toBackendIrExpression())
             val toAssignTemporaryRefIncrement = IrCreateReferenceStatementImpl(toAssignTemporary).takeUnless { toAssignExpression.isEvaluationResultReferenceCounted }
-
-            val previousRefDropCode: IrCodeChunk
-
 
             return IrCodeChunkImpl(listOfNotNull(
                 previousTemporary,
@@ -269,7 +282,7 @@ class BoundAssignmentStatement(
                 toAssignTemporaryRefIncrement,
                 IrAssignmentStatementImpl(
                     IrAssignmentStatementTargetClassMemberVariableImpl(
-                        (memberAccess.member as BoundClassMemberVariable).toBackendIr(),
+                        memberAccess.member!!.toBackendIr(),
                         IrTemporaryValueReferenceImpl(baseTemporary),
                     ),
                     IrTemporaryValueReferenceImpl(toAssignTemporary),
@@ -298,3 +311,9 @@ internal class IrAssignmentStatementTargetClassMemberVariableImpl(
     override val memberVariable: IrClass.MemberVariable,
     override val objectValue: IrTemporaryValueReference,
 ) : IrAssignmentStatement.Target.ClassMemberVariable
+
+private fun IrType.nullable(): IrType = if (isNullable) this else when (this) {
+    is IrSimpleType -> IrSimpleTypeImpl(this.baseType, true)
+    is IrGenericTypeReference -> IrGenericTypeReferenceImpl(this.parameter, effectiveBound.nullable())
+    is IrParameterizedType -> IrParameterizedTypeImpl(this.simpleType.nullable() as IrSimpleType, arguments)
+}

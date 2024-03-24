@@ -201,7 +201,7 @@ private class MappedEffectiveBoundGenericTypeReference private constructor(
     }
 }
 
-private class IrGenericTypeReferenceImpl(
+internal class IrGenericTypeReferenceImpl(
     override val parameter: IrBaseType.Parameter,
     override val effectiveBound: IrType,
 ) : IrGenericTypeReference {
