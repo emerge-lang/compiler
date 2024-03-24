@@ -17,9 +17,8 @@ class KotlinLlvmFunction<C : LlvmContext, R : LlvmType> private constructor(
         val definitionReceiver = DefinitionReceiverImpl<C, R>()
         definitionReceiver.definition()
         val functionType = LlvmFunctionType(returnType, definitionReceiver.parameters.map { it.type })
-        val functionTypeRaw = functionType.getRawInContext(context)
-        val functionRaw = LLVM.LLVMAddFunction(context.module, name, functionTypeRaw)
-        val function = LlvmFunction(LlvmConstant(functionRaw, LlvmFunctionAddressType), functionType, functionTypeRaw)
+        val functionRaw = LLVM.LLVMAddFunction(context.module, name, functionType.getRawInContext(context))
+        val function = LlvmFunction(LlvmConstant(functionRaw, LlvmFunctionAddressType), functionType)
         return DeclaredInContextImpl(
             context,
             definitionReceiver.parameters,

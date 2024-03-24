@@ -165,7 +165,11 @@ class EmergeLlvmContext(
         return rawFn as LlvmFunction<R>
     }
 
-    fun registerFunction(fn: IrFunction): LlvmFunction<*> {
+    /**
+     * @param returnTypeOverride the return type on LLVM level. **DANGER!** there is only one intended use case for this:
+     * making the constructor of core.emerge.Unit return ptr instead of void.
+     */
+    fun registerFunction(fn: IrFunction, returnTypeOverride: LlvmType? = null): LlvmFunction<*> {
         fn.llvmRef?.let { return it }
 
         val parameterTypes = fn.parameters.map { getReferenceSiteType(it.type) }
@@ -184,7 +188,7 @@ class EmergeLlvmContext(
             }
         }
 
-        val returnLlvmType = if (fn.returnType.isUnit) LlvmVoidType else getReferenceSiteType(fn.returnType)
+        val returnLlvmType = returnTypeOverride ?: if (fn.returnType.isUnit) LlvmVoidType else getReferenceSiteType(fn.returnType)
         val functionType = LlvmFunctionType(
             returnLlvmType,
             parameterTypes,
@@ -193,7 +197,6 @@ class EmergeLlvmContext(
         fn.llvmRef = LlvmFunction(
             LlvmConstant(rawRef, LlvmFunctionAddressType),
             functionType,
-            functionType.getRawInContext(this),
         )
 
         fn.parameters.forEachIndexed { index, param ->
@@ -251,7 +254,10 @@ class EmergeLlvmContext(
             structConstructorsRegistered = true
             emergeStructs.forEach {
                 // TODO: this handling is wonky, needs more conceptual work
-                val ref = registerFunction(it.irClass.constructor)
+                // the code will convert a return value of Unit to LLvmVoidType. That is correct except for this one
+                // function -> adapt
+                val returnTypeOverride = if (it == unitType) PointerToAnyEmergeValue else null
+                val ref = registerFunction(it.irClass.constructor, returnTypeOverride)
                 it.irClass.constructor.llvmRef = ref
             }
         }
@@ -403,7 +409,6 @@ class EmergeLlvmContext(
 
                 // there are no other possibilities AFAICT right now
                 return (type.baseType as IrClass).llvmType
-                    ?: throw CodeGenerationException("Encountered Emerge struct type ${type.baseType.fqn} that wasn't registered through ${EmergeLlvmContext::registerStruct.name}")
             }
         }
         throw CodeGenerationException("Failed to determine allocation-site type for $type")

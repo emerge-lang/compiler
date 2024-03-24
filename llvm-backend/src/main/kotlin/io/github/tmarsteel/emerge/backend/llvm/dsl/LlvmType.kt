@@ -240,7 +240,7 @@ object LlvmFunctionAddressType : LlvmType {
     override fun getRawInContext(context: LlvmContext) = context.rawPointer
 }
 
-class LlvmFunctionType<out R : LlvmType>(
+data class LlvmFunctionType<out R : LlvmType>(
     val returnType: R,
     val parameterTypes: List<LlvmType>,
 ) : LlvmCachedType() {

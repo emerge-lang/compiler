@@ -192,7 +192,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         val argsPointerPointer = PointerPointer(*argsArray)
         val result = LLVM.LLVMBuildCall2(
             builder,
-            function.rawType,
+            function.type.getRawInContext(context),
             function.address.raw,
             argsPointerPointer,
             args.size,
