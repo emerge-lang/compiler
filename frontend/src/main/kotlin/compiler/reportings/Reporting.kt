@@ -218,6 +218,11 @@ abstract class Reporting internal constructor(
             )
         }
 
+        fun useOfUninitializedMember(access: BoundMemberAccessExpression) = UseOfUninitializedClassMemberVariableReporting(
+            access.member!!.declaration,
+            access.declaration.memberName.sourceLocation,
+        )
+
         /**
          * An expression is used in a way that requires it to be non-null but the type of the expression is nullable.
          * @param nullableExpression The expression that could evaluate to null and thus case an NPE

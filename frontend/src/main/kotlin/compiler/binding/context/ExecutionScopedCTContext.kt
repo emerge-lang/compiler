@@ -165,7 +165,7 @@ open class MutableExecutionScopedCTContext protected constructor(
     }
 
     private val variableTypeOverrides: MutableMap<BoundVariable, BoundTypeReference> = IdentityHashMap()
-    override fun getVariableType(variable: BoundVariable): BoundTypeReference {
+    override fun getVariableType(variable: BoundVariable): BoundTypeReference? {
         return variableTypeOverrides[variable] ?: parentContext.getVariableType(variable)
     }
 

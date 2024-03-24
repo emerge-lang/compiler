@@ -40,7 +40,7 @@ class BoundIdentifierExpression(
 
     override val type: BoundTypeReference?
         get() = when(val localReferral = referral) {
-            is ReferringVariable -> localReferral.variable.type
+            is ReferringVariable -> localReferral.variable.getTypeInContext(context)
             is ReferringType -> localReferral.reference
             null -> null
         }
@@ -81,12 +81,7 @@ class BoundIdentifierExpression(
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = mutableListOf<Reporting>()
-        if (type == null) {
-            (referral as? ReferringVariable)?.variable?.semanticAnalysisPhase2()?.let(reportings::addAll)
-        }
-
         referral?.semanticAnalysisPhase2()?.let(reportings::addAll)
-
         return reportings
     }
 
@@ -120,6 +115,10 @@ class BoundIdentifierExpression(
 
         override fun markEvaluationResultUsed() {
             usageContext = VariableUsageContext.READ
+        }
+
+        override fun semanticAnalysisPhase2(): Collection<Reporting> {
+            return variable.semanticAnalysisPhase2()
         }
 
         override fun semanticAnalysisPhase3(): Collection<Reporting> {

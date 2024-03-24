@@ -18,7 +18,6 @@
 
 package compiler.binding.context
 
-import compiler.InternalCompilerError
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundImportDeclaration
@@ -101,8 +100,8 @@ interface CTContext {
      *
      * If the [BoundVariable] wasn't obtained from [resolveVariable] on the same context, the return value is undefined.
      */
-    fun getVariableType(variable: BoundVariable): BoundTypeReference {
-        return variable.type ?: throw InternalCompilerError("Type not determined yet; invoke after ${BoundVariable::semanticAnalysisPhase2.name}")
+    fun getVariableType(variable: BoundVariable): BoundTypeReference? {
+        return variable.type
     }
 
     fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet>

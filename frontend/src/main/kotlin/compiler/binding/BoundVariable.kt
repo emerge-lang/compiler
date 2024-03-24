@@ -244,7 +244,7 @@ class BoundVariable(
      * @return the type of this variable in this specific context. Used to implement additional type inference,
      * e.g. instanceof checks, null checks, partial initialization, ...
      */
-    fun getTypeInContext(context: ExecutionScopedCTContext): BoundTypeReference {
+    fun getTypeInContext(context: ExecutionScopedCTContext): BoundTypeReference? {
         return context.getVariableType(this)
     }
 

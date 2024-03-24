@@ -28,6 +28,7 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.PartiallyInitializedType
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassMemberVariableAccessExpression
@@ -42,6 +43,8 @@ class BoundMemberAccessExpression(
     val isNullSafeAccess: Boolean,
     val memberName: String
 ) : BoundExpression<MemberAccessExpression> {
+    var usageContext: UsageContext = UsageContext.READ
+
     /**
      * The type of this expression. Is null before semantic anylsis phase 2 is finished; afterwards is null if the
      * type could not be determined or [memberName] denotes a function.
@@ -64,7 +67,8 @@ class BoundMemberAccessExpression(
         val reportings = mutableSetOf<Reporting>()
         reportings.addAll(valueExpression.semanticAnalysisPhase2())
 
-        valueExpression.type?.let { valueType ->
+        val valueType = valueExpression.type
+        if (valueType != null) {
             if (valueType.isNullable && !isNullSafeAccess) {
                 reportings.add(Reporting.unsafeObjectTraversal(valueExpression, declaration.accessOperatorToken))
                 // TODO: set the type of this expression nullable
@@ -73,11 +77,23 @@ class BoundMemberAccessExpression(
                 reportings.add(Reporting.superfluousSafeObjectTraversal(valueExpression, declaration.accessOperatorToken))
             }
 
-            valueType.findMemberVariable(memberName)?.let { member ->
+            val member = valueType.findMemberVariable(memberName)
+            if (member == null) {
+                reportings.add(Reporting.unresolvableMemberVariable(this, valueType))
+            } else {
                 this.member = member
                 this.type = member.type?.instantiateAllParameters(valueType.inherentTypeBindings)
-            } ?: run {
-                reportings.add(Reporting.unresolvableMemberVariable(this, valueType))
+
+                if (usageContext.requiresMemberInitialized) {
+                    val isInitialized = (valueExpression.type as? PartiallyInitializedType?)
+                        ?.uninitializedMemberVariables
+                        ?.let { uninitializedMembers -> member !in uninitializedMembers }
+                        ?: true
+
+                    if (!isInitialized) {
+                        reportings.add(Reporting.useOfUninitializedMember(this))
+                    }
+                }
             }
         }
 
@@ -115,6 +131,12 @@ class BoundMemberAccessExpression(
             IrCodeChunkImpl(listOf(baseTemporary, memberTemporary)),
             IrTemporaryValueReferenceImpl(memberTemporary),
         )
+    }
+
+    enum class UsageContext(val requiresMemberInitialized: Boolean) {
+        READ(true),
+        WRITE(false),
+        ;
     }
 }
 

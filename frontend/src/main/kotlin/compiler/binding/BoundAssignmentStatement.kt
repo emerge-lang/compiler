@@ -36,6 +36,7 @@ import compiler.nullableOr
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
+import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -54,6 +55,12 @@ class BoundAssignmentStatement(
     override val modifiedContext: ExecutionScopedCTContext = _modifiedContext
 
     override val implicitEvaluationResultType: BoundTypeReference? = null
+
+    init {
+        if (targetExpression is BoundMemberAccessExpression) {
+            targetExpression.usageContext = BoundMemberAccessExpression.UsageContext.WRITE
+        }
+    }
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableListOf<Reporting>()
@@ -94,6 +101,7 @@ class BoundAssignmentStatement(
         val reportings = mutableListOf<Reporting>()
         reportings.addAll(targetExpression.semanticAnalysisPhase2())
         reportings.addAll(toAssignExpression.semanticAnalysisPhase2())
+        target?.semanticAnalysisPhase2()?.let(reportings::addAll)
 
         if (implicitEvaluationRequired) {
             reportings.add(Reporting.assignmentUsedAsExpression(this))
@@ -127,6 +135,7 @@ class BoundAssignmentStatement(
 
     sealed interface AssignmentTarget {
         val type: BoundTypeReference?
+        fun semanticAnalysisPhase2(): Collection<Reporting>
         fun semanticAnalysisPhase3(): Collection<Reporting>
         fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>>
         fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>>
@@ -135,6 +144,11 @@ class BoundAssignmentStatement(
 
     inner class VariableTarget(val reference: BoundIdentifierExpression.ReferringVariable) : AssignmentTarget {
         override val type get() = reference.variable.type
+
+        override fun semanticAnalysisPhase2(): Collection<Reporting> {
+            return emptySet()
+        }
+
         override fun semanticAnalysisPhase3(): Collection<Reporting> {
             val reportings = mutableListOf<Reporting>()
 
@@ -193,6 +207,21 @@ class BoundAssignmentStatement(
         val memberAccess: BoundMemberAccessExpression,
     ) : AssignmentTarget {
         override val type get() = memberAccess.type
+
+        override fun semanticAnalysisPhase2(): Collection<Reporting> {
+            (memberAccess.valueExpression as? BoundIdentifierExpression)
+                ?.referral?.let { it as? BoundIdentifierExpression.ReferringVariable }
+                ?.variable
+                ?.let { assignedToVar ->
+                    val member = memberAccess.member
+                    if (member != null) {
+                        _modifiedContext.markVariableInitializationCompletedPartially(assignedToVar, member)
+                    }
+                }
+
+            return emptySet()
+        }
+
         override fun semanticAnalysisPhase3(): Collection<Reporting> {
             val reportings = mutableListOf<Reporting>()
 
@@ -205,13 +234,6 @@ class BoundAssignmentStatement(
                 toAssignExpression.type?.evaluateAssignabilityTo(targetType, toAssignExpression.declaration.sourceLocation)
                     ?.let(reportings::add)
             }
-
-            (memberAccess.valueExpression as? BoundIdentifierExpression)
-                ?.referral?.let { it as? BoundIdentifierExpression.ReferringVariable }
-                ?.variable
-                ?.let { assignedToVar ->
-                    _modifiedContext.markVariableInitializationCompletedPartially(assignedToVar, memberAccess.member as BoundClassMemberVariable)
-                }
 
             return reportings
         }
@@ -234,6 +256,10 @@ class BoundAssignmentStatement(
             val baseTemporaryRefIncrement = IrCreateReferenceStatementImpl(baseTemporary).takeUnless { memberAccess.valueExpression.isEvaluationResultReferenceCounted }
             val toAssignTemporary = IrCreateTemporaryValueImpl(toAssignExpression.toBackendIrExpression())
             val toAssignTemporaryRefIncrement = IrCreateReferenceStatementImpl(toAssignTemporary).takeUnless { toAssignExpression.isEvaluationResultReferenceCounted }
+
+            val previousRefDropCode: IrCodeChunk
+
+
             return IrCodeChunkImpl(listOfNotNull(
                 previousTemporary,
                 IrDropReferenceStatementImpl(previousTemporary),

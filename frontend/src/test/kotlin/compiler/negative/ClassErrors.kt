@@ -1,10 +1,12 @@
 package compiler.compiler.negative
 
-import compiler.reportings.ClassMemberVariableNotInitializedReporting
+import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
 import compiler.reportings.DuplicateClassMemberReporting
 import compiler.reportings.ImpureInvocationInPureContextReporting
+import compiler.reportings.ObjectNotFullyInitializedReporting
 import compiler.reportings.ReadInPureContextReporting
 import compiler.reportings.UnknownTypeReporting
+import compiler.reportings.UseOfUninitializedClassMemberVariableReporting
 import compiler.reportings.ValueNotAssignableReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forAll
@@ -64,7 +66,7 @@ class ClassErrors : FreeSpec({
                     x: Int
                 }
             """.trimIndent())
-                .shouldReport<ClassMemberVariableNotInitializedReporting>()
+                .shouldReport<ClassMemberVariableNotInitializedDuringObjectConstructionReporting>()
         }
 
         "members can be initialized in the custom constructor by assignment" {
@@ -102,6 +104,51 @@ class ClassErrors : FreeSpec({
             }
 
             // TODO: as soon as there are lambdas, add a test to verify a run { ... } initializer can't write
+        }
+    }
+
+    "constructor" - {
+        "constructor cannot use uninitialized member variables" {
+            validateModule("""
+                class Foo {
+                    x: Int
+                    y: Int = 2
+                    
+                    constructor {
+                        doSomething(self.y)
+                        doSomething(self.x)
+                        set self.x = 3
+                        doSomething(self.x)
+                    }
+                }
+                
+                fun doSomething(p: Int) {}
+            """.trimIndent())
+                .shouldReport<UseOfUninitializedClassMemberVariableReporting> {
+                    it.member.name.value shouldBe "x"
+                }
+        }
+
+        "constructor cannot use partially-initialized self" {
+            validateModule("""
+                class Foo {
+                    x: Int
+                    y: Int = 2
+                    
+                    constructor {
+                        doSomething(self)
+                        set self.x = 3
+                        doSomething(self)
+                    }
+                }
+                
+                fun doSomething(p: Foo) {}
+            """.trimIndent())
+                .shouldReport<ObjectNotFullyInitializedReporting> {
+                    it.baseType.simpleName shouldBe "Foo"
+                    it.uninitializedMembers should haveSize(1)
+                    it.uninitializedMembers.single().name.value shouldBe "x"
+                }
         }
     }
 

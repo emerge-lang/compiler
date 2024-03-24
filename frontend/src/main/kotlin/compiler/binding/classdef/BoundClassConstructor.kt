@@ -32,7 +32,7 @@ import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
-import compiler.reportings.ClassMemberVariableNotInitializedReporting
+import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
@@ -242,7 +242,7 @@ class BoundClassConstructor(
             val typeOfSelfAfterCtorCode = selfVariableForInitCode.getTypeInContext(additionalInitCode.modifiedContext)
             if (typeOfSelfAfterCtorCode is PartiallyInitializedType) {
                 typeOfSelfAfterCtorCode.uninitializedMemberVariables
-                    .map { ClassMemberVariableNotInitializedReporting(it.declaration) }
+                    .map { ClassMemberVariableNotInitializedDuringObjectConstructionReporting(it.declaration) }
                     .let(reportings::addAll)
             }
 

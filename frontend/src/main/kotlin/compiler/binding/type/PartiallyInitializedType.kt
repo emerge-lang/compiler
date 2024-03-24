@@ -65,6 +65,18 @@ data class PartiallyInitializedType(
         return base.hasSameBaseTypeAs(other)
     }
 
+    override fun findMemberVariable(name: String): BoundClassMemberVariable? {
+        return base.findMemberVariable(name)
+    }
+
+    override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
+        return copy(base = base.instantiateFreeVariables(context))
+    }
+
+    override fun isDisjointWith(other: BoundTypeReference): Boolean {
+        throw InternalCompilerError("This should never happen")
+    }
+
     override val inherentTypeBindings = base.inherentTypeBindings
 
     override fun toString() = "partially-initialized $base"
