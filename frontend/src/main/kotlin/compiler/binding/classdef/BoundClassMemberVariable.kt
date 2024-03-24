@@ -38,19 +38,19 @@ class BoundClassMemberVariable(
     override val name = declaration.name.value
     override val isMutable = true
 
-    val isDefaultConstructorInitialized = if (declaration.variableDeclaration.initializerExpression is IdentifierExpression) {
+    val isConstructorParameterInitialized = if (declaration.variableDeclaration.initializerExpression is IdentifierExpression) {
         declaration.variableDeclaration.initializerExpression.identifier.value == "init"
     } else {
         false
     }
 
-    private val effectiveVariableDeclaration = if (!isDefaultConstructorInitialized) declaration.variableDeclaration else {
+    private val effectiveVariableDeclaration = if (!isConstructorParameterInitialized) declaration.variableDeclaration else {
         declaration.variableDeclaration.copy(initializerExpression = null)
     }
     private val boundEffectiveVariableDeclaration = effectiveVariableDeclaration.bindTo(context)
 
     /**
-     * The initial value for this member variable, or `null` if [isDefaultConstructorInitialized]
+     * The initial value for this member variable, or `null` if [isConstructorParameterInitialized]
      */
     val initializer: BoundExpression<*>? = boundEffectiveVariableDeclaration.initializerExpression
 
@@ -81,7 +81,7 @@ class BoundClassMemberVariable(
                 boundEffectiveVariableDeclaration.initializerExpression.findWritesBeyond(context),
                 this,
             ))
-        } else if (!isDefaultConstructorInitialized) {
+        } else if (!isConstructorParameterInitialized) {
             reportings.add(ClassMemberVariableNotInitializedReporting(declaration))
         }
 

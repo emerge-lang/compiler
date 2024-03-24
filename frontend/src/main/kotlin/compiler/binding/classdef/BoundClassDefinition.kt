@@ -22,10 +22,7 @@ import compiler.OnceAction
 import compiler.ast.ClassDeclaration
 import compiler.ast.FunctionDeclaration
 import compiler.binding.BoundElement
-import compiler.binding.BoundFunction
-import compiler.binding.BoundOverloadSet
 import compiler.binding.context.CTContext
-import compiler.binding.misc_ir.IrOverloadGroupImpl
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BuiltinAny
@@ -36,10 +33,10 @@ import kotlinext.duplicatesBy
 
 class BoundClassDefinition(
     fileContext: CTContext,
-    val classRootContext: CTContext,
+    private val classRootContext: CTContext,
     override val typeParameters: List<BoundTypeParameter>,
     override val declaration: ClassDeclaration,
-    val members: List<BoundClassMember>,
+    val entries: List<BoundClassEntry>,
 ) : BaseType, BoundElement<ClassDeclaration> {
     private val onceAction = OnceAction()
 
@@ -49,13 +46,13 @@ class BoundClassDefinition(
 
     override val superTypes: Set<BaseType> = setOf(BuiltinAny)
 
-    val memberVariables: List<BoundClassMemberVariable> = members.filterIsInstance<BoundClassMemberVariable>()
-    val declaredConstructors: List<BoundClassDefaultConstructor> = members.filterIsInstance<BoundClassDefaultConstructor>()
+    val memberVariables: List<BoundClassMemberVariable> = entries.filterIsInstance<BoundClassMemberVariable>()
+    val declaredConstructors: List<BoundClassConstructor> = entries.filterIsInstance<BoundClassConstructor>()
+        .onEach { require(it.explicitDeclaration != null) }
 
     // this can only be initialized in semanticAnalysisPhase1 because the types referenced in the members
     // can be declared later than the class
-    override lateinit var constructors: Collection<BoundOverloadSet>
-        private set
+    override val constructor = declaredConstructors.firstOrNull() ?: BoundClassConstructor(classRootContext, { this }, null)
 
     override fun resolveMemberFunction(name: String): Collection<FunctionDeclaration> = emptySet()
 
@@ -65,7 +62,7 @@ class BoundClassDefinition(
 
             typeParameters.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
 
-            members.forEach {
+            entries.forEach {
                 reportings.addAll(it.semanticAnalysisPhase1())
             }
 
@@ -73,7 +70,10 @@ class BoundClassDefinition(
                 reportings.add(Reporting.duplicateTypeMembers(this, dupMembers))
             }
 
-            TODO("fail if multiple constructors")
+            declaredConstructors.drop(1)
+                .takeUnless { it.isEmpty() }
+                ?.let { list -> reportings.add(Reporting.multipleClassConstructors(list.map { it.explicitDeclaration!! }))}
+            declaredConstructors.map { it.semanticAnalysisPhase1() }.forEach(reportings::addAll)
 
             return@getResult reportings
         }
@@ -81,25 +81,29 @@ class BoundClassDefinition(
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
-            val reportings = members.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
-            constructors.flatMap { it.overloads }.map(BoundFunction::semanticAnalysisPhase2).forEach(reportings::addAll)
-            constructors.map { it.semanticAnalysisPhase2() }.forEach(reportings::addAll)
+            val reportings = entries.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
+
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase2).forEach(reportings::addAll)
+            entries.map(BoundClassEntry::semanticAnalysisPhase2).forEach(reportings::addAll)
+            declaredConstructors.map { it.semanticAnalysisPhase2() }.forEach(reportings::addAll)
+
             return@getResult reportings
         }
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
-            val reportings = members.flatMap { it.semanticAnalysisPhase3() }.toMutableList()
-            constructors.flatMap { it.overloads }.map(BoundFunction::semanticAnalysisPhase3).forEach(reportings::addAll)
-            constructors.map { it.semanticAnalysisPhase3() }.forEach(reportings::addAll)
+            val reportings = entries.flatMap { it.semanticAnalysisPhase3() }.toMutableList()
+
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
+            entries.map(BoundClassEntry::semanticAnalysisPhase3).forEach(reportings::addAll)
+            declaredConstructors.map { it.semanticAnalysisPhase3() }.forEach(reportings::addAll)
+
             return@getResult reportings
         }
     }
 
-    override fun resolveMemberVariable(name: String): BoundClassMember? = members.find { it.name == name }
+    override fun resolveMemberVariable(name: String): BoundClassMember? = memberVariables.find { it.name == name }
 
     private val backendIr by lazy { IrClassImpl(this) }
     override fun toBackendIr(): IrClass = backendIr
@@ -111,7 +115,5 @@ private class IrClassImpl(
     override val fqn: DotName = classDef.fullyQualifiedName
     override val parameters = classDef.typeParameters.map { it.toBackendIr() }
     override val memberVariables = classDef.memberVariables.map { it.toBackendIr() }
-    override val constructors = classDef.constructors.map {
-        IrOverloadGroupImpl(it.fqn, it.parameterCount, it.overloads)
-    }.toSet()
+    override val constructor by lazy { classDef.constructor.toBackendIr() }
 }

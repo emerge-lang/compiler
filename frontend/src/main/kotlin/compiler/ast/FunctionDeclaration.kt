@@ -23,8 +23,6 @@ import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
-import compiler.binding.BoundParameter
-import compiler.binding.BoundParameterList
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -43,23 +41,15 @@ data class FunctionDeclaration(
     fun bindTo(context: CTContext): BoundDeclaredFunction {
         val functionContext = MutableExecutionScopedCTContext.functionRootIn(context)
         val boundTypeParams = typeParameters.map(functionContext::addTypeParameter)
-
-        var contextAfterValueParameters: ExecutionScopedCTContext = functionContext
-        val boundParameters = ArrayList<BoundParameter>(parameters.parameters.size)
-        for (parameter in parameters.parameters) {
-            val bound = parameter.bindToAsParameter(contextAfterValueParameters)
-            boundParameters.add(bound)
-            contextAfterValueParameters = bound.modifiedContext
-        }
-        val boundParamList = BoundParameterList(context, parameters, boundParameters)
+        val boundParameterList = parameters.bindTo(functionContext)
 
         return BoundDeclaredFunction(
             functionContext,
             this,
             BoundFunctionAttributeList(attributes),
             boundTypeParams,
-            boundParamList,
-            body?.bindTo(contextAfterValueParameters),
+            boundParameterList,
+            body?.bindTo(boundParameterList.modifiedContext),
         )
     }
 

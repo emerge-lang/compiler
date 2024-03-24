@@ -142,7 +142,9 @@ class BoundInvocationExpression(
             return null
         }
 
-        val candidateConstructors = if (receiverExpression != null) null else context.resolveBaseType(functionNameToken.value)?.constructors
+        val candidateConstructors = if (receiverExpression != null) null else {
+            context.resolveBaseType(functionNameToken.value)?.constructor?.let(BoundOverloadSet::fromSingle)?.let(::setOf)
+        }
         val candidateFunctions = context.getToplevelFunctionOverloadSetsBySimpleName(functionNameToken.value)
 
         if (candidateConstructors.isNullOrEmpty() && candidateFunctions.isEmpty()) {

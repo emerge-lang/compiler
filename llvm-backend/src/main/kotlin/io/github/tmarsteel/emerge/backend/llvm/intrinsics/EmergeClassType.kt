@@ -2,13 +2,13 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
-import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
@@ -20,6 +20,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.indexInLlvmStruct
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
+import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.llvmValueType
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
@@ -71,6 +72,8 @@ internal class EmergeClassType private constructor(
         { emptyList() }
     )
 
+    val constructor get() = irClass.constructor.llvmRef!! as LlvmFunction<LlvmPointerType<EmergeClassType>>
+
     private val anyValueBaseTemplateDynamic: LlvmGlobal<EmergeHeapAllocatedValueBaseType> by lazy {
         val constant = EmergeHeapAllocatedValueBaseType.buildConstantIn(context) {
             setValue(EmergeHeapAllocatedValueBaseType.strongReferenceCount, context.word(1))
@@ -81,7 +84,7 @@ internal class EmergeClassType private constructor(
     }
 
     /**
-     * The implementation of [IrAllocateObjectExpression], for objects that are supposed to be de-allocate-able.
+     * The implementation of [IrAllocateObjectExpression], for objects that are supposed to be de-allocate-able (not static)
      */
     fun allocateUninitializedDynamicObject(builder: BasicBlockBuilder<EmergeLlvmContext, *>): LlvmValue<LlvmPointerType<EmergeClassType>> {
         val heapAllocation: LlvmValue<LlvmPointerType<EmergeClassType>>
@@ -92,31 +95,6 @@ internal class EmergeClassType private constructor(
         }
 
         return heapAllocation
-    }
-
-    private val defaultConstructorIr: IrFunction = irClass.constructors.single().overloads.single()
-    val defaultConstructor: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeClassType>> = KotlinLlvmFunction.define(
-        defaultConstructorIr.llvmName,
-        pointerTo(this),
-    ) {
-        TODO("drop this in favor of obtaining the default ctor from the frontend")
-        val params: List<Pair<IrClass.MemberVariable, KotlinLlvmFunction.ParameterDelegate<*>>> = defaultConstructorIr.parameters.map { irParam ->
-            val member = irClass.memberVariables.single { it.name == irParam.name }
-            member to param(context.getReferenceSiteType(irParam.type))
-        }
-
-        body {
-            val heapAllocation = heapAllocate(this@EmergeClassType)
-            val basePointer = getelementptr(heapAllocation).anyValueBase().get()
-            memcpy(basePointer, anyValueBaseTemplateDynamic, EmergeHeapAllocatedValueBaseType.sizeof(), false)
-            for ((irStructMember, llvmParam) in params) {
-                val memberPointer = getelementptr(heapAllocation).member(irStructMember).get()
-                val paramValue = llvmParam.getValue(null, String::length)
-                store(paramValue, memberPointer)
-                paramValue.afterReferenceCreated(irStructMember.type)
-            }
-            ret(heapAllocation)
-        }
     }
 
     override fun pointerToCommonBase(

@@ -19,16 +19,21 @@
 package compiler.binding
 
 import compiler.ast.ParameterList
-import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.reportings.Reporting
 
 class BoundParameterList(
-    val context: CTContext,
+    val context: ExecutionScopedCTContext,
     val declaration: ParameterList,
     val parameters: List<BoundParameter>
 ) {
     val declaredReceiver: BoundParameter?
         get() = parameters.firstOrNull()?.takeIf { it.name == RECEIVER_PARAMETER_NAME }
+
+    val modifiedContext: ExecutionScopedCTContext = MutableExecutionScopedCTContext.deriveFrom(context).also {
+        parameters.forEach(it::addVariable)
+    }
 
     fun semanticAnalysisPhase1(allowUntypedReceiver: Boolean = false): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()

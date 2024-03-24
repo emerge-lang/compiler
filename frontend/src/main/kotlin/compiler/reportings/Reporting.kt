@@ -20,6 +20,7 @@ package compiler.reportings
 
 import compiler.ast.ASTPackageName
 import compiler.ast.AstFunctionAttribute
+import compiler.ast.ClassConstructorDeclaration
 import compiler.ast.Expression
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
@@ -263,6 +264,9 @@ abstract class Reporting internal constructor(
 
         fun integerLiteralOutOfRange(literal: Expression, expectedType: BaseType, expectedRange: ClosedRange<BigInteger>)
             = IntegerLiteralOutOfRangeReporting(literal, expectedType, expectedRange)
+
+        fun multipleClassConstructors(additionalCtors: Collection<ClassConstructorDeclaration>)
+            = MultipleClassConstructorsReporting(additionalCtors)
 
         private fun readingPurityViolationToReporting(violation: BoundExpression<*>, boundary: PurityViolationReporting.Boundary): Reporting {
             if (violation is BoundIdentifierExpression) {

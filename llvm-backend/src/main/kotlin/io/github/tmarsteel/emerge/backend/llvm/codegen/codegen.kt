@@ -136,8 +136,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         is IrStringLiteralExpression -> {
             val llvmStructWrapper = context.getAllocationSiteType(expression.evaluatesTo) as EmergeClassType
             val byteArrayPtr = expression.assureByteArrayConstantIn(context)
-            val ctor = context.registerIntrinsic(llvmStructWrapper.defaultConstructor)
-            val stringTemporary = call(ctor, listOf(byteArrayPtr))
+            val stringTemporary = call(llvmStructWrapper.constructor, listOf(byteArrayPtr))
 
             // super dirty hack: the frontend assumes string literals are constants/statics, but they aren't
             // the frontend also assumes it has to do refcounting here, because it's not aware we're invoking

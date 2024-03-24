@@ -4,7 +4,7 @@ import compiler.ast.type.TypeMutability
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.type.BoundTypeReference
 
-sealed interface BoundClassMember : SemanticallyAnalyzable {
+sealed interface BoundClassMember : BoundClassEntry, SemanticallyAnalyzable {
     val name: String
 
     /**

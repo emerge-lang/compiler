@@ -228,8 +228,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementGetter(
                 .get()
                 .dereference()
 
-            val ctor = context.registerIntrinsic(getBoxType(context).defaultConstructor)
-            ret(call(ctor, listOf(raw)).reinterpretAs(PointerToAnyEmergeValue))
+            ret(call(getBoxType(context).constructor, listOf(raw)).reinterpretAs(PointerToAnyEmergeValue))
         }
     }
 }

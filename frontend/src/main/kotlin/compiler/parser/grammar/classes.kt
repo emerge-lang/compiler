@@ -18,9 +18,12 @@
 
 package compiler.parser.grammar
 
+import compiler.ast.AstFunctionAttribute
+import compiler.ast.ClassConstructorDeclaration
 import compiler.ast.ClassDeclaration
-import compiler.ast.ClassMemberDeclaration
+import compiler.ast.ClassEntryDeclaration
 import compiler.ast.ClassMemberVariableDeclaration
+import compiler.ast.CodeChunk
 import compiler.ast.FunctionDeclaration
 import compiler.ast.TypeParameterBundle
 import compiler.ast.VariableDeclaration
@@ -65,7 +68,16 @@ val ClassConstructor = sequence("constructor declaration") {
     operator(NEWLINE)
 }
     .astTransformation { tokens ->
+        val attributes = tokens.next() as List<AstFunctionAttribute>
+        val ctorKeyword = tokens.next() as IdentifierToken
+        tokens.next() as OperatorToken // skip CBRACE_OPEN
+        val code = tokens.next() as CodeChunk
 
+        ClassConstructorDeclaration(
+            attributes,
+            ctorKeyword,
+            code,
+        )
     }
 
 val ClassEntry = eitherOf {
@@ -73,7 +85,7 @@ val ClassEntry = eitherOf {
     ref(ClassMemberFunctionDeclaration)
     ref(ClassConstructor)
 }
-    .astTransformation { tokens -> tokens.remainingToList().single() as ClassMemberDeclaration }
+    .astTransformation { tokens -> tokens.remainingToList().single() as ClassEntryDeclaration }
 
 val ClassDefinition = sequence("class definition") {
     keyword(CLASS_DEFINITION)
@@ -110,18 +122,18 @@ val ClassDefinition = sequence("class definition") {
             typeParameters = emptyList()
         }
 
-        val memberDeclarations = ArrayList<ClassMemberDeclaration>()
+        val entries = ArrayList<ClassEntryDeclaration>()
 
         next = tokens.next()!! // until CBRACE_CLOSE
-        while (next is ClassMemberDeclaration) {
-            memberDeclarations += next
+        while (next is ClassEntryDeclaration) {
+            entries += next
             next = tokens.next()
         }
 
         ClassDeclaration(
             declarationKeyword.sourceLocation,
             name,
-            memberDeclarations,
+            entries,
             typeParameters,
         )
     }

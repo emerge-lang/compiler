@@ -22,7 +22,7 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
-import compiler.binding.BoundOverloadSet
+import compiler.binding.BoundFunction
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.classdef.BoundClassMember
 import compiler.reportings.Reporting
@@ -55,8 +55,9 @@ interface BaseType : SemanticallyAnalyzable {
     val superTypes: Set<BaseType>
         get() = emptySet()
 
-    val constructors: Collection<BoundOverloadSet>
-        get() = emptySet()
+    /** TODO: make non-nullable as soon as ALL builtin types are declared in emerge source */
+    val constructor: BoundFunction?
+        get() = null
 
     val typeParameters: List<BoundTypeParameter>
         get() = emptyList()

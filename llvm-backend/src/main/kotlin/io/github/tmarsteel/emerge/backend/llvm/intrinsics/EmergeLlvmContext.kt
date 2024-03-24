@@ -145,7 +145,7 @@ class EmergeLlvmContext(
                     LlvmVoidType,
                 ) {
                     body {
-                        val p = call(registerIntrinsic(emergeClassType.defaultConstructor), emptyList())
+                        val p = call(emergeClassType.constructor, emptyList())
                         store(p, pointerToPointerToUnitInstance)
                         retVoid()
                     }
@@ -251,8 +251,8 @@ class EmergeLlvmContext(
             structConstructorsRegistered = true
             emergeStructs.forEach {
                 // TODO: this handling is wonky, needs more conceptual work
-                val ref = registerIntrinsic(it.defaultConstructor)
-                it.irClass.constructors.single().overloads.single().llvmRef = ref
+                val ref = registerFunction(it.irClass.constructor)
+                it.irClass.constructor.llvmRef = ref
             }
         }
 
