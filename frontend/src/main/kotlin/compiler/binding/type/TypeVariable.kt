@@ -86,6 +86,7 @@ class TypeVariable(
             }
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
+            is PartiallyInitializedType -> return carry.plusReporting(Reporting.objectNotFullyInitialized(assigneeType, assignmentLocation))
         }
     }
 

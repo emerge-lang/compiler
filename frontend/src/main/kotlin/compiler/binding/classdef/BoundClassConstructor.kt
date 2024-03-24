@@ -1,6 +1,6 @@
 package compiler.binding.classdef
 
-import compiler.InternalCompilerError
+import compiler.OnceAction
 import compiler.ast.AssignmentStatement
 import compiler.ast.ClassConstructorDeclaration
 import compiler.ast.CodeChunk
@@ -25,14 +25,15 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeParameter
+import compiler.binding.type.PartiallyInitializedType
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
+import compiler.reportings.ClassMemberVariableNotInitializedReporting
 import compiler.reportings.Reporting
-import compiler.reportings.ReportingException
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -169,49 +170,84 @@ class BoundClassConstructor(
                 )
             }
             .let(::CodeChunk)
-            .bindTo(parameters.modifiedContext)
+            .bindTo(contextWithSelfVar)
     }
 
-    private val additionalInitCode: BoundCodeChunk? = explicitDeclaration?.code?.bindTo(contextWithSelfVar)
+    private val additionalInitCode: BoundCodeChunk by lazy {
+        (explicitDeclaration?.code ?: CodeChunk(emptyList()))
+            .bindTo(boundMemberVariableInitCodeFromExpression.modifiedContext)
+    }
+
+    private val onceAction = OnceAction()
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        // this has to be done first to make sure the type parameters are registered in the ctor function context
-        typeParameters.map { it.semanticAnalysisPhase1() }.forEach(reportings::addAll)
+        return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
+            val reportings = mutableListOf<Reporting>()
+            // this has to be done first to make sure the type parameters are registered in the ctor function context
+            typeParameters.map { it.semanticAnalysisPhase1() }.forEach(reportings::addAll)
 
-        selfVariableForInitCode.semanticAnalysisPhase1().checkNoErrors()
-        boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase1().checkNoErrors()
+            reportings.addAll(selfVariableForInitCode.semanticAnalysisPhase1())
+            reportings.addAll(boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase1())
 
-        reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase1())
-        additionalInitCode?.semanticAnalysisPhase1()?.let(reportings::addAll)
+            reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase1())
+            additionalInitCode.semanticAnalysisPhase1().let(reportings::addAll)
 
-        return reportings
+            reportings
+        }
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        typeParameters.map { it.semanticAnalysisPhase2() }.forEach(reportings::addAll)
+        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase1)
+        return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
+            val reportings = mutableListOf<Reporting>()
+            typeParameters.map { it.semanticAnalysisPhase2() }.forEach(reportings::addAll)
 
-        selfVariableForInitCode.semanticAnalysisPhase2().checkNoErrors()
-        boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase2().checkNoErrors()
+            reportings.addAll(selfVariableForInitCode.semanticAnalysisPhase2())
+            contextWithSelfVar.markVariablePartiallyInitialized(selfVariableForInitCode)
 
-        reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase2())
-        additionalInitCode?.semanticAnalysisPhase2()?.let(reportings::addAll)
+            /**
+             * normally, we could rely on the assignments in boundMemberVariableInitCodeFromCtorParams to do their
+             * part in tracking their initialization. However, the scope of the code that has access to the ctor params
+             * is intentionally limited, so the information doesn't carry over. It has to be done again
+             */
+            classDef.memberVariables
+                .asSequence()
+                .filter { it.isConstructorParameterInitialized }
+                .forEach {
+                    contextWithSelfVar.markVariableInitializationCompletedPartially(selfVariableForInitCode, it)
+                }
 
-        return reportings
+            reportings.addAll(boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase2())
+
+            reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase2())
+            additionalInitCode.semanticAnalysisPhase2().let(reportings::addAll)
+
+            reportings
+        }
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        typeParameters.map { it.semanticAnalysisPhase2() }.forEach(reportings::addAll)
+        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase1)
+        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase2)
+        return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
+            val reportings = mutableListOf<Reporting>()
+            typeParameters.map { it.semanticAnalysisPhase2() }.forEach(reportings::addAll)
 
-        selfVariableForInitCode.semanticAnalysisPhase3().checkNoErrors()
-        boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase3().checkNoErrors()
+            reportings.addAll(selfVariableForInitCode.semanticAnalysisPhase3())
+            reportings.addAll(boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase3())
 
-        reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase3())
-        additionalInitCode?.semanticAnalysisPhase3()?.let(reportings::addAll)
+            reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase3())
+            additionalInitCode.semanticAnalysisPhase3().let(reportings::addAll)
 
-        return reportings
+            val typeOfSelfAfterCtorCode = selfVariableForInitCode.getTypeInContext(additionalInitCode.modifiedContext)
+            if (typeOfSelfAfterCtorCode is PartiallyInitializedType) {
+                typeOfSelfAfterCtorCode.uninitializedMemberVariables
+                    .map { ClassMemberVariableNotInitializedReporting(it.declaration) }
+                    .let(reportings::addAll)
+            }
+
+            reportings
+        }
     }
 
     private val backendIr by lazy {
@@ -258,11 +294,5 @@ private class IrAllocateObjectExpressionImpl(val classDef: BoundClassDefinition)
     override val evaluatesTo = object : IrSimpleType {
         override val isNullable = false
         override val baseType get() = this@IrAllocateObjectExpressionImpl.clazz
-    }
-}
-
-private fun Collection<Reporting>.checkNoErrors() {
-    find { it.level >= Reporting.Level.ERROR }?.let {
-        throw InternalCompilerError("Generated code has errors", ReportingException(it))
     }
 }

@@ -67,6 +67,19 @@ class ClassErrors : FreeSpec({
                 .shouldReport<ClassMemberVariableNotInitializedReporting>()
         }
 
+        "members can be initialized in the custom constructor by assignment" {
+            validateModule("""
+                class Foo {
+                    x: Int
+                    
+                    constructor {
+                        set self.x = 3
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
         "class member variable initializers are pure" - {
             "cannot read" {
                 validateModule("""

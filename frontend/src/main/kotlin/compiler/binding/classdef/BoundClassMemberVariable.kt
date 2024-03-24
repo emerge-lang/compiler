@@ -26,7 +26,6 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
-import compiler.reportings.ClassMemberVariableNotInitializedReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -81,8 +80,6 @@ class BoundClassMemberVariable(
                 boundEffectiveVariableDeclaration.initializerExpression.findWritesBeyond(context),
                 this,
             ))
-        } else if (!isConstructorParameterInitialized) {
-            reportings.add(ClassMemberVariableNotInitializedReporting(declaration))
         }
 
         return reportings

@@ -206,6 +206,13 @@ class BoundAssignmentStatement(
                     ?.let(reportings::add)
             }
 
+            (memberAccess.valueExpression as? BoundIdentifierExpression)
+                ?.referral?.let { it as? BoundIdentifierExpression.ReferringVariable }
+                ?.variable
+                ?.let { assignedToVar ->
+                    _modifiedContext.markVariableInitializationCompletedPartially(assignedToVar, memberAccess.member as BoundClassMemberVariable)
+                }
+
             return reportings
         }
 

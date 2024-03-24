@@ -240,6 +240,14 @@ class BoundVariable(
         return isGlobal || kind == Kind.PARAMETER || context.initializesVariable(this)
     }
 
+    /**
+     * @return the type of this variable in this specific context. Used to implement additional type inference,
+     * e.g. instanceof checks, null checks, partial initialization, ...
+     */
+    fun getTypeInContext(context: ExecutionScopedCTContext): BoundTypeReference {
+        return context.getVariableType(this)
+    }
+
     val backendIrDeclaration: IrVariableDeclaration by lazy { IrVariableDeclarationImpl(name, type!!.toBackendIr()) }
 
     override fun toBackendIrStatement(): IrExecutable {

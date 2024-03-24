@@ -103,7 +103,7 @@ class BoundClassDefinition(
         }
     }
 
-    override fun resolveMemberVariable(name: String): BoundClassMember? = memberVariables.find { it.name == name }
+    override fun resolveMemberVariable(name: String): BoundClassMemberVariable? = memberVariables.find { it.name == name }
 
     private val backendIr by lazy { IrClassImpl(this) }
     override fun toBackendIr(): IrClass = backendIr

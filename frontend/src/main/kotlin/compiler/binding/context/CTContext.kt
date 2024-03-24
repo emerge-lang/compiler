@@ -18,6 +18,7 @@
 
 package compiler.binding.context
 
+import compiler.InternalCompilerError
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundImportDeclaration
@@ -80,9 +81,29 @@ interface CTContext {
     fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean = false): BoundTypeReference
 
     /**
-     * @return The variable accessible under the given name, shadowing included.
+     * @return first: the variable accessible under the given name
      */
     fun resolveVariable(name: String, fromOwnFileOnly: Boolean = false): BoundVariable?
+
+    /**
+     * **This is a helper method for [BoundVariable.isInitializedInContext]! You likely want to use that one.**
+     * @return whether this context or any of its parents initializes the given variable.
+     *
+     * If the [BoundVariable] wasn't obtained from [resolveVariable] on the same context, the return value is undefined.
+     */
+    fun initializesVariable(variable: BoundVariable): Boolean {
+        return false
+    }
+
+    /**
+     * **This is a helper method for [BoundVariable.getTypeInContext]! You likely want to use that one.**
+     * @return whether this context or any of its parents initializes the given variable.
+     *
+     * If the [BoundVariable] wasn't obtained from [resolveVariable] on the same context, the return value is undefined.
+     */
+    fun getVariableType(variable: BoundVariable): BoundTypeReference {
+        return variable.type ?: throw InternalCompilerError("Type not determined yet; invoke after ${BoundVariable::semanticAnalysisPhase2.name}")
+    }
 
     fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet>
 }

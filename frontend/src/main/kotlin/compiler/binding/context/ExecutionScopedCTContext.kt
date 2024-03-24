@@ -7,6 +7,11 @@ import compiler.ast.Statement.Companion.chain
 import compiler.ast.VariableDeclaration
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundVariable
+import compiler.binding.classdef.BoundClassDefinition
+import compiler.binding.classdef.BoundClassMemberVariable
+import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.PartiallyInitializedType
+import compiler.binding.type.RootResolvedTypeReference
 import java.util.Collections
 import java.util.IdentityHashMap
 
@@ -29,14 +34,6 @@ interface ExecutionScopedCTContext : CTContext {
      * [isFunctionRoot] implies [isScopeBoundary]
      */
     val isFunctionRoot: Boolean
-
-    /**
-     * **This is a helper method for [BoundVariable.isInitializedInContext]! You likely want to use that one.**
-     * @return whether this context or any of its parents initializes the given variable.
-     *
-     * If the [BoundVariable] wasn't obtained from [resolveVariable] on the same context, the return value is undefined.
-     */
-    fun initializesVariable(variable: BoundVariable): Boolean
 
     /**
      * @return Whether this context contains the given variable. Only parent contexts up to and including the
@@ -164,7 +161,40 @@ open class MutableExecutionScopedCTContext protected constructor(
     }
 
     override fun initializesVariable(variable: BoundVariable): Boolean {
-        return variable in initializedVariables || ((parentContext as? ExecutionScopedCTContext)?.initializesVariable(variable) ?: false)
+        return variable in initializedVariables || parentContext.initializesVariable(variable)
+    }
+
+    private val variableTypeOverrides: MutableMap<BoundVariable, BoundTypeReference> = IdentityHashMap()
+    override fun getVariableType(variable: BoundVariable): BoundTypeReference {
+        return variableTypeOverrides[variable] ?: parentContext.getVariableType(variable)
+    }
+
+    private fun overrideVariableType(variable: BoundVariable, newType: BoundTypeReference) {
+        variableTypeOverrides[variable] = newType
+    }
+
+    fun markVariablePartiallyInitialized(variable: BoundVariable) {
+        val type = getVariableType(variable)
+        if (type is PartiallyInitializedType) {
+            throw InternalCompilerError("Variable already marked as partially initialized")
+        }
+        if (type !is RootResolvedTypeReference) {
+            throw InternalCompilerError("Can only track partial initialization on ${RootResolvedTypeReference::class.simpleName}s")
+        }
+        val baseType = type.baseType
+        if (baseType !is BoundClassDefinition) {
+            throw InternalCompilerError("Can only track partial initialization on classes, got a BaseType of type ${baseType::class.simpleName}")
+        }
+
+        markVariableInitialized(variable)
+        val uninitializedMembers = Collections.newSetFromMap<BoundClassMemberVariable>(IdentityHashMap())
+        uninitializedMembers.addAll(baseType.memberVariables)
+        overrideVariableType(variable, PartiallyInitializedType(type, uninitializedMembers))
+    }
+
+    fun markVariableInitializationCompletedPartially(variable: BoundVariable, initializedMember: BoundClassMemberVariable) {
+        val type = getVariableType(variable) as? PartiallyInitializedType ?: return
+        overrideVariableType(variable, type.copy(uninitializedMemberVariables = type.uninitializedMemberVariables - initializedMember))
     }
 
     override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? {

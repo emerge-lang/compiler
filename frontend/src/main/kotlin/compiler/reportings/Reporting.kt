@@ -41,6 +41,7 @@ import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.PartiallyInitializedType
 import compiler.binding.type.TypeUseSite
 import compiler.lexer.IdentifierToken
 import compiler.lexer.OperatorToken
@@ -208,6 +209,14 @@ abstract class Reporting internal constructor(
 
         fun functionIsMissingAttribute(function: BoundFunction, usageRequiringModifier: Expression, missingAttribute: String)
             = FunctionMissingModifierReporting(function, usageRequiringModifier, missingAttribute)
+
+        fun objectNotFullyInitialized(partialType: PartiallyInitializedType, usedAt: SourceLocation): ObjectNotFullyInitializedReporting {
+            return ObjectNotFullyInitializedReporting(
+                partialType.base.baseType,
+                partialType.uninitializedMemberVariables.map { it.declaration },
+                usedAt
+            )
+        }
 
         /**
          * An expression is used in a way that requires it to be non-null but the type of the expression is nullable.

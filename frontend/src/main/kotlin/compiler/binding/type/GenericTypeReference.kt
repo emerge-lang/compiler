@@ -1,11 +1,11 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
+import compiler.andThen
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.lexer.SourceLocation
-import compiler.andThen
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
@@ -71,6 +71,7 @@ sealed class GenericTypeReference : BoundTypeReference {
                     ))
                 }
             }
+            is PartiallyInitializedType -> return carry.plusReporting(Reporting.objectNotFullyInitialized(assigneeType, assignmentLocation))
         }
     }
 
@@ -93,6 +94,7 @@ sealed class GenericTypeReference : BoundTypeReference {
             }
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
+            is PartiallyInitializedType -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
         }
     }
 

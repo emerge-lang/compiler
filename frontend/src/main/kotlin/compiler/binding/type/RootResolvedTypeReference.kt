@@ -5,7 +5,7 @@ import compiler.InternalCompilerError
 import compiler.StandardLibraryModule
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.classdef.BoundClassMember
+import compiler.binding.classdef.BoundClassMemberVariable
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
@@ -118,12 +118,13 @@ class RootResolvedTypeReference private constructor(
             is GenericTypeReference -> other.closestCommonSupertypeWith(this)
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
+            is PartiallyInitializedType -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
         }
     }
 
-    override fun findMemberVariable(name: String): BoundClassMember? = baseType.resolveMemberVariable(name)
+    override fun findMemberVariable(name: String): BoundClassMemberVariable? = baseType.resolveMemberVariable(name)
 
-    override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeReference {
+    override fun withTypeVariables(variables: List<BoundTypeParameter>): RootResolvedTypeReference {
         return RootResolvedTypeReference(
             original,
             isNullable,
@@ -171,10 +172,11 @@ class RootResolvedTypeReference private constructor(
                 return unify(assigneeType.type, assignmentLocation, carry)
             }
             is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
+            is PartiallyInitializedType -> return carry.plusReporting(Reporting.objectNotFullyInitialized(assigneeType, assignmentLocation))
         }
     }
 
-    override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
+    override fun instantiateFreeVariables(context: TypeUnification): RootResolvedTypeReference {
         return RootResolvedTypeReference(
             original,
             isNullable,
@@ -184,7 +186,7 @@ class RootResolvedTypeReference private constructor(
         )
     }
 
-    override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
+    override fun instantiateAllParameters(context: TypeUnification): RootResolvedTypeReference {
         return RootResolvedTypeReference(
             original,
             isNullable,
