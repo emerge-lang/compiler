@@ -128,12 +128,13 @@ class MemorySourceFile(
  *
  * TODO: rename to Span, naming stolen from rust nom
  */
-data class SourceLocation(
+data class SourceLocation constructor(
     val file: SourceFile,
     val fromLineNumber: UInt,
     val fromColumnNumber: UInt,
     val toLineNumber: UInt,
     val toColumnNumber: UInt,
+    val generated: Boolean = false,
 ) {
     constructor(sourceFile: SourceFile, start: SourceSpot, end: SourceSpot) : this(
         sourceFile,
@@ -143,7 +144,15 @@ data class SourceLocation(
         end.columnNumber,
     )
 
-    override fun toString() = "$file:\n${getIllustrationForHighlightedLines(setOf(this))}"
+    fun deriveGenerated() = copy(generated = true)
+
+    override fun toString(): String {
+        return if (generated) {
+            "code generated from $fileLineColumnText"
+        } else {
+            "$file:\n${getIllustrationForHighlightedLines(setOf(this))}"
+        }
+    }
 
     val fileLineColumnText: String get() = "$file on line $fromLineNumber at column $fromColumnNumber"
 

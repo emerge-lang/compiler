@@ -54,6 +54,9 @@ class BoundClassConstructor(
     val explicitDeclaration: ClassConstructorDeclaration?,
 ) : BoundFunction(), BoundClassEntry {
     val classDef: BoundClassDefinition by lazy(getClassDef)
+    private val generatedSourceLocation by lazy {
+        (explicitDeclaration?.declaredAt ?: classDef.declaration.declaredAt).deriveGenerated()
+    }
 
     /*
     The contexts in a constructor:
@@ -106,9 +109,9 @@ class BoundClassConstructor(
     private val contextWithSelfVar = MutableExecutionScopedCTContext.deriveFrom(constructorFunctionRootContext)
     private val selfVariableForInitCode: BoundVariable by lazy {
         val varInstance = contextWithSelfVar.addVariable(VariableDeclaration(
-            classDef.declaration.declaredAt,
+            generatedSourceLocation,
             null,
-            IdentifierToken("self"),
+            IdentifierToken("self", generatedSourceLocation),
             (returnType as RootResolvedTypeReference).original!!.withMutability(TypeMutability.MUTABLE),
             null,
         ))
@@ -121,7 +124,7 @@ class BoundClassConstructor(
             .filter { it.isConstructorParameterInitialized }
             .map { member ->
                 VariableDeclaration(
-                    member.declaration.declaredAt,
+                    member.declaration.declaredAt.deriveGenerated(),
                     null,
                     member.declaration.name,
                     member.declaration.variableDeclaration.type!!.withMutability(member.type!!.mutability),
@@ -139,14 +142,14 @@ class BoundClassConstructor(
             .map { memberVariable ->
                 val parameter = parameters.parameters.single { it.name == memberVariable.name }
                 AssignmentStatement(
-                    KeywordToken(Keyword.SET),
+                    KeywordToken(Keyword.SET, sourceLocation = generatedSourceLocation),
                     MemberAccessExpression(
-                        IdentifierExpression(IdentifierToken(selfVariableForInitCode.name)),
-                        OperatorToken(Operator.DOT),
-                        IdentifierToken(memberVariable.name)
+                        IdentifierExpression(IdentifierToken(selfVariableForInitCode.name, generatedSourceLocation)),
+                        OperatorToken(Operator.DOT, generatedSourceLocation),
+                        IdentifierToken(memberVariable.name, generatedSourceLocation)
                     ),
-                    OperatorToken(Operator.EQUALS),
-                    IdentifierExpression(IdentifierToken(parameter.name)),
+                    OperatorToken(Operator.EQUALS, generatedSourceLocation),
+                    IdentifierExpression(IdentifierToken(parameter.name, generatedSourceLocation)),
                 )
             }
             .let(::CodeChunk)
@@ -159,13 +162,13 @@ class BoundClassConstructor(
             .filter { it.initializer != null  /* if null, there should be another error diagnosed for it */ }
             .map { memberVariable ->
                 AssignmentStatement(
-                    KeywordToken(Keyword.SET),
+                    KeywordToken(Keyword.SET, sourceLocation = generatedSourceLocation),
                     MemberAccessExpression(
-                        IdentifierExpression(IdentifierToken(selfVariableForInitCode.name)),
-                        OperatorToken(Operator.DOT),
-                        IdentifierToken(memberVariable.name)
+                        IdentifierExpression(IdentifierToken(selfVariableForInitCode.name, generatedSourceLocation)),
+                        OperatorToken(Operator.DOT, generatedSourceLocation),
+                        IdentifierToken(memberVariable.name, generatedSourceLocation)
                     ),
-                    OperatorToken(Operator.EQUALS),
+                    OperatorToken(Operator.EQUALS, generatedSourceLocation),
                     memberVariable.initializer!!.declaration,
                 )
             }
