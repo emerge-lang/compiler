@@ -11,6 +11,7 @@ import compiler.reportings.ValueNotAssignableReporting
 import compiler.reportings.VariableAccessedBeforeInitializationReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 class VariableErrors : FreeSpec({
@@ -168,7 +169,60 @@ class VariableErrors : FreeSpec({
                         a = 3
                     }
                 """.trimIndent())
-                    .shouldReport<VariableAccessedBeforeInitializationReporting>()
+                    .shouldReport<VariableAccessedBeforeInitializationReporting> {
+                        it.maybeInitialized shouldBe false
+                    }
+            }
+
+            "cannot access variable that is only maybe initialized" {
+                validateModule("""
+                    readonly intrinsic fun random() -> Boolean
+                    fun doStuff(p: Int) {}
+                    readonly fun test() {
+                        x: Int
+                        if (random()) {
+                            set x = 3
+                        }
+                        doStuff(x)
+                    }
+                """.trimIndent())
+                    .shouldReport<VariableAccessedBeforeInitializationReporting> {
+                        it.maybeInitialized shouldBe true
+                    }
+            }
+
+            "accessing a variable that is initialized in two branches of an if-expression is okay" {
+                validateModule("""
+                    readonly intrinsic fun random() -> Boolean
+                    fun doStuff(p: Int) {}
+                    readonly fun test() {
+                        x: Int
+                        if (random()) {
+                            set x = 3
+                        } else {
+                            set x = 4
+                        }
+                        doStuff(x)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "assigning to a assign-once variable that maybe have already been initialized is not allowed" {
+                validateModule("""
+                    readonly intrinsic fun random() -> Boolean
+                    fun doStuff(p: Int) {}
+                    readonly fun test() {
+                        x: Int
+                        if (random()) {
+                            set x = 3
+                        }
+                        set x = 4
+                    }
+                """.trimIndent())
+                    .shouldReport<IllegalAssignmentReporting> {
+                        it.message shouldContain "may have already been initialized"
+                    }
             }
         }
     }

@@ -14,7 +14,7 @@ class MutabilityErrors : FreeSpec({
         "members cannot be mutated" {
             validateModule("""
                 class X {
-                    a: Int = init
+                    var a: Int = init
                 }
                 fun test() {
                     myX = X(2)

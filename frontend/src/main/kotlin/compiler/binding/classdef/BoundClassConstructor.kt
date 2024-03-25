@@ -22,6 +22,7 @@ import compiler.binding.IrCodeChunkImpl
 import compiler.binding.IrReturnStatementImpl
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeParameter
@@ -116,7 +117,7 @@ class BoundClassConstructor(
             (returnType as RootResolvedTypeReference).original!!.withMutability(TypeMutability.MUTABLE),
             null,
         ))
-        contextWithSelfVar.markVariableInitialized(varInstance)
+        contextWithSelfVar.trackSideEffect(VariableInitialization.WriteToVariableEffect(varInstance))
         varInstance
     }
 

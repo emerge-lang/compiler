@@ -26,6 +26,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.SourceFileRootContext
+import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.expression.BoundExpression
 import compiler.binding.misc_ir.IrCreateReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -222,7 +223,7 @@ class BoundVariable(
         val newCtx = MutableExecutionScopedCTContext.deriveFrom(context)
         newCtx.addVariable(this)
         if (initializerExpression != null) {
-            newCtx.markVariableInitialized(this)
+            newCtx.trackSideEffect(VariableInitialization.WriteToVariableEffect(this))
             newCtx.addDeferredCode(DropLocalVariableStatement(this))
         }
         newCtx
@@ -236,8 +237,12 @@ class BoundVariable(
         return initializerExpression?.findWritesBeyond(boundary) ?: emptySet()
     }
 
-    fun isInitializedInContext(context: ExecutionScopedCTContext): Boolean {
-        return isGlobal || kind == Kind.PARAMETER || context.initializesVariable(this)
+    fun getInitializationStateInContext(context: ExecutionScopedCTContext): VariableInitialization.State {
+        if (isGlobal || kind == Kind.PARAMETER) {
+            return VariableInitialization.State.INITIALIZED
+        }
+
+        return context.getSideEffectState(VariableInitialization, this)
     }
 
     /**

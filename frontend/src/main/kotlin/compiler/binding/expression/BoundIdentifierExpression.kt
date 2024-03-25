@@ -25,6 +25,7 @@ import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.reportings.Reporting
@@ -122,8 +123,13 @@ class BoundIdentifierExpression(
         }
 
         override fun semanticAnalysisPhase3(): Collection<Reporting> {
-            if (usageContext.requiresInitialization && !variable.isInitializedInContext(context)) {
-                return setOf(Reporting.useOfUninitializedVariable(variable, this@BoundIdentifierExpression))
+            val initializationState = variable.getInitializationStateInContext(context)
+            if (usageContext.requiresInitialization && initializationState != VariableInitialization.State.INITIALIZED) {
+                return setOf(Reporting.useOfUninitializedVariable(
+                    variable,
+                    this@BoundIdentifierExpression,
+                    initializationState == VariableInitialization.State.MAYBE_INITIALIZED,
+                ))
             }
 
             return emptySet()

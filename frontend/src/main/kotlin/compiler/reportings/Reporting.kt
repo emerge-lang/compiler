@@ -120,8 +120,8 @@ abstract class Reporting internal constructor(
         fun globalVariableNotInitialized(variable: BoundVariable)
             = GlobalVariableNotInitializedReporting(variable.declaration)
 
-        fun useOfUninitializedVariable(variable: BoundVariable, access: BoundIdentifierExpression)
-            = VariableAccessedBeforeInitializationReporting(variable.declaration, access.declaration)
+        fun useOfUninitializedVariable(variable: BoundVariable, access: BoundIdentifierExpression, maybeInitialized: Boolean)
+            = VariableAccessedBeforeInitializationReporting(variable.declaration, access.declaration, maybeInitialized)
 
         fun parameterDeclaredMoreThanOnce(firstDeclaration: VariableDeclaration, additionalDeclaration: VariableDeclaration)
             = MultipleParameterDeclarationsReporting(firstDeclaration, additionalDeclaration)

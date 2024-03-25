@@ -23,6 +23,7 @@ import compiler.ast.type.TypeReference
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
+import compiler.binding.context.effect.SideEffectClass
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
@@ -85,16 +86,6 @@ interface CTContext {
     fun resolveVariable(name: String, fromOwnFileOnly: Boolean = false): BoundVariable?
 
     /**
-     * **This is a helper method for [BoundVariable.isInitializedInContext]! You likely want to use that one.**
-     * @return whether this context or any of its parents initializes the given variable.
-     *
-     * If the [BoundVariable] wasn't obtained from [resolveVariable] on the same context, the return value is undefined.
-     */
-    fun initializesVariable(variable: BoundVariable): Boolean {
-        return false
-    }
-
-    /**
      * **This is a helper method for [BoundVariable.getTypeInContext]! You likely want to use that one.**
      * @return whether this context or any of its parents initializes the given variable.
      *
@@ -102,6 +93,10 @@ interface CTContext {
      */
     fun getVariableType(variable: BoundVariable): BoundTypeReference? {
         return variable.type
+    }
+
+    fun <Subject : Any, State> getSideEffectState(effectClass: SideEffectClass<Subject, State, *>, subject: Subject): State {
+        return effectClass.initialState
     }
 
     fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet>

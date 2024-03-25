@@ -9,6 +9,8 @@ import compiler.binding.BoundExecutable
 import compiler.binding.BoundVariable
 import compiler.binding.classdef.BoundClassDefinition
 import compiler.binding.classdef.BoundClassMemberVariable
+import compiler.binding.context.effect.SideEffect
+import compiler.binding.context.effect.SideEffectClass
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.PartiallyInitializedType
 import compiler.binding.type.RootResolvedTypeReference
@@ -63,8 +65,8 @@ interface ExecutionScopedCTContext : CTContext {
 
 open class MutableExecutionScopedCTContext protected constructor(
     val parentContext: CTContext,
-    override val isScopeBoundary: Boolean,
-    override val isFunctionRoot: Boolean,
+    final override val isScopeBoundary: Boolean,
+    final override val isFunctionRoot: Boolean,
 ) : MutableCTContext(parentContext), ExecutionScopedCTContext {
     init {
         if (isFunctionRoot) {
@@ -155,15 +157,6 @@ open class MutableExecutionScopedCTContext protected constructor(
         throw InternalCompilerError("Cannot add a variable that has been bound to a different context")
     }
 
-    private val initializedVariables: MutableSet<BoundVariable> = Collections.newSetFromMap(IdentityHashMap())
-    fun markVariableInitialized(variable: BoundVariable) {
-        initializedVariables.add(variable)
-    }
-
-    override fun initializesVariable(variable: BoundVariable): Boolean {
-        return variable in initializedVariables || parentContext.initializesVariable(variable)
-    }
-
     private val variableTypeOverrides: MutableMap<BoundVariable, BoundTypeReference> = IdentityHashMap()
     override fun getVariableType(variable: BoundVariable): BoundTypeReference? {
         return variableTypeOverrides[variable] ?: parentContext.getVariableType(variable)
@@ -186,7 +179,6 @@ open class MutableExecutionScopedCTContext protected constructor(
             throw InternalCompilerError("Can only track partial initialization on classes, got a BaseType of type ${baseType::class.simpleName}")
         }
 
-        markVariableInitialized(variable)
         val uninitializedMembers = Collections.newSetFromMap<BoundClassMemberVariable>(IdentityHashMap())
         uninitializedMembers.addAll(baseType.memberVariables)
         if (uninitializedMembers.isEmpty()) {
@@ -204,6 +196,26 @@ open class MutableExecutionScopedCTContext protected constructor(
         }
 
         overrideVariableType(variable, type.copy(uninitializedMemberVariables = type.uninitializedMemberVariables - initializedMember))
+    }
+
+    private val sideEffectsBySubjectAndClass: MutableMap<Any, MutableMap<SideEffectClass<*, *, *>, MutableList<SideEffect<*>>>> = IdentityHashMap()
+    fun trackSideEffect(effect: SideEffect<*>) {
+        val byEffectClass = sideEffectsBySubjectAndClass.computeIfAbsent(effect.subject) { HashMap() }
+        val effectList = byEffectClass.computeIfAbsent(effect.effectClass) { ArrayList(2) }
+        effectList.add(effect)
+    }
+
+    override fun <Subject : Any, State> getSideEffectState(effectClass: SideEffectClass<Subject, State, *>, subject: Subject): State {
+        val parentState = parentContext.getSideEffectState(effectClass, subject)
+        val selfEffects = sideEffectsBySubjectAndClass[subject]?.get(effectClass) ?: return parentState
+
+        // trackSideEffect is responsible for the type safety!
+        @Suppress("UNCHECKED_CAST")
+        selfEffects as List<SideEffect<Subject>>
+        @Suppress("UNCHECKED_CAST")
+        effectClass as SideEffectClass<Subject, State, in SideEffect<Subject>>
+
+        return selfEffects.fold(parentState, effectClass::fold)
     }
 
     override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? {
@@ -241,5 +253,43 @@ open class MutableExecutionScopedCTContext protected constructor(
         fun deriveFrom(parentContext: ExecutionScopedCTContext): MutableExecutionScopedCTContext {
             return MutableExecutionScopedCTContext(parentContext, isScopeBoundary = false, isFunctionRoot = false)
         }
+    }
+}
+
+/**
+ * Models the context after a conditional branch, where the branch may or may not be taken at runtime.
+ * Information from [beforeBranch] is definitely available and [SideEffect]s from [atEndOfBranch] are considered
+ * using [SideEffectClass.combineMaybe].
+ */
+class SingleBranchJoinExecutionScopedCTContext(
+    private val beforeBranch: ExecutionScopedCTContext,
+    private val atEndOfBranch: ExecutionScopedCTContext,
+) : ExecutionScopedCTContext by beforeBranch {
+    override fun <Subject : Any, State> getSideEffectState(
+        effectClass: SideEffectClass<Subject, State, *>,
+        subject: Subject,
+    ): State {
+        val stateBeforeBranch = beforeBranch.getSideEffectState(effectClass, subject)
+        val stateAfterBranch = atEndOfBranch.getSideEffectState(effectClass, subject)
+        return effectClass.combineMaybe(stateBeforeBranch, stateAfterBranch)
+    }
+}
+
+/**
+ * Models the context after a conditional branch where there are many choices, and it is guaranteed that
+ * one of them is taken.
+ * Information from [beforeBranch] is definitely available and [SideEffect]s from [atEndOfBranches] are considered
+ * using [SideEffectClass.intersect]
+ */
+class MultiBranchJoinExecutionScopedCTContext(
+    private val beforeBranch: ExecutionScopedCTContext,
+    private val atEndOfBranches: Iterable<ExecutionScopedCTContext>,
+) : ExecutionScopedCTContext by beforeBranch {
+    override fun <Subject : Any, State> getSideEffectState(
+        effectClass: SideEffectClass<Subject, State, *>,
+        subject: Subject,
+    ): State {
+        val states = atEndOfBranches.map { it.getSideEffectState(effectClass, subject) }
+        return states.reduce(effectClass::intersect)
     }
 }

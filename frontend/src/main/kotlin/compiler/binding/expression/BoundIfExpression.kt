@@ -24,6 +24,8 @@ import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundExecutable
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MultiBranchJoinExecutionScopedCTContext
+import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
@@ -103,6 +105,12 @@ class BoundIfExpression(
         }
 
         return reportings
+    }
+
+    override val modifiedContext: ExecutionScopedCTContext = if (elseCode != null) {
+        MultiBranchJoinExecutionScopedCTContext(context, listOf(thenCode.modifiedContext, elseCode.modifiedContext))
+    } else {
+        SingleBranchJoinExecutionScopedCTContext(context, thenCode.modifiedContext)
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {

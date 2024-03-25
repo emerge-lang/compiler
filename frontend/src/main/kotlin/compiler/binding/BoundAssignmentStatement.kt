@@ -23,6 +23,7 @@ import compiler.ast.AssignmentStatement
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundMemberAccessExpression
@@ -168,16 +169,25 @@ class BoundAssignmentStatement(
             return emptySet()
         }
 
+        private lateinit var initializationState: VariableInitialization.State
         override fun semanticAnalysisPhase3(): Collection<Reporting> {
             val reportings = mutableListOf<Reporting>()
 
-            val isInitialized = reference.variable.isInitializedInContext(this@BoundAssignmentStatement.context)
-            if (isInitialized) {
-                if (!reference.variable.isReAssignable) {
-                    reportings.add(Reporting.illegalAssignment("Cannot assign to value / final variable ${reference.variable.name}", this@BoundAssignmentStatement))
+            initializationState = reference.variable.getInitializationStateInContext(this@BoundAssignmentStatement.context)
+            if (initializationState == VariableInitialization.State.NOT_INITIALIZED || initializationState == VariableInitialization.State.MAYBE_INITIALIZED) {
+                _modifiedContext.trackSideEffect(VariableInitialization.WriteToVariableEffect(reference.variable))
+            }
+            if (initializationState == VariableInitialization.State.MAYBE_INITIALIZED) {
+                if (reference.variable.isReAssignable) {
+                    _modifiedContext.trackSideEffect(VariableInitialization.WriteToVariableEffect(reference.variable))
+                } else {
+                    reportings.add(Reporting.illegalAssignment("Variable ${reference.variable.name} may have already been initialized, cannot assign a value again", this@BoundAssignmentStatement))
                 }
-            } else {
-                _modifiedContext.markVariableInitialized(reference.variable)
+            }
+            if (initializationState == VariableInitialization.State.INITIALIZED) {
+                if (!reference.variable.isReAssignable) {
+                    reportings.add(Reporting.illegalAssignment("Variable ${reference.variable.name} is already initialized, cannot re-assign", this@BoundAssignmentStatement))
+                }
             }
 
             reference.variable.type?.let { targetType ->
@@ -202,12 +212,22 @@ class BoundAssignmentStatement(
         }
 
         override fun toBackendIrExecutable(): IrExecutable {
-            val dropPreviousCode: List<IrExecutable> = if (reference.variable.isInitializedInContext(context)) {
-                val previousTemporary = IrCreateTemporaryValueImpl(
-                    IrVariableAccessExpressionImpl(reference.variable.backendIrDeclaration)
-                )
-                listOf(previousTemporary, IrDropReferenceStatementImpl(previousTemporary))
-            } else emptyList()
+            val dropPreviousCode: List<IrExecutable> = when (initializationState) {
+                VariableInitialization.State.NOT_INITIALIZED -> emptyList()
+                else -> {
+                    var previousType = reference.variable.getTypeInContext(context)!!.toBackendIr()
+                    if (initializationState == VariableInitialization.State.MAYBE_INITIALIZED) {
+                        // forces a null-check on the reference drop, preventing a null-pointer dereference when a maybe-initialized
+                        // variable of a non-null type is being assigned to
+                        previousType = previousType.nullable()
+                    }
+                    val previousTemporary = IrCreateTemporaryValueImpl(
+                        IrVariableAccessExpressionImpl(reference.variable.backendIrDeclaration),
+                        previousType,
+                    )
+                    listOf(previousTemporary, IrDropReferenceStatementImpl(previousTemporary))
+                }
+            }
 
             val toAssignTemporary = IrCreateTemporaryValueImpl(toAssignExpression.toBackendIrExpression())
             val assignStatement = IrAssignmentStatementImpl(
