@@ -104,6 +104,7 @@ class BoundClassConstructor(
       - constructorFunctionRootContext
         - contextWithSelfVar
             - contextWithParameters
+        - contextAfterInitFromCtorParams
      */
 
     private val contextWithSelfVar = MutableExecutionScopedCTContext.deriveFrom(constructorFunctionRootContext)
@@ -156,6 +157,7 @@ class BoundClassConstructor(
             .bindTo(parameters.modifiedContext)
     }
 
+    private val contextAfterInitFromCtorParams = MutableExecutionScopedCTContext.deriveFrom(contextWithSelfVar)
     private val boundMemberVariableInitCodeFromExpression: BoundCodeChunk by lazy {
         classDef.memberVariables
             .filterNot { it.isConstructorParameterInitialized }
@@ -173,7 +175,7 @@ class BoundClassConstructor(
                 )
             }
             .let(::CodeChunk)
-            .bindTo(contextWithSelfVar)
+            .bindTo(contextAfterInitFromCtorParams)
     }
 
     private val additionalInitCode: BoundCodeChunk by lazy {
@@ -191,7 +193,6 @@ class BoundClassConstructor(
 
             reportings.addAll(selfVariableForInitCode.semanticAnalysisPhase1())
             reportings.addAll(boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase1())
-
             reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase1())
             additionalInitCode.semanticAnalysisPhase1().let(reportings::addAll)
 
@@ -217,13 +218,12 @@ class BoundClassConstructor(
                 .asSequence()
                 .filter { it.isConstructorParameterInitialized }
                 .forEach {
-                    contextWithSelfVar.markVariableInitializationCompletedPartially(selfVariableForInitCode, it)
+                    contextAfterInitFromCtorParams.markVariableInitializationCompletedPartially(selfVariableForInitCode, it)
                 }
 
             reportings.addAll(boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase2())
-
             reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase2())
-            additionalInitCode.semanticAnalysisPhase2().let(reportings::addAll)
+            reportings.addAll(additionalInitCode.semanticAnalysisPhase2())
 
             reportings
         }
@@ -238,9 +238,8 @@ class BoundClassConstructor(
 
             reportings.addAll(selfVariableForInitCode.semanticAnalysisPhase3())
             reportings.addAll(boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase3())
-
             reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase3())
-            additionalInitCode.semanticAnalysisPhase3().let(reportings::addAll)
+            reportings.addAll(additionalInitCode.semanticAnalysisPhase3())
 
             val typeOfSelfAfterCtorCode = selfVariableForInitCode.getTypeInContext(additionalInitCode.modifiedContext)
             if (typeOfSelfAfterCtorCode is PartiallyInitializedType) {
@@ -264,7 +263,7 @@ class BoundClassConstructor(
         ))
         initIr.add(boundMemberVariableInitCodeFromCtorParams.toBackendIrStatement())
         initIr.add(boundMemberVariableInitCodeFromExpression.toBackendIrStatement())
-        additionalInitCode?.toBackendIrStatement()?.let(initIr::add)
+        initIr.add(additionalInitCode.toBackendIrStatement())
 
         IrDefaultConstructorImpl(
             this,

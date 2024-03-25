@@ -189,6 +189,9 @@ open class MutableExecutionScopedCTContext protected constructor(
         markVariableInitialized(variable)
         val uninitializedMembers = Collections.newSetFromMap<BoundClassMemberVariable>(IdentityHashMap())
         uninitializedMembers.addAll(baseType.memberVariables)
+        if (uninitializedMembers.isEmpty()) {
+            return
+        }
         overrideVariableType(variable, PartiallyInitializedType(type, uninitializedMembers))
     }
 

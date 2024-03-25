@@ -18,6 +18,7 @@
 
 package compiler.binding
 
+import compiler.OnceAction
 import compiler.ast.AssignmentStatement
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -47,6 +48,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
+import kotlin.properties.Delegates
 
 class BoundAssignmentStatement(
     override val context: ExecutionScopedCTContext,
@@ -68,28 +70,34 @@ class BoundAssignmentStatement(
         }
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        reportings.addAll(targetExpression.semanticAnalysisPhase1())
-        reportings.addAll(toAssignExpression.semanticAnalysisPhase1())
+    private val onceAction = OnceAction()
 
-        target = when (targetExpression) {
-            is BoundIdentifierExpression -> when (val ref = targetExpression.referral) {
-                is BoundIdentifierExpression.ReferringVariable -> VariableTarget(ref)
-                is BoundIdentifierExpression.ReferringType -> {
-                    reportings += Reporting.illegalAssignment("Cannot assign a value to a type", this)
+    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+        return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
+            val reportings = mutableListOf<Reporting>()
+            reportings.addAll(targetExpression.semanticAnalysisPhase1())
+            reportings.addAll(toAssignExpression.semanticAnalysisPhase1())
+
+            target = when (targetExpression) {
+                is BoundIdentifierExpression -> when (val ref = targetExpression.referral) {
+                    is BoundIdentifierExpression.ReferringVariable -> VariableTarget(ref)
+                    is BoundIdentifierExpression.ReferringType -> {
+                        reportings += Reporting.illegalAssignment("Cannot assign a value to a type", this)
+                        null
+                    }
+
+                    null -> null
+                }
+
+                is BoundMemberAccessExpression -> ObjectMemberTarget(targetExpression)
+                else -> {
+                    reportings += Reporting.illegalAssignment("Cannot assign to this target", this)
                     null
                 }
-                null -> null
             }
-            is BoundMemberAccessExpression -> ObjectMemberTarget(targetExpression)
-            else -> {
-                reportings += Reporting.illegalAssignment("Cannot assign to this target", this)
-                null
-            }
-        }
 
-        return reportings
+            reportings
+        }
     }
 
     private var implicitEvaluationRequired = false
@@ -101,28 +109,32 @@ class BoundAssignmentStatement(
     private var target: AssignmentTarget? = null
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        toAssignExpression.markEvaluationResultUsed()
-        target?.type?.let(toAssignExpression::setExpectedEvaluationResultType)
+        return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
+            toAssignExpression.markEvaluationResultUsed()
+            target?.type?.let(toAssignExpression::setExpectedEvaluationResultType)
 
-        val reportings = mutableListOf<Reporting>()
-        reportings.addAll(targetExpression.semanticAnalysisPhase2())
-        reportings.addAll(toAssignExpression.semanticAnalysisPhase2())
-        target?.semanticAnalysisPhase2()?.let(reportings::addAll)
+            val reportings = mutableListOf<Reporting>()
+            reportings.addAll(targetExpression.semanticAnalysisPhase2())
+            reportings.addAll(toAssignExpression.semanticAnalysisPhase2())
+            target?.semanticAnalysisPhase2()?.let(reportings::addAll)
 
-        if (implicitEvaluationRequired) {
-            reportings.add(Reporting.assignmentUsedAsExpression(this))
+            if (implicitEvaluationRequired) {
+                reportings.add(Reporting.assignmentUsedAsExpression(this))
+            }
+
+            reportings
         }
-
-        return reportings
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
-        reportings.addAll(targetExpression.semanticAnalysisPhase3())
-        reportings.addAll(toAssignExpression.semanticAnalysisPhase3())
-        target?.semanticAnalysisPhase3()?.let(reportings::addAll)
+        return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
+            val reportings = mutableSetOf<Reporting>()
+            reportings.addAll(targetExpression.semanticAnalysisPhase3())
+            reportings.addAll(toAssignExpression.semanticAnalysisPhase3())
+            target?.semanticAnalysisPhase3()?.let(reportings::addAll)
 
-        return reportings
+            reportings
+        }
     }
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
@@ -228,7 +240,15 @@ class BoundAssignmentStatement(
             return emptySet()
         }
 
+        private var memberIsPotentiallyUninitialized by Delegates.notNull<Boolean>()
+
         override fun semanticAnalysisPhase3(): Collection<Reporting> {
+            val valueType = memberAccess.valueExpression.type
+            memberIsPotentiallyUninitialized = (valueType as? PartiallyInitializedType)
+                ?.uninitializedMemberVariables
+                ?.contains(memberAccess.member!!)
+                ?: false
+
             val reportings = mutableListOf<Reporting>()
 
             memberAccess.valueExpression.type?.let { memberOwnerType ->
@@ -239,6 +259,10 @@ class BoundAssignmentStatement(
             memberAccess.type?.let { targetType ->
                 toAssignExpression.type?.evaluateAssignabilityTo(targetType, toAssignExpression.declaration.sourceLocation)
                     ?.let(reportings::add)
+            }
+
+            if (!memberIsPotentiallyUninitialized && memberAccess.member?.isReAssignable == false) {
+                reportings.add(Reporting.illegalAssignment("Member variable ${memberAccess.member!!.name} cannot be re-assigned", this@BoundAssignmentStatement))
             }
 
             return reportings
@@ -258,10 +282,6 @@ class BoundAssignmentStatement(
 
         override fun toBackendIrExecutable(): IrExecutable {
             var previousType = memberAccess.type!!.toBackendIr()
-            val memberIsPotentiallyUninitialized = (memberAccess.valueExpression.type as? PartiallyInitializedType)
-                ?.uninitializedMemberVariables
-                ?.contains(memberAccess.member!!)
-                ?: false
             if (memberIsPotentiallyUninitialized) {
                 // forces a null-check on the reference drop, which prevents a nullpointer deref for an empty object
                 previousType = previousType.nullable()

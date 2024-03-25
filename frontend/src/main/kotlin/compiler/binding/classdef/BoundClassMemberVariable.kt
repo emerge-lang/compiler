@@ -35,7 +35,7 @@ class BoundClassMemberVariable(
     override val declaration: ClassMemberVariableDeclaration,
 ) : BoundElement<ClassMemberDeclaration>, BoundClassMember {
     override val name = declaration.name.value
-    override val isMutable = true
+    val isReAssignable = declaration.variableDeclaration.isReAssignable
 
     val isConstructorParameterInitialized = if (declaration.variableDeclaration.initializerExpression is IdentifierExpression) {
         declaration.variableDeclaration.initializerExpression.identifier.value == "init"
