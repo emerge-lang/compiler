@@ -194,6 +194,12 @@ open class MutableExecutionScopedCTContext protected constructor(
 
     fun markVariableInitializationCompletedPartially(variable: BoundVariable, initializedMember: BoundClassMemberVariable) {
         val type = getVariableType(variable) as? PartiallyInitializedType ?: return
+        val newUninitializedMembers = type.uninitializedMemberVariables - initializedMember
+        if (newUninitializedMembers.isEmpty()) {
+            overrideVariableType(variable, type.base)
+            return
+        }
+
         overrideVariableType(variable, type.copy(uninitializedMemberVariables = type.uninitializedMemberVariables - initializedMember))
     }
 
