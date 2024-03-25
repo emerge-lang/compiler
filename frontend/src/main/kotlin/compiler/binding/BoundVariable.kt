@@ -250,7 +250,8 @@ class BoundVariable(
      * e.g. instanceof checks, null checks, partial initialization, ...
      */
     fun getTypeInContext(context: ExecutionScopedCTContext): BoundTypeReference? {
-        return context.getVariableType(this)
+        // TODO: usage of this was refactored away, but it may become useful again for smart casts -> implement them here
+        return type
     }
 
     val backendIrDeclaration: IrVariableDeclaration by lazy { IrVariableDeclarationImpl(name, type!!.toBackendIr()) }

@@ -23,8 +23,10 @@ import compiler.ast.AssignmentStatement
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundMemberAccessExpression
 import compiler.binding.expression.IrVariableAccessExpressionImpl
@@ -36,7 +38,6 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.IrGenericTypeReferenceImpl
 import compiler.binding.type.IrParameterizedTypeImpl
 import compiler.binding.type.IrSimpleTypeImpl
-import compiler.binding.type.PartiallyInitializedType
 import compiler.nullableOr
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
@@ -247,16 +248,16 @@ class BoundAssignmentStatement(
     ) : AssignmentTarget {
         override val type get() = memberAccess.type
 
+        private var accessBaseVariable: BoundVariable? = null
+
         override fun semanticAnalysisPhase2(): Collection<Reporting> {
-            (memberAccess.valueExpression as? BoundIdentifierExpression)
-                ?.referral?.let { it as? BoundIdentifierExpression.ReferringVariable }
-                ?.variable
-                ?.let { assignedToVar ->
-                    val member = memberAccess.member
-                    if (member != null) {
-                        _modifiedContext.markVariableInitializationCompletedPartially(assignedToVar, member)
-                    }
-                }
+            accessBaseVariable = memberAccess.valueExpression.tryAsVariable()
+
+            accessBaseVariable?.let {
+                _modifiedContext.trackSideEffect(
+                    PartialObjectInitialization.Effect.WriteToMemberVariableEffect(it, memberAccess.member!!)
+                )
+            }
 
             return emptySet()
         }
@@ -264,11 +265,10 @@ class BoundAssignmentStatement(
         private var memberIsPotentiallyUninitialized by Delegates.notNull<Boolean>()
 
         override fun semanticAnalysisPhase3(): Collection<Reporting> {
-            val valueType = memberAccess.valueExpression.type
-            memberIsPotentiallyUninitialized = (valueType as? PartiallyInitializedType)
-                ?.uninitializedMemberVariables
-                ?.contains(memberAccess.member!!)
-                ?: false
+            memberAccess.valueExpression as? BoundIdentifierExpression
+            memberIsPotentiallyUninitialized = accessBaseVariable?.let {
+                context.getSideEffectState(PartialObjectInitialization, it).getMemberInitializationState(memberAccess.member!!) != VariableInitialization.State.INITIALIZED
+            } ?: false
 
             val reportings = mutableListOf<Reporting>()
 

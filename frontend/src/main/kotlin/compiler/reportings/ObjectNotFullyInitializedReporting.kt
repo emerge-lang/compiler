@@ -1,11 +1,9 @@
 package compiler.reportings
 
 import compiler.ast.ClassMemberVariableDeclaration
-import compiler.binding.type.BaseType
 import compiler.lexer.SourceLocation
 
 class ObjectNotFullyInitializedReporting(
-    val baseType: BaseType,
     val uninitializedMembers: Collection<ClassMemberVariableDeclaration>,
     sourceLocation: SourceLocation,
 ) : Reporting(

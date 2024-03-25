@@ -21,6 +21,7 @@ package compiler.binding.expression
 import compiler.ast.Expression
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundStatement
+import compiler.binding.BoundVariable
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.type.BoundTypeReference
@@ -62,7 +63,6 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
     /*
      * these two shouldn't be overridden by expressions
      */
-
     override fun requireImplicitEvaluationTo(type: BoundTypeReference) {
         markEvaluationResultUsed()
         setExpectedEvaluationResultType(type)
@@ -92,4 +92,15 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
     }
 
     fun toBackendIrExpression(): IrExpression
+
+    companion object {
+        /**
+         * Iff this expression refers to a variable, returns that variable. Null otherwise.
+         */
+        fun BoundExpression<*>.tryAsVariable(): BoundVariable? {
+            return (this as? BoundIdentifierExpression)
+                ?.referral?.let { it as? BoundIdentifierExpression.ReferringVariable }
+                ?.variable
+        }
+    }
 }

@@ -118,7 +118,6 @@ class RootResolvedTypeReference private constructor(
             is GenericTypeReference -> other.closestCommonSupertypeWith(this)
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
-            is PartiallyInitializedType -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
         }
     }
 
@@ -172,7 +171,6 @@ class RootResolvedTypeReference private constructor(
                 return unify(assigneeType.type, assignmentLocation, carry)
             }
             is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
-            is PartiallyInitializedType -> return carry.plusReporting(Reporting.objectNotFullyInitialized(assigneeType, assignmentLocation))
         }
     }
 

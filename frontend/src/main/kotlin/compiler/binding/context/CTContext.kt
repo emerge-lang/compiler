@@ -85,16 +85,6 @@ interface CTContext {
      */
     fun resolveVariable(name: String, fromOwnFileOnly: Boolean = false): BoundVariable?
 
-    /**
-     * **This is a helper method for [BoundVariable.getTypeInContext]! You likely want to use that one.**
-     * @return whether this context or any of its parents initializes the given variable.
-     *
-     * If the [BoundVariable] wasn't obtained from [resolveVariable] on the same context, the return value is undefined.
-     */
-    fun getVariableType(variable: BoundVariable): BoundTypeReference? {
-        return variable.type
-    }
-
     fun <Subject : Any, State> getSideEffectState(effectClass: SideEffectClass<Subject, State, *>, subject: Subject): State {
         return effectClass.initialState
     }

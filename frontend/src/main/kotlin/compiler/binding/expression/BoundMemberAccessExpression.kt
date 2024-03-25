@@ -24,11 +24,13 @@ import compiler.binding.IrCodeChunkImpl
 import compiler.binding.classdef.BoundClassMemberVariable
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.effect.PartialObjectInitialization
+import compiler.binding.context.effect.VariableInitialization
+import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.PartiallyInitializedType
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassMemberVariableAccessExpression
@@ -63,6 +65,8 @@ class BoundMemberAccessExpression(
     }
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         valueExpression.markEvaluationResultUsed()
+        // partially uninitialized is okay as this class verifies that itself
+        (valueExpression as? BoundIdentifierExpression)?.allowPartiallyUninitializedValue()
 
         val reportings = mutableSetOf<Reporting>()
         reportings.addAll(valueExpression.semanticAnalysisPhase2())
@@ -85,10 +89,9 @@ class BoundMemberAccessExpression(
                 this.type = member.type?.instantiateAllParameters(valueType.inherentTypeBindings)
 
                 if (usageContext.requiresMemberInitialized) {
-                    val isInitialized = (valueExpression.type as? PartiallyInitializedType?)
-                        ?.uninitializedMemberVariables
-                        ?.let { uninitializedMembers -> member !in uninitializedMembers }
-                        ?: true
+                    val isInitialized = valueExpression.tryAsVariable()?.let {
+                        context.getSideEffectState(PartialObjectInitialization, it).getMemberInitializationState(member) == VariableInitialization.State.INITIALIZED
+                    } ?: true
 
                     if (!isInitialized) {
                         reportings.add(Reporting.useOfUninitializedMember(this))

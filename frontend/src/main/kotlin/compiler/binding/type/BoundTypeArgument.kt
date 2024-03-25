@@ -97,7 +97,6 @@ class BoundTypeArgument(
                 return unify(assigneeType.standInType, assignmentLocation, carry)
             }
             is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
-            is PartiallyInitializedType -> return carry.plusReporting(Reporting.objectNotFullyInitialized(assigneeType, assignmentLocation))
         }
     }
 

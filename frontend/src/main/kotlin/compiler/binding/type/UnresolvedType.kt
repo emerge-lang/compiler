@@ -63,7 +63,6 @@ class UnresolvedType private constructor(
             is BoundTypeArgument -> standInType.unify(assigneeType, assignmentLocation, carry)
             is UnresolvedType -> standInType.unify(assigneeType.standInType, assignmentLocation, carry)
             is TypeVariable -> assigneeType.flippedUnify(this.standInType, assignmentLocation, carry)
-            is PartiallyInitializedType -> return carry.plusReporting(Reporting.objectNotFullyInitialized(assigneeType, assignmentLocation))
         }
     }
 

@@ -23,10 +23,13 @@ import compiler.ast.type.TypeReference
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
+import compiler.binding.classdef.BoundClassDefinition
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -78,6 +81,10 @@ class BoundIdentifierExpression(
         referral?.markEvaluationResultUsed()
     }
 
+    fun allowPartiallyUninitializedValue() {
+        (referral as? ReferringVariable)?.allowPartiallyUninitializedValue()
+    }
+
     override val isCompileTimeConstant get() = referral?.isCompileTimeConstant ?: false
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
@@ -113,6 +120,11 @@ class BoundIdentifierExpression(
     }
     inner class ReferringVariable(val variable: BoundVariable) : Referral {
         private var usageContext = VariableUsageContext.WRITE
+        private var allowPartiallyUninitialized: Boolean = false
+
+        fun allowPartiallyUninitializedValue() {
+            allowPartiallyUninitialized = true
+        }
 
         override fun markEvaluationResultUsed() {
             usageContext = VariableUsageContext.READ
@@ -123,16 +135,36 @@ class BoundIdentifierExpression(
         }
 
         override fun semanticAnalysisPhase3(): Collection<Reporting> {
+            val reportings = mutableListOf<Reporting>()
+
             val initializationState = variable.getInitializationStateInContext(context)
-            if (usageContext.requiresInitialization && initializationState != VariableInitialization.State.INITIALIZED) {
-                return setOf(Reporting.useOfUninitializedVariable(
-                    variable,
-                    this@BoundIdentifierExpression,
-                    initializationState == VariableInitialization.State.MAYBE_INITIALIZED,
-                ))
+            if (usageContext.requiresInitialization) {
+                if (initializationState != VariableInitialization.State.INITIALIZED) {
+                    reportings.add(
+                        Reporting.useOfUninitializedVariable(
+                            variable,
+                            this@BoundIdentifierExpression,
+                            initializationState == VariableInitialization.State.MAYBE_INITIALIZED,
+                        )
+                    )
+                }
+
+                if (!allowPartiallyUninitialized) {
+                    variable.type
+                        ?.let { it as? RootResolvedTypeReference }
+                        ?.let { it.baseType as? BoundClassDefinition }
+                        ?.let { typeAsClassDef ->
+                            context.getSideEffectState(PartialObjectInitialization, variable)
+                                .getUninitializedMembers(typeAsClassDef)
+                        }
+                        ?.takeUnless { it.isEmpty() }
+                        ?.let {
+                            reportings.add(Reporting.objectNotFullyInitialized(it, declaration.sourceLocation))
+                        }
+                }
             }
 
-            return emptySet()
+            return reportings
         }
 
         override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {

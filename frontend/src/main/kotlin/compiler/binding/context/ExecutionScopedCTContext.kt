@@ -7,14 +7,8 @@ import compiler.ast.Statement.Companion.chain
 import compiler.ast.VariableDeclaration
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundVariable
-import compiler.binding.classdef.BoundClassDefinition
-import compiler.binding.classdef.BoundClassMemberVariable
 import compiler.binding.context.effect.SideEffect
 import compiler.binding.context.effect.SideEffectClass
-import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.PartiallyInitializedType
-import compiler.binding.type.RootResolvedTypeReference
-import java.util.Collections
 import java.util.IdentityHashMap
 
 /**
@@ -155,47 +149,6 @@ open class MutableExecutionScopedCTContext protected constructor(
         }
 
         throw InternalCompilerError("Cannot add a variable that has been bound to a different context")
-    }
-
-    private val variableTypeOverrides: MutableMap<BoundVariable, BoundTypeReference> = IdentityHashMap()
-    override fun getVariableType(variable: BoundVariable): BoundTypeReference? {
-        return variableTypeOverrides[variable] ?: parentContext.getVariableType(variable)
-    }
-
-    private fun overrideVariableType(variable: BoundVariable, newType: BoundTypeReference) {
-        variableTypeOverrides[variable] = newType
-    }
-
-    fun markVariablePartiallyInitialized(variable: BoundVariable) {
-        val type = getVariableType(variable)
-        if (type is PartiallyInitializedType) {
-            throw InternalCompilerError("Variable already marked as partially initialized")
-        }
-        if (type !is RootResolvedTypeReference) {
-            throw InternalCompilerError("Can only track partial initialization on ${RootResolvedTypeReference::class.simpleName}s")
-        }
-        val baseType = type.baseType
-        if (baseType !is BoundClassDefinition) {
-            throw InternalCompilerError("Can only track partial initialization on classes, got a BaseType of type ${baseType::class.simpleName}")
-        }
-
-        val uninitializedMembers = Collections.newSetFromMap<BoundClassMemberVariable>(IdentityHashMap())
-        uninitializedMembers.addAll(baseType.memberVariables)
-        if (uninitializedMembers.isEmpty()) {
-            return
-        }
-        overrideVariableType(variable, PartiallyInitializedType(type, uninitializedMembers))
-    }
-
-    fun markVariableInitializationCompletedPartially(variable: BoundVariable, initializedMember: BoundClassMemberVariable) {
-        val type = getVariableType(variable) as? PartiallyInitializedType ?: return
-        val newUninitializedMembers = type.uninitializedMemberVariables - initializedMember
-        if (newUninitializedMembers.isEmpty()) {
-            overrideVariableType(variable, type.base)
-            return
-        }
-
-        overrideVariableType(variable, type.copy(uninitializedMemberVariables = type.uninitializedMemberVariables - initializedMember))
     }
 
     private val sideEffectsBySubjectAndClass: MutableMap<Any, MutableMap<SideEffectClass<*, *, *>, MutableList<SideEffect<*>>>> = IdentityHashMap()

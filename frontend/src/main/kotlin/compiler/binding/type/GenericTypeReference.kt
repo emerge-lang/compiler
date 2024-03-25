@@ -71,7 +71,6 @@ sealed class GenericTypeReference : BoundTypeReference {
                     ))
                 }
             }
-            is PartiallyInitializedType -> return carry.plusReporting(Reporting.objectNotFullyInitialized(assigneeType, assignmentLocation))
         }
     }
 
@@ -94,7 +93,6 @@ sealed class GenericTypeReference : BoundTypeReference {
             }
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
-            is PartiallyInitializedType -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
         }
     }
 

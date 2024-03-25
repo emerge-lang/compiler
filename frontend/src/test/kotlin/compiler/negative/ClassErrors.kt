@@ -108,47 +108,137 @@ class ClassErrors : FreeSpec({
     }
 
     "constructor" - {
-        "constructor cannot use uninitialized member variables" {
-            validateModule("""
-                class Foo {
-                    x: Int
-                    y: Int = 2
-                    
-                    constructor {
-                        doSomething(self.y)
-                        doSomething(self.x)
-                        set self.x = 3
-                        doSomething(self.x)
+        "member variable uninitialized" - {
+            "constructor cannot use that member variables" {
+                validateModule("""
+                    class Foo {
+                        x: Int
+                        y: Int = 2
+                        
+                        constructor {
+                            doSomething(self.y)
+                            doSomething(self.x)
+                            set self.x = 3
+                            doSomething(self.x)
+                        }
                     }
-                }
-                
-                fun doSomething(p: Int) {}
-            """.trimIndent())
-                .shouldReport<UseOfUninitializedClassMemberVariableReporting> {
-                    it.member.name.value shouldBe "x"
-                }
+                    
+                    fun doSomething(p: Int) {}
+                """.trimIndent())
+                    .shouldReport<UseOfUninitializedClassMemberVariableReporting> {
+                        it.member.name.value shouldBe "x"
+                    }
+            }
+
+            "constructor cannot use self" {
+                validateModule("""
+                    class Foo {
+                        x: Int
+                        y: Int = 2
+                        
+                        constructor {
+                            doSomething(self)
+                            set self.x = 3
+                            doSomething(self)
+                        }
+                    }
+                    
+                    fun doSomething(p: Foo) {}
+                """.trimIndent())
+                    .shouldReport<ObjectNotFullyInitializedReporting> {
+                        it.uninitializedMembers should haveSize(1)
+                        it.uninitializedMembers.single().name.value shouldBe "x"
+                    }
+            }
         }
 
-        "constructor cannot use partially-initialized self" {
-            validateModule("""
-                class Foo {
-                    x: Int
-                    y: Int = 2
-                    
-                    constructor {
-                        doSomething(self)
-                        set self.x = 3
-                        doSomething(self)
+        "member variable has maybe been initialized" - {
+            "constructor cannot use that member variable" {
+                validateModule("""
+                    class Foo {
+                        cond: Boolean = init
+                        x: Int
+                        
+                        constructor {
+                            if self.cond {
+                                set self.x = 3
+                            }
+                            doSomething(self.x)
+                        }
                     }
-                }
-                
-                fun doSomething(p: Foo) {}
-            """.trimIndent())
-                .shouldReport<ObjectNotFullyInitializedReporting> {
-                    it.baseType.simpleName shouldBe "Foo"
-                    it.uninitializedMembers should haveSize(1)
-                    it.uninitializedMembers.single().name.value shouldBe "x"
-                }
+                    
+                    fun doSomething(p: Int) {}
+                """.trimIndent())
+                    .shouldReport<UseOfUninitializedClassMemberVariableReporting> {
+                        it.member.name.value shouldBe "x"
+                    }
+            }
+
+            "constructor cannot use self" {
+                validateModule("""
+                    class Foo {
+                        cond: Boolean = init
+                        x: Int
+                        
+                        constructor {
+                            if self.cond {
+                                set self.x = 3
+                            }
+                            doSomething(self)
+                        }
+                    }
+                    
+                    fun doSomething(p: Foo) {}
+                """.trimIndent())
+                    .shouldReport<ObjectNotFullyInitializedReporting> {
+                        it.uninitializedMembers should haveSize(1)
+                        it.uninitializedMembers.single().name.value shouldBe "x"
+                    }
+            }
+        }
+
+        "member variable has been initialized in two different ways" - {
+            "constructor can use that member variable" {
+                validateModule("""
+                    class Foo {
+                        cond: Boolean = init
+                        x: Int
+                        
+                        constructor {
+                            if self.cond {
+                                set self.x = 3
+                            } else {
+                                set self.x = 4
+                            }
+                            doSomething(self.x)
+                        }
+                    }
+                    
+                    fun doSomething(p: Int) {}
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "constructor can use self" {
+                validateModule("""
+                    class Foo {
+                        cond: Boolean = init
+                        x: Int
+                        
+                        constructor {
+                            if self.cond {
+                                set self.x = 3
+                            } else {
+                                set self.x = 4
+                            }
+                            doSomething(self)
+                        }
+                    }
+                    
+                    fun doSomething(p: Foo) {}
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
         }
     }
 

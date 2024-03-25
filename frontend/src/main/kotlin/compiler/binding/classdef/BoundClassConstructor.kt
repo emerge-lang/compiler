@@ -22,11 +22,11 @@ import compiler.binding.IrCodeChunkImpl
 import compiler.binding.IrReturnStatementImpl
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeParameter
-import compiler.binding.type.PartiallyInitializedType
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
@@ -208,7 +208,7 @@ class BoundClassConstructor(
             typeParameters.map { it.semanticAnalysisPhase2() }.forEach(reportings::addAll)
 
             reportings.addAll(selfVariableForInitCode.semanticAnalysisPhase2())
-            contextWithSelfVar.markVariablePartiallyInitialized(selfVariableForInitCode)
+            contextWithSelfVar.trackSideEffect(PartialObjectInitialization.Effect.MarkObjectAsEntireUninitializedEffect(selfVariableForInitCode, classDef))
 
             /**
              * normally, we could rely on the assignments in boundMemberVariableInitCodeFromCtorParams to do their
@@ -219,7 +219,7 @@ class BoundClassConstructor(
                 .asSequence()
                 .filter { it.isConstructorParameterInitialized }
                 .forEach {
-                    contextAfterInitFromCtorParams.markVariableInitializationCompletedPartially(selfVariableForInitCode, it)
+                    contextAfterInitFromCtorParams.trackSideEffect(PartialObjectInitialization.Effect.WriteToMemberVariableEffect(selfVariableForInitCode, it))
                 }
 
             reportings.addAll(boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase2())
@@ -242,12 +242,12 @@ class BoundClassConstructor(
             reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase3())
             reportings.addAll(additionalInitCode.semanticAnalysisPhase3())
 
-            val typeOfSelfAfterCtorCode = selfVariableForInitCode.getTypeInContext(additionalInitCode.modifiedContext)
-            if (typeOfSelfAfterCtorCode is PartiallyInitializedType) {
-                typeOfSelfAfterCtorCode.uninitializedMemberVariables
-                    .map { ClassMemberVariableNotInitializedDuringObjectConstructionReporting(it.declaration) }
-                    .let(reportings::addAll)
-            }
+            val partialInitState = additionalInitCode.modifiedContext.getSideEffectState(PartialObjectInitialization, selfVariableForInitCode)
+            classDef.memberVariables
+                .filter { partialInitState.getMemberInitializationState(it) != VariableInitialization.State.INITIALIZED }
+                .forEach {
+                    reportings.add(ClassMemberVariableNotInitializedDuringObjectConstructionReporting(it.declaration))
+                }
 
             reportings
         }
