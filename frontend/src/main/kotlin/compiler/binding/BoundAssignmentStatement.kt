@@ -40,6 +40,7 @@ import compiler.nullableOr
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
+import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
@@ -281,21 +282,31 @@ class BoundAssignmentStatement(
         }
 
         override fun toBackendIrExecutable(): IrExecutable {
-            var previousType = memberAccess.type!!.toBackendIr()
-            if (memberIsPotentiallyUninitialized) {
-                // forces a null-check on the reference drop, which prevents a nullpointer deref for an empty object
-                previousType = previousType.nullable()
+            val dropPreviousReferenceCode: IrCodeChunk
+            if (memberAccess.member!!.isReAssignable) {
+                var previousType = memberAccess.type!!.toBackendIr()
+                if (memberIsPotentiallyUninitialized) {
+                    // forces a null-check on the reference drop, which prevents a nullpointer deref for an empty object
+                    previousType = previousType.nullable()
+                }
+                val previousTemporary = IrCreateTemporaryValueImpl(memberAccess.toBackendIrExpression(), previousType)
+                dropPreviousReferenceCode = IrCodeChunkImpl(listOf(
+                    previousTemporary,
+                    IrDropReferenceStatementImpl(previousTemporary),
+                ))
+            } else {
+                check(memberIsPotentiallyUninitialized) { "multiple assignments to a non-reassignable target" }
+                // this is the first and only assignment, no need to drop a previous reference
+                dropPreviousReferenceCode = IrCodeChunkImpl(emptyList())
             }
 
-            val previousTemporary = IrCreateTemporaryValueImpl(memberAccess.toBackendIrExpression(), previousType)
             val baseTemporary = IrCreateTemporaryValueImpl(memberAccess.valueExpression.toBackendIrExpression())
             val baseTemporaryRefIncrement = IrCreateReferenceStatementImpl(baseTemporary).takeUnless { memberAccess.valueExpression.isEvaluationResultReferenceCounted }
             val toAssignTemporary = IrCreateTemporaryValueImpl(toAssignExpression.toBackendIrExpression())
             val toAssignTemporaryRefIncrement = IrCreateReferenceStatementImpl(toAssignTemporary).takeUnless { toAssignExpression.isEvaluationResultReferenceCounted }
 
             return IrCodeChunkImpl(listOfNotNull(
-                previousTemporary,
-                IrDropReferenceStatementImpl(previousTemporary),
+                dropPreviousReferenceCode,
                 baseTemporary,
                 baseTemporaryRefIncrement,
                 toAssignTemporary,
