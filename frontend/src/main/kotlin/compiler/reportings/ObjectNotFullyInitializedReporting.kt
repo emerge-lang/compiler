@@ -12,7 +12,7 @@ class ObjectNotFullyInitializedReporting(
     Level.ERROR,
     run {
         val memberList = uninitializedMembers.joinToString(transform = { "- ${it.name.value}" }, separator = "\n")
-        "The object is not fully initialized at this point, it cannot be used regularly yet. These member variables must still be initialized:\n$memberList"
+        "The object is not fully initialized yet. These member variables must be initialized before the object can be used regularly:\n$memberList"
     },
     sourceLocation,
 ) {

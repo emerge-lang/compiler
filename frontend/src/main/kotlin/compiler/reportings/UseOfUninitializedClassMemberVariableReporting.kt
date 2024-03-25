@@ -8,7 +8,13 @@ data class UseOfUninitializedClassMemberVariableReporting(
     val usedAt: SourceLocation,
 ) : Reporting(
     Level.ERROR,
-    "Member variable ${member.name.value} might not have been initialized yet",
+    run {
+        if (member.variableDeclaration.isReAssignable) {
+            "Member variable ${member.name.value} might not have been initialized yet"
+        } else {
+            "Member variable ${member.name.value} has not been initialized yet"
+        }
+    },
     usedAt,
 ) {
     override fun toString() = super.toString()

@@ -6,7 +6,7 @@ class ClassMemberVariableNotInitializedDuringObjectConstructionReporting(
     val memberDeclaration: ClassMemberVariableDeclaration
 ) : Reporting(
     Level.ERROR,
-    "Member variable ${memberDeclaration.name.value} is not guaranteed to be during object construction",
+    "Member variable ${memberDeclaration.name.value} is not guaranteed to be initialized during object construction",
     memberDeclaration.declaredAt,
 ) {
     override fun equals(other: Any?): Boolean {
