@@ -15,6 +15,7 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
+import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.IrAssignmentStatementImpl
 import compiler.binding.IrAssignmentStatementTargetVariableImpl
@@ -24,6 +25,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
+import compiler.binding.expression.BoundExpression
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeParameter
@@ -192,6 +194,7 @@ class BoundClassConstructor(
             // this has to be done first to make sure the type parameters are registered in the ctor function context
             typeParameters.map { it.semanticAnalysisPhase1() }.forEach(reportings::addAll)
 
+            reportings.addAll(attributes.semanticAnalysisPhase1())
             reportings.addAll(selfVariableForInitCode.semanticAnalysisPhase1())
             reportings.addAll(boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase1())
             reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase1())
@@ -222,6 +225,7 @@ class BoundClassConstructor(
                     contextAfterInitFromCtorParams.trackSideEffect(PartialObjectInitialization.Effect.WriteToMemberVariableEffect(selfVariableForInitCode, it))
                 }
 
+            reportings.addAll(attributes.semanticAnalysisPhase2())
             reportings.addAll(boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase2())
             reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase2())
             reportings.addAll(additionalInitCode.semanticAnalysisPhase2())
@@ -237,10 +241,32 @@ class BoundClassConstructor(
             val reportings = mutableListOf<Reporting>()
             typeParameters.map { it.semanticAnalysisPhase2() }.forEach(reportings::addAll)
 
+            reportings.addAll(attributes.semanticAnalysisPhase3())
             reportings.addAll(selfVariableForInitCode.semanticAnalysisPhase3())
             reportings.addAll(boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase3())
             reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase3())
             reportings.addAll(additionalInitCode.semanticAnalysisPhase3())
+
+            val illegalReads: Collection<BoundExpression<*>>
+            val illegalWrites: Collection<BoundStatement<*>>
+            if (attributes.isDeclaredReadonly || attributes.isDeclaredPure) {
+                illegalWrites = boundMemberVariableInitCodeFromExpression.findWritesBeyond(constructorFunctionRootContext) +
+                        additionalInitCode.findWritesBeyond(constructorFunctionRootContext)
+                if (attributes.isDeclaredPure) {
+                    illegalReads = boundMemberVariableInitCodeFromExpression.findReadsBeyond(constructorFunctionRootContext) +
+                            additionalInitCode.findReadsBeyond(constructorFunctionRootContext)
+                } else {
+                    illegalReads = emptySet()
+                }
+            } else {
+                illegalReads = emptySet()
+                illegalWrites = emptySet()
+            }
+            reportings.addAll(Reporting.purityViolations(illegalReads, illegalWrites, this))
+
+            if (attributes.isDeclaredModifying) {
+                reportings.add(Reporting.constructorDeclaredAsModifying(this))
+            }
 
             val partialInitState = additionalInitCode.modifiedContext.getSideEffectState(PartialObjectInitialization, selfVariableForInitCode)
             classDef.memberVariables

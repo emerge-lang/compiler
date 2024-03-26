@@ -21,6 +21,7 @@ package compiler.reportings
 import compiler.binding.BoundAssignmentStatement
 import compiler.binding.BoundFunction
 import compiler.binding.BoundStatement
+import compiler.binding.classdef.BoundClassConstructor
 import compiler.binding.classdef.BoundClassMemberVariable
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundInvocationExpression
@@ -41,7 +42,8 @@ abstract class PurityViolationReporting protected constructor(
         class Function(val function: BoundFunction) : Boundary(
             run {
                 val modifier = if (function.attributes.isDeclaredPure) "pure" else "readonly"
-                "$modifier function ${function.name}"
+                val kindAndName = if (function is BoundClassConstructor) "constructor of class ${function.classDef.simpleName}" else "function ${function.name}"
+                "$modifier $kindAndName"
             },
             function.attributes.isDeclaredPure,
         )

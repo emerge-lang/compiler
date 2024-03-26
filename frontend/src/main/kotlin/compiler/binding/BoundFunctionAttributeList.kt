@@ -10,7 +10,7 @@ class BoundFunctionAttributeList(val attributes: List<AstFunctionAttribute>) : S
     override fun semanticAnalysisPhase2() = emptyList<Reporting>()
     override fun semanticAnalysisPhase3() = emptyList<Reporting>()
 
-    private val firstModifyingAttribute: AstFunctionAttribute?
+    val firstModifyingAttribute: AstFunctionAttribute?
     private val firstReadonlyAttribute: AstFunctionAttribute?
     private val firstPureAttribute: AstFunctionAttribute?
     val externalAttribute: AstFunctionAttribute.External?
@@ -52,8 +52,6 @@ class BoundFunctionAttributeList(val attributes: List<AstFunctionAttribute>) : S
             .forEach { (a, b) ->
                 reportings.add(Reporting.conflictingModifiers(listOf(a, b)))
             }
-
-
     }
 
     /**
@@ -69,9 +67,9 @@ class BoundFunctionAttributeList(val attributes: List<AstFunctionAttribute>) : S
      */
     val isDeclaredReadonly: Boolean = firstReadonlyAttribute != null
 
-    companion object {
-        val EMPTY = BoundFunctionAttributeList(emptyList())
+    val isDeclaredModifying: Boolean = firstModifyingAttribute != null
 
+    companion object {
         private fun conflictsWith(a: AstFunctionAttribute, b: AstFunctionAttribute): Boolean = when (a) {
             is AstFunctionAttribute.Visibility -> { /* TODO */ false }
             is AstFunctionAttribute.EffectCategory -> {

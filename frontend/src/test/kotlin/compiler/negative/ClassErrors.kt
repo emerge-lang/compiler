@@ -1,10 +1,12 @@
 package compiler.compiler.negative
 
 import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
+import compiler.reportings.ConstructorDeclaredModifyingReporting
 import compiler.reportings.DuplicateClassMemberReporting
 import compiler.reportings.ImpureInvocationInPureContextReporting
 import compiler.reportings.ObjectNotFullyInitializedReporting
 import compiler.reportings.ReadInPureContextReporting
+import compiler.reportings.StateModificationOutsideOfPurityBoundaryReporting
 import compiler.reportings.UnknownTypeReporting
 import compiler.reportings.UseOfUninitializedClassMemberVariableReporting
 import compiler.reportings.ValueNotAssignableReporting
@@ -238,6 +240,76 @@ class ClassErrors : FreeSpec({
                     fun doSomething(p: Foo) {}
                 """.trimIndent())
                     .shouldHaveNoDiagnostics()
+            }
+        }
+
+        "purity" - {
+            "constructor is pure by default" - {
+                "cannot read global state" {
+                    validateModule("""
+                        intrinsic readonly fun foo() -> Int
+                        x: Int = foo()
+                        class Test {
+                            y: Int
+                            constructor {
+                                set self.y = x
+                            }
+                        }
+                    """.trimIndent())
+                        .shouldReport<ReadInPureContextReporting>()
+                }
+
+                "cannot write global state" {
+                    validateModule("""
+                        var x: Int = 0
+                        class Test {
+                            constructor {
+                                set x = 1
+                            }
+                        }
+                    """.trimIndent())
+                        .shouldReport<StateModificationOutsideOfPurityBoundaryReporting>()
+                }
+            }
+
+            "constructor declared as readonly" - {
+                "can read global state" {
+                    validateModule("""
+                        intrinsic readonly fun foo() -> Int
+                        x: Int = foo()
+                        class Test {
+                            y: Int
+                            readonly constructor {
+                                set self.y = x
+                            }
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+
+                "cannot write global state" {
+                    validateModule("""
+                        var x: Int = 0
+                        class Test {
+                            readonly constructor {
+                                set x = 1
+                            }
+                        }
+                    """.trimIndent())
+                        .shouldReport<StateModificationOutsideOfPurityBoundaryReporting>()
+                }
+            }
+
+            "constructor cannot be declared modifying" {
+                validateModule("""
+                    var x = 0
+                    class Test {
+                        mutable constructor {
+                            set x = 1
+                        }
+                    }
+                """.trimIndent())
+                    .shouldReport<ConstructorDeclaredModifyingReporting>()
             }
         }
     }

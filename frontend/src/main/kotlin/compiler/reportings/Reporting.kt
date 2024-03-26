@@ -34,6 +34,7 @@ import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundReturnStatement
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
+import compiler.binding.classdef.BoundClassConstructor
 import compiler.binding.classdef.BoundClassDefinition
 import compiler.binding.classdef.BoundClassMemberVariable
 import compiler.binding.expression.*
@@ -219,6 +220,11 @@ abstract class Reporting internal constructor(
         fun useOfUninitializedMember(access: BoundMemberAccessExpression) = UseOfUninitializedClassMemberVariableReporting(
             access.member!!.declaration,
             access.declaration.memberName.sourceLocation,
+        )
+
+        fun constructorDeclaredAsModifying(constructor: BoundClassConstructor) = ConstructorDeclaredModifyingReporting(
+            constructor,
+            constructor.attributes.firstModifyingAttribute!!.attributeName,
         )
 
         /**
