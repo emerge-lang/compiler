@@ -3,7 +3,7 @@ package compiler.binding.context.effect
 import compiler.InternalCompilerError
 import compiler.binding.BoundVariable
 
-object VariableInitialization : SideEffectClass<BoundVariable, VariableInitialization.State, VariableInitialization.WriteToVariableEffect> {
+object VariableInitialization : EphemeralStateClass<BoundVariable, VariableInitialization.State, VariableInitialization.WriteToVariableEffect> {
     override fun getInitialState(subject: BoundVariable) = State.NOT_INITIALIZED
 
     override fun fold(state: State, effect: WriteToVariableEffect): State {
@@ -51,6 +51,6 @@ object VariableInitialization : SideEffectClass<BoundVariable, VariableInitializ
     class WriteToVariableEffect(
         override val subject: BoundVariable,
     ) : SideEffect<BoundVariable> {
-        override val effectClass = VariableInitialization
+        override val stateClass = VariableInitialization
     }
 }

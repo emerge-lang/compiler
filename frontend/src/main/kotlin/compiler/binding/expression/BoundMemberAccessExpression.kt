@@ -90,7 +90,7 @@ class BoundMemberAccessExpression(
 
                 if (usageContext.requiresMemberInitialized) {
                     val isInitialized = valueExpression.tryAsVariable()?.let {
-                        context.getSideEffectState(PartialObjectInitialization, it).getMemberInitializationState(member) == VariableInitialization.State.INITIALIZED
+                        context.getEphemeralState(PartialObjectInitialization, it).getMemberInitializationState(member) == VariableInitialization.State.INITIALIZED
                     } ?: true
 
                     if (!isInitialized) {

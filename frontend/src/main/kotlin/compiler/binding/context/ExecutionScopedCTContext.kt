@@ -7,8 +7,8 @@ import compiler.ast.Statement.Companion.chain
 import compiler.ast.VariableDeclaration
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundVariable
+import compiler.binding.context.effect.EphemeralStateClass
 import compiler.binding.context.effect.SideEffect
-import compiler.binding.context.effect.SideEffectClass
 import java.util.IdentityHashMap
 
 /**
@@ -151,24 +151,24 @@ open class MutableExecutionScopedCTContext protected constructor(
         throw InternalCompilerError("Cannot add a variable that has been bound to a different context")
     }
 
-    private val sideEffectsBySubjectAndClass: MutableMap<Any, MutableMap<SideEffectClass<*, *, *>, MutableList<SideEffect<*>>>> = IdentityHashMap()
+    private val sideEffectsBySubjectAndClass: MutableMap<Any, MutableMap<EphemeralStateClass<*, *, *>, MutableList<SideEffect<*>>>> = IdentityHashMap()
     fun trackSideEffect(effect: SideEffect<*>) {
         val byEffectClass = sideEffectsBySubjectAndClass.computeIfAbsent(effect.subject) { HashMap() }
-        val effectList = byEffectClass.computeIfAbsent(effect.effectClass) { ArrayList(2) }
+        val effectList = byEffectClass.computeIfAbsent(effect.stateClass) { ArrayList(2) }
         effectList.add(effect)
     }
 
-    override fun <Subject : Any, State> getSideEffectState(effectClass: SideEffectClass<Subject, State, *>, subject: Subject): State {
-        val parentState = parentContext.getSideEffectState(effectClass, subject)
-        val selfEffects = sideEffectsBySubjectAndClass[subject]?.get(effectClass) ?: return parentState
+    override fun <Subject : Any, State> getEphemeralState(stateClass: EphemeralStateClass<Subject, State, *>, subject: Subject): State {
+        val parentState = parentContext.getEphemeralState(stateClass, subject)
+        val selfEffects = sideEffectsBySubjectAndClass[subject]?.get(stateClass) ?: return parentState
 
         // trackSideEffect is responsible for the type safety!
         @Suppress("UNCHECKED_CAST")
         selfEffects as List<SideEffect<Subject>>
         @Suppress("UNCHECKED_CAST")
-        effectClass as SideEffectClass<Subject, State, in SideEffect<Subject>>
+        stateClass as EphemeralStateClass<Subject, State, in SideEffect<Subject>>
 
-        return selfEffects.fold(parentState, effectClass::fold)
+        return selfEffects.fold(parentState, stateClass::fold)
     }
 
     override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? {
@@ -212,19 +212,19 @@ open class MutableExecutionScopedCTContext protected constructor(
 /**
  * Models the context after a conditional branch, where the branch may or may not be taken at runtime.
  * Information from [beforeBranch] is definitely available and [SideEffect]s from [atEndOfBranch] are considered
- * using [SideEffectClass.combineMaybe].
+ * using [EphemeralStateClass.combineMaybe].
  */
 class SingleBranchJoinExecutionScopedCTContext(
     private val beforeBranch: ExecutionScopedCTContext,
     private val atEndOfBranch: ExecutionScopedCTContext,
 ) : ExecutionScopedCTContext by beforeBranch {
-    override fun <Subject : Any, State> getSideEffectState(
-        effectClass: SideEffectClass<Subject, State, *>,
+    override fun <Subject : Any, State> getEphemeralState(
+        stateClass: EphemeralStateClass<Subject, State, *>,
         subject: Subject,
     ): State {
-        val stateBeforeBranch = beforeBranch.getSideEffectState(effectClass, subject)
-        val stateAfterBranch = atEndOfBranch.getSideEffectState(effectClass, subject)
-        return effectClass.combineMaybe(stateBeforeBranch, stateAfterBranch)
+        val stateBeforeBranch = beforeBranch.getEphemeralState(stateClass, subject)
+        val stateAfterBranch = atEndOfBranch.getEphemeralState(stateClass, subject)
+        return stateClass.combineMaybe(stateBeforeBranch, stateAfterBranch)
     }
 }
 
@@ -232,17 +232,17 @@ class SingleBranchJoinExecutionScopedCTContext(
  * Models the context after a conditional branch where there are many choices, and it is guaranteed that
  * one of them is taken.
  * Information from [beforeBranch] is definitely available and [SideEffect]s from [atEndOfBranches] are considered
- * using [SideEffectClass.intersect]
+ * using [EphemeralStateClass.intersect]
  */
 class MultiBranchJoinExecutionScopedCTContext(
     private val beforeBranch: ExecutionScopedCTContext,
     private val atEndOfBranches: Iterable<ExecutionScopedCTContext>,
 ) : ExecutionScopedCTContext by beforeBranch {
-    override fun <Subject : Any, State> getSideEffectState(
-        effectClass: SideEffectClass<Subject, State, *>,
+    override fun <Subject : Any, State> getEphemeralState(
+        stateClass: EphemeralStateClass<Subject, State, *>,
         subject: Subject,
     ): State {
-        val states = atEndOfBranches.map { it.getSideEffectState(effectClass, subject) }
-        return states.reduce(effectClass::intersect)
+        val states = atEndOfBranches.map { it.getEphemeralState(stateClass, subject) }
+        return states.reduce(stateClass::intersect)
     }
 }

@@ -4,7 +4,7 @@ import compiler.binding.BoundVariable
 import compiler.binding.classdef.BoundClassDefinition
 import compiler.binding.classdef.BoundClassMemberVariable
 
-object PartialObjectInitialization : SideEffectClass<BoundVariable, PartialObjectInitialization.State, PartialObjectInitialization.Effect> {
+object PartialObjectInitialization : EphemeralStateClass<BoundVariable, PartialObjectInitialization.State, PartialObjectInitialization.Effect> {
     override fun getInitialState(subject: BoundVariable) = State.INITIAL
     override fun fold(state: State, effect: Effect) = state.fold(effect)
     override fun combineMaybe(state: State, advancedMaybe: State) = state.combineMaybe(advancedMaybe)
@@ -56,7 +56,7 @@ object PartialObjectInitialization : SideEffectClass<BoundVariable, PartialObjec
     }
 
     sealed interface Effect : SideEffect<BoundVariable> {
-        override val effectClass get() = PartialObjectInitialization
+        override val stateClass get() = PartialObjectInitialization
 
         class MarkObjectAsEntireUninitializedEffect(
             override val subject: BoundVariable,

@@ -154,7 +154,7 @@ class BoundIdentifierExpression(
                         ?.let { it as? RootResolvedTypeReference }
                         ?.let { it.baseType as? BoundClassDefinition }
                         ?.let { typeAsClassDef ->
-                            context.getSideEffectState(PartialObjectInitialization, variable)
+                            context.getEphemeralState(PartialObjectInitialization, variable)
                                 .getUninitializedMembers(typeAsClassDef)
                         }
                         ?.takeUnless { it.isEmpty() }

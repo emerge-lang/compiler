@@ -23,7 +23,7 @@ import compiler.ast.type.TypeReference
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
-import compiler.binding.context.effect.SideEffectClass
+import compiler.binding.context.effect.EphemeralStateClass
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
@@ -85,8 +85,8 @@ interface CTContext {
      */
     fun resolveVariable(name: String, fromOwnFileOnly: Boolean = false): BoundVariable?
 
-    fun <Subject : Any, State> getSideEffectState(effectClass: SideEffectClass<Subject, State, *>, subject: Subject): State {
-        return effectClass.getInitialState(subject)
+    fun <Subject : Any, State> getEphemeralState(stateClass: EphemeralStateClass<Subject, State, *>, subject: Subject): State {
+        return stateClass.getInitialState(subject)
     }
 
     fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet>

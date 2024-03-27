@@ -250,7 +250,7 @@ class BoundVariable(
             return VariableInitialization.State.INITIALIZED
         }
 
-        return context.getSideEffectState(VariableInitialization, this)
+        return context.getEphemeralState(VariableInitialization, this)
     }
 
     /**

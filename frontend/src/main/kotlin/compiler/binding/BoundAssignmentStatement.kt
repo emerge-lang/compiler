@@ -267,7 +267,7 @@ class BoundAssignmentStatement(
         override fun semanticAnalysisPhase3(): Collection<Reporting> {
             memberAccess.valueExpression as? BoundIdentifierExpression
             memberIsPotentiallyUninitialized = accessBaseVariable?.let {
-                context.getSideEffectState(PartialObjectInitialization, it).getMemberInitializationState(memberAccess.member!!) != VariableInitialization.State.INITIALIZED
+                context.getEphemeralState(PartialObjectInitialization, it).getMemberInitializationState(memberAccess.member!!) != VariableInitialization.State.INITIALIZED
             } ?: false
 
             val reportings = mutableListOf<Reporting>()
