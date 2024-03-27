@@ -21,9 +21,10 @@ package compiler.ast.type
 enum class TypeMutability(
     val isMutable: Boolean,
 ) {
-    MUTABLE(isMutable =true),
+    MUTABLE(isMutable = true),
     READONLY(isMutable = false),
     IMMUTABLE(isMutable = false),
+    EXCLUSIVE(isMutable = true),
     // TODO: do we need a UNSPECIFIED placeholder here?
     ;
 
@@ -31,6 +32,7 @@ enum class TypeMutability(
         this == targetMutability
             ||
         when (this) {
+            EXCLUSIVE -> true
             MUTABLE, IMMUTABLE -> targetMutability == READONLY
             READONLY -> false
         }

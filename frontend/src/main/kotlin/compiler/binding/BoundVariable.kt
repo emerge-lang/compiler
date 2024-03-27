@@ -78,6 +78,10 @@ class BoundVariable(
      * The type, solely as _declared_ (excluding type inference). Null if fully inferred or not resolved yet
      */
     private var resolvedDeclaredType: BoundTypeReference? = null
+    private val expectedInitializerEvaluationType: BoundTypeReference
+        get() = this.resolvedDeclaredType ?: BuiltinAny.baseReference
+            .withCombinedNullability(declaration.type?.nullability ?: TypeReference.Nullability.NULLABLE)
+            .withMutability(declaration.type?.mutability ?: implicitMutability)
 
     override val isGuaranteedToThrow: Boolean?
         get() = initializerExpression?.isGuaranteedToThrow
@@ -124,11 +128,7 @@ class BoundVariable(
                     this.typeAtDeclarationTime = resolvedDeclaredType
                 }
 
-            initializerExpression?.setExpectedEvaluationResultType(
-                this.resolvedDeclaredType ?: BuiltinAny.baseReference
-                    .withCombinedNullability(declaration.type?.nullability ?: TypeReference.Nullability.NULLABLE)
-                    .withMutability(declaration.type?.mutability ?: implicitMutability)
-            )
+            initializerExpression?.setExpectedEvaluationResultType(expectedInitializerEvaluationType)
 
             if (shouldInferBaseType && declaration.type?.arguments?.isNotEmpty() == true) {
                 reportings.add(Reporting.explicitInferTypeWithArguments(declaration.type))
@@ -182,10 +182,11 @@ class BoundVariable(
 
                 if (declaration.type == null) {
                     // full inference
-                    typeAtDeclarationTime = initializerExpression.type
+                    typeAtDeclarationTime = initializerExpression.type?.withMutability(implicitMutability)
                 } else {
                     val finalNullability = declaration.type.nullability
-                    val finalMutability = declaration.type.mutability ?: initializerExpression.type?.mutability ?: implicitMutability
+                    val finalMutability = declaration.type.mutability
+                        ?: if (initializerExpression.type?.mutability?.isAssignableTo(implicitMutability) != false) implicitMutability else TypeMutability.READONLY
                     typeAtDeclarationTime = resolvedDeclaredType
                         .takeUnless { shouldInferBaseType }
                         ?: BuiltinAny.baseReference

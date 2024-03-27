@@ -138,5 +138,50 @@ class MutabilityErrors : FreeSpec({
                     it.message shouldBe "Cannot mutate this value. In fact, this is an immutable value."
                 }
         }
+
+        "mutable value to exclusive parameter" {
+            validateModule("""
+                class S {
+                    field: Int = init
+                }
+                fun foo(p: exclusive S) {}
+                fun test(p: mutable S) {
+                    foo(p)
+                }
+            """.trimIndent())
+                .shouldReport<ValueNotAssignableReporting> {
+                    it.message shouldBe "An exclusive value is needed here, this one is mutable."
+                }
+        }
+
+        "readonly value to exclusive parameter" {
+            validateModule("""
+                class S {
+                    field: Int = init
+                }
+                fun foo(p: exclusive S) {}
+                fun test(p: readonly S) {
+                    foo(p)
+                }
+            """.trimIndent())
+                .shouldReport<ValueNotAssignableReporting> {
+                    it.message shouldBe "An exclusive value is needed here; this is a readonly reference."
+                }
+        }
+
+        "immutable value to exclusive parameter" {
+            validateModule("""
+                class S {
+                    field: Int = init
+                }
+                fun foo(p: exclusive S) {}
+                fun test(p: immutable S) {
+                    foo(p)
+                }
+            """.trimIndent())
+                .shouldReport<ValueNotAssignableReporting> {
+                    it.message shouldBe "An exclusive value is needed here, this one is immutable."
+                }
+        }
     }
 })

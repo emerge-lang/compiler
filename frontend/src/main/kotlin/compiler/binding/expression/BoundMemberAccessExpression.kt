@@ -126,7 +126,7 @@ class BoundMemberAccessExpression(
         val baseTemporary = IrCreateTemporaryValueImpl(valueExpression.toBackendIrExpression())
         val memberTemporary = IrCreateTemporaryValueImpl(IrClassMemberVariableAccessExpressionImpl(
             IrTemporaryValueReferenceImpl(baseTemporary),
-            (member!! as BoundClassMemberVariable).toBackendIr(),
+            member!!.toBackendIr(),
             type!!.toBackendIr(),
         ))
 

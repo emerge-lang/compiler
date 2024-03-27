@@ -112,11 +112,6 @@ class BoundInvocationExpression(
             }
 
             type = chosenOverload.returnType
-            if (chosenOverload.candidate.returnsExclusiveValue && expectedReturnType != null) {
-                // this is solved by adjusting the return type of the constructor invocation according to the
-                // type needed by the larger context
-                type = type?.withMutability(expectedReturnType!!.mutability)
-            }
 
             return@getResult reportings
         }

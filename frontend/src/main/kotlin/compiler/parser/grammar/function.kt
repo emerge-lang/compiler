@@ -69,7 +69,7 @@ val Parameter = sequence("parameter declaration") {
         val name = next as IdentifierToken
         next = tokens.next() as OperatorToken?
 
-        var type: TypeReference? = null
+        var type: TypeReference?
         if (next != null && next.operator == Operator.COLON) {
             type = tokens.next() as TypeReference
             next = tokens.next()

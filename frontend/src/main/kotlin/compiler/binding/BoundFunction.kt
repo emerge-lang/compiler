@@ -19,7 +19,6 @@
 package compiler.binding
 
 import compiler.ast.Executable
-import compiler.ast.type.TypeMutability
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeParameter
@@ -77,12 +76,6 @@ abstract class BoundFunction : SemanticallyAnalyzable {
         get() = parameters.parameters.map { it.typeAtDeclarationTime }
 
     abstract val returnType: BoundTypeReference?
-
-    /**
-     * If true, this function returns a value with no references to it. This is only possible for constructors.
-     * Knowing this allows assigning that value to all [TypeMutability]s, something impossible otherwise.
-     */
-    open val returnsExclusiveValue: Boolean = false
 
     val fullyQualifiedName: DotName
         get() = context.sourceFile.packageName + name

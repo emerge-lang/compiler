@@ -19,8 +19,8 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
-import compiler.ast.TypeParameterBundle
 import compiler.ast.TypeArgumentBundle
+import compiler.ast.TypeParameterBundle
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
@@ -42,6 +42,7 @@ val TypeMutability = eitherOf("type mutability") {
     keyword(Keyword.MUTABLE)
     keyword(Keyword.READONLY)
     keyword(Keyword.IMMUTABLE)
+    keyword(Keyword.EXCLUSIVE)
 }
     .mapResult { keywordToken ->
         keywordToken as KeywordToken
@@ -49,6 +50,7 @@ val TypeMutability = eitherOf("type mutability") {
             Keyword.MUTABLE   -> compiler.ast.type.TypeMutability.MUTABLE
             Keyword.READONLY  -> compiler.ast.type.TypeMutability.READONLY
             Keyword.IMMUTABLE -> compiler.ast.type.TypeMutability.IMMUTABLE
+            Keyword.EXCLUSIVE -> compiler.ast.type.TypeMutability.EXCLUSIVE
             else -> throw InternalCompilerError("${keywordToken.keyword} is not a type modifier")
         }
     }

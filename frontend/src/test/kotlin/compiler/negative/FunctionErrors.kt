@@ -175,7 +175,7 @@ class FunctionErrors : FreeSpec({
             }
             reportings.forOne {
                 it.shouldBeInstanceOf<ValueNotAssignableReporting>().also {
-                    it.sourceType.toString() shouldBe "immutable testmodule.B"
+                    it.sourceType.toString() shouldBe "exclusive testmodule.B"
                     it.targetType.toString() shouldBe "immutable Int"
                 }
             }

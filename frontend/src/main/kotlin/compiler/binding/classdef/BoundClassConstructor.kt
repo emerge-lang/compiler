@@ -78,7 +78,6 @@ class BoundClassConstructor(
     override val attributes = BoundFunctionAttributeList(explicitDeclaration?.attributes ?: emptyList())
     override val isPure = true
     override val isReadonly = true
-    override val returnsExclusiveValue = true
     override val isGuaranteedToThrow = false
     override val typeParameters: List<BoundTypeParameter> by lazy {
         classDef.typeParameters.map { constructorFunctionRootContext.addTypeParameter(it.astNode) }
@@ -89,7 +88,7 @@ class BoundClassConstructor(
             TypeReference(
                 classDef.simpleName,
                 TypeReference.Nullability.NOT_NULLABLE,
-                TypeMutability.IMMUTABLE,
+                TypeMutability.EXCLUSIVE,
                 classDef.declaration.name,
                 classDef.typeParameters.map {
                     TypeArgument(

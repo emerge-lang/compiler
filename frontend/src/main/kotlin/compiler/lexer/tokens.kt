@@ -40,6 +40,7 @@ enum class Keyword(val text: String)
     MUTABLE("mutable"),
     READONLY("readonly"),
     IMMUTABLE("immutable"),
+    EXCLUSIVE("exclusive"),
     NOTHROW("nothrow"),
     PURE("pure"),
     OPERATOR("operator"),
