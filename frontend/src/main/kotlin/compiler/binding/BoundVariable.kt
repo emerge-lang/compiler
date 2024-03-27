@@ -182,14 +182,18 @@ class BoundVariable(
 
                 if (declaration.type == null) {
                     // full inference
-                    typeAtDeclarationTime = initializerExpression.type?.withMutability(implicitMutability)
+                    typeAtDeclarationTime = initializerExpression.type?.withCombinedMutability(implicitMutability)
                 } else {
                     val finalNullability = declaration.type.nullability
                     val finalMutability = declaration.type.mutability
                         ?: if (initializerExpression.type?.mutability?.isAssignableTo(implicitMutability) != false) implicitMutability else TypeMutability.READONLY
-                    typeAtDeclarationTime = resolvedDeclaredType
-                        .takeUnless { shouldInferBaseType }
-                        ?: BuiltinAny.baseReference
+
+                    if (shouldInferBaseType) {
+                        typeAtDeclarationTime = initializerExpression.type
+                    } else {
+                        typeAtDeclarationTime = resolvedDeclaredType
+                    }
+
                     typeAtDeclarationTime = typeAtDeclarationTime!!
                         .withMutability(finalMutability)
                         .withCombinedNullability(finalNullability)

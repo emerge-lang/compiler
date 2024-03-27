@@ -56,8 +56,10 @@ enum class TypeMutability(
      * |`IMMUTABLE`|`READONLY` |`READONLY` |
      * |`IMMUTABLE`|`IMMUTABLE`|`IMMUTABLE`|
      */
-    fun combinedWith(other: TypeMutability?): TypeMutability = when(other) {
-        null, this -> this
+    fun combinedWith(other: TypeMutability?): TypeMutability = when {
+        other == null || other == this -> this
+        this == EXCLUSIVE -> other
+        other == EXCLUSIVE -> this
         else -> READONLY
     }
 

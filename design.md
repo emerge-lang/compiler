@@ -152,10 +152,10 @@ This also applies to nullability:
 
 Full overview:
 
-| re-assignable? | immutable          | readonly          | mutable      |
-|----------------|--------------------|-------------------|--------------|
-| no             | a: T               | a: readonly T     | a: mutable T |
-| yes            | var a: immutable T | var a: readonly T | var a: T     |
+| re-assignable? | immutable          | readonly          | mutable      | exclusive          |
+|----------------|--------------------|-------------------|--------------|--------------------|
+| no             | a: T               | a: readonly T     | a: mutable T | a: exclusive T     |
+| yes            | var a: immutable T | var a: readonly T | var a: T     | var a: exclusive T |
 
 Also, note that the re-assignability implies a mutability. The variable isn't forced to take that mutability, though,
 as some wiggle room is necessary. E.g. `x: readonly T` and `y = x` are valid, and `y` will be `readonly T`, too.
@@ -163,12 +163,12 @@ as some wiggle room is necessary. E.g. `x: readonly T` and `y = x` are valid, an
 Nullability is not affected by re-assignability. The Variable will always have the nullability as declared, or completely
 inferred from the initializer.
 
-| declared mutability | initializer mutability                    | re-assignable? | variable type              |
-|---------------------|-------------------------------------------|----------------|----------------------------|
-| _explicitly given_  | _irrelevant_                              | _irrelevant_   | _as declared_              |
-| _unspecified_       | _explicitly known_                        | _irrelevant_   | _identical to initializer_ |
-| _unspecified_       | _no initializer / constructor invocation_ | no             | `immutable T`              |
-| _unspecified_       | _exclusive_                               | yes            | `mutable T`                |
+| declared mutability | initializer mutability       | re-assignable? | variable type              |
+|---------------------|------------------------------|----------------|----------------------------|
+| _explicitly given_  | _irrelevant_                 | _irrelevant_   | _as declared_              |
+| _unspecified_       | _explicitly known_           | _irrelevant_   | _identical to initializer_ |
+| _unspecified_       | _no initializer / exclusive_ | no             | `immutable T`              |
+| _unspecified_       | _exclusive_                  | yes            | `mutable T`                |
 
 #### Why this syntax
 
