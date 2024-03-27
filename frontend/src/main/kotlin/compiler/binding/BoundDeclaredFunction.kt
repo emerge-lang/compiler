@@ -29,7 +29,7 @@ class BoundDeclaredFunction(
     override val name: String = declaration.name.value
 
     override val receiverType: BoundTypeReference?
-        get() = parameters.declaredReceiver?.type
+        get() = parameters.declaredReceiver?.typeAtDeclarationTime
 
     override val declaresReceiver = parameters.declaredReceiver != null
 

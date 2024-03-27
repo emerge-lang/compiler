@@ -209,9 +209,9 @@ fun List<BoundParameter>.nonDisjointPairs(): Sequence<Pair<BoundParameter, Bound
     soll i'll do it if i can confirm that the overloading semantics based on this are actually good/what i want.
     */
     return this
-        .filter { it.type != null }
+        .filter { it.typeAtDeclarationTime != null }
         .twoElementPermutationsUnordered()
-        .filterNot { (a, b) -> a.type!!.isDisjointWith(b.type!!) }
+        .filterNot { (a, b) -> a.typeAtDeclarationTime!!.isDisjointWith(b.typeAtDeclarationTime!!) }
 }
 
 infix fun BoundTypeReference.isAssignableTo(other: BoundTypeReference): Boolean {

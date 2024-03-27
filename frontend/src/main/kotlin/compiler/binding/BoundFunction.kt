@@ -74,7 +74,7 @@ abstract class BoundFunction : SemanticallyAnalyzable {
     abstract val parameters: BoundParameterList
 
     val parameterTypes: List<BoundTypeReference?>
-        get() = parameters.parameters.map { it.type }
+        get() = parameters.parameters.map { it.typeAtDeclarationTime }
 
     abstract val returnType: BoundTypeReference?
 

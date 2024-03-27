@@ -65,11 +65,18 @@ class BoundVariable(
     private val shouldInferBaseType: Boolean = declaration.type == null || declaration.type.simpleName == DECLARATION_TYPE_NAME_INFER
 
     /**
-     * The base type reference; null if not determined yet or if it cannot be determined due to semantic errors.
+     * The type as _declared_ or inferred _from the declaration only_; there is some level of dependent typing
+     * (e.g. null checks, instanceof-checks) that can narrow the type of variables. Use [getTypeInContext] to obtain
+     * the correct type.
+     *
+     * null if not determined yet or if it cannot be determined due to semantic errors.
      */
-    var type: BoundTypeReference? = null
+    var typeAtDeclarationTime: BoundTypeReference? = null
         private set
 
+    /**
+     * The type, solely as _declared_ (excluding type inference). Null if fully inferred or not resolved yet
+     */
     private var resolvedDeclaredType: BoundTypeReference? = null
 
     override val isGuaranteedToThrow: Boolean?
@@ -114,7 +121,7 @@ class BoundVariable(
                 ?.defaultMutabilityTo(implicitMutability)
                 ?.let { resolvedDeclaredType ->
                     this.resolvedDeclaredType = resolvedDeclaredType
-                    this.type = resolvedDeclaredType
+                    this.typeAtDeclarationTime = resolvedDeclaredType
                 }
 
             initializerExpression?.setExpectedEvaluationResultType(
@@ -175,14 +182,14 @@ class BoundVariable(
 
                 if (declaration.type == null) {
                     // full inference
-                    type = initializerExpression.type
+                    typeAtDeclarationTime = initializerExpression.type
                 } else {
                     val finalNullability = declaration.type.nullability
                     val finalMutability = declaration.type.mutability ?: initializerExpression.type?.mutability ?: implicitMutability
-                    type = resolvedDeclaredType
+                    typeAtDeclarationTime = resolvedDeclaredType
                         .takeUnless { shouldInferBaseType }
                         ?: BuiltinAny.baseReference
-                    type = type!!
+                    typeAtDeclarationTime = typeAtDeclarationTime!!
                         .withMutability(finalMutability)
                         .withCombinedNullability(finalNullability)
 
@@ -190,7 +197,7 @@ class BoundVariable(
                         // discrepancy between assign expression and declared type
                         if (initializerType !is UnresolvedType) {
                             initializerType.evaluateAssignabilityTo(
-                                type!!,
+                                typeAtDeclarationTime!!,
                                 declaration.initializerExpression!!.sourceLocation
                             )
                                 ?.let(reportings::add)
@@ -200,8 +207,8 @@ class BoundVariable(
             }
 
             // handle no initializer case
-            if (type == null) {
-                type = resolvedDeclaredType
+            if (typeAtDeclarationTime == null) {
+                typeAtDeclarationTime = resolvedDeclaredType
             }
 
             if (resolvedDeclaredType != null) {
@@ -251,10 +258,10 @@ class BoundVariable(
      */
     fun getTypeInContext(context: ExecutionScopedCTContext): BoundTypeReference? {
         // TODO: usage of this was refactored away, but it may become useful again for smart casts -> implement them here
-        return type
+        return typeAtDeclarationTime
     }
 
-    val backendIrDeclaration: IrVariableDeclaration by lazy { IrVariableDeclarationImpl(name, type!!.toBackendIr()) }
+    val backendIrDeclaration: IrVariableDeclaration by lazy { IrVariableDeclarationImpl(name, typeAtDeclarationTime!!.toBackendIr()) }
 
     override fun toBackendIrStatement(): IrExecutable {
         if (initializerExpression == null) {

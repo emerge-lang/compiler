@@ -150,7 +150,7 @@ class BoundIdentifierExpression(
                 }
 
                 if (!allowPartiallyUninitialized) {
-                    variable.type
+                    variable.getTypeInContext(context)
                         ?.let { it as? RootResolvedTypeReference }
                         ?.let { it.baseType as? BoundClassDefinition }
                         ?.let { typeAsClassDef ->

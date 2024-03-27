@@ -58,7 +58,7 @@ class BoundClassMemberVariable(
     /**
      * The type of the member; is null if not yet determined or if it cannot be determined.
      */
-    override val type: BoundTypeReference? get() = boundEffectiveVariableDeclaration.type
+    override val type: BoundTypeReference? get() = boundEffectiveVariableDeclaration.typeAtDeclarationTime
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return boundEffectiveVariableDeclaration.semanticAnalysisPhase1()

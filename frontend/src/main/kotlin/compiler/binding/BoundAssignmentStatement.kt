@@ -59,7 +59,7 @@ class BoundAssignmentStatement(
     val targetExpression: BoundExpression<*>,
     val toAssignExpression: BoundExpression<*>
 ) : BoundStatement<AssignmentStatement> {
-    override val isGuaranteedToThrow: Boolean?
+    override val isGuaranteedToThrow: Boolean
         get() = targetExpression.isGuaranteedToThrow nullableOr toAssignExpression.isGuaranteedToThrow
 
     private val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(context)
@@ -164,7 +164,7 @@ class BoundAssignmentStatement(
     }
 
     inner class VariableTarget(val reference: BoundIdentifierExpression.ReferringVariable) : AssignmentTarget {
-        override val type get() = reference.variable.type
+        override val type get() = reference.variable.getTypeInContext(context)
 
         override fun semanticAnalysisPhase2(): Collection<Reporting> {
             return emptySet()
@@ -191,7 +191,7 @@ class BoundAssignmentStatement(
                 }
             }
 
-            reference.variable.type?.let { targetType ->
+            type?.let { targetType ->
                 toAssignExpression.type?.evaluateAssignabilityTo(targetType, toAssignExpression.declaration.sourceLocation)
                     ?.let(reportings::add)
             }
