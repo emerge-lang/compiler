@@ -5,8 +5,7 @@ import compiler.binding.classdef.BoundClassDefinition
 import compiler.binding.classdef.BoundClassMemberVariable
 
 object PartialObjectInitialization : SideEffectClass<BoundVariable, PartialObjectInitialization.State, PartialObjectInitialization.Effect> {
-    override val initialState: State = State.INITIAL
-
+    override fun getInitialState(subject: BoundVariable) = State.INITIAL
     override fun fold(state: State, effect: Effect) = state.fold(effect)
     override fun combineMaybe(state: State, advancedMaybe: State) = state.combineMaybe(advancedMaybe)
     override fun intersect(stateOne: State, stateTwo: State) = stateOne.intersect(stateTwo)

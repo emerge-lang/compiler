@@ -14,7 +14,7 @@ interface SideEffectClass<Subject : Any, State, Effect : SideEffect<Subject>> {
      * The state of this effect when no influencing actions have been tracked. E.g. a variable starts out
      * uninitialized until an action is recorded that initializes it.
      */
-    val initialState: State
+    fun getInitialState(subject: Subject): State
 
     /**
      * Given a previous state [state] and an effect [effect] that happens in that state, returns

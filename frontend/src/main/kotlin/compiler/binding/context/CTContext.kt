@@ -86,7 +86,7 @@ interface CTContext {
     fun resolveVariable(name: String, fromOwnFileOnly: Boolean = false): BoundVariable?
 
     fun <Subject : Any, State> getSideEffectState(effectClass: SideEffectClass<Subject, State, *>, subject: Subject): State {
-        return effectClass.initialState
+        return effectClass.getInitialState(subject)
     }
 
     fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet>

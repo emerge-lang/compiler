@@ -4,7 +4,7 @@ import compiler.InternalCompilerError
 import compiler.binding.BoundVariable
 
 object VariableInitialization : SideEffectClass<BoundVariable, VariableInitialization.State, VariableInitialization.WriteToVariableEffect> {
-    override val initialState: State = State.NOT_INITIALIZED
+    override fun getInitialState(subject: BoundVariable) = State.NOT_INITIALIZED
 
     override fun fold(state: State, effect: WriteToVariableEffect): State {
         return State.INITIALIZED
