@@ -117,7 +117,7 @@ class BoundClassConstructor(
             null,
             null,
             IdentifierToken("self", generatedSourceLocation),
-            (returnType as RootResolvedTypeReference).original!!.withMutability(TypeMutability.MUTABLE),
+            (returnType as RootResolvedTypeReference).original!!.withMutability(TypeMutability.EXCLUSIVE),
             null,
         ))
         varInstance.defaultOwnership = VariableOwnership.BORROWED
