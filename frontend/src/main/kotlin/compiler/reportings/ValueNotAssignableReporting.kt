@@ -52,7 +52,7 @@ open class ValueNotAssignableReporting(
 
         when (sourceType.mutability) {
             TypeMutability.MUTABLE -> when (targetType.mutability) {
-                TypeMutability.IMMUTABLE -> return "An immutable value is needed here, this one is immutable."
+                TypeMutability.IMMUTABLE -> return "An immutable value is needed here, this one is mutable."
                 TypeMutability.EXCLUSIVE -> return "An exclusive value is needed here, this one is mutable."
                 TypeMutability.READONLY,
                 TypeMutability.MUTABLE -> throw InternalCompilerError("This should not have happened")
