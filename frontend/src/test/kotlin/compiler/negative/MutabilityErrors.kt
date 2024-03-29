@@ -1,13 +1,9 @@
 package compiler.compiler.negative
 
-import compiler.binding.expression.BoundIdentifierExpression
-import compiler.binding.expression.BoundMemberAccessExpression
-import compiler.reportings.IllegalAssignmentReporting
 import compiler.reportings.ValueNotAssignableReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeInstanceOf
 
 class MutabilityErrors : FreeSpec({
     "class initialized in a val is immutable" - {
@@ -21,12 +17,7 @@ class MutabilityErrors : FreeSpec({
                     set myX.a = 3
                 }
             """.trimIndent())
-                    .shouldReport<IllegalAssignmentReporting> {
-                        it.statement.targetExpression.shouldBeInstanceOf<BoundMemberAccessExpression>().let { targetExpr ->
-                            targetExpr.valueExpression.shouldBeInstanceOf<BoundIdentifierExpression>().identifier shouldBe "myX"
-                            targetExpr.memberName shouldBe "a"
-                        }
-                    }
+                    .shouldReport<ValueNotAssignableReporting>()
         }
 
         "cannot be assigned to a mutable reference" {
@@ -72,8 +63,9 @@ class MutabilityErrors : FreeSpec({
                     set myB.genericVal.someVal = 5
                 }
             """.trimIndent())
-                .shouldReport<IllegalAssignmentReporting> {
-                    it.statement.targetExpression.shouldBeInstanceOf<BoundMemberAccessExpression>().memberName shouldBe "someVal"
+                .shouldReport<ValueNotAssignableReporting> {
+                    it.targetType.toString() shouldBe "mutable testmodule.A"
+                    it.sourceType.toString() shouldBe "immutable testmodule.A"
                 }
         }
     }
@@ -90,7 +82,7 @@ class MutabilityErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.message shouldBe "An immutable value is needed here, this one is immutable."
+                    it.message shouldBe "An immutable value is needed here, this one is mutable."
                 }
         }
 

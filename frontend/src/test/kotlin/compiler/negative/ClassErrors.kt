@@ -247,7 +247,7 @@ class ClassErrors : FreeSpec({
                         }
                     }
                     
-                    fun doSomething(p: Foo) {}
+                    fun doSomething(borrow p: Foo) {}
                 """.trimIndent())
                     .shouldHaveNoDiagnostics()
             }

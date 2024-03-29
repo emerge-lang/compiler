@@ -68,7 +68,14 @@ open class MutableExecutionScopedCTContext protected constructor(
         }
     }
 
-    private val hierarchy: Sequence<CTContext> = generateSequence(this as CTContext) { (it as? MutableExecutionScopedCTContext)?.parentContext }
+    private val hierarchy: Sequence<CTContext> = generateSequence(this as CTContext) {
+        when (it) {
+            is MutableExecutionScopedCTContext -> it.parentContext
+            is SingleBranchJoinExecutionScopedCTContext -> it.beforeBranch
+            is MultiBranchJoinExecutionScopedCTContext -> it.beforeBranch
+            else -> null
+        }
+    }
 
     private val parentScopeContext: ExecutionScopedCTContext? by lazy {
         val parent = hierarchy.drop(1)
@@ -215,7 +222,7 @@ open class MutableExecutionScopedCTContext protected constructor(
  * using [EphemeralStateClass.combineMaybe].
  */
 class SingleBranchJoinExecutionScopedCTContext(
-    private val beforeBranch: ExecutionScopedCTContext,
+    internal val beforeBranch: ExecutionScopedCTContext,
     private val atEndOfBranch: ExecutionScopedCTContext,
 ) : ExecutionScopedCTContext by beforeBranch {
     override fun <Subject : Any, State> getEphemeralState(
@@ -235,7 +242,7 @@ class SingleBranchJoinExecutionScopedCTContext(
  * using [EphemeralStateClass.intersect]
  */
 class MultiBranchJoinExecutionScopedCTContext(
-    private val beforeBranch: ExecutionScopedCTContext,
+    internal val beforeBranch: ExecutionScopedCTContext,
     private val atEndOfBranches: Iterable<ExecutionScopedCTContext>,
 ) : ExecutionScopedCTContext by beforeBranch {
     override fun <Subject : Any, State> getEphemeralState(

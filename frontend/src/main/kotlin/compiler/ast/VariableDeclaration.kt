@@ -38,10 +38,14 @@ data class VariableDeclaration(
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundVariable = bindTo(context, BoundVariable.Kind.VARIABLE)
     fun bindToAsParameter(context: ExecutionScopedCTContext): BoundVariable = bindTo(context, BoundVariable.Kind.PARAMETER)
-    private fun bindTo(context: ExecutionScopedCTContext, kind: BoundVariable.Kind): BoundVariable = BoundVariable(
-        context,
-        this,
-        initializerExpression?.bindTo(context),
-        kind,
-    )
+    private fun bindTo(context: ExecutionScopedCTContext, kind: BoundVariable.Kind): BoundVariable {
+        val boundInitializer = initializerExpression?.bindTo(context)
+        val contextAfterInitializer = boundInitializer?.modifiedContext ?: context
+        return BoundVariable(
+            context,
+            this,
+            boundInitializer,
+            kind,
+        )
+    }
 }
