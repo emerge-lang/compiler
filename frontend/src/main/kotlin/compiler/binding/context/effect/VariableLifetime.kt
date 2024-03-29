@@ -18,15 +18,30 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
     }
 
     override fun fold(state: State, effect: Effect): State {
-        effect as Effect.ValueCaptured // only one as of now
-        if (state is State.AliveCapturedExclusive && effect.withMutability != TypeMutability.READONLY) {
-            return State.Dead(effect.subject, effect.capturedAt)
+        when (effect) {
+            is Effect.ValueCaptured -> {
+                if (state is State.AliveCapturedExclusive && effect.withMutability != TypeMutability.READONLY) {
+                    return State.Dead(effect.subject, effect.capturedAt)
+                }
+                return state
+            }
+            is Effect.NewValueAssigned -> return getInitialState(effect.subject)
         }
-        return state
     }
 
     override fun combineMaybe(state: State, advancedMaybe: State): State {
-        return advancedMaybe.maybe()
+        return when (state) {
+            is State.Untracked -> {
+                check(advancedMaybe is State.Untracked) { "variables cannot suddenly become tracked" }
+                state
+            }
+            is State.AliveCapturedExclusive -> when (advancedMaybe) {
+                is State.Untracked -> throw InternalCompilerError("this should be impossible, variables cannot suddenly become tracked")
+                is State.AliveCapturedExclusive -> state
+                is State.Dead -> advancedMaybe.maybe()
+            }
+            is State.Dead -> state
+        }
     }
 
     override fun intersect(stateOne: State, stateTwo: State): State {
@@ -55,16 +70,16 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
         /**
          * No lifetime tracking is done, it lives for the entirety of its scope
          */
-        object Untracked : State
+        data object Untracked : State
 
-        object AliveCapturedExclusive : State
+        data object AliveCapturedExclusive : State
 
-        class Dead(
+        data class Dead(
             val variable: BoundVariable,
             val lifetimeEndedAt: SourceLocation,
             val maybe: Boolean = false,
         ) : State {
-            override fun maybe() = Dead(variable, lifetimeEndedAt, true)
+            override fun maybe() = if (maybe) this else Dead(variable, lifetimeEndedAt, true)
             override fun validateValueRead(read: BoundIdentifierExpression): Collection<Reporting> {
                 return setOf(Reporting.variableUsedAfterLifetime(variable, read, this))
             }
@@ -74,11 +89,14 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
     sealed interface Effect : SideEffect<BoundVariable> {
         override val stateClass: EphemeralStateClass<*, *, *> get() = VariableLifetime
 
-        class ValueCaptured(
+        data class ValueCaptured(
             override val subject: BoundVariable,
             val withMutability: TypeMutability,
             val capturedAt: SourceLocation,
         ) : Effect
-        // TODO: resurrect variable when reassigned
+
+        data class NewValueAssigned(
+            override val subject: BoundVariable
+        ) : Effect
     }
 }

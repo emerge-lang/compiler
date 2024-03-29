@@ -251,7 +251,7 @@ class BoundIdentifierExpression(
         val requiresVariableLifetimeActive: Boolean,
     ) {
         READ(true, true),
-        WRITE(false, true),
+        WRITE(false, false),
     }
 }
 

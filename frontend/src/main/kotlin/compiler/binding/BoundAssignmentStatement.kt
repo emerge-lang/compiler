@@ -26,6 +26,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
+import compiler.binding.context.effect.VariableLifetime
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
 import compiler.binding.expression.BoundIdentifierExpression
@@ -64,7 +65,7 @@ class BoundAssignmentStatement(
     override val isGuaranteedToThrow: Boolean
         get() = targetExpression.isGuaranteedToThrow nullableOr toAssignExpression.isGuaranteedToThrow
 
-    private val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(context)
+    private val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(toAssignExpression.modifiedContext)
     override val modifiedContext: ExecutionScopedCTContext = _modifiedContext
 
     override val implicitEvaluationResultType: BoundTypeReference? = null
@@ -127,10 +128,6 @@ class BoundAssignmentStatement(
                 reportings.add(Reporting.assignmentUsedAsExpression(this))
             }
 
-            target?.type?.let {
-                toAssignExpression.markEvaluationResultCaptured(it.mutability)
-            }
-
             reportings
         }
     }
@@ -138,6 +135,8 @@ class BoundAssignmentStatement(
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
             val reportings = mutableSetOf<Reporting>()
+            toAssignExpression.markEvaluationResultCaptured(target?.type?.mutability ?: TypeMutability.READONLY)
+
             reportings.addAll(targetExpression.semanticAnalysisPhase3())
             reportings.addAll(toAssignExpression.semanticAnalysisPhase3())
             target?.semanticAnalysisPhase3()?.let(reportings::addAll)
@@ -173,6 +172,7 @@ class BoundAssignmentStatement(
         override val type get() = reference.variable.getTypeInContext(context) ?: UnresolvedType.STAND_IN_TYPE
 
         override fun semanticAnalysisPhase2(): Collection<Reporting> {
+            _modifiedContext.trackSideEffect(VariableLifetime.Effect.NewValueAssigned(reference.variable))
             return emptySet()
         }
 

@@ -20,6 +20,7 @@ package compiler.binding
 
 import compiler.ast.ReturnStatement
 import compiler.ast.expression.IdentifierExpression
+import compiler.ast.type.TypeMutability
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
@@ -60,15 +61,23 @@ class BoundReturnStatement(
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        expression?.markEvaluationResultUsed()
         return expression?.semanticAnalysisPhase2() ?: emptySet()
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
+        val expectedReturnType = this.expectedReturnType
+        expression?.markEvaluationResultCaptured(expectedReturnType?.mutability ?: TypeMutability.READONLY)
         expression?.semanticAnalysisPhase3()?.let(reportings::addAll)
 
-        val expectedReturnType = this.expectedReturnType
-            ?: return reportings + Reporting.consecutive("Cannot check return value type because the expected return type is not known", declaration.sourceLocation)
+        if (expectedReturnType == null) {
+            return reportings + Reporting.consecutive(
+                "Cannot check return value type because the expected return type is not known",
+                declaration.sourceLocation
+            )
+        }
+
         val expressionType = expression?.type
 
         if (expressionType != null) {
@@ -78,7 +87,7 @@ class BoundReturnStatement(
                 }
         }
 
-        if (expectedReturnType != null && expectedReturnType is RootResolvedTypeReference && expectedReturnType.baseType != context.swCtx.unitBaseType && expression == null) {
+        if (expectedReturnType is RootResolvedTypeReference && expectedReturnType.baseType != context.swCtx.unitBaseType && expression == null) {
             reportings.add(Reporting.missingReturnValue(this, expectedReturnType))
         }
 

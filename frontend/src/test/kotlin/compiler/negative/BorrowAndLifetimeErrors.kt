@@ -44,7 +44,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
         "use by return" {
             validateModule("""
                 class Test {}
-                fun test() -> immutable Int {
+                fun test() -> immutable Test {
                     v: exclusive _ = Test()
                     v2 = v
                     return v
@@ -63,7 +63,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
             fun test() -> Test {
                 var v2: immutable _ = Test()
                 v: exclusive _ = Test()
-                v2 = v
+                set v2 = v
                 return v
             }
             fun capture(p: immutable Test) {}
@@ -219,5 +219,55 @@ class BorrowAndLifetimeErrors : FreeSpec({
             }
         """.trimIndent())
             .shouldHaveNoDiagnostics()
+    }
+
+    "reassigning a variable resets the lifetime" - {
+        "definitely with linear control flow" {
+            validateModule("""
+                class Test {}
+                fun capture(p: immutable Any) {}
+                fun test() {
+                    var v1: exclusive _ = Test()
+                    capture(v1)
+                    set v1 = Test()
+                    capture(v1)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "definitely with branched control flow" {
+            validateModule("""
+                class Test {}
+                fun capture(p: immutable Any) {}
+                fun test(cond: Boolean) {
+                    var v1: exclusive _ = Test()
+                    capture(v1)
+                    if cond {
+                        set v1 = Test()
+                    } else {
+                        set v1 = Test()
+                    }
+                    capture(v1)
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "maybe with branched control flow" {
+            validateModule("""
+                class Test {}
+                fun capture(p: immutable Any) {}
+                fun test(cond: Boolean) {
+                    var v1: exclusive _ = Test()
+                    capture(v1)
+                    if cond {
+                        set v1 = Test()
+                    }
+                    capture(v1)
+                }
+            """.trimIndent())
+                .shouldReport<VariableUsedAfterLifetimeReporting>()
+        }
     }
 })

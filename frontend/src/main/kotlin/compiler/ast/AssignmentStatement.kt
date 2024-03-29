@@ -32,10 +32,14 @@ class AssignmentStatement(
 
     override val sourceLocation = setKeyword.sourceLocation
 
-    override fun bindTo(context: ExecutionScopedCTContext) = BoundAssignmentStatement(
-        context,
-        this,
-        targetExpression.bindTo(context),
-        valueExpression.bindTo(context)
-    )
+    override fun bindTo(context: ExecutionScopedCTContext): BoundAssignmentStatement {
+        val boundTarget = targetExpression.bindTo(context)
+        val boundValue = valueExpression.bindTo(boundTarget.modifiedContext)
+        return BoundAssignmentStatement(
+            context,
+            this,
+            boundTarget,
+            boundValue,
+        )
+    }
 }
