@@ -128,7 +128,7 @@ class BoundAssignmentStatement(
             }
 
             target?.type?.let {
-                toAssignExpression.markEvaluationResultCaptured()
+                toAssignExpression.markEvaluationResultCaptured(it.mutability)
             }
 
             reportings

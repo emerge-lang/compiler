@@ -4,9 +4,9 @@ import compiler.InternalCompilerError
 import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeMutability
 import compiler.binding.BoundVariable
+import compiler.binding.expression.BoundIdentifierExpression
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
-import compiler.reportings.VariableUsedAfterLifetimeReporting
 
 object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.State, VariableLifetime.Effect> {
     override fun getInitialState(subject: BoundVariable): State {
@@ -19,11 +19,10 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
 
     override fun fold(state: State, effect: Effect): State {
         effect as Effect.ValueCaptured // only one as of now
-        return when (state) {
-            is State.Untracked,
-            is State.Dead -> state
-            is State.AliveCapturedExclusive -> State.Dead(effect.subject, effect.capturedAt)
+        if (state is State.AliveCapturedExclusive && effect.withMutability != TypeMutability.READONLY) {
+            return State.Dead(effect.subject, effect.capturedAt)
         }
+        return state
     }
 
     override fun combineMaybe(state: State, advancedMaybe: State): State {
@@ -51,7 +50,7 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
 
     sealed interface State {
         fun maybe(): State = this
-        fun validateValueRead(readOccursAt: SourceLocation): Collection<Reporting> = emptySet()
+        fun validateValueRead(read: BoundIdentifierExpression): Collection<Reporting> = emptySet()
 
         /**
          * No lifetime tracking is done, it lives for the entirety of its scope
@@ -66,8 +65,8 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
             val maybe: Boolean = false,
         ) : State {
             override fun maybe() = Dead(variable, lifetimeEndedAt, true)
-            override fun validateValueRead(readOccursAt: SourceLocation): Collection<Reporting> {
-                return setOf(VariableUsedAfterLifetimeReporting(variable.declaration, readOccursAt, lifetimeEndedAt, maybe))
+            override fun validateValueRead(read: BoundIdentifierExpression): Collection<Reporting> {
+                return setOf(Reporting.variableUsedAfterLifetime(variable, read, this))
             }
         }
     }
@@ -75,7 +74,11 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
     sealed interface Effect : SideEffect<BoundVariable> {
         override val stateClass: EphemeralStateClass<*, *, *> get() = VariableLifetime
 
-        class ValueCaptured(override val subject: BoundVariable, val capturedAt: SourceLocation) : Effect
+        class ValueCaptured(
+            override val subject: BoundVariable,
+            val withMutability: TypeMutability,
+            val capturedAt: SourceLocation,
+        ) : Effect
         // TODO: resurrect variable when reassigned
     }
 }

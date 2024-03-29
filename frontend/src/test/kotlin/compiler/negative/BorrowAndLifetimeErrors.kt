@@ -1,5 +1,6 @@
 package compiler.compiler.negative
 
+import compiler.reportings.BorrowedVariableCapturedReporting
 import compiler.reportings.VariableUsedAfterLifetimeReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
@@ -146,5 +147,77 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     it.lifetimeEndedMaybe shouldBe false
                 }
         }
+    }
+
+    "borrowed variable cannot be captured" - {
+        "capture by passing to a capturing function parameter" {
+            validateModule("""
+                class Test {}
+                fun capture(p1: Test) {}
+                fun test(borrow p2: Test) {
+                    capture(p2)
+                }
+            """.trimIndent())
+                .shouldReport<BorrowedVariableCapturedReporting> {
+                    it.variable.name.value shouldBe "p2"
+                }
+        }
+
+        "capture by initializing a variable" {
+            validateModule("""
+                class Test {}
+                fun test(borrow p2: Test) {
+                    p3 = p2
+                }
+            """.trimIndent())
+                .shouldReport<BorrowedVariableCapturedReporting> {
+                    it.variable.name.value shouldBe "p2"
+                }
+        }
+
+        "capture by passing assigning to a variable" {
+            validateModule("""
+                class Test {}
+                fun test(borrow p2: Test) {
+                    var v = Test()
+                    v = p2
+                }
+            """.trimIndent())
+                .shouldReport<BorrowedVariableCapturedReporting> {
+                    it.variable.name.value shouldBe "p2"
+                }
+        }
+    }
+
+    "exclusive value can be borrowed both mutably and immutably" {
+        validateModule("""
+            class Test {
+                m: Int = 0
+            }
+            fun borrowMut(borrow p1: mutable Test) {}
+            fun borrowImm(borrow p2: immutable Test) {}
+            fun test() -> Test {
+                v: exclusive _ = Test()
+                borrowMut(v)
+                borrowImm(v)
+                return v
+            }
+        """.trimIndent())
+            .shouldHaveNoDiagnostics()
+    }
+
+    "readonly capture doesn't end a lifetime" {
+        validateModule("""
+            class Test {
+                m: Int = 0
+            }
+            fun captureRead(p1: readonly Test) {}
+            fun test() -> Test {
+                v: exclusive _ = Test()
+                captureRead(v)
+                return v
+            }
+        """.trimIndent())
+            .shouldHaveNoDiagnostics()
     }
 })

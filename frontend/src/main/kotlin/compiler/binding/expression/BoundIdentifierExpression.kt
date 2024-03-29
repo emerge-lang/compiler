@@ -18,7 +18,9 @@
 
 package compiler.binding.expression
 
+import compiler.ast.VariableOwnership
 import compiler.ast.expression.IdentifierExpression
+import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
@@ -86,8 +88,8 @@ class BoundIdentifierExpression(
         referral?.markEvaluationResultUsed()
     }
 
-    override fun markEvaluationResultCaptured() {
-        referral?.markEvaluationResultCaptured()
+    override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
+        referral?.markEvaluationResultCaptured(withMutability)
     }
 
     fun allowPartiallyUninitializedValue() {
@@ -131,7 +133,7 @@ class BoundIdentifierExpression(
         fun markEvaluationResultUsed()
 
         /** @see BoundExpression.markEvaluationResultCaptured */
-        fun markEvaluationResultCaptured()
+        fun markEvaluationResultCaptured(withMutability: TypeMutability)
 
         /** @see BoundExpression.isCompileTimeConstant */
         val isCompileTimeConstant: Boolean
@@ -139,7 +141,7 @@ class BoundIdentifierExpression(
     inner class ReferringVariable(val variable: BoundVariable) : Referral {
         private var usageContext = VariableUsageContext.WRITE
         private var allowPartiallyUninitialized: Boolean = false
-        private var thisUsageCaptures: Boolean = false
+        private var thisUsageCapturesWithMutability: TypeMutability? = null
 
         fun allowPartiallyUninitializedValue() {
             allowPartiallyUninitialized = true
@@ -149,8 +151,8 @@ class BoundIdentifierExpression(
             usageContext = VariableUsageContext.READ
         }
 
-        override fun markEvaluationResultCaptured() {
-            thisUsageCaptures = true
+        override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
+            thisUsageCapturesWithMutability = withMutability
         }
 
         override fun semanticAnalysisPhase2(): Collection<Reporting> {
@@ -192,11 +194,18 @@ class BoundIdentifierExpression(
                 reportings.addAll(state.validateValueRead(this@BoundIdentifierExpression))
             }
 
-            if (thisUsageCaptures) {
-                _modifiedContext.trackSideEffect(VariableLifetime.Effect.ValueCaptured(
-                    variable,
-                    declaration.sourceLocation,
-                ))
+            thisUsageCapturesWithMutability?.let { capturedWithMutability ->
+                if (variable.ownershipAtDeclarationTime == VariableOwnership.BORROWED) {
+                    reportings.add(Reporting.borrowedVariableCaptured(variable, this@BoundIdentifierExpression))
+                } else {
+                    _modifiedContext.trackSideEffect(
+                        VariableLifetime.Effect.ValueCaptured(
+                            variable,
+                            capturedWithMutability,
+                            declaration.sourceLocation,
+                        )
+                    )
+                }
             }
 
             return reportings
@@ -215,7 +224,7 @@ class BoundIdentifierExpression(
     }
     inner class ReferringType(val reference: BoundTypeReference) : Referral {
         override fun markEvaluationResultUsed() {}
-        override fun markEvaluationResultCaptured() {}
+        override fun markEvaluationResultCaptured(withMutability: TypeMutability) {}
 
         override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
             // reading type information outside the boundary is pure because type information is compile-time constant

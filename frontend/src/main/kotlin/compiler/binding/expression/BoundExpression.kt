@@ -19,6 +19,7 @@
 package compiler.binding.expression
 
 import compiler.ast.Expression
+import compiler.ast.type.TypeMutability
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
@@ -69,7 +70,7 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
      * In case of an exclusive value, this triggers move semantics: the lifetime of the exclusive reference ends and
      * any subsequent use of the reference will produce an error.
      */
-    fun markEvaluationResultCaptured() {}
+    fun markEvaluationResultCaptured(withMutability: TypeMutability) {}
 
     /*
      * these two shouldn't be overridden by expressions

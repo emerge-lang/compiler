@@ -201,7 +201,6 @@ class BoundVariable(
                         )
                     },
                 )
-                initializerExpression.markEvaluationResultCaptured()
 
                 if (declaration.type == null) {
                     // full inference
@@ -250,6 +249,7 @@ class BoundVariable(
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
+            initializerExpression?.markEvaluationResultCaptured(typeAtDeclarationTime?.mutability ?: implicitMutability)
             initializerExpression?.semanticAnalysisPhase3() ?: emptySet()
         }
     }

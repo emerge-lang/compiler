@@ -21,6 +21,7 @@ package compiler.binding.expression
 import compiler.OnceAction
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.InvocationExpression
+import compiler.ast.type.TypeMutability
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundOverloadSet
@@ -115,7 +116,7 @@ class BoundInvocationExpression(
 
             chosenOverload.candidate.parameters.parameters.zip(valueArguments)
                 .filter { (parameter, _) -> parameter.ownershipAtDeclarationTime == VariableOwnership.CAPTURED }
-                .forEach { (_, argument) -> argument.markEvaluationResultCaptured() }
+                .forEach { (parameter, argument) -> argument.markEvaluationResultCaptured(parameter.typeAtDeclarationTime?.mutability ?: TypeMutability.READONLY) }
 
             return@getResult reportings
         }

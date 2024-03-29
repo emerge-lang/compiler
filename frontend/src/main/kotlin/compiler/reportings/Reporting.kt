@@ -234,6 +234,9 @@ abstract class Reporting internal constructor(
         fun variableUsedAfterLifetime(variable: BoundVariable, read: BoundIdentifierExpression, deadState: VariableLifetime.State.Dead)
             = VariableUsedAfterLifetimeReporting(variable.declaration, read.declaration.sourceLocation, deadState.lifetimeEndedAt, deadState.maybe)
 
+        fun borrowedVariableCaptured(variable: BoundVariable, capture: BoundIdentifierExpression)
+            = BorrowedVariableCapturedReporting(variable.declaration, capture.declaration.sourceLocation)
+
         /**
          * An expression is used in a way that requires it to be non-null but the type of the expression is nullable.
          * @param nullableExpression The expression that could evaluate to null and thus case an NPE
