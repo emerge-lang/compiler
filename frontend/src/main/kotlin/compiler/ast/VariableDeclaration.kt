@@ -28,6 +28,7 @@ import compiler.lexer.SourceLocation
 data class VariableDeclaration(
     override val declaredAt: SourceLocation,
     val varToken: KeywordToken?,
+    val ownership: Pair<VariableOwnership, IdentifierToken>?,
     val name: IdentifierToken,
     val type: TypeReference?,
     val initializerExpression: Expression?

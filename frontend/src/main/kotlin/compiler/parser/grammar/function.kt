@@ -21,11 +21,11 @@ package compiler.parser.grammar
 import compiler.InternalCompilerError
 import compiler.ast.AstFunctionAttribute
 import compiler.ast.CodeChunk
-import compiler.ast.Expression
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ParameterList
 import compiler.ast.TypeParameterBundle
 import compiler.ast.VariableDeclaration
+import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
@@ -38,27 +38,37 @@ import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
 import java.util.LinkedList
+import compiler.ast.Expression as AstExpression
 
 val Parameter = sequence("parameter declaration") {
     optional {
+        ref(VariableOwnership)
+    }
+    optional {
         keyword(Keyword.VAR)
     }
-
     identifier()
-
     optional {
         operator(Operator.COLON)
         ref(Type)
     }
-
     optional {
         operator(Operator.ASSIGNMENT)
         ref(Expression)
     }
 }
     .astTransformation { tokens ->
-        val varKeywordToken: KeywordToken?
         var next: Any? = tokens.next()!!
+
+        val varKeywordToken: KeywordToken?
+        val ownership: Pair<VariableOwnership, IdentifierToken>?
+        if (next is Pair<*, *>) {
+            @Suppress("UNCHECKED_CAST")
+            ownership = next as Pair<VariableOwnership, IdentifierToken>
+            next = tokens.next()!!
+        } else {
+            ownership = null
+        }
 
         if (next is KeywordToken) {
             varKeywordToken = next
@@ -77,8 +87,8 @@ val Parameter = sequence("parameter declaration") {
             type = null
         }
 
-        val defaultValue: Expression? = if (next != null) {
-            tokens.next() as Expression
+        val defaultValue: AstExpression? = if (next != null) {
+            tokens.next() as AstExpression
         } else {
             null
         }
@@ -86,6 +96,7 @@ val Parameter = sequence("parameter declaration") {
         VariableDeclaration(
             name.sourceLocation,
             varKeywordToken,
+            ownership,
             name,
             type,
             defaultValue,
@@ -273,7 +284,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
         }
 
         if (next == OperatorToken(Operator.ASSIGNMENT)) {
-            val singleExpression = tokens.next()!! as Expression
+            val singleExpression = tokens.next()!! as AstExpression
 
             return@astTransformation FunctionDeclaration(
                 declarationKeyword.sourceLocation,

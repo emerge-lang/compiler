@@ -6,6 +6,7 @@ import compiler.ast.ClassConstructorDeclaration
 import compiler.ast.CodeChunk
 import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
+import compiler.ast.VariableOwnership
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.TypeArgument
@@ -114,10 +115,12 @@ class BoundClassConstructor(
         val varInstance = contextWithSelfVar.addVariable(VariableDeclaration(
             generatedSourceLocation,
             null,
+            null,
             IdentifierToken("self", generatedSourceLocation),
             (returnType as RootResolvedTypeReference).original!!.withMutability(TypeMutability.MUTABLE),
             null,
         ))
+        varInstance.defaultOwnership = VariableOwnership.BORROWED
         contextWithSelfVar.trackSideEffect(VariableInitialization.WriteToVariableEffect(varInstance))
         varInstance
     }
@@ -126,11 +129,17 @@ class BoundClassConstructor(
         val astParameterList = ParameterList(classDef.memberVariables
             .filter { it.isConstructorParameterInitialized }
             .map { member ->
+                val location = member.declaration.declaredAt.deriveGenerated()
                 VariableDeclaration(
-                    member.declaration.declaredAt.deriveGenerated(),
+                    location,
                     null,
+                    Pair(
+                        VariableOwnership.CAPTURED,
+                        IdentifierToken("capture", location),
+                    ),
                     member.declaration.name,
-                    member.declaration.variableDeclaration.type!!.withMutability(member.type!!.mutability),
+                    member.declaration.variableDeclaration.type?.withMutability(member.type?.mutability ?: TypeMutability.IMMUTABLE)
+                        ?: TypeReference("Any"),
                     null,
                 )
             })
@@ -149,7 +158,7 @@ class BoundClassConstructor(
                     MemberAccessExpression(
                         IdentifierExpression(IdentifierToken(selfVariableForInitCode.name, generatedSourceLocation)),
                         OperatorToken(Operator.DOT, generatedSourceLocation),
-                        IdentifierToken(memberVariable.name, generatedSourceLocation)
+                        IdentifierToken(memberVariable.name, generatedSourceLocation),
                     ),
                     OperatorToken(Operator.EQUALS, generatedSourceLocation),
                     IdentifierExpression(IdentifierToken(parameter.name, generatedSourceLocation)),
@@ -267,7 +276,7 @@ class BoundClassConstructor(
                 reportings.add(Reporting.constructorDeclaredAsModifying(this))
             }
 
-            val partialInitState = additionalInitCode.modifiedContext.getSideEffectState(PartialObjectInitialization, selfVariableForInitCode)
+            val partialInitState = additionalInitCode.modifiedContext.getEphemeralState(PartialObjectInitialization, selfVariableForInitCode)
             classDef.memberVariables
                 .filter { partialInitState.getMemberInitializationState(it) != VariableInitialization.State.INITIALIZED }
                 .forEach {

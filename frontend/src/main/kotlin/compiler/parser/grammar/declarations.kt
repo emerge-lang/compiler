@@ -18,8 +18,8 @@
 
 package compiler.parser.grammar
 
-import compiler.ast.Expression
-import compiler.ast.VariableDeclaration
+import compiler.InternalCompilerError
+import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword.VAR
@@ -30,6 +30,9 @@ import compiler.lexer.OperatorToken
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
+import compiler.ast.Expression as AstExpression
+import compiler.ast.VariableDeclaration as AstVariableDeclaration
+import compiler.ast.VariableOwnership as AstVariableOwnership
 
 val VariableDeclarationInitializingAssignment = sequence {
     operator(ASSIGNMENT)
@@ -37,7 +40,24 @@ val VariableDeclarationInitializingAssignment = sequence {
     ref(Expression)
 }
 
+val VariableOwnership = eitherOf {
+    localKeyword("borrow")
+    localKeyword("capture")
+}
+    .astTransformation { tokens ->
+        val token = tokens.next() as IdentifierToken
+        val value = when(token.value.lowercase()) {
+            "borrow" -> AstVariableOwnership.BORROWED
+            "capture" -> AstVariableOwnership.CAPTURED
+            else -> throw InternalCompilerError("grammar and ast builder mismatch")
+        }
+        Pair(value, token)
+    }
+
 private val ReAssignableVariableDeclaration = sequence("re-assignable variable declaration") {
+    optional {
+        ref(VariableOwnership)
+    }
     keyword(VAR)
     identifier()
     optional {
@@ -50,6 +70,9 @@ private val ReAssignableVariableDeclaration = sequence("re-assignable variable d
 }
 
 val FinalVariableDeclaration = sequence("final variable declaration") {
+    optional {
+        ref(VariableOwnership)
+    }
     identifier()
     eitherOf {
         ref(VariableDeclarationInitializingAssignment)
@@ -68,19 +91,27 @@ val VariableDeclaration = eitherOf("variable declaration") {
     ref(ReAssignableVariableDeclaration)
 }
     .astTransformation { tokens ->
-        val varKeywordOrName = tokens.next()!!
-
+        val ownership: Pair<VariableOwnership, IdentifierToken>?
         val varKeywordToken: KeywordToken?
-        val nameToken: IdentifierToken
 
-        if (varKeywordOrName is KeywordToken) {
-            varKeywordToken = varKeywordOrName
-            nameToken = tokens.next()!! as IdentifierToken
+        var next = tokens.next()
+        if (next is Pair<*, *>) {
+            @Suppress("UNCHECKED_CAST")
+            ownership = next as Pair<VariableOwnership, IdentifierToken>
+            next = tokens.next()
+        } else {
+            ownership = null
         }
-        else {
+
+        if (next is KeywordToken) {
+            varKeywordToken = next
+            next = tokens.next()
+        } else {
             varKeywordToken = null
-            nameToken = varKeywordOrName as IdentifierToken
         }
+
+        val nameToken = next as IdentifierToken
+
 
         var type: TypeReference? = null
 
@@ -91,17 +122,18 @@ val VariableDeclaration = eitherOf("variable declaration") {
             colonOrAssignmentOp = tokens.next()
         }
 
-        var initializer: Expression? = null
+        var initializer: AstExpression? = null
 
         val assignmentOpOrNewline = colonOrAssignmentOp
 
         if (assignmentOpOrNewline == OperatorToken(ASSIGNMENT)) {
-            initializer = tokens.next()!! as Expression
+            initializer = tokens.next()!! as AstExpression
         }
 
-        VariableDeclaration(
+        AstVariableDeclaration(
             varKeywordToken?.sourceLocation ?: nameToken.sourceLocation,
             varKeywordToken,
+            ownership,
             nameToken,
             type,
             initializer

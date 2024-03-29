@@ -19,6 +19,7 @@
 package compiler.binding.expression
 
 import compiler.OnceAction
+import compiler.ast.VariableOwnership
 import compiler.ast.expression.InvocationExpression
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
@@ -37,7 +38,6 @@ import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
-import compiler.reportings.ValueNotAssignableReporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -112,6 +112,10 @@ class BoundInvocationExpression(
             }
 
             type = chosenOverload.returnType
+
+            chosenOverload.candidate.parameters.parameters.zip(valueArguments)
+                .filter { (parameter, _) -> parameter.ownershipAtDeclarationTime == VariableOwnership.CAPTURED }
+                .forEach { (_, argument) -> argument.markEvaluationResultCaptured() }
 
             return@getResult reportings
         }
@@ -385,13 +389,6 @@ private data class OverloadCandidateEvaluation(
     val returnType: BoundTypeReference?,
     val indicesOfErroneousParameters: Collection<Int>,
 ) {
-    init {
-        unification.reportings.asSequence()
-            .filterIsInstance<ValueNotAssignableReporting>()
-            .onEach {
-                it.simplifyMessageWhenCausedSolelyByMutability = true
-            }
-    }
     val hasErrors = unification.reportings.any { it.level >= Reporting.Level.ERROR }
 }
 

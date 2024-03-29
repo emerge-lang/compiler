@@ -26,8 +26,10 @@ import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.classdef.BoundClassDefinition
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
+import compiler.binding.context.effect.VariableLifetime
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.UnresolvedType
@@ -54,6 +56,9 @@ class BoundIdentifierExpression(
 
     override var isGuaranteedToThrow = false
 
+    private val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(context)
+    override val modifiedContext: ExecutionScopedCTContext = _modifiedContext
+
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
 
@@ -79,6 +84,10 @@ class BoundIdentifierExpression(
 
     override fun markEvaluationResultUsed() {
         referral?.markEvaluationResultUsed()
+    }
+
+    override fun markEvaluationResultCaptured() {
+        referral?.markEvaluationResultCaptured()
     }
 
     fun allowPartiallyUninitializedValue() {
@@ -114,13 +123,23 @@ class BoundIdentifierExpression(
         override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
         override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
         override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
+
+        /** @see BoundExpression.findReadsBeyond */
         fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>>
+
+        /** @see BoundExpression.markEvaluationResultUsed */
         fun markEvaluationResultUsed()
+
+        /** @see BoundExpression.markEvaluationResultCaptured */
+        fun markEvaluationResultCaptured()
+
+        /** @see BoundExpression.isCompileTimeConstant */
         val isCompileTimeConstant: Boolean
     }
     inner class ReferringVariable(val variable: BoundVariable) : Referral {
         private var usageContext = VariableUsageContext.WRITE
         private var allowPartiallyUninitialized: Boolean = false
+        private var thisUsageCaptures: Boolean = false
 
         fun allowPartiallyUninitializedValue() {
             allowPartiallyUninitialized = true
@@ -128,6 +147,10 @@ class BoundIdentifierExpression(
 
         override fun markEvaluationResultUsed() {
             usageContext = VariableUsageContext.READ
+        }
+
+        override fun markEvaluationResultCaptured() {
+            thisUsageCaptures = true
         }
 
         override fun semanticAnalysisPhase2(): Collection<Reporting> {
@@ -164,6 +187,18 @@ class BoundIdentifierExpression(
                 }
             }
 
+            if (usageContext.requiresVariableLifetimeActive) {
+                val state = context.getEphemeralState(VariableLifetime, variable)
+                reportings.addAll(state.validateValueRead(this@BoundIdentifierExpression))
+            }
+
+            if (thisUsageCaptures) {
+                _modifiedContext.trackSideEffect(VariableLifetime.Effect.ValueCaptured(
+                    variable,
+                    declaration.sourceLocation,
+                ))
+            }
+
             return reportings
         }
 
@@ -179,9 +214,8 @@ class BoundIdentifierExpression(
             get() = !variable.isReAssignable && variable.initializerExpression?.isCompileTimeConstant == true
     }
     inner class ReferringType(val reference: BoundTypeReference) : Referral {
-        override fun markEvaluationResultUsed() {
-
-        }
+        override fun markEvaluationResultUsed() {}
+        override fun markEvaluationResultCaptured() {}
 
         override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
             // reading type information outside the boundary is pure because type information is compile-time constant
@@ -203,9 +237,12 @@ class BoundIdentifierExpression(
 
     override fun toBackendIrExpression(): IrExpression = _backendIr
 
-    private enum class VariableUsageContext(val requiresInitialization: Boolean) {
-        READ(true),
-        WRITE(false),
+    private enum class VariableUsageContext(
+        val requiresInitialization: Boolean,
+        val requiresVariableLifetimeActive: Boolean,
+    ) {
+        READ(true, true),
+        WRITE(false, true),
     }
 }
 

@@ -18,9 +18,16 @@
 
 package compiler.ast
 
+import compiler.ast.Statement.Companion.chain
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 
 interface Expression : Statement {
     override fun bindTo(context: ExecutionScopedCTContext): BoundExpression<*>
+
+    companion object {
+        fun Iterable<Expression>.chain(initialContext: ExecutionScopedCTContext): Sequence<BoundExpression<*>> {
+            return (this as Iterable<Statement>).chain(initialContext) as Sequence<BoundExpression<*>>
+        }
+    }
 }

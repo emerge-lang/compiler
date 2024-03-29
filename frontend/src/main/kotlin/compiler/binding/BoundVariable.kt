@@ -20,6 +20,7 @@ package compiler.binding
 
 import compiler.OnceAction
 import compiler.ast.VariableDeclaration
+import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
@@ -83,6 +84,23 @@ class BoundVariable(
             .withCombinedNullability(declaration.type?.nullability ?: TypeReference.Nullability.NULLABLE)
             .withMutability(declaration.type?.mutability ?: implicitMutability)
 
+    /**
+     * publicly mutable so that it can be changed depending on context. However, the value must be set before
+     * [semanticAnalysisPhase1]
+     */
+    var defaultOwnership: VariableOwnership = VariableOwnership.CAPTURED
+        set(value) {
+            onceAction.requireActionNotDone(OnceAction.SemanticAnalysisPhase1)
+            field = value
+        }
+
+    /**
+     * The ownership as declared, or [defaultOwnership]
+     */
+    val ownershipAtDeclarationTime: VariableOwnership
+        get() = declaration.ownership?.first?.takeIf { kind.allowsExplicitOwnership }
+            ?: defaultOwnership
+
     override val isGuaranteedToThrow: Boolean?
         get() = initializerExpression?.isGuaranteedToThrow
 
@@ -138,6 +156,10 @@ class BoundVariable(
                 reportings.add(Reporting.explicitInferTypeNotAllowed(declaration.type))
             }
 
+            if (declaration.ownership != null && !kind.allowsExplicitOwnership) {
+                reportings.add(Reporting.explicitOwnershipNotAllowed(this))
+            }
+
             if (initializerExpression != null) {
                 reportings.addAll(initializerExpression.semanticAnalysisPhase1())
             }
@@ -179,6 +201,7 @@ class BoundVariable(
                         )
                     },
                 )
+                initializerExpression.markEvaluationResultCaptured()
 
                 if (declaration.type == null) {
                     // full inference
@@ -232,7 +255,8 @@ class BoundVariable(
     }
 
     override val modifiedContext: ExecutionScopedCTContext by lazy {
-        val newCtx = MutableExecutionScopedCTContext.deriveFrom(context)
+        val contextAfterInitializer = initializerExpression?.modifiedContext ?: context
+        val newCtx = MutableExecutionScopedCTContext.deriveFrom(contextAfterInitializer)
         newCtx.addVariable(this)
         if (initializerExpression != null) {
             newCtx.trackSideEffect(VariableInitialization.WriteToVariableEffect(this))
@@ -289,9 +313,10 @@ class BoundVariable(
     enum class Kind(
         val implicitMutabilityWhenNotReAssignable: TypeMutability,
         val allowsExplicitBaseTypeInfer: Boolean,
+        val allowsExplicitOwnership: Boolean,
     ) {
-        VARIABLE(TypeMutability.IMMUTABLE, true),
-        PARAMETER(TypeMutability.READONLY, false),
+        VARIABLE(TypeMutability.IMMUTABLE, allowsExplicitBaseTypeInfer = true, allowsExplicitOwnership = false),
+        PARAMETER(TypeMutability.READONLY, false, allowsExplicitOwnership = true),
         ;
 
         override fun toString() = name.lowercase()

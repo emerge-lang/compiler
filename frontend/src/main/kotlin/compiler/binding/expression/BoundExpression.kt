@@ -60,6 +60,17 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
      */
     fun markEvaluationResultUsed() {}
 
+    /**
+     * Must be called before [semanticAnalysisPhase3]. If this method is called, [markEvaluationResultUsed] must have
+     * been called earlier.
+     *
+     * To be called when the result of this expression is assigned to a capturing reference (=when possibly a heap
+     * reference is created). In case of a borrowed result, this must produce an error during [semanticAnalysisPhase3].
+     * In case of an exclusive value, this triggers move semantics: the lifetime of the exclusive reference ends and
+     * any subsequent use of the reference will produce an error.
+     */
+    fun markEvaluationResultCaptured() {}
+
     /*
      * these two shouldn't be overridden by expressions
      */

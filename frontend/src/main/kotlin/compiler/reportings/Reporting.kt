@@ -37,6 +37,7 @@ import compiler.binding.BoundVariable
 import compiler.binding.classdef.BoundClassConstructor
 import compiler.binding.classdef.BoundClassDefinition
 import compiler.binding.classdef.BoundClassMemberVariable
+import compiler.binding.context.effect.VariableLifetime
 import compiler.binding.expression.*
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
@@ -226,6 +227,12 @@ abstract class Reporting internal constructor(
             constructor,
             constructor.attributes.firstModifyingAttribute!!.attributeName,
         )
+
+        fun explicitOwnershipNotAllowed(variable: BoundVariable)
+            = ExplicitOwnershipNotAllowedReporting(variable.declaration.ownership!!.second)
+
+        fun variableUsedAfterLifetime(variable: BoundVariable, read: BoundIdentifierExpression, deadState: VariableLifetime.State.Dead)
+            = VariableUsedAfterLifetimeReporting(variable.declaration, read.declaration.sourceLocation, deadState.lifetimeEndedAt, deadState.maybe)
 
         /**
          * An expression is used in a way that requires it to be non-null but the type of the expression is nullable.

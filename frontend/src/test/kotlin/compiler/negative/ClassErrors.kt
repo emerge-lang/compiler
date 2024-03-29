@@ -3,6 +3,7 @@ package compiler.compiler.negative
 import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
 import compiler.reportings.ConstructorDeclaredModifyingReporting
 import compiler.reportings.DuplicateClassMemberReporting
+import compiler.reportings.ExplicitOwnershipNotAllowedReporting
 import compiler.reportings.ImpureInvocationInPureContextReporting
 import compiler.reportings.ObjectNotFullyInitializedReporting
 import compiler.reportings.ReadInPureContextReporting
@@ -106,6 +107,15 @@ class ClassErrors : FreeSpec({
             }
 
             // TODO: as soon as there are lambdas, add a test to verify a run { ... } initializer can't write
+        }
+
+        "cannot declare ownership" {
+            validateModule("""
+                class Foo {
+                    borrow x: Int
+                }
+            """.trimIndent())
+                .shouldReport<ExplicitOwnershipNotAllowedReporting>()
         }
     }
 

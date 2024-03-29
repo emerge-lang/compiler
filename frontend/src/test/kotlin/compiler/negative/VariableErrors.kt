@@ -1,6 +1,7 @@
 package compiler.compiler.negative
 
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.reportings.ExplicitOwnershipNotAllowedReporting
 import compiler.reportings.GlobalVariableNotInitializedReporting
 import compiler.reportings.IllegalAssignmentReporting
 import compiler.reportings.MultipleVariableDeclarationsReporting
@@ -38,6 +39,13 @@ class VariableErrors : FreeSpec({
                 foo: Foo
             """.trimIndent())
                 .shouldReport<UnknownTypeReporting>()
+        }
+
+        "cannot declare ownership" {
+            validateModule("""
+                borrow x: String
+            """.trimIndent())
+                .shouldReport<ExplicitOwnershipNotAllowedReporting>()
         }
     }
 
@@ -109,6 +117,15 @@ class VariableErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<UnknownTypeReporting>()
+        }
+
+        "cannot declare ownership" {
+            validateModule("""
+                fun test() {
+                    capture x: String
+                }
+            """.trimIndent())
+                .shouldReport<ExplicitOwnershipNotAllowedReporting>()
         }
 
         "assignment status tracking" - {

@@ -21,7 +21,6 @@ package compiler.parser.grammar
 import compiler.InternalCompilerError
 import compiler.ast.CodeChunk
 import compiler.ast.Executable
-import compiler.ast.Expression
 import compiler.ast.IfExpression
 import compiler.ast.TypeArgumentBundle
 import compiler.ast.expression.ArrayLiteralExpression
@@ -55,16 +54,17 @@ import compiler.parser.grammar.dsl.mapResult
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.grammar.rule.Rule
 import compiler.transact.TransactionalSequence
+import compiler.ast.Expression as AstExpression
 
-private val ExpressionBase: Rule<Expression> = eitherOf("expression without postfixes") {
+private val ExpressionBase: Rule<AstExpression> = eitherOf("expression without postfixes") {
     ref(UnaryExpression)
     ref(ValueExpression)
     ref(ParanthesisedExpression)
     ref(IfExpression)
 }
-    .astTransformation { tokens -> tokens.next() as Expression }
+    .astTransformation { tokens -> tokens.next() as AstExpression }
 
-val Expression: Rule<Expression> = sequence("expression") {
+val Expression: Rule<AstExpression> = sequence("expression") {
     ref(ExpressionBase)
     repeating {
         ref(ExpressionPostfix)
@@ -107,9 +107,9 @@ val ArrayLiteralExpression = sequence("array literal") {
 }
     .astTransformation { tokens ->
         val openingBracket = tokens.next() as OperatorToken
-        val elements = mutableListOf<Expression>()
+        val elements = mutableListOf<AstExpression>()
         var next = tokens.next()
-        while (next is Expression) {
+        while (next is AstExpression) {
             elements.add(next)
             next = tokens.next()
             check(next is OperatorToken)
@@ -160,14 +160,14 @@ val ValueExpression = eitherOf("value expression") {
     ref(ArrayLiteralExpression)
 }
 
-val ParanthesisedExpression: Rule<Expression> = sequence("paranthesised expression") {
+val ParanthesisedExpression: Rule<AstExpression> = sequence("paranthesised expression") {
     operator(Operator.PARANT_OPEN)
     ref(Expression)
     operator(Operator.PARANT_CLOSE)
 }
     .astTransformation { tokens ->
         val parantOpen = tokens.next()!! as OperatorToken
-        val nested = tokens.next()!! as Expression
+        val nested = tokens.next()!! as AstExpression
 
         ParenthesisedExpression(nested, parantOpen.sourceLocation)
     }
@@ -184,7 +184,7 @@ val UnaryExpression = sequence("unary expression") {
 }
     .astTransformation { tokens ->
         val operator = (tokens.next()!! as OperatorToken)
-        val expression = tokens.next()!! as Expression
+        val expression = tokens.next()!! as AstExpression
         UnaryExpression(operator, expression)
     }
 
@@ -252,7 +252,7 @@ val IfExpression = sequence("if-expression") {
         val ifKeyword = tokens.next() as KeywordToken
 
         @Suppress("UNCHECKED_CAST")
-        val condition = tokens.next() as Expression
+        val condition = tokens.next() as AstExpression
         val thenCode: Executable = tokens.next() as Executable
         val elseCode: Executable? = if (tokens.hasNext()) {
             // skip ELSE keyword
@@ -330,9 +330,9 @@ val ExpressionPostfixInvocation = sequence("function invocation") {
             next as OperatorToken
         }
 
-        val valueArguments = mutableListOf<Expression>()
-        while (tokens.peek() is Expression) {
-            valueArguments.add(tokens.next()!! as Expression)
+        val valueArguments = mutableListOf<AstExpression>()
+        while (tokens.peek() is AstExpression) {
+            valueArguments.add(tokens.next()!! as AstExpression)
 
             // skip COMMA or PARANT_CLOSE
             tokens.next()!! as OperatorToken
@@ -372,10 +372,10 @@ val ExpressionPostfix = eitherOf {
     ref(ExpressionPostfixExcludingBinary)
     ref(ExpressionPostfixBinaryOperation)
 }
-    .mapResult { it as ExpressionPostfix<Expression> }
+    .mapResult { it as ExpressionPostfix<AstExpression> }
 
-private fun astTransformOneExpressionWithOptionalPostfixes(tokens: TransactionalSequence<Any, *>): Expression {
-    val expression = tokens.next()!! as Expression
+private fun astTransformOneExpressionWithOptionalPostfixes(tokens: TransactionalSequence<Any, *>): AstExpression {
+    val expression = tokens.next()!! as AstExpression
     return tokens
         .remainingToList()
         .fold(expression) { expr, postfix -> (postfix as ExpressionPostfix<*>).modify(expr) }

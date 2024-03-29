@@ -20,6 +20,7 @@ package compiler.binding
 
 import compiler.OnceAction
 import compiler.ast.AssignmentStatement
+import compiler.ast.type.TypeMutability
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -38,6 +39,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.IrGenericTypeReferenceImpl
 import compiler.binding.type.IrParameterizedTypeImpl
 import compiler.binding.type.IrSimpleTypeImpl
+import compiler.binding.type.UnresolvedType
 import compiler.nullableOr
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
@@ -125,6 +127,10 @@ class BoundAssignmentStatement(
                 reportings.add(Reporting.assignmentUsedAsExpression(this))
             }
 
+            target?.type?.let {
+                toAssignExpression.markEvaluationResultCaptured()
+            }
+
             reportings
         }
     }
@@ -164,7 +170,7 @@ class BoundAssignmentStatement(
     }
 
     inner class VariableTarget(val reference: BoundIdentifierExpression.ReferringVariable) : AssignmentTarget {
-        override val type get() = reference.variable.getTypeInContext(context)
+        override val type get() = reference.variable.getTypeInContext(context) ?: UnresolvedType.STAND_IN_TYPE
 
         override fun semanticAnalysisPhase2(): Collection<Reporting> {
             return emptySet()
@@ -191,10 +197,8 @@ class BoundAssignmentStatement(
                 }
             }
 
-            type?.let { targetType ->
-                toAssignExpression.type?.evaluateAssignabilityTo(targetType, toAssignExpression.declaration.sourceLocation)
-                    ?.let(reportings::add)
-            }
+            toAssignExpression.type?.evaluateAssignabilityTo(type, toAssignExpression.declaration.sourceLocation)
+                ?.let(reportings::add)
 
             return reportings
         }
@@ -253,10 +257,12 @@ class BoundAssignmentStatement(
         override fun semanticAnalysisPhase2(): Collection<Reporting> {
             accessBaseVariable = memberAccess.valueExpression.tryAsVariable()
 
-            accessBaseVariable?.let {
-                _modifiedContext.trackSideEffect(
-                    PartialObjectInitialization.Effect.WriteToMemberVariableEffect(it, memberAccess.member!!)
-                )
+            accessBaseVariable?.let { baseVar ->
+                memberAccess.member?.let { member ->
+                    _modifiedContext.trackSideEffect(
+                        PartialObjectInitialization.Effect.WriteToMemberVariableEffect(baseVar, member)
+                    )
+                }
             }
 
             return emptySet()
@@ -265,16 +271,22 @@ class BoundAssignmentStatement(
         private var memberIsPotentiallyUninitialized by Delegates.notNull<Boolean>()
 
         override fun semanticAnalysisPhase3(): Collection<Reporting> {
-            memberAccess.valueExpression as? BoundIdentifierExpression
-            memberIsPotentiallyUninitialized = accessBaseVariable?.let {
-                context.getEphemeralState(PartialObjectInitialization, it).getMemberInitializationState(memberAccess.member!!) != VariableInitialization.State.INITIALIZED
+            memberIsPotentiallyUninitialized = accessBaseVariable?.let { baseVar ->
+                memberAccess.member?.let { member ->
+                    context.getEphemeralState(PartialObjectInitialization, baseVar).getMemberInitializationState(member) != VariableInitialization.State.INITIALIZED
+                }
             } ?: false
 
             val reportings = mutableListOf<Reporting>()
 
             memberAccess.valueExpression.type?.let { memberOwnerType ->
                 if (!memberOwnerType.mutability.isMutable) {
-                    reportings += Reporting.illegalAssignment("Cannot mutate a value of type $memberOwnerType", this@BoundAssignmentStatement)
+                    reportings += Reporting.valueNotAssignable(
+                        memberOwnerType.withMutability(TypeMutability.MUTABLE),
+                        memberOwnerType,
+                        "Cannot mutate a value of type $memberOwnerType",
+                        this.memberAccess.declaration.sourceLocation,
+                    )
                 }
             }
             memberAccess.type?.let { targetType ->

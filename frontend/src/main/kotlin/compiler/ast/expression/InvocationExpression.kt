@@ -20,6 +20,7 @@ package compiler.ast.expression
 
 import compiler.InternalCompilerError
 import compiler.ast.Expression
+import compiler.ast.Expression.Companion.chain
 import compiler.ast.type.TypeArgument
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundInvocationExpression
@@ -33,7 +34,7 @@ class InvocationExpression(
      */
     val targetExpression:Expression,
     val typeArguments: List<TypeArgument>,
-    val valueArgumentExpressions: List<Expression>
+    val argumentExpressions: List<Expression>
 ) :Expression {
     override val sourceLocation: SourceLocation = when(targetExpression) {
         is MemberAccessExpression -> targetExpression.memberName.sourceLocation
@@ -42,24 +43,25 @@ class InvocationExpression(
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundInvocationExpression {
         // bind all the parameters
-        val boundParameterValueExprs = valueArgumentExpressions.map { it.bindTo(context) }
+        val boundArguments = argumentExpressions.chain(context).toList()
+        val contextAfterArguments = boundArguments.lastOrNull()?.modifiedContext ?: context
 
         if (targetExpression is MemberAccessExpression) {
             return BoundInvocationExpression(
-                context,
+                contextAfterArguments,
                 this,
                 targetExpression.valueExpression.bindTo(context),
                 targetExpression.memberName,
-                boundParameterValueExprs
+                boundArguments,
             )
         }
         else if (targetExpression is IdentifierExpression) {
             return BoundInvocationExpression(
-                    context,
-                    this,
-                    null,
-                    targetExpression.identifier,
-                    boundParameterValueExprs
+                contextAfterArguments,
+                this,
+                null,
+                targetExpression.identifier,
+                boundArguments,
             )
         }
         else throw InternalCompilerError("What the heck is going on?? The parser should never have allowed this!")

@@ -43,18 +43,6 @@ open class ValueNotAssignableReporting(
     "Type mismatch: $reason",
     assignmentLocation
 ) {
-    /**
-     * When [true], [message] will return a simplified text in case the problem arises only from the
-     * [BoundTypeReference.mutability] in [sourceType]. E.g. would turn the bulky
-     *
-     *     Cannot assign a value of type immutable String to a reference of type mutable String: cannot assign an immutable value to a mutable reference
-     *
-     * into
-     *
-     *     Cannot mutate this value. In fact, this is an immutable value.
-     */
-    var simplifyMessageWhenCausedSolelyByMutability: Boolean = false
-
     override val message: String get() {
         val mutabilityUnconflictedSourceType = sourceType.withMutability(targetType.mutability)
         if (!(mutabilityUnconflictedSourceType isAssignableTo targetType)) {

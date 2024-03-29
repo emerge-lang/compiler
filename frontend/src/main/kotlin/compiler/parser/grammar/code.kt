@@ -21,7 +21,6 @@ package compiler.parser.grammar
 import compiler.InternalCompilerError
 import compiler.ast.AssignmentStatement
 import compiler.ast.CodeChunk
-import compiler.ast.Expression
 import compiler.ast.ReturnStatement
 import compiler.ast.Statement
 import compiler.lexer.Keyword
@@ -31,6 +30,7 @@ import compiler.lexer.OperatorToken
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.grammar.rule.Rule
+import compiler.ast.Expression as AstExpression
 
 val ReturnStatement = sequence("return statement") {
     keyword(Keyword.RETURN)
@@ -40,7 +40,7 @@ val ReturnStatement = sequence("return statement") {
 }
     .astTransformation { tokens ->
         val keyword = tokens.next()!! as KeywordToken
-        val expression = if (tokens.hasNext()) tokens.next()!! as Expression else null
+        val expression = if (tokens.hasNext()) tokens.next()!! as AstExpression else null
 
         ReturnStatement(keyword, expression)
     }
@@ -53,9 +53,9 @@ val AssignmentStatement = sequence("assignment statement") {
 }
     .astTransformation { tokens ->
         val setKeyword = tokens.next()!! as KeywordToken
-        val target = tokens.next()!! as Expression
+        val target = tokens.next()!! as AstExpression
         val assignmentOperator = tokens.next()!! as OperatorToken
-        val value = tokens.next()!! as Expression
+        val value = tokens.next()!! as AstExpression
 
         AssignmentStatement(setKeyword, target, assignmentOperator, value)
     }

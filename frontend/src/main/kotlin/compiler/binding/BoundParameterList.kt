@@ -19,6 +19,7 @@
 package compiler.binding
 
 import compiler.ast.ParameterList
+import compiler.ast.VariableOwnership
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.reportings.Reporting
@@ -28,9 +29,11 @@ class BoundParameterList(
     val declaration: ParameterList,
     val parameters: List<BoundParameter>
 ) {
-    val declaredReceiver: BoundParameter?
-        get() = parameters.firstOrNull()?.takeIf { it.name == RECEIVER_PARAMETER_NAME }
-
+    val declaredReceiver: BoundParameter? = parameters.firstOrNull()?.takeIf { it.name == RECEIVER_PARAMETER_NAME }
+    init {
+        declaredReceiver?.defaultOwnership = VariableOwnership.BORROWED
+    }
+    
     val modifiedContext: ExecutionScopedCTContext = MutableExecutionScopedCTContext.deriveFrom(context).also {
         parameters.forEach(it::addVariable)
     }
