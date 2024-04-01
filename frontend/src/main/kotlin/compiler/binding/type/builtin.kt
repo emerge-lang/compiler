@@ -19,9 +19,9 @@
 package compiler.binding.type
 
 import compiler.CoreIntrinsicsModule
-import compiler.ast.FunctionDeclaration
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeVariance
+import compiler.binding.BoundOverloadSet
 import compiler.binding.context.SoftwareContext
 import compiler.binding.context.SourceFileRootContext
 import compiler.lexer.IdentifierToken
@@ -154,7 +154,7 @@ abstract class BuiltinType(
      * BaseTypes do not define anything themselves. All of that is defined in source language in the
      * stdlib and implementation is provided from elsewhere, probably platform-specific.
      */
-    final override fun resolveMemberFunction(name: String) = emptySet<FunctionDeclaration>()
+    final override fun resolveMemberFunction(name: String) = emptySet<BoundOverloadSet>()
 
     private val backendIr by lazy { IrIntrinsicTypeImpl(this) }
     override fun toBackendIr(): IrBaseType = backendIr

@@ -74,6 +74,8 @@ interface CTContext {
 
     fun resolveTypeParameter(simpleName: String): BoundTypeParameter?
 
+    val allTypeParameters: Sequence<BoundTypeParameter>
+
     fun resolveType(ref: TypeArgument): BoundTypeArgument {
         return BoundTypeArgument(ref, ref.variance, resolveType(ref))
     }

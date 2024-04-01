@@ -127,8 +127,8 @@ abstract class Reporting internal constructor(
         fun parameterDeclaredMoreThanOnce(firstDeclaration: VariableDeclaration, additionalDeclaration: VariableDeclaration)
             = MultipleParameterDeclarationsReporting(firstDeclaration, additionalDeclaration)
 
-        fun parameterTypeNotDeclared(declaration: VariableDeclaration)
-            = MissingParameterTypeReporting(declaration)
+        fun variableTypeNotDeclared(variable: BoundVariable)
+            = MissingVariableTypeReporting(variable.declaration, variable.kind)
 
         fun varianceOnFunctionTypeParameter(parameter: BoundTypeParameter)
             = VarianceOnFunctionTypeParameterReporting(parameter.astNode)

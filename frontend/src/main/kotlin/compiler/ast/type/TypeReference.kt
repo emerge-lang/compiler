@@ -21,7 +21,7 @@ package compiler.ast.type
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 
-class TypeReference(
+data class TypeReference(
     val simpleName: String,
     val nullability: Nullability = Nullability.UNSPECIFIED,
     val mutability: TypeMutability? = null,

@@ -59,6 +59,7 @@ class SourceFileRootContext(
             override val isScopeBoundary = false
             override val isFunctionRoot = false
             override val imports = emptySet<BoundImportDeclaration>()
+            override val allTypeParameters = emptySequence<BoundTypeParameter>()
 
             override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? = null
             override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean = false

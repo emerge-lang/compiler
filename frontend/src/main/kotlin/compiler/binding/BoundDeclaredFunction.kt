@@ -80,7 +80,6 @@ class BoundDeclaredFunction(
             val reportings = mutableSetOf<Reporting>()
 
             reportings.addAll(attributes.semanticAnalysisPhase1())
-            reportings.addAll(parameters.semanticAnalysisPhase1())
 
             // modifiers
             if (attributes.impliesNoBody) {
@@ -92,7 +91,7 @@ class BoundDeclaredFunction(
             }
 
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase1).forEach(reportings::addAll)
-            reportings.addAll(parameters.semanticAnalysisPhase1(false))
+            reportings.addAll(parameters.semanticAnalysisPhase1())
 
             if (declaration.parsedReturnType != null) {
                 returnType = context.resolveType(declaration.parsedReturnType)

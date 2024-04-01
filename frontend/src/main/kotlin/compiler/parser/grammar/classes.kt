@@ -22,6 +22,7 @@ import compiler.ast.AstFunctionAttribute
 import compiler.ast.ClassConstructorDeclaration
 import compiler.ast.ClassDeclaration
 import compiler.ast.ClassEntryDeclaration
+import compiler.ast.ClassMemberFunctionDeclaration
 import compiler.ast.ClassMemberVariableDeclaration
 import compiler.ast.CodeChunk
 import compiler.ast.FunctionDeclaration
@@ -54,9 +55,7 @@ val ClassMemberFunctionDeclaration = sequence("class member function declaration
 }
     .astTransformation { tokens ->
         val decl = tokens.next() as FunctionDeclaration
-        decl.copy(
-            /* TODO: apply semantic differences for member fns, e.g. allow untyped self parameter */
-        )
+        ClassMemberFunctionDeclaration(decl)
     }
 
 val ClassConstructor = sequence("constructor declaration") {

@@ -1,7 +1,6 @@
 package compiler.binding.context
 
 import compiler.binding.expression.BoundExpression
-import compiler.binding.misc_ir.IrOverloadGroupImpl
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
@@ -17,9 +16,7 @@ internal class IrPackageImpl(
     override val name: DotName = packageContext.packageName
     override val functions: Set<IrOverloadGroup<IrFunction>> = packageContext
         .allToplevelFunctionOverloadSets
-        .map {
-            IrOverloadGroupImpl(it.fqn, it.parameterCount, it.overloads)
-        }
+        .map { it.toBackendIr() }
         .toSet()
 
     override val classes: Set<IrClass> = packageContext.sourceFiles

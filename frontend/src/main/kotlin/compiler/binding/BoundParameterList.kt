@@ -38,7 +38,7 @@ class BoundParameterList(
         parameters.forEach(it::addVariable)
     }
 
-    fun semanticAnalysisPhase1(allowUntypedReceiver: Boolean = false): Collection<Reporting> {
+    fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
 
         parameters.forEachIndexed { index, parameter ->
@@ -50,12 +50,6 @@ class BoundParameterList(
                 }
             }
 
-            val allowUntyped = allowUntypedReceiver && index == 0 && parameter.name == RECEIVER_PARAMETER_NAME
-            if (!allowUntyped && parameter.declaration.type == null) {
-                reportings.add(Reporting.parameterTypeNotDeclared(parameter.declaration))
-            }
-
-            // etc.
             reportings.addAll(parameter.semanticAnalysisPhase1())
         }
 

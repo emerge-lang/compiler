@@ -44,11 +44,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
 /**
- * If the type of a variable is declared with this name, the base type will be inferred from the initializer.
- */
-private const val DECLARATION_TYPE_NAME_INFER = "_"
-
-/**
  * Describes the presence/availability of a (class member) variable or (class member) value in a context.
  * Refers to the original declaration and contains an override type.
  */
@@ -128,7 +123,11 @@ class BoundVariable(
                 reportings.add(Reporting.globalVariableNotInitialized(this))
             }
 
-            if (declaration.initializerExpression == null && shouldInferBaseType) {
+            if (kind.requiresExplicitType) {
+                if (declaration.type == null) {
+                    reportings.add(Reporting.variableTypeNotDeclared(this))
+                }
+            } else if (declaration.initializerExpression == null && shouldInferBaseType) {
                 reportings.add(
                     Reporting.typeDeductionError(
                         "Cannot determine type of $kind $name; neither type nor initializer is specified.",
@@ -314,16 +313,30 @@ class BoundVariable(
         val implicitMutabilityWhenNotReAssignable: TypeMutability,
         val allowsExplicitBaseTypeInfer: Boolean,
         val allowsExplicitOwnership: Boolean,
+        val requiresExplicitType: Boolean,
     ) {
-        VARIABLE(TypeMutability.IMMUTABLE, allowsExplicitBaseTypeInfer = true, allowsExplicitOwnership = false),
-        PARAMETER(TypeMutability.READONLY, false, allowsExplicitOwnership = true),
+        VARIABLE(TypeMutability.IMMUTABLE, allowsExplicitBaseTypeInfer = true, allowsExplicitOwnership = false, false),
+        PARAMETER(TypeMutability.READONLY, false, allowsExplicitOwnership = true, true),
         ;
+
+        init {
+            if (requiresExplicitType) {
+                check(!allowsExplicitBaseTypeInfer)
+            }
+        }
 
         override fun toString() = name.lowercase()
         fun getTypeUseSite(location: SourceLocation): TypeUseSite = when (this) {
             VARIABLE -> TypeUseSite.Irrelevant
             PARAMETER -> TypeUseSite.InUsage(location)
         }
+    }
+
+    companion object {
+        /**
+         * If the type of a variable is declared with this name, the base type will be inferred from the initializer.
+         */
+        const val DECLARATION_TYPE_NAME_INFER = "_"
     }
 }
 

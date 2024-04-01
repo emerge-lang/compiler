@@ -145,14 +145,15 @@ class BoundInvocationExpression(
         val candidateConstructors = if (receiverExpression != null) null else {
             context.resolveBaseType(functionNameToken.value)?.constructor?.let(BoundOverloadSet::fromSingle)?.let(::setOf)
         }
-        val candidateFunctions = context.getToplevelFunctionOverloadSetsBySimpleName(functionNameToken.value)
+        val candidateTopLevelFunctions = context.getToplevelFunctionOverloadSetsBySimpleName(functionNameToken.value)
+        val candidateMemberFunctions = receiverExpression?.type?.findMemberFunction(functionNameToken.value) ?: emptySet()
 
-        if (candidateConstructors.isNullOrEmpty() && candidateFunctions.isEmpty()) {
+        if (candidateConstructors.isNullOrEmpty() && candidateTopLevelFunctions.isEmpty() && candidateMemberFunctions.isEmpty()) {
             reportings.add(Reporting.noMatchingFunctionOverload(functionNameToken, receiverExpression?.type, valueArguments, false))
             return null
         }
 
-        val allCandidates = (candidateConstructors ?: emptySet()) + candidateFunctions
+        val allCandidates = (candidateConstructors ?: emptySet()) + candidateTopLevelFunctions + candidateMemberFunctions
         val evaluations = allCandidates.filterAndSortByMatchForInvocationTypes(receiverExpression, valueArguments, typeArguments, expectedReturnType)
 
         if (evaluations.isEmpty()) {
@@ -162,7 +163,7 @@ class BoundInvocationExpression(
                     Reporting.unresolvableConstructor(
                         functionNameToken,
                         valueArguments,
-                        candidateFunctions.isNotEmpty(),
+                        candidateTopLevelFunctions.isNotEmpty(),
                     )
                 )
             } else {
@@ -171,7 +172,7 @@ class BoundInvocationExpression(
                         functionNameToken,
                         receiverExpression?.type,
                         valueArguments,
-                        candidateFunctions.isNotEmpty(),
+                        candidateTopLevelFunctions.isNotEmpty(),
                     )
                 )
             }

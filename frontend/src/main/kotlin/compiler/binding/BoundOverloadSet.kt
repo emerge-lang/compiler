@@ -1,10 +1,13 @@
 package compiler.binding
 
+import compiler.binding.misc_ir.IrOverloadGroupImpl
 import compiler.binding.type.nonDisjointPairs
 import compiler.pivot
 import compiler.reportings.OverloadSetHasNoDisjointParameterReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
 
 class BoundOverloadSet(
     val fqn: DotName,
@@ -54,6 +57,10 @@ class BoundOverloadSet(
         }
 
         return setOf(OverloadSetHasNoDisjointParameterReporting(this))
+    }
+
+    fun toBackendIr(): IrOverloadGroup<IrFunction> {
+        return IrOverloadGroupImpl(fqn, parameterCount, overloads)
     }
 
     companion object {

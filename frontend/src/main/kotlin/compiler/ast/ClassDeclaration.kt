@@ -18,9 +18,14 @@
 
 package compiler.ast
 
+import compiler.ast.type.TypeArgument
+import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
+import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.classdef.BoundClassConstructor
 import compiler.binding.classdef.BoundClassDefinition
+import compiler.binding.classdef.BoundClassMemberFunction
 import compiler.binding.classdef.BoundClassMemberVariable
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -35,10 +40,19 @@ class ClassDeclaration(
     val entryDeclarations: List<ClassEntryDeclaration>,
     val typeParameters: List<TypeParameter>,
 ) : AstFileLevelDeclaration {
-    fun bindTo(context: CTContext): BoundClassDefinition {
-        val classRootContext = MutableCTContext(context)
+    fun bindTo(fileContext: CTContext): BoundClassDefinition {
+        val classRootContext = MutableCTContext(fileContext)
         val boundTypeParameters = typeParameters.map(classRootContext::addTypeParameter)
         val memberVariableInitializationContext = MutableExecutionScopedCTContext.functionRootIn(classRootContext)
+        val selfTypeReference = TypeReference(
+            simpleName = this.name.value,
+            nullability = TypeReference.Nullability.NOT_NULLABLE,
+            mutability = TypeMutability.READONLY,
+            declaringNameToken = this.name,
+            typeParameters.map {
+                TypeArgument(TypeVariance.UNSPECIFIED, TypeReference(it.name))
+            },
+        )
 
         lateinit var boundClassDef: BoundClassDefinition
         var hasAtLeastOneConstructor = false
@@ -48,18 +62,21 @@ class ClassDeclaration(
                 is ClassMemberVariableDeclaration -> entry.bindTo(memberVariableInitializationContext)
                 is ClassConstructorDeclaration -> {
                     hasAtLeastOneConstructor = true
-                    entry.bindTo(context) { boundClassDef }
+                    entry.bindTo(fileContext) { boundClassDef }
+                }
+                is ClassMemberFunctionDeclaration -> {
+                    entry.bindTo(classRootContext, selfTypeReference)
                 }
             } }
             .toMutableList()
 
         if (!hasAtLeastOneConstructor) {
             val defaultCtorAst = ClassConstructorDeclaration(emptyList(), IdentifierToken("constructor", declaredAt), CodeChunk(emptyList()))
-            boundEntries.add(defaultCtorAst.bindTo(context) { boundClassDef })
+            boundEntries.add(defaultCtorAst.bindTo(fileContext) { boundClassDef })
         }
 
         boundClassDef = BoundClassDefinition(
-            context,
+            fileContext,
             classRootContext,
             boundTypeParameters,
             this,
@@ -100,5 +117,16 @@ class ClassConstructorDeclaration(
 
     fun bindTo(fileContext: CTContext, getClassDef: () -> BoundClassDefinition) : BoundClassConstructor {
         return BoundClassConstructor(fileContext, getClassDef, this)
+    }
+}
+
+class ClassMemberFunctionDeclaration(
+    val declaration: FunctionDeclaration
+) : ClassMemberDeclaration() {
+    override val declaredAt = declaration.declaredAt
+    override val name = declaration.name
+
+    fun bindTo(classRootContext: CTContext, selfType: TypeReference): BoundClassMemberFunction {
+        return BoundClassMemberFunction(declaration.bindTo(classRootContext, selfType))
     }
 }

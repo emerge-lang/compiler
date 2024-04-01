@@ -38,10 +38,10 @@ data class FunctionDeclaration(
     val parsedReturnType: TypeReference?,
     val body: Body?,
 ) : AstFileLevelDeclaration {
-    fun bindTo(context: CTContext): BoundDeclaredFunction {
+    fun bindTo(context: CTContext, receiverType: TypeReference?): BoundDeclaredFunction {
         val functionContext = MutableExecutionScopedCTContext.functionRootIn(context)
         val boundTypeParams = typeParameters.map(functionContext::addTypeParameter)
-        val boundParameterList = parameters.bindTo(functionContext)
+        val boundParameterList = parameters.bindTo(functionContext, receiverType)
 
         return BoundDeclaredFunction(
             functionContext,

@@ -19,10 +19,14 @@
 package compiler.reportings
 
 import compiler.ast.VariableDeclaration
+import compiler.binding.BoundVariable
 
-data class MissingParameterTypeReporting(val parameter: VariableDeclaration) : Reporting(
+data class MissingVariableTypeReporting(
+    val parameter: VariableDeclaration,
+    val kind: BoundVariable.Kind,
+) : Reporting(
     Level.ERROR,
-    "The type of parameter ${parameter.name.value} must be explicitly declared.",
+    "The type of $kind ${parameter.name.value} must be explicitly declared.",
     parameter.sourceLocation
 ) {
     override fun toString() = super.toString()

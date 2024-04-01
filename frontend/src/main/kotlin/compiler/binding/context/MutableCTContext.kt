@@ -94,7 +94,7 @@ open class MutableCTContext(
         return bound
     }
 
-    private val typeParameters = HashMap<String, BoundTypeParameter>()
+    private val typeParameters = LinkedHashMap<String, BoundTypeParameter>()
 
     open fun addTypeParameter(parameter: TypeParameter): BoundTypeParameter {
         check(parameter.name.value !in typeParameters) {
@@ -104,6 +104,9 @@ open class MutableCTContext(
         typeParameters[parameter.name.value] = bound
         return bound
     }
+
+    override val allTypeParameters: Sequence<BoundTypeParameter>
+        get() = parentContext.allTypeParameters + typeParameters.values.asSequence()
 
     override fun resolveTypeParameter(simpleName: String): BoundTypeParameter? {
         return typeParameters[simpleName] ?: parentContext.resolveTypeParameter(simpleName)
@@ -142,7 +145,7 @@ open class MutableCTContext(
     }
 
     open fun addFunction(declaration: FunctionDeclaration): BoundFunction {
-        val bound = declaration.bindTo(this)
+        val bound = declaration.bindTo(this, null)
         _functions.add(bound)
         return bound
     }

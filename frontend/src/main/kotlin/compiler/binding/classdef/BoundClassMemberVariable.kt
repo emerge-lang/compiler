@@ -55,10 +55,15 @@ class BoundClassMemberVariable(
 
     val modifiedContext: ExecutionScopedCTContext get() = boundEffectiveVariableDeclaration.modifiedContext
 
+
     /**
-     * The type of the member; is null if not yet determined or if it cannot be determined.
+     * The type of this member in the context of the hosting data structure. It still needs to
+     * be [BoundTypeReference.instantiateAllParameters]-ed with the type of the variable used to access
+     * the hosting data structure.
+     *
+     * Is null if not yet determined or if it cannot be determined.
      */
-    override val type: BoundTypeReference? get() = boundEffectiveVariableDeclaration.typeAtDeclarationTime
+    val type: BoundTypeReference? get() = boundEffectiveVariableDeclaration.typeAtDeclarationTime
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return boundEffectiveVariableDeclaration.semanticAnalysisPhase1()

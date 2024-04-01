@@ -18,11 +18,11 @@
 
 package compiler.binding.type
 
-import compiler.ast.FunctionDeclaration
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundFunction
+import compiler.binding.BoundOverloadSet
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.classdef.BoundClassMemberVariable
 import compiler.reportings.Reporting
@@ -78,7 +78,7 @@ interface BaseType : SemanticallyAnalyzable {
     }
 
     /** @return The member function overloads for the given name or an empty collection if no such member function is defined. */
-    fun resolveMemberFunction(name: String): Collection<FunctionDeclaration> = emptySet()
+    fun resolveMemberFunction(name: String): Collection<BoundOverloadSet> = emptySet()
 
     fun resolveMemberVariable(name: String): BoundClassMemberVariable? = null
 

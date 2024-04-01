@@ -86,35 +86,45 @@ class Linux_x68_64_Backend : EmergeBackend {
             softwareContext.packagesSeq.forEach { pkg ->
                 pkg.classes.forEach(llvmContext::registerStruct)
             }
-            softwareContext.modules.flatMap { it.packages }.forEach { pkg ->
-                pkg.functions
-                    .flatMap { it.overloads }
-                    .forEach {
-                        val fn = llvmContext.registerFunction(it)
-                        storeCoreFunctionReference(llvmContext, it.fqn, fn)
-                    }
-            }
-            softwareContext.modules.flatMap { it.packages }
+            softwareContext.packagesSeq
+                .flatMap { it.classes }
+                .flatMap { it.memberFunctions }
+                .flatMap { it.overloads }
+                .forEach(llvmContext::registerFunction)
+
+            softwareContext.packagesSeq
+                .flatMap { it.functions }
+                .flatMap { it.overloads }
+                .forEach {
+                    val fn = llvmContext.registerFunction(it)
+                    storeCoreFunctionReference(llvmContext, it.fqn, fn)
+                }
+
+            softwareContext.packagesSeq
                 .flatMap { it.variables }
                 .forEach {
                     llvmContext.registerGlobal(it.declaration)
                 }
-            softwareContext.modules.flatMap { it.packages }
+            softwareContext.packagesSeq
                 .flatMap { it.variables }
                 .forEach {
                     llvmContext.defineGlobalInitializer(it.declaration, it.initializer)
                 }
-            softwareContext.modules.flatMap { it.packages }.forEach { pkg ->
-                pkg.functions
-                    .flatMap { it.overloads }
-                    .filterIsInstance<IrImplementedFunction>()
-                    .forEach(llvmContext::defineFunctionBody)
-            }
+            softwareContext.packagesSeq
+                .flatMap { it.functions }
+                .flatMap { it.overloads }
+                .filterIsInstance<IrImplementedFunction>()
+                .forEach(llvmContext::defineFunctionBody)
+
             softwareContext.modules
                 .flatMap { it.packages }
                 .flatMap { it.classes }
-                .forEach {
-                    llvmContext.defineFunctionBody(it.constructor)
+                .forEach { clazz ->
+                    llvmContext.defineFunctionBody(clazz.constructor)
+                    clazz.memberFunctions
+                        .flatMap { it.overloads }
+                        .filterIsInstance<IrImplementedFunction>()
+                        .forEach(llvmContext::defineFunctionBody)
                 }
 
             // assure the entrypoint is in the object file

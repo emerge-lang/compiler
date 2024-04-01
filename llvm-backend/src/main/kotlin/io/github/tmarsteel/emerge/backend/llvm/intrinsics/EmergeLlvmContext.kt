@@ -395,6 +395,8 @@ class EmergeLlvmContext(
                     val componentType = type.arguments.values.single()
                     return getAllocationSiteType(componentType.type)
                 }
+
+                else -> return getAllocationSiteType(type.simpleType)
             }
             is IrSimpleType -> {
                 type.llvmValueType?.let { return it }

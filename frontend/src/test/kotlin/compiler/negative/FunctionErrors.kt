@@ -4,8 +4,8 @@ import compiler.reportings.AmbiguousInvocationReporting
 import compiler.reportings.ExplicitInferTypeNotAllowedReporting
 import compiler.reportings.IllegalFunctionBodyReporting
 import compiler.reportings.MissingFunctionBodyReporting
-import compiler.reportings.MissingParameterTypeReporting
 import compiler.reportings.MissingReturnValueReporting
+import compiler.reportings.MissingVariableTypeReporting
 import compiler.reportings.MultipleParameterDeclarationsReporting
 import compiler.reportings.OverloadSetHasNoDisjointParameterReporting
 import compiler.reportings.ReturnTypeMismatchReporting
@@ -51,7 +51,7 @@ class FunctionErrors : FreeSpec({
                 fun foo(bar) = 3
             """.trimIndent()
             )
-                .shouldReport<MissingParameterTypeReporting>() {
+                .shouldReport<MissingVariableTypeReporting>() {
                     it.parameter.name.value shouldBe "bar"
                 }
         }

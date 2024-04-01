@@ -5,6 +5,7 @@ import compiler.InternalCompilerError
 import compiler.StandardLibraryModule
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.binding.BoundOverloadSet
 import compiler.binding.classdef.BoundClassMemberVariable
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
@@ -122,6 +123,10 @@ class RootResolvedTypeReference private constructor(
     }
 
     override fun findMemberVariable(name: String): BoundClassMemberVariable? = baseType.resolveMemberVariable(name)
+
+    override fun findMemberFunction(name: String): Collection<BoundOverloadSet> {
+        return baseType.resolveMemberFunction(name)
+    }
 
     override fun withTypeVariables(variables: List<BoundTypeParameter>): RootResolvedTypeReference {
         return RootResolvedTypeReference(

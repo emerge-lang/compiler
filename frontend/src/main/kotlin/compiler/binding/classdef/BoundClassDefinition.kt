@@ -20,8 +20,8 @@ package compiler.binding.classdef
 
 import compiler.OnceAction
 import compiler.ast.ClassDeclaration
-import compiler.ast.FunctionDeclaration
 import compiler.binding.BoundElement
+import compiler.binding.BoundOverloadSet
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeParameter
@@ -50,11 +50,23 @@ class BoundClassDefinition(
     val declaredConstructors: List<BoundClassConstructor> = entries.filterIsInstance<BoundClassConstructor>()
         .onEach { require(it.explicitDeclaration != null) }
 
+    val memberFunctionsByName: Map<String, Collection<BoundOverloadSet>> by lazy {
+        entries.filterIsInstance<BoundClassMemberFunction>()
+            .groupBy { it.name }
+            .mapValues { (name, overloads) ->
+                overloads
+                    .groupBy { it.declaration.parameters.parameters.size }
+                    .map { (parameterCount, overloads) ->
+                        BoundOverloadSet(this@BoundClassDefinition.fullyQualifiedName.plus(name), parameterCount, overloads.map { it.declaration })
+                    }
+            }
+    }
+
     // this can only be initialized in semanticAnalysisPhase1 because the types referenced in the members
     // can be declared later than the class
     override val constructor = declaredConstructors.firstOrNull() ?: BoundClassConstructor(classRootContext, { this }, null)
 
-    override fun resolveMemberFunction(name: String): Collection<FunctionDeclaration> = emptySet()
+    override fun resolveMemberFunction(name: String): Collection<BoundOverloadSet> = memberFunctionsByName[name] ?: emptySet()
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
@@ -115,5 +127,6 @@ private class IrClassImpl(
     override val fqn: DotName = classDef.fullyQualifiedName
     override val parameters = classDef.typeParameters.map { it.toBackendIr() }
     override val memberVariables = classDef.memberVariables.map { it.toBackendIr() }
+    override val memberFunctions = classDef.memberFunctionsByName.values.flatten().map { it.toBackendIr() }
     override val constructor by lazy { classDef.constructor.toBackendIr() }
 }
