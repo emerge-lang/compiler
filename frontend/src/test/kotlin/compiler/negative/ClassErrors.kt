@@ -8,6 +8,7 @@ import compiler.reportings.ImpureInvocationInPureContextReporting
 import compiler.reportings.ObjectNotFullyInitializedReporting
 import compiler.reportings.ReadInPureContextReporting
 import compiler.reportings.StateModificationOutsideOfPurityBoundaryReporting
+import compiler.reportings.TypeParameterNameConflictReporting
 import compiler.reportings.UnknownTypeReporting
 import compiler.reportings.UseOfUninitializedClassMemberVariableReporting
 import compiler.reportings.ValueNotAssignableReporting
@@ -332,6 +333,29 @@ class ClassErrors : FreeSpec({
                 .shouldReport<UnknownTypeReporting> {
                     it.erroneousReference.simpleName shouldBe "Bla"
                 }
+        }
+
+        "duplicate type parameters" {
+            validateModule("""
+                class Test<T, T> {}
+            """.trimIndent())
+                .shouldReport<TypeParameterNameConflictReporting>()
+        }
+
+        "type parameter name clashes with top level type" {
+            validateModule("""
+                class Test<Int> {}
+            """.trimIndent())
+                .shouldReport<TypeParameterNameConflictReporting>()
+        }
+
+        "member functions cannot re-declare type parameters declared on class level" {
+            validateModule("""
+                class Test<T> {
+                    fun foo<T>() {}
+                }
+            """.trimIndent())
+                .shouldReport<TypeParameterNameConflictReporting>()
         }
     }
 })

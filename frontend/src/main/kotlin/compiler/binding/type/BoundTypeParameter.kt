@@ -6,6 +6,7 @@ import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
+import compiler.binding.context.MutableCTContext
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
@@ -23,9 +24,21 @@ data class BoundTypeParameter(
     lateinit var bound: BoundTypeReference
         private set
 
+    private val _modifiedContext = MutableCTContext(context)
+    val modifiedContext: CTContext = _modifiedContext
+    init {
+        _modifiedContext.addTypeParameter(this)
+    }
+
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
+        val reportings = mutableListOf<Reporting>()
+        context.resolveType(TypeReference(name))
+            .takeUnless { it is UnresolvedType }
+            ?.let { preExistingType ->
+                reportings.add(Reporting.typeParameterNameConflict(preExistingType, this))
+            }
         bound = astNode.bound?.let(context::resolveType) ?: TYPE_PARAMETER_DEFAULT_BOUND
-        return emptySet()
+        return reportings
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
@@ -61,6 +74,18 @@ data class BoundTypeParameter(
         val TYPE_PARAMETER_DEFAULT_BOUND: BoundTypeReference = BuiltinAny.baseReference
             .withMutability(TypeMutability.READONLY)
             .withCombinedNullability(TypeReference.Nullability.NULLABLE)
+
+        fun List<TypeParameter>.chain(context: CTContext): Pair<List<BoundTypeParameter>, CTContext> {
+            var carry = context
+            val boundParams = ArrayList<BoundTypeParameter>(size)
+            for (parameter in this) {
+                val bound = parameter.bindTo(carry)
+                boundParams.add(bound)
+                carry = bound.modifiedContext
+            }
+
+            return Pair(boundParams, carry)
+        }
     }
 }
 

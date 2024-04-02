@@ -18,11 +18,11 @@
 
 package compiler.binding.context
 
+import compiler.InternalCompilerError
 import compiler.ast.ClassDeclaration
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
 import compiler.ast.type.TypeArgument
-import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundFunction
 import compiler.binding.BoundImportDeclaration
@@ -96,13 +96,10 @@ open class MutableCTContext(
 
     private val typeParameters = LinkedHashMap<String, BoundTypeParameter>()
 
-    open fun addTypeParameter(parameter: TypeParameter): BoundTypeParameter {
-        check(parameter.name.value !in typeParameters) {
-            "Duplicate type parameter in context: $parameter"
+    open fun addTypeParameter(parameter: BoundTypeParameter) {
+        if (typeParameters.putIfAbsent(parameter.name, parameter) != null) {
+            throw InternalCompilerError("Duplicate type parameter in context: $parameter")
         }
-        val bound = parameter.bindTo(this)
-        typeParameters[parameter.name.value] = bound
-        return bound
     }
 
     override val allTypeParameters: Sequence<BoundTypeParameter>

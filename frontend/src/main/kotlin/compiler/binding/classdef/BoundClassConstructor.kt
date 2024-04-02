@@ -53,7 +53,8 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
  * 4. execute user-defined code additionally defined in a `constructor { ... }` block in the class definition
  */
 class BoundClassConstructor(
-    private val fileContext: CTContext,
+    private val fileContextWithTypeParameters: CTContext,
+    override val declaredTypeParameters: List<BoundTypeParameter>,
     getClassDef: () -> BoundClassDefinition,
     val explicitDeclaration: ClassConstructorDeclaration?,
 ) : BoundFunction(), BoundClassEntry {
@@ -69,8 +70,8 @@ class BoundClassConstructor(
         - contextWithSelfVar
             - contextWithParameters
      */
-    private val constructorFunctionRootContext = MutableExecutionScopedCTContext.functionRootIn(fileContext)
-    override val context = fileContext
+    private val constructorFunctionRootContext = MutableExecutionScopedCTContext.functionRootIn(fileContextWithTypeParameters)
+    override val context = fileContextWithTypeParameters
 
     override val declaredAt get() = explicitDeclaration?.declaredAt ?: classDef.declaration.declaredAt
     override val receiverType = null
@@ -80,10 +81,7 @@ class BoundClassConstructor(
     override val isPure = true
     override val isReadonly = true
     override val isGuaranteedToThrow = false
-    override val declaredTypeParameters: List<BoundTypeParameter> by lazy {
-        classDef.typeParameters.map { constructorFunctionRootContext.addTypeParameter(it.astNode) }
-    }
-    override val allTypeParameters get()= declaredTypeParameters
+    override val allTypeParameters = declaredTypeParameters
 
     override val returnType by lazy {
         constructorFunctionRootContext.resolveType(

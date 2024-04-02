@@ -26,6 +26,7 @@ import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.type.BoundTypeParameter.Companion.chain
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 
@@ -39,8 +40,8 @@ data class FunctionDeclaration(
     val body: Body?,
 ) : AstFileLevelDeclaration {
     fun bindTo(context: CTContext, receiverType: TypeReference?): BoundDeclaredFunction {
-        val functionContext = MutableExecutionScopedCTContext.functionRootIn(context)
-        val boundTypeParams = typeParameters.map(functionContext::addTypeParameter)
+        val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(context)
+        val functionContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)
         val boundParameterList = parameters.bindTo(functionContext, receiverType)
 
         return BoundDeclaredFunction(

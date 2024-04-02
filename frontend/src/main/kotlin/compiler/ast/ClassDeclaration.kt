@@ -31,6 +31,8 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.type.BoundTypeParameter
+import compiler.binding.type.BoundTypeParameter.Companion.chain
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 
@@ -41,8 +43,8 @@ class ClassDeclaration(
     val typeParameters: List<TypeParameter>,
 ) : AstFileLevelDeclaration {
     fun bindTo(fileContext: CTContext): BoundClassDefinition {
-        val classRootContext = MutableCTContext(fileContext)
-        val boundTypeParameters = typeParameters.map(classRootContext::addTypeParameter)
+        val (boundTypeParameters, fileContextWithTypeParams) = typeParameters.chain(fileContext)
+        val classRootContext = MutableCTContext(fileContextWithTypeParams)
         val memberVariableInitializationContext = MutableExecutionScopedCTContext.functionRootIn(classRootContext)
         val selfTypeReference = TypeReference(
             simpleName = this.name.value,
@@ -62,7 +64,7 @@ class ClassDeclaration(
                 is ClassMemberVariableDeclaration -> entry.bindTo(memberVariableInitializationContext)
                 is ClassConstructorDeclaration -> {
                     hasAtLeastOneConstructor = true
-                    entry.bindTo(fileContext) { boundClassDef }
+                    entry.bindTo(fileContextWithTypeParams, boundTypeParameters) { boundClassDef }
                 }
                 is ClassMemberFunctionDeclaration -> {
                     entry.bindTo(classRootContext, selfTypeReference)
@@ -72,7 +74,7 @@ class ClassDeclaration(
 
         if (!hasAtLeastOneConstructor) {
             val defaultCtorAst = ClassConstructorDeclaration(emptyList(), IdentifierToken("constructor", declaredAt), CodeChunk(emptyList()))
-            boundEntries.add(defaultCtorAst.bindTo(fileContext) { boundClassDef })
+            boundEntries.add(defaultCtorAst.bindTo(fileContextWithTypeParams, boundTypeParameters) { boundClassDef })
         }
 
         boundClassDef = BoundClassDefinition(
@@ -115,8 +117,8 @@ class ClassConstructorDeclaration(
 ) : ClassEntryDeclaration {
     override val declaredAt = constructorKeyword.sourceLocation
 
-    fun bindTo(fileContext: CTContext, getClassDef: () -> BoundClassDefinition) : BoundClassConstructor {
-        return BoundClassConstructor(fileContext, getClassDef, this)
+    fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>, getClassDef: () -> BoundClassDefinition) : BoundClassConstructor {
+        return BoundClassConstructor(fileContextWithTypeParameters, typeParameters, getClassDef, this)
     }
 }
 

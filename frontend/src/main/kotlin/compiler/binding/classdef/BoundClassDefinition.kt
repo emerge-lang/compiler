@@ -64,7 +64,7 @@ class BoundClassDefinition(
 
     // this can only be initialized in semanticAnalysisPhase1 because the types referenced in the members
     // can be declared later than the class
-    override val constructor = declaredConstructors.firstOrNull() ?: BoundClassConstructor(classRootContext, { this }, null)
+    override val constructor = declaredConstructors.first()
 
     override fun resolveMemberFunction(name: String): Collection<BoundOverloadSet> = memberFunctionsByName[name] ?: emptySet()
 

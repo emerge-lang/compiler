@@ -9,6 +9,7 @@ import compiler.reportings.MissingVariableTypeReporting
 import compiler.reportings.MultipleParameterDeclarationsReporting
 import compiler.reportings.OverloadSetHasNoDisjointParameterReporting
 import compiler.reportings.ReturnTypeMismatchReporting
+import compiler.reportings.TypeParameterNameConflictReporting
 import compiler.reportings.UncertainTerminationReporting
 import compiler.reportings.UnknownTypeReporting
 import compiler.reportings.UnresolvableFunctionOverloadReporting
@@ -292,6 +293,20 @@ class FunctionErrors : FreeSpec({
                 .shouldReport<VarianceOnFunctionTypeParameterReporting> {
                     it.parameter.name.value shouldBe "T"
                 }
+        }
+
+        "type parameter duplication" {
+            validateModule("""
+                fun foo<T, T>() {}
+            """.trimIndent())
+                .shouldReport<TypeParameterNameConflictReporting>()
+        }
+
+        "type parameter name collides with top level type" {
+            validateModule("""
+                fun foo<Int>() {}
+            """.trimIndent())
+                .shouldReport<TypeParameterNameConflictReporting>()
         }
     }
 })

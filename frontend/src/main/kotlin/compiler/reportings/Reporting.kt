@@ -278,6 +278,9 @@ abstract class Reporting internal constructor(
             return ConditionNotBooleanReporting(condition, location)
         }
 
+        fun typeParameterNameConflict(originalType: BoundTypeReference, conflicting: BoundTypeParameter)
+            = TypeParameterNameConflictReporting(originalType, conflicting)
+
         fun duplicateTypeMembers(classDef: BoundClassDefinition, duplicateMembers: Set<BoundClassMemberVariable>) =
             DuplicateClassMemberReporting(classDef, duplicateMembers)
 
