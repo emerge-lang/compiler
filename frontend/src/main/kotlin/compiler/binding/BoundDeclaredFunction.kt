@@ -21,12 +21,14 @@ class BoundDeclaredFunction(
     override val context: CTContext,
     val declaration: FunctionDeclaration,
     override val attributes: BoundFunctionAttributeList,
-    override val typeParameters: List<BoundTypeParameter>,
+    override val declaredTypeParameters: List<BoundTypeParameter>,
     override val parameters: BoundParameterList,
     val code: Body?
 ) : BoundFunction() {
     override val declaredAt = declaration.declaredAt
     override val name: String = declaration.name.value
+
+    override val allTypeParameters get()= context.allTypeParameters.toList()
 
     override val receiverType: BoundTypeReference?
         get() = parameters.declaredReceiver?.typeAtDeclarationTime
@@ -90,7 +92,7 @@ class BoundDeclaredFunction(
                 reportings.add(Reporting.missingFunctionBody(declaration))
             }
 
-            typeParameters.map(BoundTypeParameter::semanticAnalysisPhase1).forEach(reportings::addAll)
+            declaredTypeParameters.map(BoundTypeParameter::semanticAnalysisPhase1).forEach(reportings::addAll)
             reportings.addAll(parameters.semanticAnalysisPhase1())
 
             if (declaration.parsedReturnType != null) {
@@ -148,7 +150,7 @@ class BoundDeclaredFunction(
                 )
                 reportings.addAll(it.validate(returnTypeUseSite))
             }
-            typeParameters.forEach {
+            declaredTypeParameters.forEach {
                 reportings.addAll(it.semanticAnalysisPhase2())
                 if (it.variance != TypeVariance.UNSPECIFIED) {
                     reportings.add(Reporting.varianceOnFunctionTypeParameter(it))
@@ -166,7 +168,7 @@ class BoundDeclaredFunction(
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
             val reportings = mutableSetOf<Reporting>()
 
-            typeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
+            declaredTypeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
 
             if (code != null) {
                 reportings += code.semanticAnalysisPhase3()

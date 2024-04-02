@@ -104,7 +104,12 @@ class BoundTypeArgument(
      * @see BoundTypeReference.instantiateFreeVariables
      */
     override fun instantiateFreeVariables(context: TypeUnification,): BoundTypeArgument {
-        return BoundTypeArgument(astNode, variance, type.instantiateFreeVariables(context))
+        val binding = type.instantiateFreeVariables(context)
+        if (binding is BoundTypeArgument) {
+            return binding
+        }
+
+        return BoundTypeArgument(astNode, variance, binding)
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeArgument {

@@ -344,13 +344,13 @@ private fun Iterable<BoundOverloadSet>.filterAndSortByMatchForInvocationTypes(
         .filter { it.parameters.parameters.size == argumentsIncludingReceiver.size }
         .mapNotNull { candidateFn ->
             if (candidateFn.parameterTypes.any { it == null }) {
-                // types not fully resolve, don't consider
+                // types not fully resolved, don't consider
                 return@mapNotNull null
             }
 
             // TODO: source location
-            val returnTypeWithVariables = candidateFn.returnType?.withTypeVariables(candidateFn.typeParameters)
-            var unification = TypeUnification.fromExplicit(candidateFn.typeParameters, typeArguments, SourceLocation.UNKNOWN, allowZeroTypeArguments = true)
+            val returnTypeWithVariables = candidateFn.returnType?.withTypeVariables(candidateFn.allTypeParameters)
+            var unification = TypeUnification.fromExplicit(candidateFn.declaredTypeParameters, typeArguments, SourceLocation.UNKNOWN, allowZeroTypeArguments = true)
             if (returnTypeWithVariables != null) {
                 if (expectedReturnType != null) {
                     unification = unification.doWithIgnoringReportings { obliviousUnification ->
@@ -361,7 +361,7 @@ private fun Iterable<BoundOverloadSet>.filterAndSortByMatchForInvocationTypes(
 
             @Suppress("UNCHECKED_CAST") // the check is right above
             val rightSideTypes = (candidateFn.parameterTypes as List<BoundTypeReference>)
-                .map { it.withTypeVariables(candidateFn.typeParameters) }
+                .map { it.withTypeVariables(candidateFn.allTypeParameters) }
             check(rightSideTypes.size == argumentsIncludingReceiver.size)
 
             val indicesOfErroneousParameters = ArrayList<Int>(argumentsIncludingReceiver.size)

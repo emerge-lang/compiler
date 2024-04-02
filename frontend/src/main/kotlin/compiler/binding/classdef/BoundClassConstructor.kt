@@ -80,9 +80,10 @@ class BoundClassConstructor(
     override val isPure = true
     override val isReadonly = true
     override val isGuaranteedToThrow = false
-    override val typeParameters: List<BoundTypeParameter> by lazy {
+    override val declaredTypeParameters: List<BoundTypeParameter> by lazy {
         classDef.typeParameters.map { constructorFunctionRootContext.addTypeParameter(it.astNode) }
     }
+    override val allTypeParameters get()= declaredTypeParameters
 
     override val returnType by lazy {
         constructorFunctionRootContext.resolveType(
@@ -200,7 +201,7 @@ class BoundClassConstructor(
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
             val reportings = mutableListOf<Reporting>()
             // this has to be done first to make sure the type parameters are registered in the ctor function context
-            typeParameters.map { it.semanticAnalysisPhase1() }.forEach(reportings::addAll)
+            declaredTypeParameters.map { it.semanticAnalysisPhase1() }.forEach(reportings::addAll)
 
             reportings.addAll(attributes.semanticAnalysisPhase1())
             reportings.addAll(selfVariableForInitCode.semanticAnalysisPhase1())
@@ -216,7 +217,7 @@ class BoundClassConstructor(
         onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase1)
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
             val reportings = mutableListOf<Reporting>()
-            typeParameters.map { it.semanticAnalysisPhase2() }.forEach(reportings::addAll)
+            declaredTypeParameters.map { it.semanticAnalysisPhase2() }.forEach(reportings::addAll)
 
             reportings.addAll(selfVariableForInitCode.semanticAnalysisPhase2())
             contextWithSelfVar.trackSideEffect(PartialObjectInitialization.Effect.MarkObjectAsEntireUninitializedEffect(selfVariableForInitCode, classDef))
@@ -247,7 +248,7 @@ class BoundClassConstructor(
         onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase2)
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
             val reportings = mutableListOf<Reporting>()
-            typeParameters.map { it.semanticAnalysisPhase2() }.forEach(reportings::addAll)
+            declaredTypeParameters.map { it.semanticAnalysisPhase2() }.forEach(reportings::addAll)
 
             reportings.addAll(attributes.semanticAnalysisPhase3())
             reportings.addAll(selfVariableForInitCode.semanticAnalysisPhase3())

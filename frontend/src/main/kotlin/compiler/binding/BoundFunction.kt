@@ -46,7 +46,17 @@ abstract class BoundFunction : SemanticallyAnalyzable {
     abstract val name: String
     abstract val attributes: BoundFunctionAttributeList
 
-    abstract val typeParameters: List<BoundTypeParameter>
+    /**
+     * All type parameters that are in play for this function signature, including ones inherited from context (e.g.
+     * class member functions inherit type parameters from the class they are defined in).
+     */
+    abstract val allTypeParameters: List<BoundTypeParameter>
+
+    /**
+     * The type parameters actually declared on this very function signature. In contrast to [allTypeParameters],
+     * invocations can only specifiy [declaredTypeParameters] explicitly.
+     */
+    abstract val declaredTypeParameters: List<BoundTypeParameter>
 
     /**
      * Whether this function should be considered pure by other code using it. This is true if the function is
