@@ -115,6 +115,7 @@ class BoundClassConstructor(
             generatedSourceLocation,
             null,
             null,
+            null,
             IdentifierToken("self", generatedSourceLocation),
             (returnType as RootResolvedTypeReference).original!!.withMutability(TypeMutability.EXCLUSIVE),
             null,
@@ -131,6 +132,7 @@ class BoundClassConstructor(
                 val location = member.declaration.declaredAt.deriveGenerated()
                 VariableDeclaration(
                     location,
+                    null,
                     null,
                     Pair(
                         VariableOwnership.CAPTURED,

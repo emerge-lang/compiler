@@ -38,6 +38,7 @@ import compiler.lexer.SourceLocation
 
 class ClassDeclaration(
     override val declaredAt: SourceLocation,
+    val visibility: AstVisibility?,
     val name: IdentifierToken,
     val entryDeclarations: List<ClassEntryDeclaration>,
     val typeParameters: List<TypeParameter>,

@@ -20,6 +20,7 @@ package compiler.parser.grammar
 
 import compiler.InternalCompilerError
 import compiler.ast.AstFunctionAttribute
+import compiler.ast.AstVisibility
 import compiler.ast.CodeChunk
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ParameterList
@@ -95,6 +96,7 @@ val Parameter = sequence("parameter declaration") {
 
         VariableDeclaration(
             name.sourceLocation,
+            null,
             varKeywordToken,
             ownership,
             name,
@@ -174,9 +176,14 @@ val FunctionAttribute = eitherOf {
         identifier()
         operator(Operator.PARANT_CLOSE)
     }
+    ref(Visibility)
 }
     .astTransformation { tokens ->
-        val nameToken = tokens.next() as KeywordToken
+        val next = tokens.next()
+        if (next is AstVisibility) {
+            return@astTransformation AstFunctionAttribute.Visibility(next)
+        }
+        val nameToken = next as KeywordToken
         when(nameToken.keyword) {
             Keyword.MUTABLE -> AstFunctionAttribute.EffectCategory(AstFunctionAttribute.EffectCategory.Category.MODIFYING, nameToken)
             Keyword.READONLY -> AstFunctionAttribute.EffectCategory(AstFunctionAttribute.EffectCategory.Category.READONLY, nameToken)

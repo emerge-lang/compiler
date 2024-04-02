@@ -13,28 +13,7 @@ sealed class AstFunctionAttribute(
     open val impliesNoBody: Boolean = false
     val sourceLocation = attributeName.sourceLocation
 
-    class Visibility(val value: Value, nameToken: Token) : AstFunctionAttribute(nameToken) {
-        sealed interface Value {
-            object Private : Value
-            object Protected : Value
-            object Internal : Value
-            class Qualified(pkg: ASTPackageName) : Value
-            object Exported : Value
-        }
-
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (other !is Visibility) return false
-
-            if (value != other.value) return false
-
-            return true
-        }
-
-        override fun hashCode(): Int {
-            return value.hashCode()
-        }
-    }
+    class Visibility(val node: AstVisibility) : AstFunctionAttribute(node.nameToken)
 
     /**
      * This function is eligible to override syntactic operators, e.g. `*`

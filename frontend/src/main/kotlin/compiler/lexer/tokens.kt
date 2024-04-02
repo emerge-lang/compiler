@@ -57,8 +57,8 @@ enum class Keyword(val text: String)
     VARIANCE_OUT("out"),
 
     PRIVATE("private"),
-    PROTECTED("protected"),
-    INTERNAL("internal"),
+    MODULE("module"),
+    INTERNAL("package"),
     EXPORT("export"),
     ;
 }

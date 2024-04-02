@@ -19,6 +19,7 @@
 package compiler.parser.grammar
 
 import compiler.ast.AstFunctionAttribute
+import compiler.ast.AstVisibility
 import compiler.ast.ClassConstructorDeclaration
 import compiler.ast.ClassDeclaration
 import compiler.ast.ClassEntryDeclaration
@@ -87,6 +88,9 @@ val ClassEntry = eitherOf {
     .astTransformation { tokens -> tokens.remainingToList().single() as ClassEntryDeclaration }
 
 val ClassDefinition = sequence("class definition") {
+    optional {
+        ref(Visibility)
+    }
     keyword(CLASS_DEFINITION)
     identifier()
     optional {
@@ -107,11 +111,19 @@ val ClassDefinition = sequence("class definition") {
     }
 }
     .astTransformation { tokens ->
-        val declarationKeyword = tokens.next()!! as KeywordToken // class keyword
+        val visibility: AstVisibility?
+        var next: Any? = tokens.next()!!
+        if (next is AstVisibility) {
+            visibility = next
+            next = tokens.next()!!
+        } else {
+            visibility = null
+        }
 
+        val declarationKeyword = next as KeywordToken // class keyword
         val name = tokens.next()!! as IdentifierToken
 
-        var next: Any? = tokens.next()!!
+        next = tokens.next()
         val typeParameters: List<TypeParameter>
         if (next is TypeParameterBundle) {
             typeParameters = next.parameters
@@ -131,6 +143,7 @@ val ClassDefinition = sequence("class definition") {
 
         ClassDeclaration(
             declarationKeyword.sourceLocation,
+            visibility,
             name,
             entries,
             typeParameters,

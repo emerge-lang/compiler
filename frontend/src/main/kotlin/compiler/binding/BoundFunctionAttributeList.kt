@@ -71,7 +71,7 @@ class BoundFunctionAttributeList(val attributes: List<AstFunctionAttribute>) : S
 
     companion object {
         private fun conflictsWith(a: AstFunctionAttribute, b: AstFunctionAttribute): Boolean = when (a) {
-            is AstFunctionAttribute.Visibility -> { /* TODO */ false }
+            is AstFunctionAttribute.Visibility -> b is AstFunctionAttribute.Visibility && a.node != b.node
             is AstFunctionAttribute.EffectCategory -> {
                 if (b is AstFunctionAttribute.EffectCategory) {
                     a.value != b.value

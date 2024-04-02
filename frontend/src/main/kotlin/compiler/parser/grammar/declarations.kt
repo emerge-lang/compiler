@@ -19,13 +19,21 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
+import compiler.ast.ASTPackageName
+import compiler.ast.AstVisibility
 import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
+import compiler.lexer.Keyword.EXPORT
+import compiler.lexer.Keyword.MODULE
+import compiler.lexer.Keyword.PACKAGE
+import compiler.lexer.Keyword.PRIVATE
 import compiler.lexer.Keyword.VAR
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator.ASSIGNMENT
 import compiler.lexer.Operator.COLON
+import compiler.lexer.Operator.PARANT_CLOSE
+import compiler.lexer.Operator.PARANT_OPEN
 import compiler.lexer.OperatorToken
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
@@ -33,6 +41,33 @@ import compiler.parser.grammar.dsl.sequence
 import compiler.ast.Expression as AstExpression
 import compiler.ast.VariableDeclaration as AstVariableDeclaration
 import compiler.ast.VariableOwnership as AstVariableOwnership
+
+val Visibility = eitherOf {
+    keyword(PRIVATE)
+    keyword(MODULE)
+    sequence {
+        keyword(PACKAGE)
+        operator(PARANT_OPEN)
+        ref(ModuleOrPackageName)
+        operator(PARANT_CLOSE)
+    }
+    keyword(EXPORT)
+}
+    .astTransformation { tokens ->
+        val visibilityToken = tokens.next() as KeywordToken
+        when(visibilityToken.keyword) {
+            PRIVATE -> AstVisibility.Private(visibilityToken)
+            MODULE -> AstVisibility.Module(visibilityToken)
+            EXPORT -> AstVisibility.Export(visibilityToken)
+            PACKAGE -> {
+                // skip parant_open
+                tokens.next()
+                val packageName = tokens.next() as ASTPackageName
+                AstVisibility.Package(visibilityToken, packageName)
+            }
+            else -> throw InternalCompilerError("grammar and ast builder mismatch")
+        }
+    }
 
 val VariableDeclarationInitializingAssignment = sequence {
     operator(ASSIGNMENT)
@@ -56,6 +91,9 @@ val VariableOwnership = eitherOf {
 
 private val ReAssignableVariableDeclaration = sequence("re-assignable variable declaration") {
     optional {
+        ref(Visibility)
+    }
+    optional {
         ref(VariableOwnership)
     }
     keyword(VAR)
@@ -70,6 +108,9 @@ private val ReAssignableVariableDeclaration = sequence("re-assignable variable d
 }
 
 val FinalVariableDeclaration = sequence("final variable declaration") {
+    optional {
+        ref(Visibility)
+    }
     optional {
         ref(VariableOwnership)
     }
@@ -91,10 +132,18 @@ val VariableDeclaration = eitherOf("variable declaration") {
     ref(ReAssignableVariableDeclaration)
 }
     .astTransformation { tokens ->
+        val visibility: AstVisibility?
         val ownership: Pair<VariableOwnership, IdentifierToken>?
         val varKeywordToken: KeywordToken?
 
         var next = tokens.next()
+        if (next is AstVisibility) {
+            visibility = next
+            next = tokens.next()
+        } else {
+            visibility = null
+        }
+
         if (next is Pair<*, *>) {
             @Suppress("UNCHECKED_CAST")
             ownership = next as Pair<VariableOwnership, IdentifierToken>
@@ -132,6 +181,7 @@ val VariableDeclaration = eitherOf("variable declaration") {
 
         AstVariableDeclaration(
             varKeywordToken?.sourceLocation ?: nameToken.sourceLocation,
+            visibility,
             varKeywordToken,
             ownership,
             nameToken,
