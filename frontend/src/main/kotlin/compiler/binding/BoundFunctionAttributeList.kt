@@ -1,6 +1,7 @@
 package compiler.binding
 
 import compiler.ast.AstFunctionAttribute
+import compiler.ast.AstVisibility
 import compiler.reportings.Reporting
 import compiler.twoElementPermutationsUnordered
 
@@ -71,7 +72,7 @@ class BoundFunctionAttributeList(val attributes: List<AstFunctionAttribute>) : S
 
     companion object {
         private fun conflictsWith(a: AstFunctionAttribute, b: AstFunctionAttribute): Boolean = when (a) {
-            is AstFunctionAttribute.Visibility -> b is AstFunctionAttribute.Visibility && a.node != b.node
+            is AstVisibility -> b is AstVisibility && a != b
             is AstFunctionAttribute.EffectCategory -> {
                 if (b is AstFunctionAttribute.EffectCategory) {
                     a.value != b.value

@@ -39,10 +39,10 @@ data class ParameterList (
                     receiverType != null && it.type.simpleName == BoundVariable.DECLARATION_TYPE_NAME_INFER -> it.type.copy(simpleName = receiverType.simpleName)
                     else -> it.type
                 }
-                return@mapIndexed it.copy(type = actualType).bindToAsParameter(context)
+                return@mapIndexed it.copy(type = actualType).bindTo(context, BoundVariable.Kind.PARAMETER)
             }
 
-            return@mapIndexed it.bindToAsParameter(context)
+            return@mapIndexed it.bindTo(context, BoundVariable.Kind.PARAMETER)
         },
     )
 }

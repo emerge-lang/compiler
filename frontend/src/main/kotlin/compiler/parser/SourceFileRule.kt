@@ -15,16 +15,16 @@ import compiler.parser.grammar.SourceFileGrammar
 import compiler.parser.grammar.rule.MatchingContext
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.DotName
+import compiler.lexer.SourceFile as LexerSourceFile
 
 object SourceFileRule {
-    fun match(tokens: TokenSequence, expectedPackageName: DotName): MatchingResult<ASTSourceFile> {
+    fun match(tokens: TokenSequence, lexerFile: LexerSourceFile): MatchingResult<ASTSourceFile> {
         val inResult = SourceFileGrammar.match(MatchingContext.None, tokens)
         @Suppress("UNCHECKED_CAST")
         val input = inResult.item ?: return inResult as MatchingResult<ASTSourceFile> // null can haz any type that i want :)
 
         val reportings: MutableSet<Reporting> = HashSet()
-        val astSourceFile = ASTSourceFile(expectedPackageName)
+        val astSourceFile = ASTSourceFile(lexerFile)
 
         input.forEachRemainingIndexed { index, declaration ->
             check(declaration is AstFileLevelDeclaration)

@@ -1,10 +1,18 @@
 package compiler.ast
 
+import compiler.binding.BoundVisibility
+import compiler.binding.context.CTContext
 import compiler.lexer.KeywordToken
 import compiler.lexer.Token
 
-sealed class AstVisibility(val nameToken: Token) {
+sealed class AstVisibility(nameToken: Token) : AstFunctionAttribute(nameToken) {
+    abstract fun bindTo(context: CTContext) : BoundVisibility
+
     class Private(keyword: KeywordToken) : AstVisibility(keyword) {
+        override fun bindTo(context: CTContext): BoundVisibility {
+            return BoundVisibility.FileScope(context)
+        }
+
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Private) return false
@@ -15,7 +23,12 @@ sealed class AstVisibility(val nameToken: Token) {
             return javaClass.hashCode()
         }
     }
+
     class Module(keyword: KeywordToken) : AstVisibility(keyword) {
+        override fun bindTo(context: CTContext): BoundVisibility {
+            return BoundVisibility.ModuleScope(context.moduleContext.moduleName)
+        }
+
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Module) return false
@@ -26,7 +39,12 @@ sealed class AstVisibility(val nameToken: Token) {
             return javaClass.hashCode()
         }
     }
+
     class Package(keyword: KeywordToken, val packageName: ASTPackageName) : AstVisibility(keyword) {
+        override fun bindTo(context: CTContext): BoundVisibility {
+            return BoundVisibility.PackageScope(context.moduleContext, this)
+        }
+
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Package) return false
@@ -40,7 +58,12 @@ sealed class AstVisibility(val nameToken: Token) {
             return packageName.hashCode()
         }
     }
+
     class Export(keyword: KeywordToken) : AstVisibility(keyword) {
+        override fun bindTo(context: CTContext): BoundVisibility {
+            return BoundVisibility.ExportedScope
+        }
+
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Export) return false

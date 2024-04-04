@@ -22,6 +22,7 @@ import compiler.ast.ClassMemberDeclaration
 import compiler.ast.ClassMemberVariableDeclaration
 import compiler.ast.expression.IdentifierExpression
 import compiler.binding.BoundElement
+import compiler.binding.BoundVariable
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
@@ -46,7 +47,7 @@ class BoundClassMemberVariable(
     private val effectiveVariableDeclaration = if (!isConstructorParameterInitialized) declaration.variableDeclaration else {
         declaration.variableDeclaration.copy(initializerExpression = null)
     }
-    private val boundEffectiveVariableDeclaration = effectiveVariableDeclaration.bindTo(context)
+    private val boundEffectiveVariableDeclaration = effectiveVariableDeclaration.bindTo(context, BoundVariable.Kind.MEMBER_VARIABLE)
 
     /**
      * The initial value for this member variable, or `null` if [isConstructorParameterInitialized]

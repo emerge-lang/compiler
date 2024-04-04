@@ -20,6 +20,7 @@ package compiler.ast
 
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundVariable
+import compiler.binding.BoundVisibility
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
@@ -37,12 +38,12 @@ data class VariableDeclaration(
     override val sourceLocation get() = declaredAt
     val isReAssignable: Boolean = varToken != null
 
-    override fun bindTo(context: ExecutionScopedCTContext): BoundVariable = bindTo(context, BoundVariable.Kind.VARIABLE)
-    fun bindToAsParameter(context: ExecutionScopedCTContext): BoundVariable = bindTo(context, BoundVariable.Kind.PARAMETER)
-    private fun bindTo(context: ExecutionScopedCTContext, kind: BoundVariable.Kind): BoundVariable {
+    override fun bindTo(context: ExecutionScopedCTContext): BoundVariable = bindTo(context, BoundVariable.Kind.LOCAL_VARIABLE)
+    fun bindTo(context: ExecutionScopedCTContext, kind: BoundVariable.Kind): BoundVariable {
         return BoundVariable(
             context,
             this,
+            visibility?.bindTo(context) ?: BoundVisibility.default(context),
             initializerExpression?.bindTo(context),
             kind,
         )

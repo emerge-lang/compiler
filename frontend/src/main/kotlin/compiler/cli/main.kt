@@ -70,7 +70,7 @@ object CompileCommand : CliktCommand() {
                         echo(ModuleWithoutSourcesReporting(moduleRef.moduleName, moduleRef.path))
                     }
                 }
-                .map { SourceFileRule.match(lex(it), it.packageName) }
+                .map { SourceFileRule.match(lex(it), it) }
                 .forEach {
                     it.reportings.forEach(this::echo)
                     anyParseErrors = anyParseErrors || it.reportings.containsErrors

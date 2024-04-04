@@ -181,7 +181,7 @@ val FunctionAttribute = eitherOf {
     .astTransformation { tokens ->
         val next = tokens.next()
         if (next is AstVisibility) {
-            return@astTransformation AstFunctionAttribute.Visibility(next)
+            return@astTransformation next
         }
         val nameToken = next as KeywordToken
         when(nameToken.keyword) {

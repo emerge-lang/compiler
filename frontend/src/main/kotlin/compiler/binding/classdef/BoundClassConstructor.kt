@@ -111,7 +111,7 @@ class BoundClassConstructor(
 
     private val contextWithSelfVar = MutableExecutionScopedCTContext.deriveFrom(constructorFunctionRootContext)
     private val selfVariableForInitCode: BoundVariable by lazy {
-        val varInstance = contextWithSelfVar.addVariable(VariableDeclaration(
+        val varAst = VariableDeclaration(
             generatedSourceLocation,
             null,
             null,
@@ -119,7 +119,9 @@ class BoundClassConstructor(
             IdentifierToken("self", generatedSourceLocation),
             (returnType as RootResolvedTypeReference).original!!.withMutability(TypeMutability.EXCLUSIVE),
             null,
-        ))
+        )
+        val varInstance = varAst.bindTo(contextWithSelfVar, BoundVariable.Kind.PARAMETER)
+        contextWithSelfVar.addVariable(varInstance)
         varInstance.defaultOwnership = VariableOwnership.BORROWED
         contextWithSelfVar.trackSideEffect(VariableInitialization.WriteToVariableEffect(varInstance))
         varInstance

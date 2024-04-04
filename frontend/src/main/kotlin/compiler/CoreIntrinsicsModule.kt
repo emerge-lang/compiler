@@ -31,7 +31,7 @@ object CoreIntrinsicsModule {
     fun amendCoreModuleIn(softwareContext: SoftwareContext) {
         val coreModule = softwareContext.getRegisteredModule(NAME)
         val fileContext = SourceFileRootContext(softwareContext.getPackage(NAME)!!)
-        val file = SourceFile(NAME, fileContext)
+        val file = SourceFile(compiler.lexer.MemorySourceFile(CoreIntrinsicsModule::class.simpleName!!, NAME, ""), NAME, fileContext)
 
         file.context.addBaseType(BuiltinAny)
         file.context.addBaseType(BuiltinNumber)

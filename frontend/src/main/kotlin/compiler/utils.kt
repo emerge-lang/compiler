@@ -36,7 +36,7 @@ fun parseFromClasspath(path: Path, packageName: DotName): ASTSourceFile {
         ClassLoader.getSystemResource(path.toString())!!.readText(),
     )
 
-    val matchResult = SourceFileRule.match(lex(sourceFile), packageName)
+    val matchResult = SourceFileRule.match(lex(sourceFile), sourceFile)
 
     if (matchResult.hasErrors) {
         System.err.println()

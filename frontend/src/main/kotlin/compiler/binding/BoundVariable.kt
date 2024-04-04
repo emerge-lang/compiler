@@ -26,7 +26,6 @@ import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
-import compiler.binding.context.SourceFileRootContext
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.expression.BoundExpression
 import compiler.binding.misc_ir.IrCreateReferenceStatementImpl
@@ -50,11 +49,12 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 class BoundVariable(
     override val context: ExecutionScopedCTContext,
     override val declaration: VariableDeclaration,
+    val visibility: BoundVisibility,
     val initializerExpression: BoundExpression<*>?,
     val kind: Kind,
 ) : BoundStatement<VariableDeclaration> {
     val name: String = declaration.name.value
-    private val isGlobal = context is SourceFileRootContext
+    private val isGlobal = kind == Kind.GLOBAL_VARIABLE
 
     val isReAssignable: Boolean = declaration.isReAssignable
     private val implicitMutability: TypeMutability = if (isReAssignable) TypeMutability.MUTABLE else kind.implicitMutabilityWhenNotReAssignable
@@ -107,6 +107,11 @@ class BoundVariable(
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
             val reportings = mutableSetOf<Reporting>()
+
+            reportings.addAll(visibility.semanticAnalysisPhase1())
+            if (!kind.allowsVisibility && declaration.visibility != null) {
+                reportings.add(Reporting.visibilityNotAllowedOnVariable(this))
+            }
 
             context.resolveVariable(this.name)
                 ?.takeUnless { it === this }
@@ -181,6 +186,8 @@ class BoundVariable(
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
             val reportings = mutableSetOf<Reporting>()
 
+            reportings.addAll(visibility.semanticAnalysisPhase2())
+
             if (implicitEvaluationRequired) {
                 reportings.add(Reporting.implicitlyEvaluatingAStatement(this))
             }
@@ -249,7 +256,12 @@ class BoundVariable(
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
             initializerExpression?.markEvaluationResultCaptured(typeAtDeclarationTime?.mutability ?: implicitMutability)
-            initializerExpression?.semanticAnalysisPhase3() ?: emptySet()
+            val reportings = mutableListOf<Reporting>()
+
+            initializerExpression?.semanticAnalysisPhase3()?.let(reportings::addAll)
+            reportings.addAll(visibility.semanticAnalysisPhase3())
+
+            reportings
         }
     }
 
@@ -273,7 +285,7 @@ class BoundVariable(
     }
 
     fun getInitializationStateInContext(context: ExecutionScopedCTContext): VariableInitialization.State {
-        if (isGlobal || kind == Kind.PARAMETER) {
+        if (kind.isInitializedByDefault) {
             return VariableInitialization.State.INITIALIZED
         }
 
@@ -314,9 +326,41 @@ class BoundVariable(
         val allowsExplicitBaseTypeInfer: Boolean,
         val allowsExplicitOwnership: Boolean,
         val requiresExplicitType: Boolean,
+        val isInitializedByDefault: Boolean,
+        val allowsVisibility: Boolean,
     ) {
-        VARIABLE(TypeMutability.IMMUTABLE, allowsExplicitBaseTypeInfer = true, allowsExplicitOwnership = false, false),
-        PARAMETER(TypeMutability.READONLY, false, allowsExplicitOwnership = true, true),
+        LOCAL_VARIABLE(
+            implicitMutabilityWhenNotReAssignable = TypeMutability.IMMUTABLE,
+            allowsExplicitBaseTypeInfer = true,
+            allowsExplicitOwnership = false,
+            requiresExplicitType = false,
+            isInitializedByDefault = false,
+            allowsVisibility = false,
+        ),
+        MEMBER_VARIABLE(
+            TypeMutability.IMMUTABLE,
+            allowsExplicitBaseTypeInfer = true,
+            allowsExplicitOwnership = false,
+            requiresExplicitType = false,
+            isInitializedByDefault = false,
+            allowsVisibility = true,
+        ),
+        GLOBAL_VARIABLE(
+            TypeMutability.IMMUTABLE,
+            allowsExplicitBaseTypeInfer = true,
+            allowsExplicitOwnership = false,
+            requiresExplicitType = false,
+            isInitializedByDefault = true,
+            allowsVisibility = true,
+        ),
+        PARAMETER(
+            TypeMutability.READONLY,
+            allowsExplicitBaseTypeInfer = false,
+            allowsExplicitOwnership = true,
+            requiresExplicitType = true,
+            isInitializedByDefault = true,
+            allowsVisibility = false,
+        ),
         ;
 
         init {
@@ -325,9 +369,11 @@ class BoundVariable(
             }
         }
 
-        override fun toString() = name.lowercase()
+        override fun toString() = name.lowercase().replace('_', ' ')
         fun getTypeUseSite(location: SourceLocation): TypeUseSite = when (this) {
-            VARIABLE -> TypeUseSite.Irrelevant
+            LOCAL_VARIABLE,
+            MEMBER_VARIABLE,
+            GLOBAL_VARIABLE -> TypeUseSite.Irrelevant
             PARAMETER -> TypeUseSite.InUsage(location)
         }
     }

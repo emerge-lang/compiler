@@ -4,7 +4,6 @@ import compiler.InternalCompilerError
 import compiler.TakeWhileAndNextIterator.Companion.takeWhileAndNext
 import compiler.ast.Statement
 import compiler.ast.Statement.Companion.chain
-import compiler.ast.VariableDeclaration
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundVariable
 import compiler.binding.context.effect.EphemeralStateClass
@@ -140,22 +139,12 @@ open class MutableExecutionScopedCTContext protected constructor(
         return getDeferredCodeUpToIncluding(parentFunctionContext ?: this)
     }
 
-    /**
-     * Adds the given variable to this context; possibly overriding its type with the given type.
-     */
-    fun addVariable(declaration: VariableDeclaration): BoundVariable {
-        val bound = declaration.bindTo(this)
-
-        return addVariable(bound)
-    }
-
-    fun addVariable(boundVariable: BoundVariable): BoundVariable {
-        if (boundVariable.context in hierarchy) {
-            _variables[boundVariable.name] = boundVariable
-            return boundVariable
+    fun addVariable(boundVariable: BoundVariable) {
+        if (boundVariable.context !in hierarchy) {
+            throw InternalCompilerError("Cannot add a variable that has been bound to a different context")
         }
 
-        throw InternalCompilerError("Cannot add a variable that has been bound to a different context")
+        _variables[boundVariable.name] = boundVariable
     }
 
     private val sideEffectsBySubjectAndClass: MutableMap<Any, MutableMap<EphemeralStateClass<*, *, *>, MutableList<SideEffect<*>>>> = IdentityHashMap()

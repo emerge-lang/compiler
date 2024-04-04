@@ -34,6 +34,7 @@ import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundReturnStatement
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
+import compiler.binding.BoundVisibility
 import compiler.binding.classdef.BoundClassConstructor
 import compiler.binding.classdef.BoundClassDefinition
 import compiler.binding.classdef.BoundClassMemberVariable
@@ -298,6 +299,15 @@ abstract class Reporting internal constructor(
 
         fun multipleClassConstructors(additionalCtors: Collection<ClassConstructorDeclaration>)
             = MultipleClassConstructorsReporting(additionalCtors)
+
+        fun elementNotAccessible(element: Any, visibility: BoundVisibility, accessAt: SourceLocation)
+            = ElementNotAccessibleReporting(element, visibility, accessAt)
+
+        fun visibilityTooBroad(owningModule: DotName, visibilityDeclaration: BoundVisibility.PackageScope)
+            = PackageVisibilityTooBroadReporting(owningModule, visibilityDeclaration.packageName, visibilityDeclaration.astNode.sourceLocation)
+
+        fun visibilityNotAllowedOnVariable(variable: BoundVariable)
+            = VisibilityNotAllowedOnVariableReporting(variable)
 
         private fun readingPurityViolationToReporting(violation: BoundExpression<*>, boundary: PurityViolationReporting.Boundary): Reporting {
             if (violation is BoundIdentifierExpression) {

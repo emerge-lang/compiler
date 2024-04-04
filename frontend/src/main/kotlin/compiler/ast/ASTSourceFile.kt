@@ -19,6 +19,7 @@
 package compiler.ast
 
 import compiler.InternalCompilerError
+import compiler.binding.BoundVariable
 import compiler.binding.context.ModuleContext
 import compiler.binding.context.SoftwareContext
 import compiler.binding.context.SourceFile
@@ -26,13 +27,16 @@ import compiler.binding.context.SourceFileRootContext
 import compiler.lexer.IdentifierToken
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.DotName
+import compiler.lexer.SourceFile as LexerSourceFile
 
 /**
  * AST representation of a source file
  */
 class ASTSourceFile(
-    val expectedPackageName: DotName,
+    val lexerFile: LexerSourceFile,
 ) {
+    val expectedPackageName = lexerFile.packageName
+
     var selfDeclaration: ASTPackageDeclaration? = null
 
     val imports: MutableList<ImportDeclaration> = mutableListOf()
@@ -61,7 +65,7 @@ class ASTSourceFile(
             // check double declare
             val existingVariable = fileContext.resolveVariable(declaredVariable.name.value, true)
             if (existingVariable == null || existingVariable.declaration === declaredVariable) {
-                fileContext.addVariable(declaredVariable)
+                fileContext.addVariable(declaredVariable.bindTo(fileContext, BoundVariable.Kind.GLOBAL_VARIABLE))
             }
             else {
                 // variable double-declared
@@ -76,6 +80,7 @@ class ASTSourceFile(
         }
 
         return SourceFile(
+            lexerFile,
             selfDeclaration?.packageName?.names?.map(IdentifierToken::value)?.let(::DotName) ?: expectedPackageName,
             fileContext,
             reportings

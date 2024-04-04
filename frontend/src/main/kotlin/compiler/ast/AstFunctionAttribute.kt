@@ -13,8 +13,6 @@ sealed class AstFunctionAttribute(
     open val impliesNoBody: Boolean = false
     val sourceLocation = attributeName.sourceLocation
 
-    class Visibility(val node: AstVisibility) : AstFunctionAttribute(node.nameToken)
-
     /**
      * This function is eligible to override syntactic operators, e.g. `*`
      */
