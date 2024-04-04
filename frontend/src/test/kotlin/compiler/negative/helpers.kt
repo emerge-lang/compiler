@@ -44,7 +44,10 @@ private val defaultModulesParsed: List<Pair<DotName, List<ASTSourceFile>>> = (No
 ))
     .map { module ->
         val sourceFiles = SourceSet.load(module.path, module.moduleName)
-            .map { SourceFileRule.match(lex(it), it.packageName) }
+            .map {
+                val tokens = lex(it)
+                SourceFileRule.match(tokens, tokens.peek()!!.sourceLocation.file)
+            }
             .partition { it.hasErrors }
             .let { (withErrors, withoutErrors) ->
                 require(withErrors.isEmpty()) { "default module ${module.moduleName} has errors: ${withErrors.flatMap { it.reportings }.first { it.level >= Reporting.Level.ERROR}}" }
@@ -55,44 +58,76 @@ private val defaultModulesParsed: List<Pair<DotName, List<ASTSourceFile>>> = (No
         module.moduleName to sourceFiles
     }
 
-/**
- * To be invoked with this exact syntax to have the line numbers match
- *
- * ```
- * VariableDeclaration.parseAndValidate("""
- *     // source line 1
- * """.trimMargin())
- * ```
- */
-fun validateModule(
-    code: String,
-    addPackageDeclaration: Boolean = true,
-    invokedFrom: StackTraceElement = Thread.currentThread().stackTrace[2],
-): Pair<SoftwareContext, Collection<Reporting>> {
-    val tokens = lexCode(code.assureEndsWith('\n'), addPackageDeclaration, invokedFrom)
-    val result = SourceFileRule.match(tokens, DotName(listOf("testmodule")))
-    if (result.item == null) {
-        val error = result.reportings.maxBy { it.level }
-        throw AssertionError("Failed to parse code: ${error.message} in ${error.sourceLocation}")
-    }
-    val lexicalReportings = result.reportings
-    val sourceFile = result.item!!
-    val nTopLevelDeclarations = sourceFile.functions.size + sourceFile.classes.size + sourceFile.variables.size
-    check(nTopLevelDeclarations > 0) { "Found no top-level declarations in the test source. Very likely a parsing bug." }
 
+class IntegrationTestModule(
+    val moduleName: DotName,
+    val tokens: TokenSequence,
+) {
+    companion object {
+        /**
+         * To be invoked with this exact syntax to have the line numbers match
+         *
+         * ```
+         * IntegrationTestModule.of("foo.module", """
+         *     // source line 1
+         * """.trimMargin())
+         * ```
+         */
+        fun of(moduleName: String, code: String, definedAt: StackTraceElement = Thread.currentThread().stackTrace[2]): IntegrationTestModule {
+            val moduleDotName = DotName(moduleName.split('.'))
+            val sourceFile = MemorySourceFile(definedAt.fileName!!, moduleDotName, code.assureEndsWith('\n'))
+            val tokens = lex(sourceFile)
+            return IntegrationTestModule(moduleDotName, tokens)
+        }
+    }
+}
+
+fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext, Collection<Reporting>> {
     val swCtxt = SoftwareContext()
     defaultModulesParsed.forEach { (moduleName, sources) ->
         val moduleCtx = swCtxt.registerModule(moduleName)
         sources.forEach(moduleCtx::addSourceFile)
     }
     CoreIntrinsicsModule.amendCoreModuleIn(swCtxt)
-    swCtxt.registerModule(sourceFile.expectedPackageName).addSourceFile(sourceFile)
+
+    val lexicalReportings = mutableListOf<Reporting>()
+    modules.forEach { module ->
+        val lexerSourceFile = module.tokens.peek()!!.sourceLocation.file
+        val result = SourceFileRule.match(module.tokens, lexerSourceFile)
+        if (result.item == null) {
+            val error = result.reportings.maxBy { it.level }
+            throw AssertionError("Failed to parse code: ${error.message} in ${error.sourceLocation}")
+        }
+        lexicalReportings.addAll(result.reportings)
+        val sourceFile = result.item!!
+        val nTopLevelDeclarations = sourceFile.functions.size + sourceFile.classes.size + sourceFile.variables.size
+        check(nTopLevelDeclarations > 0) { "Found no top-level declarations in the test source of module ${module.moduleName}. Very likely a parsing bug." }
+
+        swCtxt.registerModule(module.moduleName).addSourceFile(sourceFile)
+    }
 
     val semanticReportings = swCtxt.doSemanticAnalysis()
     return Pair(
         swCtxt,
         (lexicalReportings + semanticReportings).toSet(),
     )
+}
+
+/**
+ * To be invoked with this exact syntax to have the line numbers match
+ *
+ * ```
+ * VariableDeclaration.parseAndValidate("foo_module", """
+ *     // source line 1
+ * """.trimMargin())
+ * ```
+ */
+fun validateModule(
+    code: String,
+    invokedFrom: StackTraceElement = Thread.currentThread().stackTrace[2],
+): Pair<SoftwareContext, Collection<Reporting>> {
+    val module = IntegrationTestModule(DotName(listOf("testmodule")), lexCode(code.assureEndsWith('\n'), true, invokedFrom))
+    return validateModules(module)
 }
 
 // TODO: most test cases expect EXACTLY one reporting, extra reportings are out-of-spec. This one lets extra reportings pass :(
