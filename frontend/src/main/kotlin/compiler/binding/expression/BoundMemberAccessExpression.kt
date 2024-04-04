@@ -104,7 +104,14 @@ class BoundMemberAccessExpression(
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return valueExpression.semanticAnalysisPhase3()
+        val reportings = mutableListOf<Reporting>()
+        reportings.addAll(valueExpression.semanticAnalysisPhase3())
+        member?.let { resolvedMember ->
+            reportings.addAll(
+                resolvedMember.visibility.validateAccessFrom(declaration.memberName.sourceLocation, resolvedMember)
+            )
+        }
+        return reportings
     }
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
