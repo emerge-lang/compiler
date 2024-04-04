@@ -47,7 +47,7 @@ data class FunctionDeclaration(
         return BoundDeclaredFunction(
             functionContext,
             this,
-            BoundFunctionAttributeList(attributes),
+            BoundFunctionAttributeList(context, attributes),
             boundTypeParams,
             boundParameterList,
             body?.bindTo(boundParameterList.modifiedContext),

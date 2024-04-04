@@ -7,6 +7,6 @@ FD_STDIN: Int = 0
 FD_STDOUT: Int = 1
 FD_STDERR: Int = 2
 
-fun print(str: String) {
+export fun print(str: String) {
     write(FD_STDOUT, str.utf8Data.addressOfFirst(), str.utf8Data.size())
 }

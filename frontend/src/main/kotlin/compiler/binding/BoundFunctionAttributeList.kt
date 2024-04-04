@@ -2,10 +2,14 @@ package compiler.binding
 
 import compiler.ast.AstFunctionAttribute
 import compiler.ast.AstVisibility
+import compiler.binding.context.CTContext
 import compiler.reportings.Reporting
 import compiler.twoElementPermutationsUnordered
 
-class BoundFunctionAttributeList(val attributes: List<AstFunctionAttribute>) : SemanticallyAnalyzable {
+class BoundFunctionAttributeList(
+    context: CTContext,
+    val attributes: List<AstFunctionAttribute>
+) : SemanticallyAnalyzable {
     private val reportings = ArrayList<Reporting>()
     override fun semanticAnalysisPhase1() = reportings // happens in init {} block
     override fun semanticAnalysisPhase2() = emptyList<Reporting>()
@@ -15,6 +19,11 @@ class BoundFunctionAttributeList(val attributes: List<AstFunctionAttribute>) : S
     private val firstReadonlyAttribute: AstFunctionAttribute?
     private val firstPureAttribute: AstFunctionAttribute?
     val externalAttribute: AstFunctionAttribute.External?
+    val visibility: BoundVisibility = attributes
+        .filterIsInstance<AstVisibility>()
+        .firstOrNull()
+        ?.bindTo(context)
+        ?: BoundVisibility.default(context)
 
     val impliesNoBody: Boolean
     var isDeclaredOperator: Boolean

@@ -77,7 +77,7 @@ class BoundClassConstructor(
     override val receiverType = null
     override val declaresReceiver = false
     override val name get() = classDef.simpleName
-    override val attributes = BoundFunctionAttributeList(explicitDeclaration?.attributes ?: emptyList())
+    override val attributes = BoundFunctionAttributeList(fileContextWithTypeParameters, explicitDeclaration?.attributes ?: emptyList())
     override val isPure = true
     override val isReadonly = true
     override val isGuaranteedToThrow = false

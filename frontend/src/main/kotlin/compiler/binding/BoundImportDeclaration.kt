@@ -72,11 +72,27 @@ class BoundImportDeclaration(
     override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
+        val lastIdentifierAt = declaration.identifiers.last().sourceLocation
         val reportings = mutableListOf<Reporting>()
-        (resolutionResult as? ResolutionResult.Variable)?.variable?.let { resolvedVariable ->
-            if (resolvedVariable.kind.allowsVisibility) {
-                reportings.addAll(resolvedVariable.visibility.validateAccessFrom(declaration.identifiers.last().sourceLocation, resolvedVariable))
+        when (val result = resolutionResult) {
+            is ResolutionResult.Variable -> {
+                if (result.variable.kind.allowsVisibility) {
+                    reportings.addAll(result.variable.visibility.validateAccessFrom(lastIdentifierAt, result.variable))
+                }
             }
+            is ResolutionResult.OverloadSets -> {
+                val allImplsSeq = result.sets.asSequence().flatMap { it.overloads }
+                val noneAccessible = allImplsSeq.none { it.attributes.visibility.validateAccessFrom(lastIdentifierAt, it).isEmpty() }
+
+                if (noneAccessible) {
+                    val sampleReportings = allImplsSeq
+                        .map { it.attributes.visibility.validateAccessFrom(lastIdentifierAt, it) }
+                        .filter { it.isNotEmpty() }
+                        .first()
+                    reportings.addAll(sampleReportings)
+                }
+            }
+            else -> { /* nothing to do */ }
         }
         return reportings
     }

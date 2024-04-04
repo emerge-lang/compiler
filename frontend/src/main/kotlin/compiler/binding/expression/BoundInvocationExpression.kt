@@ -228,6 +228,14 @@ class BoundInvocationExpression(
             }
 
             reportings += valueArguments.flatMap { it.semanticAnalysisPhase3() }
+            dispatchedFunction?.let { targetFn ->
+                reportings.addAll(
+                    targetFn.attributes.visibility.validateAccessFrom(
+                        functionNameToken.sourceLocation,
+                        targetFn,
+                    )
+                )
+            }
 
             return@getResult reportings
         }

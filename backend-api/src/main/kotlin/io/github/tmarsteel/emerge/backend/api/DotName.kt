@@ -3,6 +3,7 @@ package io.github.tmarsteel.emerge.backend.api
 class DotName(val components: List<String>) {
     init {
         require(components.isNotEmpty())
+        require(components.none { '.' in it })
     }
 
     override fun toString() = components.joinToString(separator = ".")

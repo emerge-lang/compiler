@@ -1,3 +1,3 @@
 package emerge.platform
 
-fun print(str: String) {}
+export fun print(str: String) {}
