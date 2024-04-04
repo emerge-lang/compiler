@@ -65,6 +65,7 @@ class SourceFile(
      */
     fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = ArrayList<Reporting>()
+        context.imports.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
         context.types.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
         context.variables.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
         context.functions.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
@@ -78,6 +79,7 @@ class SourceFile(
      */
     fun semanticAnalysisPhase3(): Collection<Reporting> {
         val reportings = ArrayList<Reporting>()
+        context.imports.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
         context.types.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
         context.variables.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
         context.functions.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }

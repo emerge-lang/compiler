@@ -32,7 +32,7 @@ class ElementNotAccessibleReporting(
             is BoundVisibility.PackageScope -> "internal to package ${visibility.packageName}"
         }
 
-        "$elementDescription is $visibilityDescription, cannot be accessed here"
+        "$elementDescription is $visibilityDescription, cannot be accessed from ${accessAt.file.packageName}"
     },
     accessAt,
 ) {

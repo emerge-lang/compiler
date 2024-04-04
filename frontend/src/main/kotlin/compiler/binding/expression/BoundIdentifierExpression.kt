@@ -208,6 +208,10 @@ class BoundIdentifierExpression(
                 }
             }
 
+            if (variable.kind.allowsVisibility) {
+                reportings.addAll(variable.visibility.validateAccessFrom(declaration.sourceLocation, variable))
+            }
+
             return reportings
         }
 
