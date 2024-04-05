@@ -16,7 +16,8 @@ class BoundOverloadSet(
 ) : SemanticallyAnalyzable {
     init {
         require(overloads.isNotEmpty())
-        assert(overloads.all { it.fullyQualifiedName == fqn && it.parameters.parameters.size == parameterCount })
+        assert(overloads.all { it.fullyQualifiedName == fqn })
+        assert(overloads.all { it.parameters.parameters.size == parameterCount })
     }
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {

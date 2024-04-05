@@ -55,8 +55,8 @@ class BoundClassDefinition(
     val memberFunctionsByName: Map<String, Collection<BoundOverloadSet>> by lazy {
         entries.filterIsInstance<BoundClassMemberFunction>()
             .groupBy { it.name }
-            .mapValues { (name, overloads) ->
-                overloads
+            .mapValues { (name, overloadsSameName) ->
+                overloadsSameName
                     .groupBy { it.declaration.parameters.parameters.size }
                     .map { (parameterCount, overloads) ->
                         BoundOverloadSet(this@BoundClassDefinition.fullyQualifiedName.plus(name), parameterCount, overloads.map { it.declaration })
