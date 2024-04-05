@@ -23,6 +23,7 @@ import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundFunction
 import compiler.binding.BoundOverloadSet
+import compiler.binding.BoundVisibility
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.classdef.BoundClassMemberVariable
 import compiler.reportings.Reporting
@@ -39,6 +40,8 @@ interface BaseType : SemanticallyAnalyzable {
 
     // TODO: infer this from declaring package and simpleName
     val fullyQualifiedName: DotName
+
+    val visibility: BoundVisibility
 
     val baseReference: BoundTypeReference
         get() = RootResolvedTypeReference(TypeReference(this.simpleName), this, typeParameters.map {

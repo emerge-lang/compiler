@@ -22,6 +22,7 @@ import compiler.CoreIntrinsicsModule
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundOverloadSet
+import compiler.binding.BoundVisibility
 import compiler.binding.context.SoftwareContext
 import compiler.binding.context.SourceFileRootContext
 import compiler.lexer.IdentifierToken
@@ -149,6 +150,8 @@ abstract class BuiltinType(
     final override val fullyQualifiedName = CoreIntrinsicsModule.NAME + simpleName
 
     final override val superTypes: Set<BaseType> = superTypes.toSet()
+
+    override val visibility = BoundVisibility.ExportedScope
 
     /**
      * BaseTypes do not define anything themselves. All of that is defined in source language in the

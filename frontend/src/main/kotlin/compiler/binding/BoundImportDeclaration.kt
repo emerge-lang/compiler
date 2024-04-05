@@ -92,6 +92,9 @@ class BoundImportDeclaration(
                     reportings.addAll(sampleReportings)
                 }
             }
+            is ResolutionResult.BaseType -> {
+                reportings.addAll(result.baseType.visibility.validateAccessFrom(lastIdentifierAt, result.baseType))
+            }
             else -> { /* nothing to do */ }
         }
         return reportings

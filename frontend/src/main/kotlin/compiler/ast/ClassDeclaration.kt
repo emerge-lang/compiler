@@ -23,6 +23,7 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
+import compiler.binding.BoundVisibility
 import compiler.binding.classdef.BoundClassConstructor
 import compiler.binding.classdef.BoundClassDefinition
 import compiler.binding.classdef.BoundClassMemberFunction
@@ -81,6 +82,7 @@ class ClassDeclaration(
         boundClassDef = BoundClassDefinition(
             fileContext,
             classRootContext,
+            visibility?.bindTo(fileContext) ?: BoundVisibility.default(fileContext),
             boundTypeParameters,
             this,
             boundEntries,

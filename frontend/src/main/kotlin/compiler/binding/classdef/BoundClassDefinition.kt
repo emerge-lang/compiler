@@ -22,6 +22,7 @@ import compiler.OnceAction
 import compiler.ast.ClassDeclaration
 import compiler.binding.BoundElement
 import compiler.binding.BoundOverloadSet
+import compiler.binding.BoundVisibility
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeParameter
@@ -34,6 +35,7 @@ import kotlinext.duplicatesBy
 class BoundClassDefinition(
     fileContext: CTContext,
     private val classRootContext: CTContext,
+    override val visibility: BoundVisibility,
     override val typeParameters: List<BoundTypeParameter>,
     override val declaration: ClassDeclaration,
     val entries: List<BoundClassEntry>,

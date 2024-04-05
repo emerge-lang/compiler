@@ -3,6 +3,7 @@ package compiler.compiler.negative
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundVariable
 import compiler.binding.classdef.BoundClassConstructor
+import compiler.binding.classdef.BoundClassDefinition
 import compiler.binding.classdef.BoundClassMemberVariable
 import compiler.reportings.ElementNotAccessibleReporting
 import io.github.tmarsteel.emerge.backend.api.DotName
@@ -189,6 +190,26 @@ class VisibilityTests : FreeSpec({
             )
                 .shouldReport<ElementNotAccessibleReporting> {
                     it.element.shouldBeInstanceOf<BoundDeclaredFunction>()
+                }
+        }
+    }
+
+    "classes" - {
+        "access is verified on import" {
+            validateModules(
+                IntegrationTestModule.of("module_A", """
+                    package module_A
+                    
+                    module class Foo {}
+                """.trimIndent()),
+                IntegrationTestModule.of("module_B", """
+                    package module_B
+                    import module_A.Foo
+                    fun dummy() {}
+                """.trimIndent()),
+            )
+                .shouldReport<ElementNotAccessibleReporting> {
+                    it.element should beInstanceOf<BoundClassDefinition>()
                 }
         }
     }
