@@ -373,7 +373,7 @@ class BoundVariable(
         fun getTypeUseSite(location: SourceLocation): TypeUseSite = when (this) {
             LOCAL_VARIABLE,
             MEMBER_VARIABLE,
-            GLOBAL_VARIABLE -> TypeUseSite.Irrelevant
+            GLOBAL_VARIABLE -> TypeUseSite.Irrelevant(location)
             PARAMETER -> TypeUseSite.InUsage(location)
         }
     }

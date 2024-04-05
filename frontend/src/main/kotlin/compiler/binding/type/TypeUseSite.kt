@@ -17,6 +17,8 @@ sealed class TypeUseSite(
 
     abstract fun validateForTypeVariance(typeVariance: TypeVariance): Reporting?
 
+    fun deriveIrrelevant(): Irrelevant = Irrelevant(usageLocation)
+
     // equals + hashCode are final because if the same location had
     // two different variances, something would be CLEARLY wrong
 
@@ -70,7 +72,9 @@ sealed class TypeUseSite(
         }
     }
 
-    data object Irrelevant : TypeUseSite(null, "irrelevant") {
+    class Irrelevant(
+        usageLocation: SourceLocation?
+    ) : TypeUseSite(usageLocation, "irrelevant") {
         override fun validateForTypeVariance(typeVariance: TypeVariance) = null
     }
 }

@@ -1,5 +1,5 @@
 package emerge.std
 
-class String {
+export class String {
     export utf8Data: Array<Byte> = init
 }

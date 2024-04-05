@@ -30,7 +30,7 @@ class BoundTypeArgument(
     )
 
     override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
-        return setOfNotNull(forUsage.validateForTypeVariance(variance)) + type.validate(TypeUseSite.Irrelevant)
+        return setOfNotNull(forUsage.validateForTypeVariance(variance)) + type.validate(forUsage.deriveIrrelevant())
     }
 
     override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeArgument {

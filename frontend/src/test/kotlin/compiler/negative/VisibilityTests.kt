@@ -194,7 +194,7 @@ class VisibilityTests : FreeSpec({
         }
     }
 
-    "classes" - {
+    "base types" - {
         "access is verified on import" {
             validateModules(
                 IntegrationTestModule.of("module_A", """
@@ -211,6 +211,63 @@ class VisibilityTests : FreeSpec({
                 .shouldReport<ElementNotAccessibleReporting> {
                     it.element should beInstanceOf<BoundClassDefinition>()
                 }
+        }
+
+        "access is verified on use" - {
+            "simple type reference" {
+                validateModules(
+                    IntegrationTestModule.of("module_A", """
+                        package module_A
+                        
+                        module class Foo {}
+                    """.trimIndent()),
+                    IntegrationTestModule.of("module_B", """
+                        package module_B
+                        import module_A.*
+                        fun test() -> Foo {}
+                    """.trimIndent()),
+                )
+                    .shouldReport<ElementNotAccessibleReporting> {
+                        it.element should beInstanceOf<BoundClassDefinition>()
+                    }
+            }
+
+            "type parameter" {
+                validateModules(
+                    IntegrationTestModule.of("module_A", """
+                        package module_A
+                        
+                        module class Foo {}
+                    """.trimIndent()),
+                    IntegrationTestModule.of("module_B", """
+                        package module_B
+                        import module_A.*
+                        fun test<T : Foo>() {}
+                    """.trimIndent()),
+                )
+                    .shouldReport<ElementNotAccessibleReporting> {
+                        it.element should beInstanceOf<BoundClassDefinition>()
+                    }
+            }
+
+            "type argument" {
+                validateModules(
+                    IntegrationTestModule.of("module_A", """
+                        package module_A
+                        
+                        module class Foo {}
+                    """.trimIndent()),
+                    IntegrationTestModule.of("module_B", """
+                        package module_B
+                        import module_A.*
+                        class Bar<T> {}
+                        intrinsic fun test() -> Bar<Foo>
+                    """.trimIndent()),
+                )
+                    .shouldReport<ElementNotAccessibleReporting> {
+                        it.element should beInstanceOf<BoundClassDefinition>()
+                    }
+            }
         }
     }
 })

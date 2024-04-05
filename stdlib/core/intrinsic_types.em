@@ -1,3 +1,5 @@
 package emerge.core
 
-class Unit {}
+export class Unit {
+    private constructor {}
+}

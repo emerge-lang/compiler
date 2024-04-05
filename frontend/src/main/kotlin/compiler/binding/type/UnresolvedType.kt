@@ -25,7 +25,7 @@ class UnresolvedType private constructor(
     override val inherentTypeBindings = TypeUnification.EMPTY
 
     override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
-        return parameters.flatMap { it.validate(TypeUseSite.Irrelevant) } + setOf(Reporting.unknownType(reference))
+        return parameters.flatMap { it.validate(forUsage.deriveIrrelevant()) } + setOf(Reporting.unknownType(reference))
     }
 
     override fun withMutability(modifier: TypeMutability?): BoundTypeReference {

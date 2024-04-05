@@ -91,7 +91,7 @@ class BoundInvocationExpression(
             val reportings = mutableSetOf<Reporting>()
 
             receiverExpression?.semanticAnalysisPhase2()?.let(reportings::addAll)
-            typeArguments.forEach { reportings.addAll(it.validate(TypeUseSite.Irrelevant)) }
+            typeArguments.forEach { reportings.addAll(it.validate(TypeUseSite.Irrelevant(it.sourceLocation))) }
             valueArguments.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
 
             val chosenOverload = selectOverload(reportings) ?: return@getResult reportings

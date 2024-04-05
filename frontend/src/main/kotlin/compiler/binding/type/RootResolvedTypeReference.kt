@@ -92,8 +92,9 @@ class RootResolvedTypeReference private constructor(
     override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
 
-        arguments.forEach { reportings.addAll(it.validate(TypeUseSite.Irrelevant)) }
+        arguments.forEach { reportings.addAll(it.validate(forUsage.deriveIrrelevant())) }
         reportings.addAll(inherentTypeBindings.reportings)
+        reportings.addAll(baseType.visibility.validateAccessFrom(forUsage.usageLocation, baseType))
 
         return reportings
     }

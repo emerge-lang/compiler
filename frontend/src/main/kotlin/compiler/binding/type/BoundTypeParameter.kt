@@ -42,7 +42,7 @@ data class BoundTypeParameter(
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return bound.validate(TypeUseSite.Irrelevant)
+        return bound.validate(TypeUseSite.Irrelevant(astNode.name.sourceLocation))
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
