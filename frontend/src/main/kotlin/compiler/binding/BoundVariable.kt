@@ -50,7 +50,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 class BoundVariable(
     override val context: ExecutionScopedCTContext,
     override val declaration: VariableDeclaration,
-    val visibility: BoundVisibility,
+    override val visibility: BoundVisibility,
     val initializerExpression: BoundExpression<*>?,
     val kind: Kind,
 ) : BoundStatement<VariableDeclaration>, DefinitionWithVisibility {
@@ -309,6 +309,8 @@ class BoundVariable(
 
         return visibility.validateAccessFrom(location, this)
     }
+
+    override fun toStringForErrorMessage() = "$kind $name"
 
     val backendIrDeclaration: IrVariableDeclaration by lazy { IrVariableDeclarationImpl(name, typeAtDeclarationTime!!.toBackendIr()) }
 

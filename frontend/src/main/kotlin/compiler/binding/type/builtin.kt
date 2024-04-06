@@ -19,10 +19,10 @@
 package compiler.binding.type
 
 import compiler.CoreIntrinsicsModule
+import compiler.InternalCompilerError
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundOverloadSet
-import compiler.binding.BoundVisibility
 import compiler.binding.context.SoftwareContext
 import compiler.binding.context.SourceFileRootContext
 import compiler.lexer.IdentifierToken
@@ -153,9 +153,13 @@ abstract class BuiltinType(
 
     final override val superTypes: Set<BaseType> = superTypes.toSet()
 
+    override val visibility get() = throw InternalCompilerError("not needed")
+
     override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
-        return BoundVisibility.ExportedScope.validateAccessFrom(location, this)
+        return emptySet() // builtins are export, visible everywhere
     }
+
+    override fun toStringForErrorMessage() = "type $simpleName"
 
     /**
      * BaseTypes do not define anything themselves. All of that is defined in source language in the

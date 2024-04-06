@@ -12,6 +12,7 @@ import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.beInstanceOf
 import io.kotest.matchers.types.shouldBeInstanceOf
+import textutils.compiler.reportings.ShadowedVisibilityReporting
 
 class VisibilityTests : FreeSpec({
     "global variables" - {
@@ -100,6 +101,39 @@ class VisibilityTests : FreeSpec({
             )
                 .shouldReport<ElementNotAccessibleReporting> {
                     it.element should beInstanceOf<BoundClassMemberVariable>()
+                }
+        }
+
+        "explicit overexposure export over default module" {
+            validateModule("""
+                class Foo {
+                    export bla: Int = init
+                }
+            """.trimIndent())
+                .shouldReport<ShadowedVisibilityReporting> {
+                    it.element.shouldBeInstanceOf<BoundClassMemberVariable>().name shouldBe "bla"
+                }
+        }
+
+        "explicit overexposure export over private" {
+            validateModule("""
+                private class Foo {
+                    export bla: Int = init
+                }
+            """.trimIndent())
+                .shouldReport<ShadowedVisibilityReporting> {
+                    it.element.shouldBeInstanceOf<BoundClassMemberVariable>().name shouldBe "bla"
+                }
+        }
+
+        "explicit overexposure explicit module over private" {
+            validateModule("""
+                private class Foo {
+                    module bla: Int = init
+                }
+            """.trimIndent())
+                .shouldReport<ShadowedVisibilityReporting> {
+                    it.element.shouldBeInstanceOf<BoundClassMemberVariable>().name shouldBe "bla"
                 }
         }
     }

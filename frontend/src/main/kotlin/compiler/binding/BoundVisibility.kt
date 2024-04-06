@@ -2,13 +2,17 @@ package compiler.binding
 
 import compiler.ast.AstVisibility
 import compiler.binding.context.CTContext
-import compiler.binding.context.ModuleContext
+import compiler.lexer.Keyword
+import compiler.lexer.KeywordToken
 import compiler.lexer.SourceFile
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.DotName
 
-sealed interface BoundVisibility : SemanticallyAnalyzable {
+sealed class BoundVisibility : SemanticallyAnalyzable {
+    protected abstract val context: CTContext
+    abstract val astNode: AstVisibility
+
     /**
      * Validate whether an element with `this` visibility is accessible from
      * the given location ([accessAt]). [subject] is not inspected, only forwarded
@@ -17,13 +21,26 @@ sealed interface BoundVisibility : SemanticallyAnalyzable {
      * **WARNING:** You very likely do not want to use this method, but [DefinitionWithVisibility.validateAccessFrom]
      * instead.
      */
-    fun validateAccessFrom(accessAt: SourceLocation, subject: DefinitionWithVisibility): Collection<Reporting>
+    abstract fun validateAccessFrom(accessAt: SourceLocation, subject: DefinitionWithVisibility): Collection<Reporting>
+
+    abstract fun isStrictlyBroarderThan(other: BoundVisibility): Boolean
 
     override fun semanticAnalysisPhase1() = emptySet<Reporting>()
     override fun semanticAnalysisPhase2() = emptySet<Reporting>()
     override fun semanticAnalysisPhase3() = emptySet<Reporting>()
 
-    class FileScope(val context: CTContext) : BoundVisibility {
+    /**
+     * Assuming `this` visibility appears on [element], validates.
+     */
+    open fun validateOnElement(element: DefinitionWithVisibility): Collection<Reporting> {
+        if (this.isStrictlyBroarderThan(context.visibility)) {
+            return setOf(Reporting.visibilityShadowed(element, context.visibility))
+        }
+
+        return emptySet()
+    }
+
+    class FileScope(override val context: CTContext, override val astNode: AstVisibility) : BoundVisibility() {
         val lexerFile: SourceFile get() = context.sourceFile.lexerFile
         override fun validateAccessFrom(accessAt: SourceLocation, subject: DefinitionWithVisibility): Collection<Reporting> {
             if (lexerFile == accessAt.file) {
@@ -32,27 +49,24 @@ sealed interface BoundVisibility : SemanticallyAnalyzable {
 
             return setOf(Reporting.elementNotAccessible(subject, this, accessAt))
         }
-    }
 
-    class ModuleScope(val moduleName: DotName) : BoundVisibility {
-        override fun validateAccessFrom(accessAt: SourceLocation, subject: DefinitionWithVisibility): Collection<Reporting> {
-            if (moduleName.containsOrEquals(accessAt.file.packageName)) {
-                return emptySet()
-            }
-
-            return setOf(Reporting.elementNotAccessible(subject, this, accessAt))
+        override fun isStrictlyBroarderThan(other: BoundVisibility) = when(other) {
+            is FileScope -> false
+            else -> true
         }
+
+        override fun toString() = "private in file $lexerFile"
     }
 
     class PackageScope(
-        val moduleContext: ModuleContext,
-        val astNode: AstVisibility.Package,
-    ) : BoundVisibility {
-        val packageName = astNode.packageName.asDotName
-
+        override val context: CTContext,
+        val packageName: DotName,
+        override val astNode: AstVisibility,
+        val isDefault: Boolean,
+    ) : BoundVisibility() {
         override fun semanticAnalysisPhase1(): Set<Reporting> {
-            val owningModule = moduleContext.moduleName
-            if (owningModule.containsOrEquals(packageName)) {
+            val owningModule = context.moduleContext.moduleName
+            if (owningModule != packageName && owningModule.containsOrEquals(packageName)) {
                 return setOf(Reporting.visibilityTooBroad(owningModule, this))
             }
 
@@ -66,17 +80,43 @@ sealed interface BoundVisibility : SemanticallyAnalyzable {
 
             return setOf(Reporting.elementNotAccessible(subject, this, accessAt))
         }
+
+        override fun validateOnElement(element: DefinitionWithVisibility): Collection<Reporting> {
+            if (isDefault) {
+                return emptySet()
+            }
+
+            return super.validateOnElement(element)
+        }
+
+        override fun isStrictlyBroarderThan(other: BoundVisibility) = when(other) {
+            is FileScope -> true
+            is PackageScope -> packageName != other.packageName && packageName.containsOrEquals(other.packageName)
+            is ExportedScope -> false
+        }
+
+        override fun toString() = "internal to package $packageName"
     }
 
-    object ExportedScope : BoundVisibility {
+    class ExportedScope(
+        override val context: CTContext,
+        override val astNode: AstVisibility,
+    ) : BoundVisibility() {
         override fun validateAccessFrom(accessAt: SourceLocation, subject: DefinitionWithVisibility): Collection<Reporting> {
             return emptySet()
         }
+
+        override fun isStrictlyBroarderThan(other: BoundVisibility) = when (other) {
+            is ExportedScope -> false
+            else -> true
+        }
+
+        override fun toString() = "exported"
     }
 
     companion object {
         fun default(context: CTContext): BoundVisibility {
-            return ModuleScope(context.moduleContext.moduleName)
+            return PackageScope(context, context.moduleContext.moduleName, AstVisibility.Module(KeywordToken(Keyword.MODULE)), true)
         }
     }
 }

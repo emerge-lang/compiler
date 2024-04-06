@@ -10,7 +10,7 @@ sealed class AstVisibility(nameToken: Token) : AstFunctionAttribute(nameToken) {
 
     class Private(keyword: KeywordToken) : AstVisibility(keyword) {
         override fun bindTo(context: CTContext): BoundVisibility {
-            return BoundVisibility.FileScope(context)
+            return BoundVisibility.FileScope(context, this)
         }
 
         override fun equals(other: Any?): Boolean {
@@ -26,7 +26,7 @@ sealed class AstVisibility(nameToken: Token) : AstFunctionAttribute(nameToken) {
 
     class Module(keyword: KeywordToken) : AstVisibility(keyword) {
         override fun bindTo(context: CTContext): BoundVisibility {
-            return BoundVisibility.ModuleScope(context.moduleContext.moduleName)
+            return BoundVisibility.PackageScope(context, context.moduleContext.moduleName, this, false)
         }
 
         override fun equals(other: Any?): Boolean {
@@ -42,7 +42,7 @@ sealed class AstVisibility(nameToken: Token) : AstFunctionAttribute(nameToken) {
 
     class Package(keyword: KeywordToken, val packageName: ASTPackageName) : AstVisibility(keyword) {
         override fun bindTo(context: CTContext): BoundVisibility {
-            return BoundVisibility.PackageScope(context.moduleContext, this)
+            return BoundVisibility.PackageScope(context, packageName.asDotName, this, false)
         }
 
         override fun equals(other: Any?): Boolean {
@@ -61,7 +61,7 @@ sealed class AstVisibility(nameToken: Token) : AstFunctionAttribute(nameToken) {
 
     class Export(keyword: KeywordToken) : AstVisibility(keyword) {
         override fun bindTo(context: CTContext): BoundVisibility {
-            return BoundVisibility.ExportedScope
+            return BoundVisibility.ExportedScope(context, this)
         }
 
         override fun equals(other: Any?): Boolean {

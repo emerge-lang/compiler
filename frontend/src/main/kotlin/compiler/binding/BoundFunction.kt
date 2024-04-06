@@ -46,6 +46,8 @@ abstract class BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility 
     abstract val name: String
     abstract val attributes: BoundFunctionAttributeList
 
+    override val visibility get()= attributes.visibility
+
     /**
      * All type parameters that are in play for this function signature, including ones inherited from context (e.g.
      * class member functions inherit type parameters from the class they are defined in).
@@ -89,6 +91,8 @@ abstract class BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility 
 
     val fullyQualifiedName: DotName
         get() = context.sourceFile.packageName + name
+
+    override fun toStringForErrorMessage() = "function $name"
 
     internal abstract fun toBackendIr(): IrFunction
 

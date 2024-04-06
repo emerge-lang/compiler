@@ -45,8 +45,9 @@ class ClassDeclaration(
     val typeParameters: List<TypeParameter>,
 ) : AstFileLevelDeclaration {
     fun bindTo(fileContext: CTContext): BoundClassDefinition {
+        val classVisibility = visibility?.bindTo(fileContext) ?: BoundVisibility.default(fileContext)
         val (boundTypeParameters, fileContextWithTypeParams) = typeParameters.chain(fileContext)
-        val classRootContext = MutableCTContext(fileContextWithTypeParams)
+        val classRootContext = MutableCTContext(fileContextWithTypeParams, classVisibility)
         val memberVariableInitializationContext = MutableExecutionScopedCTContext.functionRootIn(classRootContext)
         val selfTypeReference = TypeReference(
             simpleName = this.name.value,
@@ -82,7 +83,7 @@ class ClassDeclaration(
         boundClassDef = BoundClassDefinition(
             fileContext,
             classRootContext,
-            visibility?.bindTo(fileContext) ?: BoundVisibility.default(fileContext),
+            classVisibility,
             boundTypeParameters,
             this,
             boundEntries,

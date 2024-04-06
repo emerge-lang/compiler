@@ -69,7 +69,10 @@ class BoundClassMemberVariable(
     val type: BoundTypeReference? get() = boundEffectiveVariableDeclaration.typeAtDeclarationTime
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return boundEffectiveVariableDeclaration.semanticAnalysisPhase1()
+        val reportings = mutableListOf<Reporting>()
+        reportings.addAll(boundEffectiveVariableDeclaration.semanticAnalysisPhase1())
+        reportings.addAll(visibility.validateOnElement(this))
+        return reportings
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
@@ -97,6 +100,8 @@ class BoundClassMemberVariable(
 
         return reportings
     }
+
+    override fun toStringForErrorMessage() = "member variable $name"
 
     private val _backendIr by lazy { IrClassMemberVariableImplVariable(name, type!!.toBackendIr()) }
     fun toBackendIr(): IrClass.MemberVariable = _backendIr

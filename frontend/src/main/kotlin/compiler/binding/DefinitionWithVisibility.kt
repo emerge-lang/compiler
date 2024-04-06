@@ -3,6 +3,10 @@ package compiler.binding
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 
-sealed interface DefinitionWithVisibility {
+interface DefinitionWithVisibility {
+    val visibility: BoundVisibility
+
     fun validateAccessFrom(location: SourceLocation): Collection<Reporting>
+
+    fun toStringForErrorMessage(): String
 }

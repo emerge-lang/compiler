@@ -20,4 +20,6 @@ class BoundClassMemberFunction(
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return declaration.semanticAnalysisPhase3()
     }
+
+    override fun toStringForErrorMessage() = "member function $name"
 }

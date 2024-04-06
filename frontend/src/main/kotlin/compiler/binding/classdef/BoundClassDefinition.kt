@@ -36,7 +36,7 @@ import kotlinext.duplicatesBy
 class BoundClassDefinition(
     fileContext: CTContext,
     private val classRootContext: CTContext,
-    private val visibility: BoundVisibility,
+    override val visibility: BoundVisibility,
     override val typeParameters: List<BoundTypeParameter>,
     override val declaration: ClassDeclaration,
     val entries: List<BoundClassEntry>,
@@ -121,6 +121,8 @@ class BoundClassDefinition(
     override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
         return visibility.validateAccessFrom(location, this)
     }
+
+    override fun toStringForErrorMessage() = "class $simpleName"
 
     override fun resolveMemberVariable(name: String): BoundClassMemberVariable? = memberVariables.find { it.name == name }
 
