@@ -12,6 +12,7 @@ import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.beInstanceOf
 import io.kotest.matchers.types.shouldBeInstanceOf
+import textutils.compiler.reportings.HiddenTypeExposedReporting
 import textutils.compiler.reportings.ShadowedVisibilityReporting
 
 class VisibilityTests : FreeSpec({
@@ -302,6 +303,60 @@ class VisibilityTests : FreeSpec({
                         it.element should beInstanceOf<BoundClassDefinition>()
                     }
             }
+        }
+    }
+
+    "voldemort types" - {
+        "function parameter" {
+            validateModule("""
+                private class Foo {}
+                module fun test(p: Foo) {}
+            """.trimIndent())
+                .shouldReport<HiddenTypeExposedReporting> {
+                    it.type.simpleName shouldBe "Foo"
+                }
+        }
+
+        "function return type" {
+            validateModule("""
+                private class Foo {}
+                module fun test() -> Foo {}
+            """.trimIndent())
+                .shouldReport<HiddenTypeExposedReporting> {
+                    it.type.simpleName shouldBe "Foo"
+                }
+        }
+
+        "function type parameter bound" {
+            validateModule("""
+                private class Foo {}
+                module fun test<T : Foo>() {}
+            """.trimIndent())
+                .shouldReport<HiddenTypeExposedReporting> {
+                    it.type.simpleName shouldBe "Foo"
+                }
+        }
+
+        "class type parameter bound" {
+            validateModule("""
+                private class Foo {}
+                module class Bar<T : Foo> {}
+            """.trimIndent())
+                .shouldReport<HiddenTypeExposedReporting> {
+                    it.type.simpleName shouldBe "Foo"
+                }
+        }
+
+        "class member variable type" - {
+            validateModule("""
+                private class Foo {}
+                module class Bar {
+                    module x: Foo? = null
+                }
+            """.trimIndent())
+                .shouldReport<HiddenTypeExposedReporting> {
+                    it.type.simpleName shouldBe "Foo"
+                }
         }
     }
 })

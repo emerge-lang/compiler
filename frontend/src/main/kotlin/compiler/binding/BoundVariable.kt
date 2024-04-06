@@ -246,7 +246,7 @@ class BoundVariable(
             }
 
             if (resolvedDeclaredType != null) {
-                val useSite = kind.getTypeUseSite(declaration.sourceLocation)
+                val useSite = kind.getTypeUseSite(this, declaration.sourceLocation)
                 resolvedDeclaredType!!.validate(useSite).let(reportings::addAll)
             }
 
@@ -381,11 +381,14 @@ class BoundVariable(
         }
 
         override fun toString() = name.lowercase().replace('_', ' ')
-        fun getTypeUseSite(location: SourceLocation): TypeUseSite = when (this) {
-            LOCAL_VARIABLE,
-            MEMBER_VARIABLE,
-            GLOBAL_VARIABLE -> TypeUseSite.Irrelevant(location)
-            PARAMETER -> TypeUseSite.InUsage(location)
+        fun getTypeUseSite(exposedBy: DefinitionWithVisibility,  location: SourceLocation): TypeUseSite {
+            val effectiveExposedBy = exposedBy.takeIf { allowsVisibility }
+            return when (this) {
+                LOCAL_VARIABLE,
+                MEMBER_VARIABLE,
+                GLOBAL_VARIABLE -> TypeUseSite.Irrelevant(location, effectiveExposedBy)
+                PARAMETER -> TypeUseSite.InUsage(location, effectiveExposedBy)
+            }
         }
     }
 

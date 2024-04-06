@@ -24,6 +24,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
     abstract fun validateAccessFrom(accessAt: SourceLocation, subject: DefinitionWithVisibility): Collection<Reporting>
 
     abstract fun isStrictlyBroarderThan(other: BoundVisibility): Boolean
+    abstract fun isPossiblyBroaderThan(other: BoundVisibility): Boolean
 
     override fun semanticAnalysisPhase1() = emptySet<Reporting>()
     override fun semanticAnalysisPhase2() = emptySet<Reporting>()
@@ -53,6 +54,11 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
         override fun isStrictlyBroarderThan(other: BoundVisibility) = when(other) {
             is FileScope -> false
             else -> true
+        }
+
+        override fun isPossiblyBroaderThan(other: BoundVisibility) = when(other) {
+            is FileScope -> this.lexerFile != other.lexerFile
+            else -> false
         }
 
         override fun toString() = "private in file $lexerFile"
@@ -95,6 +101,12 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
             is ExportedScope -> false
         }
 
+        override fun isPossiblyBroaderThan(other: BoundVisibility) = when(other) {
+            is FileScope -> true
+            is PackageScope -> !(packageName.containsOrEquals(other.packageName))
+            is ExportedScope -> false
+        }
+
         override fun toString() = "internal to package $packageName"
     }
 
@@ -107,6 +119,11 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
         }
 
         override fun isStrictlyBroarderThan(other: BoundVisibility) = when (other) {
+            is ExportedScope -> false
+            else -> true
+        }
+
+        override fun isPossiblyBroaderThan(other: BoundVisibility) = when (other) {
             is ExportedScope -> false
             else -> true
         }

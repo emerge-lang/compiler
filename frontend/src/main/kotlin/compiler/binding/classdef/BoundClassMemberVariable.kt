@@ -78,9 +78,9 @@ class BoundClassMemberVariable(
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = boundEffectiveVariableDeclaration.semanticAnalysisPhase2().toMutableList()
         val typeUseSite = if (declaration.variableDeclaration.isReAssignable) {
-            TypeUseSite.InvariantUsage(declaration.variableDeclaration.type?.sourceLocation ?: declaration.declaredAt)
+            TypeUseSite.InvariantUsage(declaration.variableDeclaration.type?.sourceLocation ?: declaration.declaredAt, this)
         } else {
-            TypeUseSite.OutUsage(declaration.variableDeclaration.type?.sourceLocation ?: declaration.declaredAt)
+            TypeUseSite.OutUsage(declaration.variableDeclaration.type?.sourceLocation ?: declaration.declaredAt, this)
         }
         reportings.addAll(type!!.validate(typeUseSite))
         return reportings

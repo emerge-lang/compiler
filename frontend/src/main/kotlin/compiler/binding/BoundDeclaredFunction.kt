@@ -139,15 +139,16 @@ class BoundDeclaredFunction(
             }
 
             receiverType?.let {
-                it.validate(TypeUseSite.InUsage(it.sourceLocation)).let(reportings::addAll)
+                it.validate(TypeUseSite.InUsage(it.sourceLocation, this)).let(reportings::addAll)
             }
             parameterTypes.forEach {
-                it?.validate(TypeUseSite.InUsage(it.sourceLocation))?.let(reportings::addAll)
+                it?.validate(TypeUseSite.InUsage(it.sourceLocation, this))?.let(reportings::addAll)
             }
             returnType?.let {
                 val returnTypeUseSite = TypeUseSite.OutUsage(
                     declaration.parsedReturnType?.declaringNameToken?.sourceLocation
-                        ?: this.declaredAt
+                        ?: this.declaredAt,
+                    this,
                 )
                 reportings.addAll(it.validate(returnTypeUseSite))
             }

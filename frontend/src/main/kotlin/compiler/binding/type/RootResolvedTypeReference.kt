@@ -95,6 +95,11 @@ class RootResolvedTypeReference private constructor(
         arguments.forEach { reportings.addAll(it.validate(forUsage.deriveIrrelevant())) }
         reportings.addAll(inherentTypeBindings.reportings)
         reportings.addAll(baseType.validateAccessFrom(forUsage.usageLocation))
+        forUsage.exposedBy?.let { exposer ->
+            if (exposer.visibility.isPossiblyBroaderThan(baseType.visibility)) {
+                reportings.add(Reporting.hiddenTypeExposed(baseType, exposer, sourceLocation ?: SourceLocation.UNKNOWN))
+            }
+        }
 
         return reportings
     }

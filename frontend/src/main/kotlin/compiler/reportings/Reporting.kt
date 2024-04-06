@@ -51,6 +51,7 @@ import compiler.lexer.OperatorToken
 import compiler.lexer.SourceLocation
 import compiler.lexer.Token
 import io.github.tmarsteel.emerge.backend.api.DotName
+import textutils.compiler.reportings.HiddenTypeExposedReporting
 import textutils.compiler.reportings.ShadowedVisibilityReporting
 import textutils.indentByFromSecondLine
 import java.math.BigInteger
@@ -313,6 +314,9 @@ abstract class Reporting internal constructor(
 
         fun visibilityShadowed(element: DefinitionWithVisibility, contextVisibility: BoundVisibility)
             = ShadowedVisibilityReporting(element, contextVisibility)
+
+        fun hiddenTypeExposed(type: BaseType, exposedBy: DefinitionWithVisibility, exposedAt: SourceLocation)
+            = HiddenTypeExposedReporting(type, exposedBy, exposedAt)
 
         private fun readingPurityViolationToReporting(violation: BoundExpression<*>, boundary: PurityViolationReporting.Boundary): Reporting {
             if (violation is BoundIdentifierExpression) {

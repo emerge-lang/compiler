@@ -19,13 +19,16 @@
 package compiler.binding.type
 
 import compiler.CoreIntrinsicsModule
-import compiler.InternalCompilerError
+import compiler.ast.AstVisibility
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundOverloadSet
+import compiler.binding.BoundVisibility
 import compiler.binding.context.SoftwareContext
 import compiler.binding.context.SourceFileRootContext
 import compiler.lexer.IdentifierToken
+import compiler.lexer.Keyword
+import compiler.lexer.KeywordToken
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
@@ -153,7 +156,10 @@ abstract class BuiltinType(
 
     final override val superTypes: Set<BaseType> = superTypes.toSet()
 
-    override val visibility get() = throw InternalCompilerError("not needed")
+    override val visibility get() = BoundVisibility.ExportedScope(
+        SourceFileRootContext.EMPTY,
+        AstVisibility.Export(KeywordToken(Keyword.EXPORT)),
+    )
 
     override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
         return emptySet() // builtins are export, visible everywhere

@@ -1,12 +1,16 @@
 package compiler.binding.type
 
+import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
+import compiler.binding.BoundVisibility
+import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
+import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
@@ -14,9 +18,10 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 data class BoundTypeParameter(
     val astNode: TypeParameter,
     val context: CTContext,
-) : SemanticallyAnalyzable {
+) : SemanticallyAnalyzable, DefinitionWithVisibility {
     val name: String = astNode.name.value
     val variance: TypeVariance = astNode.variance
+    override val visibility: BoundVisibility = context.visibility
 
     /**
      * Available after [semanticAnalysisPhase1].
@@ -42,12 +47,18 @@ data class BoundTypeParameter(
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return bound.validate(TypeUseSite.Irrelevant(astNode.name.sourceLocation))
+        return bound.validate(TypeUseSite.Irrelevant(astNode.name.sourceLocation, this))
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return emptySet()
     }
+
+    override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
+        throw InternalCompilerError("This should not ever matter")
+    }
+
+    override fun toStringForErrorMessage() = "type parameter $name"
 
     private val _backendIr by lazy { IrTypeParameterImpl(name, variance, bound) }
     fun toBackendIr(): IrBaseType.Parameter = _backendIr

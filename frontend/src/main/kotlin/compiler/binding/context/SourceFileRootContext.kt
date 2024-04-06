@@ -46,7 +46,11 @@ class SourceFileRootContext(
         throw InternalCompilerError("Deferred code on source-file level is currently not possible. Maybe implement as global destructors in the future?")
     }
 
-    private companion object {
+    /**
+     * TODO: only accessible so the builtins have access to a dummy context (EMPTY).
+     * Make private again as soon as builtin types are declared in emerge source!
+     */
+    companion object {
         val EMPTY = object : ExecutionScopedCTContext {
             override val swCtx: SoftwareContext
                 get() = throw InternalCompilerError("${this::swCtx.name} not initialized yet")
