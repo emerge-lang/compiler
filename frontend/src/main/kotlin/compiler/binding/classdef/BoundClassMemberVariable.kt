@@ -49,7 +49,7 @@ class BoundClassMemberVariable(
     }
     private val boundEffectiveVariableDeclaration = effectiveVariableDeclaration.bindTo(context, BoundVariable.Kind.MEMBER_VARIABLE)
 
-    val visibility = boundEffectiveVariableDeclaration.visibility
+    override val visibility = boundEffectiveVariableDeclaration.visibility
 
     /**
      * The initial value for this member variable, or `null` if [isConstructorParameterInitialized]

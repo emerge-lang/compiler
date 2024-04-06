@@ -18,13 +18,14 @@
 
 package compiler.compiler.ast.type
 
-import compiler.binding.BoundVisibility
 import compiler.binding.type.BaseType
+import compiler.lexer.SourceLocation
+import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.DotName
 
 fun fakeType(name: String, vararg superTypes: BaseType): BaseType = object: BaseType {
     override fun toString() = name
-    override val visibility = BoundVisibility.ExportedScope
+    override fun validateAccessFrom(location: SourceLocation) = emptySet<Reporting>()
     override val superTypes = superTypes.toSet()
     override val simpleName = name
     override val fullyQualifiedName = DotName(listOf("fake", name))

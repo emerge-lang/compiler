@@ -8,6 +8,7 @@ import compiler.binding.BoundFunction
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
+import compiler.binding.BoundVisibility
 import compiler.binding.classdef.BoundClassDefinition
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
@@ -56,6 +57,9 @@ class SourceFileRootContext(
             override val sourceFile: SourceFile
                 get() = throw InternalCompilerError("file not initialized yet")
 
+            override val visibility: BoundVisibility
+                get() = throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
+
             override val isScopeBoundary = false
             override val isFunctionRoot = false
             override val imports = emptySet<BoundImportDeclaration>()
@@ -85,6 +89,8 @@ class SourceFileRootContext(
 
     private class SourceFileParentContext(val packageContext: PackageContext) : ExecutionScopedCTContext by EMPTY {
         override val moduleContext = packageContext.moduleContext
+
+        override val visibility = BoundVisibility.default(this)
 
         override val sourceFile: SourceFile
             get() = throw InternalCompilerError("shouldn't be accessed")

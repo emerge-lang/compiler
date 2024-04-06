@@ -86,14 +86,14 @@ class BoundImportDeclaration(
 
                 if (noneAccessible) {
                     val sampleReportings = allImplsSeq
-                        .map { it.attributes.visibility.validateAccessFrom(lastIdentifierAt, it) }
+                        .map { it.validateAccessFrom(lastIdentifierAt) }
                         .filter { it.isNotEmpty() }
                         .first()
                     reportings.addAll(sampleReportings)
                 }
             }
             is ResolutionResult.BaseType -> {
-                reportings.addAll(result.baseType.visibility.validateAccessFrom(lastIdentifierAt, result.baseType))
+                reportings.addAll(result.baseType.validateAccessFrom(lastIdentifierAt))
             }
             else -> { /* nothing to do */ }
         }

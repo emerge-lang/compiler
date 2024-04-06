@@ -18,6 +18,7 @@
 
 package compiler.binding
 
+import compiler.InternalCompilerError
 import compiler.OnceAction
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
@@ -52,7 +53,7 @@ class BoundVariable(
     val visibility: BoundVisibility,
     val initializerExpression: BoundExpression<*>?,
     val kind: Kind,
-) : BoundStatement<VariableDeclaration> {
+) : BoundStatement<VariableDeclaration>, DefinitionWithVisibility {
     val name: String = declaration.name.value
     private val isGlobal = kind == Kind.GLOBAL_VARIABLE
 
@@ -299,6 +300,14 @@ class BoundVariable(
     fun getTypeInContext(context: ExecutionScopedCTContext): BoundTypeReference? {
         // TODO: usage of this was refactored away, but it may become useful again for smart casts -> implement them here
         return typeAtDeclarationTime
+    }
+
+    override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
+        if (!kind.allowsVisibility) {
+            throw InternalCompilerError("A $kind does not have visibility, cannot validate access")
+        }
+
+        return visibility.validateAccessFrom(location, this)
     }
 
     val backendIrDeclaration: IrVariableDeclaration by lazy { IrVariableDeclarationImpl(name, typeAtDeclarationTime!!.toBackendIr()) }

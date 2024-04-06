@@ -35,6 +35,7 @@ import compiler.binding.BoundReturnStatement
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
+import compiler.binding.DefinitionWithVisibility
 import compiler.binding.classdef.BoundClassConstructor
 import compiler.binding.classdef.BoundClassDefinition
 import compiler.binding.classdef.BoundClassMemberVariable
@@ -300,7 +301,7 @@ abstract class Reporting internal constructor(
         fun multipleClassConstructors(additionalCtors: Collection<ClassConstructorDeclaration>)
             = MultipleClassConstructorsReporting(additionalCtors)
 
-        fun elementNotAccessible(element: Any, visibility: BoundVisibility, accessAt: SourceLocation)
+        fun elementNotAccessible(element: DefinitionWithVisibility, visibility: BoundVisibility, accessAt: SourceLocation)
             = ElementNotAccessibleReporting(element, visibility, accessAt)
 
         fun visibilityTooBroad(owningModule: DotName, visibilityDeclaration: BoundVisibility.PackageScope)

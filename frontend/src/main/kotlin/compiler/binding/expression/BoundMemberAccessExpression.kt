@@ -108,7 +108,7 @@ class BoundMemberAccessExpression(
         reportings.addAll(valueExpression.semanticAnalysisPhase3())
         member?.let { resolvedMember ->
             reportings.addAll(
-                resolvedMember.visibility.validateAccessFrom(declaration.memberName.sourceLocation, resolvedMember)
+                resolvedMember.validateAccessFrom(declaration.memberName.sourceLocation)
             )
         }
         return reportings

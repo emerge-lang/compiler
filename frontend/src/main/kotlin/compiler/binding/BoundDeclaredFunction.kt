@@ -9,6 +9,7 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
+import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 
@@ -221,6 +222,10 @@ class BoundDeclaredFunction(
 
             return@getResult reportings
         }
+    }
+
+    override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
+        return attributes.visibility.validateAccessFrom(location, this)
     }
 
     private val backendIr by lazy { IrFunctionImpl(this) }

@@ -27,6 +27,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BuiltinAny
+import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
@@ -35,7 +36,7 @@ import kotlinext.duplicatesBy
 class BoundClassDefinition(
     fileContext: CTContext,
     private val classRootContext: CTContext,
-    override val visibility: BoundVisibility,
+    private val visibility: BoundVisibility,
     override val typeParameters: List<BoundTypeParameter>,
     override val declaration: ClassDeclaration,
     val entries: List<BoundClassEntry>,
@@ -115,6 +116,10 @@ class BoundClassDefinition(
 
             return@getResult reportings
         }
+    }
+
+    override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
+        return visibility.validateAccessFrom(location, this)
     }
 
     override fun resolveMemberVariable(name: String): BoundClassMemberVariable? = memberVariables.find { it.name == name }

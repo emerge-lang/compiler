@@ -10,10 +10,14 @@ import io.github.tmarsteel.emerge.backend.api.DotName
 
 sealed interface BoundVisibility : SemanticallyAnalyzable {
     /**
-     * Given a [subject] with [this] visibility, validate whether the subject is accessible from
-     * the file [file].
+     * Validate whether an element with `this` visibility is accessible from
+     * the given location ([accessAt]). [subject] is not inspected, only forwarded
+     * to any [Reporting]s generated.
+     *
+     * **WARNING:** You very likely do not want to use this method, but [DefinitionWithVisibility.validateAccessFrom]
+     * instead.
      */
-    fun validateAccessFrom(accessAt: SourceLocation, subject: Any): Collection<Reporting>
+    fun validateAccessFrom(accessAt: SourceLocation, subject: DefinitionWithVisibility): Collection<Reporting>
 
     override fun semanticAnalysisPhase1() = emptySet<Reporting>()
     override fun semanticAnalysisPhase2() = emptySet<Reporting>()
@@ -21,7 +25,7 @@ sealed interface BoundVisibility : SemanticallyAnalyzable {
 
     class FileScope(val context: CTContext) : BoundVisibility {
         val lexerFile: SourceFile get() = context.sourceFile.lexerFile
-        override fun validateAccessFrom(accessAt: SourceLocation, subject: Any): Collection<Reporting> {
+        override fun validateAccessFrom(accessAt: SourceLocation, subject: DefinitionWithVisibility): Collection<Reporting> {
             if (lexerFile == accessAt.file) {
                 return emptySet()
             }
@@ -31,7 +35,7 @@ sealed interface BoundVisibility : SemanticallyAnalyzable {
     }
 
     class ModuleScope(val moduleName: DotName) : BoundVisibility {
-        override fun validateAccessFrom(accessAt: SourceLocation, subject: Any): Collection<Reporting> {
+        override fun validateAccessFrom(accessAt: SourceLocation, subject: DefinitionWithVisibility): Collection<Reporting> {
             if (moduleName.containsOrEquals(accessAt.file.packageName)) {
                 return emptySet()
             }
@@ -55,7 +59,7 @@ sealed interface BoundVisibility : SemanticallyAnalyzable {
             return emptySet()
         }
 
-        override fun validateAccessFrom(accessAt: SourceLocation, subject: Any): Collection<Reporting> {
+        override fun validateAccessFrom(accessAt: SourceLocation, subject: DefinitionWithVisibility): Collection<Reporting> {
             if (packageName.containsOrEquals(accessAt.file.packageName)) {
                 return emptySet()
             }
@@ -65,7 +69,7 @@ sealed interface BoundVisibility : SemanticallyAnalyzable {
     }
 
     object ExportedScope : BoundVisibility {
-        override fun validateAccessFrom(accessAt: SourceLocation, subject: Any): Collection<Reporting> {
+        override fun validateAccessFrom(accessAt: SourceLocation, subject: DefinitionWithVisibility): Collection<Reporting> {
             return emptySet()
         }
     }

@@ -28,6 +28,7 @@ import compiler.binding.BoundFunction
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
+import compiler.binding.BoundVisibility
 import compiler.binding.classdef.BoundClassDefinition
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
@@ -45,7 +46,10 @@ open class MutableCTContext(
      * The context this one is derived off of
      */
     private val parentContext: CTContext,
+    overrideVisibility: BoundVisibility? = null
 ) : CTContext {
+    override val visibility: BoundVisibility = overrideVisibility ?: parentContext.visibility
+
     private val _imports: MutableSet<BoundImportDeclaration> = HashSet()
     override val imports: Iterable<BoundImportDeclaration> = _imports
 

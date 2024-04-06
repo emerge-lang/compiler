@@ -36,6 +36,7 @@ import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
+import compiler.lexer.SourceLocation
 import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
@@ -288,6 +289,10 @@ class BoundClassConstructor(
 
             reportings
         }
+    }
+
+    override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
+        return attributes.visibility.validateAccessFrom(location, this)
     }
 
     private val backendIr by lazy {

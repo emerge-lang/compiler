@@ -94,7 +94,7 @@ class RootResolvedTypeReference private constructor(
 
         arguments.forEach { reportings.addAll(it.validate(forUsage.deriveIrrelevant())) }
         reportings.addAll(inherentTypeBindings.reportings)
-        reportings.addAll(baseType.visibility.validateAccessFrom(forUsage.usageLocation, baseType))
+        reportings.addAll(baseType.validateAccessFrom(forUsage.usageLocation))
 
         return reportings
     }

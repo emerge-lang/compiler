@@ -26,6 +26,8 @@ import compiler.binding.BoundVisibility
 import compiler.binding.context.SoftwareContext
 import compiler.binding.context.SourceFileRootContext
 import compiler.lexer.IdentifierToken
+import compiler.lexer.SourceLocation
+import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntrinsicType
 import java.math.BigDecimal
@@ -151,7 +153,9 @@ abstract class BuiltinType(
 
     final override val superTypes: Set<BaseType> = superTypes.toSet()
 
-    override val visibility = BoundVisibility.ExportedScope
+    override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
+        return BoundVisibility.ExportedScope.validateAccessFrom(location, this)
+    }
 
     /**
      * BaseTypes do not define anything themselves. All of that is defined in source language in the

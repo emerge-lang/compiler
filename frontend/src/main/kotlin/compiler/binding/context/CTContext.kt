@@ -23,6 +23,7 @@ import compiler.ast.type.TypeReference
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
+import compiler.binding.BoundVisibility
 import compiler.binding.context.effect.EphemeralStateClass
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
@@ -69,6 +70,11 @@ interface CTContext {
     val sourceFile: SourceFile
 
     val imports: Iterable<BoundImportDeclaration>
+
+    /**
+     * E.g. when inside a class context, this is the visibility of the class
+     */
+    val visibility: BoundVisibility
 
     fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean = false): BaseType?
 

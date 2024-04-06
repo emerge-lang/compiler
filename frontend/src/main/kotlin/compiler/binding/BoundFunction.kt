@@ -27,7 +27,7 @@ import compiler.lexer.SourceLocation
 import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 
-abstract class BoundFunction : SemanticallyAnalyzable {
+abstract class BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
     abstract val context: CTContext
     abstract val declaredAt: SourceLocation
 

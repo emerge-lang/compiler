@@ -4,13 +4,14 @@ import compiler.InternalCompilerError
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
+import compiler.binding.DefinitionWithVisibility
 import compiler.binding.classdef.BoundClassDefinition
 import compiler.binding.classdef.BoundClassMemberFunction
 import compiler.binding.classdef.BoundClassMemberVariable
 import compiler.lexer.SourceLocation
 
 class ElementNotAccessibleReporting(
-    val element: Any,
+    val element: DefinitionWithVisibility,
     val visibility: BoundVisibility,
     val accessAt: SourceLocation
 ) : Reporting(
@@ -22,7 +23,6 @@ class ElementNotAccessibleReporting(
             is BoundClassMemberVariable -> "member variable ${element.name}"
             is BoundFunction -> "function ${element.name}"
             is BoundVariable -> "variable ${element.name}"
-            else -> throw InternalCompilerError("unsupported element type ${element::class.qualifiedName}")
         }
 
         val visibilityDescription = when(visibility) {

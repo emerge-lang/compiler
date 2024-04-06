@@ -7,6 +7,7 @@ class BoundClassMemberFunction(
     val declaration: BoundDeclaredFunction,
 ) : BoundClassMember {
     override val name = declaration.name
+    override val visibility get()= declaration.attributes.visibility
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return declaration.semanticAnalysisPhase1()

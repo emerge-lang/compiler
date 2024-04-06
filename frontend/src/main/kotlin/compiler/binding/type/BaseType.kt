@@ -23,7 +23,7 @@ import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundFunction
 import compiler.binding.BoundOverloadSet
-import compiler.binding.BoundVisibility
+import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.classdef.BoundClassMemberVariable
 import compiler.reportings.Reporting
@@ -34,14 +34,12 @@ import kotlinext.get
 /**
  * Base type are classes, interfaces, enums, built-in type
  */
-interface BaseType : SemanticallyAnalyzable {
+interface BaseType : SemanticallyAnalyzable, DefinitionWithVisibility {
     val simpleName: String
         get() = javaClass.simpleName
 
     // TODO: infer this from declaring package and simpleName
     val fullyQualifiedName: DotName
-
-    val visibility: BoundVisibility
 
     val baseReference: BoundTypeReference
         get() = RootResolvedTypeReference(TypeReference(this.simpleName), this, typeParameters.map {
