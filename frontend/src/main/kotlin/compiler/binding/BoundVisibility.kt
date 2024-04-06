@@ -51,10 +51,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
             return setOf(Reporting.elementNotAccessible(subject, this, accessAt))
         }
 
-        override fun isStrictlyBroarderThan(other: BoundVisibility) = when(other) {
-            is FileScope -> false
-            else -> true
-        }
+        override fun isStrictlyBroarderThan(other: BoundVisibility) = false
 
         override fun isPossiblyBroaderThan(other: BoundVisibility) = when(other) {
             is FileScope -> this.lexerFile != other.lexerFile
