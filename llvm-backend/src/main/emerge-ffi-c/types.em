@@ -1,7 +1,7 @@
 package emerge.ffi.c
 
-class COpaquePointer {}
+export class COpaquePointer {}
 
-class CPointer<T> {
+export class CPointer<T> {
     export pointed: T = init
 }
