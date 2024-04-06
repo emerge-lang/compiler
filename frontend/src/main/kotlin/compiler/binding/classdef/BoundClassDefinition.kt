@@ -57,10 +57,15 @@ class BoundClassDefinition(
         entries.filterIsInstance<BoundClassMemberFunction>()
             .groupBy { it.name }
             .mapValues { (name, overloadsSameName) ->
+                // this is currently needed because: class member function is really just a spin on the top level
+                // function, so there is a clash in the FQN logic. Also, FQNs are not really used now, this conflict
+                // probably needn't be resolved if we ditch FQNs altogether
+                val overloadSetFqn = this@BoundClassDefinition.context.sourceFile.packageName + name
                 overloadsSameName
                     .groupBy { it.declaration.parameters.parameters.size }
                     .map { (parameterCount, overloads) ->
-                        BoundOverloadSet(this@BoundClassDefinition.fullyQualifiedName.plus(name), parameterCount, overloads.map { it.declaration })
+
+                        BoundOverloadSet(overloadSetFqn, parameterCount, overloads.map { it.declaration })
                     }
             }
     }
