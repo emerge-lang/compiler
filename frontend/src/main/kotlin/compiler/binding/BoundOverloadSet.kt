@@ -16,7 +16,16 @@ class BoundOverloadSet(
 ) : SemanticallyAnalyzable {
     init {
         require(overloads.isNotEmpty())
-        assert(overloads.all { it.fullyQualifiedName == fqn })
+        assert(overloads.all { it.fullyQualifiedName == fqn }) {
+            val violator = overloads.first { it.fullyQualifiedName != fqn }
+            """
+                This overload has a different FQN than the overload set:
+               ${violator.declaredAt}
+               
+               overload set has fqn $fqn
+            """.trimIndent()
+
+        }
         assert(overloads.all { it.parameters.parameters.size == parameterCount })
     }
 
