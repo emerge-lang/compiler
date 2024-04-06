@@ -317,6 +317,17 @@ class VisibilityTests : FreeSpec({
                 }
         }
 
+        "function parameter type argument" {
+            validateModule("""
+                export class A<T> {}
+                private class B {}
+                export fun test(p: A<B>) {}
+            """.trimIndent())
+                .shouldReport<HiddenTypeExposedReporting> {
+                    it.type.simpleName shouldBe "B"
+                }
+        }
+
         "function return type" {
             validateModule("""
                 private class Foo {}
@@ -324,6 +335,17 @@ class VisibilityTests : FreeSpec({
             """.trimIndent())
                 .shouldReport<HiddenTypeExposedReporting> {
                     it.type.simpleName shouldBe "Foo"
+                }
+        }
+
+        "function return type argument" {
+            validateModule("""
+                export class A<T> {}
+                private class B {}
+                intrinsic export fun test() -> A<B>
+            """.trimIndent())
+                .shouldReport<HiddenTypeExposedReporting> {
+                    it.type.simpleName shouldBe "B"
                 }
         }
 
