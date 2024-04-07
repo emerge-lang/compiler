@@ -312,7 +312,13 @@ class BoundVariable(
 
     override fun toStringForErrorMessage() = "$kind $name"
 
-    val backendIrDeclaration: IrVariableDeclaration by lazy { IrVariableDeclarationImpl(name, typeAtDeclarationTime!!.toBackendIr()) }
+    val backendIrDeclaration: IrVariableDeclaration by lazy {
+        IrVariableDeclarationImpl(
+            name,
+            typeAtDeclarationTime!!.toBackendIr(),
+            ownershipAtDeclarationTime == VariableOwnership.BORROWED,
+        )
+    }
 
     override fun toBackendIrStatement(): IrExecutable {
         if (initializerExpression == null) {
@@ -403,4 +409,5 @@ class BoundVariable(
 private class IrVariableDeclarationImpl(
     override val name: String,
     override val type: IrType,
+    override val isBorrowed: Boolean,
 ) : IrVariableDeclaration

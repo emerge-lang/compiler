@@ -51,6 +51,7 @@ interface IrDropReferenceStatement : IrExecutable {
 interface IrVariableDeclaration : IrExecutable {
     val name: String
     val type: IrType
+    val isBorrowed: Boolean
 }
 
 interface IrAssignmentStatement : IrExecutable {

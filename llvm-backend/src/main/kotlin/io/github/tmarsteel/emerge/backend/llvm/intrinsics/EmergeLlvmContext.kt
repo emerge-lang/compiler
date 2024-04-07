@@ -263,10 +263,13 @@ class EmergeLlvmContext(
         }
 
         BasicBlockBuilder.fillBody(this, llvmFunction) {
-            for (param in fn.parameters) {
-                param.emitRead!!().afterReferenceCreated(param.type)
-                defer {
-                    param.emitRead!!().afterReferenceDropped(param.type)
+            fn.parameters
+                .filterNot { it.isBorrowed }
+                .forEach { param ->
+                    param.emitRead!!().afterReferenceCreated(param.type)
+                    defer {
+                        param.emitRead!!().afterReferenceDropped(param.type)
+                    }
                 }
             }
 
