@@ -154,6 +154,18 @@ data class SourceLocation constructor(
         }
     }
 
+    operator fun rangeTo(other: SourceLocation): SourceLocation {
+        check(file == other.file)
+        return SourceLocation(
+            file,
+            this.fromLineNumber.coerceAtMost(other.fromLineNumber),
+            this.fromColumnNumber.coerceAtMost(other.fromColumnNumber),
+            this.toLineNumber.coerceAtLeast(other.toLineNumber),
+            this.toColumnNumber.coerceAtLeast(other.toColumnNumber),
+            this.generated || other.generated,
+        )
+    }
+
     val fileLineColumnText: String get() = "$file on line $fromLineNumber at column $fromColumnNumber"
 
     companion object {

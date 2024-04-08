@@ -15,15 +15,7 @@ class ASTPackageName(
             .filter { it == SourceLocation.UNKNOWN }
             .takeUnless { it.isEmpty() }
             ?.let { it.first() to it.last() }
-            ?.let { (first, last) ->
-                SourceLocation(
-                    first.file,
-                    first.fromLineNumber,
-                    first.fromColumnNumber,
-                    last.toLineNumber,
-                    last.toColumnNumber
-                )
-            }
+            ?.let { (first, last) -> first .. last }
             ?: SourceLocation.UNKNOWN
     }
 }

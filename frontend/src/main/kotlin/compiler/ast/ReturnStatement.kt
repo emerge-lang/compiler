@@ -21,21 +21,12 @@ package compiler.ast
 import compiler.binding.BoundReturnStatement
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.lexer.KeywordToken
-import compiler.lexer.SourceLocation
 
 class ReturnStatement(
     val returnKeyword: KeywordToken,
     val expression: Expression?,
 ) : Statement {
-    override val sourceLocation = if (expression == null) returnKeyword.sourceLocation else {
-        SourceLocation(
-            returnKeyword.sourceLocation.file,
-            returnKeyword.sourceLocation.fromLineNumber,
-            returnKeyword.sourceLocation.fromColumnNumber,
-            expression.sourceLocation.toLineNumber,
-            expression.sourceLocation.toColumnNumber,
-        )
-    }
+    override val sourceLocation = if (expression == null) returnKeyword.sourceLocation else returnKeyword.sourceLocation .. expression.sourceLocation
 
     override fun bindTo(context: ExecutionScopedCTContext) = BoundReturnStatement(context, this)
 }

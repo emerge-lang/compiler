@@ -5,20 +5,13 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundArrayLiteralExpression
 import compiler.binding.expression.BoundExpression
 import compiler.lexer.OperatorToken
-import compiler.lexer.SourceLocation
 
 class ArrayLiteralExpression(
     val leftBracket: OperatorToken,
     val elements: List<Expression>,
     val rightBracket: OperatorToken,
 ) : Expression {
-    override val sourceLocation = SourceLocation(
-        leftBracket.sourceLocation.file,
-        leftBracket.sourceLocation.fromLineNumber,
-        leftBracket.sourceLocation.fromColumnNumber,
-        rightBracket.sourceLocation.toLineNumber,
-        rightBracket.sourceLocation.toColumnNumber,
-    )
+    override val sourceLocation = leftBracket.sourceLocation .. rightBracket.sourceLocation
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundArrayLiteralExpression {
         var carryContext = context
