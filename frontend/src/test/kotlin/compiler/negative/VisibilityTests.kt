@@ -6,14 +6,14 @@ import compiler.binding.classdef.BoundClassConstructor
 import compiler.binding.classdef.BoundClassDefinition
 import compiler.binding.classdef.BoundClassMemberVariable
 import compiler.reportings.ElementNotAccessibleReporting
+import compiler.reportings.HiddenTypeExposedReporting
+import compiler.reportings.ShadowedVisibilityReporting
 import io.github.tmarsteel.emerge.backend.api.DotName
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.beInstanceOf
 import io.kotest.matchers.types.shouldBeInstanceOf
-import textutils.compiler.reportings.HiddenTypeExposedReporting
-import textutils.compiler.reportings.ShadowedVisibilityReporting
 
 class VisibilityTests : FreeSpec({
     "global variables" - {

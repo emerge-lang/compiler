@@ -1,8 +1,7 @@
-package textutils.compiler.reportings
+package compiler.reportings
 
 import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
-import compiler.reportings.Reporting
 
 class ShadowedVisibilityReporting(
     val element: DefinitionWithVisibility,

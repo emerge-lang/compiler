@@ -52,9 +52,6 @@ import compiler.lexer.OperatorToken
 import compiler.lexer.SourceLocation
 import compiler.lexer.Token
 import io.github.tmarsteel.emerge.backend.api.DotName
-import textutils.compiler.reportings.HiddenTypeExposedReporting
-import textutils.compiler.reportings.MultipleClassDestructorsReporting
-import textutils.compiler.reportings.ShadowedVisibilityReporting
 import textutils.indentByFromSecondLine
 import java.math.BigInteger
 

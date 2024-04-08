@@ -1,8 +1,6 @@
-package textutils.compiler.reportings
+package compiler.reportings
 
 import compiler.ast.ClassDestructorDeclaration
-import compiler.reportings.Reporting
-import compiler.reportings.getIllustrationForHighlightedLines
 
 data class MultipleClassDestructorsReporting(
     val additionalDestructors: Collection<ClassDestructorDeclaration>,

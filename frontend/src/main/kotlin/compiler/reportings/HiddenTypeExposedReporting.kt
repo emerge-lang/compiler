@@ -1,9 +1,8 @@
-package textutils.compiler.reportings
+package compiler.reportings
 
 import compiler.binding.DefinitionWithVisibility
 import compiler.binding.type.BaseType
 import compiler.lexer.SourceLocation
-import compiler.reportings.Reporting
 
 class HiddenTypeExposedReporting(
     val type: BaseType,
