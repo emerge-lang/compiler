@@ -25,7 +25,7 @@ import compiler.binding.BoundFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SemanticallyAnalyzable
-import compiler.binding.classdef.BoundClassMemberVariable
+import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
@@ -84,7 +84,7 @@ interface BaseType : SemanticallyAnalyzable, DefinitionWithVisibility {
     /** @return The member function overloads for the given name or an empty collection if no such member function is defined. */
     fun resolveMemberFunction(name: String): Collection<BoundOverloadSet> = emptySet()
 
-    fun resolveMemberVariable(name: String): BoundClassMemberVariable? = null
+    fun resolveMemberVariable(name: String): BoundBaseTypeMemberVariable? = null
 
     fun toBackendIr(): IrBaseType
 

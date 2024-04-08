@@ -21,7 +21,7 @@ package compiler.binding.expression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.binding.BoundStatement
 import compiler.binding.IrCodeChunkImpl
-import compiler.binding.classdef.BoundClassMemberVariable
+import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
@@ -55,7 +55,7 @@ class BoundMemberAccessExpression(
         private set
 
     /** set in [semanticAnalysisPhase2] */
-    var member: BoundClassMemberVariable? = null
+    var member: BoundBaseTypeMemberVariable? = null
         private set
 
     override val isGuaranteedToThrow = false // member accessor CAN throw, but must not ALWAYS do so

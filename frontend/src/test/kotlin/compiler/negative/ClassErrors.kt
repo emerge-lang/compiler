@@ -2,7 +2,7 @@ package compiler.compiler.negative
 
 import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
 import compiler.reportings.ConstructorDeclaredModifyingReporting
-import compiler.reportings.DuplicateClassMemberReporting
+import compiler.reportings.DuplicateBaseTypeMemberReporting
 import compiler.reportings.ExplicitOwnershipNotAllowedReporting
 import compiler.reportings.ImpureInvocationInPureContextReporting
 import compiler.reportings.MultipleClassConstructorsReporting
@@ -29,7 +29,7 @@ class ClassErrors : FreeSpec({
                 a: Boolean
             }
         """.trimIndent())
-            .shouldReport<DuplicateClassMemberReporting> {
+            .shouldReport<DuplicateBaseTypeMemberReporting> {
                 it.duplicates should haveSize(2)
                 it.duplicates.forAll {
                     it.name shouldBe "a"

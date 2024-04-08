@@ -1,10 +1,10 @@
 package compiler.reportings
 
-import compiler.ast.ClassMemberVariableDeclaration
+import compiler.ast.BaseTypeMemberVariableDeclaration
 import compiler.lexer.SourceLocation
 
 data class UseOfUninitializedClassMemberVariableReporting(
-    val member: ClassMemberVariableDeclaration,
+    val member: BaseTypeMemberVariableDeclaration,
     val usedAt: SourceLocation,
 ) : Reporting(
     Level.ERROR,

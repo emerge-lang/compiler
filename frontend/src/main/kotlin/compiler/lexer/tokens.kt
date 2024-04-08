@@ -52,6 +52,7 @@ enum class Keyword(val text: String)
     RETURN("return"),
 
     CLASS_DEFINITION("class"),
+    INTERFACE_DEFINITION("interface"),
 
     VARIANCE_IN("in"),
     VARIANCE_OUT("out"),

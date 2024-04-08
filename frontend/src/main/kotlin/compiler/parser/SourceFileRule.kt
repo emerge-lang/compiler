@@ -5,7 +5,7 @@ import compiler.StandardLibraryModule
 import compiler.ast.ASTPackageDeclaration
 import compiler.ast.ASTSourceFile
 import compiler.ast.AstFileLevelDeclaration
-import compiler.ast.ClassDeclaration
+import compiler.ast.BaseTypeDeclaration
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
 import compiler.ast.VariableDeclaration
@@ -58,8 +58,8 @@ object SourceFileRule {
             else if (declaration is FunctionDeclaration) {
                 astSourceFile.functions.add(declaration)
             }
-            else if (declaration is ClassDeclaration) {
-                astSourceFile.classes.add(declaration)
+            else if (declaration is BaseTypeDeclaration) {
+                astSourceFile.baseTypes.add(declaration)
             }
             else {
                 reportings.add(

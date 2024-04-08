@@ -2,9 +2,9 @@ package compiler.compiler.negative
 
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundVariable
-import compiler.binding.classdef.BoundClassConstructor
-import compiler.binding.classdef.BoundClassDefinition
-import compiler.binding.classdef.BoundClassMemberVariable
+import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseTypeMemberVariable
+import compiler.binding.basetype.BoundClassConstructor
 import compiler.reportings.ElementNotAccessibleReporting
 import compiler.reportings.HiddenTypeExposedReporting
 import compiler.reportings.ShadowedVisibilityReporting
@@ -78,7 +78,7 @@ class VisibilityTests : FreeSpec({
                 """.trimIndent()),
             )
                 .shouldReport<ElementNotAccessibleReporting> {
-                    it.element should beInstanceOf<BoundClassMemberVariable>()
+                    it.element should beInstanceOf<BoundBaseTypeMemberVariable>()
                 }
         }
 
@@ -101,7 +101,7 @@ class VisibilityTests : FreeSpec({
                 """.trimIndent()),
             )
                 .shouldReport<ElementNotAccessibleReporting> {
-                    it.element should beInstanceOf<BoundClassMemberVariable>()
+                    it.element should beInstanceOf<BoundBaseTypeMemberVariable>()
                 }
         }
 
@@ -112,7 +112,7 @@ class VisibilityTests : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<ShadowedVisibilityReporting> {
-                    it.element.shouldBeInstanceOf<BoundClassMemberVariable>().name shouldBe "bla"
+                    it.element.shouldBeInstanceOf<BoundBaseTypeMemberVariable>().name shouldBe "bla"
                 }
         }
 
@@ -123,7 +123,7 @@ class VisibilityTests : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<ShadowedVisibilityReporting> {
-                    it.element.shouldBeInstanceOf<BoundClassMemberVariable>().name shouldBe "bla"
+                    it.element.shouldBeInstanceOf<BoundBaseTypeMemberVariable>().name shouldBe "bla"
                 }
         }
 
@@ -134,7 +134,7 @@ class VisibilityTests : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<ShadowedVisibilityReporting> {
-                    it.element.shouldBeInstanceOf<BoundClassMemberVariable>().name shouldBe "bla"
+                    it.element.shouldBeInstanceOf<BoundBaseTypeMemberVariable>().name shouldBe "bla"
                 }
         }
     }
@@ -244,7 +244,7 @@ class VisibilityTests : FreeSpec({
                 """.trimIndent()),
             )
                 .shouldReport<ElementNotAccessibleReporting> {
-                    it.element should beInstanceOf<BoundClassDefinition>()
+                    it.element should beInstanceOf<BoundBaseTypeDefinition>()
                 }
         }
 
@@ -263,7 +263,7 @@ class VisibilityTests : FreeSpec({
                     """.trimIndent()),
                 )
                     .shouldReport<ElementNotAccessibleReporting> {
-                        it.element should beInstanceOf<BoundClassDefinition>()
+                        it.element should beInstanceOf<BoundBaseTypeDefinition>()
                     }
             }
 
@@ -281,7 +281,7 @@ class VisibilityTests : FreeSpec({
                     """.trimIndent()),
                 )
                     .shouldReport<ElementNotAccessibleReporting> {
-                        it.element should beInstanceOf<BoundClassDefinition>()
+                        it.element should beInstanceOf<BoundBaseTypeDefinition>()
                     }
             }
 
@@ -300,7 +300,7 @@ class VisibilityTests : FreeSpec({
                     """.trimIndent()),
                 )
                     .shouldReport<ElementNotAccessibleReporting> {
-                        it.element should beInstanceOf<BoundClassDefinition>()
+                        it.element should beInstanceOf<BoundBaseTypeDefinition>()
                     }
             }
         }

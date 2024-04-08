@@ -1,8 +1,8 @@
-package compiler.binding.classdef
+package compiler.binding.basetype
 
 import compiler.OnceAction
 import compiler.ast.AssignmentStatement
-import compiler.ast.ClassConstructorDeclaration
+import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.CodeChunk
 import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
@@ -57,10 +57,10 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 class BoundClassConstructor(
     private val fileContextWithTypeParameters: CTContext,
     override val declaredTypeParameters: List<BoundTypeParameter>,
-    getClassDef: () -> BoundClassDefinition,
-    val declaration: ClassConstructorDeclaration,
+    getClassDef: () -> BoundBaseTypeDefinition,
+    val declaration: BaseTypeConstructorDeclaration,
 ) : BoundFunction(), BoundClassEntry {
-    val classDef: BoundClassDefinition by lazy(getClassDef)
+    val classDef: BoundBaseTypeDefinition by lazy(getClassDef)
     private val generatedSourceLocation by lazy {
         (declaration?.declaredAt ?: classDef.declaration.declaredAt).deriveGenerated()
     }
@@ -340,7 +340,7 @@ class BoundClassConstructor(
     override fun toBackendIr(): IrImplementedFunction = backendIr
 }
 
-private class IrClassSimpleType(val classDef: BoundClassDefinition) : IrSimpleType {
+private class IrClassSimpleType(val classDef: BoundBaseTypeDefinition) : IrSimpleType {
     override val isNullable = false
     override val baseType get() = classDef.toBackendIr()
 }
@@ -355,7 +355,7 @@ private class IrDefaultConstructorImpl(
     override val isExternalC = false
 }
 
-private class IrAllocateObjectExpressionImpl(val classDef: BoundClassDefinition) : IrAllocateObjectExpression {
+private class IrAllocateObjectExpressionImpl(val classDef: BoundBaseTypeDefinition) : IrAllocateObjectExpression {
     override val clazz: IrClass by lazy { classDef.toBackendIr() }
     override val evaluatesTo = object : IrSimpleType {
         override val isNullable = false

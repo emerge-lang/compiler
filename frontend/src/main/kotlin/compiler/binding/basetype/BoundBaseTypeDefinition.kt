@@ -16,10 +16,10 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package compiler.binding.classdef
+package compiler.binding.basetype
 
 import compiler.OnceAction
-import compiler.ast.ClassDeclaration
+import compiler.ast.BaseTypeDeclaration
 import compiler.binding.BoundElement
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVisibility
@@ -33,14 +33,14 @@ import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import kotlinext.duplicatesBy
 
-class BoundClassDefinition(
+class BoundBaseTypeDefinition(
     fileContext: CTContext,
-    private val classRootContext: CTContext,
+    private val typeRootContext: CTContext,
     override val visibility: BoundVisibility,
     override val typeParameters: List<BoundTypeParameter>,
-    override val declaration: ClassDeclaration,
+    override val declaration: BaseTypeDeclaration,
     val entries: List<BoundClassEntry>,
-) : BaseType, BoundElement<ClassDeclaration> {
+) : BaseType, BoundElement<BaseTypeDeclaration> {
     private val onceAction = OnceAction()
 
     override val context: CTContext = fileContext
@@ -49,7 +49,7 @@ class BoundClassDefinition(
 
     override val superTypes: Set<BaseType> = setOf(BuiltinAny)
 
-    val memberVariables: List<BoundClassMemberVariable> = entries.filterIsInstance<BoundClassMemberVariable>()
+    val memberVariables: List<BoundBaseTypeMemberVariable> = entries.filterIsInstance<BoundBaseTypeMemberVariable>()
     val constructors: Sequence<BoundClassConstructor> = entries.asSequence().filterIsInstance<BoundClassConstructor>()
     val destructors: Sequence<BoundClassDestructor> = entries.asSequence().filterIsInstance<BoundClassDestructor>()
 
@@ -60,7 +60,7 @@ class BoundClassDefinition(
                 // this is currently needed because: class member function is really just a spin on the top level
                 // function, so there is a clash in the FQN logic. Also, FQNs are not really used now, this conflict
                 // probably needn't be resolved if we ditch FQNs altogether
-                val overloadSetFqn = this@BoundClassDefinition.context.sourceFile.packageName + name
+                val overloadSetFqn = this@BoundBaseTypeDefinition.context.sourceFile.packageName + name
                 overloadsSameName
                     .groupBy { it.declaration.parameters.parameters.size }
                     .map { (parameterCount, overloads) ->
@@ -87,8 +87,8 @@ class BoundClassDefinition(
                 reportings.addAll(it.semanticAnalysisPhase1())
             }
 
-            memberVariables.duplicatesBy(BoundClassMemberVariable::name).forEach { (_, dupMembers) ->
-                reportings.add(Reporting.duplicateTypeMembers(this, dupMembers))
+            memberVariables.duplicatesBy(BoundBaseTypeMemberVariable::name).forEach { (_, dupMembers) ->
+                reportings.add(Reporting.duplicateBaseTypeMembers(this, dupMembers))
             }
 
             constructors
@@ -135,14 +135,14 @@ class BoundClassDefinition(
 
     override fun toStringForErrorMessage() = "class $simpleName"
 
-    override fun resolveMemberVariable(name: String): BoundClassMemberVariable? = memberVariables.find { it.name == name }
+    override fun resolveMemberVariable(name: String): BoundBaseTypeMemberVariable? = memberVariables.find { it.name == name }
 
     private val backendIr by lazy { IrClassImpl(this) }
     override fun toBackendIr(): IrClass = backendIr
 }
 
 private class IrClassImpl(
-    classDef: BoundClassDefinition,
+    classDef: BoundBaseTypeDefinition,
 ) : IrClass {
     override val fqn: DotName = classDef.fullyQualifiedName
     override val parameters = classDef.typeParameters.map { it.toBackendIr() }

@@ -1,9 +1,9 @@
 package compiler.reportings
 
-import compiler.ast.ClassDestructorDeclaration
+import compiler.ast.BaseTypeDestructorDeclaration
 
 data class MultipleClassDestructorsReporting(
-    val additionalDestructors: Collection<ClassDestructorDeclaration>,
+    val additionalDestructors: Collection<BaseTypeDestructorDeclaration>,
 ) : Reporting(
     Level.ERROR,
     "Classes can have only one destructor. These must be removed",

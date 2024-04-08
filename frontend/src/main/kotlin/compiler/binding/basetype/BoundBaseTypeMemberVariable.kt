@@ -16,10 +16,10 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package compiler.binding.classdef
+package compiler.binding.basetype
 
+import compiler.ast.BaseTypeMemberVariableDeclaration
 import compiler.ast.ClassMemberDeclaration
-import compiler.ast.ClassMemberVariableDeclaration
 import compiler.ast.expression.IdentifierExpression
 import compiler.binding.BoundElement
 import compiler.binding.BoundVariable
@@ -33,9 +33,9 @@ import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
-class BoundClassMemberVariable(
+class BoundBaseTypeMemberVariable(
     override val context: ExecutionScopedCTContext,
-    override val declaration: ClassMemberVariableDeclaration,
+    override val declaration: BaseTypeMemberVariableDeclaration,
 ) : BoundElement<ClassMemberDeclaration>, BoundClassEntry, DefinitionWithVisibility {
     val name = declaration.name.value
     val isReAssignable = declaration.variableDeclaration.isReAssignable

@@ -1,9 +1,9 @@
 package compiler.reportings
 
-import compiler.ast.ClassConstructorDeclaration
+import compiler.ast.BaseTypeConstructorDeclaration
 
 data class MultipleClassConstructorsReporting(
-    val additionalConstructors: Collection<ClassConstructorDeclaration>,
+    val additionalConstructors: Collection<BaseTypeConstructorDeclaration>,
 ) : Reporting(
     Level.ERROR,
     "Classes can have only one constructor. These must be removed",

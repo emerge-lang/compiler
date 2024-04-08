@@ -20,8 +20,8 @@ package compiler.reportings
 
 import compiler.ast.ASTPackageName
 import compiler.ast.AstFunctionAttribute
-import compiler.ast.ClassConstructorDeclaration
-import compiler.ast.ClassDestructorDeclaration
+import compiler.ast.BaseTypeConstructorDeclaration
+import compiler.ast.BaseTypeDestructorDeclaration
 import compiler.ast.Expression
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
@@ -37,9 +37,9 @@ import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
-import compiler.binding.classdef.BoundClassConstructor
-import compiler.binding.classdef.BoundClassDefinition
-import compiler.binding.classdef.BoundClassMemberVariable
+import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseTypeMemberVariable
+import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.context.effect.VariableLifetime
 import compiler.binding.expression.*
 import compiler.binding.type.BaseType
@@ -214,7 +214,7 @@ abstract class Reporting internal constructor(
         fun functionIsMissingAttribute(function: BoundFunction, usageRequiringModifier: Expression, missingAttribute: String)
             = FunctionMissingModifierReporting(function, usageRequiringModifier, missingAttribute)
 
-        fun objectNotFullyInitialized(uninitializedMembers: Collection<BoundClassMemberVariable>, usedAt: SourceLocation): ObjectNotFullyInitializedReporting {
+        fun objectNotFullyInitialized(uninitializedMembers: Collection<BoundBaseTypeMemberVariable>, usedAt: SourceLocation): ObjectNotFullyInitializedReporting {
             return ObjectNotFullyInitializedReporting(
                 uninitializedMembers.map { it.declaration },
                 usedAt
@@ -256,7 +256,7 @@ abstract class Reporting internal constructor(
             return readingViolations.map { readingPurityViolationToReporting(it, boundary) } + writingViolations.map { modifyingPurityViolationToReporting(it, boundary) }
         }
 
-        fun purityViolations(readingViolations: Collection<BoundExpression<*>>, writingViolations: Collection<BoundStatement<*>>, context: BoundClassMemberVariable): Collection<Reporting> {
+        fun purityViolations(readingViolations: Collection<BoundExpression<*>>, writingViolations: Collection<BoundStatement<*>>, context: BoundBaseTypeMemberVariable): Collection<Reporting> {
             val boundary = PurityViolationReporting.Boundary.ClassMemberInitializer(context)
             return readingViolations.map { readingPurityViolationToReporting(it, boundary) } + writingViolations.map { modifyingPurityViolationToReporting(it, boundary) }
         }
@@ -284,8 +284,8 @@ abstract class Reporting internal constructor(
         fun typeParameterNameConflict(originalType: BoundTypeReference, conflicting: BoundTypeParameter)
             = TypeParameterNameConflictReporting(originalType, conflicting)
 
-        fun duplicateTypeMembers(classDef: BoundClassDefinition, duplicateMembers: Set<BoundClassMemberVariable>) =
-            DuplicateClassMemberReporting(classDef, duplicateMembers)
+        fun duplicateBaseTypeMembers(typeDef: BoundBaseTypeDefinition, duplicateMembers: Set<BoundBaseTypeMemberVariable>) =
+            DuplicateBaseTypeMemberReporting(typeDef, duplicateMembers)
 
         fun assignmentUsedAsExpression(assignment: BoundAssignmentStatement)
             = AssignmenUsedAsExpressionReporting(assignment.declaration)
@@ -299,10 +299,10 @@ abstract class Reporting internal constructor(
         fun integerLiteralOutOfRange(literal: Expression, expectedType: BaseType, expectedRange: ClosedRange<BigInteger>)
             = IntegerLiteralOutOfRangeReporting(literal, expectedType, expectedRange)
 
-        fun multipleClassConstructors(additionalCtors: Collection<ClassConstructorDeclaration>)
+        fun multipleClassConstructors(additionalCtors: Collection<BaseTypeConstructorDeclaration>)
             = MultipleClassConstructorsReporting(additionalCtors)
 
-        fun multipleClassDestructors(additionalDtors: Collection<ClassDestructorDeclaration>)
+        fun multipleClassDestructors(additionalDtors: Collection<BaseTypeDestructorDeclaration>)
                 = MultipleClassDestructorsReporting(additionalDtors)
 
         fun elementNotAccessible(element: DefinitionWithVisibility, visibility: BoundVisibility, accessAt: SourceLocation)

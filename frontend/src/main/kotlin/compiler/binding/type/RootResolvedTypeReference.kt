@@ -6,7 +6,7 @@ import compiler.StandardLibraryModule
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundOverloadSet
-import compiler.binding.classdef.BoundClassMemberVariable
+import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
@@ -128,7 +128,7 @@ class RootResolvedTypeReference private constructor(
         }
     }
 
-    override fun findMemberVariable(name: String): BoundClassMemberVariable? = baseType.resolveMemberVariable(name)
+    override fun findMemberVariable(name: String): BoundBaseTypeMemberVariable? = baseType.resolveMemberVariable(name)
 
     override fun findMemberFunction(name: String): Collection<BoundOverloadSet> {
         return baseType.resolveMemberFunction(name)

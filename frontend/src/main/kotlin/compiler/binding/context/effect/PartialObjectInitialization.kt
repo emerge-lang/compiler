@@ -1,8 +1,8 @@
 package compiler.binding.context.effect
 
 import compiler.binding.BoundVariable
-import compiler.binding.classdef.BoundClassDefinition
-import compiler.binding.classdef.BoundClassMemberVariable
+import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseTypeMemberVariable
 
 object PartialObjectInitialization : EphemeralStateClass<BoundVariable, PartialObjectInitialization.State, PartialObjectInitialization.Effect> {
     override fun getInitialState(subject: BoundVariable) = State.INITIAL
@@ -38,11 +38,11 @@ object PartialObjectInitialization : EphemeralStateClass<BoundVariable, PartialO
         fun combineMaybe(advancedMaybe: State) = combineEach(advancedMaybe, VariableInitialization::combineMaybe)
         fun intersect(other: State) = combineEach(other, VariableInitialization::intersect)
 
-        fun getMemberInitializationState(member: BoundClassMemberVariable): VariableInitialization.State {
+        fun getMemberInitializationState(member: BoundBaseTypeMemberVariable): VariableInitialization.State {
             return knownMemberStates[member.name] ?: VariableInitialization.State.INITIALIZED
         }
 
-        fun getUninitializedMembers(classDef: BoundClassDefinition): Collection<BoundClassMemberVariable> {
+        fun getUninitializedMembers(classDef: BoundBaseTypeDefinition): Collection<BoundBaseTypeMemberVariable> {
             if (knownMemberStates.isEmpty()) {
                 return emptySet()
             }
@@ -60,12 +60,12 @@ object PartialObjectInitialization : EphemeralStateClass<BoundVariable, PartialO
 
         class MarkObjectAsEntireUninitializedEffect(
             override val subject: BoundVariable,
-            val classDef: BoundClassDefinition,
+            val classDef: BoundBaseTypeDefinition,
         ) : Effect
 
         class WriteToMemberVariableEffect(
             override val subject: BoundVariable,
-            val member: BoundClassMemberVariable,
+            val member: BoundBaseTypeMemberVariable,
         ) : Effect
     }
 }

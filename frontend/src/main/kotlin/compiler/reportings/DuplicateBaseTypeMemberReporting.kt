@@ -18,19 +18,19 @@
 
 package compiler.reportings
 
-import compiler.binding.classdef.BoundClassDefinition
-import compiler.binding.classdef.BoundClassMemberVariable
+import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseTypeMemberVariable
 
-class DuplicateClassMemberReporting(
-    val classDef: BoundClassDefinition,
-    val duplicates: Set<BoundClassMemberVariable>
+class DuplicateBaseTypeMemberReporting(
+    val typeDef: BoundBaseTypeDefinition,
+    val duplicates: Set<BoundBaseTypeMemberVariable>
 ) : Reporting(
     Level.ERROR,
-    "Class member ${duplicates.iterator().next().name} declared multiple times",
-    classDef.declaration.declaredAt
+    "Member ${duplicates.iterator().next().name} declared multiple times",
+    typeDef.declaration.declaredAt,
 ) {
     override fun toString(): String {
-        var txt = "$levelAndMessage\nin ${classDef.declaration.declaredAt}\n"
+        var txt = "$levelAndMessage\nin ${typeDef.declaration.declaredAt}\n"
 
         txt += getIllustrationForHighlightedLines(
             duplicates.map { it.declaration.declaredAt },

@@ -45,7 +45,7 @@ class ASTSourceFile(
 
     val functions: MutableList<FunctionDeclaration> = mutableListOf()
 
-    val classes: MutableList<ClassDeclaration> = mutableListOf()
+    val baseTypes: MutableList<BaseTypeDeclaration> = mutableListOf()
 
     /**
      * Works by the same principle as [Bindable.bindTo]; but since binds to a [SoftwareContext] (rather than a
@@ -59,7 +59,7 @@ class ASTSourceFile(
 
         imports.forEach(fileContext::addImport)
         functions.forEach(fileContext::addFunction)
-        classes.forEach(fileContext::addClass)
+        baseTypes.forEach(fileContext::addBaseType)
 
         variables.forEach { declaredVariable ->
             // check double declare

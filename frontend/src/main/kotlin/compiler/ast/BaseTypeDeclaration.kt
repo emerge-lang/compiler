@@ -24,11 +24,11 @@ import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundVisibility
-import compiler.binding.classdef.BoundClassConstructor
-import compiler.binding.classdef.BoundClassDefinition
-import compiler.binding.classdef.BoundClassDestructor
-import compiler.binding.classdef.BoundClassMemberFunction
-import compiler.binding.classdef.BoundClassMemberVariable
+import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseTypeMemberVariable
+import compiler.binding.basetype.BoundClassConstructor
+import compiler.binding.basetype.BoundClassDestructor
+import compiler.binding.basetype.BoundClassMemberFunction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableCTContext
@@ -36,20 +36,23 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeParameter.Companion.chain
 import compiler.lexer.IdentifierToken
+import compiler.lexer.KeywordToken
 import compiler.lexer.SourceLocation
 
-class ClassDeclaration(
-    override val declaredAt: SourceLocation,
+class BaseTypeDeclaration(
+    val declarationKeyword: KeywordToken,
     val visibility: AstVisibility?,
     val name: IdentifierToken,
     val entryDeclarations: List<ClassEntryDeclaration>,
     val typeParameters: List<TypeParameter>,
 ) : AstFileLevelDeclaration {
-    fun bindTo(fileContext: CTContext): BoundClassDefinition {
-        val classVisibility = visibility?.bindTo(fileContext) ?: BoundVisibility.default(fileContext)
+    override val declaredAt = declarationKeyword.sourceLocation
+
+    fun bindTo(fileContext: CTContext): BoundBaseTypeDefinition {
+        val typeVisibility = visibility?.bindTo(fileContext) ?: BoundVisibility.default(fileContext)
         val (boundTypeParameters, fileContextWithTypeParams) = typeParameters.chain(fileContext)
-        val classRootContext = MutableCTContext(fileContextWithTypeParams, classVisibility)
-        val memberVariableInitializationContext = MutableExecutionScopedCTContext.functionRootIn(classRootContext)
+        val typeRootContext = MutableCTContext(fileContextWithTypeParams, typeVisibility)
+        val memberVariableInitializationContext = MutableExecutionScopedCTContext.functionRootIn(typeRootContext)
         val selfTypeReference = TypeReference(
             simpleName = this.name.value,
             nullability = TypeReference.Nullability.NOT_NULLABLE,
@@ -60,21 +63,21 @@ class ClassDeclaration(
             },
         )
 
-        lateinit var boundClassDef: BoundClassDefinition
+        lateinit var boundClassDef: BoundBaseTypeDefinition
         var hasAtLeastOneConstructor = false
         var hasAtLeastOneDestructor = false
         // the entries must retain their order, for semantic and linting reasons
         val boundEntries = entryDeclarations
             .map { entry -> when (entry) {
-                is ClassMemberVariableDeclaration -> entry.bindTo(memberVariableInitializationContext)
-                is ClassConstructorDeclaration -> {
+                is BaseTypeMemberVariableDeclaration -> entry.bindTo(memberVariableInitializationContext)
+                is BaseTypeConstructorDeclaration -> {
                     hasAtLeastOneConstructor = true
                     entry.bindTo(fileContextWithTypeParams, boundTypeParameters) { boundClassDef }
                 }
-                is ClassMemberFunctionDeclaration -> {
-                    entry.bindTo(classRootContext, selfTypeReference)
+                is BaseTypeMemberFunctionDeclaration -> {
+                    entry.bindTo(typeRootContext, selfTypeReference)
                 }
-                is ClassDestructorDeclaration -> {
+                is BaseTypeDestructorDeclaration -> {
                     hasAtLeastOneDestructor = true
                     entry.bindTo(fileContextWithTypeParams, boundTypeParameters) { boundClassDef }
                 }
@@ -82,18 +85,18 @@ class ClassDeclaration(
             .toMutableList()
 
         if (!hasAtLeastOneConstructor) {
-            val defaultCtorAst = ClassConstructorDeclaration(emptyList(), IdentifierToken("constructor", declaredAt), CodeChunk(emptyList()))
+            val defaultCtorAst = BaseTypeConstructorDeclaration(emptyList(), IdentifierToken("constructor", declaredAt), CodeChunk(emptyList()))
             boundEntries.add(defaultCtorAst.bindTo(fileContextWithTypeParams, boundTypeParameters) { boundClassDef })
         }
         if (!hasAtLeastOneDestructor) {
-            val defaultDtorAst = ClassDestructorDeclaration(IdentifierToken("destructor", declaredAt), CodeChunk(emptyList()))
+            val defaultDtorAst = BaseTypeDestructorDeclaration(IdentifierToken("destructor", declaredAt), CodeChunk(emptyList()))
             boundEntries.add(defaultDtorAst.bindTo(fileContextWithTypeParams, boundTypeParameters) { boundClassDef })
         }
 
-        boundClassDef = BoundClassDefinition(
+        boundClassDef = BoundBaseTypeDefinition(
             fileContext,
-            classRootContext,
-            classVisibility,
+            typeRootContext,
+            typeVisibility,
             boundTypeParameters,
             this,
             boundEntries,
@@ -110,50 +113,50 @@ sealed class ClassMemberDeclaration : ClassEntryDeclaration {
     abstract val name: IdentifierToken
 }
 
-class ClassMemberVariableDeclaration(
+class BaseTypeMemberVariableDeclaration(
     val variableDeclaration: VariableDeclaration,
 ) : ClassMemberDeclaration() {
     override val declaredAt = variableDeclaration.declaredAt
     override val name = variableDeclaration.name
 
-    fun bindTo(context: ExecutionScopedCTContext): BoundClassMemberVariable {
-        return BoundClassMemberVariable(
+    fun bindTo(context: ExecutionScopedCTContext): BoundBaseTypeMemberVariable {
+        return BoundBaseTypeMemberVariable(
             context,
             this,
         )
     }
 }
 
-class ClassConstructorDeclaration(
+class BaseTypeConstructorDeclaration(
     val attributes: List<AstFunctionAttribute>,
     val constructorKeyword: IdentifierToken,
     val code: CodeChunk,
 ) : ClassEntryDeclaration {
     override val declaredAt = constructorKeyword.sourceLocation
 
-    fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>, getClassDef: () -> BoundClassDefinition) : BoundClassConstructor {
+    fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>, getClassDef: () -> BoundBaseTypeDefinition) : BoundClassConstructor {
         return BoundClassConstructor(fileContextWithTypeParameters, typeParameters, getClassDef, this)
     }
 }
 
-class ClassDestructorDeclaration(
+class BaseTypeDestructorDeclaration(
     val destructorKeyword: IdentifierToken,
     val code: CodeChunk,
 ) : ClassEntryDeclaration {
     override val declaredAt = destructorKeyword.sourceLocation
 
-    fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>, getClassDef: () -> BoundClassDefinition): BoundClassDestructor {
+    fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>, getClassDef: () -> BoundBaseTypeDefinition): BoundClassDestructor {
         return BoundClassDestructor(fileContextWithTypeParameters, typeParameters, getClassDef, this)
     }
 }
 
-class ClassMemberFunctionDeclaration(
+class BaseTypeMemberFunctionDeclaration(
     val declaration: FunctionDeclaration
 ) : ClassMemberDeclaration() {
     override val declaredAt = declaration.declaredAt
     override val name = declaration.name
 
-    fun bindTo(classRootContext: CTContext, selfType: TypeReference): BoundClassMemberFunction {
-        return BoundClassMemberFunction(declaration.bindTo(classRootContext, selfType))
+    fun bindTo(typeRootContext: CTContext, selfType: TypeReference): BoundClassMemberFunction {
+        return BoundClassMemberFunction(declaration.bindTo(typeRootContext, selfType))
     }
 }

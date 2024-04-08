@@ -100,7 +100,7 @@ fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext
         }
         lexicalReportings.addAll(result.reportings)
         val sourceFile = result.item!!
-        val nTopLevelDeclarations = sourceFile.functions.size + sourceFile.classes.size + sourceFile.variables.size
+        val nTopLevelDeclarations = sourceFile.functions.size + sourceFile.baseTypes.size + sourceFile.variables.size
         check(nTopLevelDeclarations > 0) { "Found no top-level declarations in the test source of module ${module.moduleName}. Very likely a parsing bug." }
 
         swCtxt.registerModule(module.moduleName).addSourceFile(sourceFile)

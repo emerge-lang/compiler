@@ -21,8 +21,8 @@ package compiler.reportings
 import compiler.binding.BoundAssignmentStatement
 import compiler.binding.BoundFunction
 import compiler.binding.BoundStatement
-import compiler.binding.classdef.BoundClassConstructor
-import compiler.binding.classdef.BoundClassMemberVariable
+import compiler.binding.basetype.BoundBaseTypeMemberVariable
+import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundInvocationExpression
 
@@ -47,7 +47,7 @@ abstract class PurityViolationReporting protected constructor(
             },
             function.attributes.isDeclaredPure,
         )
-        class ClassMemberInitializer(val member: BoundClassMemberVariable) : Boundary("member variable initializer", true)
+        class ClassMemberInitializer(val member: BoundBaseTypeMemberVariable) : Boundary("member variable initializer", true)
     }
 }
 

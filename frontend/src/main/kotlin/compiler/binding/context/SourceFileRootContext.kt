@@ -9,7 +9,7 @@ import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
-import compiler.binding.classdef.BoundClassDefinition
+import compiler.binding.basetype.BoundBaseTypeDefinition
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
@@ -27,7 +27,7 @@ class SourceFileRootContext(
 
     val variables: Collection<BoundVariable> = _variables.values
     val functions: Collection<BoundFunction> = _functions
-    val classes: Collection<BoundClassDefinition> = _classes
+    val classes: Collection<BoundBaseTypeDefinition> = _classes
     val types: Collection<BaseType> = _types
 
     override fun addDeferredCode(code: Statement) {

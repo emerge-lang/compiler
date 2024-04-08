@@ -19,7 +19,7 @@
 package compiler.binding.context
 
 import compiler.InternalCompilerError
-import compiler.ast.ClassDeclaration
+import compiler.ast.BaseTypeDeclaration
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
 import compiler.ast.type.TypeArgument
@@ -29,7 +29,7 @@ import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
-import compiler.binding.classdef.BoundClassDefinition
+import compiler.binding.basetype.BoundBaseTypeDefinition
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
@@ -73,8 +73,8 @@ open class MutableCTContext(
     /** Holds all the toplevel functions defined in this context */
     protected val _functions: MutableSet<BoundFunction> = HashSet()
 
-    /** Holds all the classes defined in this context */
-    protected val _classes: MutableSet<BoundClassDefinition> = HashSet()
+    /** Holds all the classes defined in this context TODO: ditch in favor of only _types */
+    protected val _classes: MutableSet<BoundBaseTypeDefinition> = HashSet()
 
     /** Holds all the base types defined in this context */
     protected val _types: MutableSet<BaseType> = HashSet()
@@ -88,10 +88,10 @@ open class MutableCTContext(
      */
     open fun addBaseType(type: BaseType) {
         _types.add(type)
-        if (type is BoundClassDefinition) _classes.add(type)
+        if (type is BoundBaseTypeDefinition) _classes.add(type)
     }
 
-    open fun addClass(definition: ClassDeclaration): BoundClassDefinition {
+    open fun addBaseType(definition: BaseTypeDeclaration): BoundBaseTypeDefinition {
         val bound = definition.bindTo(this)
         _types.add(bound)
         _classes.add(bound)

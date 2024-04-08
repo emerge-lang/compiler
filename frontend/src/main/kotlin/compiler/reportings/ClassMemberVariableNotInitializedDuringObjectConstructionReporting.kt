@@ -1,9 +1,9 @@
 package compiler.reportings
 
-import compiler.ast.ClassMemberVariableDeclaration
+import compiler.ast.BaseTypeMemberVariableDeclaration
 
 class ClassMemberVariableNotInitializedDuringObjectConstructionReporting(
-    val memberDeclaration: ClassMemberVariableDeclaration
+    val memberDeclaration: BaseTypeMemberVariableDeclaration
 ) : Reporting(
     Level.ERROR,
     "Member variable ${memberDeclaration.name.value} is not guaranteed to be initialized during object construction",

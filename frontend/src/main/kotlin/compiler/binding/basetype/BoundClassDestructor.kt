@@ -1,8 +1,8 @@
-package compiler.binding.classdef
+package compiler.binding.basetype
 
 import compiler.InternalCompilerError
 import compiler.ast.AstFunctionAttribute
-import compiler.ast.ClassDestructorDeclaration
+import compiler.ast.BaseTypeDestructorDeclaration
 import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
@@ -36,10 +36,10 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 class BoundClassDestructor(
     private val fileContextWithTypeParameters: CTContext,
     override val declaredTypeParameters: List<BoundTypeParameter>,
-    getClassDef: () -> BoundClassDefinition,
-    val declaration: ClassDestructorDeclaration,
+    getClassDef: () -> BoundBaseTypeDefinition,
+    val declaration: BaseTypeDestructorDeclaration,
 ) : BoundFunction(), BoundClassEntry {
-    val classDef: BoundClassDefinition by lazy(getClassDef)
+    val classDef: BoundBaseTypeDefinition by lazy(getClassDef)
     override val declaredAt = declaration.declaredAt
     private val generatedSourceLocation = declaredAt.deriveGenerated()
 

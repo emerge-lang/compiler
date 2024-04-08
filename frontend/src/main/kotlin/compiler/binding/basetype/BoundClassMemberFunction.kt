@@ -1,4 +1,4 @@
-package compiler.binding.classdef
+package compiler.binding.basetype
 
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.DefinitionWithVisibility

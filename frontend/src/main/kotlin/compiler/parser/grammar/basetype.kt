@@ -20,12 +20,12 @@ package compiler.parser.grammar
 
 import compiler.ast.AstFunctionAttribute
 import compiler.ast.AstVisibility
-import compiler.ast.ClassConstructorDeclaration
-import compiler.ast.ClassDeclaration
-import compiler.ast.ClassDestructorDeclaration
+import compiler.ast.BaseTypeConstructorDeclaration
+import compiler.ast.BaseTypeDeclaration
+import compiler.ast.BaseTypeDestructorDeclaration
+import compiler.ast.BaseTypeMemberFunctionDeclaration
+import compiler.ast.BaseTypeMemberVariableDeclaration
 import compiler.ast.ClassEntryDeclaration
-import compiler.ast.ClassMemberFunctionDeclaration
-import compiler.ast.ClassMemberVariableDeclaration
 import compiler.ast.CodeChunk
 import compiler.ast.FunctionDeclaration
 import compiler.ast.TypeParameterBundle
@@ -33,6 +33,7 @@ import compiler.ast.VariableDeclaration
 import compiler.ast.type.TypeParameter
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword.CLASS_DEFINITION
+import compiler.lexer.Keyword.INTERFACE_DEFINITION
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator.CBRACE_CLOSE
 import compiler.lexer.Operator.CBRACE_OPEN
@@ -42,25 +43,25 @@ import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
 
-val ClassMemberVariableDeclaration = sequence("class member variable declaration") {
+val BaseTypeMemberVariableDeclaration = sequence("member variable declaration") {
     ref(VariableDeclaration)
     operator(NEWLINE)
 }
     .astTransformation { tokens ->
-        ClassMemberVariableDeclaration(
+        BaseTypeMemberVariableDeclaration(
             tokens.next() as VariableDeclaration,
         )
     }
 
-val ClassMemberFunctionDeclaration = sequence("class member function declaration") {
+val BaseTypeMemberFunctionDeclaration = sequence("member function declaration") {
     ref(StandaloneFunctionDeclaration)
 }
     .astTransformation { tokens ->
         val decl = tokens.next() as FunctionDeclaration
-        ClassMemberFunctionDeclaration(decl)
+        BaseTypeMemberFunctionDeclaration(decl)
     }
 
-val ClassConstructor = sequence("constructor declaration") {
+val BaseTypeConstructor = sequence("constructor declaration") {
     ref(FunctionAttributes)
     localKeyword("constructor")
     operator(CBRACE_OPEN)
@@ -74,14 +75,14 @@ val ClassConstructor = sequence("constructor declaration") {
         tokens.next() as OperatorToken // skip CBRACE_OPEN
         val code = tokens.next() as CodeChunk
 
-        ClassConstructorDeclaration(
+        BaseTypeConstructorDeclaration(
             attributes,
             ctorKeyword,
             code,
         )
     }
 
-val ClassDestructor = sequence("destructor declaration") {
+val BaseTypeDestructor = sequence("destructor declaration") {
     localKeyword("destructor")
     operator(CBRACE_OPEN)
     ref(CodeChunk)
@@ -93,22 +94,25 @@ val ClassDestructor = sequence("destructor declaration") {
         tokens.next() as OperatorToken // skip CBRACE_OPEN
         val code = tokens.next() as CodeChunk
 
-        ClassDestructorDeclaration(dtorKeyword, code)
+        BaseTypeDestructorDeclaration(dtorKeyword, code)
     }
 
-val ClassEntry = eitherOf {
-    ref(ClassMemberVariableDeclaration)
-    ref(ClassMemberFunctionDeclaration)
-    ref(ClassConstructor)
-    ref(ClassDestructor)
+val BaseTypeEntry = eitherOf {
+    ref(BaseTypeMemberVariableDeclaration)
+    ref(BaseTypeMemberFunctionDeclaration)
+    ref(BaseTypeConstructor)
+    ref(BaseTypeDestructor)
 }
     .astTransformation { tokens -> tokens.remainingToList().single() as ClassEntryDeclaration }
 
-val ClassDefinition = sequence("class definition") {
+val BaseTypeDefinition = sequence("base type definition") {
     optional {
         ref(Visibility)
     }
-    keyword(CLASS_DEFINITION)
+    eitherOf {
+        keyword(CLASS_DEFINITION)
+        keyword(INTERFACE_DEFINITION)
+    }
     identifier()
     optional {
         ref(BracedTypeParameters)
@@ -117,7 +121,7 @@ val ClassDefinition = sequence("class definition") {
     operator(CBRACE_OPEN)
     optionalWhitespace()
     repeating {
-        ref(ClassEntry)
+        ref(BaseTypeEntry)
         optionalWhitespace()
     }
     optionalWhitespace()
@@ -158,8 +162,8 @@ val ClassDefinition = sequence("class definition") {
             next = tokens.next()
         }
 
-        ClassDeclaration(
-            declarationKeyword.sourceLocation,
+        BaseTypeDeclaration(
+            declarationKeyword,
             visibility,
             name,
             entries,

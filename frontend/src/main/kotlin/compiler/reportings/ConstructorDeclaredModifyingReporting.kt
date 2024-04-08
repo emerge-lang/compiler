@@ -1,6 +1,6 @@
 package compiler.reportings
 
-import compiler.binding.classdef.BoundClassConstructor
+import compiler.binding.basetype.BoundClassConstructor
 import compiler.lexer.Token
 
 class ConstructorDeclaredModifyingReporting(
