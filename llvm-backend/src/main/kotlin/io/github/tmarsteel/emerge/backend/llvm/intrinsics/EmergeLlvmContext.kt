@@ -108,24 +108,24 @@ class EmergeLlvmContext(
     private val emergeStructs = ArrayList<EmergeClassType>()
     private val kotlinLlvmFunctions: MutableMap<KotlinLlvmFunction<in EmergeLlvmContext, *>, KotlinLlvmFunction.DeclaredInContext<in EmergeLlvmContext, *>> = IdentityHashMap()
 
-    fun registerStruct(struct: IrClass) {
-        if (struct.rawLlvmRef != null) {
+    fun registerClass(clazz: IrClass) {
+        if (clazz.rawLlvmRef != null) {
             return
         }
 
-        val structType = LLVM.LLVMStructCreateNamed(ref, struct.llvmName)
+        val structType = LLVM.LLVMStructCreateNamed(ref, clazz.llvmName)
         // register here to allow cyclic references
-        struct.rawLlvmRef = structType
+        clazz.rawLlvmRef = structType
         val emergeClassType = EmergeClassType.fromLlvmStructWithoutBody(
             this,
             structType,
-            struct,
+            clazz,
         )
-        struct.llvmType = emergeClassType
+        clazz.llvmType = emergeClassType
 
-        when (struct.fqn.toString()) {
+        when (clazz.fqn.toString()) {
             "emerge.ffi.c.CPointer" -> {
-                struct.memberVariables.single { it.name == "pointed" }.isCPointerPointed = true
+                clazz.memberVariables.single { it.name == "pointed" }.isCPointerPointed = true
             }
             "emerge.platform.I8Box" -> boxTypeS8 = emergeClassType
             "emerge.platform.U8Box" -> boxTypeU8 = emergeClassType
@@ -259,6 +259,9 @@ class EmergeLlvmContext(
                 val returnTypeOverride = if (it == unitType) PointerToAnyEmergeValue else null
                 val ref = registerFunction(it.irClass.constructor, returnTypeOverride)
                 it.irClass.constructor.llvmRef = ref
+
+                registerFunction(it.irClass.destructor)
+                defineFunctionBody(it.irClass.destructor)
             }
         }
 
@@ -271,7 +274,6 @@ class EmergeLlvmContext(
                         param.emitRead!!().afterReferenceDropped(param.type)
                     }
                 }
-            }
 
             when (val codeResult = emitCode(fn.body)) {
                 is ExecutableResult.ExecutionOngoing,

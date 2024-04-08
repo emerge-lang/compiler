@@ -8,6 +8,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
@@ -87,7 +88,7 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
             StaticAndDynamicTypeInfo.define(
                 "valuearray_pointers_to_typeinfo",
                 emptyList(),
-                valueArrayFinalize
+                { ctx -> ctx.registerIntrinsic(valueArrayFinalize) },
             ) {
                 listOf(
                     word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to getter_EmergeArrayOfPointersToTypeInfoType,
@@ -111,7 +112,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
     private class ProviderImpl(
         val typeName: String,
         val supertypes: List<LlvmConstant<LlvmPointerType<TypeinfoType>>>,
-        val finalizerFunction: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
+        val finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<LlvmVoidType>,
         val virtualFunctions: EmergeLlvmContext.() -> List<Pair<LlvmConstant<EmergeWordType>, KotlinLlvmFunction<*, *>>>,
     ) : Provider {
         private val byContext: MutableMap<LlvmContext, StaticAndDynamicTypeInfo> = MapMaker().weakKeys().makeMap()
@@ -142,7 +143,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 setValue(TypeinfoType.shiftRightAmount, shiftRightAmount)
                 setValue(TypeinfoType.supertypes, dynamicSupertypesGlobal)
                 setValue(TypeinfoType.anyValueVirtuals, EmergeAnyValueVirtualsType.buildConstantIn(context) {
-                    setValue(EmergeAnyValueVirtualsType.finalizeFunction, context.registerIntrinsic(finalizerFunction).address)
+                    setValue(EmergeAnyValueVirtualsType.finalizeFunction, finalizerFunction(context).address)
                 })
                 setValue(TypeinfoType.vtableBlob, vtableBlob)
             }
@@ -168,7 +169,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
         fun define(
             typeName: String,
             supertypes: List<LlvmConstant<LlvmPointerType<TypeinfoType>>>,
-            finalizerFunction: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
+            finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<LlvmVoidType>,
             virtualFunctions: EmergeLlvmContext.() -> List<Pair<LlvmConstant<EmergeWordType>, KotlinLlvmFunction<*, *>>>,
         ): Provider = ProviderImpl(typeName, supertypes, finalizerFunction, virtualFunctions)
     }

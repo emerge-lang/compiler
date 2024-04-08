@@ -84,7 +84,7 @@ class Linux_x68_64_Backend : EmergeBackend {
 
         EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-unknown")) { llvmContext ->
             softwareContext.packagesSeq.forEach { pkg ->
-                pkg.classes.forEach(llvmContext::registerStruct)
+                pkg.classes.forEach(llvmContext::registerClass)
             }
             softwareContext.packagesSeq
                 .flatMap { it.classes }

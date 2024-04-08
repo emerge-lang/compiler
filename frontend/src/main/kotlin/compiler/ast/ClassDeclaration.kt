@@ -26,6 +26,7 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.BoundVisibility
 import compiler.binding.classdef.BoundClassConstructor
 import compiler.binding.classdef.BoundClassDefinition
+import compiler.binding.classdef.BoundClassDestructor
 import compiler.binding.classdef.BoundClassMemberFunction
 import compiler.binding.classdef.BoundClassMemberVariable
 import compiler.binding.context.CTContext
@@ -61,6 +62,7 @@ class ClassDeclaration(
 
         lateinit var boundClassDef: BoundClassDefinition
         var hasAtLeastOneConstructor = false
+        var hasAtLeastOneDestructor = false
         // the entries must retain their order, for semantic and linting reasons
         val boundEntries = entryDeclarations
             .map { entry -> when (entry) {
@@ -72,12 +74,20 @@ class ClassDeclaration(
                 is ClassMemberFunctionDeclaration -> {
                     entry.bindTo(classRootContext, selfTypeReference)
                 }
+                is ClassDestructorDeclaration -> {
+                    hasAtLeastOneDestructor = true
+                    entry.bindTo(fileContextWithTypeParams, boundTypeParameters) { boundClassDef }
+                }
             } }
             .toMutableList()
 
         if (!hasAtLeastOneConstructor) {
             val defaultCtorAst = ClassConstructorDeclaration(emptyList(), IdentifierToken("constructor", declaredAt), CodeChunk(emptyList()))
             boundEntries.add(defaultCtorAst.bindTo(fileContextWithTypeParams, boundTypeParameters) { boundClassDef })
+        }
+        if (!hasAtLeastOneDestructor) {
+            val defaultDtorAst = ClassDestructorDeclaration(IdentifierToken("destructor", declaredAt), CodeChunk(emptyList()))
+            boundEntries.add(defaultDtorAst.bindTo(fileContextWithTypeParams, boundTypeParameters) { boundClassDef })
         }
 
         boundClassDef = BoundClassDefinition(
@@ -123,6 +133,17 @@ class ClassConstructorDeclaration(
 
     fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>, getClassDef: () -> BoundClassDefinition) : BoundClassConstructor {
         return BoundClassConstructor(fileContextWithTypeParameters, typeParameters, getClassDef, this)
+    }
+}
+
+class ClassDestructorDeclaration(
+    val destructorKeyword: IdentifierToken,
+    val code: CodeChunk,
+) : ClassEntryDeclaration {
+    override val declaredAt = destructorKeyword.sourceLocation
+
+    fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>, getClassDef: () -> BoundClassDefinition): BoundClassDestructor {
+        return BoundClassDestructor(fileContextWithTypeParameters, typeParameters, getClassDef, this)
     }
 }
 

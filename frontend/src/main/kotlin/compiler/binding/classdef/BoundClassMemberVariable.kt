@@ -23,10 +23,12 @@ import compiler.ast.ClassMemberVariableDeclaration
 import compiler.ast.expression.IdentifierExpression
 import compiler.binding.BoundElement
 import compiler.binding.BoundVariable
+import compiler.binding.DefinitionWithVisibility
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
+import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -34,8 +36,8 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 class BoundClassMemberVariable(
     override val context: ExecutionScopedCTContext,
     override val declaration: ClassMemberVariableDeclaration,
-) : BoundElement<ClassMemberDeclaration>, BoundClassMember {
-    override val name = declaration.name.value
+) : BoundElement<ClassMemberDeclaration>, BoundClassEntry, DefinitionWithVisibility {
+    val name = declaration.name.value
     val isReAssignable = declaration.variableDeclaration.isReAssignable
 
     val isConstructorParameterInitialized = if (declaration.variableDeclaration.initializerExpression is IdentifierExpression) {
@@ -99,6 +101,10 @@ class BoundClassMemberVariable(
         }
 
         return reportings
+    }
+
+    override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
+        return visibility.validateAccessFrom(location, this)
     }
 
     override fun toStringForErrorMessage() = "member variable $name"

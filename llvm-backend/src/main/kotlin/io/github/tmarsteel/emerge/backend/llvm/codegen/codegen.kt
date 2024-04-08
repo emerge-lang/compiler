@@ -10,6 +10,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrClassMemberVariableAccessExpr
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
+import io.github.tmarsteel.emerge.backend.api.ir.IrDeallocateObjectStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrDropReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -125,6 +126,10 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         is IrReturnStatement -> {
             // TODO: unit return to unit declaration
             return ExpressionResult.Terminated(ret(code.value.declaration.llvmValue))
+        }
+        is IrDeallocateObjectStatement -> {
+            call(context.freeFunction, listOf(code.value.declaration.llvmValue))
+            return ExecutableResult.ExecutionOngoing
         }
     }
 }

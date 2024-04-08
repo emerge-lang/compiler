@@ -150,7 +150,7 @@ class BoundMemberAccessExpression(
     }
 }
 
-private class IrClassMemberVariableAccessExpressionImpl(
+internal class IrClassMemberVariableAccessExpressionImpl(
     override val base: IrTemporaryValueReference,
     override val memberVariable: IrClass.MemberVariable,
     override val evaluatesTo: IrType,

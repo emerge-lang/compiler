@@ -50,8 +50,8 @@ class BoundClassDefinition(
     override val superTypes: Set<BaseType> = setOf(BuiltinAny)
 
     val memberVariables: List<BoundClassMemberVariable> = entries.filterIsInstance<BoundClassMemberVariable>()
-    val declaredConstructors: List<BoundClassConstructor> = entries.filterIsInstance<BoundClassConstructor>()
-        .onEach { require(it.explicitDeclaration != null) }
+    val constructors: Sequence<BoundClassConstructor> = entries.asSequence().filterIsInstance<BoundClassConstructor>()
+    val destructors: Sequence<BoundClassDestructor> = entries.asSequence().filterIsInstance<BoundClassDestructor>()
 
     val memberFunctionsByName: Map<String, Collection<BoundOverloadSet>> by lazy {
         entries.filterIsInstance<BoundClassMemberFunction>()
@@ -72,7 +72,8 @@ class BoundClassDefinition(
 
     // this can only be initialized in semanticAnalysisPhase1 because the types referenced in the members
     // can be declared later than the class
-    override val constructor = declaredConstructors.first()
+    override val constructor = constructors.first()
+    override val destructor = destructors.first()
 
     override fun resolveMemberFunction(name: String): Collection<BoundOverloadSet> = memberFunctionsByName[name] ?: emptySet()
 
@@ -90,10 +91,17 @@ class BoundClassDefinition(
                 reportings.add(Reporting.duplicateTypeMembers(this, dupMembers))
             }
 
-            declaredConstructors.drop(1)
+            constructors
+                .drop(1)
+                .toList()
                 .takeUnless { it.isEmpty() }
-                ?.let { list -> reportings.add(Reporting.multipleClassConstructors(list.map { it.explicitDeclaration!! }))}
-            declaredConstructors.map { it.semanticAnalysisPhase1() }.forEach(reportings::addAll)
+                ?.let { list -> reportings.add(Reporting.multipleClassConstructors(list.map { it.declaration!! }))}
+
+            destructors
+                .drop(1)
+                .toList()
+                .takeUnless { it.isEmpty() }
+                ?.let { list -> reportings.add(Reporting.multipleClassDestructors(list.map { it.declaration }))}
 
             return@getResult reportings
         }
@@ -105,7 +113,6 @@ class BoundClassDefinition(
 
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase2).forEach(reportings::addAll)
             entries.map(BoundClassEntry::semanticAnalysisPhase2).forEach(reportings::addAll)
-            declaredConstructors.map { it.semanticAnalysisPhase2() }.forEach(reportings::addAll)
 
             return@getResult reportings
         }
@@ -117,7 +124,6 @@ class BoundClassDefinition(
 
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
             entries.map(BoundClassEntry::semanticAnalysisPhase3).forEach(reportings::addAll)
-            declaredConstructors.map { it.semanticAnalysisPhase3() }.forEach(reportings::addAll)
 
             return@getResult reportings
         }
@@ -143,4 +149,5 @@ private class IrClassImpl(
     override val memberVariables = classDef.memberVariables.map { it.toBackendIr() }
     override val memberFunctions = classDef.memberFunctionsByName.values.flatten().map { it.toBackendIr() }
     override val constructor by lazy { classDef.constructor.toBackendIr() }
+    override val destructor by lazy { classDef.destructor.toBackendIr() }
 }

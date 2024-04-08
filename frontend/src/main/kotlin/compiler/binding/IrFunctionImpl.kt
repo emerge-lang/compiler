@@ -46,8 +46,9 @@ internal abstract class IrFunctionImpl private constructor(
 
     private class IrImplementedFunctionImpl(
         fqn: DotName,
-        boundFunction: BoundDeclaredFunction,
-    ) : IrFunctionImpl(fqn, boundFunction, boundFunction.code!!), IrImplementedFunction {
+        boundFunction: BoundFunction,
+        code: BoundFunction.Body,
+    ) : IrFunctionImpl(fqn, boundFunction, code), IrImplementedFunction {
         override val parameters = super._parameters
         override val returnType = super._returnType
         override val isExternalC = super._isExternalC
@@ -61,10 +62,13 @@ internal abstract class IrFunctionImpl private constructor(
 
     companion object {
         operator fun invoke(function: BoundFunction): IrFunction {
-            return if (function is BoundDeclaredFunction && function.code != null) {
-                IrImplementedFunctionImpl(function.fullyQualifiedName, function)
-            } else {
-                IrDeclaredFunctionImpl(function.fullyQualifiedName, function)
+            return when {
+                function is BoundDeclaredFunction && function.code != null -> {
+                    IrImplementedFunctionImpl(function.fullyQualifiedName, function, function.code)
+                }
+                else -> {
+                    IrDeclaredFunctionImpl(function.fullyQualifiedName, function)
+                }
             }
         }
     }

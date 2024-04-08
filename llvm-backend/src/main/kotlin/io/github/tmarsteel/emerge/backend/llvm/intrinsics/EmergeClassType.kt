@@ -4,9 +4,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
-import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
-import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
@@ -21,7 +19,6 @@ import io.github.tmarsteel.emerge.backend.llvm.indexInLlvmStruct
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
-import io.github.tmarsteel.emerge.backend.llvm.llvmValueType
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
 import org.bytedeco.llvm.global.LLVM
@@ -44,35 +41,17 @@ internal class EmergeClassType private constructor(
         // done in [fromLlvmStructWithoutBody]
     }
 
-    private val typeinfo = StaticAndDynamicTypeInfo.define(
-        irClass.llvmName,
-        emptyList(),
-        KotlinLlvmFunction.define(
-            "${irClass.llvmName}__finalize",
-            LlvmVoidType,
-        ) {
-            val self by param(pointerTo(this@EmergeClassType))
-            body {
-                if (irClass.fqn.toString() in setOf("emerge.ffi.c.CPointer", "emerge.ffi.c.COpaquePointer", "emerge.ffi.c.CValue")) {
-                    // transparent type, no action needed
-                    // TODO: throw, this should never be called!
-                    return@body retVoid()
-                }
-                irClass.memberVariables
-                    .filter { it.type.llvmValueType == null } // value types need not be dropped
-                    .forEach {
-                        val referenceAsPointer = getelementptr(self).member(it).get().dereference()
-                            .reinterpretAs(PointerToAnyEmergeValue)
-                        referenceAsPointer.afterReferenceDropped(it.type)
-                    }
-                call(context.freeFunction, listOf(self))
-                retVoid()
-            }
-        },
-        { emptyList() }
-    )
-
     val constructor get() = irClass.constructor.llvmRef!! as LlvmFunction<LlvmPointerType<EmergeClassType>>
+    val destructor get() = irClass.destructor.llvmRef!! as LlvmFunction<LlvmVoidType>
+
+    private val typeinfo by lazy {
+        StaticAndDynamicTypeInfo.define(
+            irClass.llvmName,
+            emptyList(),
+            { _ -> destructor },
+            { emptyList() }
+        )
+    }
 
     private val anyValueBaseTemplateDynamic: LlvmGlobal<EmergeHeapAllocatedValueBaseType> by lazy {
         val constant = EmergeHeapAllocatedValueBaseType.buildConstantIn(context) {

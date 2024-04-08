@@ -19,6 +19,7 @@ interface IrClass : IrBaseType {
     val memberVariables: List<MemberVariable>
     val memberFunctions: Collection<IrOverloadGroup<IrFunction>>
     val constructor: IrImplementedFunction
+    val destructor: IrImplementedFunction
 
     interface MemberVariable {
         val name: String

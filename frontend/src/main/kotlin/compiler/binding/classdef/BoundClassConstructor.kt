@@ -31,6 +31,7 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
@@ -57,11 +58,11 @@ class BoundClassConstructor(
     private val fileContextWithTypeParameters: CTContext,
     override val declaredTypeParameters: List<BoundTypeParameter>,
     getClassDef: () -> BoundClassDefinition,
-    val explicitDeclaration: ClassConstructorDeclaration?,
+    val declaration: ClassConstructorDeclaration,
 ) : BoundFunction(), BoundClassEntry {
     val classDef: BoundClassDefinition by lazy(getClassDef)
     private val generatedSourceLocation by lazy {
-        (explicitDeclaration?.declaredAt ?: classDef.declaration.declaredAt).deriveGenerated()
+        (declaration?.declaredAt ?: classDef.declaration.declaredAt).deriveGenerated()
     }
 
     /*
@@ -74,14 +75,11 @@ class BoundClassConstructor(
     private val constructorFunctionRootContext = MutableExecutionScopedCTContext.functionRootIn(fileContextWithTypeParameters)
     override val context = fileContextWithTypeParameters
 
-    override val declaredAt get() = explicitDeclaration?.declaredAt ?: classDef.declaration.declaredAt
+    override val declaredAt get() = declaration.declaredAt
     override val receiverType = null
     override val declaresReceiver = false
     override val name get() = classDef.simpleName
-    override val attributes = BoundFunctionAttributeList(fileContextWithTypeParameters, explicitDeclaration?.attributes ?: emptyList())
-    override val isPure = true
-    override val isReadonly = true
-    override val isGuaranteedToThrow = false
+    override val attributes = BoundFunctionAttributeList(fileContextWithTypeParameters, declaration.attributes)
     override val allTypeParameters = declaredTypeParameters
 
     override val returnType by lazy {
@@ -148,7 +146,7 @@ class BoundClassConstructor(
                 )
             })
         astParameterList.bindTo(contextWithSelfVar).also {
-            it.semanticAnalysisPhase1()
+            check(it.semanticAnalysisPhase1().isEmpty())
         }
     }
 
@@ -194,7 +192,7 @@ class BoundClassConstructor(
     }
 
     private val additionalInitCode: BoundCodeChunk by lazy {
-        (explicitDeclaration?.code ?: CodeChunk(emptyList()))
+        (declaration?.code ?: CodeChunk(emptyList()))
             .bindTo(boundMemberVariableInitCodeFromExpression.modifiedContext)
     }
 
@@ -246,6 +244,22 @@ class BoundClassConstructor(
         }
     }
 
+    private var isEffectivelyPure: Boolean? = null
+        private set
+
+    private var isEffectivelyReadonly: Boolean? = null
+        private set
+
+    override val isPure: Boolean? get() = when {
+        attributes.isDeclaredPure -> true
+        else -> isEffectivelyPure
+    }
+    override val isReadonly: Boolean? get() = when {
+        attributes.isDeclaredPure || attributes.isDeclaredReadonly -> true
+        else -> isEffectivelyReadonly
+    }
+    override val isGuaranteedToThrow get() = boundMemberVariableInitCodeFromExpression.isGuaranteedToThrow || (additionalInitCode.isGuaranteedToThrow ?: false)
+
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase1)
         onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase2)
@@ -259,22 +273,29 @@ class BoundClassConstructor(
             reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase3())
             reportings.addAll(additionalInitCode.semanticAnalysisPhase3())
 
-            val illegalReads: Collection<BoundExpression<*>>
-            val illegalWrites: Collection<BoundStatement<*>>
-            if (attributes.isDeclaredReadonly || attributes.isDeclaredPure) {
-                illegalWrites = boundMemberVariableInitCodeFromExpression.findWritesBeyond(constructorFunctionRootContext) +
+            val statementsReadingBeyondConstructorContext: Collection<BoundExpression<*>> = handleCyclicInvocation(
+                this,
+                action = {
+                    boundMemberVariableInitCodeFromExpression.findReadsBeyond(constructorFunctionRootContext) +
+                        additionalInitCode.findReadsBeyond(constructorFunctionRootContext)
+                },
+                onCycle = ::emptySet,
+            )
+            val statementsWritingBeyondConstructorContext: Collection<BoundStatement<*>> = handleCyclicInvocation(
+                this,
+                action = {
+                    boundMemberVariableInitCodeFromExpression.findWritesBeyond(constructorFunctionRootContext) +
                         additionalInitCode.findWritesBeyond(constructorFunctionRootContext)
-                if (attributes.isDeclaredPure) {
-                    illegalReads = boundMemberVariableInitCodeFromExpression.findReadsBeyond(constructorFunctionRootContext) +
-                            additionalInitCode.findReadsBeyond(constructorFunctionRootContext)
-                } else {
-                    illegalReads = emptySet()
-                }
-            } else {
-                illegalReads = emptySet()
-                illegalWrites = emptySet()
+                },
+                onCycle = ::emptySet,
+            )
+            if (attributes.isDeclaredPure) {
+                reportings.addAll(Reporting.purityViolations(statementsReadingBeyondConstructorContext, statementsWritingBeyondConstructorContext, this))
+            } else if (attributes.isDeclaredReadonly) {
+                reportings.addAll(Reporting.readonlyViolations(statementsWritingBeyondConstructorContext, this))
             }
-            reportings.addAll(Reporting.purityViolations(illegalReads, illegalWrites, this))
+            isEffectivelyPure = statementsReadingBeyondConstructorContext.isEmpty() && statementsWritingBeyondConstructorContext.isEmpty()
+            isEffectivelyReadonly = statementsWritingBeyondConstructorContext.isEmpty()
 
             if (attributes.isDeclaredModifying) {
                 reportings.add(Reporting.constructorDeclaredAsModifying(this))

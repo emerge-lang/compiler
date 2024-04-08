@@ -5,6 +5,7 @@ import compiler.reportings.ConstructorDeclaredModifyingReporting
 import compiler.reportings.DuplicateClassMemberReporting
 import compiler.reportings.ExplicitOwnershipNotAllowedReporting
 import compiler.reportings.ImpureInvocationInPureContextReporting
+import compiler.reportings.MultipleClassConstructorsReporting
 import compiler.reportings.ObjectNotFullyInitializedReporting
 import compiler.reportings.ReadInPureContextReporting
 import compiler.reportings.StateModificationOutsideOfPurityBoundaryReporting
@@ -17,6 +18,7 @@ import io.kotest.inspectors.forAll
 import io.kotest.matchers.collections.haveSize
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
+import textutils.compiler.reportings.MultipleClassDestructorsReporting
 
 class ClassErrors : FreeSpec({
     "duplicate member" {
@@ -121,6 +123,18 @@ class ClassErrors : FreeSpec({
     }
 
     "constructor" - {
+        "can only declare one" {
+            validateModule("""
+                class Foo {
+                    constructor {
+                    }
+                    constructor {
+                    }
+                }
+            """.trimIndent())
+                .shouldReport<MultipleClassConstructorsReporting>()
+        }
+
         "member variable uninitialized" - {
             "constructor cannot use that member variables" {
                 validateModule("""
@@ -322,6 +336,20 @@ class ClassErrors : FreeSpec({
                 """.trimIndent())
                     .shouldReport<ConstructorDeclaredModifyingReporting>()
             }
+        }
+    }
+
+    "destructor" - {
+        "can only declare one" {
+            validateModule("""
+                class Foo {
+                    destructor {
+                    }
+                    destructor {
+                    }
+                }
+            """.trimIndent())
+                .shouldReport<MultipleClassDestructorsReporting>()
         }
     }
 

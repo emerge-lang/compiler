@@ -72,3 +72,20 @@ interface IrAssignmentStatement : IrExecutable {
 interface IrReturnStatement : IrExecutable {
     val value: IrTemporaryValueReference
 }
+
+/**
+ * The counterpart to [IrDeallocateObjectStatement]. It makes the memory occupied by the given reference.
+ *
+ * The frontend must emit code prior to this statement that ensures that
+ * * any references stored/nested in the object are dropped (see [IrDropReferenceStatement])
+ * * no other references ot the object, including weak ones, exist. This is usually the job of the backend as
+ *   part of [IrDropReferenceStatement]; Hence, the only safe place for the frontend to put this code is in the
+ *   finalizer of a class (see [IrClass.destructor]). Backends *may* emit code that throws an exception if this
+ *   statement is called on an object that still has live references.
+ *
+ * The backend must emit code that achieves these things for this statement:
+ * * make the memory available for use by other [IrAllocateObjectExpression]s again.
+ */
+interface IrDeallocateObjectStatement : IrExecutable {
+    val value: IrTemporaryValueReference
+}

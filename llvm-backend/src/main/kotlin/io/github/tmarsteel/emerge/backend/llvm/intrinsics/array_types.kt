@@ -284,7 +284,7 @@ private fun <Element : LlvmType> buildValueArrayType(
         StaticAndDynamicTypeInfo.define(
             "array_$elementTypeName",
             emptyList(),
-            valueArrayFinalize,
+            { ctx -> ctx.registerIntrinsic(valueArrayFinalize) },
         ) {
             listOf(
                 word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to getter,
@@ -393,7 +393,7 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<EmergeHea
     StaticAndDynamicTypeInfo.define(
         "array_ref",
         emptyList(),
-        referenceArrayFinalizer,
+        { ctx -> ctx.registerIntrinsic(referenceArrayFinalizer) },
     ) {
         listOf(
             word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to referenceArrayElementGetter,

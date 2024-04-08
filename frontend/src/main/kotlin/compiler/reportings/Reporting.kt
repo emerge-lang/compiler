@@ -21,6 +21,7 @@ package compiler.reportings
 import compiler.ast.ASTPackageName
 import compiler.ast.AstFunctionAttribute
 import compiler.ast.ClassConstructorDeclaration
+import compiler.ast.ClassDestructorDeclaration
 import compiler.ast.Expression
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
@@ -52,6 +53,7 @@ import compiler.lexer.SourceLocation
 import compiler.lexer.Token
 import io.github.tmarsteel.emerge.backend.api.DotName
 import textutils.compiler.reportings.HiddenTypeExposedReporting
+import textutils.compiler.reportings.MultipleClassDestructorsReporting
 import textutils.compiler.reportings.ShadowedVisibilityReporting
 import textutils.indentByFromSecondLine
 import java.math.BigInteger
@@ -302,6 +304,9 @@ abstract class Reporting internal constructor(
 
         fun multipleClassConstructors(additionalCtors: Collection<ClassConstructorDeclaration>)
             = MultipleClassConstructorsReporting(additionalCtors)
+
+        fun multipleClassDestructors(additionalDtors: Collection<ClassDestructorDeclaration>)
+                = MultipleClassDestructorsReporting(additionalDtors)
 
         fun elementNotAccessible(element: DefinitionWithVisibility, visibility: BoundVisibility, accessAt: SourceLocation)
             = ElementNotAccessibleReporting(element, visibility, accessAt)

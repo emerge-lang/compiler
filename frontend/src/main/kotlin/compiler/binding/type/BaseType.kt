@@ -60,6 +60,9 @@ interface BaseType : SemanticallyAnalyzable, DefinitionWithVisibility {
     val constructor: BoundFunction?
         get() = null
 
+    val destructor: BoundFunction?
+        get() = null
+
     val typeParameters: List<BoundTypeParameter>
         get() = emptyList()
 

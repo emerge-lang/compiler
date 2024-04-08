@@ -22,6 +22,7 @@ import compiler.ast.AstFunctionAttribute
 import compiler.ast.AstVisibility
 import compiler.ast.ClassConstructorDeclaration
 import compiler.ast.ClassDeclaration
+import compiler.ast.ClassDestructorDeclaration
 import compiler.ast.ClassEntryDeclaration
 import compiler.ast.ClassMemberFunctionDeclaration
 import compiler.ast.ClassMemberVariableDeclaration
@@ -80,10 +81,26 @@ val ClassConstructor = sequence("constructor declaration") {
         )
     }
 
+val ClassDestructor = sequence("destructor declaration") {
+    localKeyword("destructor")
+    operator(CBRACE_OPEN)
+    ref(CodeChunk)
+    operator(CBRACE_CLOSE)
+    operator(NEWLINE)
+}
+    .astTransformation { tokens ->
+        val dtorKeyword = tokens.next() as IdentifierToken
+        tokens.next() as OperatorToken // skip CBRACE_OPEN
+        val code = tokens.next() as CodeChunk
+
+        ClassDestructorDeclaration(dtorKeyword, code)
+    }
+
 val ClassEntry = eitherOf {
     ref(ClassMemberVariableDeclaration)
     ref(ClassMemberFunctionDeclaration)
     ref(ClassConstructor)
+    ref(ClassDestructor)
 }
     .astTransformation { tokens -> tokens.remainingToList().single() as ClassEntryDeclaration }
 

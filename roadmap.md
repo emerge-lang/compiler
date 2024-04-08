@@ -78,11 +78,14 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     1. ditch struct for class: there is no use for a struct that a `data`/`record` modifier as in Kotlin/Java couldn't
        do; especially because closed-world optimization will produce identically optimal code for a struct and a
        class with just accessors.
-       1. constructors: only one per class, see [partial initialization](#constructor-initialized-class-member-variables)
-          and [supplemental initialization](#supplemental-initialization)
-       2. add member methods
-       3. implement visibility
-       4. allow finalizer customization
+       1. ~~constructors: only one per class, see [partial initialization](#constructor-initialized-class-member-variables)
+          and [supplemental initialization](#supplemental-initialization)~~
+       2. ~~add member methods~~
+       3. ~~implement visibility~~
+       4. ~~allow finalizer customization~~
+    2. add interfaces and inheritance class impls interface
+        1. implement generic supertypes - yey, another logic monstrosity
+        2. add the cast operation
 24. move intrinsic types 100% into emerge source. Both frontend and backend should
     have the necessary toolset now to still hook in and handle them correctly
 25. implement weak references
@@ -124,11 +127,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * hashCodes: again, Java-style is overkill, have an explicit Hashable interface 
 31. while + do-while loops
 32. extend OO model
-    1. add interfaces and inheritance class impls interface
-        1. implement generic supertypes - yey, another logic monstrosity
-        2. class extends class will not be a thing! composition all the way. Probably needs some boilerplate-reduction
-           tools, like Kotlins `by`, but more powerful
-        3. add the cast operation
+    1. class extends class will not be a thing! composition all the way. Probably needs some boilerplate-reduction
+       tools, like Kotlins `by`, but more powerful
     2. review the vtable approach: does looking for a prefix suffice to keep them small?
         * idea 1: put 1s into the bitwise hashes at different, non-harmonic frequencies to generate hard-to-clash patterns
             * maybe adding phase-shift helps even more
