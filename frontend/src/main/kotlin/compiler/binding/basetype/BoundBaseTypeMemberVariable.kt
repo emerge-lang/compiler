@@ -36,7 +36,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 class BoundBaseTypeMemberVariable(
     override val context: ExecutionScopedCTContext,
     override val declaration: BaseTypeMemberVariableDeclaration,
-) : BoundElement<ClassMemberDeclaration>, BoundClassEntry, DefinitionWithVisibility {
+) : BoundElement<ClassMemberDeclaration>, BoundBaseTypeEntry, DefinitionWithVisibility {
     val name = declaration.name.value
     val isReAssignable = declaration.variableDeclaration.isReAssignable
 

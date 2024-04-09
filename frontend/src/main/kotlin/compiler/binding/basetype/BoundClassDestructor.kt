@@ -38,7 +38,7 @@ class BoundClassDestructor(
     override val declaredTypeParameters: List<BoundTypeParameter>,
     getClassDef: () -> BoundBaseTypeDefinition,
     val declaration: BaseTypeDestructorDeclaration,
-) : BoundFunction(), BoundClassEntry {
+) : BoundFunction(), BoundBaseTypeEntry {
     val classDef: BoundBaseTypeDefinition by lazy(getClassDef)
     override val declaredAt = declaration.declaredAt
     private val generatedSourceLocation = declaredAt.deriveGenerated()

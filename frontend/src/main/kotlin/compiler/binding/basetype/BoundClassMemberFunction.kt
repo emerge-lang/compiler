@@ -7,7 +7,7 @@ import compiler.reportings.Reporting
 
 class BoundClassMemberFunction(
     val declaration: BoundDeclaredFunction,
-) : BoundClassEntry, DefinitionWithVisibility {
+) : BoundBaseTypeEntry, DefinitionWithVisibility {
     val name = declaration.name
     override val visibility get()= declaration.attributes.visibility
 

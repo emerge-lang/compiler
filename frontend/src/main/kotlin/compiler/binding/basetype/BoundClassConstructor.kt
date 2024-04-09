@@ -59,7 +59,7 @@ class BoundClassConstructor(
     override val declaredTypeParameters: List<BoundTypeParameter>,
     getClassDef: () -> BoundBaseTypeDefinition,
     val declaration: BaseTypeConstructorDeclaration,
-) : BoundFunction(), BoundClassEntry {
+) : BoundFunction(), BoundBaseTypeEntry {
     val classDef: BoundBaseTypeDefinition by lazy(getClassDef)
     private val generatedSourceLocation by lazy {
         (declaration?.declaredAt ?: classDef.declaration.declaredAt).deriveGenerated()

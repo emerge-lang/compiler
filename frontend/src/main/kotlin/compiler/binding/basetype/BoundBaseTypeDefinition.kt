@@ -39,7 +39,7 @@ class BoundBaseTypeDefinition(
     override val visibility: BoundVisibility,
     override val typeParameters: List<BoundTypeParameter>,
     override val declaration: BaseTypeDeclaration,
-    val entries: List<BoundClassEntry>,
+    val entries: List<BoundBaseTypeEntry>,
 ) : BaseType, BoundElement<BaseTypeDeclaration> {
     private val onceAction = OnceAction()
 
@@ -112,7 +112,7 @@ class BoundBaseTypeDefinition(
             val reportings = entries.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
 
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase2).forEach(reportings::addAll)
-            entries.map(BoundClassEntry::semanticAnalysisPhase2).forEach(reportings::addAll)
+            entries.map(BoundBaseTypeEntry::semanticAnalysisPhase2).forEach(reportings::addAll)
 
             return@getResult reportings
         }
@@ -123,7 +123,7 @@ class BoundBaseTypeDefinition(
             val reportings = entries.flatMap { it.semanticAnalysisPhase3() }.toMutableList()
 
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
-            entries.map(BoundClassEntry::semanticAnalysisPhase3).forEach(reportings::addAll)
+            entries.map(BoundBaseTypeEntry::semanticAnalysisPhase3).forEach(reportings::addAll)
 
             return@getResult reportings
         }
