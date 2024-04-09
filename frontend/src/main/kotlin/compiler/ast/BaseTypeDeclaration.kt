@@ -25,10 +25,10 @@ import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseTypeMemberFunction
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.basetype.BoundClassDestructor
-import compiler.binding.basetype.BoundClassMemberFunction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableCTContext
@@ -156,7 +156,7 @@ class BaseTypeMemberFunctionDeclaration(
     override val declaredAt = declaration.declaredAt
     override val name = declaration.name
 
-    fun bindTo(typeRootContext: CTContext, selfType: TypeReference): BoundClassMemberFunction {
-        return BoundClassMemberFunction(declaration.bindTo(typeRootContext, selfType))
+    fun bindTo(typeRootContext: CTContext, selfType: TypeReference): BoundBaseTypeMemberFunction {
+        return BoundBaseTypeMemberFunction(declaration.bindTo(typeRootContext, selfType))
     }
 }

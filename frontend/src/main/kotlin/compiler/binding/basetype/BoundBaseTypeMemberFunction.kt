@@ -5,7 +5,7 @@ import compiler.binding.DefinitionWithVisibility
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 
-class BoundClassMemberFunction(
+class BoundBaseTypeMemberFunction(
     val declaration: BoundDeclaredFunction,
 ) : BoundBaseTypeEntry, DefinitionWithVisibility {
     val name = declaration.name

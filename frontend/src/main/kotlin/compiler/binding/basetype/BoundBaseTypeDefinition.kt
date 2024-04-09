@@ -54,7 +54,7 @@ class BoundBaseTypeDefinition(
     val destructors: Sequence<BoundClassDestructor> = entries.asSequence().filterIsInstance<BoundClassDestructor>()
 
     val memberFunctionsByName: Map<String, Collection<BoundOverloadSet>> by lazy {
-        entries.filterIsInstance<BoundClassMemberFunction>()
+        entries.filterIsInstance<BoundBaseTypeMemberFunction>()
             .groupBy { it.name }
             .mapValues { (name, overloadsSameName) ->
                 // this is currently needed because: class member function is really just a spin on the top level
