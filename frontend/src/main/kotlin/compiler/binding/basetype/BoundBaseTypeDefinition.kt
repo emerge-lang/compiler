@@ -36,10 +36,11 @@ import kotlinext.duplicatesBy
 class BoundBaseTypeDefinition(
     fileContext: CTContext,
     private val typeRootContext: CTContext,
+    val kind: Kind,
     override val visibility: BoundVisibility,
     override val typeParameters: List<BoundTypeParameter>,
     override val declaration: BaseTypeDeclaration,
-    val entries: List<BoundBaseTypeEntry>,
+    val entries: List<BoundBaseTypeEntry<*>>,
 ) : BaseType, BoundElement<BaseTypeDeclaration> {
     private val onceAction = OnceAction()
 
@@ -62,10 +63,10 @@ class BoundBaseTypeDefinition(
                 // probably needn't be resolved if we ditch FQNs altogether
                 val overloadSetFqn = this@BoundBaseTypeDefinition.context.sourceFile.packageName + name
                 overloadsSameName
-                    .groupBy { it.declaration.parameters.parameters.size }
+                    .groupBy { it.functionInstance.parameters.parameters.size }
                     .map { (parameterCount, overloads) ->
 
-                        BoundOverloadSet(overloadSetFqn, parameterCount, overloads.map { it.declaration })
+                        BoundOverloadSet(overloadSetFqn, parameterCount, overloads.map { it.functionInstance })
                     }
             }
     }
@@ -90,18 +91,32 @@ class BoundBaseTypeDefinition(
             memberVariables.duplicatesBy(BoundBaseTypeMemberVariable::name).forEach { (_, dupMembers) ->
                 reportings.add(Reporting.duplicateBaseTypeMembers(this, dupMembers))
             }
+            if (!kind.allowsMemberVariables) {
+                memberVariables.forEach {
+                    reportings.add(Reporting.entryNotAllowedOnBaseType(this, it))
+                }
+            }
 
-            constructors
-                .drop(1)
-                .toList()
-                .takeUnless { it.isEmpty() }
-                ?.let { list -> reportings.add(Reporting.multipleClassConstructors(list.map { it.declaration!! }))}
+            if (kind.allowsCtorsAndDtors) {
+                constructors
+                    .drop(1)
+                    .toList()
+                    .takeUnless { it.isEmpty() }
+                    ?.let { list -> reportings.add(Reporting.multipleClassConstructors(list.map { it.declaration })) }
 
-            destructors
-                .drop(1)
-                .toList()
-                .takeUnless { it.isEmpty() }
-                ?.let { list -> reportings.add(Reporting.multipleClassDestructors(list.map { it.declaration }))}
+                destructors
+                    .drop(1)
+                    .toList()
+                    .takeUnless { it.isEmpty() }
+                    ?.let { list -> reportings.add(Reporting.multipleClassDestructors(list.map { it.declaration })) }
+            } else {
+                constructors.forEach {
+                    reportings.add(Reporting.entryNotAllowedOnBaseType(this, it))
+                }
+                destructors.forEach {
+                    reportings.add(Reporting.entryNotAllowedOnBaseType(this, it))
+                }
+            }
 
             return@getResult reportings
         }
@@ -112,7 +127,7 @@ class BoundBaseTypeDefinition(
             val reportings = entries.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
 
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase2).forEach(reportings::addAll)
-            entries.map(BoundBaseTypeEntry::semanticAnalysisPhase2).forEach(reportings::addAll)
+            entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase2).forEach(reportings::addAll)
 
             return@getResult reportings
         }
@@ -123,7 +138,7 @@ class BoundBaseTypeDefinition(
             val reportings = entries.flatMap { it.semanticAnalysisPhase3() }.toMutableList()
 
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
-            entries.map(BoundBaseTypeEntry::semanticAnalysisPhase3).forEach(reportings::addAll)
+            entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase3).forEach(reportings::addAll)
 
             return@getResult reportings
         }
@@ -139,6 +154,16 @@ class BoundBaseTypeDefinition(
 
     private val backendIr by lazy { IrClassImpl(this) }
     override fun toBackendIr(): IrClass = backendIr
+
+    enum class Kind(
+        val namePlural: String,
+        val allowsCtorsAndDtors: Boolean,
+        val allowsMemberVariables: Boolean,
+    ) {
+        CLASS("classes", allowsCtorsAndDtors = true, allowsMemberVariables = true),
+        INTERFACE("interfaces", allowsCtorsAndDtors = false, allowsMemberVariables = false),
+        ;
+    }
 }
 
 private class IrClassImpl(

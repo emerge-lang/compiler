@@ -38,6 +38,7 @@ import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
 import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseTypeEntry
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.context.effect.VariableLifetime
@@ -303,7 +304,10 @@ abstract class Reporting internal constructor(
             = MultipleClassConstructorsReporting(additionalCtors)
 
         fun multipleClassDestructors(additionalDtors: Collection<BaseTypeDestructorDeclaration>)
-                = MultipleClassDestructorsReporting(additionalDtors)
+            = MultipleClassDestructorsReporting(additionalDtors)
+
+        fun entryNotAllowedOnBaseType(baseType: BoundBaseTypeDefinition, entry: BoundBaseTypeEntry<*>)
+            = EntryNotAllowedInBaseTypeReporting(baseType.kind, entry)
 
         fun elementNotAccessible(element: DefinitionWithVisibility, visibility: BoundVisibility, accessAt: SourceLocation)
             = ElementNotAccessibleReporting(element, visibility, accessAt)

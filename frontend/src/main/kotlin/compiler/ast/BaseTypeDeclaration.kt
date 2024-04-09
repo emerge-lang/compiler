@@ -18,6 +18,7 @@
 
 package compiler.ast
 
+import compiler.InternalCompilerError
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
@@ -25,6 +26,7 @@ import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseTypeEntry
 import compiler.binding.basetype.BoundBaseTypeMemberFunction
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
@@ -36,6 +38,7 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeParameter.Companion.chain
 import compiler.lexer.IdentifierToken
+import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.SourceLocation
 
@@ -49,6 +52,11 @@ class BaseTypeDeclaration(
     override val declaredAt = declarationKeyword.sourceLocation
 
     fun bindTo(fileContext: CTContext): BoundBaseTypeDefinition {
+        val kind = when (declarationKeyword.keyword) {
+            Keyword.CLASS_DEFINITION -> BoundBaseTypeDefinition.Kind.CLASS
+            Keyword.INTERFACE_DEFINITION -> BoundBaseTypeDefinition.Kind.INTERFACE
+            else -> throw InternalCompilerError("Unknonw base type declaration keyword ${declarationKeyword.sourceLocation}")
+        }
         val typeVisibility = visibility?.bindTo(fileContext) ?: BoundVisibility.default(fileContext)
         val (boundTypeParameters, fileContextWithTypeParams) = typeParameters.chain(fileContext)
         val typeRootContext = MutableCTContext(fileContextWithTypeParams, typeVisibility)
@@ -68,7 +76,7 @@ class BaseTypeDeclaration(
         var hasAtLeastOneDestructor = false
         // the entries must retain their order, for semantic and linting reasons
         val boundEntries = entryDeclarations
-            .map { entry -> when (entry) {
+            .map<ClassEntryDeclaration, BoundBaseTypeEntry<*>> { entry -> when (entry) {
                 is BaseTypeMemberVariableDeclaration -> entry.bindTo(memberVariableInitializationContext)
                 is BaseTypeConstructorDeclaration -> {
                     hasAtLeastOneConstructor = true
@@ -96,6 +104,7 @@ class BaseTypeDeclaration(
         boundClassDef = BoundBaseTypeDefinition(
             fileContext,
             typeRootContext,
+            kind,
             typeVisibility,
             boundTypeParameters,
             this,
@@ -157,6 +166,6 @@ class BaseTypeMemberFunctionDeclaration(
     override val name = declaration.name
 
     fun bindTo(typeRootContext: CTContext, selfType: TypeReference): BoundBaseTypeMemberFunction {
-        return BoundBaseTypeMemberFunction(declaration.bindTo(typeRootContext, selfType))
+        return BoundBaseTypeMemberFunction(typeRootContext, this, declaration.bindTo(typeRootContext, selfType))
     }
 }

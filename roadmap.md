@@ -129,7 +129,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 32. extend OO model
     1. class extends class will not be a thing! composition all the way. Probably needs some boilerplate-reduction
        tools, like Kotlins `by`, but more powerful
-    2. review the vtable approach: does looking for a prefix suffice to keep them small?
+    2. add accessor-based member variables to interfaces
+    3. review the vtable approach: does looking for a prefix suffice to keep them small?
         * idea 1: put 1s into the bitwise hashes at different, non-harmonic frequencies to generate hard-to-clash patterns
             * maybe adding phase-shift helps even more
             * e.g. '10101010101010...', '100100100100100100', '1000100010001000'
@@ -137,8 +138,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
           sequence from the hashes can be chosen, not just prefixes.
         * TEST, TEST, TEST. Unit test the shit out of the algorithm. More to proof the concept, less to
           test the implementation.
-    3. deal with the wrapper mutability problem: do types need to be generic on mutability?
-    4. add `sealed` interfaces as in Kotlin
+    4. deal with the wrapper mutability problem: do types need to be generic on mutability?
+    5. add `sealed` interfaces as in Kotlin
 33. general iterable types
     * Like Java Iterable<T>, D ranges, ... ?
     * for each over iterable

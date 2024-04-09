@@ -18,6 +18,8 @@
 
 package textutils
 
+import java.util.Locale
+
 fun String.indentByFromSecondLine(n: Int, what: String = " "): String {
     val lines = lines()
 
@@ -42,4 +44,8 @@ fun String.assureEndsWith(suffix: Char): String {
     }
 
     return this + suffix
+}
+
+fun String.capitalizeFirst(): String {
+    return this.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ENGLISH) else it.toString() }
 }
