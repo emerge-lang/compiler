@@ -71,6 +71,12 @@ class BoundInvocationExpression(
     lateinit var typeArguments: List<BoundTypeArgument>
         private set
 
+    /**
+     * [receiverExpression], but `null` iff it is a direct referral to a [BaseType]
+     */
+    private val receiverExceptReferringType: BoundExpression<*>?
+        get() = receiverExpression?.takeUnless { it is BoundIdentifierExpression && it.referral is BoundIdentifierExpression.ReferringType }
+
     override val isGuaranteedToThrow: Boolean?
         get() = dispatchedFunction?.isGuaranteedToThrow
 
@@ -122,6 +128,25 @@ class BoundInvocationExpression(
         }
     }
 
+    private fun collectOverloadCandidates(): AvailableOverloads {
+        assert(valueArguments.all { it.type != null })
+        assert((receiverExpression == null) xor (receiverExpression?.type != null))
+
+        val candidateConstructors = if (receiverExpression != null) null else {
+            context.resolveBaseType(functionNameToken.value)?.constructor?.let(BoundOverloadSet::fromSingle)?.let(::setOf)
+        }
+        val candidateTopLevelFunctions = context.getToplevelFunctionOverloadSetsBySimpleName(functionNameToken.value)
+        val candidateMemberFunctions = receiverExpression?.type?.findMemberFunction(functionNameToken.value) ?: emptySet()
+
+        val allCandidates = (candidateConstructors ?: emptySet()) + candidateTopLevelFunctions + candidateMemberFunctions
+
+        return AvailableOverloads(
+            allCandidates,
+            candidateConstructors != null,
+            candidateTopLevelFunctions.isNotEmpty(),
+        )
+    }
+
     /**
      * Selects one of the given overloads, including ones that are not a legal match if there are no legal alternatives.
      * Also performs the following checks and reports accordingly:
@@ -142,28 +167,30 @@ class BoundInvocationExpression(
             return null
         }
 
-        val candidateConstructors = if (receiverExpression != null) null else {
-            context.resolveBaseType(functionNameToken.value)?.constructor?.let(BoundOverloadSet::fromSingle)?.let(::setOf)
-        }
-        val candidateTopLevelFunctions = context.getToplevelFunctionOverloadSetsBySimpleName(functionNameToken.value)
-        val candidateMemberFunctions = receiverExpression?.type?.findMemberFunction(functionNameToken.value) ?: emptySet()
+        val (allCandidates, constructorsConsidered, anyTopLevelFunctions) = collectOverloadCandidates()
 
-        if (candidateConstructors.isNullOrEmpty() && candidateTopLevelFunctions.isEmpty() && candidateMemberFunctions.isEmpty()) {
+        if (allCandidates.isEmpty()) {
             reportings.add(Reporting.noMatchingFunctionOverload(functionNameToken, receiverExpression?.type, valueArguments, false))
             return null
         }
 
-        val allCandidates = (candidateConstructors ?: emptySet()) + candidateTopLevelFunctions + candidateMemberFunctions
-        val evaluations = allCandidates.filterAndSortByMatchForInvocationTypes(receiverExpression, valueArguments, typeArguments, expectedReturnType)
+        val evaluations = allCandidates.filterAndSortByMatchForInvocationTypes(
+            // for static member fns, receiverExpression helps discover them. But for the actual invocation,
+            // the receiver stops to matter
+            receiverExceptReferringType,
+            valueArguments,
+            typeArguments,
+            expectedReturnType
+        )
 
         if (evaluations.isEmpty()) {
             // TODO: pass on the mismatch reason for all candidates?
-            if (candidateConstructors != null) {
+            if (constructorsConsidered) {
                 reportings.add(
                     Reporting.unresolvableConstructor(
                         functionNameToken,
                         valueArguments,
-                        candidateTopLevelFunctions.isNotEmpty(),
+                        anyTopLevelFunctions,
                     )
                 )
             } else {
@@ -172,7 +199,7 @@ class BoundInvocationExpression(
                         functionNameToken,
                         receiverExpression?.type,
                         valueArguments,
-                        candidateTopLevelFunctions.isNotEmpty(),
+                        anyTopLevelFunctions,
                     )
                 )
             }
@@ -304,14 +331,14 @@ class BoundInvocationExpression(
 
     override fun toBackendIrExpression(): IrExpression {
         return buildInvocationLikeIr(
-            listOfNotNull(receiverExpression) + valueArguments,
+            listOfNotNull(receiverExceptReferringType) + valueArguments,
             ::buildBackendIrInvocation,
         )
     }
 
     override fun toBackendIrStatement(): IrExecutable {
         return buildInvocationLikeIr(
-            listOfNotNull(receiverExpression) + valueArguments,
+            listOfNotNull(receiverExceptReferringType) + valueArguments,
             ::buildBackendIrInvocation,
             { listOf(IrDropReferenceStatementImpl(it)) },
         ).code
@@ -389,6 +416,12 @@ private fun Iterable<BoundOverloadSet>.filterAndSortByMatchForInvocationTypes(
         }
         .toList()
 }
+
+private data class AvailableOverloads(
+    val candidates: Collection<BoundOverloadSet>,
+    val constructorsConsidered: Boolean,
+    val anyTopLevelFunctions: Boolean,
+)
 
 private data class OverloadCandidateEvaluation(
     val candidate: BoundFunction,
