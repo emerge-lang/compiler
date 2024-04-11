@@ -114,9 +114,7 @@ val TopLevelVariableDeclaration = sequence("variable declaration") {
 
 val SourceFileGrammar: Rule<TransactionalSequence<Any, Position>> = sequence("source file") {
     repeatingAtLeastOnce {
-        optionalWhitespace()
         eitherOf {
-            endOfInput()
             ref(PackageDeclaration)
             ref(ImportDeclaration)
             ref(TopLevelVariableDeclaration)

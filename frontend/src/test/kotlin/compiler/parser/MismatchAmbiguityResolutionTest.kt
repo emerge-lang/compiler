@@ -230,7 +230,6 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
         val matcher = expr.startMatching(completion)
         matcher.step(IdentifierToken("identifier"))
 
-        completion.isCompleted shouldBe true
         completion.result.reportings should beEmpty()
         completion.result.item shouldBe listOf(IdentifierToken("identifier"))
     }

@@ -33,16 +33,15 @@ interface Rule<out Item : Any> {
         val ongoing = startMatching(completion)
         var previousAccepted = true
         lateinit var previous: Token
-        while (!completion.isCompleted && previousAccepted && tokens.hasNext()) {
+        while (previousAccepted && tokens.hasNext()) {
             previous = tokens.next()!!
             previousAccepted = ongoing.step(previous)
         }
 
-        if (!completion.isCompleted || previousAccepted) {
-            previousAccepted = ongoing.step(EndOfInputToken(previous.sourceLocation))
+        if (previousAccepted) {
+            ongoing.step(EndOfInputToken(previous.sourceLocation))
         }
 
-        check(!previousAccepted || completion.isCompleted) { "Did not stop on EOI" }
         return completion.result
     }
 }
@@ -51,13 +50,26 @@ interface MatchingContinuation<in Item : Any> {
     fun resume(result: MatchingResult<Item>): OngoingMatch
 
     class Completion<Item : Any> : MatchingContinuation<Item> {
-        lateinit var result: MatchingResult<Item>
-            private set
+        private var results = ArrayList<MatchingResult<Item>>()
+        private var hasSuccessResult = false
 
-        val isCompleted: Boolean get() = this::result.isInitialized
+        private var resultAccessed = false
+        val result: MatchingResult<Item> by lazy {
+            resultAccessed = true
+            if (hasSuccessResult) {
+                return@lazy results.first { !it.hasErrors }
+            }
+
+            MatchingResult(null, setOf(aggregateErrors(results)))
+        }
 
         override fun resume(result: MatchingResult<Item>): OngoingMatch {
-            this.result = result
+            check(!resultAccessed) { "result has already been computed, cannot add more constituents" }
+            results.add(result)
+            if (!result.hasErrors) {
+                check(!hasSuccessResult) { "ambiguous grammar" }
+                hasSuccessResult = true
+            }
             return OngoingMatch.Completed
         }
     }

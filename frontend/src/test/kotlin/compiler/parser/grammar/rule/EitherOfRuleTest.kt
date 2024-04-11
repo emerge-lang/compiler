@@ -1,15 +1,20 @@
 package compiler.compiler.parser.grammar.rule
 
+import compiler.lexer.EndOfInputToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.flatten
+import compiler.parser.grammar.dsl.sequence
 import compiler.parser.grammar.rule.MatchingContinuation
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.inspectors.forAll
 import io.kotest.matchers.collections.beEmpty
+import io.kotest.matchers.collections.haveSize
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
+import io.mockk.mockk
 
 class EitherOfRuleTest : FreeSpec({
     "minimal" - {
@@ -22,7 +27,6 @@ class EitherOfRuleTest : FreeSpec({
             val matcher = grammar.startMatching(completion)
             matcher.step(KeywordToken(Keyword.INTRINSIC)) shouldBe true
 
-            completion.isCompleted shouldBe true
             completion.result.reportings should beEmpty()
             completion.result.item shouldBe KeywordToken(Keyword.INTRINSIC)
         }
@@ -36,7 +40,6 @@ class EitherOfRuleTest : FreeSpec({
             val matcher = grammar.startMatching(completion)
             matcher.step(KeywordToken(Keyword.OPERATOR)) shouldBe true
 
-            completion.isCompleted shouldBe true
             completion.result.reportings should beEmpty()
             completion.result.item shouldBe KeywordToken(Keyword.OPERATOR)
         }
@@ -59,7 +62,6 @@ class EitherOfRuleTest : FreeSpec({
         match.step(KeywordToken(Keyword.IF)) shouldBe true
         match.step(KeywordToken(Keyword.ELSE)) shouldBe true
 
-        completion.isCompleted shouldBe true
         completion.result.item shouldBe listOf(
             KeywordToken(Keyword.IF),
             KeywordToken(Keyword.ELSE),
@@ -84,7 +86,6 @@ class EitherOfRuleTest : FreeSpec({
         match.step(KeywordToken(Keyword.IF)) shouldBe true
         match.step(KeywordToken(Keyword.ELSE)) shouldBe true
 
-        completion.isCompleted shouldBe true
         completion.result.item shouldBe listOf(
             KeywordToken(Keyword.IF),
             KeywordToken(Keyword.ELSE),
@@ -110,7 +111,6 @@ class EitherOfRuleTest : FreeSpec({
         match.step(KeywordToken(Keyword.EXPORT))
         match.step(KeywordToken(Keyword.CLASS_DEFINITION))
 
-        completion.isCompleted shouldBe true
         completion.result.item shouldBe listOf(
             KeywordToken(Keyword.IF),
             KeywordToken(Keyword.EXPORT),
@@ -118,17 +118,20 @@ class EitherOfRuleTest : FreeSpec({
         )
     }
 
-    "greedily finds right option with common prefix" {
-        val grammar = eitherOf {
-            sequence {
-                keyword(Keyword.IF)
-                keyword(Keyword.ELSE)
+    "given one alternative is a prefix of the other, picks the longer one" {
+        val grammar = sequence {
+            eitherOf {
+                sequence {
+                    keyword(Keyword.IF)
+                    keyword(Keyword.ELSE)
+                }
+                sequence {
+                    keyword(Keyword.IF)
+                    keyword(Keyword.ELSE)
+                    keyword(Keyword.CLASS_DEFINITION)
+                }
             }
-            sequence {
-                keyword(Keyword.IF)
-                keyword(Keyword.ELSE)
-                keyword(Keyword.CLASS_DEFINITION)
-            }
+            endOfInput()
         }.flatten().astTransformation { it.remainingToList() }
 
         val completion = MatchingContinuation.Completion<Any>()
@@ -136,12 +139,29 @@ class EitherOfRuleTest : FreeSpec({
         match.step(KeywordToken(Keyword.IF)) shouldBe true
         match.step(KeywordToken(Keyword.ELSE)) shouldBe true
         match.step(KeywordToken(Keyword.CLASS_DEFINITION)) shouldBe true
+        match.step(EndOfInputToken(mockk())) shouldBe true
 
-        completion.isCompleted shouldBe true
         completion.result.item shouldBe listOf(
             KeywordToken(Keyword.IF),
             KeywordToken(Keyword.ELSE),
             KeywordToken(Keyword.CLASS_DEFINITION),
         )
+    }
+
+    "will continue twice on completely ambiguous input" {
+        val grammar = eitherOf {
+            keyword(Keyword.IF)
+            keyword(Keyword.IF)
+        }
+
+        val completion = MultiCompletion()
+        val matcher = grammar.startMatching(completion)
+        matcher.step(KeywordToken(Keyword.IF)) shouldBe true
+
+        completion.results should haveSize(2)
+        completion.results.forAll {
+            it.item shouldBe KeywordToken(Keyword.IF)
+            it.reportings should beEmpty()
+        }
     }
 })

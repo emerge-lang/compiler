@@ -93,7 +93,7 @@ private inline fun <T, reified M> Collection<T>.mapIndexedToArray(mapper: (Int, 
     return array as Array<M>
 }
 
-private fun aggregateErrors(multiple: Iterable<MatchingResult<*>>): ParsingMismatchReporting {
+internal fun aggregateErrors(multiple: Iterable<MatchingResult<*>>): ParsingMismatchReporting {
     val allReportings = multiple.flatMap { it.reportings }.map { it as ParsingMismatchReporting }
     val maxLevel = allReportings.maxOf { it.level }
     val actual = allReportings
@@ -103,7 +103,7 @@ private fun aggregateErrors(multiple: Iterable<MatchingResult<*>>): ParsingMisma
     val errorsInLocation = allReportings.filter { it.actual == actual && it.sourceLocation == actual.sourceLocation }.toList()
     errorsInLocation.singleOrNull()?.let { return it }
     return ParsingMismatchReporting(
-        errorsInLocation.flatMap { it.expectedAlternatives },
+        errorsInLocation.flatMap { it.expectedAlternatives }.toSet(),
         actual,
     )
 }

@@ -19,6 +19,8 @@ open class SingleTokenRule<Item : Token>(
     private inner class MatchImpl(
         val continueWith: MatchingContinuation<Item>
     ) : OngoingMatch {
+        override fun toString() = "SingleTokenRule\$MatchImpl[${this@SingleTokenRule.explicitName}]"
+
         private lateinit var nextMatch: OngoingMatch
 
         override fun step(token: Token): Boolean {
