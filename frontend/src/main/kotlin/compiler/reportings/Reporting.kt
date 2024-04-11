@@ -97,11 +97,8 @@ abstract class Reporting internal constructor(
         fun unknownType(erroneousRef: TypeReference)
             = UnknownTypeReporting(erroneousRef)
 
-        fun mismatch(expected: String, actual: String, location: SourceLocation)
-            = ParsingMismatchReporting(expected, actual, location)
-
-        fun mismatch(expected: String, actual: Token)
-            = mismatch(expected, actual.toStringWithoutLocation(), actual.sourceLocation)
+        fun parsingMismatch(expected: String, actual: Token)
+            = ParsingMismatchReporting(listOf(expected), actual)
 
         fun parsingError(message: String, location: SourceLocation)
             = ParsingErrorReporting(message, location)

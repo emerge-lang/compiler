@@ -19,9 +19,10 @@
 @file:JvmName("AstDsl")
 package compiler.parser.grammar.dsl
 
-import compiler.parser.TokenSequence
-import compiler.parser.grammar.rule.MatchingContext
+import compiler.lexer.EndOfInputToken
+import compiler.parser.grammar.rule.MatchingContinuation
 import compiler.parser.grammar.rule.MatchingResult
+import compiler.parser.grammar.rule.OngoingMatch
 import compiler.parser.grammar.rule.RepeatingRule
 import compiler.parser.grammar.rule.Rule
 import compiler.parser.grammar.rule.SequenceRule
@@ -31,7 +32,7 @@ import compiler.transact.SimpleTransactionalSequence
 import compiler.transact.TransactionalSequence
 import java.util.LinkedList
 
-fun <AstNode> Rule<*>.astTransformation(trimWhitespace: Boolean = false, transformer: (TransactionalSequence<Any, *>) -> AstNode): Rule<AstNode> {
+fun <AstNode : Any> Rule<*>.astTransformation(trimWhitespace: Boolean = false, transformer: (TransactionalSequence<Any, *>) -> AstNode): Rule<AstNode> {
     var mapped = flatten()
     if (trimWhitespace) {
         mapped = mapped.trimWhitespaceTokens()
@@ -44,37 +45,27 @@ fun <AstNode> Rule<*>.astTransformation(trimWhitespace: Boolean = false, transfo
  * Maps all the emitted [MatchingResult]s of the receiver [Rule] that are SUCCESSes using the given `mapper`; passes
  * on error results with null results
  */
-fun <B,A> Rule<B>.map(mapper: (MatchingResult<B>) -> MatchingResult<A>): Rule<A> {
-    return object: Rule<A> {
+fun <Base : Any, Mapped : Any> Rule<Base>.map(mapper: (MatchingResult<Base>) -> MatchingResult<Mapped>): Rule<Mapped> {
+    return object: Rule<Mapped> {
         override val explicitName get() = this@map.explicitName
-        override val descriptionOfAMatchingThing get() = this@map.descriptionOfAMatchingThing
+        override fun startMatching(continueWith: MatchingContinuation<Mapped>): OngoingMatch = this@map.startMatching(MappingContinuation(continueWith, mapper))
+    }
+}
 
-        override fun match(context: MatchingContext, input: TokenSequence): MatchingResult<A> {
-            val baseResult = this@map.match(context, input)
-
-            if (baseResult.item == null) {
-                @Suppress("UNCHECKED_CAST")
-                return baseResult as MatchingResult<A>
-            }
-            else {
-                return mapper(baseResult)
-            }
-        }
-
-        override fun markAmbiguityResolved(inContext: MatchingContext) = this@map.markAmbiguityResolved(inContext)
-
-        override val minimalMatchingSequence get() = this@map.minimalMatchingSequence
-        override fun toString() = this@map.toString()
+private class MappingContinuation<Base : Any, Mapped : Any>(
+    val mappedContinuation: MatchingContinuation<Mapped>,
+    val mapper: (MatchingResult<Base>) -> MatchingResult<Mapped>,
+) : MatchingContinuation<Base> {
+    override fun resume(result: MatchingResult<Base>): OngoingMatch {
+        return mappedContinuation.resume(mapper(result))
     }
 }
 
 /**
  * Like map, but requires the mapper to act on the results only
  */
-fun <B,A> Rule<B>.mapResult(mapper: (B) -> A): Rule<A> = map { it ->
+fun <B : Any, A : Any> Rule<B>.mapResult(mapper: (B) -> A): Rule<A> = map { it ->
     MatchingResult(
-        isAmbiguous = it.isAmbiguous,
-        marksEndOfAmbiguity = it.marksEndOfAmbiguity,
         item = it.item?.let(mapper),
         reportings = it.reportings,
     )
@@ -86,6 +77,11 @@ fun <B,A> Rule<B>.mapResult(mapper: (B) -> A): Rule<A> = map { it ->
  */
 fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
     return map { base ->
+        if (base.item == null) {
+            @Suppress("UNCHECKED_CAST")
+            return@map base as MatchingResult<TransactionalSequence<Any, Position>>
+        }
+
         val itemBucket: MutableList<Any> = LinkedList()
         val reportingsBucket: MutableSet<Reporting> = HashSet()
 
@@ -95,6 +91,7 @@ fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
                 is TransactionalSequence<*, *> -> itemBucket.addAll(result.item.remainingToList().filterNotNull())
                 is SequenceRule.MatchedSequence -> result.item.subResults.forEach(::collectFrom)
                 is RepeatingRule.RepeatedMatch<*> -> result.item.matches.forEach(::collectFrom)
+                is EndOfInputToken -> {}
                 Unit -> {}
                 else -> result.item?.let(itemBucket::add)
             }
@@ -103,8 +100,6 @@ fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
         collectFrom(base)
 
         return@map MatchingResult(
-            isAmbiguous = base.isAmbiguous,
-            marksEndOfAmbiguity = base.marksEndOfAmbiguity,
             item = SimpleTransactionalSequence(itemBucket),
             reportings = reportingsBucket,
         )
@@ -130,7 +125,7 @@ fun <T> Rule<TransactionalSequence<T, Position>>.trimWhitespaceTokens(front: Boo
  * Runs all [Reporting]s of the receiver that have a level of [Reporting.Level.ERROR] or higher and are matched by the
  * given `predicate` through the `enhance` function; the [Reporting]s passed into `enhance` are not returned.
  */
-fun <T> Rule<T>.enhanceErrors(predicate: (Reporting) -> Boolean, enhance: (Reporting) -> Reporting): Rule<T> {
+fun <T : Any> Rule<T>.enhanceErrors(predicate: (Reporting) -> Boolean, enhance: (Reporting) -> Reporting): Rule<T> {
 
     val enhancerMapper: (Reporting) -> Reporting = { reporting ->
         if (reporting.level >= Reporting.Level.ERROR && predicate(reporting))
@@ -144,8 +139,6 @@ fun <T> Rule<T>.enhanceErrors(predicate: (Reporting) -> Boolean, enhance: (Repor
         }
 
         return@map MatchingResult(
-            isAmbiguous = baseResult.isAmbiguous,
-            marksEndOfAmbiguity = baseResult.marksEndOfAmbiguity,
             item = baseResult.item,
             reportings = baseResult.reportings.map(enhancerMapper).toSet()
         )

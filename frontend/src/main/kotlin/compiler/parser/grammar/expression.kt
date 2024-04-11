@@ -41,7 +41,6 @@ import compiler.lexer.NumericLiteralToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.StringLiteralContentToken
-import compiler.lexer.TokenType
 import compiler.parser.BinaryExpressionPostfix
 import compiler.parser.ExpressionPostfix
 import compiler.parser.InvocationExpressionPostfix
@@ -83,7 +82,7 @@ val ExpressionExcludingBinaryPostfix = sequence("expression (excluding binary ex
 
 val StringLiteralExpression = sequence("string literal") {
     operator(Operator.STRING_DELIMITER)
-    tokenOfType(TokenType.STRING_LITERAL_CONTENT)
+    stringLiteralContent()
     operator(Operator.STRING_DELIMITER)
 }
     .astTransformation { tokens ->
@@ -130,7 +129,7 @@ val ArrayLiteralExpression = sequence("array literal") {
 
 val LiteralExpression = sequence("literal") {
     eitherOf {
-        tokenOfType(TokenType.NUMERIC_LITERAL)
+        numericLiteral()
         ref(StringLiteralExpression)
     }
 }

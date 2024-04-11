@@ -20,15 +20,6 @@ package compiler.lexer
 
 import compiler.sortedTopologically
 
-enum class TokenType(val description: String)
-{
-    KEYWORD("keyword"),
-    IDENTIFIER("identifier"),
-    NUMERIC_LITERAL("numeric literal"),
-    OPERATOR("operator"),
-    STRING_LITERAL_CONTENT("string"),
-}
-
 enum class Keyword(val text: String)
 {
     PACKAGE("package"),
@@ -114,9 +105,7 @@ val DECIMAL_SEPARATOR = CodePoint('.'.code)
 val STRING_ESCAPE_CHAR = CodePoint('\\'.code)
 val STRING_DELIMITER = CodePoint('"'.code)
 
-abstract class Token
-{
-    abstract val type: TokenType
+abstract class Token {
     abstract val sourceLocation: SourceLocation
 
     override fun toString(): String {
@@ -127,7 +116,7 @@ abstract class Token
         return toStringWithoutLocation() + " in " + sourceLocation
     }
 
-    open fun toStringWithoutLocation(): String = type.description
+    abstract fun toStringWithoutLocation(): String
 }
 
 class KeywordToken(
@@ -135,11 +124,8 @@ class KeywordToken(
         /** The actual CharSequence as it appears in the source code */
         val sourceText: String = keyword.text,
         override val sourceLocation: SourceLocation = SourceLocation.UNKNOWN
-): Token()
-{
-    override val type = TokenType.KEYWORD
-
-    override fun toStringWithoutLocation() = type.description + " " + keyword.text.lowercase()
+): Token() {
+    override fun toStringWithoutLocation() = "keyword " + keyword.text.lowercase()
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -147,16 +133,11 @@ class KeywordToken(
 
         other as KeywordToken
 
-        if (keyword != other.keyword) return false
-        if (type != other.type) return false
-
-        return true
+        return keyword == other.keyword
     }
 
     override fun hashCode(): Int {
-        var result = keyword.hashCode()
-        result = 31 * result + type.hashCode()
-        return result
+        return keyword.hashCode()
     }
 }
 
@@ -164,8 +145,6 @@ class OperatorToken(
         val operator: Operator,
         override val sourceLocation: SourceLocation = SourceLocation.UNKNOWN
 ) : Token() {
-    override val type = TokenType.OPERATOR
-
     override fun toStringWithoutLocation() = operator.toString()
 
     override fun equals(other: Any?): Boolean {
@@ -174,26 +153,19 @@ class OperatorToken(
 
         other as OperatorToken
 
-        if (operator != other.operator) return false
-        if (type != other.type) return false
-
-        return true
+        return operator == other.operator
     }
 
     override fun hashCode(): Int {
-        var result = operator.hashCode()
-        result = 31 * result + type.hashCode()
-        return result
+        return operator.hashCode()
     }
 }
 
 class IdentifierToken(
-        val value: String,
-        override val sourceLocation: SourceLocation = SourceLocation.UNKNOWN
+    val value: String,
+    override val sourceLocation: SourceLocation = SourceLocation.UNKNOWN
 ) : Token() {
-    override val type = TokenType.IDENTIFIER
-
-    override fun toStringWithoutLocation() = type.description + " " + value
+    override fun toStringWithoutLocation() = "identifier $value"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -201,16 +173,11 @@ class IdentifierToken(
 
         other as IdentifierToken
 
-        if (value != other.value) return false
-        if (type != other.type) return false
-
-        return true
+        return value == other.value
     }
 
     override fun hashCode(): Int {
-        var result = value.hashCode()
-        result = 31 * result + type.hashCode()
-        return result
+        return value.hashCode()
     }
 }
 
@@ -218,7 +185,7 @@ class NumericLiteralToken(
         override val sourceLocation: SourceLocation,
         val stringContent: String
 ): Token() {
-    override val type = TokenType.NUMERIC_LITERAL
+    override fun toStringWithoutLocation() = "number $stringContent"
 }
 
 /**
@@ -229,5 +196,21 @@ class StringLiteralContentToken(
     override val sourceLocation: SourceLocation,
     val content: String,
 ) : Token() {
-    override val type = TokenType.STRING_LITERAL_CONTENT
+    override fun toStringWithoutLocation() = "string literal"
+}
+
+class EndOfInputToken(lastLocationInFile: SourceLocation) : Token() {
+    override val sourceLocation = lastLocationInFile
+    override fun toStringWithoutLocation() = "end of input"
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other?.javaClass != javaClass) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return javaClass.hashCode()
+    }
 }

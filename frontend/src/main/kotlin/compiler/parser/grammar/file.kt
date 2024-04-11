@@ -26,6 +26,7 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.enhanceErrors
 import compiler.parser.grammar.dsl.flatten
@@ -84,7 +85,7 @@ val ImportDeclaration = sequence("import declaration") {
     operator(Operator.NEWLINE)
 }
     .enhanceErrors(
-        { it is ParsingMismatchReporting && it.expected == "operator dot" && it.actual == "operator newline" },
+        { it is ParsingMismatchReporting && it.expectedAlternatives == setOf("operator dot") && it.actual == OperatorToken(Operator.NEWLINE) },
         {
             Reporting.parsingError("${it.message}; To import all exports of the package write some_package.*", it.sourceLocation)
         }

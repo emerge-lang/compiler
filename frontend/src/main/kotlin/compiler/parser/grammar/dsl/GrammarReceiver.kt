@@ -24,34 +24,64 @@ import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.Token
-import compiler.lexer.TokenType
-import compiler.parser.grammar.rule.EitherOfRule
-import compiler.parser.grammar.rule.EoiRule
-import compiler.parser.grammar.rule.IdentifierRule
-import compiler.parser.grammar.rule.OptionalNewlinesRule
 import compiler.parser.grammar.rule.RepeatingRule
 import compiler.parser.grammar.rule.Rule
 import compiler.parser.grammar.rule.SequenceRule
-import compiler.parser.grammar.rule.SingleTokenByEqualityRule
-import compiler.parser.grammar.rule.SingleTokenByTypeRule
 
 typealias Grammar = GrammarReceiver.() -> Unit
 
 /**
  * Objects implementing this interface receive invocations that describe properties of the rule. The object
  * can then decide what to do based on those invocations (e.g. match the described rules against a token stream
- * or dynamically build a description text)f
+ * or dynamically build a description text)
  */
-interface GrammarReceiver {
-    fun tokenEqualTo(equalTo: Token)
-    fun tokenOfType(type: TokenType)
-    fun ref(rule: Rule<*>)
-    fun sequence(grammar: Grammar)
-    fun eitherOf(grammar: Grammar)
-    fun repeating(grammar: Grammar)
-    fun repeatingAtLeastOnce(grammar: Grammar)
-    fun identifier(acceptedOperators: Collection<Operator> = emptyList(), acceptedKeywords: Collection<Keyword> = emptyList())
-    fun optional(grammar: Grammar)
+abstract class GrammarReceiver {
+    abstract fun ref(rule: Rule<*>)
+
+    fun tokenEqualTo(equalTo: Token) {
+        ref(TokenEqualToRule(equalTo))
+    }
+
+    fun sequence(grammar: Grammar) {
+        ref(sequence(null, grammar))
+    }
+
+    fun eitherOf(grammar: Grammar) {
+        ref(eitherOf(null, grammar))
+    }
+
+    fun eitherOf(vararg operators: Operator) {
+        eitherOf {
+            for (op in operators) {
+                operator(op)
+            }
+        }
+    }
+
+    fun repeating(grammar: Grammar) {
+        ref(RepeatingRule(sequence(null, grammar), Int.MAX_VALUE))
+    }
+
+    fun repeatingAtLeastOnce(grammar: Grammar) {
+        sequence(grammar)
+        repeating(grammar)
+    }
+
+    fun identifier(acceptedOperators: Collection<Operator> = emptyList(), acceptedKeywords: Collection<Keyword> = emptyList()) {
+        ref(IdentifierTokenRule(acceptedOperators.toSet(), acceptedKeywords.toSet()))
+    }
+
+    fun numericLiteral() {
+        ref(NumericLiteralRule)
+    }
+
+    fun stringLiteralContent() {
+        ref(StringLiteralContentRule)
+    }
+
+    fun optional(grammar: Grammar) {
+        ref(RepeatingRule(sequence(null, grammar), 1))
+    }
 
     fun keyword(keyword: Keyword) {
         tokenEqualTo(KeywordToken(keyword))
@@ -65,67 +95,22 @@ interface GrammarReceiver {
         tokenEqualTo(OperatorToken(operator))
     }
 
-    fun eitherOf(vararg operators: Operator) {
-        this.eitherOf {
-            operators.forEach(this::operator)
-        }
-    }
-
     fun endOfInput() {
-        ref(EoiRule.INSTANCE)
+        ref(EndOfInputRule)
     }
 
     fun optionalWhitespace() {
-        ref(OptionalNewlinesRule.INSTANCE)
+        ref(NewlineEaterRule)
     }
 }
 
-class RuleCollectingGrammarReceiver private constructor() : GrammarReceiver {
+class RuleCollectingGrammarReceiver private constructor() : GrammarReceiver() {
     private val rules = mutableListOf<Rule<*>>()
 
-    private fun addRule(rule: Rule<*>) {
+    override fun ref(rule: Rule<*>) {
         rules.add(rule)
     }
 
-    override fun tokenEqualTo(equalTo: Token) {
-        addRule(SingleTokenByEqualityRule(equalTo))
-    }
-
-    override fun tokenOfType(type: TokenType) {
-        addRule(SingleTokenByTypeRule(type))
-    }
-
-    override fun ref(rule: Rule<*>) {
-        addRule(rule)
-    }
-
-    override fun sequence(grammar: Grammar) {
-        addRule(collect(grammar, ::SequenceRule))
-    }
-
-    override fun eitherOf(grammar: Grammar) {
-        addRule(collect(grammar, ::EitherOfRule))
-    }
-
-    override fun repeating(grammar: Grammar) {
-        addRule(RepeatingRule(collect(grammar, ::SequenceRule), requireAtLeastOnce = false))
-    }
-
-    override fun repeatingAtLeastOnce(grammar: Grammar) {
-        addRule(RepeatingRule(collect(grammar, ::SequenceRule), requireAtLeastOnce = true))
-    }
-
-    override fun identifier(acceptedOperators: Collection<Operator>, acceptedKeywords: Collection<Keyword>) {
-        addRule(
-            IdentifierRule(acceptedOperators.toSet(), acceptedKeywords.toSet()),
-        )
-    }
-
-    override fun optional(grammar: Grammar) {
-        addRule(
-            RepeatingRule(collect(grammar, ::SequenceRule), requireAtLeastOnce = false, maxRepeats = 1),
-        )
-    }
 
     companion object {
         /**
@@ -139,7 +124,7 @@ class RuleCollectingGrammarReceiver private constructor() : GrammarReceiver {
             if (optimizeSingleRule && collector.rules.size == 1) {
                 return collector.rules.single()
             }
-            
+
             return combinedBuilder(collector.rules)
         }
     }

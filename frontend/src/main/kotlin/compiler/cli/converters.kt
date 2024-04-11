@@ -11,13 +11,12 @@ import com.github.ajalt.clikt.parameters.options.convert
 import compiler.lexer.MemorySourceFile
 import compiler.lexer.lex
 import compiler.parser.grammar.ModuleOrPackageName
-import compiler.parser.grammar.rule.MatchingContext
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.DotName
 
 fun RawArgument.packageName(): ProcessedArgument<DotName, DotName> {
     return convert { rawName ->
-        val parseResult = ModuleOrPackageName.match(MatchingContext.None, lex(MemorySourceFile("CLI argument ${this.name}", DotName(listOf("cli")), rawName)))
+        val parseResult = ModuleOrPackageName.match(lex(MemorySourceFile("CLI argument ${this.name}", DotName(listOf("cli")), rawName)))
         parseResult.reportings.find { it.level > Reporting.Level.ERROR }?.let {
             fail(it.message)
         }

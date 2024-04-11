@@ -24,18 +24,7 @@ import compiler.reportings.Reporting
  * When a [Rule] is matched against an input it returns an [MatchingResult] that describes
  * the outcome of the matching process.
  */
-class MatchingResult<out ItemType>(
-    /**
-     * If false, the result is unambiguous in the original context ([Rule.match]). If `false`, [EitherOfRule]
-     * will not backtrack.
-     */
-    val isAmbiguous: Boolean,
-
-    /**
-     * `true` on single token results that have been marked using [ExpectedToken.markAsRemovingAmbiguity]
-     */
-    val marksEndOfAmbiguity: Boolean,
-
+class MatchingResult<out ItemType : Any>(
     /**
      * The [item] may only be null if the given input did not contain enough information to construct a meaningful item.
      */
@@ -52,5 +41,5 @@ class MatchingResult<out ItemType>(
     val hasErrors: Boolean
         get() = this.reportings.find { it.level >= Reporting.Level.ERROR } != null
 
-    override fun toString() = "MatchingResult[item ${if (item == null) "not " else ""}present, ambiguous=$isAmbiguous, marksEndOfAmbiguity=$marksEndOfAmbiguity, hasErrors=$hasErrors]"
+    override fun toString() = "MatchingResult[item ${if (item == null) "not " else ""}present, hasErrors=$hasErrors]"
 }

@@ -38,25 +38,27 @@ fun lexCode(
     return lex(sourceFile)
 }
 
-private val defaultModulesParsed: List<Pair<DotName, List<ASTSourceFile>>> = (NoopBackend().targetSpecificModules + listOf(
-    ModuleSourceRef(CoreIntrinsicsModule.SRC_DIR, CoreIntrinsicsModule.NAME),
-    ModuleSourceRef(StandardLibraryModule.SRC_DIR, StandardLibraryModule.NAME),
-))
-    .map { module ->
-        val sourceFiles = SourceSet.load(module.path, module.moduleName)
-            .map {
-                val tokens = lex(it)
-                SourceFileRule.match(tokens, tokens.peek()!!.sourceLocation.file)
-            }
-            .partition { it.hasErrors }
-            .let { (withErrors, withoutErrors) ->
-                require(withErrors.isEmpty()) { "default module ${module.moduleName} has errors: ${withErrors.flatMap { it.reportings }.first { it.level >= Reporting.Level.ERROR}}" }
-                withoutErrors
-            }
-            .mapNotNull { it.item }
+private val defaultModulesParsed: List<Pair<DotName, List<ASTSourceFile>>> by lazy {
+    (NoopBackend().targetSpecificModules + listOf(
+        ModuleSourceRef(CoreIntrinsicsModule.SRC_DIR, CoreIntrinsicsModule.NAME),
+        ModuleSourceRef(StandardLibraryModule.SRC_DIR, StandardLibraryModule.NAME),
+    ))
+        .map { module ->
+            val sourceFiles = SourceSet.load(module.path, module.moduleName)
+                .map {
+                    val tokens = lex(it)
+                    SourceFileRule.match(tokens, tokens.peek()!!.sourceLocation.file)
+                }
+                .partition { it.hasErrors }
+                .let { (withErrors, withoutErrors) ->
+                    require(withErrors.isEmpty()) { "default module ${module.moduleName} has errors: ${withErrors.flatMap { it.reportings }.first { it.level >= Reporting.Level.ERROR}}" }
+                    withoutErrors
+                }
+                .mapNotNull { it.item }
 
-        module.moduleName to sourceFiles
-    }
+            module.moduleName to sourceFiles
+        }
+}
 
 
 class IntegrationTestModule(

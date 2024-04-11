@@ -12,14 +12,13 @@ import compiler.ast.VariableDeclaration
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.parser.grammar.SourceFileGrammar
-import compiler.parser.grammar.rule.MatchingContext
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.reportings.Reporting
 import compiler.lexer.SourceFile as LexerSourceFile
 
 object SourceFileRule {
     fun match(tokens: TokenSequence, lexerFile: LexerSourceFile): MatchingResult<ASTSourceFile> {
-        val inResult = SourceFileGrammar.match(MatchingContext.None, tokens)
+        val inResult = SourceFileGrammar.match(tokens)
         @Suppress("UNCHECKED_CAST")
         val input = inResult.item ?: return inResult as MatchingResult<ASTSourceFile> // null can haz any type that i want :)
 
@@ -93,8 +92,6 @@ object SourceFileRule {
         )
 
         return MatchingResult(
-            isAmbiguous = false,
-            marksEndOfAmbiguity = inResult.marksEndOfAmbiguity,
             item = astSourceFile,
             reportings = inResult.reportings.plus(reportings)
         )

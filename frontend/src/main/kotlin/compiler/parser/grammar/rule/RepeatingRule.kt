@@ -1,126 +1,55 @@
 package compiler.parser.grammar.rule
 
-import compiler.parser.TokenSequence
-import compiler.reportings.Reporting
-
-/**
- * Models the rule [rule] repeated 0..* or 1..* times (depending on [requireAtLeastOnce])
- */
-class RepeatingRule<T>(
-    private val rule: Rule<T>,
-    private val requireAtLeastOnce: Boolean,
-    private val maxRepeats: Int = Int.MAX_VALUE,
-) : Rule<RepeatingRule.RepeatedMatch<T>> {
+class RepeatingRule<Item : Any>(
+    val subRule: Rule<Item>,
+    val upperBound: Int,
+) : Rule<RepeatingRule.RepeatedMatch<Item>> {
     init {
-        check(maxRepeats >= 1)
-        check(!(maxRepeats == 1 && requireAtLeastOnce)) {
-            "Rule ${rule.descriptionOfAMatchingThing} is required to match exactly once, use it directly."
-        }
+        require(upperBound >= 0)
     }
 
-    override val explicitName = null
-
-    override val descriptionOfAMatchingThing: String by lazy {
-        val buffer = StringBuilder()
-        buffer.append("The following")
-        if (requireAtLeastOnce) {
-            buffer.append(" at least once and then")
-        }
-        buffer.append(" repeatedly")
-        if (maxRepeats < Int.MAX_VALUE) {
-            buffer.append(" at most ${maxRepeats.wordifyEN} times")
-        }
-        buffer.append(":\n")
-        buffer.append(rule.descriptionOfAMatchingThing.prependIndent("  "))
-
-        buffer.toString()
+    override val explicitName: String get() {
+        val upperBoundStr = if (upperBound == Int.MAX_VALUE) "*" else upperBound.toString()
+        return "0..$upperBoundStr $subRule"
     }
 
-    override fun match(context: MatchingContext, input: TokenSequence): MatchingResult<RepeatedMatch<T>> {
-        input.mark()
+    override fun toString() = explicitName
 
-        val results = ArrayList<MatchingResult<T>>(1)
-        var lastResult: MatchingResult<T>? = null
+    override fun startMatching(continueWith: MatchingContinuation<RepeatedMatch<Item>>): OngoingMatch {
+        return RepeaterRule().startMatching(continueWith)
+    }
 
-        while (results.size < maxRepeats && input.hasNext()) {
-            input.mark()
+    private inner class RepeaterRule : Rule<RepeatedMatch<Item>> {
+        val results = ArrayList<MatchingResult<Item>>()
+        override val explicitName get() = this@RepeatingRule.explicitName
 
-            lastResult = rule.match(context, input)
-            if (lastResult.item == null) {
-                input.rollback()
-                // TODO: Fallback!
+        override fun startMatching(continueWith: MatchingContinuation<RepeatedMatch<Item>>): OngoingMatch {
+            return subRule.startMatching(object : MatchingContinuation<Item> {
+                override fun resume(result: MatchingResult<Item>): OngoingMatch {
+                    results.add(result)
+                    val partialResult = MatchingResult(RepeatedMatch(results.subList(0, results.size)), results.flatMap { it.reportings })
+                    if (result.hasErrors || results.size >= this@RepeatingRule.upperBound) {
+                        return continueWith.resume(partialResult)
+                    }
 
-                if (lastResult.hasErrors && !lastResult.isAmbiguous) {
-                    return MatchingResult(
-                        isAmbiguous = false,
-                        marksEndOfAmbiguity = results.any { it.marksEndOfAmbiguity },
-                        item = null,
-                        reportings = lastResult.reportings
+                    return BranchingOngoingMatch(
+                        listOf(
+                            NoopRule(partialResult),
+                            this@RepeaterRule,
+                        ),
+                        continueWith
                     )
                 }
-
-                break
-            }
-
-            input.commit()
-            results.add(lastResult)
+            })
         }
-
-        if (!requireAtLeastOnce || results.isNotEmpty()) {
-            input.commit()
-
-            return MatchingResult(
-                isAmbiguous = results.any { it.isAmbiguous },
-                marksEndOfAmbiguity = results.any { it.marksEndOfAmbiguity },
-                RepeatedMatch(results),
-                emptySet(),
-            )
-        }
-
-        input.rollback()
-
-        val errors = if (lastResult?.reportings != null && lastResult.reportings.isNotEmpty()) {
-            lastResult.reportings
-        }
-        else {
-            setOf(
-                Reporting.mismatch(
-                    "at least one ${rule.descriptionOfAMatchingThing}",
-                    "none",
-                    input.currentSourceLocation,
-                )
-            )
-        }
-
-        return MatchingResult(
-            isAmbiguous = lastResult?.isAmbiguous ?: true,
-            marksEndOfAmbiguity = lastResult?.marksEndOfAmbiguity ?: false,
-            item = null,
-            reportings = errors,
-        )
     }
 
-    class RepeatedMatch<T>(val matches: List<MatchingResult<T>>)
+    class RepeatedMatch<Item : Any>(val matches: List<MatchingResult<Item>>) {
+        companion object {
+            private val empty: RepeatedMatch<Any> = RepeatedMatch(emptyList())
 
-    override fun markAmbiguityResolved(inContext: MatchingContext) {
-        rule.markAmbiguityResolved(inContext)
-    }
-
-    override val minimalMatchingSequence = if (requireAtLeastOnce) {
-        rule.minimalMatchingSequence
-    } else {
-        sequence {
-            yield(sequenceOf())
-            yieldAll(rule.minimalMatchingSequence)
+            @Suppress("UNCHECKED_CAST")
+            fun <T : Any> empty(): RepeatedMatch<T> = empty as RepeatedMatch<T>
         }
     }
 }
-
-private val Int.wordifyEN: String
-    get()  = when(this) {
-        in 0..12 -> listOf(
-            "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"
-        )[this]
-        Int.MAX_VALUE -> "infinite"
-        else -> this.toString()
-    }
