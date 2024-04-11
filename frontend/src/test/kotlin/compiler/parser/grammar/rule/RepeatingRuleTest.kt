@@ -5,7 +5,7 @@ import compiler.lexer.KeywordToken
 import compiler.parser.grammar.dsl.flatten
 import compiler.parser.grammar.dsl.mapResult
 import compiler.parser.grammar.dsl.sequence
-import compiler.parser.grammar.rule.MatchingContinuation
+import compiler.parser.grammar.rule.FirstMatchCompletion
 import compiler.reportings.ParsingMismatchReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forOne
@@ -25,7 +25,7 @@ class RepeatingRuleTest : FreeSpec({
         }.flatten().mapResult { it.remainingToList() }
 
         "accepts zero matches" {
-            val completion = MatchingContinuation.Completion<Any>()
+            val completion = FirstMatchCompletion<Any>()
             val matcher = grammar.startMatching(completion)
             matcher.step(KeywordToken(Keyword.EXPORT)) shouldBe true
 
@@ -34,7 +34,7 @@ class RepeatingRuleTest : FreeSpec({
         }
 
         "accepts one match" {
-            val completion = MatchingContinuation.Completion<Any>()
+            val completion = FirstMatchCompletion<Any>()
             val matcher = grammar.startMatching(completion)
             matcher.step(KeywordToken(Keyword.IF)) shouldBe true
             matcher.step(KeywordToken(Keyword.EXPORT)) shouldBe true
@@ -47,7 +47,7 @@ class RepeatingRuleTest : FreeSpec({
         }
 
         "accepts four matches" {
-            val completion = MatchingContinuation.Completion<Any>()
+            val completion = FirstMatchCompletion<Any>()
             val matcher = grammar.startMatching(completion)
             matcher.step(KeywordToken(Keyword.IF)) shouldBe true
             matcher.step(KeywordToken(Keyword.IF)) shouldBe true
@@ -75,7 +75,7 @@ class RepeatingRuleTest : FreeSpec({
         }.flatten().mapResult { it.remainingToList() }
 
         "accepts zero matches" {
-            val completion = MatchingContinuation.Completion<Any>()
+            val completion = FirstMatchCompletion<Any>()
             val matcher = grammar.startMatching(completion)
             matcher.step(KeywordToken(Keyword.EXPORT)) shouldBe true
 
@@ -84,7 +84,7 @@ class RepeatingRuleTest : FreeSpec({
         }
 
         "accepts one match" {
-            val completion = MatchingContinuation.Completion<Any>()
+            val completion = FirstMatchCompletion<Any>()
             val matcher = grammar.startMatching(completion)
             matcher.step(KeywordToken(Keyword.IF)) shouldBe true
             matcher.step(KeywordToken(Keyword.EXPORT)) shouldBe true
@@ -103,7 +103,7 @@ class RepeatingRuleTest : FreeSpec({
                 }
                 keyword(Keyword.EXPORT)
             }.flatten().mapResult { it.remainingToList() }
-            val completion = MatchingContinuation.Completion<Any>()
+            val completion = FirstMatchCompletion<Any>()
             val matcher = grammar.startMatching(completion)
             matcher.step(KeywordToken(Keyword.IF)) shouldBe true
             matcher.step(KeywordToken(Keyword.IF)) shouldBe false

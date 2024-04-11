@@ -26,6 +26,7 @@ import compiler.parser.grammar.rule.OngoingMatch
 import compiler.parser.grammar.rule.RepeatingRule
 import compiler.parser.grammar.rule.Rule
 import compiler.parser.grammar.rule.SequenceRule
+import compiler.reportings.ParsingMismatchReporting
 import compiler.reportings.Reporting
 import compiler.transact.Position
 import compiler.transact.SimpleTransactionalSequence
@@ -83,7 +84,7 @@ fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
         }
 
         val itemBucket: MutableList<Any> = LinkedList()
-        val reportingsBucket: MutableSet<Reporting> = HashSet()
+        val reportingsBucket: MutableSet<ParsingMismatchReporting> = HashSet()
 
         fun collectFrom(result: MatchingResult<*>) {
             reportingsBucket.addAll(result.reportings)
@@ -125,9 +126,9 @@ fun <T> Rule<TransactionalSequence<T, Position>>.trimWhitespaceTokens(front: Boo
  * Runs all [Reporting]s of the receiver that have a level of [Reporting.Level.ERROR] or higher and are matched by the
  * given `predicate` through the `enhance` function; the [Reporting]s passed into `enhance` are not returned.
  */
-fun <T : Any> Rule<T>.enhanceErrors(predicate: (Reporting) -> Boolean, enhance: (Reporting) -> Reporting): Rule<T> {
+fun <T : Any> Rule<T>.enhanceErrors(predicate: (ParsingMismatchReporting) -> Boolean, enhance: (ParsingMismatchReporting) -> ParsingMismatchReporting): Rule<T> {
 
-    val enhancerMapper: (Reporting) -> Reporting = { reporting ->
+    val enhancerMapper: (ParsingMismatchReporting) -> ParsingMismatchReporting = { reporting ->
         if (reporting.level >= Reporting.Level.ERROR && predicate(reporting))
             enhance(reporting)
         else reporting

@@ -18,30 +18,31 @@ class RepeatingRule<Item : Any>(
     override fun startMatching(continueWith: MatchingContinuation<RepeatedMatch<Item>>): OngoingMatch {
         return BranchingOngoingMatch(
             listOf(
+                RepeaterRule(emptyList()),
                 NoopRule(MatchingResult(RepeatedMatch.empty(), emptySet())),
-                RepeaterRule(),
             ),
             continueWith
         )
     }
 
-    private inner class RepeaterRule : Rule<RepeatedMatch<Item>> {
-        val results = ArrayList<MatchingResult<Item>>()
+    private inner class RepeaterRule(
+        val resultsThusFar: List<MatchingResult<Item>>,
+    ) : Rule<RepeatedMatch<Item>> {
         override val explicitName get() = this@RepeatingRule.explicitName
 
         override fun startMatching(continueWith: MatchingContinuation<RepeatedMatch<Item>>): OngoingMatch {
             return subRule.startMatching(object : MatchingContinuation<Item> {
                 override fun resume(result: MatchingResult<Item>): OngoingMatch {
-                    results.add(result)
-                    val partialResult = MatchingResult(RepeatedMatch(results.subList(0, results.size)), results.flatMap { it.reportings })
-                    if (result.hasErrors || results.size >= this@RepeatingRule.upperBound) {
+                    val partialResultList = resultsThusFar + result
+                    val partialResult = MatchingResult(RepeatedMatch(partialResultList), partialResultList.flatMap { it.reportings })
+                    if (result.hasErrors || partialResultList.size >= this@RepeatingRule.upperBound) {
                         return continueWith.resume(partialResult)
                     }
 
                     return BranchingOngoingMatch(
                         listOf(
+                            RepeaterRule(partialResultList),
                             NoopRule(partialResult),
-                            this@RepeaterRule,
                         ),
                         continueWith
                     )

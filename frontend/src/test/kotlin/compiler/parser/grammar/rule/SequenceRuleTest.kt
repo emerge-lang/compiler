@@ -8,6 +8,7 @@ import compiler.parser.grammar.dsl.IdentifierTokenRule
 import compiler.parser.grammar.dsl.flatten
 import compiler.parser.grammar.dsl.mapResult
 import compiler.parser.grammar.dsl.sequence
+import compiler.parser.grammar.rule.FirstMatchCompletion
 import compiler.parser.grammar.rule.MatchingContinuation
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.parser.grammar.rule.OngoingMatch
@@ -26,7 +27,7 @@ class SequenceRuleTest : FreeSpec({
             keyword(Keyword.IF)
             keyword(Keyword.SET)
         }
-        val completion = MatchingContinuation.Completion<Any>()
+        val completion = FirstMatchCompletion<Any>()
         val matcher = grammar.startMatching(completion)
         matcher.step(KeywordToken(Keyword.CLASS_DEFINITION)) shouldBe false
         completion.result.reportings should haveSize(1)
@@ -42,7 +43,7 @@ class SequenceRuleTest : FreeSpec({
             keyword(Keyword.SET)
             keyword(Keyword.ELSE)
         }
-        val completion = MatchingContinuation.Completion<Any>()
+        val completion = FirstMatchCompletion<Any>()
         val matcher = grammar.startMatching(completion)
         matcher.step(KeywordToken(Keyword.IF)) shouldBe true
         val consumesLast = matcher.step(KeywordToken(Keyword.CLASS_DEFINITION))
@@ -59,7 +60,7 @@ class SequenceRuleTest : FreeSpec({
             keyword(Keyword.IF)
             keyword(Keyword.SET)
         }
-        val completion = MatchingContinuation.Completion<Any>()
+        val completion = FirstMatchCompletion<Any>()
         val matcher = grammar.startMatching(completion)
         matcher.step(KeywordToken(Keyword.IF)) shouldBe true
         val consumesLast = matcher.step(KeywordToken(Keyword.CLASS_DEFINITION))

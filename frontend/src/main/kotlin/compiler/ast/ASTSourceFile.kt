@@ -47,6 +47,14 @@ class ASTSourceFile(
 
     val baseTypes: MutableList<BaseTypeDeclaration> = mutableListOf()
 
+    private var parseTimeReportings: MutableList<Reporting>? = null
+    fun addParseTimeReporting(reporting: Reporting) {
+        if (parseTimeReportings == null) {
+            parseTimeReportings = ArrayList()
+        }
+        parseTimeReportings!!.add(reporting)
+    }
+
     /**
      * Works by the same principle as [Bindable.bindTo]; but since binds to a [SoftwareContext] (rather than a
      * [CTContext]) this has its own signature.
@@ -56,6 +64,7 @@ class ASTSourceFile(
             ?: throw InternalCompilerError("Cannot bind source file in $expectedPackageName because its module hasn't been registered with the software-context yet.")
         val fileContext = SourceFileRootContext(packageContext)
         val reportings = mutableSetOf<Reporting>()
+        parseTimeReportings?.let(reportings::addAll)
 
         imports.forEach(fileContext::addImport)
         functions.forEach(fileContext::addFunction)

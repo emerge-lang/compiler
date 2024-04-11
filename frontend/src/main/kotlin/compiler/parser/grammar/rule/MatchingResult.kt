@@ -18,6 +18,7 @@
 
 package compiler.parser.grammar.rule
 
+import compiler.reportings.ParsingMismatchReporting
 import compiler.reportings.Reporting
 
 /**
@@ -35,7 +36,7 @@ class MatchingResult<out ItemType : Any>(
      * about the matched input. If the input did not match the expectations of the [Rule] that could be details on what
      * expectations were not met.
      */
-    val reportings: Collection<Reporting>,
+    val reportings: Collection<ParsingMismatchReporting>,
 ) {
     /** Whether one of the reportings is of level [Reporting.Level.ERROR] or higher */
     val hasErrors: Boolean

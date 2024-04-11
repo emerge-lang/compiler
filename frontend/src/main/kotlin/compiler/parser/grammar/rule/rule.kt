@@ -29,7 +29,7 @@ interface Rule<out Item : Any> {
 
     fun match(tokens: TokenSequence): MatchingResult<Item> {
         require(tokens.hasNext()) { "Cannot match an empty token sequence" }
-        val completion = MatchingContinuation.Completion<Item>()
+        val completion = FirstMatchCompletion<Item>()
         val ongoing = startMatching(completion)
         var previousAccepted = true
         lateinit var previous: Token
@@ -49,30 +49,6 @@ interface Rule<out Item : Any> {
 interface MatchingContinuation<in Item : Any> {
     fun resume(result: MatchingResult<Item>): OngoingMatch
 
-    class Completion<Item : Any> : MatchingContinuation<Item> {
-        private var results = ArrayList<MatchingResult<Item>>()
-        private var hasSuccessResult = false
-
-        private var resultAccessed = false
-        val result: MatchingResult<Item> by lazy {
-            resultAccessed = true
-            if (hasSuccessResult) {
-                return@lazy results.first { !it.hasErrors }
-            }
-
-            MatchingResult(null, setOf(aggregateErrors(results)))
-        }
-
-        override fun resume(result: MatchingResult<Item>): OngoingMatch {
-            check(!resultAccessed) { "result has already been computed, cannot add more constituents" }
-            results.add(result)
-            if (!result.hasErrors) {
-                check(!hasSuccessResult) { "ambiguous grammar" }
-                hasSuccessResult = true
-            }
-            return OngoingMatch.Completed
-        }
-    }
 }
 
 /**

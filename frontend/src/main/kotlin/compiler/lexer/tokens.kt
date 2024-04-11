@@ -113,7 +113,7 @@ abstract class Token {
             return toStringWithoutLocation()
         }
 
-        return toStringWithoutLocation() + " in " + sourceLocation
+        return toStringWithoutLocation() + " in " + sourceLocation.fileLineColumnText
     }
 
     abstract fun toStringWithoutLocation(): String

@@ -22,7 +22,6 @@ object SourceFileRule {
         @Suppress("UNCHECKED_CAST")
         val input = inResult.item ?: return inResult as MatchingResult<ASTSourceFile> // null can haz any type that i want :)
 
-        val reportings: MutableSet<Reporting> = HashSet()
         val astSourceFile = ASTSourceFile(lexerFile)
 
         input.forEachRemainingIndexed { index, declaration ->
@@ -31,7 +30,7 @@ object SourceFileRule {
             if (declaration is ASTPackageDeclaration) {
                 if (astSourceFile.selfDeclaration == null) {
                     if (index != 0) {
-                        reportings.add(
+                        astSourceFile.addParseTimeReporting(
                             Reporting.parsingError(
                             "The package declaration must be the first declaration in the source file",
                             declaration.declaredAt
@@ -41,7 +40,7 @@ object SourceFileRule {
                     astSourceFile.selfDeclaration = declaration
                 }
                 else {
-                    reportings.add(
+                    astSourceFile.addParseTimeReporting(
                         Reporting.parsingError(
                         "Duplicate package declaration",
                         declaration.declaredAt
@@ -61,7 +60,7 @@ object SourceFileRule {
                 astSourceFile.baseTypes.add(declaration)
             }
             else {
-                reportings.add(
+                astSourceFile.addParseTimeReporting(
                     Reporting.unsupported(
                     "Unsupported declaration $declaration",
                     declaration.declaredAt,
@@ -70,7 +69,7 @@ object SourceFileRule {
         }
 
         if (astSourceFile.selfDeclaration == null) {
-            reportings.add(Reporting.parsingError(
+            astSourceFile.addParseTimeReporting(Reporting.parsingError(
                 "No package declaration found.",
                 (input.items.getOrNull(0) as AstFileLevelDeclaration?)?.declaredAt ?: SourceLocation.UNKNOWN
             ))
@@ -93,7 +92,7 @@ object SourceFileRule {
 
         return MatchingResult(
             item = astSourceFile,
-            reportings = inResult.reportings.plus(reportings)
+            reportings = inResult.reportings,
         )
     }
 }

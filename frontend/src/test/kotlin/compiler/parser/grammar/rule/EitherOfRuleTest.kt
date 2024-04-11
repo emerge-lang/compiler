@@ -7,7 +7,7 @@ import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.flatten
 import compiler.parser.grammar.dsl.sequence
-import compiler.parser.grammar.rule.MatchingContinuation
+import compiler.parser.grammar.rule.FirstMatchCompletion
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forAll
 import io.kotest.matchers.collections.beEmpty
@@ -23,7 +23,7 @@ class EitherOfRuleTest : FreeSpec({
                 keyword(Keyword.INTRINSIC)
                 keyword(Keyword.OPERATOR)
             }
-            val completion = MatchingContinuation.Completion<Any>()
+            val completion = FirstMatchCompletion<Any>()
             val matcher = grammar.startMatching(completion)
             matcher.step(KeywordToken(Keyword.INTRINSIC)) shouldBe true
 
@@ -36,7 +36,7 @@ class EitherOfRuleTest : FreeSpec({
                 keyword(Keyword.INTRINSIC)
                 keyword(Keyword.OPERATOR)
             }
-            val completion = MatchingContinuation.Completion<Any>()
+            val completion = FirstMatchCompletion<Any>()
             val matcher = grammar.startMatching(completion)
             matcher.step(KeywordToken(Keyword.OPERATOR)) shouldBe true
 
@@ -57,7 +57,7 @@ class EitherOfRuleTest : FreeSpec({
             }
         }.flatten().astTransformation { it.remainingToList() }
 
-        val completion = MatchingContinuation.Completion<Any>()
+        val completion = FirstMatchCompletion<Any>()
         val match = grammar.startMatching(completion)
         match.step(KeywordToken(Keyword.IF)) shouldBe true
         match.step(KeywordToken(Keyword.ELSE)) shouldBe true
@@ -81,7 +81,7 @@ class EitherOfRuleTest : FreeSpec({
             }
         }.flatten().astTransformation { it.remainingToList() }
 
-        val completion = MatchingContinuation.Completion<Any>()
+        val completion = FirstMatchCompletion<Any>()
         val match = grammar.startMatching(completion)
         match.step(KeywordToken(Keyword.IF)) shouldBe true
         match.step(KeywordToken(Keyword.ELSE)) shouldBe true
@@ -105,7 +105,7 @@ class EitherOfRuleTest : FreeSpec({
             }
         }.flatten().astTransformation { it.remainingToList() }
 
-        val completion = MatchingContinuation.Completion<Any>()
+        val completion = FirstMatchCompletion<Any>()
         val match = grammar.startMatching(completion)
         match.step(KeywordToken(Keyword.IF))
         match.step(KeywordToken(Keyword.EXPORT))
@@ -134,7 +134,7 @@ class EitherOfRuleTest : FreeSpec({
             endOfInput()
         }.flatten().astTransformation { it.remainingToList() }
 
-        val completion = MatchingContinuation.Completion<Any>()
+        val completion = FirstMatchCompletion<Any>()
         val match = grammar.startMatching(completion)
         match.step(KeywordToken(Keyword.IF)) shouldBe true
         match.step(KeywordToken(Keyword.ELSE)) shouldBe true

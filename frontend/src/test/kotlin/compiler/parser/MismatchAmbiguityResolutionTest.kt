@@ -10,7 +10,7 @@ import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.flatten
 import compiler.parser.grammar.dsl.mapResult
 import compiler.parser.grammar.dsl.sequence
-import compiler.parser.grammar.rule.MatchingContinuation
+import compiler.parser.grammar.rule.FirstMatchCompletion
 import compiler.reportings.ParsingMismatchReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.beEmpty
@@ -226,7 +226,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
             .flatten()
             .mapResult { it.remainingToList() }
 
-        val completion = MatchingContinuation.Completion<Any>()
+        val completion = FirstMatchCompletion<Any>()
         val matcher = expr.startMatching(completion)
         matcher.step(IdentifierToken("identifier"))
 

@@ -67,7 +67,7 @@ class BranchingOngoingMatch<Item : Any>(
 
         val relevantResults = resultsByBranch.values.flatten()
         continued = if (!anyBranchCompletedSuccessfully && relevantResults.all { it.hasErrors }) {
-            afterBranch.resume(MatchingResult(null, setOf(aggregateErrors(relevantResults))))
+            afterBranch.resume(MatchingResult(null, aggregateErrors(relevantResults)))
         } else {
             OngoingMatch.Completed
         }
@@ -80,11 +80,7 @@ class BranchingOngoingMatch<Item : Any>(
         lateinit var branch: OngoingMatch
         override fun resume(result: MatchingResult<Item>): OngoingMatch {
             resultsByBranch.computeIfAbsent(branch, { ArrayList(2) }).add(result)
-            return if (result.hasErrors) {
-                OngoingMatch.Completed
-            } else {
-                afterBranch.resume(result)
-            }
+            return afterBranch.resume(result)
         }
     }
 }
@@ -98,17 +94,24 @@ private inline fun <T, reified M> Collection<T>.mapIndexedToArray(mapper: (Int, 
     return array as Array<M>
 }
 
-internal fun aggregateErrors(multiple: Iterable<MatchingResult<*>>): ParsingMismatchReporting {
-    val allReportings = multiple.flatMap { it.reportings }.map { it as ParsingMismatchReporting }
-    val maxLevel = allReportings.maxOf { it.level }
-    val actual = allReportings
-        .filter { it.level == maxLevel }
-        .map { it.actual }
-        .maxWith(compareBy<Token> { it.sourceLocation.fromLineNumber }.thenBy { it.sourceLocation.fromColumnNumber })
-    val errorsInLocation = allReportings.filter { it.actual == actual && it.sourceLocation == actual.sourceLocation }.toList()
-    errorsInLocation.singleOrNull()?.let { return it }
-    return ParsingMismatchReporting(
-        errorsInLocation.flatMap { it.expectedAlternatives }.toSet(),
-        actual,
-    )
+private val parseErrorComparator: Comparator<ParsingMismatchReporting> =
+    compareBy<ParsingMismatchReporting> { it.level }
+    .thenBy { it.sourceLocation.fromLineNumber }
+    .thenBy { it.sourceLocation.fromColumnNumber }
+
+internal fun reduceCombineParseError(a: ParsingMismatchReporting, b: ParsingMismatchReporting): ParsingMismatchReporting {
+    val comparison = parseErrorComparator.compare(a, b)
+    when {
+        comparison > 0 -> return a
+        comparison < 0 -> return b
+    }
+
+    // same location and severity
+    return ParsingMismatchReporting((a.expectedAlternatives + b.expectedAlternatives).toSet(), a.actual)
 }
+
+private fun aggregateErrors(results: Collection<MatchingResult<*>>) = setOf(
+    results.asSequence()
+        .flatMap { it.reportings }
+        .reduce(::reduceCombineParseError)
+)
