@@ -16,7 +16,13 @@ class RepeatingRule<Item : Any>(
     override fun toString() = explicitName
 
     override fun startMatching(continueWith: MatchingContinuation<RepeatedMatch<Item>>): OngoingMatch {
-        return RepeaterRule().startMatching(continueWith)
+        return BranchingOngoingMatch(
+            listOf(
+                NoopRule(MatchingResult(RepeatedMatch.empty(), emptySet())),
+                RepeaterRule(),
+            ),
+            continueWith
+        )
     }
 
     private inner class RepeaterRule : Rule<RepeatedMatch<Item>> {
