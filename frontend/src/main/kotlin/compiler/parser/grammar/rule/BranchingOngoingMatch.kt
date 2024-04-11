@@ -53,6 +53,11 @@ class BranchingOngoingMatch<Item : Any>(
 
         if (anyConsumed) {
             removedBranches.forEach(resultsByBranch::remove)
+            if (lifeBranches.size == 1) {
+                continued = lifeBranches.single()
+                lifeBranches.clear()
+                resultsByBranch.clear()
+            }
             return true
         }
 
