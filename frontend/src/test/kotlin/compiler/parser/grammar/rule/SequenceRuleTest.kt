@@ -70,4 +70,58 @@ class SequenceRuleTest : FreeSpec({
             it.expectedAlternatives shouldBe setOf("keyword set")
         }
     }
+
+    "continuation is reentrant" {
+        val rule = SequenceRule(arrayOf(
+            IdentifierTokenRule(emptySet(), emptySet()),
+            object : Rule<Any> {
+                override val explicitName = "branch"
+                override fun startMatching(continueWith: MatchingContinuation<Any>): OngoingMatch {
+                    val branches = listOf(
+                        continueWith.resume(MatchingResult("A", emptySet())),
+                        continueWith.resume(MatchingResult("B", emptySet())),
+                        continueWith.resume(MatchingResult("C", emptySet())),
+                    )
+                    return object : OngoingMatch {
+                        override fun step(token: Token): Boolean {
+                            branches.forEach { it.step(token) }
+                            return true
+                        }
+                    }
+
+                }
+            },
+            IdentifierTokenRule(emptySet(), emptySet()),
+        ), null)
+            .flatten()
+            .mapResult { it.remainingToList() }
+
+        val completion = MultiCompletion()
+        val matcher = rule.startMatching(completion)
+        matcher.step(IdentifierToken("first"))
+        matcher.step(IdentifierToken("second"))
+
+        completion.results should haveSize(3)
+        completion.results.forOne {
+            it.item shouldBe listOf(
+                IdentifierToken("first"),
+                "A",
+                IdentifierToken("second"),
+            )
+        }
+        completion.results.forOne {
+            it.item shouldBe listOf(
+                IdentifierToken("first"),
+                "B",
+                IdentifierToken("second"),
+            )
+        }
+        completion.results.forOne {
+            it.item shouldBe listOf(
+                IdentifierToken("first"),
+                "C",
+                IdentifierToken("second"),
+            )
+        }
+    }
 })

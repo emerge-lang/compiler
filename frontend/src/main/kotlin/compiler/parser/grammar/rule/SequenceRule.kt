@@ -8,31 +8,30 @@ class SequenceRule(
         require(subRules.isNotEmpty())
     }
 
-    override fun startMatching(afterSequence: MatchingContinuation<MatchedSequence>): OngoingMatch {
-        val results = ArrayList<MatchingResult<*>>(subRules.size)
-        val selfSequenceContinuation = object : MatchingContinuation<Any> {
-            override fun resume(result: MatchingResult<Any>): OngoingMatch {
-                results.add(result)
-                if (result.hasErrors) {
-                    return afterSequence.resume(MatchingResult(null, results.flatMap { it.reportings }))
-                }
+    override fun startMatching(continueWith: MatchingContinuation<MatchedSequence>): OngoingMatch {
+        return subRules.first().startMatching(ContinuationImpl(emptyList(), 1, continueWith))
+    }
 
-                if (results.size >= subRules.size) {
-                    val sequenceResult = MatchingResult(
-                        MatchedSequence(results).takeUnless { results.any { it.hasErrors } },
-                        results.flatMap { it.reportings },
-                    )
-                    return afterSequence.resume(sequenceResult)
-                } else {
-                    return subRules[results.size].startMatching(this)
-                }
+    private inner class ContinuationImpl(
+        val resultsThusFar: List<MatchingResult<*>>,
+        val nextRuleIndex: Int,
+        val afterSequence: MatchingContinuation<MatchedSequence>,
+    ) : MatchingContinuation<Any> {
+        override fun resume(result: MatchingResult<Any>): OngoingMatch {
+            val nextResults = resultsThusFar + result
+            if (result.hasErrors) {
+                return afterSequence.resume(MatchingResult(null, nextResults.flatMap { it.reportings }))
             }
-        }
 
-        return subRules.first().startMatching(selfSequenceContinuation)
+            if (nextRuleIndex == subRules.size) {
+                return afterSequence.resume(MatchingResult(MatchedSequence(nextResults), nextResults.flatMap { it.reportings }))
+            }
+
+            return subRules[nextRuleIndex].startMatching(ContinuationImpl(nextResults, nextRuleIndex + 1, afterSequence))
+        }
     }
 
     override fun toString() = explicitName ?: super.toString()
 
-    class MatchedSequence(val subResults: List<MatchingResult<*>>)
+    data class MatchedSequence(val subResults: List<MatchingResult<*>>)
 }
