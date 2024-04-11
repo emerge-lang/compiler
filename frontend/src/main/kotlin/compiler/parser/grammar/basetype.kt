@@ -117,19 +117,11 @@ val BaseTypeDefinition = sequence("base type definition") {
     optional {
         ref(BracedTypeParameters)
     }
-    optionalWhitespace()
     operator(CBRACE_OPEN)
-    optionalWhitespace()
     repeating {
         ref(BaseTypeEntry)
-        optionalWhitespace()
     }
-    optionalWhitespace()
     operator(CBRACE_CLOSE)
-    eitherOf {
-        operator(NEWLINE)
-        endOfInput()
-    }
 }
     .astTransformation { tokens ->
         val visibility: AstVisibility?

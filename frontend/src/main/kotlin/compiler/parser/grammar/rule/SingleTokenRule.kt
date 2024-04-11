@@ -1,5 +1,7 @@
 package compiler.parser.grammar.rule
 
+import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
 import compiler.lexer.Token
 import compiler.reportings.Reporting
 
@@ -34,6 +36,8 @@ open class SingleTokenRule<Item : Token>(
             if (filteredToken != null) {
                 result = MatchingResult(filteredToken, emptySet())
                 consumed = true
+            } else if (canIgnore(token)) {
+                return true
             } else {
                 result = MatchingResult(null, setOf(Reporting.parsingMismatch(this@SingleTokenRule.explicitName, token)))
                 consumed = false
@@ -41,6 +45,11 @@ open class SingleTokenRule<Item : Token>(
             nextMatch = continueWith.resume(result)
             return consumed
         }
+    }
+
+    private companion object {
+        @JvmStatic
+        fun canIgnore(token: Token) = token is OperatorToken && token.operator == Operator.NEWLINE
     }
 }
 

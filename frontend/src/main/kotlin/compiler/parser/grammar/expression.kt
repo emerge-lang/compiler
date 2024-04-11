@@ -200,11 +200,9 @@ val binaryOperators = arrayOf(
 val BracedCodeOrSingleStatement = eitherOf("curly braced code or single statement") {
     sequence {
         operator(Operator.CBRACE_OPEN)
-        optionalWhitespace()
         optional {
             ref(CodeChunk)
         }
-        optionalWhitespace()
         operator(Operator.CBRACE_CLOSE)
     }
     ref(Expression)
@@ -239,11 +237,8 @@ val IfExpression = sequence("if-expression") {
 
     ref(BracedCodeOrSingleStatement)
 
-    optionalWhitespace()
-
     optional {
         keyword(ELSE)
-        optionalWhitespace()
         ref(BracedCodeOrSingleStatement)
     }
 }
@@ -271,7 +266,6 @@ val IfExpression = sequence("if-expression") {
 
 val ExpressionPostfixNotNull = sequence(OperatorToken(Operator.NOTNULL).toStringWithoutLocation()) {
     operator(Operator.NOTNULL)
-    optionalWhitespace()
 }
     .astTransformation { NotNullExpressionPostfix(it.next()!! as OperatorToken) }
 
@@ -300,20 +294,16 @@ val ExpressionPostfixInvocation = sequence("function invocation") {
         ref(InvocationTypeArguments)
     }
     operator(Operator.PARANT_OPEN)
-    optionalWhitespace()
 
     optional {
         ref(Expression)
-        optionalWhitespace()
 
         repeating {
             operator(Operator.COMMA)
-            optionalWhitespace()
             ref(Expression)
         }
     }
 
-    optionalWhitespace()
     operator(Operator.PARANT_CLOSE)
 }
     .astTransformation { tokens ->
@@ -343,7 +333,6 @@ val ExpressionPostfixInvocation = sequence("function invocation") {
 val ExpressionPostfixMemberAccess = sequence("member access") {
     eitherOf(Operator.DOT, Operator.SAFEDOT)
     identifier(acceptedKeywords = Keyword.entries)
-    optionalWhitespace()
 }
     .astTransformation { tokens ->
         val accessOperator = tokens.next() as OperatorToken

@@ -75,7 +75,6 @@ val LineOfCode = sequence {
     .astTransformation { tokens -> tokens.next() as Statement }
 
 val CodeChunk: Rule<CodeChunk> = sequence("a chunk of code") {
-    optionalWhitespace()
     optional {
         ref(LineOfCode)
 

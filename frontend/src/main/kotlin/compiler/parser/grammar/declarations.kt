@@ -71,7 +71,6 @@ val Visibility = eitherOf {
 
 val VariableDeclarationInitializingAssignment = sequence {
     operator(ASSIGNMENT)
-    optionalWhitespace()
     ref(Expression)
 }
 

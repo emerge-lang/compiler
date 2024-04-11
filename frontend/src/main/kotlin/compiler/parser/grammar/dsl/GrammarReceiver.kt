@@ -98,10 +98,6 @@ abstract class GrammarReceiver {
     fun endOfInput() {
         ref(EndOfInputRule)
     }
-
-    fun optionalWhitespace() {
-        ref(NewlineEaterRule)
-    }
 }
 
 class RuleCollectingGrammarReceiver private constructor() : GrammarReceiver() {

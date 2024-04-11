@@ -108,21 +108,14 @@ val Parameter = sequence("parameter declaration") {
 val ParameterList = sequence("parenthesised parameter list") {
     operator(Operator.PARANT_OPEN)
 
-    optionalWhitespace()
-
     optional {
         ref(Parameter)
-
-        optionalWhitespace()
-
         repeating {
             operator(Operator.COMMA)
-            optionalWhitespace()
             ref(Parameter)
         }
     }
 
-    optionalWhitespace()
     optional {
         operator(Operator.COMMA)
     }
@@ -212,42 +205,30 @@ val FunctionAttributes = sequence("function attributes") {
 
 val StandaloneFunctionDeclaration = sequence("function declaration") {
     ref(FunctionAttributes)
-    optionalWhitespace()
     keyword(Keyword.FUNCTION)
-    optionalWhitespace()
     identifier(acceptedKeywords = Keyword.entries)
-    optionalWhitespace()
     optional {
         ref(BracedTypeParameters)
     }
-    optionalWhitespace()
     ref(ParameterList)
-    optionalWhitespace()
 
     optional {
         operator(Operator.RETURNS)
-        optionalWhitespace()
         ref(Type)
     }
 
     eitherOf {
         sequence {
-            optionalWhitespace()
             operator(Operator.CBRACE_OPEN)
             ref(CodeChunk)
-            optionalWhitespace()
             operator(Operator.CBRACE_CLOSE)
         }
         sequence {
             operator(Operator.ASSIGNMENT)
             ref(Expression)
-            eitherOf {
-                operator(Operator.NEWLINE)
-                endOfInput()
-            }
+            operator(Operator.NEWLINE)
         }
         operator(Operator.NEWLINE)
-        endOfInput()
     }
 }
     .astTransformation { tokens ->
