@@ -195,9 +195,10 @@ class BoundBaseTypeDefinition(
         val namePlural: String,
         val hasCtorsAndDtors: Boolean,
         val allowsMemberVariables: Boolean,
+        val memberFunctionsAbstractByDefault: Boolean,
     ) {
-        CLASS("classes", hasCtorsAndDtors = true, allowsMemberVariables = true),
-        INTERFACE("interfaces", hasCtorsAndDtors = false, allowsMemberVariables = false),
+        CLASS("classes", hasCtorsAndDtors = true, allowsMemberVariables = true, memberFunctionsAbstractByDefault = false),
+        INTERFACE("interfaces", hasCtorsAndDtors = false, allowsMemberVariables = false, memberFunctionsAbstractByDefault = true),
         ;
 
         fun toBackendIr(typeDef: BoundBaseTypeDefinition): IrBaseType = when(this) {

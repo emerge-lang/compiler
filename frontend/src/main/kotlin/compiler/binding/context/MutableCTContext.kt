@@ -141,7 +141,7 @@ open class MutableCTContext(
     }
 
     open fun addFunction(declaration: FunctionDeclaration): BoundFunction {
-        val bound = declaration.bindTo(this, null)
+        val bound = declaration.bindTo(this, null, false)
         _functions.add(bound)
         return bound
     }

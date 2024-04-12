@@ -24,7 +24,8 @@ class BoundDeclaredFunction(
     override val attributes: BoundFunctionAttributeList,
     override val declaredTypeParameters: List<BoundTypeParameter>,
     override val parameters: BoundParameterList,
-    val code: Body?
+    val code: Body?,
+    private val allowNoBody: Boolean,
 ) : BoundFunction() {
     override val declaredAt = declaration.declaredAt
     override val name: String = declaration.name.value
@@ -83,15 +84,6 @@ class BoundDeclaredFunction(
             val reportings = mutableSetOf<Reporting>()
 
             reportings.addAll(attributes.semanticAnalysisPhase1())
-
-            // modifiers
-            if (attributes.impliesNoBody) {
-                if (code != null) {
-                    reportings.add(Reporting.illegalFunctionBody(declaration))
-                }
-            } else if (code == null) {
-                reportings.add(Reporting.missingFunctionBody(declaration))
-            }
 
             declaredTypeParameters.map(BoundTypeParameter::semanticAnalysisPhase1).forEach(reportings::addAll)
             reportings.addAll(parameters.semanticAnalysisPhase1())
@@ -171,6 +163,14 @@ class BoundDeclaredFunction(
             val reportings = mutableSetOf<Reporting>()
 
             declaredTypeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
+
+            if (attributes.impliesNoBody) {
+                if (code != null) {
+                    reportings.add(Reporting.illegalFunctionBody(declaration))
+                }
+            } else if (code == null && !allowNoBody) {
+                reportings.add(Reporting.missingFunctionBody(declaration))
+            }
 
             if (code != null) {
                 reportings += code.semanticAnalysisPhase3()

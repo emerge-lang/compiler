@@ -55,7 +55,7 @@ class BaseTypeDeclaration(
         val kind = when (declarationKeyword.keyword) {
             Keyword.CLASS_DEFINITION -> BoundBaseTypeDefinition.Kind.CLASS
             Keyword.INTERFACE_DEFINITION -> BoundBaseTypeDefinition.Kind.INTERFACE
-            else -> throw InternalCompilerError("Unknonw base type declaration keyword ${declarationKeyword.sourceLocation}")
+            else -> throw InternalCompilerError("Unknown base type declaration keyword ${declarationKeyword.sourceLocation}")
         }
         val typeVisibility = visibility?.bindTo(fileContext) ?: BoundVisibility.default(fileContext)
         val (boundTypeParameters, fileContextWithTypeParams) = typeParameters.chain(fileContext)
@@ -80,7 +80,7 @@ class BaseTypeDeclaration(
                     entry.bindTo(fileContextWithTypeParams, boundTypeParameters) { boundClassDef }
                 }
                 is BaseTypeMemberFunctionDeclaration -> {
-                    entry.bindTo(typeRootContext, selfTypeReference)
+                    entry.bindTo(typeRootContext, selfTypeReference, kind.memberFunctionsAbstractByDefault)
                 }
                 is BaseTypeDestructorDeclaration -> {
                     entry.bindTo(fileContextWithTypeParams, boundTypeParameters) { boundClassDef }
@@ -152,7 +152,11 @@ class BaseTypeMemberFunctionDeclaration(
     override val declaredAt = declaration.declaredAt
     override val name = declaration.name
 
-    fun bindTo(typeRootContext: CTContext, selfType: TypeReference): BoundBaseTypeMemberFunction {
-        return BoundBaseTypeMemberFunction(typeRootContext, this, declaration.bindTo(typeRootContext, selfType))
+    fun bindTo(
+        typeRootContext: CTContext,
+        selfType: TypeReference,
+        allowNoBody: Boolean,
+    ): BoundBaseTypeMemberFunction {
+        return BoundBaseTypeMemberFunction(typeRootContext, this, declaration.bindTo(typeRootContext, selfType, allowNoBody))
     }
 }
