@@ -24,6 +24,8 @@ import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.SourceLocation
+import compiler.reportings.Reporting
+import compiler.reportings.ReturnTypeMismatchReporting
 import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 
@@ -99,8 +101,25 @@ abstract class BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility 
 
     sealed interface Body : BoundExecutable<Executable> {
         class SingleExpression(val expression: BoundExpression<*>) : Body, BoundExecutable<Executable> by expression {
+            private var expectedReturnType: BoundTypeReference? = null
+
             override fun setExpectedReturnType(type: BoundTypeReference) {
+                expectedReturnType = type
                 expression.setExpectedEvaluationResultType(type)
+            }
+
+            override fun semanticAnalysisPhase3(): Collection<Reporting> {
+                val reportings = mutableListOf<Reporting>()
+                reportings.addAll(expression.semanticAnalysisPhase3())
+                expectedReturnType?.let { declaredReturnType ->
+                    expression.type?.let { actualReturnType ->
+                        actualReturnType.evaluateAssignabilityTo(declaredReturnType, expression.declaration.sourceLocation)
+                            ?.let(::ReturnTypeMismatchReporting)
+                            ?.let(reportings::add)
+                    }
+                }
+
+                return reportings
             }
         }
         class Full(val code: BoundCodeChunk) : Body, BoundExecutable<Executable> by code

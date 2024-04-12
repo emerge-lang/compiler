@@ -202,13 +202,22 @@ class FunctionErrors : FreeSpec({
                 .shouldReport<UncertainTerminationReporting>()
         }
 
-        "return type mismatch" {
-            validateModule("""
-            fun a() -> Int {
-                return true
+        "return type mismatch" - {
+            "on return statement" {
+                validateModule("""
+                    fun a() -> Int {
+                        return true
+                    }
+                """.trimIndent())
+                    .shouldReport<ReturnTypeMismatchReporting>()
             }
-        """.trimIndent())
-                .shouldReport<ReturnTypeMismatchReporting>()
+
+            "on single-expression body" {
+                validateModule("""
+                    fun a() -> Int = false
+                """.trimIndent())
+                    .shouldReport<ReturnTypeMismatchReporting>()
+            }
         }
 
         "value-less return from" - {
