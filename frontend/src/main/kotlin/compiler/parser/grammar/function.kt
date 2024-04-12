@@ -163,6 +163,7 @@ val FunctionAttribute = eitherOf {
     keyword(Keyword.NOTHROW)
     keyword(Keyword.OPERATOR)
     keyword(Keyword.INTRINSIC)
+    keyword(Keyword.OVERRIDE)
     sequence {
         keyword(Keyword.EXTERNAL)
         operator(Operator.PARANT_OPEN)
@@ -184,6 +185,7 @@ val FunctionAttribute = eitherOf {
             Keyword.NOTHROW -> AstFunctionAttribute.Nothrow(nameToken)
             Keyword.OPERATOR -> AstFunctionAttribute.Operator(nameToken)
             Keyword.INTRINSIC -> AstFunctionAttribute.Intrinsic(nameToken)
+            Keyword.OVERRIDE -> AstFunctionAttribute.Override(nameToken)
             Keyword.EXTERNAL -> {
                 tokens.next() // skip parant_open
                 val ffiNameToken = tokens.next() as IdentifierToken

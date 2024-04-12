@@ -87,6 +87,7 @@ abstract class GrammarReceiver {
         tokenEqualTo(KeywordToken(keyword))
     }
 
+    /** TODO: yeet; local keywords are an antipattern, there's a reson modern langs don't have that anymore. Kotlin is an odd one out */
     fun localKeyword(expectedIdentifier: String) {
         tokenEqualTo(IdentifierToken(expectedIdentifier))
     }

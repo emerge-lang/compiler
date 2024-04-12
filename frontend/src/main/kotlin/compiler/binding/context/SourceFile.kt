@@ -80,7 +80,12 @@ class SourceFile(
         context.imports.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
         context.types.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
         context.variables.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
-        context.functions.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
+        context.functions.forEach { topLevelFn ->
+            reportings.addAll(topLevelFn.semanticAnalysisPhase3())
+            topLevelFn.attributes.firstOverrideAttribute?.let { overrideAttr ->
+                reportings.add(Reporting.toplevelFunctionWithOverrideAttribute(overrideAttr))
+            }
+        }
         return reportings
     }
 }

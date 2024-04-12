@@ -69,7 +69,19 @@ sealed class AstFunctionAttribute(
     class Nothrow(nameToken: Token) : AstFunctionAttribute(nameToken) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
-            if (other !is Operator) return false
+            if (other !is Nothrow) return false
+            return true
+        }
+
+        override fun hashCode(): Int {
+            return javaClass.hashCode()
+        }
+    }
+
+    class Override(nameToken: Token) : AstFunctionAttribute(nameToken) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Override) return false
             return true
         }
 

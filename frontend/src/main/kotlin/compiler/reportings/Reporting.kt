@@ -170,6 +170,9 @@ abstract class Reporting internal constructor(
         fun conflictingModifiers(attributes: Collection<AstFunctionAttribute>)
             = ConflictingFunctionModifiersReporting(attributes)
 
+        fun toplevelFunctionWithOverrideAttribute(attr: AstFunctionAttribute.Override)
+            = ToplevelFunctionWithOverrideAttributeReporting(attr.attributeName)
+
         fun noMatchingFunctionOverload(functionNameReference: IdentifierToken, receiverType: BoundTypeReference?, valueArguments: List<BoundExpression<*>>, functionDeclaredAtAll: Boolean)
             = UnresolvableFunctionOverloadReporting(functionNameReference, receiverType, valueArguments.map { it.type }, functionDeclaredAtAll)
 

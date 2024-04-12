@@ -28,15 +28,19 @@ enum class Keyword(val text: String)
     FUNCTION("fun"),
     VAR("var"),
     SET("set"),
+
     MUTABLE("mutable"),
     READONLY("readonly"),
     IMMUTABLE("immutable"),
     EXCLUSIVE("exclusive"),
+
     NOTHROW("nothrow"),
     PURE("pure"),
     OPERATOR("operator"),
     INTRINSIC("intrinsic"),
     EXTERNAL("external"),
+    OVERRIDE("override"),
+
     IF("if"),
     ELSE("else"),
 

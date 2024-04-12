@@ -9,6 +9,7 @@ import compiler.reportings.MissingVariableTypeReporting
 import compiler.reportings.MultipleParameterDeclarationsReporting
 import compiler.reportings.OverloadSetHasNoDisjointParameterReporting
 import compiler.reportings.ReturnTypeMismatchReporting
+import compiler.reportings.ToplevelFunctionWithOverrideAttributeReporting
 import compiler.reportings.TypeParameterNameConflictReporting
 import compiler.reportings.UncertainTerminationReporting
 import compiler.reportings.UnknownTypeReporting
@@ -307,6 +308,16 @@ class FunctionErrors : FreeSpec({
                 fun foo<Int>() {}
             """.trimIndent())
                 .shouldReport<TypeParameterNameConflictReporting>()
+        }
+    }
+
+    "toplevel specific" - {
+        "cannot override" {
+            validateModule("""
+                override fun test() {
+                }
+            """.trimIndent())
+                .shouldReport<ToplevelFunctionWithOverrideAttributeReporting>()
         }
     }
 })

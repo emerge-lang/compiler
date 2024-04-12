@@ -25,10 +25,13 @@ class BoundFunctionAttributeList(
         ?.bindTo(context)
         ?: BoundVisibility.default(context)
 
+    val firstOverrideAttribute: AstFunctionAttribute.Override?
+
     val impliesNoBody: Boolean
     var isDeclaredOperator: Boolean
 
     init {
+        val attrSequence = attributes.asSequence()
         impliesNoBody = attributes.any { it.impliesNoBody }
         isDeclaredOperator = attributes.any { it is AstFunctionAttribute.Operator }
         firstModifyingAttribute = attributes.firstOrNull {
@@ -47,7 +50,8 @@ class BoundFunctionAttributeList(
             ))
         }
 
-        externalAttribute = attributes.asSequence().filterIsInstance<AstFunctionAttribute.External>().firstOrNull()
+        externalAttribute = attrSequence.filterIsInstance<AstFunctionAttribute.External>().firstOrNull()
+        firstOverrideAttribute = attrSequence.filterIsInstance<AstFunctionAttribute.Override>().firstOrNull()
 
         attributes.groupBy { it }.values
             .filter { it.size > 1 }
@@ -94,6 +98,7 @@ class BoundFunctionAttributeList(
                     // if a == b it's an inefficiency, reported through the general inefficiency mechanism
                 } else false
             }
+            is AstFunctionAttribute.Override,
             is AstFunctionAttribute.Operator,
             is AstFunctionAttribute.Intrinsic,
             is AstFunctionAttribute.Nothrow -> { false }
