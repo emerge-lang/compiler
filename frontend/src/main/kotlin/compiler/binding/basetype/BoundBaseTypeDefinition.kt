@@ -19,7 +19,10 @@
 package compiler.binding.basetype
 
 import compiler.OnceAction
+import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDeclaration
+import compiler.ast.BaseTypeDestructorDeclaration
+import compiler.ast.CodeChunk
 import compiler.binding.BoundElement
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVisibility
@@ -27,14 +30,17 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BuiltinAny
+import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
+import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import kotlinext.duplicatesBy
 
 class BoundBaseTypeDefinition(
-    fileContext: CTContext,
+    private val fileContext: CTContext,
     private val typeRootContext: CTContext,
     val kind: Kind,
     override val visibility: BoundVisibility,
@@ -51,8 +57,8 @@ class BoundBaseTypeDefinition(
     override val superTypes: Set<BaseType> = setOf(BuiltinAny)
 
     val memberVariables: List<BoundBaseTypeMemberVariable> = entries.filterIsInstance<BoundBaseTypeMemberVariable>()
-    val constructors: Sequence<BoundClassConstructor> = entries.asSequence().filterIsInstance<BoundClassConstructor>()
-    val destructors: Sequence<BoundClassDestructor> = entries.asSequence().filterIsInstance<BoundClassDestructor>()
+    val declaredConstructors: Sequence<BoundClassConstructor> = entries.asSequence().filterIsInstance<BoundClassConstructor>()
+    val declaredDestructors: Sequence<BoundClassDestructor> = entries.asSequence().filterIsInstance<BoundClassDestructor>()
 
     val memberFunctionsByName: Map<String, Collection<BoundOverloadSet>> by lazy {
         entries.filterIsInstance<BoundBaseTypeMemberFunction>()
@@ -71,10 +77,19 @@ class BoundBaseTypeDefinition(
             }
     }
 
-    // this can only be initialized in semanticAnalysisPhase1 because the types referenced in the members
-    // can be declared later than the class
-    override val constructor = constructors.first()
-    override val destructor = destructors.first()
+    /**
+     * Always `null` if [Kind.hasCtorsAndDtors] is `false`. If `true`, is initialized in
+     * [semanticAnalysisPhase1] to a given declaration or a generated one.
+     */
+    override var constructor: BoundClassConstructor? = null
+        private set
+
+    /**
+     * Always `null` if [Kind.hasCtorsAndDtors] is `false`. If `true`, is initialized in
+     * [semanticAnalysisPhase1] to a given declaration or a generated one.
+     */
+    override var destructor: BoundClassDestructor? = null
+        private set
 
     override fun resolveMemberFunction(name: String): Collection<BoundOverloadSet> = memberFunctionsByName[name] ?: emptySet()
 
@@ -97,23 +112,40 @@ class BoundBaseTypeDefinition(
                 }
             }
 
-            if (kind.allowsCtorsAndDtors) {
-                constructors
+            if (kind.hasCtorsAndDtors) {
+                declaredConstructors
                     .drop(1)
                     .toList()
                     .takeUnless { it.isEmpty() }
                     ?.let { list -> reportings.add(Reporting.multipleClassConstructors(list.map { it.declaration })) }
 
-                destructors
+                declaredDestructors
                     .drop(1)
                     .toList()
                     .takeUnless { it.isEmpty() }
                     ?.let { list -> reportings.add(Reporting.multipleClassDestructors(list.map { it.declaration })) }
+
+                if (declaredConstructors.none()) {
+                    val defaultCtorAst = BaseTypeConstructorDeclaration(emptyList(), IdentifierToken("constructor", declaration.declaredAt), CodeChunk(emptyList()))
+                    // TODO: maybe has to be bound to fileContextWithTypeParameters
+                    constructor = defaultCtorAst.bindTo(typeRootContext, typeParameters) { this }
+                    reportings.addAll(constructor!!.semanticAnalysisPhase1())
+                } else {
+                    constructor = declaredConstructors.first()
+                }
+                if (declaredDestructors.none()) {
+                    val defaultDtorAst = BaseTypeDestructorDeclaration(IdentifierToken("destructor", declaration.declaredAt), CodeChunk(emptyList()))
+                    // TODO: maybe has to be bound to fileContextWithTypeParameters
+                    destructor = defaultDtorAst.bindTo(typeRootContext, typeParameters) { this }
+                    reportings.addAll(destructor!!.semanticAnalysisPhase1())
+                } else {
+                    destructor = declaredDestructors.first()
+                }
             } else {
-                constructors.forEach {
+                declaredConstructors.forEach {
                     reportings.add(Reporting.entryNotAllowedOnBaseType(this, it))
                 }
-                destructors.forEach {
+                declaredDestructors.forEach {
                     reportings.add(Reporting.entryNotAllowedOnBaseType(this, it))
                 }
             }
@@ -128,6 +160,8 @@ class BoundBaseTypeDefinition(
 
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase2).forEach(reportings::addAll)
             entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase2).forEach(reportings::addAll)
+            constructor?.semanticAnalysisPhase2()?.let(reportings::addAll)
+            destructor?.semanticAnalysisPhase2()?.let(reportings::addAll)
 
             return@getResult reportings
         }
@@ -139,6 +173,8 @@ class BoundBaseTypeDefinition(
 
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
             entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase3).forEach(reportings::addAll)
+            constructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
+            destructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
 
             return@getResult reportings
         }
@@ -152,27 +188,40 @@ class BoundBaseTypeDefinition(
 
     override fun resolveMemberVariable(name: String): BoundBaseTypeMemberVariable? = memberVariables.find { it.name == name }
 
-    private val backendIr by lazy { IrClassImpl(this) }
-    override fun toBackendIr(): IrClass = backendIr
+    private val backendIr by lazy { kind.toBackendIr(this) }
+    override fun toBackendIr(): IrBaseType = backendIr
 
     enum class Kind(
         val namePlural: String,
-        val allowsCtorsAndDtors: Boolean,
+        val hasCtorsAndDtors: Boolean,
         val allowsMemberVariables: Boolean,
     ) {
-        CLASS("classes", allowsCtorsAndDtors = true, allowsMemberVariables = true),
-        INTERFACE("interfaces", allowsCtorsAndDtors = false, allowsMemberVariables = false),
+        CLASS("classes", hasCtorsAndDtors = true, allowsMemberVariables = true),
+        INTERFACE("interfaces", hasCtorsAndDtors = false, allowsMemberVariables = false),
         ;
+
+        fun toBackendIr(typeDef: BoundBaseTypeDefinition): IrBaseType = when(this) {
+            CLASS -> IrClassImpl(typeDef)
+            INTERFACE -> IrInterfaceImpl(typeDef)
+        }
     }
 }
 
+private class IrInterfaceImpl(
+    typeDef: BoundBaseTypeDefinition,
+) : IrInterface {
+    override val fqn: DotName = typeDef.fullyQualifiedName
+    override val parameters = typeDef.typeParameters.map { it.toBackendIr() }
+    override val memberFunctions by lazy { typeDef.memberFunctionsByName.values.flatten().map { it.toBackendIr() } }
+}
+
 private class IrClassImpl(
-    classDef: BoundBaseTypeDefinition,
+    typeDef: BoundBaseTypeDefinition,
 ) : IrClass {
-    override val fqn: DotName = classDef.fullyQualifiedName
-    override val parameters = classDef.typeParameters.map { it.toBackendIr() }
-    override val memberVariables = classDef.memberVariables.map { it.toBackendIr() }
-    override val memberFunctions = classDef.memberFunctionsByName.values.flatten().map { it.toBackendIr() }
-    override val constructor by lazy { classDef.constructor.toBackendIr() }
-    override val destructor by lazy { classDef.destructor.toBackendIr() }
+    override val fqn: DotName = typeDef.fullyQualifiedName
+    override val parameters = typeDef.typeParameters.map { it.toBackendIr() }
+    override val memberVariables by lazy { typeDef.memberVariables.map { it.toBackendIr() } }
+    override val memberFunctions by lazy { typeDef.memberFunctionsByName.values.flatten().map { it.toBackendIr() } }
+    override val constructor by lazy { typeDef.constructor!!.toBackendIr() }
+    override val destructor by lazy { typeDef.destructor!!.toBackendIr() }
 }

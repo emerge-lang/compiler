@@ -192,8 +192,7 @@ class BoundClassConstructor(
     }
 
     private val additionalInitCode: BoundCodeChunk by lazy {
-        (declaration?.code ?: CodeChunk(emptyList()))
-            .bindTo(boundMemberVariableInitCodeFromExpression.modifiedContext)
+        declaration.code.bindTo(boundMemberVariableInitCodeFromExpression.modifiedContext)
     }
 
     private val onceAction = OnceAction()
@@ -356,7 +355,10 @@ private class IrDefaultConstructorImpl(
 }
 
 private class IrAllocateObjectExpressionImpl(val classDef: BoundBaseTypeDefinition) : IrAllocateObjectExpression {
-    override val clazz: IrClass by lazy { classDef.toBackendIr() }
+    init {
+        require(classDef.kind == BoundBaseTypeDefinition.Kind.CLASS)
+    }
+    override val clazz: IrClass by lazy { classDef.toBackendIr() as IrClass }
     override val evaluatesTo = object : IrSimpleType {
         override val isNullable = false
         override val baseType get() = this@IrAllocateObjectExpressionImpl.clazz

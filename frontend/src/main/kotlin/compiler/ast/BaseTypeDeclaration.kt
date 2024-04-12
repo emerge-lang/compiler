@@ -72,34 +72,21 @@ class BaseTypeDeclaration(
         )
 
         lateinit var boundClassDef: BoundBaseTypeDefinition
-        var hasAtLeastOneConstructor = false
-        var hasAtLeastOneDestructor = false
         // the entries must retain their order, for semantic and linting reasons
         val boundEntries = entryDeclarations
             .map<ClassEntryDeclaration, BoundBaseTypeEntry<*>> { entry -> when (entry) {
                 is BaseTypeMemberVariableDeclaration -> entry.bindTo(memberVariableInitializationContext)
                 is BaseTypeConstructorDeclaration -> {
-                    hasAtLeastOneConstructor = true
                     entry.bindTo(fileContextWithTypeParams, boundTypeParameters) { boundClassDef }
                 }
                 is BaseTypeMemberFunctionDeclaration -> {
                     entry.bindTo(typeRootContext, selfTypeReference)
                 }
                 is BaseTypeDestructorDeclaration -> {
-                    hasAtLeastOneDestructor = true
                     entry.bindTo(fileContextWithTypeParams, boundTypeParameters) { boundClassDef }
                 }
             } }
             .toMutableList()
-
-        if (!hasAtLeastOneConstructor) {
-            val defaultCtorAst = BaseTypeConstructorDeclaration(emptyList(), IdentifierToken("constructor", declaredAt), CodeChunk(emptyList()))
-            boundEntries.add(defaultCtorAst.bindTo(fileContextWithTypeParams, boundTypeParameters) { boundClassDef })
-        }
-        if (!hasAtLeastOneDestructor) {
-            val defaultDtorAst = BaseTypeDestructorDeclaration(IdentifierToken("destructor", declaredAt), CodeChunk(emptyList()))
-            boundEntries.add(defaultDtorAst.bindTo(fileContextWithTypeParams, boundTypeParameters) { boundClassDef })
-        }
 
         boundClassDef = BoundBaseTypeDefinition(
             fileContext,

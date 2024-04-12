@@ -21,7 +21,7 @@ internal class IrPackageImpl(
 
     override val classes: Set<IrClass> = packageContext.sourceFiles
         .flatMap { it.context.classes }
-        .map { it.toBackendIr() }
+        .map { it.toBackendIr() as IrClass }
         .toSet()
 
     override val variables: Set<IrGlobalVariable> = packageContext.sourceFiles
