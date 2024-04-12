@@ -48,6 +48,7 @@ class BoundBinaryExpression(
             ),
             emptyList(),
             listOf(rightHandSide.declaration),
+            leftHandSide.declaration.sourceLocation .. rightHandSide.declaration.sourceLocation,
         )
             .bindTo(context)
 

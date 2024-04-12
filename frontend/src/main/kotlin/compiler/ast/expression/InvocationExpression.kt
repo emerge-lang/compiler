@@ -32,15 +32,11 @@ class InvocationExpression(
      * * `doStuff()` => `IdentifierExpression(doStuff)`
      * * `obj.doStuff()` => `MemberAccessExpression(obj, doStuff)`
      */
-    val targetExpression:Expression,
+    val targetExpression: Expression,
     val typeArguments: List<TypeArgument>,
-    val argumentExpressions: List<Expression>
+    val argumentExpressions: List<Expression>,
+    override val sourceLocation: SourceLocation,
 ) :Expression {
-    override val sourceLocation: SourceLocation = when(targetExpression) {
-        is MemberAccessExpression -> targetExpression.memberName.sourceLocation
-        else -> targetExpression.sourceLocation
-    }
-
     override fun bindTo(context: ExecutionScopedCTContext): BoundInvocationExpression {
         // bind all the parameters
         val boundArguments = argumentExpressions.chain(context).toList()

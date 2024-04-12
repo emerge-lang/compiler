@@ -27,7 +27,7 @@ import compiler.lexer.OperatorToken
 
 class UnaryExpression(
     val operatorToken: OperatorToken,
-    val valueExpression:Expression,
+    val valueExpression: Expression,
 ):Expression {
     override val sourceLocation = valueExpression.sourceLocation
 
@@ -41,6 +41,7 @@ class UnaryExpression(
             ),
             emptyList(),
             emptyList(),
+            operatorToken.sourceLocation .. valueExpression.sourceLocation,
         )
 
         return BoundUnaryExpression(

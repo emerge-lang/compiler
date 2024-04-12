@@ -29,9 +29,17 @@ class NotNullExpressionPostfix(
 
 class InvocationExpressionPostfix(
     val typeArguments: List<TypeArgument>,
-    val valueParameterExpressions: List<Expression>
+    val valueParameterExpressions: List<Expression>,
+    val closingParenthesis: OperatorToken,
 ) : ExpressionPostfix<InvocationExpression> {
-    override fun modify(expr: Expression) = InvocationExpression(expr, typeArguments, valueParameterExpressions)
+    override fun modify(expr: Expression): InvocationExpression {
+        val startLocation = when (expr) {
+            is MemberAccessExpression -> expr.memberName.sourceLocation
+            else -> expr.sourceLocation
+        }
+        val invocationLocation = startLocation .. closingParenthesis.sourceLocation
+        return InvocationExpression(expr, typeArguments, valueParameterExpressions, invocationLocation)
+    }
 }
 
 class MemberAccessExpressionPostfix(

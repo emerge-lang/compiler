@@ -320,14 +320,19 @@ val ExpressionPostfixInvocation = sequence("function invocation") {
         }
 
         val valueArguments = mutableListOf<AstExpression>()
+        var lastToken: OperatorToken? = null
         while (tokens.peek() is AstExpression) {
             valueArguments.add(tokens.next()!! as AstExpression)
 
             // skip COMMA or PARANT_CLOSE
-            tokens.next()!! as OperatorToken
+            lastToken = tokens.next() as OperatorToken
+        }
+        if (tokens.hasNext()) {
+            // PARANT_CLOSE in case of 0 arguments
+            lastToken = tokens.next() as OperatorToken
         }
 
-        InvocationExpressionPostfix(typeArguments, valueArguments)
+        InvocationExpressionPostfix(typeArguments, valueArguments, lastToken!!)
     }
 
 val ExpressionPostfixMemberAccess = sequence("member access") {
