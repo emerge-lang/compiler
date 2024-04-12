@@ -22,8 +22,23 @@ package compiler.reportings
  * Reported when a value of type [returnedType] is returned from a context where a return type of [expectedReturnType]
  * is expected and the types are not compatible.
  */
-class ReturnTypeMismatchReporting(base: ValueNotAssignableReporting) : Reporting(
+class ReturnTypeMismatchReporting(private val base: ValueNotAssignableReporting) : Reporting(
     base.level,
-    "Cannot return a value of type ${base.sourceType} from a context that is expected to return ${base.targetType}: ${base.reason}",
+    base.message,
     base.sourceLocation,
-)
+) {
+    override fun toString(): String = "$levelAndMessage  declared return type is  ${base.targetType}\n  got a value of type      ${base.sourceType}\n\nin $sourceLocation"
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ReturnTypeMismatchReporting) return false
+
+        if (base != other.base) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return base.hashCode()
+    }
+}
