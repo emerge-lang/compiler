@@ -30,6 +30,9 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BuiltinAny
+import compiler.binding.type.RootResolvedTypeReference
+import compiler.binding.type.TypeUseSite
+import compiler.binding.type.UnresolvedType
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
@@ -53,8 +56,6 @@ class BoundBaseTypeDefinition(
     override val context: CTContext = fileContext
     override val fullyQualifiedName get() = context.sourceFile.packageName + declaration.name.value
     override val simpleName: String = declaration.name.value
-
-    override val superTypes: Set<BaseType> = setOf(BuiltinAny)
 
     val memberVariables: List<BoundBaseTypeMemberVariable> = entries.filterIsInstance<BoundBaseTypeMemberVariable>()
     val declaredConstructors: Sequence<BoundClassConstructor> = entries.asSequence().filterIsInstance<BoundClassConstructor>()
@@ -158,6 +159,8 @@ class BoundBaseTypeDefinition(
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
             val reportings = entries.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
 
+            reportings.addAll(resolveAndValidateSupertypes())
+
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase2).forEach(reportings::addAll)
             entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase2).forEach(reportings::addAll)
             constructor?.semanticAnalysisPhase2()?.let(reportings::addAll)
@@ -165,6 +168,45 @@ class BoundBaseTypeDefinition(
 
             return@getResult reportings
         }
+    }
+
+    override lateinit var superTypes: Set<BaseType>
+        private set
+
+    private fun resolveAndValidateSupertypes(): Collection<Reporting> {
+        if (declaration.supertypes == null) {
+            superTypes = setOf(BuiltinAny)
+            return emptySet()
+        }
+
+        val reportings = mutableListOf<Reporting>()
+
+        val superBaseTypes = mutableSetOf<BaseType>()
+        for (superTypeRef in declaration.supertypes.typeRefs) {
+            val resolved = typeRootContext.resolveType(superTypeRef)
+            reportings.addAll(resolved.validate(TypeUseSite.Irrelevant(superTypeRef.sourceLocation, this)))
+            if (resolved is UnresolvedType) {
+                continue
+            }
+
+            if (resolved !is RootResolvedTypeReference || resolved.baseType !is BoundBaseTypeDefinition || resolved.baseType.kind != Kind.INTERFACE) {
+                reportings.add(Reporting.illegalSupertype(superTypeRef, "can only inherit from interfaces"))
+                continue
+            }
+
+            if (superTypeRef.arguments.isNotEmpty()) {
+                reportings.add(Reporting.illegalSupertype(superTypeRef, "inheriting from generic types is currently not supported"))
+                continue
+            }
+
+            val baseType = resolved.baseType
+            if (!superBaseTypes.add(baseType)) {
+                reportings.add(Reporting.duplicateSupertype(superTypeRef))
+            }
+        }
+
+        this.superTypes = superBaseTypes
+        return reportings
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {

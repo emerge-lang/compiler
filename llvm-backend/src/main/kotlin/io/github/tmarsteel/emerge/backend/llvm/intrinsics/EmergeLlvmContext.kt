@@ -8,6 +8,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplementedFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntrinsicType
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
@@ -405,20 +406,20 @@ class EmergeLlvmContext(
             }
             is IrSimpleType -> {
                 type.llvmValueType?.let { return it }
-                if (type.baseType is IrIntrinsicType) {
-                    return when (type.baseType.fqn.toString()) {
+                return when(type.baseType) {
+                    is IrIntrinsicType -> when (type.baseType.fqn.toString()) {
                         "emerge.core.Any",
                         "emerge.core.Unit",
                         "emerge.core.Nothing" -> EmergeHeapAllocatedValueBaseType
                         else -> throw CodeGenerationException("Missing allocation-site representation for this intrinsic type: $type")
                     }
+                    is IrInterface -> EmergeHeapAllocatedValueBaseType
+                    else -> (type.baseType as IrClass).llvmType
                 }
 
                 // there are no other possibilities AFAICT right now
-                return (type.baseType as IrClass).llvmType
             }
         }
-        throw CodeGenerationException("Failed to determine allocation-site type for $type")
     }
 
     companion object {

@@ -12,6 +12,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrCreateReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrDeallocateObjectStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrDropReferenceStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrDynamicDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIfExpression
@@ -173,6 +174,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                     expression.arguments.map { it.declaration.llvmValue },
                 )
             )
+        }
+        is IrDynamicDispatchFunctionInvocationExpression -> {
+            throw CodeGenerationException("Dynamic dispatch on LLVM not implemented yet")
         }
         is IrVariableAccessExpression -> return ExpressionResult.Value(expression.variable.emitRead!!())
         is IrIntegerLiteralExpression -> return ExpressionResult.Value(when ((expression.evaluatesTo as IrSimpleType).baseType.fqn.toString()) {

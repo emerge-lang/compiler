@@ -103,7 +103,7 @@ class BaseTypeDeclaration(
 }
 
 data class AstSupertypeList(
-    val supertypes: List<TypeReference>,
+    val typeRefs: List<TypeReference>,
 )
 
 sealed interface ClassEntryDeclaration {

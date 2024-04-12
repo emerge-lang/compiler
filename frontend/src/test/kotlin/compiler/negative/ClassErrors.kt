@@ -3,13 +3,16 @@ package compiler.compiler.negative
 import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
 import compiler.reportings.ConstructorDeclaredModifyingReporting
 import compiler.reportings.DuplicateBaseTypeMemberReporting
+import compiler.reportings.DuplicateSupertypeReporting
 import compiler.reportings.ExplicitOwnershipNotAllowedReporting
+import compiler.reportings.IllegalSupertypeReporting
 import compiler.reportings.ImpureInvocationInPureContextReporting
 import compiler.reportings.MultipleClassConstructorsReporting
 import compiler.reportings.MultipleClassDestructorsReporting
 import compiler.reportings.ObjectNotFullyInitializedReporting
 import compiler.reportings.ReadInPureContextReporting
 import compiler.reportings.StateModificationOutsideOfPurityBoundaryReporting
+import compiler.reportings.TypeArgumentOutOfBoundsReporting
 import compiler.reportings.TypeParameterNameConflictReporting
 import compiler.reportings.UnknownTypeReporting
 import compiler.reportings.UseOfUninitializedClassMemberVariableReporting
@@ -384,6 +387,58 @@ class ClassErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<TypeParameterNameConflictReporting>()
+        }
+    }
+
+    "supertypes" - {
+        "cannot inherit from other class" {
+            validateModule("""
+                class A {}
+                class B : A {}
+            """.trimIndent())
+                .shouldReport<IllegalSupertypeReporting> {
+                    it.supertype.simpleName shouldBe "A"
+                }
+        }
+
+        "cannot inherit from own type parameter" {
+            validateModule("""
+                class A<T> : T {}
+            """.trimIndent())
+                .shouldReport<IllegalSupertypeReporting> {
+                    it.supertype.simpleName shouldBe "T"
+                }
+        }
+
+        "duplicate inheritance from same base type" {
+            validateModule("""
+                interface A {}
+                class B : A, A {}
+            """.trimIndent())
+                .shouldReport<DuplicateSupertypeReporting> {
+                    it.supertype.simpleName shouldBe "A"
+                }
+        }
+
+        "unknown supertype" {
+            validateModule("""
+                class Test : Foo {}
+            """.trimIndent())
+                .shouldReport<UnknownTypeReporting> {
+                    it.erroneousReference.simpleName shouldBe "Foo"
+                }
+        }
+
+        "supertype with type argument out of bounds".config(enabled = false) {
+            // TODO: enable once inheriting with generics is implements
+            validateModule("""
+                interface A {}
+                interface Foo<T : A> {}
+                class Test : Foo<String> {}
+            """.trimIndent())
+                .shouldReport<TypeArgumentOutOfBoundsReporting> {
+                    it.argument.simpleName shouldBe "String"
+                }
         }
     }
 })

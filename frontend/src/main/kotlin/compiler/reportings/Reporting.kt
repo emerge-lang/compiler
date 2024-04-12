@@ -173,6 +173,12 @@ abstract class Reporting internal constructor(
         fun toplevelFunctionWithOverrideAttribute(attr: AstFunctionAttribute.Override)
             = ToplevelFunctionWithOverrideAttributeReporting(attr.attributeName)
 
+        fun illegalSupertype(ref: TypeReference, reason: String)
+            = IllegalSupertypeReporting(ref, reason)
+
+        fun duplicateSupertype(ref: TypeReference)
+            = DuplicateSupertypeReporting(ref)
+
         fun noMatchingFunctionOverload(functionNameReference: IdentifierToken, receiverType: BoundTypeReference?, valueArguments: List<BoundExpression<*>>, functionDeclaredAtAll: Boolean)
             = UnresolvableFunctionOverloadReporting(functionNameReference, receiverType, valueArguments.map { it.type }, functionDeclaredAtAll)
 

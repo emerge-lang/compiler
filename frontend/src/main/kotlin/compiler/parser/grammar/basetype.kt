@@ -32,6 +32,7 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.TypeParameterBundle
 import compiler.ast.VariableDeclaration
 import compiler.ast.type.TypeParameter
+import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword.CLASS_DEFINITION
 import compiler.lexer.Keyword.INTERFACE_DEFINITION
@@ -116,6 +117,19 @@ val SupertypeSpecification = sequence {
         ref(Type)
     }
 }
+    .astTransformation { tokens ->
+        // skip colon
+        tokens.next()
+
+        val supertypes = mutableListOf<TypeReference>(tokens.next() as TypeReference)
+        while (tokens.hasNext()) {
+            // skip comma
+            tokens.next()
+            supertypes.add(tokens.next() as TypeReference)
+        }
+
+        AstSupertypeList(supertypes)
+    }
 
 val BaseTypeDefinition = sequence("base type definition") {
     optional {
@@ -127,10 +141,10 @@ val BaseTypeDefinition = sequence("base type definition") {
     }
     identifier()
     optional {
-        ref(SupertypeSpecification)
+        ref(BracedTypeParameters)
     }
     optional {
-        ref(BracedTypeParameters)
+        ref(SupertypeSpecification)
     }
     operator(CBRACE_OPEN)
     repeating {
@@ -152,21 +166,20 @@ val BaseTypeDefinition = sequence("base type definition") {
         val name = tokens.next()!! as IdentifierToken
         next = tokens.next()
 
+        val typeParameters: List<TypeParameter>
+        if (next is TypeParameterBundle) {
+            typeParameters = next.parameters
+            next = tokens.next()
+        } else {
+            typeParameters = emptyList()
+        }
+
         val supertypes: AstSupertypeList?
         if (next is AstSupertypeList) {
             supertypes = next
             next = tokens.next()
         } else {
             supertypes = null
-        }
-
-        val typeParameters: List<TypeParameter>
-        if (next is TypeParameterBundle) {
-            typeParameters = next.parameters
-            tokens.next()!! // skip CBRACE_OPEN
-        } else {
-            check(next is OperatorToken)
-            typeParameters = emptyList()
         }
 
         val entries = ArrayList<ClassEntryDeclaration>()
