@@ -5,6 +5,7 @@ import io.github.tmarsteel.emerge.backend.api.DotName
 interface IrBaseType {
     val fqn: DotName
     val parameters: List<Parameter>
+    val memberFunctions: Collection<IrOverloadGroup<IrFunction>>
 
     interface Parameter {
         val name: String
@@ -13,11 +14,14 @@ interface IrBaseType {
     }
 }
 
-interface IrIntrinsicType : IrBaseType
+interface IrIntrinsicType : IrBaseType {
+    override val memberFunctions: Collection<IrOverloadGroup<IrFunction>> get() = emptySet()
+}
+
+interface IrInterface : IrBaseType
 
 interface IrClass : IrBaseType {
     val memberVariables: List<MemberVariable>
-    val memberFunctions: Collection<IrOverloadGroup<IrFunction>>
     val constructor: IrImplementedFunction
     val destructor: IrImplementedFunction
 
