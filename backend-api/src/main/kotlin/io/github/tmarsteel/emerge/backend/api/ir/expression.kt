@@ -97,6 +97,12 @@ interface IrStaticDispatchFunctionInvocationExpression : IrExpression {
     val arguments: List<IrTemporaryValueReference>
 }
 
+interface IrDynamicDispatchFunctionInvocationExpression : IrExpression {
+    val dispatchOn: IrTemporaryValueReference
+    val function: IrFunction
+    val arguments: List<IrTemporaryValueReference>
+}
+
 interface IrClassMemberVariableAccessExpression : IrExpression {
     val base: IrTemporaryValueReference
     val memberVariable: IrClass.MemberVariable

@@ -40,6 +40,7 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
+import io.github.tmarsteel.emerge.backend.api.ir.IrDynamicDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
@@ -62,7 +63,7 @@ class BoundInvocationExpression(
     /**
      * The result of the function dispatching. Is set (non null) after semantic analysis phase 2
      */
-    var dispatchedFunction: BoundFunction? = null
+    var functionToInvoke: BoundFunction? = null
         private set
 
     override var type: BoundTypeReference? = null
@@ -78,7 +79,7 @@ class BoundInvocationExpression(
         get() = receiverExpression?.takeUnless { it is BoundIdentifierExpression && it.referral is BoundIdentifierExpression.ReferringType }
 
     override val isGuaranteedToThrow: Boolean?
-        get() = dispatchedFunction?.isGuaranteedToThrow
+        get() = functionToInvoke?.isGuaranteedToThrow
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> =
         onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
@@ -102,7 +103,7 @@ class BoundInvocationExpression(
 
             val chosenOverload = selectOverload(reportings) ?: return@getResult reportings
 
-            dispatchedFunction = chosenOverload.candidate
+            functionToInvoke = chosenOverload.candidate
             if (chosenOverload.returnType == null) {
                 handleCyclicInvocation(
                     context = this,
@@ -255,7 +256,7 @@ class BoundInvocationExpression(
             }
 
             reportings += valueArguments.flatMap { it.semanticAnalysisPhase3() }
-            dispatchedFunction?.let { targetFn ->
+            functionToInvoke?.let { targetFn ->
                 reportings.addAll(
                     targetFn.validateAccessFrom(functionNameToken.sourceLocation)
                 )
@@ -272,13 +273,13 @@ class BoundInvocationExpression(
         val byReceiver = receiverExpression?.findReadsBeyond(boundary) ?: emptySet()
         val byParameters = valueArguments.flatMap { it.findReadsBeyond(boundary) }
 
-        if (dispatchedFunction != null) {
-            if (dispatchedFunction!!.isPure == null) {
-                dispatchedFunction!!.semanticAnalysisPhase3()
+        if (functionToInvoke != null) {
+            if (functionToInvoke!!.isPure == null) {
+                functionToInvoke!!.semanticAnalysisPhase3()
             }
         }
 
-        val dispatchedFunctionIsPure = dispatchedFunction?.isPure ?: true
+        val dispatchedFunctionIsPure = functionToInvoke?.isPure ?: true
         val bySelf = if (dispatchedFunctionIsPure) emptySet() else setOf(this)
 
         return byReceiver + byParameters + bySelf
@@ -291,13 +292,13 @@ class BoundInvocationExpression(
         val byReceiver = receiverExpression?.findWritesBeyond(boundary) ?: emptySet()
         val byParameters = valueArguments.flatMap { it.findWritesBeyond(boundary) }
 
-        if (dispatchedFunction != null) {
-            if (dispatchedFunction!!.isReadonly == null) {
-                dispatchedFunction!!.semanticAnalysisPhase3()
+        if (functionToInvoke != null) {
+            if (functionToInvoke!!.isReadonly == null) {
+                functionToInvoke!!.semanticAnalysisPhase3()
             }
         }
 
-        val thisExpressionIsReadonly = dispatchedFunction?.isReadonly ?: true
+        val thisExpressionIsReadonly = functionToInvoke?.isReadonly ?: true
         val bySelf: Collection<BoundStatement<*>> = if (thisExpressionIsReadonly) emptySet() else setOf(this)
 
         return byReceiver + byParameters + bySelf
@@ -313,7 +314,7 @@ class BoundInvocationExpression(
     override val isEvaluationResultReferenceCounted = true
     override val isCompileTimeConstant: Boolean
         get() {
-            val localDispatchedFunction = dispatchedFunction ?: return false
+            val localDispatchedFunction = functionToInvoke ?: return false
             if (localDispatchedFunction.isPure != true) {
                 return false
             }
@@ -322,11 +323,23 @@ class BoundInvocationExpression(
         }
 
     private fun buildBackendIrInvocation(arguments: List<IrTemporaryValueReference>): IrExpression {
-        return IrStaticDispatchFunctionInvocationImpl(
-            dispatchedFunction!!.toBackendIr(),
-            arguments,
-            type!!.toBackendIr(),
-        )
+        val fn = functionToInvoke!!
+        val returnType = type!!.toBackendIr()
+        if (fn.isVirtual) {
+            check(receiverExceptReferringType != null)
+            return IrDynamicDispatchFunctionInvocationImpl(
+                arguments.first(),
+                fn.toBackendIr(),
+                arguments,
+                returnType
+            )
+        } else {
+            return IrStaticDispatchFunctionInvocationImpl(
+                functionToInvoke!!.toBackendIr(),
+                arguments,
+                type!!.toBackendIr(),
+            )
+        }
     }
 
     override fun toBackendIrExpression(): IrExpression {
@@ -449,6 +462,13 @@ private class IrStaticDispatchFunctionInvocationImpl(
     override val arguments: List<IrTemporaryValueReference>,
     override val evaluatesTo: IrType,
 ) : IrStaticDispatchFunctionInvocationExpression
+
+private class IrDynamicDispatchFunctionInvocationImpl(
+    override val dispatchOn: IrTemporaryValueReference,
+    override val function: IrFunction,
+    override val arguments: List<IrTemporaryValueReference>,
+    override val evaluatesTo: IrType
+) : IrDynamicDispatchFunctionInvocationExpression
 
 /**
  * Contains logic for invocation-like IR. Used for actual invocations, but also e.g. for [BoundArrayLiteralExpression].

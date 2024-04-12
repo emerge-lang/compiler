@@ -19,6 +19,7 @@
 package compiler.parser.grammar
 
 import compiler.ast.AstFunctionAttribute
+import compiler.ast.AstSupertypeList
 import compiler.ast.AstVisibility
 import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDeclaration
@@ -37,6 +38,8 @@ import compiler.lexer.Keyword.INTERFACE_DEFINITION
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator.CBRACE_CLOSE
 import compiler.lexer.Operator.CBRACE_OPEN
+import compiler.lexer.Operator.COLON
+import compiler.lexer.Operator.COMMA
 import compiler.lexer.Operator.NEWLINE
 import compiler.lexer.OperatorToken
 import compiler.parser.grammar.dsl.astTransformation
@@ -105,6 +108,15 @@ val BaseTypeEntry = eitherOf {
 }
     .astTransformation { tokens -> tokens.remainingToList().single() as ClassEntryDeclaration }
 
+val SupertypeSpecification = sequence {
+    operator(COLON)
+    ref(Type)
+    repeating {
+        operator(COMMA)
+        ref(Type)
+    }
+}
+
 val BaseTypeDefinition = sequence("base type definition") {
     optional {
         ref(Visibility)
@@ -114,6 +126,9 @@ val BaseTypeDefinition = sequence("base type definition") {
         keyword(INTERFACE_DEFINITION)
     }
     identifier()
+    optional {
+        ref(SupertypeSpecification)
+    }
     optional {
         ref(BracedTypeParameters)
     }
@@ -135,8 +150,16 @@ val BaseTypeDefinition = sequence("base type definition") {
 
         val declarationKeyword = next as KeywordToken // class keyword
         val name = tokens.next()!! as IdentifierToken
-
         next = tokens.next()
+
+        val supertypes: AstSupertypeList?
+        if (next is AstSupertypeList) {
+            supertypes = next
+            next = tokens.next()
+        } else {
+            supertypes = null
+        }
+
         val typeParameters: List<TypeParameter>
         if (next is TypeParameterBundle) {
             typeParameters = next.parameters
@@ -158,6 +181,7 @@ val BaseTypeDefinition = sequence("base type definition") {
             declarationKeyword,
             visibility,
             name,
+            supertypes,
             entries,
             typeParameters,
         )

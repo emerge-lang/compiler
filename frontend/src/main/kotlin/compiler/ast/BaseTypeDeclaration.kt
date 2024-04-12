@@ -46,6 +46,7 @@ class BaseTypeDeclaration(
     val declarationKeyword: KeywordToken,
     val visibility: AstVisibility?,
     val name: IdentifierToken,
+    val supertypes: AstSupertypeList?,
     val entryDeclarations: List<ClassEntryDeclaration>,
     val typeParameters: List<TypeParameter>,
 ) : AstFileLevelDeclaration {
@@ -101,6 +102,10 @@ class BaseTypeDeclaration(
     }
 }
 
+data class AstSupertypeList(
+    val supertypes: List<TypeReference>,
+)
+
 sealed interface ClassEntryDeclaration {
     val declaredAt: SourceLocation
 }
@@ -155,8 +160,17 @@ class BaseTypeMemberFunctionDeclaration(
     fun bindTo(
         typeRootContext: CTContext,
         selfType: TypeReference,
-        allowNoBody: Boolean,
+        isAbstractByDefault: Boolean,
     ): BoundBaseTypeMemberFunction {
-        return BoundBaseTypeMemberFunction(typeRootContext, this, declaration.bindTo(typeRootContext, selfType, allowNoBody))
+        return BoundBaseTypeMemberFunction(
+            typeRootContext,
+            this,
+            declaration.bindTo(
+                typeRootContext,
+                selfType,
+                isVirtual = isAbstractByDefault,
+                allowNoBody = isAbstractByDefault
+            )
+        )
     }
 }

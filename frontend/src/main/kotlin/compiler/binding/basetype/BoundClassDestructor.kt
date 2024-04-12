@@ -73,6 +73,7 @@ class BoundClassDestructor(
             ),
         ),
     )
+    override val isVirtual = false
     override val allTypeParameters = declaredTypeParameters
     override val returnType get() = fileContextWithTypeParameters.swCtx.unitBaseType.baseReference
 

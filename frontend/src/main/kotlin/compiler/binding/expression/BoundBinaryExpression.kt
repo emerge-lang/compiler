@@ -64,7 +64,7 @@ class BoundBinaryExpression(
 
         reportings.addAll(hiddenInvocation.semanticAnalysisPhase2())
 
-        val opFn = hiddenInvocation.dispatchedFunction
+        val opFn = hiddenInvocation.functionToInvoke
         if (opFn != null) {
             if (opFn.attributes.isDeclaredOperator) {
                 reportings.add(Reporting.modifierError("Function $opFn cannot be used as an operator: the operator modifier is missing", declaration.sourceLocation))

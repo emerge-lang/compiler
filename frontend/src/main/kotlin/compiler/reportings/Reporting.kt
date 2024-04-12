@@ -338,7 +338,7 @@ abstract class Reporting internal constructor(
             }
 
             check(violation is BoundInvocationExpression)
-            if (violation.dispatchedFunction?.attributes?.isDeclaredReadonly == false) {
+            if (violation.functionToInvoke?.attributes?.isDeclaredReadonly == false) {
                 return ModifyingInvocationInReadonlyContextReporting(violation, boundary)
             } else {
                 return ImpureInvocationInPureContextReporting(violation, boundary)

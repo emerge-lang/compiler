@@ -71,7 +71,7 @@ class ReadInPureContextReporting internal constructor(val readingExpression: Bou
 
 class ImpureInvocationInPureContextReporting internal constructor(val invcExpr: BoundInvocationExpression, val boundary: Boundary) : PurityViolationReporting(
     invcExpr,
-    "$boundary cannot invoke impure function ${invcExpr.dispatchedFunction!!.name}"
+    "$boundary cannot invoke impure function ${invcExpr.functionToInvoke!!.name}"
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -89,7 +89,7 @@ class ImpureInvocationInPureContextReporting internal constructor(val invcExpr: 
 
 class ModifyingInvocationInReadonlyContextReporting internal constructor(val invcExpr: BoundInvocationExpression, val boundary: Boundary) : PurityViolationReporting(
     invcExpr,
-    "$boundary cannot invoke modifying function ${invcExpr.dispatchedFunction!!.name}"
+    "$boundary cannot invoke modifying function ${invcExpr.functionToInvoke!!.name}"
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

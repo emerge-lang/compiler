@@ -67,7 +67,14 @@ class ASTSourceFile(
         parseTimeReportings?.let(reportings::addAll)
 
         imports.forEach(fileContext::addImport)
-        functions.forEach(fileContext::addFunction)
+        functions.forEach { fnDecl ->
+            fileContext.addFunction(fnDecl.bindTo(
+                fileContext,
+                receiverType  = null,
+                isVirtual = false,
+                allowNoBody = false,
+            ))
+        }
         baseTypes.forEach(fileContext::addBaseType)
 
         variables.forEach { declaredVariable ->

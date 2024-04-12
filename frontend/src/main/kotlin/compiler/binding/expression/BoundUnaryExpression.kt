@@ -54,7 +54,7 @@ class BoundUnaryExpression(
             }
             .let(reportings::addAll)
 
-        hiddenInvocation.dispatchedFunction?.let { operatorFunction ->
+        hiddenInvocation.functionToInvoke?.let { operatorFunction ->
             if (!operatorFunction.attributes.isDeclaredOperator) {
                 reportings.add(
                     Reporting.functionIsMissingAttribute(

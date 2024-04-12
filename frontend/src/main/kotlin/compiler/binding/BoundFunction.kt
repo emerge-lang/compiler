@@ -45,6 +45,7 @@ abstract class BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility 
 
     abstract val name: String
     abstract val attributes: BoundFunctionAttributeList
+    abstract val isVirtual: Boolean
 
     override val visibility get()= attributes.visibility
 

@@ -20,7 +20,6 @@ package compiler.binding.context
 
 import compiler.InternalCompilerError
 import compiler.ast.BaseTypeDeclaration
-import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
@@ -140,10 +139,8 @@ open class MutableCTContext(
         return parentContext.resolveVariable(name, fromOwnFileOnly)
     }
 
-    open fun addFunction(declaration: FunctionDeclaration): BoundFunction {
-        val bound = declaration.bindTo(this, null, false)
-        _functions.add(bound)
-        return bound
+    fun addFunction(fn: BoundFunction) {
+        this._functions.add(fn)
     }
 
     override fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet> {

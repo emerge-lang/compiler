@@ -25,6 +25,7 @@ class BoundDeclaredFunction(
     override val declaredTypeParameters: List<BoundTypeParameter>,
     override val parameters: BoundParameterList,
     val code: Body?,
+    override val isVirtual: Boolean,
     private val allowNoBody: Boolean,
 ) : BoundFunction() {
     override val declaredAt = declaration.declaredAt
