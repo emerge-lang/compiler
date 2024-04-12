@@ -1,5 +1,6 @@
 package compiler.compiler.negative
 
+import compiler.reportings.AmbiguousFunctionOverrideReporting
 import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
 import compiler.reportings.ConstructorDeclaredModifyingReporting
 import compiler.reportings.DuplicateBaseTypeMemberReporting
@@ -7,13 +8,17 @@ import compiler.reportings.DuplicateSupertypeReporting
 import compiler.reportings.ExplicitOwnershipNotAllowedReporting
 import compiler.reportings.IllegalSupertypeReporting
 import compiler.reportings.ImpureInvocationInPureContextReporting
+import compiler.reportings.IncompatibleReturnTypeOnOverrideReporting
 import compiler.reportings.MultipleClassConstructorsReporting
 import compiler.reportings.MultipleClassDestructorsReporting
 import compiler.reportings.ObjectNotFullyInitializedReporting
 import compiler.reportings.ReadInPureContextReporting
 import compiler.reportings.StateModificationOutsideOfPurityBoundaryReporting
+import compiler.reportings.StaticFunctionDeclaredOverrideReporting
+import compiler.reportings.SuperFunctionForOverrideNotFoundReporting
 import compiler.reportings.TypeArgumentOutOfBoundsReporting
 import compiler.reportings.TypeParameterNameConflictReporting
+import compiler.reportings.UndeclaredOverrideReporting
 import compiler.reportings.UnknownTypeReporting
 import compiler.reportings.UseOfUninitializedClassMemberVariableReporting
 import compiler.reportings.ValueNotAssignableReporting
@@ -439,6 +444,71 @@ class ClassErrors : FreeSpec({
                 .shouldReport<TypeArgumentOutOfBoundsReporting> {
                     it.argument.simpleName shouldBe "String"
                 }
+        }
+    }
+
+    "overriding" - {
+        "static functions cannot override" {
+            validateModule("""
+                interface I {
+                    fun foo()
+                }
+                class C : I {
+                    override fun foo()
+                }
+            """.trimIndent())
+                .shouldReport<StaticFunctionDeclaredOverrideReporting>()
+        }
+
+        "override must be declared" {
+            validateModule("""
+                interface I {
+                    fun foo(self)
+                }
+                class C : I {
+                    fun foo(self) {
+                    }
+                }
+            """.trimIndent())
+                .shouldReport<UndeclaredOverrideReporting>()
+        }
+
+        "actually overrides nothing" {
+            validateModule("""
+                interface I {
+                    fun foo(self, p: Int)
+                }
+                class C : I {
+                    override fun foo(self, p: String) {
+                    }
+                }
+            """.trimIndent())
+                .shouldReport<SuperFunctionForOverrideNotFoundReporting>()
+        }
+
+        "parameter type widening is ambiguous" {
+            validateModule("""
+                interface I {
+                    fun foo(self, p1: Int)
+                    fun foo(self, p1: uword)
+                }
+                class C : I {
+                    override fun foo(self, p1: Any) {}
+                }
+            """.trimIndent())
+                .shouldReport<AmbiguousFunctionOverrideReporting>()
+        }
+
+        "return type not compatible" {
+            validateModule("""
+                interface I  {
+                    fun foo(self) -> Int
+                }
+                class C : I {
+                    override fun foo(self) -> String
+                }
+            """.trimIndent())
+                .shouldReport<IncompatibleReturnTypeOnOverrideReporting>()
         }
     }
 })

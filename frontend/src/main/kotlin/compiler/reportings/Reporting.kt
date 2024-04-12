@@ -29,6 +29,7 @@ import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundAssignmentStatement
+import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundImportDeclaration
@@ -78,6 +79,23 @@ abstract class Reporting internal constructor(
      * TODO: currently, all subclasses must override this with super.toString(), because `data` is needed to detect double-reporting the same problem
      */
     override fun toString() = "$levelAndMessage\nin $sourceLocation"
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Reporting) return false
+
+        if (javaClass != other.javaClass) return false
+        if (sourceLocation != other.sourceLocation) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = sourceLocation.hashCode()
+        result = 31 * result + javaClass.hashCode()
+        return result
+    }
+
 
     enum class Level(val level: Int) {
         CONSECUTIVE(0),
@@ -178,6 +196,18 @@ abstract class Reporting internal constructor(
 
         fun duplicateSupertype(ref: TypeReference)
             = DuplicateSupertypeReporting(ref)
+
+        fun functionDoesNotOverride(function: BoundDeclaredFunction)
+            = SuperFunctionForOverrideNotFoundReporting(function.declaration)
+
+        fun ambiguousOverride(function: BoundDeclaredFunction)
+            = AmbiguousFunctionOverrideReporting(function.declaration)
+
+        fun undeclaredOverride(function: BoundDeclaredFunction, onSupertype: BaseType)
+            = UndeclaredOverrideReporting(function.declaration, onSupertype)
+
+        fun staticFunctionDeclaredOverride(function: BoundDeclaredFunction)
+            = StaticFunctionDeclaredOverrideReporting(function.attributes.firstOverrideAttribute!!)
 
         fun noMatchingFunctionOverload(functionNameReference: IdentifierToken, receiverType: BoundTypeReference?, valueArguments: List<BoundExpression<*>>, functionDeclaredAtAll: Boolean)
             = UnresolvableFunctionOverloadReporting(functionNameReference, receiverType, valueArguments.map { it.type }, functionDeclaredAtAll)

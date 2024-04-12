@@ -72,24 +72,25 @@ class BaseTypeDeclaration(
             },
         )
 
-        lateinit var boundClassDef: BoundBaseTypeDefinition
+        lateinit var boundTypeDef: BoundBaseTypeDefinition
+        val typeDefAccessor = { boundTypeDef }
         // the entries must retain their order, for semantic and linting reasons
         val boundEntries = entryDeclarations
             .map<ClassEntryDeclaration, BoundBaseTypeEntry<*>> { entry -> when (entry) {
                 is BaseTypeMemberVariableDeclaration -> entry.bindTo(memberVariableInitializationContext)
                 is BaseTypeConstructorDeclaration -> {
-                    entry.bindTo(fileContextWithTypeParams, boundTypeParameters) { boundClassDef }
+                    entry.bindTo(fileContextWithTypeParams, boundTypeParameters, typeDefAccessor)
                 }
                 is BaseTypeMemberFunctionDeclaration -> {
-                    entry.bindTo(typeRootContext, selfTypeReference, kind.memberFunctionsAbstractByDefault)
+                    entry.bindTo(typeRootContext, selfTypeReference, typeDefAccessor, kind.memberFunctionsAbstractByDefault)
                 }
                 is BaseTypeDestructorDeclaration -> {
-                    entry.bindTo(fileContextWithTypeParams, boundTypeParameters) { boundClassDef }
+                    entry.bindTo(fileContextWithTypeParams, boundTypeParameters, typeDefAccessor)
                 }
             } }
             .toMutableList()
 
-        boundClassDef = BoundBaseTypeDefinition(
+        boundTypeDef = BoundBaseTypeDefinition(
             fileContext,
             typeRootContext,
             kind,
@@ -98,7 +99,7 @@ class BaseTypeDeclaration(
             this,
             boundEntries,
         )
-        return boundClassDef
+        return boundTypeDef
     }
 }
 
@@ -160,6 +161,7 @@ class BaseTypeMemberFunctionDeclaration(
     fun bindTo(
         typeRootContext: CTContext,
         selfType: TypeReference,
+        getTypeDef: () -> BoundBaseTypeDefinition,
         isAbstractByDefault: Boolean,
     ): BoundBaseTypeMemberFunction {
         return BoundBaseTypeMemberFunction(
@@ -170,7 +172,8 @@ class BaseTypeMemberFunctionDeclaration(
                 selfType,
                 isVirtual = isAbstractByDefault,
                 allowNoBody = isAbstractByDefault
-            )
+            ),
+            getTypeDef,
         )
     }
 }
