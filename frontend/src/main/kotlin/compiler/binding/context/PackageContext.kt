@@ -3,6 +3,7 @@ package compiler.binding.context
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
+import compiler.binding.basetype.BoundBaseTypeDefinition
 import compiler.binding.type.BaseType
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
@@ -73,9 +74,21 @@ class PackageContext(
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return (sourceFiles.flatMap { it.semanticAnalysisPhase3() } +
-                overloadSetsBySimpleName.values.flatten().flatMap { it.semanticAnalysisPhase3() })
-            .toList()
+        val reportings = mutableListOf<Reporting>()
+        sourceFiles.flatMap { it.semanticAnalysisPhase3() }.forEach(reportings::add)
+        overloadSetsBySimpleName.values.flatten().flatMap { it.semanticAnalysisPhase3() }.forEach(reportings::add)
+
+        types
+            .asSequence()
+            .groupBy { it.simpleName }
+            .filter { (_, types) -> types.size > 1 }
+            .forEach { (simpleName, duplicateTypes) ->
+                // TODO: remove filter as soon as all basetypes are in emerge source
+                val dupes = duplicateTypes.filterIsInstance<BoundBaseTypeDefinition>()
+                reportings.add(Reporting.duplicateBaseTypes(packageName, dupes))
+            }
+
+        return reportings
     }
 
     override fun equals(other: Any?): Boolean {

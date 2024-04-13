@@ -197,6 +197,9 @@ abstract class Reporting internal constructor(
         fun duplicateSupertype(ref: TypeReference)
             = DuplicateSupertypeReporting(ref)
 
+        fun duplicateBaseTypes(packageName: CanonicalElementName.Package, duplicates: List<BoundBaseTypeDefinition>)
+            = DuplicateBaseTypesReporting(packageName, duplicates.map { it.declaration })
+
         fun functionDoesNotOverride(function: BoundDeclaredFunction)
             = SuperFunctionForOverrideNotFoundReporting(function.declaration)
 
