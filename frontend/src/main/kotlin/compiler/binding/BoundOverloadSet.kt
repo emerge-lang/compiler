@@ -5,12 +5,12 @@ import compiler.binding.type.nonDisjointPairs
 import compiler.pivot
 import compiler.reportings.OverloadSetHasNoDisjointParameterReporting
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.PackageName
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
 
 class BoundOverloadSet(
-    val fqn: DotName,
+    val fqn: PackageName,
     val parameterCount: Int,
     val overloads: Collection<BoundFunction>
 ) : SemanticallyAnalyzable {

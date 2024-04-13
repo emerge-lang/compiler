@@ -22,14 +22,14 @@ import compiler.ast.ASTSourceFile
 import compiler.lexer.ClasspathSourceFile
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
-import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.PackageName
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.IdentityHashMap
 
-fun parseFromClasspath(path: String, packageName: DotName): ASTSourceFile = parseFromClasspath(Paths.get(path), packageName)
+fun parseFromClasspath(path: String, packageName: PackageName): ASTSourceFile = parseFromClasspath(Paths.get(path), packageName)
 
-fun parseFromClasspath(path: Path, packageName: DotName): ASTSourceFile {
+fun parseFromClasspath(path: Path, packageName: PackageName): ASTSourceFile {
     val sourceFile = ClasspathSourceFile(
         path,
         packageName,

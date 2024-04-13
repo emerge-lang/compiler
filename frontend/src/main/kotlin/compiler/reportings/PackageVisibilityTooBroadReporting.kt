@@ -1,11 +1,11 @@
 package compiler.reportings
 
 import compiler.lexer.SourceLocation
-import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.PackageName
 
 class PackageVisibilityTooBroadReporting(
-    val owningModule: DotName,
-    val declaredPackageVisibility: DotName,
+    val owningModule: PackageName,
+    val declaredPackageVisibility: PackageName,
     sourceLocation: SourceLocation,
 ) : Reporting(
     Level.ERROR,

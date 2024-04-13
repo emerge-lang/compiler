@@ -2,12 +2,12 @@ package compiler.ast
 
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
-import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.PackageName
 
-class ASTPackageName(
+class AstPackageName(
     val names: List<IdentifierToken>,
 ) {
-    val asDotName: DotName by lazy { DotName(names.map { it.value }) }
+    val asPackageName: PackageName by lazy { PackageName(names.map { it.value }) }
 
     val sourceLocation by lazy {
         names

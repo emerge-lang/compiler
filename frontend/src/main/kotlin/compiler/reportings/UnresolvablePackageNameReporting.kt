@@ -1,10 +1,10 @@
 package compiler.reportings
 
 import compiler.lexer.SourceLocation
-import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.PackageName
 
 data class UnresolvablePackageNameReporting(
-    val name: DotName,
+    val name: PackageName,
     val location: SourceLocation
 ) : Reporting(
     Level.ERROR,

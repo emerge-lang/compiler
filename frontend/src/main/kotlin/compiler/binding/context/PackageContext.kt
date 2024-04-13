@@ -5,11 +5,11 @@ import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.type.BaseType
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.PackageName
 
 class PackageContext(
     val moduleContext: ModuleContext,
-    val packageName: DotName,
+    val packageName: PackageName,
 ) : SemanticallyAnalyzable {
     val sourceFiles: Sequence<SourceFile> = sequence {
         yieldAll(moduleContext.sourceFiles)

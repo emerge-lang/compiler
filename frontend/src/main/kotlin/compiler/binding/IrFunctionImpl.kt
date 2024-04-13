@@ -2,7 +2,7 @@ package compiler.binding
 
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
-import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.PackageName
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrDeclaredFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
@@ -11,7 +11,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
 internal abstract class IrFunctionImpl private constructor(
-    val fqn: DotName,
+    val fqn: PackageName,
     private val boundFunction: BoundFunction,
     boundBody: BoundFunction.Body?,
 ) {
@@ -36,7 +36,7 @@ internal abstract class IrFunctionImpl private constructor(
     }
 
     private class IrDeclaredFunctionImpl(
-        fqn: DotName,
+        fqn: PackageName,
         boundFunction: BoundFunction,
     ) : IrFunctionImpl(fqn, boundFunction, null), IrDeclaredFunction {
         override val parameters = super._parameters
@@ -45,7 +45,7 @@ internal abstract class IrFunctionImpl private constructor(
     }
 
     private class IrImplementedFunctionImpl(
-        fqn: DotName,
+        fqn: PackageName,
         boundFunction: BoundFunction,
         code: BoundFunction.Body,
     ) : IrFunctionImpl(fqn, boundFunction, code), IrImplementedFunction {

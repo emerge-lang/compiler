@@ -10,8 +10,8 @@ import compiler.lexer.lex
 import compiler.parser.SourceFileRule
 import compiler.parser.TokenSequence
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.DotName
 import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
+import io.github.tmarsteel.emerge.backend.api.PackageName
 import io.github.tmarsteel.emerge.backend.api.ir.IrModule
 import io.github.tmarsteel.emerge.backend.noop.NoopBackend
 import io.kotest.inspectors.forOne
@@ -34,11 +34,11 @@ fun lexCode(
         code
     }
 
-    val sourceFile = MemorySourceFile(invokedFrom.fileName!!, DotName(listOf("testmodule")), moduleCode)
+    val sourceFile = MemorySourceFile(invokedFrom.fileName!!, PackageName(listOf("testmodule")), moduleCode)
     return lex(sourceFile)
 }
 
-private val defaultModulesParsed: List<Pair<DotName, List<ASTSourceFile>>> by lazy {
+private val defaultModulesParsed: List<Pair<PackageName, List<ASTSourceFile>>> by lazy {
     (NoopBackend().targetSpecificModules + listOf(
         ModuleSourceRef(CoreIntrinsicsModule.SRC_DIR, CoreIntrinsicsModule.NAME),
         ModuleSourceRef(StandardLibraryModule.SRC_DIR, StandardLibraryModule.NAME),
@@ -62,7 +62,7 @@ private val defaultModulesParsed: List<Pair<DotName, List<ASTSourceFile>>> by la
 
 
 class IntegrationTestModule(
-    val moduleName: DotName,
+    val moduleName: PackageName,
     val tokens: TokenSequence,
 ) {
     companion object {
@@ -76,7 +76,7 @@ class IntegrationTestModule(
          * ```
          */
         fun of(moduleName: String, code: String, definedAt: StackTraceElement = Thread.currentThread().stackTrace[2]): IntegrationTestModule {
-            val moduleDotName = DotName(moduleName.split('.'))
+            val moduleDotName = PackageName(moduleName.split('.'))
             val sourceFile = MemorySourceFile(definedAt.fileName!!, moduleDotName, code.assureEndsWith('\n'))
             val tokens = lex(sourceFile)
             return IntegrationTestModule(moduleDotName, tokens)
@@ -128,7 +128,7 @@ fun validateModule(
     code: String,
     invokedFrom: StackTraceElement = Thread.currentThread().stackTrace[2],
 ): Pair<SoftwareContext, Collection<Reporting>> {
-    val module = IntegrationTestModule(DotName(listOf("testmodule")), lexCode(code.assureEndsWith('\n'), true, invokedFrom))
+    val module = IntegrationTestModule(PackageName(listOf("testmodule")), lexCode(code.assureEndsWith('\n'), true, invokedFrom))
     return validateModules(module)
 }
 
@@ -170,7 +170,7 @@ fun haveNoDiagnostics(): Matcher<Pair<SoftwareContext, Collection<Reporting>>> =
 
 fun Pair<SoftwareContext, Collection<Reporting>>.moduleBackendIrAssumingNoErrors(moduleName: String = "testmodule"): IrModule {
     check(second.none { it.level == Reporting.Level.ERROR })
-    return first.toBackendIr().modules.single { it.name == DotName(listOf("testmodule")) }
+    return first.toBackendIr().modules.single { it.name == PackageName(listOf("testmodule")) }
 }
 
 private fun String.assureEndsWith(suffix: Char): String {

@@ -1,16 +1,16 @@
 package io.github.tmarsteel.emerge.backend.api.ir
 
-import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.PackageName
 
 interface IrPackage {
-    val name: DotName
+    val name: PackageName
     val functions: Set<IrOverloadGroup<IrFunction>>
     val classes: Set<IrClass>
     val variables: Set<IrGlobalVariable>
 }
 
 interface IrModule {
-    val name: DotName
+    val name: PackageName
     val packages: Set<IrPackage>
 }
 

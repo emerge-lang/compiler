@@ -8,7 +8,7 @@ import compiler.binding.basetype.BoundClassConstructor
 import compiler.reportings.ElementNotAccessibleReporting
 import compiler.reportings.HiddenTypeExposedReporting
 import compiler.reportings.ShadowedVisibilityReporting
-import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.PackageName
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -160,7 +160,7 @@ class VisibilityTests : FreeSpec({
                 """.trimIndent()),
             )
                 .shouldReport<ElementNotAccessibleReporting> {
-                    it.element.shouldBeInstanceOf<BoundDeclaredFunction>().fullyQualifiedName shouldBe DotName(listOf("module_A", "foo"))
+                    it.element.shouldBeInstanceOf<BoundDeclaredFunction>().fullyQualifiedName shouldBe PackageName(listOf("module_A", "foo"))
                 }
         }
     }

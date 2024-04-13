@@ -19,7 +19,7 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
-import compiler.ast.ASTPackageName
+import compiler.ast.AstPackageName
 import compiler.ast.AstVisibility
 import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeReference
@@ -62,7 +62,7 @@ val Visibility = eitherOf {
             PACKAGE -> {
                 // skip parant_open
                 tokens.next()
-                val packageName = tokens.next() as ASTPackageName
+                val packageName = tokens.next() as AstPackageName
                 AstVisibility.Package(visibilityToken, packageName)
             }
             else -> throw InternalCompilerError("grammar and ast builder mismatch")

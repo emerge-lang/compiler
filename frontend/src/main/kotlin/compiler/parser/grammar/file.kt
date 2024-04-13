@@ -19,7 +19,7 @@
 package compiler.parser.grammar
 
 import compiler.ast.ASTPackageDeclaration
-import compiler.ast.ASTPackageName
+import compiler.ast.AstPackageName
 import compiler.ast.ImportDeclaration
 import compiler.ast.VariableDeclaration
 import compiler.lexer.IdentifierToken
@@ -52,7 +52,7 @@ val ModuleOrPackageName = sequence("module or package name") {
             tokens.next()
         }
 
-        ASTPackageName(identifiers)
+        AstPackageName(identifiers)
     }
 
 val PackageDeclaration = sequence("package declaration") {
@@ -65,7 +65,7 @@ val PackageDeclaration = sequence("package declaration") {
     .astTransformation { tokens ->
         val keyword = tokens.next()!! as KeywordToken
         @Suppress("UNCHECKED_CAST") // ModuleOrPackageName is a Rule<Array<String>>
-        val packageName = tokens.next()!! as ASTPackageName
+        val packageName = tokens.next()!! as AstPackageName
 
         ASTPackageDeclaration(keyword, packageName)
     }

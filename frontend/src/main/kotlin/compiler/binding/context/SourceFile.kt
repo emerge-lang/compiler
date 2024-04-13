@@ -19,12 +19,12 @@
 package compiler.binding.context
 
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.PackageName
 import compiler.lexer.SourceFile as LexerSourceFile
 
 class SourceFile(
     val lexerFile: LexerSourceFile,
-    val packageName: DotName,
+    val packageName: PackageName,
     val context: SourceFileRootContext,
     /** [Reporting]s generated at bind-time: double declarations, ... */
     val bindTimeReportings: Collection<Reporting> = emptySet()

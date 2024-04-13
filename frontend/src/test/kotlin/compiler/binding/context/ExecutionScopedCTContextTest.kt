@@ -8,7 +8,7 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.PackageContext
 import compiler.binding.context.SourceFileRootContext
 import compiler.lexer.SourceLocation
-import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.PackageName
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forNone
 import io.kotest.matchers.shouldBe
@@ -141,7 +141,7 @@ class ExecutionScopedCTContextTest : FreeSpec({
 })
 
 private fun mockSourceFileContext(): SourceFileRootContext {
-    val name = DotName(listOf("mock"))
+    val name = PackageName(listOf("mock"))
     return SourceFileRootContext(PackageContext(ModuleContext(name, mockk()), name))
 }
 

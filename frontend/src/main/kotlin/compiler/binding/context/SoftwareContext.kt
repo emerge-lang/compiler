@@ -21,7 +21,7 @@ package compiler.binding.context
 import compiler.InternalCompilerError
 import compiler.binding.type.BaseType
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.PackageName
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 
 /**
@@ -36,7 +36,7 @@ class SoftwareContext {
      * Creates and register a new [ModuleContext] in this software.
      * @return the new context so [SourceFile]s can be bound to it (see [ModuleContext.addSourceFile])
      */
-    fun registerModule(name: DotName): ModuleContext {
+    fun registerModule(name: PackageName): ModuleContext {
         modules.find { it.moduleName.containsOrEquals(name) }?.let { conflictingModule ->
             throw IllegalArgumentException("Cannot add module $name to this ${this::class.simpleName}, because it already contains a module with conflicting name: $conflictingModule")
         }
@@ -46,17 +46,17 @@ class SoftwareContext {
         return moduleContext
     }
 
-    fun getRegisteredModule(name: DotName): ModuleContext {
+    fun getRegisteredModule(name: PackageName): ModuleContext {
         return modules.find { it.moduleName == name } ?: throw IllegalStateException("Module $name has not been registered")
     }
 
-    private val packages = HashMap<DotName, PackageContext>()
+    private val packages = HashMap<PackageName, PackageContext>()
 
     /**
      * @return a reference to the requested package in this software context, or null if no module is known that
      * contains the package (see [registerModule]).
      */
-    fun getPackage(name: DotName): PackageContext? {
+    fun getPackage(name: PackageName): PackageContext? {
         packages[name]?.let { return it }
         // there is no source file in the package, but the requested package may still be in the responsibility
         // of one of the known modules, so we should return an empty package context
@@ -96,7 +96,7 @@ class SoftwareContext {
     }
 
     val unitBaseType: BaseType by lazy {
-        getPackage(DotName(listOf("emerge", "core")))!!
+        getPackage(PackageName(listOf("emerge", "core")))!!
             .types
             .single { it.fullyQualifiedName.last == "Unit" }
     }

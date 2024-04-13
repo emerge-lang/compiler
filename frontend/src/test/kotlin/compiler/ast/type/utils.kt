@@ -22,7 +22,7 @@ import compiler.binding.BoundVisibility
 import compiler.binding.type.BaseType
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.PackageName
 import io.mockk.mockk
 
 fun fakeType(name: String, vararg superTypes: BaseType): BaseType = object: BaseType {
@@ -32,6 +32,6 @@ fun fakeType(name: String, vararg superTypes: BaseType): BaseType = object: Base
     override fun toStringForErrorMessage() = "fake type $name"
     override val superTypes = superTypes.toSet()
     override val simpleName = name
-    override val fullyQualifiedName = DotName(listOf("fake", name))
+    override val fullyQualifiedName = PackageName(listOf("fake", name))
     override fun toBackendIr() = TODO()
 }

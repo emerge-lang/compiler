@@ -1,9 +1,9 @@
 package io.github.tmarsteel.emerge.backend.api.ir
 
-import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.PackageName
 
 interface IrBaseType {
-    val fqn: DotName
+    val fqn: PackageName
     val parameters: List<Parameter>
     val memberFunctions: Collection<IrOverloadGroup<IrFunction>>
 

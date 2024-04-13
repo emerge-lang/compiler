@@ -7,7 +7,7 @@ import compiler.lexer.KeywordToken
 import compiler.lexer.SourceFile
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.PackageName
 
 sealed class BoundVisibility : SemanticallyAnalyzable {
     protected abstract val context: CTContext
@@ -63,7 +63,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
 
     class PackageScope(
         override val context: CTContext,
-        val packageName: DotName,
+        val packageName: PackageName,
         override val astNode: AstVisibility,
         val isDefault: Boolean,
     ) : BoundVisibility() {

@@ -36,7 +36,7 @@ import compiler.binding.type.UnresolvedType
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.DotName
+import io.github.tmarsteel.emerge.backend.api.PackageName
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
@@ -253,7 +253,7 @@ class BoundBaseTypeDefinition(
 private class IrInterfaceImpl(
     typeDef: BoundBaseTypeDefinition,
 ) : IrInterface {
-    override val fqn: DotName = typeDef.fullyQualifiedName
+    override val fqn: PackageName = typeDef.fullyQualifiedName
     override val parameters = typeDef.typeParameters.map { it.toBackendIr() }
     override val memberFunctions by lazy { typeDef.memberFunctionsByName.values.flatten().map { it.toBackendIr() } }
 }
@@ -261,7 +261,7 @@ private class IrInterfaceImpl(
 private class IrClassImpl(
     typeDef: BoundBaseTypeDefinition,
 ) : IrClass {
-    override val fqn: DotName = typeDef.fullyQualifiedName
+    override val fqn: PackageName = typeDef.fullyQualifiedName
     override val parameters = typeDef.typeParameters.map { it.toBackendIr() }
     override val memberVariables by lazy { typeDef.memberVariables.map { it.toBackendIr() } }
     override val memberFunctions by lazy { typeDef.memberFunctionsByName.values.flatten().map { it.toBackendIr() } }
