@@ -11,6 +11,7 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 
 /**
@@ -30,6 +31,9 @@ class BoundDeclaredFunction(
 ) : BoundFunction() {
     override val declaredAt = declaration.declaredAt
     override val name: String = declaration.name.value
+    override val canonicalName by lazy {
+        CanonicalElementName.Function(context.sourceFile.packageName, name)
+    }
 
     override val allTypeParameters get()= context.allTypeParameters.toList()
 

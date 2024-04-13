@@ -31,6 +31,7 @@ import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntrinsicType
 import java.math.BigDecimal
@@ -152,7 +153,7 @@ abstract class BuiltinType(
     final override val simpleName: String,
     vararg superTypes: BaseType,
 ) : BaseType {
-    final override val fullyQualifiedName = CoreIntrinsicsModule.NAME + simpleName
+    final override val canonicalName = CanonicalElementName.BaseType(CoreIntrinsicsModule.NAME, simpleName)
 
     final override val superTypes: Set<BaseType> = superTypes.toSet()
 
@@ -195,7 +196,7 @@ abstract class BuiltinType(
 private class IrIntrinsicTypeImpl(
     private val builtin: BuiltinType,
 ) : IrIntrinsicType {
-    override val fqn = builtin.fullyQualifiedName
+    override val canonicalName = builtin.canonicalName
     override val parameters = builtin.typeParameters.map { it.toBackendIr() }
 
     override fun equals(other: Any?): Boolean {

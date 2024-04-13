@@ -27,7 +27,7 @@ import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import kotlinext.get
 
@@ -39,7 +39,7 @@ interface BaseType : SemanticallyAnalyzable, DefinitionWithVisibility {
         get() = javaClass.simpleName
 
     // TODO: infer this from declaring package and simpleName
-    val fullyQualifiedName: PackageName
+    val canonicalName: CanonicalElementName.BaseType
 
     val baseReference: BoundTypeReference
         get() = RootResolvedTypeReference(TypeReference(this.simpleName), this, typeParameters.map {

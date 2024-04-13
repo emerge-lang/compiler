@@ -9,7 +9,7 @@ class OverloadSetHasNoDisjointParameterReporting(
     "This overload-set is ambiguous. The types of least one parameter must be disjoint, this set has none.",
     overloadSet.overloads.first().declaredAt,
 ) {
-    val overloadSetName = overloadSet.overloads.first().fullyQualifiedName
+    val overloadSetName = overloadSet.overloads.first().canonicalName
     val overloadSetParameterCount = overloadSet.overloads.first().parameters.parameters.size
 
     override fun toString(): String {

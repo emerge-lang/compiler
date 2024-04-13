@@ -5,24 +5,24 @@ import compiler.binding.type.nonDisjointPairs
 import compiler.pivot
 import compiler.reportings.OverloadSetHasNoDisjointParameterReporting
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
 
 class BoundOverloadSet(
-    val fqn: PackageName,
+    val canonicalName: CanonicalElementName.Function,
     val parameterCount: Int,
     val overloads: Collection<BoundFunction>
 ) : SemanticallyAnalyzable {
     init {
         require(overloads.isNotEmpty())
-        assert(overloads.all { it.fullyQualifiedName == fqn }) {
-            val violator = overloads.first { it.fullyQualifiedName != fqn }
+        assert(overloads.all { it.canonicalName == canonicalName }) {
+            val violator = overloads.first { it.canonicalName != canonicalName }
             """
-                This overload has a different FQN than the overload set:
+                This overload has a different canonical name than the overload set:
                ${violator.declaredAt}
                
-               overload set has fqn $fqn
+               overload set has name $canonicalName
             """.trimIndent()
 
         }
@@ -70,13 +70,13 @@ class BoundOverloadSet(
     }
 
     fun toBackendIr(): IrOverloadGroup<IrFunction> {
-        return IrOverloadGroupImpl(fqn, parameterCount, overloads)
+        return IrOverloadGroupImpl(canonicalName, parameterCount, overloads)
     }
 
     companion object {
         fun fromSingle(fn: BoundFunction): BoundOverloadSet {
             return BoundOverloadSet(
-                fn.fullyQualifiedName,
+                fn.canonicalName,
                 fn.parameters.parameters.size,
                 setOf(fn),
             )

@@ -4,14 +4,14 @@ import compiler.OnceAction
 import compiler.ast.ASTSourceFile
 import compiler.binding.SemanticallyAnalyzable
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrModule
 
 /**
  * Bundles all source files of a single module.
  */
 class ModuleContext(
-    val moduleName: PackageName,
+    val moduleName: CanonicalElementName.Package,
     val softwareContext: SoftwareContext,
 ) : SemanticallyAnalyzable {
     private val onceAction = OnceAction()

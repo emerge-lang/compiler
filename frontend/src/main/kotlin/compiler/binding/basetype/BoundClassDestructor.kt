@@ -28,6 +28,7 @@ import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrDeallocateObjectStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplementedFunction
@@ -42,6 +43,9 @@ class BoundClassDestructor(
     val classDef: BoundBaseTypeDefinition by lazy(getClassDef)
     override val declaredAt = declaration.declaredAt
     private val generatedSourceLocation = declaredAt.deriveGenerated()
+    override val canonicalName: CanonicalElementName.Function by lazy {
+        CanonicalElementName.Function(classDef.canonicalName, "\$destructor")
+    }
 
     override val context = fileContextWithTypeParameters
     private val destructorFunctionRootContext = MutableExecutionScopedCTContext.functionRootIn(fileContextWithTypeParameters)
@@ -155,7 +159,7 @@ private class IrDestructorImpl(
     val dtor: BoundClassDestructor,
     override val body: IrCodeChunk,
 ) : IrImplementedFunction {
-    override val fqn = dtor.fullyQualifiedName
+    override val canonicalName = dtor.canonicalName
     override val parameters = dtor.parameters.parameters.map { it.backendIrDeclaration }
     override val returnType = dtor.returnType.toBackendIr()
     override val isExternalC = false

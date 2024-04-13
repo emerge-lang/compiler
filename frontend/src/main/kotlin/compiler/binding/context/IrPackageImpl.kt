@@ -1,8 +1,8 @@
 package compiler.binding.context
 
 import compiler.binding.expression.BoundExpression
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
-import io.github.tmarsteel.emerge.backend.api.PackageName
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrGlobalVariable
@@ -13,7 +13,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 internal class IrPackageImpl(
     packageContext: PackageContext,
 ) : IrPackage {
-    override val name: PackageName = packageContext.packageName
+    override val name: CanonicalElementName.Package = packageContext.packageName
     override val functions: Set<IrOverloadGroup<IrFunction>> = packageContext
         .allToplevelFunctionOverloadSets
         .map { it.toBackendIr() }

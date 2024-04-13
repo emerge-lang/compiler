@@ -179,7 +179,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             throw CodeGenerationException("Dynamic dispatch on LLVM not implemented yet")
         }
         is IrVariableAccessExpression -> return ExpressionResult.Value(expression.variable.emitRead!!())
-        is IrIntegerLiteralExpression -> return ExpressionResult.Value(when ((expression.evaluatesTo as IrSimpleType).baseType.fqn.toString()) {
+        is IrIntegerLiteralExpression -> return ExpressionResult.Value(when ((expression.evaluatesTo as IrSimpleType).baseType.canonicalName.toString()) {
             "emerge.core.Byte" -> context.i8(expression.value.byteValueExact())
             "emerge.core.UByte" -> context.i8(expression.value.shortValueExact().toUByte())
             "emerge.core.Short" -> context.i16(expression.value.shortValueExact())

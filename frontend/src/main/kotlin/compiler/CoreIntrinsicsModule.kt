@@ -20,7 +20,7 @@ import compiler.binding.type.BuiltinULong
 import compiler.binding.type.BuiltinUShort
 import compiler.binding.type.BuiltinUnsignedWord
 import io.github.tmarsteel.emerge.backend.SystemPropertyDelegate.Companion.systemProperty
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import java.nio.file.Paths
 
 /**
@@ -53,6 +53,6 @@ object CoreIntrinsicsModule {
         coreModule.addSourceFile(file)
     }
 
-    val NAME = PackageName(listOf("emerge", "core"))
+    val NAME = CanonicalElementName.Package(listOf("emerge", "core"))
     val SRC_DIR by systemProperty("emerge.frontend.core.sources", Paths::get)
 }

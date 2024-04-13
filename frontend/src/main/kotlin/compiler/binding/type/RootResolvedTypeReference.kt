@@ -210,9 +210,9 @@ class RootResolvedTypeReference private constructor(
         str += " "
 
         str += when {
-            CoreIntrinsicsModule.NAME.containsOrEquals(baseType.fullyQualifiedName) ||
-            StandardLibraryModule.NAME.containsOrEquals(baseType.fullyQualifiedName) -> baseType.fullyQualifiedName.last
-            else -> baseType.fullyQualifiedName.toString()
+            baseType.canonicalName.packageName == CoreIntrinsicsModule.NAME ||
+            baseType.canonicalName.packageName == StandardLibraryModule.NAME -> baseType.simpleName
+            else -> baseType.canonicalName.toString()
         }
 
         if (arguments.isNotEmpty()) {
@@ -273,7 +273,7 @@ internal class IrSimpleTypeImpl(
     override val baseType: IrBaseType,
     override val isNullable: Boolean,
 ) : IrSimpleType {
-    override fun toString() = "IrSimpleType[${baseType.fqn}]"
+    override fun toString() = "IrSimpleType[${baseType.canonicalName}]"
 }
 
 internal class IrParameterizedTypeImpl(

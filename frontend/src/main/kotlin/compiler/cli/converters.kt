@@ -12,16 +12,16 @@ import compiler.lexer.MemorySourceFile
 import compiler.lexer.lex
 import compiler.parser.grammar.ModuleOrPackageName
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 
-fun RawArgument.packageName(): ProcessedArgument<PackageName, PackageName> {
+fun RawArgument.packageName(): ProcessedArgument<CanonicalElementName.Package, CanonicalElementName.Package> {
     return convert { rawName ->
-        val parseResult = ModuleOrPackageName.match(lex(MemorySourceFile("CLI argument ${this.name}", PackageName(listOf("cli")), rawName)))
+        val parseResult = ModuleOrPackageName.match(lex(MemorySourceFile("CLI argument ${this.name}", CanonicalElementName.Package(listOf("cli")), rawName)))
         parseResult.reportings.find { it.level > Reporting.Level.ERROR }?.let {
             fail(it.message)
         }
 
-        PackageName(parseResult.item!!.names.map { it.value })
+        CanonicalElementName.Package(parseResult.item!!.names.map { it.value })
     }
 }
 

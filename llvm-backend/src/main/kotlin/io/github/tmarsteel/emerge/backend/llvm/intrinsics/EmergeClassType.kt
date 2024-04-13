@@ -88,7 +88,7 @@ internal class EmergeClassType private constructor(
     }
 
     override fun toString(): String {
-        return "EmergeStruct[${irClass.fqn}]"
+        return "EmergeStruct[${irClass.canonicalName}]"
     }
 
     companion object {
@@ -112,7 +112,7 @@ internal class EmergeClassType private constructor(
             LLVM.LLVMStructSetBody(structRef, llvmStructElements, llvmMemberTypesRaw.size, 0)
 
             check(LLVM.LLVMOffsetOfElement(context.targetData.ref, structRef, 0) == 0L) {
-                "Cannot reinterpret emerge type ${irClass.fqn} as Any"
+                "Cannot reinterpret emerge type ${irClass.canonicalName} as Any"
             }
 
             return EmergeClassType(context, structRef, irClass)

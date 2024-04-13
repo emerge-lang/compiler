@@ -263,7 +263,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
             // ignore trailing CBRACE_CLOSE
 
             return@astTransformation FunctionDeclaration(
-                declarationKeyword.sourceLocation,
+                declarationKeyword,
                 attributes,
                 name,
                 typeParameters,
@@ -277,7 +277,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
             val singleExpression = tokens.next()!! as AstExpression
 
             return@astTransformation FunctionDeclaration(
-                declarationKeyword.sourceLocation,
+                declarationKeyword,
                 attributes,
                 name,
                 typeParameters,
@@ -290,7 +290,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
         if (next == OperatorToken(Operator.NEWLINE) || next == null) {
             // function without body with trailing newline or immediately followed by EOF
             return@astTransformation FunctionDeclaration(
-                declarationKeyword.sourceLocation,
+                declarationKeyword,
                 attributes,
                 name,
                 typeParameters,

@@ -1,11 +1,11 @@
 package compiler.reportings
 
 import compiler.lexer.SourceLocation
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import java.nio.file.Path
 
 class ModuleWithoutSourcesReporting(
-    val moduleName: PackageName,
+    val moduleName: CanonicalElementName.Package,
     val srcDir: Path,
 ) : Reporting(
     Reporting.Level.WARNING,

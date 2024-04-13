@@ -50,7 +50,7 @@ class BaseTypeDeclaration(
     val entryDeclarations: List<ClassEntryDeclaration>,
     val typeParameters: List<TypeParameter>,
 ) : AstFileLevelDeclaration {
-    override val declaredAt = declarationKeyword.sourceLocation
+    override val declaredAt = name.sourceLocation
 
     fun bindTo(fileContext: CTContext): BoundBaseTypeDefinition {
         val kind = when (declarationKeyword.keyword) {

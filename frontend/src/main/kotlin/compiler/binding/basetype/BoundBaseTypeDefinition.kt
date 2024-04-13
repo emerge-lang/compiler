@@ -36,7 +36,7 @@ import compiler.binding.type.UnresolvedType
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
@@ -54,7 +54,9 @@ class BoundBaseTypeDefinition(
     private val onceAction = OnceAction()
 
     override val context: CTContext = fileContext
-    override val fullyQualifiedName get() = context.sourceFile.packageName + declaration.name.value
+    override val canonicalName by lazy {
+        CanonicalElementName.BaseType(context.sourceFile.packageName, declaration.name.value)
+    }
     override val simpleName: String = declaration.name.value
 
     val memberVariables: List<BoundBaseTypeMemberVariable> = entries.filterIsInstance<BoundBaseTypeMemberVariable>()
@@ -65,15 +67,14 @@ class BoundBaseTypeDefinition(
         entries.filterIsInstance<BoundBaseTypeMemberFunction>()
             .groupBy { it.name }
             .mapValues { (name, overloadsSameName) ->
-                // this is currently needed because: class member function is really just a spin on the top level
-                // function, so there is a clash in the FQN logic. Also, FQNs are not really used now, this conflict
-                // probably needn't be resolved if we ditch FQNs altogether
-                val overloadSetFqn = this@BoundBaseTypeDefinition.context.sourceFile.packageName + name
                 overloadsSameName
                     .groupBy { it.functionInstance.parameters.parameters.size }
                     .map { (parameterCount, overloads) ->
-
-                        BoundOverloadSet(overloadSetFqn, parameterCount, overloads.map { it.functionInstance })
+                        val overloadSetCanonicalName = CanonicalElementName.Function(
+                            this@BoundBaseTypeDefinition.canonicalName,
+                            name,
+                        )
+                        BoundOverloadSet(overloadSetCanonicalName, parameterCount, overloads.map { it.functionInstance })
                     }
             }
     }
@@ -253,7 +254,7 @@ class BoundBaseTypeDefinition(
 private class IrInterfaceImpl(
     typeDef: BoundBaseTypeDefinition,
 ) : IrInterface {
-    override val fqn: PackageName = typeDef.fullyQualifiedName
+    override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
     override val parameters = typeDef.typeParameters.map { it.toBackendIr() }
     override val memberFunctions by lazy { typeDef.memberFunctionsByName.values.flatten().map { it.toBackendIr() } }
 }
@@ -261,7 +262,7 @@ private class IrInterfaceImpl(
 private class IrClassImpl(
     typeDef: BoundBaseTypeDefinition,
 ) : IrClass {
-    override val fqn: PackageName = typeDef.fullyQualifiedName
+    override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
     override val parameters = typeDef.typeParameters.map { it.toBackendIr() }
     override val memberVariables by lazy { typeDef.memberVariables.map { it.toBackendIr() } }
     override val memberFunctions by lazy { typeDef.memberFunctionsByName.values.flatten().map { it.toBackendIr() } }

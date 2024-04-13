@@ -4,13 +4,13 @@ import compiler.ast.ImportDeclaration
 import compiler.binding.context.CTContext
 import compiler.binding.context.PackageContext
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 
 class BoundImportDeclaration(
     val context: CTContext,
     val declaration: ImportDeclaration,
 ) : SemanticallyAnalyzable {
-    val packageName = PackageName(declaration.identifiers.dropLast(1).map { it.value })
+    val packageName = CanonicalElementName.Package(declaration.identifiers.dropLast(1).map { it.value })
     private val simpleNameRaw = declaration.identifiers.last().value
     val isImportAll: Boolean = simpleNameRaw == "*"
     val simpleName: String? = simpleNameRaw.takeUnless { isImportAll }

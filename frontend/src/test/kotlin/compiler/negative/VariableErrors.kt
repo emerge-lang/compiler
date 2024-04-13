@@ -22,8 +22,8 @@ class VariableErrors : FreeSpec({
                 foo: Int = false
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.sourceType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType.fullyQualifiedName.toString() shouldBe "emerge.core.Boolean"
-                    it.targetType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType.fullyQualifiedName.toString() shouldBe "emerge.core.Int"
+                    it.sourceType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType.canonicalName.toString() shouldBe "emerge.core.Boolean"
+                    it.targetType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType.canonicalName.toString() shouldBe "emerge.core.Int"
                 }
         }
 

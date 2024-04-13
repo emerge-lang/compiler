@@ -5,11 +5,11 @@ import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.type.BaseType
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 
 class PackageContext(
     val moduleContext: ModuleContext,
-    val packageName: PackageName,
+    val packageName: CanonicalElementName.Package,
 ) : SemanticallyAnalyzable {
     val sourceFiles: Sequence<SourceFile> = sequence {
         yieldAll(moduleContext.sourceFiles)
@@ -49,7 +49,7 @@ class PackageContext(
                 overloads
                     .groupBy { it.parameters.parameters.size }
                     .map { (parameterCount, overloads) ->
-                        BoundOverloadSet(packageName.plus(name), parameterCount, overloads)
+                        BoundOverloadSet(overloads.first().canonicalName, parameterCount, overloads)
                     }
             }
     }

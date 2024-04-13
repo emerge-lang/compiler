@@ -28,10 +28,10 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter.Companion.chain
 import compiler.lexer.IdentifierToken
-import compiler.lexer.SourceLocation
+import compiler.lexer.KeywordToken
 
 data class FunctionDeclaration(
-    override val declaredAt: SourceLocation,
+    val declarationKeyword: KeywordToken,
     val attributes: List<AstFunctionAttribute>,
     val name: IdentifierToken,
     val typeParameters: List<TypeParameter>,
@@ -39,6 +39,8 @@ data class FunctionDeclaration(
     val parsedReturnType: TypeReference?,
     val body: Body?,
 ) : AstFileLevelDeclaration {
+    override val declaredAt = name.sourceLocation
+
     fun bindTo(context: CTContext, receiverType: TypeReference?, isVirtual: Boolean, allowNoBody: Boolean): BoundDeclaredFunction {
         val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(context)
         val functionContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)

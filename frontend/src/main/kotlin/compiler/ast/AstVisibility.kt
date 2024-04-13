@@ -42,7 +42,7 @@ sealed class AstVisibility(nameToken: Token) : AstFunctionAttribute(nameToken) {
 
     class Package(keyword: KeywordToken, val packageName: AstPackageName) : AstVisibility(keyword) {
         override fun bindTo(context: CTContext): BoundVisibility {
-            return BoundVisibility.PackageScope(context, packageName.asPackageName, this, false)
+            return BoundVisibility.PackageScope(context, packageName.asCanonical, this, false)
         }
 
         override fun equals(other: Any?): Boolean {

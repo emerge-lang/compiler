@@ -9,7 +9,7 @@ data class FunctionMissingModifierReporting(
     val missingAttribute: String,
 ) : Reporting(
     Reporting.Level.ERROR,
-    "Missing modifier \"${missingAttribute::class.simpleName?.lowercase()}\" on function ${function.fullyQualifiedName}",
+    "Missing modifier \"${missingAttribute::class.simpleName?.lowercase()}\" on function ${function.canonicalName}",
     usageRequiringModifier.sourceLocation,
 ) {
     override fun toString() = super.toString() + "\ndeclared without this modifier here:\n${function.declaredAt}"

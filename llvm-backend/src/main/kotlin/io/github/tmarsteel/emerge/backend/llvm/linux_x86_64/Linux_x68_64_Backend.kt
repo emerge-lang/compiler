@@ -1,10 +1,10 @@
 package io.github.tmarsteel.emerge.backend.llvm.linux_x86_64
 
 import io.github.tmarsteel.emerge.backend.SystemPropertyDelegate.Companion.systemProperty
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.EmergeBackend
 import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
-import io.github.tmarsteel.emerge.backend.api.PackageName
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplementedFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmCompiler
@@ -28,9 +28,9 @@ class Linux_x68_64_Backend : EmergeBackend {
     override val targetName = "linux-x86_64"
 
     override val targetSpecificModules: Collection<ModuleSourceRef> = setOf(
-        ModuleSourceRef(FFI_C_SOURCES_PATH, PackageName(listOf("emerge", "ffi", "c"))),
-        ModuleSourceRef(LINUX_LIBC_SOURCES_PATH, PackageName(listOf("emerge", "linux", "libc"))),
-        ModuleSourceRef(LINUX_PLATFORM_PATH, PackageName(listOf("emerge", "platform"))),
+        ModuleSourceRef(FFI_C_SOURCES_PATH, CanonicalElementName.Package(listOf("emerge", "ffi", "c"))),
+        ModuleSourceRef(LINUX_LIBC_SOURCES_PATH, CanonicalElementName.Package(listOf("emerge", "linux", "libc"))),
+        ModuleSourceRef(LINUX_PLATFORM_PATH, CanonicalElementName.Package(listOf("emerge", "platform"))),
     )
 
     override fun emit(softwareContext: IrSoftwareContext, directory: Path) {
@@ -97,7 +97,7 @@ class Linux_x68_64_Backend : EmergeBackend {
                 .flatMap { it.overloads }
                 .forEach {
                     val fn = llvmContext.registerFunction(it)
-                    storeCoreFunctionReference(llvmContext, it.fqn, fn)
+                    storeCoreFunctionReference(llvmContext, it.canonicalName, fn)
                 }
 
             softwareContext.packagesSeq
@@ -180,11 +180,11 @@ class Linux_x68_64_Backend : EmergeBackend {
             .flatMap { it.packages }
             .flatMap { it.functions }
             .flatMap { it.overloads }
-            .single { it.fqn.last == "main" }
+            .single { it.canonicalName.simpleName == "main" }
             .llvmRef!!
     }
 
-    private fun storeCoreFunctionReference(context: EmergeLlvmContext, functionName: PackageName, fn: LlvmFunction<*>) {
+    private fun storeCoreFunctionReference(context: EmergeLlvmContext, functionName: CanonicalElementName.Function, fn: LlvmFunction<*>) {
         when (functionName) {
             ALLOCATOR_FUNCTION_NAME -> {
                 @Suppress("UNCHECKED_CAST")
@@ -206,9 +206,10 @@ class Linux_x68_64_Backend : EmergeBackend {
         val LINUX_LIBC_SOURCES_PATH by systemProperty("emerge.compiler.native.libc-wrapper.sources", Paths::get)
         val LINUX_PLATFORM_PATH by systemProperty("emerge.compiler.native.linux-platform.sources", Paths::get)
 
-        private val ALLOCATOR_FUNCTION_NAME = PackageName(listOf("emerge", "linux", "libc", "malloc"))
-        private val FREE_FUNCTION_NAME = PackageName(listOf("emerge", "linux", "libc", "free"))
-        private val EXIT_FUNCTION_NAME = PackageName(listOf("emerge", "linux", "libc", "exit"))
+        private val LIBC_PACKAGE = CanonicalElementName.Package(listOf("emerge", "linux", "libc"))
+        private val ALLOCATOR_FUNCTION_NAME = CanonicalElementName.Function(LIBC_PACKAGE, "malloc")
+        private val FREE_FUNCTION_NAME = CanonicalElementName.Function(LIBC_PACKAGE, "free")
+        private val EXIT_FUNCTION_NAME = CanonicalElementName.Function(LIBC_PACKAGE, "exit")
     }
 }
 

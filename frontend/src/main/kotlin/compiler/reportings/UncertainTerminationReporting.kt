@@ -26,7 +26,7 @@ import compiler.binding.BoundFunction
  */
 class UncertainTerminationReporting(val function: BoundFunction) : Reporting(
     Level.ERROR,
-    "Function ${function.fullyQualifiedName} does not terminate (return or throw) on all possible execution paths.",
+    "Function ${function.canonicalName} does not terminate (return or throw) on all possible execution paths.",
     function.declaredAt
 ) {
     override fun equals(other: Any?): Boolean {

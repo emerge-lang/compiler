@@ -124,7 +124,7 @@ class EmergeLlvmContext(
         )
         clazz.llvmType = emergeClassType
 
-        when (clazz.fqn.toString()) {
+        when (clazz.canonicalName.toString()) {
             "emerge.ffi.c.CPointer" -> {
                 clazz.memberVariables.single { it.name == "pointed" }.isCPointerPointed = true
             }
@@ -176,13 +176,13 @@ class EmergeLlvmContext(
         val parameterTypes = fn.parameters.map { getReferenceSiteType(it.type) }
 
         if (fn is IrDeclaredFunction) {
-            intrinsicFunctions[fn.fqn.toString()]?.let { intrinsic ->
+            intrinsicFunctions[fn.canonicalName.toString()]?.let { intrinsic ->
                 // TODO: different intrinsic per overload
                 val intrinsicImpl = registerIntrinsic(intrinsic)
                 check(parameterTypes.size == intrinsicImpl.type.parameterTypes.size)
                 intrinsicImpl.type.parameterTypes.forEachIndexed { paramIndex, intrinsicType ->
                     val declaredType = parameterTypes[paramIndex]
-                    check(intrinsicType == declaredType) { "${fn.fqn} param #$paramIndex; intrinsic $intrinsicType, declared $declaredType" }
+                    check(intrinsicType == declaredType) { "${fn.canonicalName} param #$paramIndex; intrinsic $intrinsicType, declared $declaredType" }
                 }
                 fn.llvmRef = intrinsicImpl
                 return intrinsicImpl
@@ -209,7 +209,7 @@ class EmergeLlvmContext(
             }
         }
 
-        if (fn.fqn.last == "main") {
+        if (fn.canonicalName.simpleName == "main") {
             if (this::mainFunction.isInitialized) {
                 throw CodeGenerationException("Found multiple main functions!")
             }
@@ -217,7 +217,7 @@ class EmergeLlvmContext(
                 throw CodeGenerationException("Main function must not declare parameters")
             }
             if (!fn.returnType.isUnit) {
-                throw CodeGenerationException("Main function ${fn.fqn} must return Unit")
+                throw CodeGenerationException("Main function ${fn.canonicalName} must return Unit")
             }
 
             @Suppress("UNCHECKED_CAST")
@@ -248,7 +248,7 @@ class EmergeLlvmContext(
     fun defineFunctionBody(fn: IrImplementedFunction) {
         val llvmFunction = fn.llvmRef ?: throw CodeGenerationException("You must register the functions through ${this::registerFunction.name} first to handle cyclic references (especially important for recursion)")
         if (fn.bodyDefined) {
-            throw CodeGenerationException("Cannot define body for function ${fn.fqn} multiple times!")
+            throw CodeGenerationException("Cannot define body for function ${fn.canonicalName} multiple times!")
         }
 
         if (!structConstructorsRegistered) {
@@ -349,7 +349,7 @@ class EmergeLlvmContext(
      * [LlvmPointerType] for all structural/heap-allocated types, and an LLVM value type for the emerge value types.
      */
     fun getReferenceSiteType(type: IrType): LlvmType {
-        if (type is IrParameterizedType && type.simpleType.baseType.fqn.toString() == "emerge.ffi.c.CPointer") {
+        if (type is IrParameterizedType && type.simpleType.baseType.canonicalName.toString() == "emerge.ffi.c.CPointer") {
             return LlvmPointerType(getReferenceSiteType(type.arguments.values.single().type))
         }
 
@@ -366,14 +366,14 @@ class EmergeLlvmContext(
     fun getAllocationSiteType(type: IrType): LlvmType {
         when (type) {
             is IrGenericTypeReference -> return getAllocationSiteType(type.effectiveBound)
-            is IrParameterizedType -> when (type.simpleType.baseType.fqn.toString()) {
+            is IrParameterizedType -> when (type.simpleType.baseType.canonicalName.toString()) {
                 "emerge.core.Array" -> {
                     val component = type.arguments.values.single()
                     if (component.variance == IrTypeVariance.IN || component.type !is IrSimpleType) {
                         return EmergeArrayBaseType
                     }
 
-                    return when ((component.type as IrSimpleType).baseType.fqn.toString()) {
+                    return when ((component.type as IrSimpleType).baseType.canonicalName.toString()) {
                         "emerge.core.Byte" -> EmergeS8ArrayType
                         "emerge.core.UByte" -> EmergeU8ArrayType
                         "emerge.core.Short" -> EmergeS16ArrayType
@@ -407,7 +407,7 @@ class EmergeLlvmContext(
             is IrSimpleType -> {
                 type.llvmValueType?.let { return it }
                 return when(type.baseType) {
-                    is IrIntrinsicType -> when (type.baseType.fqn.toString()) {
+                    is IrIntrinsicType -> when (type.baseType.canonicalName.toString()) {
                         "emerge.core.Any",
                         "emerge.core.Unit",
                         "emerge.core.Nothing" -> EmergeHeapAllocatedValueBaseType

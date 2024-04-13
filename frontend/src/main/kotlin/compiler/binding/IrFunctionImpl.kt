@@ -2,7 +2,7 @@ package compiler.binding
 
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrDeclaredFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
@@ -11,7 +11,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
 internal abstract class IrFunctionImpl private constructor(
-    val fqn: PackageName,
+    val canonicalName: CanonicalElementName.Function,
     private val boundFunction: BoundFunction,
     boundBody: BoundFunction.Body?,
 ) {
@@ -36,19 +36,19 @@ internal abstract class IrFunctionImpl private constructor(
     }
 
     private class IrDeclaredFunctionImpl(
-        fqn: PackageName,
+        canonicalName: CanonicalElementName.Function,
         boundFunction: BoundFunction,
-    ) : IrFunctionImpl(fqn, boundFunction, null), IrDeclaredFunction {
+    ) : IrFunctionImpl(canonicalName, boundFunction, null), IrDeclaredFunction {
         override val parameters = super._parameters
         override val returnType = super._returnType
         override val isExternalC = super._isExternalC
     }
 
     private class IrImplementedFunctionImpl(
-        fqn: PackageName,
+        canonicalName: CanonicalElementName.Function,
         boundFunction: BoundFunction,
         code: BoundFunction.Body,
-    ) : IrFunctionImpl(fqn, boundFunction, code), IrImplementedFunction {
+    ) : IrFunctionImpl(canonicalName, boundFunction, code), IrImplementedFunction {
         override val parameters = super._parameters
         override val returnType = super._returnType
         override val isExternalC = super._isExternalC
@@ -57,17 +57,17 @@ internal abstract class IrFunctionImpl private constructor(
     }
 
     override fun toString(): String {
-        return "IrFunction[$fqn] declared in ${boundFunction.declaredAt.fileLineColumnText}"
+        return "IrFunction[$canonicalName] declared in ${boundFunction.declaredAt.fileLineColumnText}"
     }
 
     companion object {
         operator fun invoke(function: BoundFunction): IrFunction {
             return when {
                 function is BoundDeclaredFunction && function.code != null -> {
-                    IrImplementedFunctionImpl(function.fullyQualifiedName, function, function.code)
+                    IrImplementedFunctionImpl(function.canonicalName, function, function.code)
                 }
                 else -> {
-                    IrDeclaredFunctionImpl(function.fullyQualifiedName, function)
+                    IrDeclaredFunctionImpl(function.canonicalName, function)
                 }
             }
         }

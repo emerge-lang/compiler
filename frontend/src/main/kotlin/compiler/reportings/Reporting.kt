@@ -53,7 +53,7 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.OperatorToken
 import compiler.lexer.SourceLocation
 import compiler.lexer.Token
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import textutils.indentByFromSecondLine
 import java.math.BigInteger
 
@@ -218,7 +218,7 @@ abstract class Reporting internal constructor(
         fun unresolvableMemberVariable(accessExpression: BoundMemberAccessExpression, hostType: BoundTypeReference)
             = UnresolvedMemberVariableReporting(accessExpression.declaration, hostType)
 
-        fun unresolvablePackageName(name: PackageName, location: SourceLocation)
+        fun unresolvablePackageName(name: CanonicalElementName.Package, location: SourceLocation)
             = UnresolvablePackageNameReporting(name, location)
 
         fun unresolvableImport(import: BoundImportDeclaration)
@@ -330,7 +330,7 @@ abstract class Reporting internal constructor(
         fun mutationInCondition(mutation: BoundExecutable<*>)
             = MutationInConditionReporting(mutation.declaration)
 
-        fun incorrectPackageDeclaration(name: AstPackageName, expected: PackageName)
+        fun incorrectPackageDeclaration(name: AstPackageName, expected: CanonicalElementName.Package)
             = IncorrectPackageDeclarationReporting(name, expected)
 
         fun integerLiteralOutOfRange(literal: Expression, expectedType: BaseType, expectedRange: ClosedRange<BigInteger>)
@@ -348,7 +348,7 @@ abstract class Reporting internal constructor(
         fun elementNotAccessible(element: DefinitionWithVisibility, visibility: BoundVisibility, accessAt: SourceLocation)
             = ElementNotAccessibleReporting(element, visibility, accessAt)
 
-        fun visibilityTooBroad(owningModule: PackageName, visibilityDeclaration: BoundVisibility.PackageScope)
+        fun visibilityTooBroad(owningModule: CanonicalElementName.Package, visibilityDeclaration: BoundVisibility.PackageScope)
             = PackageVisibilityTooBroadReporting(owningModule, visibilityDeclaration.packageName, visibilityDeclaration.astNode.sourceLocation)
 
         fun visibilityNotAllowedOnVariable(variable: BoundVariable)

@@ -26,7 +26,7 @@ import compiler.binding.context.SourceFile
 import compiler.binding.context.SourceFileRootContext
 import compiler.lexer.IdentifierToken
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import compiler.lexer.SourceFile as LexerSourceFile
 
 /**
@@ -97,7 +97,7 @@ class ASTSourceFile(
 
         return SourceFile(
             lexerFile,
-            selfDeclaration?.packageName?.names?.map(IdentifierToken::value)?.let(::PackageName) ?: expectedPackageName,
+            selfDeclaration?.packageName?.names?.map(IdentifierToken::value)?.let(CanonicalElementName::Package) ?: expectedPackageName,
             fileContext,
             reportings
         )

@@ -34,7 +34,7 @@ internal val IrType.llvmValueType: LlvmType? by tackLazyVal {
         return@tackLazyVal null
     }
 
-    when (this.baseType.fqn.toString()) {
+    when (this.baseType.canonicalName.toString()) {
         "emerge.core.Byte",
         "emerge.core.UByte" -> LlvmI8Type
 
@@ -57,10 +57,10 @@ internal val IrType.llvmValueType: LlvmType? by tackLazyVal {
         else -> null
     }
 }
-internal val IrType.isUnit by tackLazyVal { this is IrSimpleType && this.baseType.fqn.toString() == "emerge.core.Unit" }
+internal val IrType.isUnit by tackLazyVal { this is IrSimpleType && this.baseType.canonicalName.toString() == "emerge.core.Unit" }
 
 internal var IrClass.rawLlvmRef: LLVMTypeRef? by tackState { null }
-internal val IrClass.llvmName: String get() = this.fqn.toString()
+internal val IrClass.llvmName: String get() = this.canonicalName.toString()
 internal var IrClass.llvmType: EmergeClassType by tackLateInitState()
 internal var IrClass.MemberVariable.indexInLlvmStruct: Int? by tackState { null }
 
@@ -71,7 +71,7 @@ internal var IrClass.MemberVariable.isCPointerPointed: Boolean by tackState { fa
 
 internal var IrFunction.llvmRef: LlvmFunction<LlvmType>? by tackState { null }
 internal var IrFunction.bodyDefined: Boolean by tackState { false }
-internal val IrFunction.llvmName: String get() = if (isExternalC) fqn.last else fqn.toString()
+internal val IrFunction.llvmName: String get() = if (isExternalC) canonicalName.simpleName else canonicalName.toString()
 
 internal val IrSoftwareContext.packagesSeq: Sequence<IrPackage> get() = modules.asSequence()
     .flatMap { it.packages }

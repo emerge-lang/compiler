@@ -40,6 +40,7 @@ import compiler.lexer.OperatorToken
 import compiler.lexer.SourceLocation
 import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -61,8 +62,9 @@ class BoundClassConstructor(
     override val declaration: BaseTypeConstructorDeclaration,
 ) : BoundFunction(), BoundBaseTypeEntry<BaseTypeConstructorDeclaration> {
     val classDef: BoundBaseTypeDefinition by lazy(getClassDef)
-    private val generatedSourceLocation by lazy {
-        (declaration?.declaredAt ?: classDef.declaration.declaredAt).deriveGenerated()
+    private val generatedSourceLocation = declaration.declaredAt.deriveGenerated()
+    override val canonicalName: CanonicalElementName.Function by lazy {
+        CanonicalElementName.Function(classDef.canonicalName, "\$constructor")
     }
 
     /*
@@ -349,7 +351,7 @@ private class IrDefaultConstructorImpl(
     val ctor: BoundClassConstructor,
     override val body: IrCodeChunk,
 ) : IrImplementedFunction {
-    override val fqn = ctor.classDef.fullyQualifiedName
+    override val canonicalName = ctor.canonicalName
     override val parameters = ctor.parameters.parameters.map { it.backendIrDeclaration }
     override val returnType = IrClassSimpleType(ctor.classDef)
     override val isExternalC = false

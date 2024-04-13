@@ -26,7 +26,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import compiler.reportings.ReturnTypeMismatchReporting
-import io.github.tmarsteel.emerge.backend.api.PackageName
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 
 abstract class BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
@@ -92,8 +92,7 @@ abstract class BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility 
 
     abstract val returnType: BoundTypeReference?
 
-    val fullyQualifiedName: PackageName
-        get() = context.sourceFile.packageName + name
+    abstract val canonicalName: CanonicalElementName.Function
 
     override fun toStringForErrorMessage() = "function $name"
 
