@@ -60,7 +60,7 @@ class BoundClassConstructor(
     override val declaredTypeParameters: List<BoundTypeParameter>,
     getClassDef: () -> BoundBaseTypeDefinition,
     val declaration: BaseTypeConstructorDeclaration,
-) : BoundFunction(), BoundBaseTypeEntry<BaseTypeConstructorDeclaration> {
+) : BoundFunction, BoundBaseTypeEntry<BaseTypeConstructorDeclaration> {
     val classDef: BoundBaseTypeDefinition by lazy(getClassDef)
     private val generatedSourceLocation = declaration.sourceLocation.deriveGenerated()
     override val canonicalName: CanonicalElementName.Function by lazy {

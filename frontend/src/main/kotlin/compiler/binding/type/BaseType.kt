@@ -22,11 +22,12 @@ import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundFunction
+import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
-import compiler.binding.basetype.BoundSupertypeDeclaration
+import compiler.binding.basetype.BoundSupertypeList
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
@@ -55,8 +56,7 @@ interface BaseType : SemanticallyAnalyzable, DefinitionWithVisibility {
             })
 
     /** TODO: rename to supertypes, lowercase t. */
-    val superTypes: Collection<BoundSupertypeDeclaration>
-        get() = emptySet()
+    val superTypes: BoundSupertypeList
 
     val constructor: BoundFunction?
         get() = null
@@ -79,15 +79,15 @@ interface BaseType : SemanticallyAnalyzable, DefinitionWithVisibility {
         if (other === this) return true
         if (other === BuiltinNothing) return false
 
-        return superTypes.asSequence()
-            .map { it.resolvedReference?.baseType }
-            .filterNotNull()
+        return superTypes.baseTypes
             .map { it.isSubtypeOf(other) }
             .fold(false, Boolean::or)
     }
 
+    val memberFunctions: Collection<BoundOverloadSet<BoundMemberFunction>> get() = emptySet()
+
     /** @return The member function overloads for the given name or an empty collection if no such member function is defined. */
-    fun resolveMemberFunction(name: String): Collection<BoundOverloadSet> = emptySet()
+    fun resolveMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> = emptySet()
 
     fun resolveMemberVariable(name: String): BoundBaseTypeMemberVariable? = null
 
@@ -142,8 +142,8 @@ interface BaseType : SemanticallyAnalyzable, DefinitionWithVisibility {
                 var type = _type
                 var swapped = false
                 while (!(type isSubtypeOf pivot)) {
-                    if (pivot.superTypes.isEmpty()) return BuiltinAny
-                    if (pivot.superTypes.size > 1) {
+                    if (pivot.superTypes.baseTypes.isEmpty()) return BuiltinAny
+                    if (pivot.superTypes.baseTypes.size > 1) {
                         if (swapped) {
                             return BuiltinAny
                         }
@@ -153,7 +153,7 @@ interface BaseType : SemanticallyAnalyzable, DefinitionWithVisibility {
                         swapped = true
                     }
                     else {
-                        pivot = pivot.superTypes.asSequence().map { it.resolvedReference }.filterNotNull().first().baseType
+                        pivot = pivot.superTypes.baseTypes.first()
                     }
                 }
             }

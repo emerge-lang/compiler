@@ -134,7 +134,10 @@ class BoundInvocationExpression(
         assert((receiverExpression == null) xor (receiverExpression?.type != null))
 
         val candidateConstructors = if (receiverExpression != null) null else {
-            context.resolveBaseType(functionNameToken.value)?.constructor?.let(BoundOverloadSet::fromSingle)?.let(::setOf)
+            context.resolveBaseType(functionNameToken.value)
+                ?.constructor
+                ?.let { BoundOverloadSet.fromSingle(it) }
+                ?.let(::setOf)
         }
         val candidateTopLevelFunctions = context.getToplevelFunctionOverloadSetsBySimpleName(functionNameToken.value)
         val candidateMemberFunctions = receiverExpression?.type?.findMemberFunction(functionNameToken.value) ?: emptySet()
@@ -370,7 +373,7 @@ class BoundInvocationExpression(
  * The list is sorted by best-match first, worst-match last. However, if the return value has more than one element,
  * it has to be treated as an error because the invocation is ambiguous.
  */
-private fun Iterable<BoundOverloadSet>.filterAndSortByMatchForInvocationTypes(
+private fun Iterable<BoundOverloadSet<*>>.filterAndSortByMatchForInvocationTypes(
     receiver: BoundExpression<*>?,
     valueArguments: List<BoundExpression<*>>,
     typeArguments: List<BoundTypeArgument>,
@@ -431,7 +434,7 @@ private fun Iterable<BoundOverloadSet>.filterAndSortByMatchForInvocationTypes(
 }
 
 private data class AvailableOverloads(
-    val candidates: Collection<BoundOverloadSet>,
+    val candidates: Collection<BoundOverloadSet<*>>,
     val constructorsConsidered: Boolean,
     val anyTopLevelFunctions: Boolean,
 )

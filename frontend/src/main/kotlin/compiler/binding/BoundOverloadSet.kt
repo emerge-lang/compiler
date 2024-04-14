@@ -11,10 +11,10 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
 import kotlin.properties.Delegates
 
-class BoundOverloadSet(
+class BoundOverloadSet<out Fn : BoundFunction>(
     val canonicalName: CanonicalElementName.Function,
     val parameterCount: Int,
-    val overloads: Collection<BoundFunction>
+    val overloads: Collection<Fn>,
 ) : SemanticallyAnalyzable {
     init {
         require(overloads.isNotEmpty())
@@ -89,7 +89,7 @@ class BoundOverloadSet(
     }
 
     companion object {
-        fun fromSingle(fn: BoundFunction): BoundOverloadSet {
+        fun <Fn : BoundFunction>fromSingle(fn: Fn): BoundOverloadSet<Fn> {
             return BoundOverloadSet(
                 fn.canonicalName,
                 fn.parameters.parameters.size,

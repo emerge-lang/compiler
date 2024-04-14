@@ -20,6 +20,7 @@ package compiler.binding.type
 
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundParameter
 import compiler.binding.SemanticallyAnalyzable
@@ -94,7 +95,7 @@ sealed interface BoundTypeReference {
      */
     fun findMemberVariable(name: String): BoundBaseTypeMemberVariable? = null
 
-    fun findMemberFunction(name: String): Collection<BoundOverloadSet> = emptySet()
+    fun findMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> = emptySet()
 
     /**
      * @return a recursive copy of this type where all [GenericTypeReference]s that reference one of the [variables]

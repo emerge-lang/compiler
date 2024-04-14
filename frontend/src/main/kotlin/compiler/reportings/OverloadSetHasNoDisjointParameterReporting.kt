@@ -3,7 +3,7 @@ package compiler.reportings
 import compiler.binding.BoundOverloadSet
 
 class OverloadSetHasNoDisjointParameterReporting(
-    val overloadSet: BoundOverloadSet,
+    val overloadSet: BoundOverloadSet<*>,
 ) : Reporting(
     Level.ERROR,
     "This overload-set is ambiguous. The types of least one parameter must be disjoint, this set has none.",

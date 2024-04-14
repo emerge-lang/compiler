@@ -24,7 +24,7 @@ import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundTopLevelFunction
 import compiler.binding.basetype.BoundBaseTypeDefinition
-import compiler.binding.basetype.BoundBaseTypeMemberFunction
+import compiler.binding.basetype.BoundDeclaredBaseTypeMemberFunction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -63,13 +63,13 @@ data class FunctionDeclaration(
         context: CTContext,
         impliedReceiverType: TypeReference,
         getTypeDef: () -> BoundBaseTypeDefinition
-    ): BoundBaseTypeMemberFunction {
+    ): BoundDeclaredBaseTypeMemberFunction {
         val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(context)
         val functionContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)
         val attributes = BoundFunctionAttributeList(functionContext, attributes)
         val boundParameterList = parameters.bindTo(functionContext, impliedReceiverType)
 
-        return BoundBaseTypeMemberFunction(
+        return BoundDeclaredBaseTypeMemberFunction(
             functionContext,
             this,
             attributes,

@@ -144,7 +144,7 @@ open class MutableCTContext(
         this._functions.add(fn)
     }
 
-    override fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet> {
+    override fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet<*>> {
         val imported = _imports.flatMap { it.getOverloadSetsBySimpleName(name) }
         return imported + parentContext.getToplevelFunctionOverloadSetsBySimpleName(name)
     }

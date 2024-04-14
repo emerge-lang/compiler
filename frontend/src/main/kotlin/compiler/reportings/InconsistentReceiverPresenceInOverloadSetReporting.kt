@@ -3,7 +3,7 @@ package compiler.reportings
 import compiler.binding.BoundOverloadSet
 
 class InconsistentReceiverPresenceInOverloadSetReporting(
-    val overloadSet: BoundOverloadSet,
+    val overloadSet: BoundOverloadSet<*>,
 ) : Reporting(
     Level.ERROR,
     "Receiver presence is inconsistent in ${overloadSet.canonicalName}. All functions in an overload-set must either declare a receiver or not declare one.",

@@ -24,6 +24,7 @@ import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
 import compiler.ast.CodeChunk
 import compiler.binding.BoundElement
+import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVisibility
 import compiler.binding.context.CTContext
@@ -44,7 +45,7 @@ class BoundBaseTypeDefinition(
     val kind: Kind,
     override val visibility: BoundVisibility,
     override val typeParameters: List<BoundTypeParameter>,
-    override val superTypes: List<SourceBoundSupertypeDeclaration>,
+    override val superTypes: BoundSupertypeList,
     override val declaration: BaseTypeDeclaration,
     val entries: List<BoundBaseTypeEntry<*>>,
 ) : BaseType, BoundElement<BaseTypeDeclaration> {
@@ -60,8 +61,8 @@ class BoundBaseTypeDefinition(
     val declaredConstructors: Sequence<BoundClassConstructor> = entries.asSequence().filterIsInstance<BoundClassConstructor>()
     val declaredDestructors: Sequence<BoundClassDestructor> = entries.asSequence().filterIsInstance<BoundClassDestructor>()
 
-    val memberFunctionsByName: Map<String, Collection<BoundOverloadSet>> by lazy {
-        entries.filterIsInstance<BoundBaseTypeMemberFunction>()
+    val memberFunctionsByName: Map<String, Collection<BoundOverloadSet<BoundMemberFunction>>> by lazy {
+        entries.filterIsInstance<BoundDeclaredBaseTypeMemberFunction>()
             .groupBy { it.name }
             .mapValues { (name, overloadsSameName) ->
                 overloadsSameName
@@ -90,16 +91,21 @@ class BoundBaseTypeDefinition(
     override var destructor: BoundClassDestructor? = null
         private set
 
-    override fun resolveMemberFunction(name: String): Collection<BoundOverloadSet> = memberFunctionsByName[name] ?: emptySet()
+    override val memberFunctions: Collection<BoundOverloadSet<BoundMemberFunction>>
+        get() = memberFunctionsByName.values.flatten()
+    override fun resolveMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> = memberFunctionsByName[name] ?: emptySet()
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
             val reportings = mutableSetOf<Reporting>()
 
             typeParameters.flatMap { it.semanticAnalysisPhase1() }.forEach(reportings::add)
-            superTypes.flatMap { it.semanticAnalysisPhase1() }.forEach(reportings::add)
+            reportings.addAll(superTypes.semanticAnalysisPhase1())
 
             entries.forEach {
+                reportings.addAll(it.semanticAnalysisPhase1())
+            }
+            memberFunctionsByName.values.asSequence().flatten().forEach {
                 reportings.addAll(it.semanticAnalysisPhase1())
             }
 
@@ -159,8 +165,11 @@ class BoundBaseTypeDefinition(
             val reportings = entries.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
 
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase2).forEach(reportings::addAll)
-            superTypes.flatMap { it.semanticAnalysisPhase2() }.forEach(reportings::add)
+            reportings.addAll(superTypes.semanticAnalysisPhase2())
             entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase2).forEach(reportings::addAll)
+            memberFunctionsByName.values.asSequence().flatten().forEach {
+                reportings.addAll(it.semanticAnalysisPhase2())
+            }
             constructor?.semanticAnalysisPhase2()?.let(reportings::addAll)
             destructor?.semanticAnalysisPhase2()?.let(reportings::addAll)
 
@@ -173,23 +182,13 @@ class BoundBaseTypeDefinition(
             val reportings = entries.flatMap { it.semanticAnalysisPhase3() }.toMutableList()
 
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
-            superTypes.flatMap { it.semanticAnalysisPhase3() }.forEach(reportings::add)
+            reportings.addAll(superTypes.semanticAnalysisPhase3())
             entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase3).forEach(reportings::addAll)
+            memberFunctionsByName.values.asSequence().flatten().forEach {
+                reportings.addAll(it.semanticAnalysisPhase3())
+            }
             constructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
             destructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
-
-            superTypes
-                .filter { it.resolvedReference != null }
-                .groupBy { it.resolvedReference!!.baseType }
-                .values
-                .filter { it.size > 1}
-                .forEach { duplicateSupertypes ->
-                    duplicateSupertypes
-                        .drop(1)
-                        .forEach {
-                            reportings.add(Reporting.duplicateSupertype(it.astNode))
-                        }
-                }
 
             return@getResult reportings
         }

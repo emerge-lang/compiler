@@ -19,31 +19,32 @@
 package compiler.binding
 
 import compiler.binding.context.CTContext
+import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.SourceLocation
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 
-abstract class BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
-    abstract val context: CTContext
-    abstract val declaredAt: SourceLocation
+interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
+    val context: CTContext
+    val declaredAt: SourceLocation
 
     /**
      * The type of the receiver. Is null if the declared function has no receiver or if the declared receiver type
      * could not be resolved. See [declaresReceiver] to resolve the ambiguity.
      */
-    abstract val receiverType: BoundTypeReference?
+    val receiverType: BoundTypeReference?
 
     /**
      * Whether this function declares a receiver. This allows disambiguating the case of a function without receiver
      * and a function with receiver whichs receiver type couldn't be resolved
      */
-    abstract val declaresReceiver: Boolean
+    val declaresReceiver: Boolean
 
-    abstract val name: String
-    abstract val attributes: BoundFunctionAttributeList
-    abstract val isVirtual: Boolean
+    val name: String
+    val attributes: BoundFunctionAttributeList
+    val isVirtual: Boolean
 
     override val visibility get()= attributes.visibility
 
@@ -51,13 +52,13 @@ abstract class BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility 
      * All type parameters that are in play for this function signature, including ones inherited from context (e.g.
      * class member functions inherit type parameters from the class they are defined in).
      */
-    abstract val allTypeParameters: List<BoundTypeParameter>
+    val allTypeParameters: List<BoundTypeParameter>
 
     /**
      * The type parameters actually declared on this very function signature. In contrast to [allTypeParameters],
      * invocations can only specifiy [declaredTypeParameters] explicitly.
      */
-    abstract val declaredTypeParameters: List<BoundTypeParameter>
+    val declaredTypeParameters: List<BoundTypeParameter>
 
     /**
      * Whether this function should be considered pure by other code using it. This is true if the function is
@@ -67,7 +68,7 @@ abstract class BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility 
      * @see [BoundDeclaredFunction.isDeclaredPure]
      * @see [BoundDeclaredFunction.isEffectivelyPure]
      */
-    abstract val isPure: Boolean?
+    val isPure: Boolean?
 
     /**
      * Whether this function should be considered readonly by other code using it. This is true if the function is
@@ -77,21 +78,25 @@ abstract class BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility 
      * @see [BoundDeclaredFunction.isDeclaredReadonly]
      * @see [BoundDeclaredFunction.isEffectivelyReadonly]
      */
-    abstract val isReadonly: Boolean?
+    val isReadonly: Boolean?
 
-    abstract val isGuaranteedToThrow: Boolean?
+    val isGuaranteedToThrow: Boolean?
 
-    abstract val parameters: BoundParameterList
+    /** todo: remove for easier decoration using parameterTypes only */
+    val parameters: BoundParameterList
 
     val parameterTypes: List<BoundTypeReference?>
         get() = parameters.parameters.map { it.typeAtDeclarationTime }
 
-    abstract val returnType: BoundTypeReference?
+    val returnType: BoundTypeReference?
 
-    abstract val canonicalName: CanonicalElementName.Function
+    val canonicalName: CanonicalElementName.Function
 
     override fun toStringForErrorMessage() = "function $name"
 
-    internal abstract fun toBackendIr(): IrFunction
+    fun toBackendIr(): IrFunction
+}
 
+interface BoundMemberFunction : BoundFunction {
+    val declaredOnType: BaseType
 }

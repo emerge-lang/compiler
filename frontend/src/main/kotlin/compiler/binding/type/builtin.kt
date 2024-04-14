@@ -22,9 +22,11 @@ import compiler.CoreIntrinsicsModule
 import compiler.ast.AstVisibility
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeVariance
+import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundSupertypeDeclaration
+import compiler.binding.basetype.BoundSupertypeList
 import compiler.binding.context.SoftwareContext
 import compiler.binding.context.SourceFileRootContext
 import compiler.lexer.IdentifierToken
@@ -156,19 +158,34 @@ abstract class BuiltinType(
 ) : BaseType {
     final override val canonicalName = CanonicalElementName.BaseType(CoreIntrinsicsModule.NAME, simpleName)
 
-    final override val superTypes: Collection<BoundSupertypeDeclaration> = superTypes.map {
-        object : BoundSupertypeDeclaration {
-            override fun semanticAnalysisPhase1() = emptySet<Reporting>()
-            override fun semanticAnalysisPhase2() = emptySet<Reporting>()
-            override fun semanticAnalysisPhase3() = emptySet<Reporting>()
-            override val resolvedReference: RootResolvedTypeReference = it.baseReference
-        }
-    }
+    final override val superTypes: BoundSupertypeList = BoundSupertypeList(
+        superTypes.map {
+            object : BoundSupertypeDeclaration {
+                override fun semanticAnalysisPhase1() = emptySet<Reporting>()
+                override fun semanticAnalysisPhase2() = emptySet<Reporting>()
+                override fun semanticAnalysisPhase3() = emptySet<Reporting>()
+                override val resolvedReference: RootResolvedTypeReference = it.baseReference
+            }
+        },
+        { this@BuiltinType },
+    )
 
     override val visibility get() = BoundVisibility.ExportedScope(
         SourceFileRootContext.EMPTY,
         AstVisibility.Export(KeywordToken(Keyword.EXPORT)),
     )
+
+    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+        return superTypes.semanticAnalysisPhase1() + typeParameters.flatMap { it.semanticAnalysisPhase1() }
+    }
+
+    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        return superTypes.semanticAnalysisPhase2() + typeParameters.flatMap { it.semanticAnalysisPhase2() }
+    }
+
+    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+        return superTypes.semanticAnalysisPhase3() + typeParameters.flatMap { it.semanticAnalysisPhase3() }
+    }
 
     override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
         return emptySet() // builtins are export, visible everywhere
@@ -180,7 +197,7 @@ abstract class BuiltinType(
      * BaseTypes do not define anything themselves. All of that is defined in source language in the
      * stdlib and implementation is provided from elsewhere, probably platform-specific.
      */
-    final override fun resolveMemberFunction(name: String) = emptySet<BoundOverloadSet>()
+    final override fun resolveMemberFunction(name: String) = emptySet<BoundOverloadSet<BoundMemberFunction>>()
 
     private val backendIr by lazy { IrIntrinsicTypeImpl(this) }
     override fun toBackendIr(): IrBaseType = backendIr

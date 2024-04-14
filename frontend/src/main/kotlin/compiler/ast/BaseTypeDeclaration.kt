@@ -19,6 +19,7 @@
 package compiler.ast
 
 import compiler.InternalCompilerError
+import compiler.ast.AstSupertypeList.Companion.bindTo
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
@@ -27,10 +28,11 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundBaseTypeDefinition
 import compiler.binding.basetype.BoundBaseTypeEntry
-import compiler.binding.basetype.BoundBaseTypeMemberFunction
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.basetype.BoundClassDestructor
+import compiler.binding.basetype.BoundDeclaredBaseTypeMemberFunction
+import compiler.binding.basetype.BoundSupertypeList
 import compiler.binding.basetype.SourceBoundSupertypeDeclaration
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -67,9 +69,7 @@ class BaseTypeDeclaration(
         val typeVisibility = visibility?.bindTo(fileContext) ?: BoundVisibility.default(fileContext)
         val (boundTypeParameters, fileContextWithTypeParams) = typeParameters.chain(fileContext)
         val typeRootContext = MutableCTContext(fileContextWithTypeParams, typeVisibility)
-        val effectiveSupertypes = supertypes?.typeRefs
-            ?: listOf(TypeReference(IdentifierToken(BuiltinAny.simpleName, name.sourceLocation.deriveGenerated())))
-        val supertypes = effectiveSupertypes.map { SourceBoundSupertypeDeclaration(typeRootContext, typeDefAccessor, it) }
+        val boundSupertypes = supertypes.bindTo(typeRootContext, name.sourceLocation, typeDefAccessor)
         val memberVariableInitializationContext = MutableExecutionScopedCTContext.functionRootIn(typeRootContext)
         val selfTypeReference = TypeReference(
             simpleName = this.name.value,
@@ -103,7 +103,7 @@ class BaseTypeDeclaration(
             kind,
             typeVisibility,
             boundTypeParameters,
-            supertypes,
+            boundSupertypes,
             this,
             boundEntries,
         )
@@ -113,7 +113,21 @@ class BaseTypeDeclaration(
 
 data class AstSupertypeList(
     val typeRefs: List<TypeReference>,
-)
+) {
+    companion object {
+        fun AstSupertypeList?.bindTo(
+            typeRootContext: CTContext,
+            typeDeclaredAt: SourceLocation,
+            getTypeDef: () -> BoundBaseTypeDefinition,
+        ): BoundSupertypeList {
+            val effectiveSupertypes = this?.typeRefs
+                ?: listOf(TypeReference(IdentifierToken(BuiltinAny.simpleName, typeDeclaredAt.deriveGenerated())))
+            val boundSupertypes = effectiveSupertypes.map { SourceBoundSupertypeDeclaration(typeRootContext, getTypeDef, it) }
+
+            return BoundSupertypeList(boundSupertypes, getTypeDef)
+        }
+    }
+}
 
 /** TODO: rename to BaseTypeEntryDeclaration */
 sealed interface BaseTypeEntryDeclaration {
@@ -171,7 +185,7 @@ class BaseTypeMemberFunctionDeclaration(
         typeRootContext: CTContext,
         selfType: TypeReference,
         getTypeDef: () -> BoundBaseTypeDefinition,
-    ): BoundBaseTypeMemberFunction {
+    ): BoundDeclaredBaseTypeMemberFunction {
         return functionDeclaration.bindToAsMember(
             typeRootContext,
             selfType,

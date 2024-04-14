@@ -5,6 +5,7 @@ import compiler.ast.FunctionDeclaration
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
+import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundParameterList
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseType
@@ -15,7 +16,7 @@ import compiler.reportings.IncompatibleReturnTypeOnOverrideReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 
-class BoundBaseTypeMemberFunction(
+class BoundDeclaredBaseTypeMemberFunction(
     functionRootContext: CTContext,
     declaration: FunctionDeclaration,
     attributes: BoundFunctionAttributeList,
@@ -23,7 +24,7 @@ class BoundBaseTypeMemberFunction(
     parameters: BoundParameterList,
     body: Body?,
     getTypeDef: () -> BoundBaseTypeDefinition,
-) : BoundBaseTypeEntry<BaseTypeMemberFunctionDeclaration>, BoundDeclaredFunction(
+) : BoundBaseTypeEntry<BaseTypeMemberFunctionDeclaration>, BoundMemberFunction, BoundDeclaredFunction(
     functionRootContext,
     declaration,
     attributes,
@@ -31,10 +32,10 @@ class BoundBaseTypeMemberFunction(
     parameters,
     body,
 ) {
-    private val typeDef by lazy(getTypeDef)
+    override val declaredOnType by lazy(getTypeDef)
     override val canonicalName by lazy {
         CanonicalElementName.Function(
-            typeDef.canonicalName,
+            declaredOnType.canonicalName,
             name,
         )
     }
@@ -53,7 +54,7 @@ class BoundBaseTypeMemberFunction(
                 reportings.add(Reporting.illegalFunctionBody(declaration))
             }
         } else {
-            if (!attributes.impliesNoBody && !typeDef.kind.memberFunctionsAbstractByDefault) {
+            if (!attributes.impliesNoBody && !declaredOnType.kind.memberFunctionsAbstractByDefault) {
                 reportings.add(Reporting.missingFunctionBody(declaration))
             }
         }
@@ -104,24 +105,24 @@ class BoundBaseTypeMemberFunction(
         val selfParameterTypes = parameterTypes.asElementNotNullable()
             ?: return emptySet()
 
-        return typeDef.superTypes
-            .mapNotNull { it.resolvedReference?.baseType }
-            .flatMap { supertype ->
-                val potentialSuperFns = supertype.resolveMemberFunction(name)
-                    .filter { it.parameterCount == parameters.parameters.size }
-                    .flatMap { it.overloads }
-
-                potentialSuperFns.map {
-                    Pair(supertype, it)
-                }
-            }
-            .filter { (_, potentialSuperFn) ->
+        declaredOnType.superTypes.semanticAnalysisPhase3()
+        return declaredOnType.superTypes.inheritedMemberFunctions
+            .asSequence()
+            .filter { it.canonicalName.simpleName == this.name }
+            .filter { it.parameterCount == this.parameters.parameters.size }
+            .flatMap { it.overloads }
+            .filter { potentialSuperFn ->
                 val potentialSuperFnParamTypes = potentialSuperFn.parameterTypes.asElementNotNullable()
                     ?: return@filter false
                 selfParameterTypes.asSequence().zip(potentialSuperFnParamTypes.asSequence())
                     .drop(1) // ignore receiver
                     .all { (selfParamType, superParamType) -> superParamType.isAssignableTo(selfParamType) }
             }
+            .map { superFn ->
+                val supertype = (superFn as BoundDeclaredBaseTypeMemberFunction).declaredOnType
+                Pair(supertype, superFn)
+            }
+            .toList()
     }
 
     override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {

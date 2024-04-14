@@ -97,5 +97,5 @@ interface CTContext {
         return stateClass.getInitialState(subject)
     }
 
-    fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet>
+    fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet<*>>
 }

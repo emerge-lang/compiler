@@ -41,7 +41,7 @@ class BoundImportDeclaration(
         return@lazy ResolutionResult.Erroneous(Reporting.unresolvableImport(this))
     }
 
-    fun getOverloadSetsBySimpleName(simpleName: String): Collection<BoundOverloadSet> = when(val result = resolutionResult) {
+    fun getOverloadSetsBySimpleName(simpleName: String): Collection<BoundOverloadSet<*>> = when(val result = resolutionResult) {
         is ResolutionResult.EntirePackage -> result.packageContext.getTopLevelFunctionOverloadSetsBySimpleName(simpleName)
         is ResolutionResult.OverloadSets -> if (result.simpleName == simpleName) result.sets else emptySet()
         is ResolutionResult.BaseType,
@@ -102,7 +102,7 @@ class BoundImportDeclaration(
 
     private sealed interface ResolutionResult {
         class EntirePackage(val packageContext: PackageContext) : ResolutionResult
-        class OverloadSets(val simpleName: String, val sets: Collection<BoundOverloadSet>) : ResolutionResult
+        class OverloadSets(val simpleName: String, val sets: Collection<BoundOverloadSet<*>>) : ResolutionResult
         class BaseType(val baseType: compiler.binding.type.BaseType) : ResolutionResult
         class Variable(val variable: BoundVariable) : ResolutionResult
         class Erroneous(error: Reporting) : ResolutionResult {

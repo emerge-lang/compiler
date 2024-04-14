@@ -36,7 +36,7 @@ class PackageContext(
             .firstOrNull()
     }
 
-    private val overloadSetsBySimpleName: Map<String, Collection<BoundOverloadSet>> by lazy {
+    private val overloadSetsBySimpleName: Map<String, Collection<BoundOverloadSet<*>>> by lazy {
         /*
         this HAS to be lazy, because:
         * it cannot be initialized together with the package context, as not all contents of the package are known at that point in time
@@ -61,11 +61,11 @@ class PackageContext(
             .flatMap { it.semanticAnalysisPhase1() }
     }
 
-    fun getTopLevelFunctionOverloadSetsBySimpleName(simpleName: String): Collection<BoundOverloadSet> {
+    fun getTopLevelFunctionOverloadSetsBySimpleName(simpleName: String): Collection<BoundOverloadSet<*>> {
         return overloadSetsBySimpleName[simpleName] ?: emptySet()
     }
 
-    val allToplevelFunctionOverloadSets: Sequence<BoundOverloadSet> = sequence { yieldAll(overloadSetsBySimpleName.values) }.flatten()
+    val allToplevelFunctionOverloadSets: Sequence<BoundOverloadSet<*>> = sequence { yieldAll(overloadSetsBySimpleName.values) }.flatten()
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return (sourceFiles.flatMap { it.semanticAnalysisPhase2() } +
