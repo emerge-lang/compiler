@@ -1,8 +1,9 @@
 package compiler.binding.basetype
 
 import compiler.ast.ClassEntryDeclaration
-import compiler.binding.BoundElement
 import compiler.binding.SemanticallyAnalyzable
+import compiler.lexer.SourceLocation
 
-sealed interface BoundBaseTypeEntry<AstNode : ClassEntryDeclaration> : BoundElement<AstNode>, SemanticallyAnalyzable {
+sealed interface BoundBaseTypeEntry<AstNode : ClassEntryDeclaration> : SemanticallyAnalyzable {
+    val declaredAt: SourceLocation
 }

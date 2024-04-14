@@ -68,13 +68,13 @@ class BoundBaseTypeDefinition(
             .groupBy { it.name }
             .mapValues { (name, overloadsSameName) ->
                 overloadsSameName
-                    .groupBy { it.functionInstance.parameters.parameters.size }
+                    .groupBy { it.parameters.parameters.size }
                     .map { (parameterCount, overloads) ->
                         val overloadSetCanonicalName = CanonicalElementName.Function(
                             this@BoundBaseTypeDefinition.canonicalName,
                             name,
                         )
-                        BoundOverloadSet(overloadSetCanonicalName, parameterCount, overloads.map { it.functionInstance })
+                        BoundOverloadSet(overloadSetCanonicalName, parameterCount, overloads)
                     }
             }
     }

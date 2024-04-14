@@ -29,14 +29,14 @@ data class ParameterList (
     /** The types; null values indicate non-specified parameters */
     val types: List<TypeReference?> = parameters.map { it.type }
 
-    fun bindTo(context: ExecutionScopedCTContext, receiverType: TypeReference? = null) = BoundParameterList(
+    fun bindTo(context: ExecutionScopedCTContext, impliedReceiverType: TypeReference? = null) = BoundParameterList(
         context,
         this,
         parameters.mapIndexed { index, it ->
             if (index == 0 && it.name.value == BoundParameterList.RECEIVER_PARAMETER_NAME ) {
                 val actualType = when {
-                    it.type == null -> receiverType
-                    receiverType != null && it.type.simpleName == BoundVariable.DECLARATION_TYPE_NAME_INFER -> it.type.copy(simpleName = receiverType.simpleName)
+                    it.type == null -> impliedReceiverType
+                    impliedReceiverType != null && it.type.simpleName == BoundVariable.DECLARATION_TYPE_NAME_INFER -> it.type.copy(simpleName = impliedReceiverType.simpleName)
                     else -> it.type
                 }
                 return@mapIndexed it.copy(type = actualType).bindTo(context, BoundVariable.Kind.PARAMETER)

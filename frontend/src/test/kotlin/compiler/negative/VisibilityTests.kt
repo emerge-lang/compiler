@@ -159,7 +159,7 @@ class VisibilityTests : FreeSpec({
                 """.trimIndent()),
             )
                 .shouldReport<ElementNotAccessibleReporting> {
-                    it.element.shouldBeInstanceOf<BoundDeclaredFunction>().canonicalName.toString() shouldBe "module_A.foo"
+                    it.element.shouldBeInstanceOf<BoundDeclaredFunction>().canonicalName.toString() shouldBe "module_A.Foo::foo"
                 }
         }
     }

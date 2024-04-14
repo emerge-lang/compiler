@@ -22,6 +22,9 @@ import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundFunctionAttributeList
+import compiler.binding.BoundTopLevelFunction
+import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseTypeMemberFunction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -40,20 +43,40 @@ data class FunctionDeclaration(
 ) : AstFileLevelDeclaration {
     override val declaredAt = name.sourceLocation
 
-    fun bindTo(context: CTContext, receiverType: TypeReference?, isVirtual: Boolean, allowNoBody: Boolean): BoundDeclaredFunction {
+    fun bindToAsTopLevel(context: CTContext): BoundTopLevelFunction {
         val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(context)
         val functionContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)
-        val boundParameterList = parameters.bindTo(functionContext, receiverType)
+        val attributes = BoundFunctionAttributeList(functionContext, attributes)
+        val boundParameterList = parameters.bindTo(functionContext)
 
-        return BoundDeclaredFunction(
+        return BoundTopLevelFunction(
             functionContext,
             this,
-            BoundFunctionAttributeList(context, attributes),
+            attributes,
             boundTypeParams,
             boundParameterList,
             body?.bindTo(boundParameterList.modifiedContext),
-            isVirtual,
-            allowNoBody,
+        )
+    }
+
+    fun bindToAsMember(
+        context: CTContext,
+        impliedReceiverType: TypeReference,
+        getTypeDef: () -> BoundBaseTypeDefinition
+    ): BoundBaseTypeMemberFunction {
+        val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(context)
+        val functionContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)
+        val attributes = BoundFunctionAttributeList(functionContext, attributes)
+        val boundParameterList = parameters.bindTo(functionContext, impliedReceiverType)
+
+        return BoundBaseTypeMemberFunction(
+            functionContext,
+            this,
+            attributes,
+            boundTypeParams,
+            boundParameterList,
+            body?.bindTo(boundParameterList.modifiedContext),
+            getTypeDef,
         )
     }
 

@@ -33,10 +33,11 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundBaseTypeMemberVariable(
-    override val context: ExecutionScopedCTContext,
-    override val declaration: BaseTypeMemberVariableDeclaration,
+    val context: ExecutionScopedCTContext,
+    val declaration: BaseTypeMemberVariableDeclaration,
 ) : BoundBaseTypeEntry<ClassMemberDeclaration>, DefinitionWithVisibility {
     val name = declaration.name.value
+    override val declaredAt = declaration.sourceLocation
     val isReAssignable = declaration.variableDeclaration.isReAssignable
 
     val isConstructorParameterInitialized = if (declaration.variableDeclaration.initializerExpression is IdentifierExpression) {
@@ -79,9 +80,9 @@ class BoundBaseTypeMemberVariable(
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = boundEffectiveVariableDeclaration.semanticAnalysisPhase2().toMutableList()
         val typeUseSite = if (declaration.variableDeclaration.isReAssignable) {
-            TypeUseSite.InvariantUsage(declaration.variableDeclaration.type?.sourceLocation ?: declaration.declaredAt, this)
+            TypeUseSite.InvariantUsage(declaration.variableDeclaration.type?.sourceLocation ?: declaration.sourceLocation, this)
         } else {
-            TypeUseSite.OutUsage(declaration.variableDeclaration.type?.sourceLocation ?: declaration.declaredAt, this)
+            TypeUseSite.OutUsage(declaration.variableDeclaration.type?.sourceLocation ?: declaration.sourceLocation, this)
         }
         reportings.addAll(type!!.validate(typeUseSite))
         return reportings

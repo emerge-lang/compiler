@@ -68,12 +68,7 @@ class ASTSourceFile(
 
         imports.forEach(fileContext::addImport)
         functions.forEach { fnDecl ->
-            fileContext.addFunction(fnDecl.bindTo(
-                fileContext,
-                receiverType  = null,
-                isVirtual = false,
-                allowNoBody = false,
-            ))
+            fileContext.addFunction(fnDecl.bindToAsTopLevel(fileContext))
         }
         baseTypes.forEach(fileContext::addBaseType)
 

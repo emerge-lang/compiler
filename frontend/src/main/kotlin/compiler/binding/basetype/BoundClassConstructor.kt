@@ -59,10 +59,10 @@ class BoundClassConstructor(
     private val fileContextWithTypeParameters: CTContext,
     override val declaredTypeParameters: List<BoundTypeParameter>,
     getClassDef: () -> BoundBaseTypeDefinition,
-    override val declaration: BaseTypeConstructorDeclaration,
+    val declaration: BaseTypeConstructorDeclaration,
 ) : BoundFunction(), BoundBaseTypeEntry<BaseTypeConstructorDeclaration> {
     val classDef: BoundBaseTypeDefinition by lazy(getClassDef)
-    private val generatedSourceLocation = declaration.declaredAt.deriveGenerated()
+    private val generatedSourceLocation = declaration.sourceLocation.deriveGenerated()
     override val canonicalName: CanonicalElementName.Function by lazy {
         CanonicalElementName.Function(classDef.canonicalName, "\$constructor")
     }
@@ -77,7 +77,7 @@ class BoundClassConstructor(
     private val constructorFunctionRootContext = MutableExecutionScopedCTContext.functionRootIn(fileContextWithTypeParameters)
     override val context = fileContextWithTypeParameters
 
-    override val declaredAt get() = declaration.declaredAt
+    override val declaredAt get() = declaration.sourceLocation
     override val receiverType = null
     override val declaresReceiver = false
     override val isVirtual = false
@@ -133,7 +133,7 @@ class BoundClassConstructor(
         val astParameterList = ParameterList(classDef.memberVariables
             .filter { it.isConstructorParameterInitialized }
             .map { member ->
-                val location = member.declaration.declaredAt.deriveGenerated()
+                val location = member.declaration.sourceLocation.deriveGenerated()
                 VariableDeclaration(
                     location,
                     null,

@@ -38,10 +38,10 @@ class BoundClassDestructor(
     private val fileContextWithTypeParameters: CTContext,
     override val declaredTypeParameters: List<BoundTypeParameter>,
     getClassDef: () -> BoundBaseTypeDefinition,
-    override val declaration: BaseTypeDestructorDeclaration,
+    val declaration: BaseTypeDestructorDeclaration,
 ) : BoundFunction(), BoundBaseTypeEntry<BaseTypeDestructorDeclaration> {
     val classDef: BoundBaseTypeDefinition by lazy(getClassDef)
-    override val declaredAt = declaration.declaredAt
+    override val declaredAt = declaration.sourceLocation
     private val generatedSourceLocation = declaredAt.deriveGenerated()
     override val canonicalName: CanonicalElementName.Function by lazy {
         CanonicalElementName.Function(classDef.canonicalName, "\$destructor")

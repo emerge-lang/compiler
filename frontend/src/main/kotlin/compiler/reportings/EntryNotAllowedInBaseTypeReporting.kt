@@ -22,18 +22,18 @@ class EntryNotAllowedInBaseTypeReporting(
         }
         "${entryDesc.capitalizeFirst()} are not allowed in ${typeKind.namePlural}"
     },
-    violatingEntry.declaration.declaredAt,
+    violatingEntry.declaredAt,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is EntryNotAllowedInBaseTypeReporting) return false
 
-        if (violatingEntry.declaration.declaredAt != other.violatingEntry.declaration.declaredAt) return false
+        if (violatingEntry.declaredAt != other.violatingEntry.declaredAt) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return violatingEntry.declaration.declaredAt.hashCode()
+        return violatingEntry.declaredAt.hashCode()
     }
 }

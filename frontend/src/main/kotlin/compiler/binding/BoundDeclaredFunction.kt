@@ -14,7 +14,6 @@ import compiler.binding.type.TypeUseSite
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import compiler.reportings.ReturnTypeMismatchReporting
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 
 /**
@@ -22,30 +21,26 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
  * Refers to the original declaration and holds a reference to the appropriate context
  * so that [BaseType]s for receiver, parameters and return type can be resolved.
  */
-class BoundDeclaredFunction(
-    override val context: CTContext,
+abstract class BoundDeclaredFunction(
+    final override val context: CTContext,
     val declaration: FunctionDeclaration,
-    override val attributes: BoundFunctionAttributeList,
-    override val declaredTypeParameters: List<BoundTypeParameter>,
-    override val parameters: BoundParameterList,
+    final override val attributes: BoundFunctionAttributeList,
+    final override val declaredTypeParameters: List<BoundTypeParameter>,
+    final override val parameters: BoundParameterList,
+    /** TODO: rename to body */
     val code: Body?,
-    override val isVirtual: Boolean,
-    private val allowNoBody: Boolean,
 ) : BoundFunction() {
-    override val declaredAt = declaration.declaredAt
-    override val name: String = declaration.name.value
-    override val canonicalName by lazy {
-        CanonicalElementName.Function(context.sourceFile.packageName, name)
-    }
+    final override val declaredAt = declaration.declaredAt
+    final override val name: String = declaration.name.value
 
-    override val allTypeParameters get()= context.allTypeParameters.toList()
+    final override val allTypeParameters get()= context.allTypeParameters.toList()
 
-    override val receiverType: BoundTypeReference?
+    final override val receiverType: BoundTypeReference?
         get() = parameters.declaredReceiver?.typeAtDeclarationTime
 
-    override val declaresReceiver = parameters.declaredReceiver != null
+    final override val declaresReceiver = parameters.declaredReceiver != null
 
-    override var returnType: BoundTypeReference? = null
+    final override var returnType: BoundTypeReference? = null
         private set
 
     /**
@@ -62,21 +57,21 @@ class BoundDeclaredFunction(
     var isEffectivelyReadonly: Boolean? = null
         private set
 
-    override val isPure: Boolean?
+    final override val isPure: Boolean?
         get() = when {
             attributes.isDeclaredPure -> true
             code == null -> false
             else -> isEffectivelyPure
         }
 
-    override val isReadonly: Boolean?
+    final override val isReadonly: Boolean?
         get() = when {
             attributes.isDeclaredPure || attributes.isDeclaredReadonly -> true
             code == null -> false
             else -> isEffectivelyReadonly
         }
 
-    override val isGuaranteedToThrow: Boolean?
+    final override val isGuaranteedToThrow: Boolean?
         get() = handleCyclicInvocation(
                     context = this,
                     action = { code?.isGuaranteedToThrow },
@@ -171,14 +166,6 @@ class BoundDeclaredFunction(
             val reportings = mutableSetOf<Reporting>()
 
             declaredTypeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
-
-            if (attributes.impliesNoBody) {
-                if (code != null) {
-                    reportings.add(Reporting.illegalFunctionBody(declaration))
-                }
-            } else if (code == null && !allowNoBody) {
-                reportings.add(Reporting.missingFunctionBody(declaration))
-            }
 
             if (code != null) {
                 reportings += code.semanticAnalysisPhase3()

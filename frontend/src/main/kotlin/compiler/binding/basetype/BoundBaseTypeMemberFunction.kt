@@ -1,62 +1,83 @@
 package compiler.binding.basetype
 
-import compiler.ast.ClassEntryDeclaration
+import compiler.ast.BaseTypeMemberFunctionDeclaration
+import compiler.ast.FunctionDeclaration
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundFunction
-import compiler.binding.DefinitionWithVisibility
+import compiler.binding.BoundFunctionAttributeList
+import compiler.binding.BoundParameterList
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseType
+import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.isAssignableTo
 import compiler.lexer.SourceLocation
 import compiler.reportings.IncompatibleReturnTypeOnOverrideReporting
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 
 class BoundBaseTypeMemberFunction(
-    override val context: CTContext,
-    override val declaration: ClassEntryDeclaration,
-    val functionInstance: BoundDeclaredFunction,
-    getClassDef: () -> BoundBaseTypeDefinition,
-) : BoundBaseTypeEntry<ClassEntryDeclaration>, DefinitionWithVisibility {
-    private val classDef by lazy(getClassDef)
-    val name = functionInstance.name
-    override val visibility get()= functionInstance.attributes.visibility
-
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return functionInstance.semanticAnalysisPhase1()
+    functionRootContext: CTContext,
+    declaration: FunctionDeclaration,
+    attributes: BoundFunctionAttributeList,
+    declaredTypeParameters: List<BoundTypeParameter>,
+    parameters: BoundParameterList,
+    body: Body?,
+    getTypeDef: () -> BoundBaseTypeDefinition,
+) : BoundBaseTypeEntry<BaseTypeMemberFunctionDeclaration>, BoundDeclaredFunction(
+    functionRootContext,
+    declaration,
+    attributes,
+    declaredTypeParameters,
+    parameters,
+    body,
+) {
+    private val typeDef by lazy(getTypeDef)
+    override val canonicalName by lazy {
+        CanonicalElementName.Function(
+            typeDef.canonicalName,
+            name,
+        )
     }
-
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return functionInstance.semanticAnalysisPhase2()
-    }
+    override val isVirtual get() = declaresReceiver
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
-        reportings.addAll(functionInstance.semanticAnalysisPhase3())
+        val reportings = super.semanticAnalysisPhase3().toMutableList()
         validateOverride(reportings)
+
+        // TODO: member functions cannot be external
+        if (code != null) {
+            if (attributes.impliesNoBody) {
+                reportings.add(Reporting.illegalFunctionBody(declaration))
+            }
+        } else {
+            if (!attributes.impliesNoBody && !typeDef.kind.memberFunctionsAbstractByDefault) {
+                reportings.add(Reporting.missingFunctionBody(declaration))
+            }
+        }
 
         return reportings
     }
 
     private fun validateOverride(reportings: MutableCollection<Reporting>) {
-        val isDeclaredOverride = functionInstance.attributes.firstOverrideAttribute != null
-        if (isDeclaredOverride && !functionInstance.declaresReceiver) {
-            reportings.add(Reporting.staticFunctionDeclaredOverride(functionInstance))
+        val isDeclaredOverride = attributes.firstOverrideAttribute != null
+        if (isDeclaredOverride && !declaresReceiver) {
+            reportings.add(Reporting.staticFunctionDeclaredOverride(this))
             return
         }
 
         val superFns = findOverriddenFunction()
         if (isDeclaredOverride) {
             when (superFns.size) {
-                0 -> reportings.add(Reporting.functionDoesNotOverride(functionInstance))
+                0 -> reportings.add(Reporting.functionDoesNotOverride(this))
                 1 -> { /* awesome, things are as they should be */ }
-                else -> reportings.add(Reporting.ambiguousOverride(functionInstance))
+                else -> reportings.add(Reporting.ambiguousOverride(this))
             }
         } else {
             when (superFns.size) {
                 0 ->  { /* awesome, things are as they should be */ }
                 else -> {
                     val supertype = superFns.first().first
-                    reportings.add(Reporting.undeclaredOverride(functionInstance, supertype))
+                    reportings.add(Reporting.undeclaredOverride(this, supertype))
                 }
             }
         }
@@ -66,24 +87,24 @@ class BoundBaseTypeMemberFunction(
         }
 
         val superFn = superFns.singleOrNull()?.second ?: return
-        functionInstance.returnType?.let { overriddenReturnType ->
+        returnType?.let { overriddenReturnType ->
             superFn.returnType?.let { superReturnType ->
                 overriddenReturnType.evaluateAssignabilityTo(superReturnType, overriddenReturnType.sourceLocation ?: SourceLocation.UNKNOWN)
                     ?.let {
-                        reportings.add(IncompatibleReturnTypeOnOverrideReporting(functionInstance.declaration, it))
+                        reportings.add(IncompatibleReturnTypeOnOverrideReporting(declaration, it))
                     }
             }
         }
     }
 
     private fun findOverriddenFunction(): Collection<Pair<BaseType, BoundFunction>> {
-        val selfParameterTypes = functionInstance.parameterTypes.asElementNotNullable()
+        val selfParameterTypes = parameterTypes.asElementNotNullable()
             ?: return emptySet()
 
-        return classDef.superTypes
+        return typeDef.superTypes
             .flatMap { supertype ->
-                val potentialSuperFns = supertype.resolveMemberFunction(functionInstance.name)
-                    .filter { it.parameterCount == functionInstance.parameters.parameters.size }
+                val potentialSuperFns = supertype.resolveMemberFunction(name)
+                    .filter { it.parameterCount == parameters.parameters.size }
                     .flatMap { it.overloads }
 
                 potentialSuperFns.map {
@@ -100,7 +121,7 @@ class BoundBaseTypeMemberFunction(
     }
 
     override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
-        return functionInstance.visibility.validateAccessFrom(location, this)
+        return visibility.validateAccessFrom(location, this)
     }
 
     override fun toStringForErrorMessage() = "member function $name"

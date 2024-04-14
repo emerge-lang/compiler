@@ -7,7 +7,7 @@ class ClassMemberVariableNotInitializedDuringObjectConstructionReporting(
 ) : Reporting(
     Level.ERROR,
     "Member variable ${memberDeclaration.name.value} is not guaranteed to be initialized during object construction",
-    memberDeclaration.declaredAt,
+    memberDeclaration.sourceLocation,
 ) {
     override fun equals(other: Any?): Boolean {
         if (other !is ClassMemberVariableNotInitializedDuringObjectConstructionReporting) {

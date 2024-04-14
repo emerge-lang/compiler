@@ -6,9 +6,11 @@ import compiler.reportings.ConstructorDeclaredModifyingReporting
 import compiler.reportings.DuplicateBaseTypeMemberReporting
 import compiler.reportings.DuplicateSupertypeReporting
 import compiler.reportings.ExplicitOwnershipNotAllowedReporting
+import compiler.reportings.IllegalFunctionBodyReporting
 import compiler.reportings.IllegalSupertypeReporting
 import compiler.reportings.ImpureInvocationInPureContextReporting
 import compiler.reportings.IncompatibleReturnTypeOnOverrideReporting
+import compiler.reportings.MissingFunctionBodyReporting
 import compiler.reportings.MultipleClassConstructorsReporting
 import compiler.reportings.MultipleClassDestructorsReporting
 import compiler.reportings.ObjectNotFullyInitializedReporting
@@ -127,6 +129,26 @@ class ClassErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<ExplicitOwnershipNotAllowedReporting>()
+        }
+    }
+
+    "member functions" - {
+        "must have a body" {
+            validateModule("""
+                class Test {
+                    fun test(self)
+                }
+            """.trimIndent())
+                .shouldReport<MissingFunctionBodyReporting>()
+        }
+
+        "intrinsic must not have a body" {
+            validateModule("""
+                class Test {
+                    intrinsic fun test(self) {}
+                }
+            """.trimIndent())
+                .shouldReport<IllegalFunctionBodyReporting>()
         }
     }
 
