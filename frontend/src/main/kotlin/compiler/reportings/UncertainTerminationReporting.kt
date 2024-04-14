@@ -18,13 +18,13 @@
 
 package compiler.reportings
 
-import compiler.binding.BoundFunction
+import compiler.binding.BoundDeclaredFunction
 
 /**
  * Reported when [function] does not return or throw on all execution paths *and* implicit returns cannot be inferred
  * (returnType != Unit).
  */
-class UncertainTerminationReporting(val function: BoundFunction) : Reporting(
+class UncertainTerminationReporting(val function: BoundDeclaredFunction) : Reporting(
     Level.ERROR,
     "Function ${function.canonicalName} does not terminate (return or throw) on all possible execution paths.",
     function.declaredAt

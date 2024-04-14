@@ -23,6 +23,7 @@ import compiler.ast.BaseTypeDeclaration
 import compiler.ast.ImportDeclaration
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
+import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundFunction
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
@@ -139,7 +140,7 @@ open class MutableCTContext(
         return parentContext.resolveVariable(name, fromOwnFileOnly)
     }
 
-    fun addFunction(fn: BoundFunction) {
+    fun addFunction(fn: BoundDeclaredFunction) {
         this._functions.add(fn)
     }
 

@@ -12,7 +12,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
 internal abstract class IrFunctionImpl private constructor(
     val canonicalName: CanonicalElementName.Function,
-    private val boundFunction: BoundFunction,
+    private val boundFunction: BoundDeclaredFunction,
     boundBody: BoundDeclaredFunction.Body?,
 ) {
     protected val _parameters: List<IrVariableDeclaration> by lazy { boundFunction.parameters.parameters.map { it.backendIrDeclaration } }
@@ -37,7 +37,7 @@ internal abstract class IrFunctionImpl private constructor(
 
     private class IrDeclaredFunctionImpl(
         canonicalName: CanonicalElementName.Function,
-        boundFunction: BoundFunction,
+        boundFunction: BoundDeclaredFunction,
     ) : IrFunctionImpl(canonicalName, boundFunction, null), IrDeclaredFunction {
         override val parameters = super._parameters
         override val returnType = super._returnType
@@ -46,7 +46,7 @@ internal abstract class IrFunctionImpl private constructor(
 
     private class IrImplementedFunctionImpl(
         canonicalName: CanonicalElementName.Function,
-        boundFunction: BoundFunction,
+        boundFunction: BoundDeclaredFunction,
         code: BoundDeclaredFunction.Body,
     ) : IrFunctionImpl(canonicalName, boundFunction, code), IrImplementedFunction {
         override val parameters = super._parameters
@@ -61,9 +61,9 @@ internal abstract class IrFunctionImpl private constructor(
     }
 
     companion object {
-        operator fun invoke(function: BoundFunction): IrFunction {
+        operator fun invoke(function: BoundDeclaredFunction): IrFunction {
             return when {
-                function is BoundDeclaredFunction && function.code != null -> {
+                function.code != null -> {
                     IrImplementedFunctionImpl(function.canonicalName, function, function.code)
                 }
                 else -> {

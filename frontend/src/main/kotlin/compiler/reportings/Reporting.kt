@@ -310,7 +310,7 @@ abstract class Reporting internal constructor(
             expectedType,
         )
 
-        fun uncertainTermination(function: BoundFunction) =
+        fun uncertainTermination(function: BoundDeclaredFunction) =
             UncertainTerminationReporting(function)
 
         fun conditionIsNotBoolean(condition: BoundExpression<*>, location: SourceLocation): Reporting {
