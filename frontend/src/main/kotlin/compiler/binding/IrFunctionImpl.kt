@@ -13,7 +13,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 internal abstract class IrFunctionImpl private constructor(
     val canonicalName: CanonicalElementName.Function,
     private val boundFunction: BoundFunction,
-    boundBody: BoundFunction.Body?,
+    boundBody: BoundDeclaredFunction.Body?,
 ) {
     protected val _parameters: List<IrVariableDeclaration> by lazy { boundFunction.parameters.parameters.map { it.backendIrDeclaration } }
     protected val _returnType = boundFunction.returnType!!.toBackendIr()
@@ -22,8 +22,8 @@ internal abstract class IrFunctionImpl private constructor(
     protected val _body: IrCodeChunk by lazy {
         when (boundBody) {
             null -> IrCodeChunkImpl(emptyList())
-            is BoundFunction.Body.Full -> boundBody.code.toBackendIrStatement() // TODO: implicit unit return
-            is BoundFunction.Body.SingleExpression -> {
+            is BoundDeclaredFunction.Body.Full -> boundBody.code.toBackendIrStatement() // TODO: implicit unit return
+            is BoundDeclaredFunction.Body.SingleExpression -> {
                 val resultTemporary = IrCreateTemporaryValueImpl(boundBody.expression.toBackendIrExpression())
                 IrCodeChunkImpl(listOf(
                     resultTemporary,
@@ -47,7 +47,7 @@ internal abstract class IrFunctionImpl private constructor(
     private class IrImplementedFunctionImpl(
         canonicalName: CanonicalElementName.Function,
         boundFunction: BoundFunction,
-        code: BoundFunction.Body,
+        code: BoundDeclaredFunction.Body,
     ) : IrFunctionImpl(canonicalName, boundFunction, code), IrImplementedFunction {
         override val parameters = super._parameters
         override val returnType = super._returnType

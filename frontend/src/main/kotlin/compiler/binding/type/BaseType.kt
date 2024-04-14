@@ -56,7 +56,6 @@ interface BaseType : SemanticallyAnalyzable, DefinitionWithVisibility {
     val superTypes: Set<BaseType>
         get() = emptySet()
 
-    /** TODO: make non-nullable as soon as ALL builtin types are declared in emerge source */
     val constructor: BoundFunction?
         get() = null
 

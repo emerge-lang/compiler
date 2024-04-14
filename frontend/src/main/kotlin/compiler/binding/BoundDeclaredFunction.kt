@@ -1,16 +1,19 @@
 package compiler.binding
 
 import compiler.*
+import compiler.ast.Executable
 import compiler.ast.FunctionDeclaration
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
+import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
+import compiler.reportings.ReturnTypeMismatchReporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 
@@ -236,4 +239,29 @@ class BoundDeclaredFunction(
 
     private val backendIr by lazy { IrFunctionImpl(this) }
     override fun toBackendIr(): IrFunction = backendIr
+    sealed interface Body : BoundExecutable<Executable> {
+        class SingleExpression(val expression: BoundExpression<*>) : Body, BoundExecutable<Executable> by expression {
+            private var expectedReturnType: BoundTypeReference? = null
+
+            override fun setExpectedReturnType(type: BoundTypeReference) {
+                expectedReturnType = type
+                expression.setExpectedEvaluationResultType(type)
+            }
+
+            override fun semanticAnalysisPhase3(): Collection<Reporting> {
+                val reportings = mutableListOf<Reporting>()
+                reportings.addAll(expression.semanticAnalysisPhase3())
+                expectedReturnType?.let { declaredReturnType ->
+                    expression.type?.let { actualReturnType ->
+                        actualReturnType.evaluateAssignabilityTo(declaredReturnType, expression.declaration.sourceLocation)
+                            ?.let(::ReturnTypeMismatchReporting)
+                            ?.let(reportings::add)
+                    }
+                }
+
+                return reportings
+            }
+        }
+        class Full(val code: BoundCodeChunk) : Body, BoundExecutable<Executable> by code
+    }
 }

@@ -21,7 +21,6 @@ package compiler.ast
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
-import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -59,19 +58,19 @@ data class FunctionDeclaration(
     }
 
     sealed interface Body {
-        fun bindTo(context: ExecutionScopedCTContext): BoundFunction.Body
+        fun bindTo(context: ExecutionScopedCTContext): BoundDeclaredFunction.Body
 
         class SingleExpression(val expression: Expression) : Body {
-            override fun bindTo(context: ExecutionScopedCTContext): BoundFunction.Body {
-                return BoundFunction.Body.SingleExpression(
+            override fun bindTo(context: ExecutionScopedCTContext): BoundDeclaredFunction.Body {
+                return BoundDeclaredFunction.Body.SingleExpression(
                     expression.bindTo(context)
                 )
             }
         }
 
         class Full(val code: CodeChunk) : Body {
-            override fun bindTo(context: ExecutionScopedCTContext): BoundFunction.Body {
-                return BoundFunction.Body.Full(code.bindTo(context))
+            override fun bindTo(context: ExecutionScopedCTContext): BoundDeclaredFunction.Body {
+                return BoundDeclaredFunction.Body.Full(code.bindTo(context))
             }
         }
     }
