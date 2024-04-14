@@ -26,6 +26,7 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
+import compiler.binding.basetype.BoundSupertypeDeclaration
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
@@ -41,7 +42,7 @@ interface BaseType : SemanticallyAnalyzable, DefinitionWithVisibility {
     // TODO: infer this from declaring package and simpleName
     val canonicalName: CanonicalElementName.BaseType
 
-    val baseReference: BoundTypeReference
+    val baseReference: RootResolvedTypeReference
         get() = RootResolvedTypeReference(TypeReference(this.simpleName), this, typeParameters.map {
                 BoundTypeArgument(
                     TypeArgument(
@@ -53,7 +54,8 @@ interface BaseType : SemanticallyAnalyzable, DefinitionWithVisibility {
                 )
             })
 
-    val superTypes: Set<BaseType>
+    /** TODO: rename to supertypes, lowercase t. */
+    val superTypes: Collection<BoundSupertypeDeclaration>
         get() = emptySet()
 
     val constructor: BoundFunction?
@@ -77,7 +79,11 @@ interface BaseType : SemanticallyAnalyzable, DefinitionWithVisibility {
         if (other === this) return true
         if (other === BuiltinNothing) return false
 
-        return superTypes.map { it.isSubtypeOf(other) }.fold(false, Boolean::or)
+        return superTypes.asSequence()
+            .map { it.resolvedReference?.baseType }
+            .filterNotNull()
+            .map { it.isSubtypeOf(other) }
+            .fold(false, Boolean::or)
     }
 
     /** @return The member function overloads for the given name or an empty collection if no such member function is defined. */
@@ -147,7 +153,7 @@ interface BaseType : SemanticallyAnalyzable, DefinitionWithVisibility {
                         swapped = true
                     }
                     else {
-                        pivot = pivot.superTypes.iterator().next()
+                        pivot = pivot.superTypes.asSequence().map { it.resolvedReference }.filterNotNull().first().baseType
                     }
                 }
             }

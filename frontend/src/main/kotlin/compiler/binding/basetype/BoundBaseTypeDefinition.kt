@@ -29,10 +29,6 @@ import compiler.binding.BoundVisibility
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeParameter
-import compiler.binding.type.BuiltinAny
-import compiler.binding.type.RootResolvedTypeReference
-import compiler.binding.type.TypeUseSite
-import compiler.binding.type.UnresolvedType
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
@@ -48,6 +44,7 @@ class BoundBaseTypeDefinition(
     val kind: Kind,
     override val visibility: BoundVisibility,
     override val typeParameters: List<BoundTypeParameter>,
+    override val superTypes: List<SourceBoundSupertypeDeclaration>,
     override val declaration: BaseTypeDeclaration,
     val entries: List<BoundBaseTypeEntry<*>>,
 ) : BaseType, BoundElement<BaseTypeDeclaration> {
@@ -99,7 +96,8 @@ class BoundBaseTypeDefinition(
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
             val reportings = mutableSetOf<Reporting>()
 
-            typeParameters.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
+            typeParameters.flatMap { it.semanticAnalysisPhase1() }.forEach(reportings::add)
+            superTypes.flatMap { it.semanticAnalysisPhase1() }.forEach(reportings::add)
 
             entries.forEach {
                 reportings.addAll(it.semanticAnalysisPhase1())
@@ -160,9 +158,8 @@ class BoundBaseTypeDefinition(
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
             val reportings = entries.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
 
-            reportings.addAll(resolveAndValidateSupertypes())
-
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase2).forEach(reportings::addAll)
+            superTypes.flatMap { it.semanticAnalysisPhase2() }.forEach(reportings::add)
             entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase2).forEach(reportings::addAll)
             constructor?.semanticAnalysisPhase2()?.let(reportings::addAll)
             destructor?.semanticAnalysisPhase2()?.let(reportings::addAll)
@@ -171,53 +168,28 @@ class BoundBaseTypeDefinition(
         }
     }
 
-    override lateinit var superTypes: Set<BaseType>
-        private set
-
-    private fun resolveAndValidateSupertypes(): Collection<Reporting> {
-        if (declaration.supertypes == null) {
-            superTypes = setOf(BuiltinAny)
-            return emptySet()
-        }
-
-        val reportings = mutableListOf<Reporting>()
-
-        val superBaseTypes = mutableSetOf<BaseType>()
-        for (superTypeRef in declaration.supertypes.typeRefs) {
-            val resolved = typeRootContext.resolveType(superTypeRef)
-            reportings.addAll(resolved.validate(TypeUseSite.Irrelevant(superTypeRef.sourceLocation, this)))
-            if (resolved is UnresolvedType) {
-                continue
-            }
-
-            if (resolved !is RootResolvedTypeReference || resolved.baseType !is BoundBaseTypeDefinition || resolved.baseType.kind != Kind.INTERFACE) {
-                reportings.add(Reporting.illegalSupertype(superTypeRef, "can only inherit from interfaces"))
-                continue
-            }
-
-            if (superTypeRef.arguments.isNotEmpty()) {
-                reportings.add(Reporting.illegalSupertype(superTypeRef, "inheriting from generic types is currently not supported"))
-                continue
-            }
-
-            val baseType = resolved.baseType
-            if (!superBaseTypes.add(baseType)) {
-                reportings.add(Reporting.duplicateSupertype(superTypeRef))
-            }
-        }
-
-        this.superTypes = superBaseTypes
-        return reportings
-    }
-
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
             val reportings = entries.flatMap { it.semanticAnalysisPhase3() }.toMutableList()
 
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
+            superTypes.flatMap { it.semanticAnalysisPhase3() }.forEach(reportings::add)
             entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase3).forEach(reportings::addAll)
             constructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
             destructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
+
+            superTypes
+                .filter { it.resolvedReference != null }
+                .groupBy { it.resolvedReference!!.baseType }
+                .values
+                .filter { it.size > 1}
+                .forEach { duplicateSupertypes ->
+                    duplicateSupertypes
+                        .drop(1)
+                        .forEach {
+                            reportings.add(Reporting.duplicateSupertype(it.astNode))
+                        }
+                }
 
             return@getResult reportings
         }

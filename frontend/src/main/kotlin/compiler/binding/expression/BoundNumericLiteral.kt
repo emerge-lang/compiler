@@ -71,7 +71,7 @@ open class BoundNumericLiteral(
             return
         }
 
-        if (BuiltinNumber !in type.baseType.superTypes) {
+        if (!type.baseType.isSubtypeOf(BuiltinNumber)) {
             return
         }
 

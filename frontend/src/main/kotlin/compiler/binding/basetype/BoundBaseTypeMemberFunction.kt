@@ -105,6 +105,7 @@ class BoundBaseTypeMemberFunction(
             ?: return emptySet()
 
         return typeDef.superTypes
+            .mapNotNull { it.resolvedReference?.baseType }
             .flatMap { supertype ->
                 val potentialSuperFns = supertype.resolveMemberFunction(name)
                     .filter { it.parameterCount == parameters.parameters.size }

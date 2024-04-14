@@ -19,10 +19,12 @@
 package compiler.compiler.ast.type
 
 import compiler.binding.BoundVisibility
+import compiler.binding.basetype.BoundSupertypeDeclaration
 import compiler.binding.type.BaseType
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
+import io.mockk.every
 import io.mockk.mockk
 
 fun fakeType(name: String, vararg superTypes: BaseType): BaseType = object: BaseType {
@@ -30,7 +32,11 @@ fun fakeType(name: String, vararg superTypes: BaseType): BaseType = object: Base
     override val visibility = BoundVisibility.ExportedScope(mockk(), mockk())
     override fun validateAccessFrom(location: SourceLocation) = emptySet<Reporting>()
     override fun toStringForErrorMessage() = "fake type $name"
-    override val superTypes = superTypes.toSet()
+    override val superTypes = superTypes.map { superBaseType ->
+        mockk<BoundSupertypeDeclaration> {
+            every { resolvedReference } returns superBaseType.baseReference
+        }
+    }
     override val simpleName = name
     override val canonicalName = CanonicalElementName.BaseType(
         CanonicalElementName.Package(listOf("fake")),

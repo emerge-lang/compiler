@@ -24,6 +24,7 @@ import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVisibility
+import compiler.binding.basetype.BoundSupertypeDeclaration
 import compiler.binding.context.SoftwareContext
 import compiler.binding.context.SourceFileRootContext
 import compiler.lexer.IdentifierToken
@@ -155,7 +156,14 @@ abstract class BuiltinType(
 ) : BaseType {
     final override val canonicalName = CanonicalElementName.BaseType(CoreIntrinsicsModule.NAME, simpleName)
 
-    final override val superTypes: Set<BaseType> = superTypes.toSet()
+    final override val superTypes: Collection<BoundSupertypeDeclaration> = superTypes.map {
+        object : BoundSupertypeDeclaration {
+            override fun semanticAnalysisPhase1() = emptySet<Reporting>()
+            override fun semanticAnalysisPhase2() = emptySet<Reporting>()
+            override fun semanticAnalysisPhase3() = emptySet<Reporting>()
+            override val resolvedReference: RootResolvedTypeReference = it.baseReference
+        }
+    }
 
     override val visibility get() = BoundVisibility.ExportedScope(
         SourceFileRootContext.EMPTY,

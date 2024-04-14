@@ -31,12 +31,14 @@ import compiler.binding.basetype.BoundBaseTypeMemberFunction
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.basetype.BoundClassDestructor
+import compiler.binding.basetype.SourceBoundSupertypeDeclaration
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeParameter.Companion.chain
+import compiler.binding.type.BuiltinAny
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
@@ -53,6 +55,10 @@ class BaseTypeDeclaration(
     override val declaredAt = name.sourceLocation
 
     fun bindTo(fileContext: CTContext): BoundBaseTypeDefinition {
+        // declare this now to allow passing forward references to all children
+        lateinit var boundTypeDef: BoundBaseTypeDefinition
+        val typeDefAccessor = { boundTypeDef }
+
         val kind = when (declarationKeyword.keyword) {
             Keyword.CLASS_DEFINITION -> BoundBaseTypeDefinition.Kind.CLASS
             Keyword.INTERFACE_DEFINITION -> BoundBaseTypeDefinition.Kind.INTERFACE
@@ -61,6 +67,9 @@ class BaseTypeDeclaration(
         val typeVisibility = visibility?.bindTo(fileContext) ?: BoundVisibility.default(fileContext)
         val (boundTypeParameters, fileContextWithTypeParams) = typeParameters.chain(fileContext)
         val typeRootContext = MutableCTContext(fileContextWithTypeParams, typeVisibility)
+        val effectiveSupertypes = supertypes?.typeRefs
+            ?: listOf(TypeReference(IdentifierToken(BuiltinAny.simpleName, name.sourceLocation.deriveGenerated())))
+        val supertypes = effectiveSupertypes.map { SourceBoundSupertypeDeclaration(typeRootContext, typeDefAccessor, it) }
         val memberVariableInitializationContext = MutableExecutionScopedCTContext.functionRootIn(typeRootContext)
         val selfTypeReference = TypeReference(
             simpleName = this.name.value,
@@ -72,8 +81,6 @@ class BaseTypeDeclaration(
             },
         )
 
-        lateinit var boundTypeDef: BoundBaseTypeDefinition
-        val typeDefAccessor = { boundTypeDef }
         // the entries must retain their order, for semantic and linting reasons
         val boundEntries = entryDeclarations
             .map<BaseTypeEntryDeclaration, BoundBaseTypeEntry<*>> { entry -> when (entry) {
@@ -96,6 +103,7 @@ class BaseTypeDeclaration(
             kind,
             typeVisibility,
             boundTypeParameters,
+            supertypes,
             this,
             boundEntries,
         )
