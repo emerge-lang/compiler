@@ -32,10 +32,10 @@ class BoundTopLevelFunction(
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         val reportings = super.semanticAnalysisPhase3().toMutableList()
         if (attributes.impliesNoBody) {
-            if (code != null) {
+            if (body != null) {
                 reportings.add(Reporting.illegalFunctionBody(declaration))
             }
-        } else if (code == null) {
+        } else if (body == null) {
             reportings.add(Reporting.missingFunctionBody(declaration))
         }
 

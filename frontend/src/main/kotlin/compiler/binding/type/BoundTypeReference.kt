@@ -45,7 +45,7 @@ sealed interface BoundTypeReference {
 
     /**
      * @return this type with the given [mutability], defaulting ([defaultMutabilityTo])
-     * the mutability of type arguments to the given mutablility.
+     * the mutability of type arguments to the given mutability.
      */
     fun withMutability(modifier: TypeMutability?): BoundTypeReference
 
@@ -142,9 +142,6 @@ sealed interface BoundTypeReference {
      *
      * The [Reporting]s added to [carry] will refer to `this` as the type being assigned to (member variable, function
      * parameter, ...) and [assigneeType] as the type of the value being assigned.
-     *
-     * References to generic types found in [assigneeType] will be put into [TypeUnification.bindings], and references to
-     * generic types found in `this` will be put into [TypeUnification.right].
      *
      * @param assignmentLocation Used to properly locate errors, also for forwarding to [evaluateAssignabilityTo]
      * @param carry When multiple types have to be found at the same time (a function invocation with more than one parameter),

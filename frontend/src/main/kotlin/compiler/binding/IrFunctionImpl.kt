@@ -63,8 +63,8 @@ internal abstract class IrFunctionImpl private constructor(
     companion object {
         operator fun invoke(function: BoundDeclaredFunction): IrFunction {
             return when {
-                function.code != null -> {
-                    IrImplementedFunctionImpl(function.canonicalName, function, function.code)
+                function.body != null -> {
+                    IrImplementedFunctionImpl(function.canonicalName, function, function.body)
                 }
                 else -> {
                     IrDeclaredFunctionImpl(function.canonicalName, function)

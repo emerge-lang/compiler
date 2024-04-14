@@ -47,7 +47,7 @@ class BaseTypeDeclaration(
     val visibility: AstVisibility?,
     val name: IdentifierToken,
     val supertypes: AstSupertypeList?,
-    val entryDeclarations: List<ClassEntryDeclaration>,
+    val entryDeclarations: List<BaseTypeEntryDeclaration>,
     val typeParameters: List<TypeParameter>,
 ) : AstFileLevelDeclaration {
     override val declaredAt = name.sourceLocation
@@ -76,7 +76,7 @@ class BaseTypeDeclaration(
         val typeDefAccessor = { boundTypeDef }
         // the entries must retain their order, for semantic and linting reasons
         val boundEntries = entryDeclarations
-            .map<ClassEntryDeclaration, BoundBaseTypeEntry<*>> { entry -> when (entry) {
+            .map<BaseTypeEntryDeclaration, BoundBaseTypeEntry<*>> { entry -> when (entry) {
                 is BaseTypeMemberVariableDeclaration -> entry.bindTo(memberVariableInitializationContext)
                 is BaseTypeConstructorDeclaration -> {
                     entry.bindTo(fileContextWithTypeParams, boundTypeParameters, typeDefAccessor)
@@ -108,17 +108,17 @@ data class AstSupertypeList(
 )
 
 /** TODO: rename to BaseTypeEntryDeclaration */
-sealed interface ClassEntryDeclaration {
+sealed interface BaseTypeEntryDeclaration {
     val sourceLocation: SourceLocation
 }
 
-sealed class ClassMemberDeclaration : ClassEntryDeclaration {
+sealed class BaseTypeMemberDeclaration : BaseTypeEntryDeclaration {
     abstract val name: IdentifierToken
 }
 
 class BaseTypeMemberVariableDeclaration(
     val variableDeclaration: VariableDeclaration,
-) : ClassMemberDeclaration() {
+) : BaseTypeMemberDeclaration() {
     override val sourceLocation = variableDeclaration.declaredAt
     override val name = variableDeclaration.name
 
@@ -134,7 +134,7 @@ class BaseTypeConstructorDeclaration(
     val attributes: List<AstFunctionAttribute>,
     val constructorKeyword: IdentifierToken,
     val code: CodeChunk,
-) : ClassEntryDeclaration {
+) : BaseTypeEntryDeclaration {
     override val sourceLocation = constructorKeyword.sourceLocation
 
     fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>, getClassDef: () -> BoundBaseTypeDefinition) : BoundClassConstructor {
@@ -145,7 +145,7 @@ class BaseTypeConstructorDeclaration(
 class BaseTypeDestructorDeclaration(
     val destructorKeyword: IdentifierToken,
     val code: CodeChunk,
-) : ClassEntryDeclaration {
+) : BaseTypeEntryDeclaration {
     override val sourceLocation = destructorKeyword.sourceLocation
 
     fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>, getClassDef: () -> BoundBaseTypeDefinition): BoundClassDestructor {
@@ -155,7 +155,7 @@ class BaseTypeDestructorDeclaration(
 
 class BaseTypeMemberFunctionDeclaration(
     val functionDeclaration: FunctionDeclaration
-) : ClassMemberDeclaration() {
+) : BaseTypeMemberDeclaration() {
     override val sourceLocation = functionDeclaration.declaredAt
     override val name = functionDeclaration.name
 

@@ -27,8 +27,7 @@ abstract class BoundDeclaredFunction(
     final override val attributes: BoundFunctionAttributeList,
     final override val declaredTypeParameters: List<BoundTypeParameter>,
     final override val parameters: BoundParameterList,
-    /** TODO: rename to body */
-    val code: Body?,
+    val body: Body?,
 ) : BoundFunction() {
     final override val declaredAt = declaration.declaredAt
     final override val name: String = declaration.name.value
@@ -60,21 +59,21 @@ abstract class BoundDeclaredFunction(
     final override val isPure: Boolean?
         get() = when {
             attributes.isDeclaredPure -> true
-            code == null -> false
+            body == null -> false
             else -> isEffectivelyPure
         }
 
     final override val isReadonly: Boolean?
         get() = when {
             attributes.isDeclaredPure || attributes.isDeclaredReadonly -> true
-            code == null -> false
+            body == null -> false
             else -> isEffectivelyReadonly
         }
 
     final override val isGuaranteedToThrow: Boolean?
         get() = handleCyclicInvocation(
                     context = this,
-                    action = { code?.isGuaranteedToThrow },
+                    action = { body?.isGuaranteedToThrow },
                     onCycle = { false },
                 )
 
@@ -93,16 +92,16 @@ abstract class BoundDeclaredFunction(
 
             if (declaration.parsedReturnType != null) {
                 returnType = context.resolveType(declaration.parsedReturnType)
-                if (code !is Body.SingleExpression) {
+                if (body !is Body.SingleExpression) {
                     returnType = returnType?.defaultMutabilityTo(TypeMutability.IMMUTABLE)
                 }
 
                 returnType?.let {
-                    code?.setExpectedReturnType(it)
+                    body?.setExpectedReturnType(it)
                 }
             }
 
-            this.code?.semanticAnalysisPhase1()?.let(reportings::addAll)
+            this.body?.semanticAnalysisPhase1()?.let(reportings::addAll)
 
             return@getResult reportings
         }
@@ -115,7 +114,7 @@ abstract class BoundDeclaredFunction(
 
             handleCyclicInvocation(
                 context = this,
-                action = { this.code?.semanticAnalysisPhase2()?.let(reportings::addAll) },
+                action = { this.body?.semanticAnalysisPhase2()?.let(reportings::addAll) },
                 onCycle = {
                     Reporting.typeDeductionError(
                         "Cannot infer the return type of function $name because the type inference is cyclic here. Specify the type of one element explicitly.",
@@ -125,8 +124,8 @@ abstract class BoundDeclaredFunction(
             )
 
             if (returnType == null) {
-                if (this.code is Body.SingleExpression) {
-                    this.returnType = this.code.expression.type
+                if (this.body is Body.SingleExpression) {
+                    this.returnType = this.body.expression.type
                 } else {
                     this.returnType = context.swCtx.unitBaseType.baseReference
                         .withMutability(TypeMutability.READONLY)
@@ -153,7 +152,7 @@ abstract class BoundDeclaredFunction(
                     reportings.add(Reporting.varianceOnFunctionTypeParameter(it))
                 }
             }
-            code?.semanticAnalysisPhase2()?.let(reportings::addAll)
+            body?.semanticAnalysisPhase2()?.let(reportings::addAll)
 
             return@getResult reportings
         }
@@ -167,18 +166,18 @@ abstract class BoundDeclaredFunction(
 
             declaredTypeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
 
-            if (code != null) {
-                reportings += code.semanticAnalysisPhase3()
+            if (body != null) {
+                reportings += body.semanticAnalysisPhase3()
 
                 // readonly and purity checks
                 val statementsReadingBeyondFunctionContext = handleCyclicInvocation(
                     context = this,
-                    action = { code.findReadsBeyond(context) },
+                    action = { body.findReadsBeyond(context) },
                     onCycle = ::emptySet,
                 )
                 val statementsWritingBeyondFunctionContext = handleCyclicInvocation(
                     context = this,
-                    action = { code.findWritesBeyond(context) },
+                    action = { body.findWritesBeyond(context) },
                     onCycle = ::emptySet,
                 )
 
@@ -201,13 +200,13 @@ abstract class BoundDeclaredFunction(
                 }
 
                 // assure all paths return or throw
-                val isGuaranteedToTerminate = code.isGuaranteedToReturn nullableOr code.isGuaranteedToThrow
+                val isGuaranteedToTerminate = body.isGuaranteedToReturn nullableOr body.isGuaranteedToThrow
 
                 if (!isGuaranteedToTerminate) {
                     val localReturnType = returnType
                     // if the function is declared to return Unit a return of Unit is implied and should be inserted by backends
                     // if this is a single-expression function (fun a() = 3), return is implied
-                    if (localReturnType == null || this.code !is Body.SingleExpression) {
+                    if (localReturnType == null || this.body !is Body.SingleExpression) {
                         val isImplicitUnitReturn = localReturnType is RootResolvedTypeReference && localReturnType.baseType == context.swCtx.unitBaseType
                         if (!isImplicitUnitReturn) {
                             reportings.add(Reporting.uncertainTermination(this))

@@ -24,9 +24,9 @@ import compiler.ast.AstVisibility
 import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
+import compiler.ast.BaseTypeEntryDeclaration
 import compiler.ast.BaseTypeMemberFunctionDeclaration
 import compiler.ast.BaseTypeMemberVariableDeclaration
-import compiler.ast.ClassEntryDeclaration
 import compiler.ast.CodeChunk
 import compiler.ast.FunctionDeclaration
 import compiler.ast.TypeParameterBundle
@@ -107,7 +107,7 @@ val BaseTypeEntry = eitherOf {
     ref(BaseTypeConstructor)
     ref(BaseTypeDestructor)
 }
-    .astTransformation { tokens -> tokens.remainingToList().single() as ClassEntryDeclaration }
+    .astTransformation { tokens -> tokens.remainingToList().single() as BaseTypeEntryDeclaration }
 
 val SupertypeSpecification = sequence {
     operator(COLON)
@@ -182,10 +182,10 @@ val BaseTypeDefinition = sequence("base type definition") {
             supertypes = null
         }
 
-        val entries = ArrayList<ClassEntryDeclaration>()
+        val entries = ArrayList<BaseTypeEntryDeclaration>()
 
         next = tokens.next()!! // until CBRACE_CLOSE
-        while (next is ClassEntryDeclaration) {
+        while (next is BaseTypeEntryDeclaration) {
             entries += next
             next = tokens.next()
         }

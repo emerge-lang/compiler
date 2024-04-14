@@ -18,8 +18,8 @@
 
 package compiler.binding.basetype
 
+import compiler.ast.BaseTypeMemberDeclaration
 import compiler.ast.BaseTypeMemberVariableDeclaration
-import compiler.ast.ClassMemberDeclaration
 import compiler.ast.expression.IdentifierExpression
 import compiler.binding.BoundVariable
 import compiler.binding.DefinitionWithVisibility
@@ -35,7 +35,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 class BoundBaseTypeMemberVariable(
     val context: ExecutionScopedCTContext,
     val declaration: BaseTypeMemberVariableDeclaration,
-) : BoundBaseTypeEntry<ClassMemberDeclaration>, DefinitionWithVisibility {
+) : BoundBaseTypeEntry<BaseTypeMemberDeclaration>, DefinitionWithVisibility {
     val name = declaration.name.value
     override val declaredAt = declaration.sourceLocation
     val isReAssignable = declaration.variableDeclaration.isReAssignable

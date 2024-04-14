@@ -48,7 +48,7 @@ class BoundBaseTypeMemberFunction(
             reportings.add(Reporting.externalMemberFunction(this))
         }
 
-        if (code != null) {
+        if (body != null) {
             if (attributes.impliesNoBody) {
                 reportings.add(Reporting.illegalFunctionBody(declaration))
             }
