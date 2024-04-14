@@ -44,7 +44,10 @@ class BoundBaseTypeMemberFunction(
         val reportings = super.semanticAnalysisPhase3().toMutableList()
         validateOverride(reportings)
 
-        // TODO: member functions cannot be external
+        if (attributes.externalAttribute != null) {
+            reportings.add(Reporting.externalMemberFunction(this))
+        }
+
         if (code != null) {
             if (attributes.impliesNoBody) {
                 reportings.add(Reporting.illegalFunctionBody(declaration))

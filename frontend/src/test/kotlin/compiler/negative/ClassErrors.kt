@@ -6,6 +6,7 @@ import compiler.reportings.ConstructorDeclaredModifyingReporting
 import compiler.reportings.DuplicateBaseTypeMemberReporting
 import compiler.reportings.DuplicateSupertypeReporting
 import compiler.reportings.ExplicitOwnershipNotAllowedReporting
+import compiler.reportings.ExternalMemberFunctionReporting
 import compiler.reportings.IllegalFunctionBodyReporting
 import compiler.reportings.IllegalSupertypeReporting
 import compiler.reportings.ImpureInvocationInPureContextReporting
@@ -149,6 +150,26 @@ class ClassErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<IllegalFunctionBodyReporting>()
+        }
+
+        "cannot be external" - {
+            "on class" {
+                validateModule("""
+                    class Test {
+                        external(C) fun foo()
+                    }
+                """.trimIndent())
+                    .shouldReport<ExternalMemberFunctionReporting>()
+            }
+
+            "on interface" {
+                validateModule("""
+                    interface Test {
+                        external(C) fun foo()
+                    }
+                """.trimIndent())
+                    .shouldReport<ExternalMemberFunctionReporting>()
+            }
         }
     }
 

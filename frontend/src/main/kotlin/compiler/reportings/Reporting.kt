@@ -254,6 +254,9 @@ abstract class Reporting internal constructor(
         fun functionIsMissingAttribute(function: BoundFunction, usageRequiringModifier: Expression, missingAttribute: String)
             = FunctionMissingModifierReporting(function, usageRequiringModifier, missingAttribute)
 
+        fun externalMemberFunction(function: BoundDeclaredFunction)
+            = ExternalMemberFunctionReporting(function.declaration, function.attributes.externalAttribute!!.attributeName)
+
         fun objectNotFullyInitialized(uninitializedMembers: Collection<BoundBaseTypeMemberVariable>, usedAt: SourceLocation): ObjectNotFullyInitializedReporting {
             return ObjectNotFullyInitializedReporting(
                 uninitializedMembers.map { it.declaration },
