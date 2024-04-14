@@ -3,11 +3,13 @@ package compiler.binding
 import compiler.binding.misc_ir.IrOverloadGroupImpl
 import compiler.binding.type.nonDisjointPairs
 import compiler.pivot
+import compiler.reportings.InconsistentReceiverPresenceInOverloadSetReporting
 import compiler.reportings.OverloadSetHasNoDisjointParameterReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
+import kotlin.properties.Delegates
 
 class BoundOverloadSet(
     val canonicalName: CanonicalElementName.Function,
@@ -29,9 +31,22 @@ class BoundOverloadSet(
         assert(overloads.all { it.parameters.parameters.size == parameterCount })
     }
 
+    /** set during [semanticAnalysisPhase1] */
+    var declaresReceiver: Boolean by Delegates.notNull()
+        private set
+
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         // the individual overload implementations are validated through the regular/obvious tree structure (SourceFile)
-        return emptySet()
+
+        val reportings = mutableListOf<Reporting>()
+
+        val (withReceiver, withoutReceiver) = overloads.partition { it.declaresReceiver }
+        if (withReceiver.isNotEmpty() && withoutReceiver.isNotEmpty()) {
+            reportings.add(InconsistentReceiverPresenceInOverloadSetReporting(this))
+        }
+        this.declaresReceiver = withReceiver.size >= withoutReceiver.size
+
+        return reportings
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {

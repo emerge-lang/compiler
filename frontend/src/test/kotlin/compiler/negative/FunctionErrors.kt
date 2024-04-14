@@ -3,6 +3,7 @@ package compiler.compiler.negative
 import compiler.reportings.AmbiguousInvocationReporting
 import compiler.reportings.ExplicitInferTypeNotAllowedReporting
 import compiler.reportings.IllegalFunctionBodyReporting
+import compiler.reportings.InconsistentReceiverPresenceInOverloadSetReporting
 import compiler.reportings.MissingFunctionBodyReporting
 import compiler.reportings.MissingReturnValueReporting
 import compiler.reportings.MissingVariableTypeReporting
@@ -181,6 +182,14 @@ class FunctionErrors : FreeSpec({
                     it.targetType.toString() shouldBe "immutable Int"
                 }
             }
+        }
+
+        "presence of receiver must be consistent" {
+            validateModule("""
+                fun foo(self: Int, p2: String) {}
+                fun foo(p1: Int, p2: Int) {}
+            """.trimIndent())
+                .shouldReport<InconsistentReceiverPresenceInOverloadSetReporting>()
         }
     }
 
