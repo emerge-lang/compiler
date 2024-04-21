@@ -49,13 +49,17 @@ import java.math.BigInteger
 open class BoundNumericLiteral(
     override val context: ExecutionScopedCTContext,
     override val declaration: NumericLiteralExpression,
-    private val reportings: Collection<Reporting>
+    private val bindTimeReportings: Collection<Reporting>
 ) : BoundExpression<NumericLiteralExpression> {
     override val type: BoundTypeReference? = null // unknown
 
     override val isGuaranteedToThrow = false
 
-    override fun semanticAnalysisPhase1() = reportings
+    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+        val reportings = mutableListOf<Reporting>()
+        reportings.addAll(bindTimeReportings)
+        return reportings
+    }
     override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
     override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
@@ -70,6 +74,9 @@ open class BoundNumericLiteral(
         if (type.baseType !is BuiltinType) {
             return
         }
+
+        // assure completed
+        type.baseType.semanticAnalysisPhase1()
 
         if (!type.baseType.isSubtypeOf(BuiltinNumber)) {
             return

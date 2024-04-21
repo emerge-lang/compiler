@@ -151,7 +151,10 @@ class BoundVariable(
                     this.typeAtDeclarationTime = resolvedDeclaredType
                 }
 
-            initializerExpression?.setExpectedEvaluationResultType(expectedInitializerEvaluationType)
+            if (initializerExpression != null) {
+                reportings.addAll(initializerExpression.semanticAnalysisPhase1())
+                initializerExpression.setExpectedEvaluationResultType(expectedInitializerEvaluationType)
+            }
 
             if (shouldInferBaseType && declaration.type?.arguments?.isNotEmpty() == true) {
                 reportings.add(Reporting.explicitInferTypeWithArguments(declaration.type))
@@ -163,10 +166,6 @@ class BoundVariable(
 
             if (declaration.ownership != null && !kind.allowsExplicitOwnership) {
                 reportings.add(Reporting.explicitOwnershipNotAllowed(this))
-            }
-
-            if (initializerExpression != null) {
-                reportings.addAll(initializerExpression.semanticAnalysisPhase1())
             }
 
             return@getResult reportings
