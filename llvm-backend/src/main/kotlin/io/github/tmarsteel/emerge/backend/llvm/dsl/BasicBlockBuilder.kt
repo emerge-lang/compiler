@@ -23,6 +23,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun <T : LlvmIntegerType> sub(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> mul(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> icmp(lhs: LlvmValue<T>, type: IntegerComparison, rhs: LlvmValue<T>): LlvmValue<LlvmBooleanType>
+    fun <T : LlvmIntegerType> lshr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T>
     fun <T: LlvmType> alloca(type: T): LlvmValue<LlvmPointerType<T>>
     fun <R : LlvmType> call(function: LlvmFunction<R>, args: List<LlvmValue<*>>): LlvmValue<R>
     fun <R : LlvmType> call(function: LlvmValue<LlvmFunctionAddressType>, functionType: LlvmFunctionType<R>, args: List<LlvmValue<*>>): LlvmValue<R>
@@ -174,6 +175,11 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     override fun <T : LlvmIntegerType> icmp(lhs: LlvmValue<T>, type: IntegerComparison, rhs: LlvmValue<T>): LlvmValue<LlvmBooleanType> {
         val cmpInstr = LLVM.LLVMBuildICmp(builder, type.numeric, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(cmpInstr, LlvmBooleanType)
+    }
+
+    override fun <T : LlvmIntegerType> lshr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T> {
+        val shiftInstr = LLVM.LLVMBuildLShr(builder, value.raw, shiftAmount.raw, tmpVars.next())
+        return LlvmValue(shiftInstr, value.type)
     }
 
     override fun <T: LlvmType> alloca(type: T): LlvmValue<LlvmPointerType<T>> {

@@ -24,6 +24,7 @@ import compiler.ast.expression.InvocationExpression
 import compiler.ast.type.TypeMutability
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
+import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundStatement
 import compiler.binding.IrCodeChunkImpl
@@ -45,6 +46,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -328,7 +330,7 @@ class BoundInvocationExpression(
     private fun buildBackendIrInvocation(arguments: List<IrTemporaryValueReference>): IrExpression {
         val fn = functionToInvoke!!
         val returnType = type!!.toBackendIr()
-        if (fn.isVirtual) {
+        if (fn is BoundMemberFunction && fn.isVirtual) {
             check(receiverExceptReferringType != null)
             return IrDynamicDispatchFunctionInvocationImpl(
                 arguments.first(),
@@ -468,7 +470,7 @@ private class IrStaticDispatchFunctionInvocationImpl(
 
 private class IrDynamicDispatchFunctionInvocationImpl(
     override val dispatchOn: IrTemporaryValueReference,
-    override val function: IrFunction,
+    override val function: IrMemberFunction,
     override val arguments: List<IrTemporaryValueReference>,
     override val evaluatesTo: IrType
 ) : IrDynamicDispatchFunctionInvocationExpression

@@ -423,7 +423,7 @@ Then there can be these prefixes:
 | `0b0100` | `foo(x: Int)`            | 
 | `0b0101` | `foo(x: Boolean) -> Int` |
 
-The unique prefix length is 5 bits. So the function entires for our vtable will be 2<sup>5</sup> entries/words big.
+The unique prefix length is 5 bits. So the function entries for our vtable will be 2<sup>5</sup> entries/words big.
 At the location of each functions prefix there would be the address of that functions code.
 
     Offset/Prefix   Value                Function

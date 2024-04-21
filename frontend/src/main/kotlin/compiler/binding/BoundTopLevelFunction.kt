@@ -23,7 +23,6 @@ class BoundTopLevelFunction(
     parameters,
     body,
 ) {
-    override val isVirtual = false
     override val canonicalName by lazy {
         CanonicalElementName.Function(
             context.sourceFile.packageName,

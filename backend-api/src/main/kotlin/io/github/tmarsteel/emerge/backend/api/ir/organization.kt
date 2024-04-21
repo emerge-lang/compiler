@@ -5,6 +5,7 @@ import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 interface IrPackage {
     val name: CanonicalElementName.Package
     val functions: Set<IrOverloadGroup<IrFunction>>
+    val interfaces: Set<IrInterface>
     val classes: Set<IrClass>
     val variables: Set<IrGlobalVariable>
 }

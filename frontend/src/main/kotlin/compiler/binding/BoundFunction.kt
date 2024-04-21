@@ -45,7 +45,6 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
 
     val name: String
     val attributes: BoundFunctionAttributeList
-    val isVirtual: Boolean
 
     override val visibility get()= attributes.visibility
 
@@ -101,8 +100,10 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
 interface BoundMemberFunction : BoundFunction {
     val declaredOnType: BaseType
 
+    val isVirtual: Boolean
+
     /**
-     * Becomes meaningful during [semanticAnalysisPhase3].
+     * Becomes meaningful during [semanticAnalysisPhase3]. Only set if [isVirtual]
      */
     val overrides: BoundMemberFunction?
 

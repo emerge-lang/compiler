@@ -86,6 +86,11 @@ class Linux_x68_64_Backend : EmergeBackend {
                 pkg.classes.forEach(llvmContext::registerClass)
             }
             softwareContext.packagesSeq
+                .flatMap { it.interfaces }
+                .flatMap { it.memberFunctions }
+                .flatMap { it.overloads }
+                .forEach(llvmContext::registerFunction)
+            softwareContext.packagesSeq
                 .flatMap { it.classes }
                 .flatMap { it.memberFunctions }
                 .flatMap { it.overloads }
@@ -95,7 +100,7 @@ class Linux_x68_64_Backend : EmergeBackend {
                 .flatMap { it.functions }
                 .flatMap { it.overloads }
                 .forEach {
-                    val fn = llvmContext.registerFunction(it)
+                    val fn = llvmContext.registerFunction(it) ?: throw CodeGenerationException("toplevel fn not defined/declared in llvm - what?")
                     storeCoreFunctionReference(llvmContext, it.canonicalName, fn)
                 }
 

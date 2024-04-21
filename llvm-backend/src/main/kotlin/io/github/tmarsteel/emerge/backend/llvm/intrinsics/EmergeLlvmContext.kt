@@ -8,6 +8,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntrinsicType
+import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -38,6 +39,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
+import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.llvmType
@@ -126,7 +128,7 @@ class EmergeLlvmContext(
             "emerge.ffi.c.CPointer" -> {
                 clazz.memberVariables.single { it.name == "pointed" }.isCPointerPointed = true
             }
-            "emerge.platform.I8Box" -> boxTypeS8 = emergeClassType
+            "emerge.platform.S8Box" -> boxTypeS8 = emergeClassType
             "emerge.platform.U8Box" -> boxTypeU8 = emergeClassType
             "emerge.platform.S16Box" -> boxTypeS16 = emergeClassType
             "emerge.platform.U16Box" -> boxTypeU16 = emergeClassType
@@ -168,7 +170,7 @@ class EmergeLlvmContext(
      * @param returnTypeOverride the return type on LLVM level. **DANGER!** there is only one intended use case for this:
      * making the constructor of core.emerge.Unit return ptr instead of void.
      */
-    fun registerFunction(fn: IrFunction, returnTypeOverride: LlvmType? = null): LlvmFunction<*> {
+    fun registerFunction(fn: IrFunction, returnTypeOverride: LlvmType? = null): LlvmFunction<*>? {
         fn.llvmRef?.let { return it }
 
         val parameterTypes = fn.parameters.map { getReferenceSiteType(it.type) }
@@ -184,6 +186,9 @@ class EmergeLlvmContext(
                     check(intrinsicType == declaredType) { "${fn.canonicalName} param #$paramIndex; intrinsic $intrinsicType, declared $declaredType" }
                 }
                 fn.llvmRef = intrinsicImpl
+                if (fn is IrMemberFunction) {
+                    fn.llvmFunctionType = intrinsicImpl.type
+                }
                 return intrinsicImpl
             }
         }
@@ -193,6 +198,13 @@ class EmergeLlvmContext(
             returnLlvmType,
             parameterTypes,
         )
+        if (fn is IrMemberFunction) {
+            fn.llvmFunctionType = functionType
+            if (fn.body == null) {
+                // abstract member fn is not relevant to LLVM
+                return null
+            }
+        }
         val rawRef = LLVM.LLVMAddFunction(module, fn.llvmName, functionType.getRawInContext(this))
         fn.llvmRef = LlvmFunction(
             LlvmConstant(rawRef, LlvmFunctionAddressType),

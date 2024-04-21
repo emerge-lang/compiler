@@ -80,7 +80,6 @@ class BoundClassConstructor(
     override val declaredAt get() = declaration.sourceLocation
     override val receiverType = null
     override val declaresReceiver = false
-    override val isVirtual = false
     override val name get() = classDef.simpleName
     override val attributes = BoundFunctionAttributeList(fileContextWithTypeParameters, declaration.attributes)
     override val allTypeParameters = declaredTypeParameters

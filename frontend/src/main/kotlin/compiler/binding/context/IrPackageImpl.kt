@@ -3,9 +3,11 @@ package compiler.binding.context
 import compiler.binding.expression.BoundExpression
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrGlobalVariable
+import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
 import io.github.tmarsteel.emerge.backend.api.ir.IrPackage
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -19,10 +21,16 @@ internal class IrPackageImpl(
         .map { it.toBackendIr() }
         .toSet()
 
-    override val classes: Set<IrClass> = packageContext.sourceFiles
+    private val irBaseTypes: Sequence<IrBaseType> = packageContext.sourceFiles
         .flatMap { it.context.types }
         .map { it.toBackendIr() }
+
+    override val classes: Set<IrClass> = irBaseTypes
         .filterIsInstance<IrClass>()
+        .toSet()
+
+    override val interfaces: Set<IrInterface> = irBaseTypes
+        .filterIsInstance<IrInterface>()
         .toSet()
 
     override val variables: Set<IrGlobalVariable> = packageContext.sourceFiles

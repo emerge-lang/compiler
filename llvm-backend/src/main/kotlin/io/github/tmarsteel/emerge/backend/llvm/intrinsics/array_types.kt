@@ -286,9 +286,9 @@ private fun <Element : LlvmType> buildValueArrayType(
             emptyList(),
             { ctx -> ctx.registerIntrinsic(valueArrayFinalize) },
         ) {
-            listOf(
-                word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to getter,
-                word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to setter,
+            mapOf(
+                EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT to registerIntrinsic(getter),
+                EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT to registerIntrinsic(setter),
             )
         },
         elementTypeName,
@@ -395,9 +395,9 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<EmergeHea
         emptyList(),
         { ctx -> ctx.registerIntrinsic(referenceArrayFinalizer) },
     ) {
-        listOf(
-            word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to referenceArrayElementGetter,
-            word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to referenceArrayElementSetter,
+        mapOf(
+            EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT to registerIntrinsic(referenceArrayElementGetter),
+            EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT to registerIntrinsic(referenceArrayElementSetter),
         )
     },
     "ref"

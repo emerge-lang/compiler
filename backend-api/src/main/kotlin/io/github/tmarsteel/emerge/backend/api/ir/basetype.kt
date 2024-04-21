@@ -5,7 +5,7 @@ import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 interface IrBaseType {
     val canonicalName: CanonicalElementName.BaseType
     val parameters: List<Parameter>
-    val memberFunctions: Collection<IrOverloadGroup<IrFunction>>
+    val memberFunctions: Collection<IrOverloadGroup<IrMemberFunction>>
 
     interface Parameter {
         val name: String
@@ -15,7 +15,7 @@ interface IrBaseType {
 }
 
 interface IrIntrinsicType : IrBaseType {
-    override val memberFunctions: Collection<IrOverloadGroup<IrFunction>> get() = emptySet()
+    override val memberFunctions: Collection<IrOverloadGroup<IrMemberFunction>> get() = emptySet()
 }
 
 interface IrInterface : IrBaseType

@@ -1,6 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import com.google.common.collect.MapMaker
+import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
@@ -14,6 +15,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmStructType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import org.bytedeco.llvm.global.LLVM
@@ -90,9 +92,9 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
                 emptyList(),
                 { ctx -> ctx.registerIntrinsic(valueArrayFinalize) },
             ) {
-                listOf(
-                    word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT) to getter_EmergeArrayOfPointersToTypeInfoType,
-                    word(EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT) to setter_EmergeArrayOfPointersToTypeInfoType,
+                mapOf(
+                    EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT to registerIntrinsic(getter_EmergeArrayOfPointersToTypeInfoType),
+                    EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT to registerIntrinsic(setter_EmergeArrayOfPointersToTypeInfoType),
                 )
             },
             "pointer_to_typeinfo",
@@ -113,7 +115,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
         val typeName: String,
         val supertypes: List<LlvmConstant<LlvmPointerType<TypeinfoType>>>,
         val finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<LlvmVoidType>,
-        val virtualFunctions: EmergeLlvmContext.() -> List<Pair<LlvmConstant<EmergeWordType>, KotlinLlvmFunction<*, *>>>,
+        val virtualFunctions: EmergeLlvmContext.() -> Map<Long, LlvmFunction<*>>,
     ) : Provider {
         private val byContext: MutableMap<LlvmContext, StaticAndDynamicTypeInfo> = MapMaker().weakKeys().makeMap()
         override fun provide(context: EmergeLlvmContext): StaticAndDynamicTypeInfo {
@@ -136,8 +138,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
             val dynamicSupertypesGlobal = context.addGlobal(dynamicSupertypesData, LlvmGlobal.ThreadLocalMode.SHARED)
                 .reinterpretAs(PointerToEmergeArrayOfPointersToTypeInfoType)
 
-            val vtableBlob = TypeinfoType.vtableBlob.type.buildConstantIn(context, emptyList()) // TODO: build vtable
-            val shiftRightAmount = context.word(0)// TODO: build vtable
+            val (vtableBlob, shiftRightAmount) = buildVTable(context, virtualFunctions(context))
 
             val typeinfoDynamicData = TypeinfoType.buildConstantIn(context) {
                 setValue(TypeinfoType.shiftRightAmount, shiftRightAmount)
@@ -170,7 +171,73 @@ internal class StaticAndDynamicTypeInfo private constructor(
             typeName: String,
             supertypes: List<LlvmConstant<LlvmPointerType<TypeinfoType>>>,
             finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<LlvmVoidType>,
-            virtualFunctions: EmergeLlvmContext.() -> List<Pair<LlvmConstant<EmergeWordType>, KotlinLlvmFunction<*, *>>>,
+            virtualFunctions: EmergeLlvmContext.() -> Map<Long, LlvmFunction<*>>,
         ): Provider = ProviderImpl(typeName, supertypes, finalizerFunction, virtualFunctions)
+    }
+}
+
+private fun buildVTable(context: EmergeLlvmContext, functions: Map<Long, LlvmFunction<*>>): Pair<LlvmValue<LlvmArrayType<LlvmFunctionAddressType>>, LlvmConstant<EmergeWordType>> {
+    var prefixLength = 1
+    var shiftRightAmount: Int
+    while (true) {
+        if (prefixLength > 10) {
+            throw CodeGenerationException("signature collision. Couldn't find a unique prefix of <= 10 bits for hashes ${functions.keys.joinToString()}")
+        }
+        shiftRightAmount = 64 - prefixLength
+        val prefixes = functions.keys.map { it ushr shiftRightAmount }
+        if (prefixes.isDistinct()) {
+            break
+        }
+        prefixLength++
+    }
+
+    val entries = Array<LlvmFunction<*>?>(1 shl prefixLength) { null }
+    functions.forEach { (hash, fn) ->
+        val prefix = StrictMath.toIntExact(hash ushr shiftRightAmount)
+        entries[prefix] = fn
+    }
+
+    val vtableBlobType = LlvmArrayType(entries.size.toLong(), LlvmFunctionAddressType)
+    val vtableBlob = vtableBlobType.buildConstantIn(context, entries.map { fnPtr ->
+        fnPtr?.address ?: context.nullValue(LlvmFunctionAddressType)
+    })
+
+    return Pair(vtableBlob, context.word(shiftRightAmount))
+}
+
+private fun List<Long>.isDistinct(): Boolean {
+    val seen = HashSet<Long>()
+    for (n in this) {
+        if (!seen.add(n)) {
+            return false
+        }
+    }
+
+    return true
+}
+
+val getDynamicCallAddress: KotlinLlvmFunction<EmergeLlvmContext, LlvmFunctionAddressType> = KotlinLlvmFunction.define(
+    "getDynamicCallAddress",
+    LlvmFunctionAddressType,
+) {
+    val self by param(PointerToAnyEmergeValue)
+    val hash by param(EmergeWordType)
+    body {
+        val typeinfoPtr = getelementptr(self)
+            .member { typeinfo }
+            .get()
+            .dereference()
+        val shiftRightAmount = getelementptr(typeinfoPtr)
+            .member { shiftRightAmount }
+            .get()
+            .dereference()
+
+        val reducedHash = lshr(hash, shiftRightAmount)
+        val functionAddress = getelementptr(typeinfoPtr)
+            .member { vtableBlob }
+            .index(reducedHash)
+            .get()
+            .dereference()
+        ret(functionAddress)
     }
 }

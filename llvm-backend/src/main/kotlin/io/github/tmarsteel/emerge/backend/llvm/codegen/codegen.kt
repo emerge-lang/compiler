@@ -48,10 +48,13 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS8ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceCreated
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceDropped
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getDynamicCallAddress
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
+import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.llvmType
+import io.github.tmarsteel.emerge.backend.llvm.signatureHash
 import io.github.tmarsteel.emerge.backend.llvm.tackLateInitState
 import io.github.tmarsteel.emerge.backend.llvm.tackState
 
@@ -176,7 +179,12 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             )
         }
         is IrDynamicDispatchFunctionInvocationExpression -> {
-            throw CodeGenerationException("Dynamic dispatch on LLVM not implemented yet")
+            val targetAddr = call(context.registerIntrinsic(getDynamicCallAddress), listOf(
+                expression.dispatchOn.declaration.llvmValue,
+                context.word(expression.function.signatureHash),
+            ))
+            val callResult = call(targetAddr, expression.function.llvmFunctionType, expression.arguments.map { it.declaration.llvmValue })
+            return ExpressionResult.Value(callResult)
         }
         is IrVariableAccessExpression -> return ExpressionResult.Value(expression.variable.emitRead!!())
         is IrIntegerLiteralExpression -> return ExpressionResult.Value(when ((expression.evaluatesTo as IrSimpleType).baseType.canonicalName.toString()) {

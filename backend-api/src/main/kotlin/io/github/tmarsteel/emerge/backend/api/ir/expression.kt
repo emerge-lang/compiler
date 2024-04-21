@@ -99,7 +99,7 @@ interface IrStaticDispatchFunctionInvocationExpression : IrExpression {
 
 interface IrDynamicDispatchFunctionInvocationExpression : IrExpression {
     val dispatchOn: IrTemporaryValueReference
-    val function: IrFunction
+    val function: IrMemberFunction
     val arguments: List<IrTemporaryValueReference>
 }
 
