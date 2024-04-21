@@ -65,7 +65,7 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
      * declared pure. If that is not the case the function is still considered pure if the declared
      * body behaves in a pure way.
      * This value is null if the purity was not yet determined; it must be non-null when semantic analysis is completed.
-     * @see [BoundDeclaredFunction.isDeclaredPure]
+     * @see [BoundFunctionAttributeList.isDeclaredPure]
      * @see [BoundDeclaredFunction.isEffectivelyPure]
      */
     val isPure: Boolean?
@@ -75,7 +75,7 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
      * declared readonly or pure. If that is not the case the function is still considered readonly if the declared
      * body behaves in a readonly way.
      * This value is null if the purity was not yet determined; it must be non-null when semantic analysis is completed.
-     * @see [BoundDeclaredFunction.isDeclaredReadonly]
+     * @see [BoundFunctionAttributeList.isDeclaredReadonly]
      * @see [BoundDeclaredFunction.isEffectivelyReadonly]
      */
     val isReadonly: Boolean?

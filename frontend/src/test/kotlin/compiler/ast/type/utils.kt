@@ -19,7 +19,6 @@
 package compiler.compiler.ast.type
 
 import compiler.binding.BoundVisibility
-import compiler.binding.basetype.BoundSupertypeDeclaration
 import compiler.binding.basetype.BoundSupertypeList
 import compiler.binding.type.BaseType
 import compiler.lexer.SourceLocation
@@ -35,14 +34,9 @@ private class MockType(val name: String, superTypes: Array<out BaseType>) : Base
     override val visibility = BoundVisibility.ExportedScope(mockk(), mockk())
     override fun validateAccessFrom(location: SourceLocation) = emptySet<Reporting>()
     override fun toStringForErrorMessage() = "fake type $name"
-    override val superTypes = BoundSupertypeList(
-        superTypes.map { superBaseType ->
-            mockk<BoundSupertypeDeclaration> {
-                every { resolvedReference } returns superBaseType.baseReference
-            }
-        },
-        { this@MockType }
-    )
+    override val superTypes = mockk<BoundSupertypeList> {
+        every { baseTypes } returns superTypes.toList()
+    }
     override val simpleName = name
     override val canonicalName = CanonicalElementName.BaseType(
         CanonicalElementName.Package(listOf("fake")),
