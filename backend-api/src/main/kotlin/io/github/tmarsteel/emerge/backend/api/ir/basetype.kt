@@ -22,8 +22,8 @@ interface IrInterface : IrBaseType
 
 interface IrClass : IrBaseType {
     val memberVariables: List<MemberVariable>
-    val constructor: IrImplementedFunction
-    val destructor: IrImplementedFunction
+    val constructor: IrFunction
+    val destructor: IrFunction
 
     interface MemberVariable {
         val name: String

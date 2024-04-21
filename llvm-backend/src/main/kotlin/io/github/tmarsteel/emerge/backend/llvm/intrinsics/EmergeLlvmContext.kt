@@ -3,11 +3,9 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
-import io.github.tmarsteel.emerge.backend.api.ir.IrDeclaredFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
-import io.github.tmarsteel.emerge.backend.api.ir.IrImplementedFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntrinsicType
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
@@ -175,8 +173,9 @@ class EmergeLlvmContext(
 
         val parameterTypes = fn.parameters.map { getReferenceSiteType(it.type) }
 
-        if (fn is IrDeclaredFunction) {
-            intrinsicFunctions[fn.canonicalName.toString()]?.let { intrinsic ->
+        if (fn.body == null) {
+            val intrinsic = intrinsicFunctions[fn.canonicalName.toString()]
+            if (intrinsic != null) {
                 // TODO: different intrinsic per overload
                 val intrinsicImpl = registerIntrinsic(intrinsic)
                 check(parameterTypes.size == intrinsicImpl.type.parameterTypes.size)
@@ -245,7 +244,8 @@ class EmergeLlvmContext(
     }
 
     private var structConstructorsRegistered: Boolean = false
-    fun defineFunctionBody(fn: IrImplementedFunction) {
+    fun defineFunctionBody(fn: IrFunction) {
+        val body = fn.body!!
         val llvmFunction = fn.llvmRef ?: throw CodeGenerationException("You must register the functions through ${this::registerFunction.name} first to handle cyclic references (especially important for recursion)")
         if (fn.bodyDefined) {
             throw CodeGenerationException("Cannot define body for function ${fn.canonicalName} multiple times!")
@@ -276,7 +276,7 @@ class EmergeLlvmContext(
                     }
                 }
 
-            when (val codeResult = emitCode(fn.body)) {
+            when (val codeResult = emitCode(body)) {
                 is ExecutableResult.ExecutionOngoing,
                 is ExpressionResult.Value -> {
                     (this as BasicBlockBuilder<*, LlvmVoidType>).retVoid()

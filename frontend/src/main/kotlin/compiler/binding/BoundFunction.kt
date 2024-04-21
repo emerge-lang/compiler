@@ -25,6 +25,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.lexer.SourceLocation
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 
 interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
     val context: CTContext
@@ -99,4 +100,11 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
 
 interface BoundMemberFunction : BoundFunction {
     val declaredOnType: BaseType
+
+    /**
+     * Becomes meaningful during [semanticAnalysisPhase3].
+     */
+    val overrides: BoundMemberFunction?
+
+    override fun toBackendIr(): IrMemberFunction
 }

@@ -7,6 +7,8 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
+import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
@@ -14,7 +16,8 @@ import compiler.binding.type.TypeUseSite
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import compiler.reportings.ReturnTypeMismatchReporting
-import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
+import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 
 /**
  * Describes the presence/avaiability of a (class member) function in a context.
@@ -223,9 +226,9 @@ abstract class BoundDeclaredFunction(
         return attributes.visibility.validateAccessFrom(location, this)
     }
 
-    private val backendIr by lazy { IrFunctionImpl(this) }
-    override fun toBackendIr(): IrFunction = backendIr
     sealed interface Body : BoundExecutable<Executable> {
+        fun toBackendIr(): IrCodeChunk
+
         class SingleExpression(val expression: BoundExpression<*>) : Body, BoundExecutable<Executable> by expression {
             private var expectedReturnType: BoundTypeReference? = null
 
@@ -247,7 +250,22 @@ abstract class BoundDeclaredFunction(
 
                 return reportings
             }
+
+            override fun toBackendIr(): IrCodeChunk {
+                val resultTemporary = IrCreateTemporaryValueImpl(expression.toBackendIrExpression())
+                return IrCodeChunkImpl(listOf(
+                    resultTemporary,
+                    object : IrReturnStatement {
+                        override val value = IrTemporaryValueReferenceImpl(resultTemporary)
+                    },
+                ))
+            }
         }
-        class Full(val code: BoundCodeChunk) : Body, BoundExecutable<Executable> by code
+
+        class Full(val code: BoundCodeChunk) : Body, BoundExecutable<Executable> by code {
+            override fun toBackendIr(): IrCodeChunk {
+                return code.toBackendIrStatement() // TODO: implicit unit return
+            }
+        }
     }
 }

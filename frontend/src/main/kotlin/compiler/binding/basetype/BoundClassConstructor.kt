@@ -45,7 +45,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
-import io.github.tmarsteel.emerge.backend.api.ir.IrImplementedFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 
 /**
@@ -339,7 +339,7 @@ class BoundClassConstructor(
             ))
         )
     }
-    override fun toBackendIr(): IrImplementedFunction = backendIr
+    override fun toBackendIr(): IrFunction = backendIr
 }
 
 private class IrClassSimpleType(val classDef: BoundBaseTypeDefinition) : IrSimpleType {
@@ -348,9 +348,9 @@ private class IrClassSimpleType(val classDef: BoundBaseTypeDefinition) : IrSimpl
 }
 
 private class IrDefaultConstructorImpl(
-    val ctor: BoundClassConstructor,
+    ctor: BoundClassConstructor,
     override val body: IrCodeChunk,
-) : IrImplementedFunction {
+) : IrFunction {
     override val canonicalName = ctor.canonicalName
     override val parameters = ctor.parameters.parameters.map { it.backendIrDeclaration }
     override val returnType = IrClassSimpleType(ctor.classDef)

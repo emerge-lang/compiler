@@ -3,7 +3,6 @@ package compiler.binding.basetype
 import compiler.ast.BaseTypeMemberFunctionDeclaration
 import compiler.ast.FunctionDeclaration
 import compiler.binding.BoundDeclaredFunction
-import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundParameterList
@@ -15,6 +14,8 @@ import compiler.lexer.SourceLocation
 import compiler.reportings.IncompatibleReturnTypeOnOverrideReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
+import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
+import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 
 class BoundDeclaredBaseTypeMemberFunction(
     functionRootContext: CTContext,
@@ -41,9 +42,12 @@ class BoundDeclaredBaseTypeMemberFunction(
     }
     override val isVirtual get() = declaresReceiver
 
+    override var overrides: BoundMemberFunction? = null
+        private set
+
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         val reportings = super.semanticAnalysisPhase3().toMutableList()
-        validateOverride(reportings)
+        determineOverride(reportings)
 
         if (attributes.externalAttribute != null) {
             reportings.add(Reporting.externalMemberFunction(this))
@@ -62,7 +66,7 @@ class BoundDeclaredBaseTypeMemberFunction(
         return reportings
     }
 
-    private fun validateOverride(reportings: MutableCollection<Reporting>) {
+    private fun determineOverride(reportings: MutableCollection<Reporting>) {
         val isDeclaredOverride = attributes.firstOverrideAttribute != null
         if (isDeclaredOverride && !declaresReceiver) {
             reportings.add(Reporting.staticFunctionDeclaredOverride(this))
@@ -99,9 +103,11 @@ class BoundDeclaredBaseTypeMemberFunction(
                     }
             }
         }
+
+        overrides = superFn
     }
 
-    private fun findOverriddenFunction(): Collection<Pair<BaseType, BoundFunction>> {
+    private fun findOverriddenFunction(): Collection<Pair<BaseType, BoundMemberFunction>> {
         val selfParameterTypes = parameterTypes.asElementNotNullable()
             ?: return emptySet()
 
@@ -130,6 +136,9 @@ class BoundDeclaredBaseTypeMemberFunction(
     }
 
     override fun toStringForErrorMessage() = "member function $name"
+
+    private val backendIr by lazy { IrMemberFunctionImpl(this) }
+    override fun toBackendIr(): IrMemberFunction = backendIr
 }
 
 private fun <T : Any> List<T?>.asElementNotNullable(): List<T>? {
@@ -139,4 +148,17 @@ private fun <T : Any> List<T?>.asElementNotNullable(): List<T>? {
 
     @Suppress("UNCHECKED_CAST")
     return this as List<T>
+}
+
+private class IrMemberFunctionImpl(
+    private val boundFn: BoundDeclaredBaseTypeMemberFunction,
+) : IrMemberFunction {
+    override val canonicalName = boundFn.canonicalName
+    override val parameters = boundFn.parameters.parameters.map { it.backendIrDeclaration }
+    override val returnType by lazy { boundFn.returnType!!.toBackendIr() }
+    override val isExternalC = boundFn.attributes.externalAttribute?.ffiName?.value == "C"
+    override val body: IrCodeChunk? by lazy { boundFn.body?.toBackendIr() }
+    override val overrides: IrMemberFunction? by lazy { boundFn.overrides?.toBackendIr() }
+    override val supportsDynamicDispatch = boundFn.isVirtual
+    override val declaredOn by lazy { boundFn.declaredOnType.toBackendIr() }
 }

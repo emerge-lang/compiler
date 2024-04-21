@@ -5,7 +5,6 @@ import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.EmergeBackend
 import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
-import io.github.tmarsteel.emerge.backend.api.ir.IrImplementedFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmCompiler
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
@@ -113,7 +112,7 @@ class Linux_x68_64_Backend : EmergeBackend {
             softwareContext.packagesSeq
                 .flatMap { it.functions }
                 .flatMap { it.overloads }
-                .filterIsInstance<IrImplementedFunction>()
+                .filter { it.body != null }
                 .forEach(llvmContext::defineFunctionBody)
 
             softwareContext.modules
@@ -123,7 +122,7 @@ class Linux_x68_64_Backend : EmergeBackend {
                     llvmContext.defineFunctionBody(clazz.constructor)
                     clazz.memberFunctions
                         .flatMap { it.overloads }
-                        .filterIsInstance<IrImplementedFunction>()
+                        .filter { it.body != null }
                         .forEach(llvmContext::defineFunctionBody)
                 }
 
