@@ -31,13 +31,17 @@ internal val getSupertypePointers = KotlinLlvmFunction.define<LlvmContext, _>(
             .member { typeinfo }
             .get()
             .dereference()
-        val arrayPointer = getelementptr(typeinfoPointer)
+        val arrayPointerAsAny = getelementptr(typeinfoPointer)
             .member { supertypes }
             .get()
             .dereference()
 
+        /** see [TypeinfoType.supertypes] for why this cast is needed */
+        val arrayPointer = arrayPointerAsAny
+            .reinterpretAs(PointerToEmergeArrayOfPointersToTypeInfoType)
+
         // refcounting not needed, typeinfo is always static
-        return@body ret(arrayPointer)
+        ret(arrayPointer)
     }
 }
 

@@ -10,6 +10,33 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 
+val LLVMTypeRef.isStruct: Boolean
+    get() = LLVM.LLVMGetTypeKind(this) == LLVM.LLVMStructTypeKind
+
+/**
+ * Throws an exception unless
+ * * [other] has at least as many members as `this`
+ * * matching members in `this` and [other] by index
+ *   * the members in both types have the same offset
+ *
+ * @param inContext requires because the offsets depend on the datalayout
+ */
+fun requireStructuralSupertypeOf(supertype: LLVMTypeRef, subtype: LLVMTypeRef, targetData: LLVMTargetDataRef) {
+    require(supertype.isStruct)
+    require(subtype.isStruct)
+
+    val supertypeMemberCount = LLVM.LLVMCountStructElementTypes(supertype)
+    val subtypeMemberCount = LLVM.LLVMCountStructElementTypes(subtype)
+    require(subtypeMemberCount >= supertypeMemberCount)
+    for (index in 0 until supertypeMemberCount) {
+        val supertypeOffset = LLVM.LLVMOffsetOfElement(targetData, supertype, index)
+        val subtypeOffset = LLVM.LLVMOffsetOfElement(targetData, subtype, index)
+        require(supertypeOffset == subtypeOffset) {
+            "Struct element #$index has different offsets: $supertypeOffset in supertype, $subtypeOffset in subtype"
+        }
+    }
+}
+
 internal fun <T : Any> iterateLinkedList(
     first: T?,
     next: (T) -> T?

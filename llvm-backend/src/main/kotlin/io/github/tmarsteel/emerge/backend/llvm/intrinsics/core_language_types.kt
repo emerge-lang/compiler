@@ -66,7 +66,7 @@ internal object EmergeWeakReferenceCollectionType : LlvmStructType("weakrefcoll"
  */
 internal object EmergeHeapAllocatedValueBaseType : LlvmStructType("anyvalue"), EmergeHeapAllocated {
     val strongReferenceCount by structMember(EmergeWordType)
-    val typeinfo by structMember(pointerTo(TypeinfoType))
+    val typeinfo by structMember(pointerTo(TypeinfoType.GENERIC))
     val weakReferenceCollection by structMember(pointerTo(EmergeWeakReferenceCollectionType))
 
     override fun pointerToCommonBase(

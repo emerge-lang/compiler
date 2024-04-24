@@ -18,6 +18,8 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
+import io.github.tmarsteel.emerge.backend.llvm.requireStructuralSupertypeOf
+import org.bytedeco.llvm.LLVM.LLVMTypeRef
 import org.bytedeco.llvm.global.LLVM
 
 internal val staticObjectFinalizer: KotlinLlvmFunction<LlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
@@ -32,61 +34,89 @@ internal val staticObjectFinalizer: KotlinLlvmFunction<LlvmContext, LlvmVoidType
     }
 }
 
-internal object TypeinfoType : LlvmStructType("typeinfo") {
+internal class TypeinfoType private constructor(val nVTableEntries: Long) : LlvmStructType("typeinfo$nVTableEntries") {
     val shiftRightAmount by structMember(EmergeWordType)
-    val supertypes by structMember(PointerToEmergeArrayOfPointersToTypeInfoType)
+
+    /**
+     * actually always is a [PointerToEmergeArrayOfPointersToTypeInfoType]. Declaring that type here would create a cyclic
+     * reference on JVM classload time. This is cast back in the [getSupertypePointers] intrinsic.
+     */
+    val supertypes by structMember(PointerToAnyEmergeValue)
     val anyValueVirtuals by structMember(EmergeAnyValueVirtualsType)
-    val vtableBlob by structMember(LlvmArrayType(0L, LlvmFunctionAddressType))
+    val vtableBlob by structMember(LlvmArrayType(nVTableEntries, LlvmFunctionAddressType))
+
+    override fun computeRaw(context: LlvmContext): LLVMTypeRef {
+        if (nVTableEntries == 0L) {
+            return super.computeRaw(context)
+        }
+
+        val supertypeRaw = GENERIC.getRawInContext(context)
+        val selfRaw = super.computeRaw(context)
+        requireStructuralSupertypeOf(supertypeRaw, supertypeRaw, context.targetData.ref)
+        return selfRaw
+    }
+
+    companion object {
+        private val cache = MapMaker().weakValues().makeMap<Long, TypeinfoType>()
+        operator fun invoke(nVTableEntries: Long): TypeinfoType {
+            return cache.computeIfAbsent(nVTableEntries, ::TypeinfoType)
+        }
+        val GENERIC = TypeinfoType(0)
+    }
 }
 
 /**
  * Getter function for [EmergeArrayOfPointersToTypeInfoType]
  */
-private val getter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<TypeinfoType>> = KotlinLlvmFunction.define(
-    "emerge.platform.valueArrayOfPointersToTypeinfo_Get",
-    pointerTo(TypeinfoType)
-) {
-    val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
-    val index by param(EmergeWordType)
-    body {
-        // TODO: bounds check!
-        val raw = getelementptr(self)
-            .member { elements }
-            .index(index)
-            .get()
-            .dereference()
+private val getter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<TypeinfoType>> by lazy {
+    KotlinLlvmFunction.define(
+        "emerge.platform.valueArrayOfPointersToTypeinfo_Get",
+        pointerTo(TypeinfoType.GENERIC)
+    ) {
+        val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
+        val index by param(EmergeWordType)
+        body {
+            // TODO: bounds check!
+            val raw = getelementptr(self)
+                .member { elements }
+                .index(index)
+                .get()
+                .dereference()
 
-        ret(raw)
+            ret(raw)
+        }
     }
 }
 
 /**
  * Setter function for [EmergeArrayOfPointersToTypeInfoType]
  */
-private val setter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
-    "emerge.platform.valueArrayOfPointersToTypeinfo_Set",
-    LlvmVoidType
-) {
-    val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
-    val index by param(EmergeWordType)
-    val value by param(pointerTo(TypeinfoType))
-    body {
-        // TODO: bounds check!
-        val targetPointer = getelementptr(self)
-            .member { elements }
-            .index(index)
-            .get()
+private val setter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> by lazy {
+    KotlinLlvmFunction.define(
+        "emerge.platform.valueArrayOfPointersToTypeinfo_Set",
+        LlvmVoidType
+    ) {
+        val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
+        val index by param(EmergeWordType)
+        val value by param(pointerTo(TypeinfoType.GENERIC))
+        body {
+            // TODO: bounds check!
+            val targetPointer = getelementptr(self)
+                .member { elements }
+                .index(index)
+                .get()
 
-        store(value, targetPointer)
+            store(value, targetPointer)
 
-        retVoid()
+            retVoid()
+        }
     }
 }
 
 internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
     pointerTo(
         EmergeArrayType(
-            pointerTo(TypeinfoType),
+            pointerTo(TypeinfoType.GENERIC),
             StaticAndDynamicTypeInfo.define(
                 "valuearray_pointers_to_typeinfo",
                 emptyList(),
@@ -120,46 +150,49 @@ internal class StaticAndDynamicTypeInfo private constructor(
         private val byContext: MutableMap<LlvmContext, StaticAndDynamicTypeInfo> = MapMaker().weakKeys().makeMap()
         override fun provide(context: EmergeLlvmContext): StaticAndDynamicTypeInfo {
             byContext[context]?.let { return it }
-            val dynamicGlobal = context.addGlobal(context.undefValue(TypeinfoType), LlvmGlobal.ThreadLocalMode.SHARED)
-            val staticGlobal = context.addGlobal(context.undefValue(TypeinfoType), LlvmGlobal.ThreadLocalMode.SHARED)
+
+            val (vtableBlob, shiftRightAmount) = buildVTable(context, virtualFunctions(context))
+            val typeinfoType = TypeinfoType(vtableBlob.type.elementCount)
+
+            val dynamicGlobal = context.addGlobal(context.undefValue(typeinfoType), LlvmGlobal.ThreadLocalMode.SHARED)
+            val staticGlobal = context.addGlobal(context.undefValue(typeinfoType), LlvmGlobal.ThreadLocalMode.SHARED)
             val bundle = StaticAndDynamicTypeInfo(context, dynamicGlobal, staticGlobal)
             // register now to break loops
             byContext[context] = bundle
 
-            val (dynamicConstant, staticConstant) = build(context)
+            val (dynamicConstant, staticConstant) = build(context, typeinfoType, vtableBlob, shiftRightAmount)
             LLVM.LLVMSetInitializer(dynamicGlobal.raw, dynamicConstant.raw)
             LLVM.LLVMSetInitializer(staticGlobal.raw, staticConstant.raw)
 
             return bundle
         }
 
-        private fun build(context: EmergeLlvmContext): Pair<LlvmConstant<TypeinfoType>, LlvmConstant<TypeinfoType>> {
-            val dynamicSupertypesData = PointerToEmergeArrayOfPointersToTypeInfoType.pointed.buildConstantIn(context, supertypes, { it })
-            val dynamicSupertypesGlobal = context.addGlobal(dynamicSupertypesData, LlvmGlobal.ThreadLocalMode.SHARED)
-                .reinterpretAs(PointerToEmergeArrayOfPointersToTypeInfoType)
+        private fun build(
+            context: EmergeLlvmContext,
+            typeinfoType: TypeinfoType,
+            vtableBlob: LlvmValue<LlvmArrayType<LlvmFunctionAddressType>>,
+            shiftRightAmount: LlvmConstant<EmergeWordType>
+        ): Pair<LlvmConstant<TypeinfoType>, LlvmConstant<TypeinfoType>> {
+            val supertypesData = PointerToEmergeArrayOfPointersToTypeInfoType.pointed.buildConstantIn(context, supertypes, { it })
+            val supertypesGlobal = context.addGlobal(supertypesData, LlvmGlobal.ThreadLocalMode.SHARED)
+                .reinterpretAs(PointerToAnyEmergeValue)
 
-            val (vtableBlob, shiftRightAmount) = buildVTable(context, virtualFunctions(context))
-
-            val typeinfoDynamicData = TypeinfoType.buildConstantIn(context) {
-                setValue(TypeinfoType.shiftRightAmount, shiftRightAmount)
-                setValue(TypeinfoType.supertypes, dynamicSupertypesGlobal)
-                setValue(TypeinfoType.anyValueVirtuals, EmergeAnyValueVirtualsType.buildConstantIn(context) {
+            val typeinfoDynamicData = typeinfoType.buildConstantIn(context) {
+                setValue(typeinfoType.shiftRightAmount, shiftRightAmount)
+                setValue(typeinfoType.supertypes, supertypesGlobal)
+                setValue(typeinfoType.anyValueVirtuals, EmergeAnyValueVirtualsType.buildConstantIn(context) {
                     setValue(EmergeAnyValueVirtualsType.finalizeFunction, finalizerFunction(context).address)
                 })
-                setValue(TypeinfoType.vtableBlob, vtableBlob)
+                setValue(typeinfoType.vtableBlob, vtableBlob)
             }
 
-            val staticSupertypesData = PointerToEmergeArrayOfPointersToTypeInfoType.pointed.buildConstantIn(context, supertypes, { it })
-            val staticSupertypesGlobal = context.addGlobal(staticSupertypesData, LlvmGlobal.ThreadLocalMode.SHARED)
-                .reinterpretAs(PointerToEmergeArrayOfPointersToTypeInfoType)
-
-            val typeinfoStaticData = TypeinfoType.buildConstantIn(context) {
-                setValue(TypeinfoType.shiftRightAmount, shiftRightAmount)
-                setValue(TypeinfoType.supertypes, staticSupertypesGlobal)
-                setValue(TypeinfoType.anyValueVirtuals, EmergeAnyValueVirtualsType.buildConstantIn(context) {
+            val typeinfoStaticData = typeinfoType.buildConstantIn(context) {
+                setValue(typeinfoType.shiftRightAmount, shiftRightAmount)
+                setValue(typeinfoType.supertypes, supertypesGlobal)
+                setValue(typeinfoType.anyValueVirtuals, EmergeAnyValueVirtualsType.buildConstantIn(context) {
                     setValue(EmergeAnyValueVirtualsType.finalizeFunction, context.registerIntrinsic(staticObjectFinalizer).address)
                 })
-                setValue(TypeinfoType.vtableBlob, vtableBlob)
+                setValue(typeinfoType.vtableBlob, vtableBlob)
             }
 
             return Pair(typeinfoDynamicData, typeinfoStaticData)
