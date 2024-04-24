@@ -33,6 +33,7 @@ import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundImportDeclaration
+import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundReturnStatement
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
@@ -211,6 +212,9 @@ abstract class Reporting internal constructor(
 
         fun staticFunctionDeclaredOverride(function: BoundDeclaredFunction)
             = StaticFunctionDeclaredOverrideReporting(function.attributes.firstOverrideAttribute!!)
+
+        fun abstractInheritedFunctionNotImplemented(implementingType: BoundBaseTypeDefinition, functionToImplement: BoundMemberFunction)
+            = AbstractInheritedFunctionNotImplementedReporting(implementingType, functionToImplement)
 
         fun noMatchingFunctionOverload(functionNameReference: IdentifierToken, receiverType: BoundTypeReference?, valueArguments: List<BoundExpression<*>>, functionDeclaredAtAll: Boolean)
             = UnresolvableFunctionOverloadReporting(functionNameReference, receiverType, valueArguments.map { it.type }, functionDeclaredAtAll)

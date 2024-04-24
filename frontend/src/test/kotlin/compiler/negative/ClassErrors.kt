@@ -1,5 +1,6 @@
 package compiler.compiler.negative
 
+import compiler.reportings.AbstractInheritedFunctionNotImplementedReporting
 import compiler.reportings.AmbiguousFunctionOverrideReporting
 import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
 import compiler.reportings.ConstructorDeclaredModifyingReporting
@@ -172,6 +173,42 @@ class ClassErrors : FreeSpec({
                     }
                 """.trimIndent())
                     .shouldReport<ExternalMemberFunctionReporting>()
+            }
+        }
+
+        "must implement all abstract supertype functions" - {
+            "single degree of inheritance" {
+                validateModule("""
+                    interface Animal {
+                        fun makeSound(self)
+                    }
+                    class Dog : Animal {}
+                """.trimIndent())
+                    .shouldReport<AbstractInheritedFunctionNotImplementedReporting>()
+            }
+
+            "two degrees of inheritance" {
+                validateModule("""
+                    interface Animal {
+                        fun makeSound(self)
+                    }
+                    interface QuadraPede : Animal {}
+                    class Dog : QuadraPede {}
+                """.trimIndent())
+                    .shouldReport<AbstractInheritedFunctionNotImplementedReporting>()
+            }
+
+            "first degree of inheritance implements abstract method from second degree" {
+                validateModule("""
+                    interface Animal {
+                        fun makeSound(self)
+                    }
+                    interface QuadraPede : Animal {
+                        override fun makeSound(self) {}
+                    }
+                    class Dog : QuadraPede {}
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
             }
         }
     }

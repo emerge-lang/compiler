@@ -102,6 +102,8 @@ interface BoundMemberFunction : BoundFunction {
 
     val isVirtual: Boolean
 
+    val isAbstract: Boolean
+
     /**
      * Becomes meaningful during [semanticAnalysisPhase3]. Only set if [isVirtual]
      */

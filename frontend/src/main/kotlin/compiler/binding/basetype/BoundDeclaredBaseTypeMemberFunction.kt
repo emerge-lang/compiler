@@ -41,6 +41,7 @@ class BoundDeclaredBaseTypeMemberFunction(
         )
     }
     override val isVirtual get() = declaresReceiver
+    override val isAbstract = !attributes.impliesNoBody && body == null
 
     override var overrides: BoundMemberFunction? = null
         private set

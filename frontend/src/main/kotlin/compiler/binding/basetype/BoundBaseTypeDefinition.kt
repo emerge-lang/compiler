@@ -192,6 +192,20 @@ class BoundBaseTypeDefinition(
             constructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
             destructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
 
+            if (!kind.memberFunctionsAbstractByDefault) {
+                val memberFunctionsBySuperFunction = memberFunctions.asSequence()
+                    .flatMap { it.overloads }
+                    .associateBy { it.overrides }
+                superTypes.inheritedMemberFunctions
+                    .flatMap { it.overloads }
+                    .filter { it.isAbstract }
+                    .forEach { abstractSuperFn ->
+                        if (abstractSuperFn !in memberFunctionsBySuperFunction) {
+                            reportings.add(Reporting.abstractInheritedFunctionNotImplemented(this, abstractSuperFn))
+                        }
+                    }
+            }
+
             return@getResult reportings
         }
     }
@@ -212,9 +226,10 @@ class BoundBaseTypeDefinition(
         val hasCtorsAndDtors: Boolean,
         val allowsMemberVariables: Boolean,
         val memberFunctionsAbstractByDefault: Boolean,
+        val memberFunctionsVirtualByDefault: Boolean,
     ) {
-        CLASS("classes", hasCtorsAndDtors = true, allowsMemberVariables = true, memberFunctionsAbstractByDefault = false),
-        INTERFACE("interfaces", hasCtorsAndDtors = false, allowsMemberVariables = false, memberFunctionsAbstractByDefault = true),
+        CLASS("classes", hasCtorsAndDtors = true, allowsMemberVariables = true, memberFunctionsAbstractByDefault = false, memberFunctionsVirtualByDefault = false),
+        INTERFACE("interfaces", hasCtorsAndDtors = false, allowsMemberVariables = false, memberFunctionsAbstractByDefault = true, memberFunctionsVirtualByDefault = true),
         ;
 
         fun toBackendIr(typeDef: BoundBaseTypeDefinition): IrBaseType = when(this) {
