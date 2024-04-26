@@ -18,7 +18,6 @@
 
 package compiler.binding
 
-import compiler.OnceAction
 import compiler.ast.AssignmentStatement
 import compiler.ast.type.TypeMutability
 import compiler.binding.context.CTContext
@@ -76,10 +75,10 @@ class BoundAssignmentStatement(
         }
     }
 
-    private val onceAction = OnceAction()
+    private val seanHelper = SeanHelper()
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
+        return seanHelper.phase1 {
             val reportings = mutableListOf<Reporting>()
             reportings.addAll(targetExpression.semanticAnalysisPhase1())
             reportings.addAll(toAssignExpression.semanticAnalysisPhase1())
@@ -115,7 +114,7 @@ class BoundAssignmentStatement(
     private var target: AssignmentTarget? = null
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
+        return seanHelper.phase2 {
             toAssignExpression.markEvaluationResultUsed()
             target?.type?.let(toAssignExpression::setExpectedEvaluationResultType)
 
@@ -133,7 +132,7 @@ class BoundAssignmentStatement(
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
+        return seanHelper.phase3 {
             val reportings = mutableSetOf<Reporting>()
             toAssignExpression.markEvaluationResultCaptured(target?.type?.mutability ?: TypeMutability.READONLY)
 

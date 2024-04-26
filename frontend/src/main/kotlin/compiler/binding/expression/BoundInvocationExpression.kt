@@ -18,7 +18,6 @@
 
 package compiler.binding.expression
 
-import compiler.OnceAction
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.type.TypeMutability
@@ -28,6 +27,7 @@ import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundStatement
 import compiler.binding.IrCodeChunkImpl
+import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.misc_ir.IrCreateReferenceStatementImpl
@@ -60,7 +60,7 @@ class BoundInvocationExpression(
     val valueArguments: List<BoundExpression<*>>
 ) : BoundExpression<InvocationExpression>, BoundExecutable<InvocationExpression> {
 
-    private val onceAction = OnceAction()
+    private val seanHelper = SeanHelper()
 
     /**
      * The result of the function dispatching. Is set (non null) after semantic analysis phase 2
@@ -84,7 +84,7 @@ class BoundInvocationExpression(
         get() = functionToInvoke?.isGuaranteedToThrow
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> =
-        onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
+        seanHelper.phase1 {
             val reportings = mutableSetOf<Reporting>()
             receiverExpression?.semanticAnalysisPhase1()?.let(reportings::addAll)
             valueArguments.map(BoundExpression<*>::semanticAnalysisPhase1).forEach(reportings::addAll)
@@ -93,7 +93,7 @@ class BoundInvocationExpression(
         }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
+        return seanHelper.phase2 {
             receiverExpression?.markEvaluationResultUsed()
             valueArguments.forEach { it.markEvaluationResultUsed() }
 
@@ -103,7 +103,7 @@ class BoundInvocationExpression(
             typeArguments.forEach { reportings.addAll(it.validate(TypeUseSite.Irrelevant(it.sourceLocation, null))) }
             valueArguments.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
 
-            val chosenOverload = selectOverload(reportings) ?: return@getResult reportings
+            val chosenOverload = selectOverload(reportings) ?: return@phase2 reportings
 
             functionToInvoke = chosenOverload.candidate
             if (chosenOverload.returnType == null) {
@@ -127,7 +127,7 @@ class BoundInvocationExpression(
                 .filter { (parameter, _) -> parameter.ownershipAtDeclarationTime == VariableOwnership.CAPTURED }
                 .forEach { (parameter, argument) -> argument.markEvaluationResultCaptured(parameter.typeAtDeclarationTime?.mutability ?: TypeMutability.READONLY) }
 
-            return@getResult reportings
+            return@phase2 reportings
         }
     }
 
@@ -253,7 +253,7 @@ class BoundInvocationExpression(
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
+        return seanHelper.phase3 {
             val reportings = mutableSetOf<Reporting>()
 
             if (receiverExpression != null) {
@@ -267,13 +267,12 @@ class BoundInvocationExpression(
                 )
             }
 
-            return@getResult reportings
+            return@phase3 reportings
         }
     }
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase1)
-        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase2)
+        seanHelper.requirePhase2Done()
 
         val byReceiver = receiverExpression?.findReadsBeyond(boundary) ?: emptySet()
         val byParameters = valueArguments.flatMap { it.findReadsBeyond(boundary) }
@@ -291,8 +290,7 @@ class BoundInvocationExpression(
     }
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
-        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase1)
-        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase2)
+        seanHelper.requirePhase2Done()
 
         val byReceiver = receiverExpression?.findWritesBeyond(boundary) ?: emptySet()
         val byParameters = valueArguments.flatMap { it.findWritesBeyond(boundary) }
@@ -312,7 +310,7 @@ class BoundInvocationExpression(
     private var expectedReturnType: BoundTypeReference? = null
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
-        onceAction.requireActionNotDone(OnceAction.SemanticAnalysisPhase2)
+        seanHelper.requirePhase2NotDone()
         expectedReturnType = type
     }
 

@@ -1,6 +1,5 @@
 package compiler.binding.basetype
 
-import compiler.OnceAction
 import compiler.ast.AssignmentStatement
 import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.CodeChunk
@@ -22,6 +21,7 @@ import compiler.binding.IrAssignmentStatementImpl
 import compiler.binding.IrAssignmentStatementTargetVariableImpl
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.IrReturnStatementImpl
+import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
@@ -197,10 +197,10 @@ class BoundClassConstructor(
         declaration.code.bindTo(boundMemberVariableInitCodeFromExpression.modifiedContext)
     }
 
-    private val onceAction = OnceAction()
+    private val seanHelper = SeanHelper()
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
+        return seanHelper.phase1 {
             val reportings = mutableListOf<Reporting>()
             // this has to be done first to make sure the type parameters are registered in the ctor function context
             declaredTypeParameters.map { it.semanticAnalysisPhase1() }.forEach(reportings::addAll)
@@ -216,8 +216,7 @@ class BoundClassConstructor(
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase1)
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
+        return seanHelper.phase2 {
             val reportings = mutableListOf<Reporting>()
             declaredTypeParameters.map { it.semanticAnalysisPhase2() }.forEach(reportings::addAll)
 
@@ -262,9 +261,7 @@ class BoundClassConstructor(
     override val isGuaranteedToThrow get() = boundMemberVariableInitCodeFromExpression.isGuaranteedToThrow || (additionalInitCode.isGuaranteedToThrow ?: false)
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase1)
-        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase2)
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
+        return seanHelper.phase3 {
             val reportings = mutableListOf<Reporting>()
             declaredTypeParameters.map { it.semanticAnalysisPhase2() }.forEach(reportings::addAll)
 

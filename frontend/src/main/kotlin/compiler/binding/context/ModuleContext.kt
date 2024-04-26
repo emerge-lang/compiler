@@ -1,7 +1,7 @@
 package compiler.binding.context
 
-import compiler.OnceAction
 import compiler.ast.ASTSourceFile
+import compiler.binding.SeanHelper
 import compiler.binding.SemanticallyAnalyzable
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
@@ -14,7 +14,7 @@ class ModuleContext(
     val moduleName: CanonicalElementName.Package,
     val softwareContext: SoftwareContext,
 ) : SemanticallyAnalyzable {
-    private val onceAction = OnceAction()
+    private val seanHelper = SeanHelper()
 
     private val _sourceFiles: MutableSet<SourceFile> = HashSet()
     val sourceFiles: Set<SourceFile> = _sourceFiles
@@ -26,24 +26,24 @@ class ModuleContext(
     }
 
     fun addSourceFile(sourceFile: SourceFile) {
-        onceAction.requireActionNotDone(OnceAction.SemanticAnalysisPhase1)
+        seanHelper.requirePhase1NotDone()
         _sourceFiles.add(sourceFile)
     }
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
+        return seanHelper.phase1 {
             _sourceFiles.flatMap { it.semanticAnalysisPhase1() }
         }
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
+        return seanHelper.phase2 {
             _sourceFiles.flatMap { it.semanticAnalysisPhase2() }
         }
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
+        return seanHelper.phase3 {
             _sourceFiles.flatMap { it.semanticAnalysisPhase3() }
         }
     }

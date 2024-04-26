@@ -18,7 +18,6 @@
 
 package compiler.binding.basetype
 
-import compiler.OnceAction
 import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
@@ -27,6 +26,7 @@ import compiler.binding.BoundElement
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVisibility
+import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeParameter
@@ -51,7 +51,7 @@ class BoundBaseTypeDefinition(
     override val declaration: BaseTypeDeclaration,
     val entries: List<BoundBaseTypeEntry<*>>,
 ) : BaseType, BoundElement<BaseTypeDeclaration> {
-    private val onceAction = OnceAction()
+    private val seanHelper = SeanHelper()
 
     override val context: CTContext = fileContext
     override val canonicalName by lazy {
@@ -98,7 +98,7 @@ class BoundBaseTypeDefinition(
     override fun resolveMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> = memberFunctionsByName[name] ?: emptySet()
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
+        return seanHelper.phase1 {
             val reportings = mutableSetOf<Reporting>()
 
             typeParameters.flatMap { it.semanticAnalysisPhase1() }.forEach(reportings::add)
@@ -158,12 +158,12 @@ class BoundBaseTypeDefinition(
                 }
             }
 
-            return@getResult reportings
+            return@phase1 reportings
         }
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
+        return seanHelper.phase2 {
             val reportings = entries.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
 
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase2).forEach(reportings::addAll)
@@ -175,12 +175,12 @@ class BoundBaseTypeDefinition(
             constructor?.semanticAnalysisPhase2()?.let(reportings::addAll)
             destructor?.semanticAnalysisPhase2()?.let(reportings::addAll)
 
-            return@getResult reportings
+            return@phase2 reportings
         }
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
+        return seanHelper.phase3 {
             val reportings = entries.flatMap { it.semanticAnalysisPhase3() }.toMutableList()
 
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
@@ -206,7 +206,7 @@ class BoundBaseTypeDefinition(
                     }
             }
 
-            return@getResult reportings
+            return@phase3 reportings
         }
     }
 

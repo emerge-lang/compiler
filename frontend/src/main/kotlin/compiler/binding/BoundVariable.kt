@@ -19,7 +19,6 @@
 package compiler.binding
 
 import compiler.InternalCompilerError
-import compiler.OnceAction
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeMutability
@@ -86,7 +85,7 @@ class BoundVariable(
      */
     var defaultOwnership: VariableOwnership = VariableOwnership.CAPTURED
         set(value) {
-            onceAction.requireActionNotDone(OnceAction.SemanticAnalysisPhase1)
+            seanHelper.requirePhase1NotDone()
             field = value
         }
 
@@ -103,10 +102,10 @@ class BoundVariable(
     override val isGuaranteedToReturn: Boolean?
         get() = initializerExpression?.isGuaranteedToReturn
 
-    private val onceAction = OnceAction()
+    private val seanHelper = SeanHelper()
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
+        return seanHelper.phase1 {
             val reportings = mutableSetOf<Reporting>()
 
             reportings.addAll(visibility.semanticAnalysisPhase1())
@@ -168,7 +167,7 @@ class BoundVariable(
                 reportings.add(Reporting.explicitOwnershipNotAllowed(this))
             }
 
-            return@getResult reportings
+            return@phase1 reportings
         }
     }
 
@@ -183,7 +182,7 @@ class BoundVariable(
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
+        return seanHelper.phase2 {
             val reportings = mutableSetOf<Reporting>()
 
             reportings.addAll(visibility.semanticAnalysisPhase2())
@@ -249,12 +248,12 @@ class BoundVariable(
                 resolvedDeclaredType!!.validate(useSite).let(reportings::addAll)
             }
 
-            return@getResult reportings
+            return@phase2 reportings
         }
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
+        return seanHelper.phase3 {
             initializerExpression?.markEvaluationResultCaptured(typeAtDeclarationTime?.mutability ?: implicitMutability)
             val reportings = mutableListOf<Reporting>()
 

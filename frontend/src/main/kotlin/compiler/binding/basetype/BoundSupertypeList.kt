@@ -26,19 +26,10 @@ class BoundSupertypeList(
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return clauses.flatMap { it.semanticAnalysisPhase2() }
-    }
-
-    /**
-     * initialized during [semanticAnalysisPhase3]
-     */
-    lateinit var inheritedMemberFunctions: List<BoundOverloadSet<BoundMemberFunction>>
-        private set
-
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
         val reportings = mutableListOf<Reporting>()
-
-        clauses.flatMap { it.semanticAnalysisPhase3() }.forEach(reportings::add)
+        clauses.forEach {
+            reportings.addAll(it.semanticAnalysisPhase2())
+        }
 
         clauses
             .filter { it.resolvedReference != null }
@@ -91,6 +82,21 @@ class BoundSupertypeList(
         }
 
         this.inheritedMemberFunctions = localInheritedMemberFunctions
+
+        return reportings
+    }
+
+    /**
+     * initialized during [semanticAnalysisPhase3]
+     */
+    lateinit var inheritedMemberFunctions: List<BoundOverloadSet<BoundMemberFunction>>
+        private set
+
+    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+        val reportings = mutableListOf<Reporting>()
+
+        clauses.flatMap { it.semanticAnalysisPhase3() }.forEach(reportings::add)
+
         return reportings
     }
 }

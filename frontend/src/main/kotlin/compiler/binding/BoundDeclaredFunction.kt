@@ -80,12 +80,12 @@ abstract class BoundDeclaredFunction(
                     onCycle = { false },
                 )
 
-    private val onceAction = OnceAction()
+    private val seanHelper = SeanHelper()
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         // TODO: check FFI name of external modifier
 
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
+        return seanHelper.phase1 {
             val reportings = mutableSetOf<Reporting>()
 
             reportings.addAll(attributes.semanticAnalysisPhase1())
@@ -106,13 +106,12 @@ abstract class BoundDeclaredFunction(
 
             this.body?.semanticAnalysisPhase1()?.let(reportings::addAll)
 
-            return@getResult reportings
+            return@phase1 reportings
         }
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase1)
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
+        return seanHelper.phase2 {
             val reportings = mutableSetOf<Reporting>()
 
             handleCyclicInvocation(
@@ -157,14 +156,12 @@ abstract class BoundDeclaredFunction(
             }
             body?.semanticAnalysisPhase2()?.let(reportings::addAll)
 
-            return@getResult reportings
+            return@phase2 reportings
         }
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase1)
-        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase2)
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
+        return seanHelper.phase3 {
             val reportings = mutableSetOf<Reporting>()
 
             declaredTypeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
@@ -218,7 +215,7 @@ abstract class BoundDeclaredFunction(
                 }
             }
 
-            return@getResult reportings
+            return@phase3 reportings
         }
     }
 

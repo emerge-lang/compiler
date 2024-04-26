@@ -18,7 +18,6 @@
 
 package compiler.binding
 
-import compiler.OnceAction
 import compiler.ast.CodeChunk
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -72,30 +71,27 @@ class BoundCodeChunk(
         statements.lastOrNull()?.requireImplicitEvaluationTo(type)
     }
 
-    private val onceAction = OnceAction()
+    private val seanHelper = SeanHelper()
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase1) {
+        return seanHelper.phase1 {
             statements.flatMap { it.semanticAnalysisPhase1() }
         }
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase1)
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase2) {
+        return seanHelper.phase2 {
             statements.flatMap { it.semanticAnalysisPhase2() }
         }
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase1)
-        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase2)
-        return onceAction.getResult(OnceAction.SemanticAnalysisPhase3) {
+        return seanHelper.phase3 {
             statements.flatMap { it.semanticAnalysisPhase3() }
         }
     }
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        onceAction.requireActionDone(OnceAction.SemanticAnalysisPhase3)
+        seanHelper.requirePhase3Done()
         return statements.flatMap {
             handleCyclicInvocation(
                 context = this,
