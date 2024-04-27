@@ -39,9 +39,9 @@ import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
-import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
 import kotlinext.duplicatesBy
+import java.util.Collections
+import java.util.IdentityHashMap
 
 class BoundBaseTypeDefinition(
     private val fileContext: CTContext,
@@ -65,22 +65,6 @@ class BoundBaseTypeDefinition(
     val declaredConstructors: Sequence<BoundClassConstructor> = entries.asSequence().filterIsInstance<BoundClassConstructor>()
     val declaredDestructors: Sequence<BoundClassDestructor> = entries.asSequence().filterIsInstance<BoundClassDestructor>()
 
-    val memberFunctionsByName: Map<String, Collection<BoundOverloadSet<BoundMemberFunction>>> by lazy {
-        entries.filterIsInstance<BoundDeclaredBaseTypeMemberFunction>()
-            .groupBy { it.name }
-            .mapValues { (name, overloadsSameName) ->
-                overloadsSameName
-                    .groupBy { it.parameters.parameters.size }
-                    .map { (parameterCount, overloads) ->
-                        val overloadSetCanonicalName = CanonicalElementName.Function(
-                            this@BoundBaseTypeDefinition.canonicalName,
-                            name,
-                        )
-                        BoundOverloadSet(overloadSetCanonicalName, parameterCount, overloads)
-                    }
-            }
-    }
-
     /**
      * Always `null` if [Kind.hasCtorsAndDtors] is `false`. If `true`, is initialized in
      * [semanticAnalysisPhase1] to a given declaration or a generated one.
@@ -95,10 +79,6 @@ class BoundBaseTypeDefinition(
     override var destructor: BoundClassDestructor? = null
         private set
 
-    override val memberFunctions: Collection<BoundOverloadSet<BoundMemberFunction>>
-        get() = memberFunctionsByName.values.flatten()
-    override fun resolveMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> = memberFunctionsByName[name] ?: emptySet()
-
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return seanHelper.phase1 {
             val reportings = mutableSetOf<Reporting>()
@@ -107,9 +87,6 @@ class BoundBaseTypeDefinition(
             reportings.addAll(superTypes.semanticAnalysisPhase1())
 
             entries.forEach {
-                reportings.addAll(it.semanticAnalysisPhase1())
-            }
-            memberFunctionsByName.values.asSequence().flatten().forEach {
                 reportings.addAll(it.semanticAnalysisPhase1())
             }
 
@@ -203,6 +180,29 @@ class BoundBaseTypeDefinition(
         return cyclicReportings
     }
 
+
+    private lateinit var allMemberFunctionOverloadSetsByName: Map<String, Collection<BoundOverloadSet<BoundMemberFunction>>>
+
+    override fun resolveMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> {
+        semanticAnalysisPhase2()
+        if (!this::allMemberFunctionOverloadSetsByName.isInitialized) {
+            return emptySet()
+        }
+
+        return allMemberFunctionOverloadSetsByName.getOrDefault(name, emptySet())
+            .filter { it.canonicalName.simpleName == name }
+    }
+
+    override val memberFunctions: Collection<BoundOverloadSet<BoundMemberFunction>>
+        get() {
+            seanHelper.requirePhase2Done()
+            if (!this::allMemberFunctionOverloadSetsByName.isInitialized) {
+                return emptySet()
+            }
+
+            return allMemberFunctionOverloadSetsByName.values.flatten()
+        }
+
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return seanHelper.phase2 {
             val cyclicInheritanceErrors = walkAllSupertypes()
@@ -218,11 +218,43 @@ class BoundBaseTypeDefinition(
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase2).forEach(reportings::addAll)
             reportings.addAll(superTypes.semanticAnalysisPhase2())
             entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase2).forEach(reportings::addAll)
-            memberFunctionsByName.values.asSequence().flatten().forEach {
-                reportings.addAll(it.semanticAnalysisPhase2())
-            }
             constructor?.semanticAnalysisPhase2()?.let(reportings::addAll)
             destructor?.semanticAnalysisPhase2()?.let(reportings::addAll)
+
+            val overriddenInheritedFunctions: MutableSet<BoundMemberFunction> = Collections.newSetFromMap(IdentityHashMap())
+            val allMemberFunctions = mutableListOf<BoundMemberFunction>()
+            entries.asSequence().filterIsInstance<BoundMemberFunction>().forEach {
+                allMemberFunctions.add(it)
+                it.overrides?.let(overriddenInheritedFunctions::add)
+            }
+            superTypes.inheritedMemberFunctions.asSequence()
+                .filter { it !in overriddenInheritedFunctions }
+                .forEach(allMemberFunctions::add)
+
+            allMemberFunctionOverloadSetsByName = allMemberFunctions
+                .groupBy { Pair(it.name, it.parameters.parameters.size) }
+                .map { (nameAndParamCount, overloads) ->
+                    BoundOverloadSet(
+                        CanonicalElementName.Function(
+                            this@BoundBaseTypeDefinition.canonicalName,
+                            nameAndParamCount.first,
+                        ),
+                        nameAndParamCount.second,
+                        overloads,
+                    )
+                }
+                .groupBy { it.canonicalName.simpleName }
+
+            allMemberFunctionOverloadSetsByName.values.forEach { overloadSets ->
+                overloadSets.forEach { overloadSet ->
+                    reportings.addAll(overloadSet.semanticAnalysisPhase1())
+                    reportings.addAll(overloadSet.semanticAnalysisPhase2())
+                }
+            }
+
+            // TODO?: merge inherited and declared member fns
+            // TODO?: on all inherited member functions, narrow the type of the receiver to the subtype
+
 
             return@phase2 reportings
         }
@@ -235,9 +267,6 @@ class BoundBaseTypeDefinition(
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
             reportings.addAll(superTypes.semanticAnalysisPhase3())
             entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase3).forEach(reportings::addAll)
-            memberFunctionsByName.values.asSequence().flatten().forEach {
-                reportings.addAll(it.semanticAnalysisPhase3())
-            }
             constructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
             destructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
 
@@ -246,13 +275,18 @@ class BoundBaseTypeDefinition(
                     .flatMap { it.overloads }
                     .associateBy { it.overrides }
                 superTypes.inheritedMemberFunctions
-                    .flatMap { it.overloads }
                     .filter { it.isAbstract }
                     .forEach { abstractSuperFn ->
                         if (abstractSuperFn !in memberFunctionsBySuperFunction) {
                             reportings.add(Reporting.abstractInheritedFunctionNotImplemented(this, abstractSuperFn))
                         }
                     }
+            }
+
+            allMemberFunctionOverloadSetsByName.values.forEach { overloadSets ->
+                overloadSets.forEach {
+                    reportings.addAll(it.semanticAnalysisPhase3())
+                }
             }
 
             return@phase3 reportings
@@ -269,6 +303,8 @@ class BoundBaseTypeDefinition(
 
     private val backendIr by lazy { kind.toBackendIr(this) }
     override fun toBackendIr(): IrBaseType = backendIr
+
+    override fun toString() = "${kind.name.lowercase()} $canonicalName"
 
     enum class Kind(
         val namePlural: String,
@@ -293,7 +329,7 @@ private class IrInterfaceImpl(
 ) : IrInterface {
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
     override val parameters = typeDef.typeParameters.map { it.toBackendIr() }
-    override val memberFunctions by lazy { typeDef.memberFunctionsByName.values.flatten().map { it.toBackendIr() as IrOverloadGroup<IrMemberFunction> } }
+    override val memberFunctions by lazy { TODO() }
 }
 
 private class IrClassImpl(
@@ -302,7 +338,7 @@ private class IrClassImpl(
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
     override val parameters = typeDef.typeParameters.map { it.toBackendIr() }
     override val memberVariables by lazy { typeDef.memberVariables.map { it.toBackendIr() } }
-    override val memberFunctions by lazy { typeDef.memberFunctionsByName.values.flatten().map { it.toBackendIr() as IrOverloadGroup<IrMemberFunction> } }
+    override val memberFunctions by lazy { TODO() }
     override val constructor by lazy { typeDef.constructor!!.toBackendIr() }
     override val destructor by lazy { typeDef.destructor!!.toBackendIr() }
 }

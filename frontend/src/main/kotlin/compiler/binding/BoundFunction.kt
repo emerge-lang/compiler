@@ -18,6 +18,7 @@
 
 package compiler.binding
 
+import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeParameter
@@ -107,7 +108,7 @@ interface BoundMemberFunction : BoundFunction {
     /**
      * Becomes meaningful during [semanticAnalysisPhase3]. Only set if [isVirtual]
      */
-    val overrides: BoundMemberFunction?
+    val overrides: InheritedBoundMemberFunction?
 
     override fun toBackendIr(): IrMemberFunction
 }

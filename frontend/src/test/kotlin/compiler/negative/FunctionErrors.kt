@@ -7,6 +7,7 @@ import compiler.reportings.InconsistentReceiverPresenceInOverloadSetReporting
 import compiler.reportings.MissingFunctionBodyReporting
 import compiler.reportings.MissingReturnValueReporting
 import compiler.reportings.MissingVariableTypeReporting
+import compiler.reportings.MultipleInheritanceIssueReporting
 import compiler.reportings.MultipleParameterDeclarationsReporting
 import compiler.reportings.OverloadSetHasNoDisjointParameterReporting
 import compiler.reportings.ReturnTypeMismatchReporting
@@ -22,6 +23,7 @@ import io.kotest.inspectors.forOne
 import io.kotest.matchers.collections.haveSize
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.beInstanceOf
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 class FunctionErrors : FreeSpec({
@@ -190,6 +192,24 @@ class FunctionErrors : FreeSpec({
                 fun foo(p1: Int, p2: Int) {}
             """.trimIndent())
                 .shouldReport<InconsistentReceiverPresenceInOverloadSetReporting>()
+        }
+
+        "inheritance induced" - {
+            "inheriting from two types creates ambiguous overload" {
+                validateModule("""
+                    interface A {
+                        fun foo(self, p1: Int)
+                    }
+                    interface B {
+                        fun foo(self, p1: Any)
+                    }
+                    class C : A, B {}
+                """.trimIndent())
+                    .shouldReport<MultipleInheritanceIssueReporting> {
+                        it.base should beInstanceOf<OverloadSetHasNoDisjointParameterReporting>()
+                        it.conflictOnSubType.canonicalName.toString() shouldBe "testmodule.C"
+                    }
+            }
         }
     }
 

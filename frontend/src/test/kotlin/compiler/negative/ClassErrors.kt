@@ -15,9 +15,7 @@ import compiler.reportings.IncompatibleReturnTypeOnOverrideReporting
 import compiler.reportings.MissingFunctionBodyReporting
 import compiler.reportings.MultipleClassConstructorsReporting
 import compiler.reportings.MultipleClassDestructorsReporting
-import compiler.reportings.MultipleInheritanceIssueReporting
 import compiler.reportings.ObjectNotFullyInitializedReporting
-import compiler.reportings.OverloadSetHasNoDisjointParameterReporting
 import compiler.reportings.ReadInPureContextReporting
 import compiler.reportings.StateModificationOutsideOfPurityBoundaryReporting
 import compiler.reportings.StaticFunctionDeclaredOverrideReporting
@@ -33,7 +31,6 @@ import io.kotest.inspectors.forAll
 import io.kotest.matchers.collections.haveSize
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.beInstanceOf
 
 class ClassErrors : FreeSpec({
     "duplicate member" {
@@ -530,28 +527,6 @@ class ClassErrors : FreeSpec({
         }
     }
 
-    "inheritance problems" - {
-        "overload set becomes ambiguous due to multiple inheritance only".config(enabled = false) {
-            // TODO: enable
-            // the check itself is already implemented. It doesn't trigger here because the self parameter is disjoint
-            // that is the missing part: the inheriting subclass needs to rewrite the type of the receiver to the subtype.
-            // that will make the self parameter non-disjoint, and because p1 isn't either, the diagnostic will appear
-            validateModule("""
-                interface A {
-                    fun foo(self, p1: Int)
-                }
-                interface B {
-                    fun foo(self, p1: Any)
-                }
-                class C : A, B {}
-            """.trimIndent())
-                .shouldReport<MultipleInheritanceIssueReporting> {
-                    it.base should beInstanceOf<OverloadSetHasNoDisjointParameterReporting>()
-                    it.conflictOnSubType.canonicalName.toString() shouldBe "testmodule.C"
-                }
-        }
-    }
-
     "overriding" - {
         "static functions cannot override" {
             validateModule("""
@@ -606,11 +581,13 @@ class ClassErrors : FreeSpec({
 
         "return type not compatible" {
             validateModule("""
-                interface I  {
+                interface I {
                     fun foo(self) -> Int
                 }
                 class C : I {
-                    override fun foo(self) -> String
+                    override fun foo(self) -> String {
+                        return ""
+                    }
                 }
             """.trimIndent())
                 .shouldReport<IncompatibleReturnTypeOnOverrideReporting>()

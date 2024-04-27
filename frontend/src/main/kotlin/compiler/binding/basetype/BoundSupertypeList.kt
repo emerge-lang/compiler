@@ -1,12 +1,10 @@
 package compiler.binding.basetype
 
 import compiler.binding.BoundMemberFunction
-import compiler.binding.BoundOverloadSet
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.type.BaseType
-import compiler.reportings.MultipleInheritanceIssueReporting
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 
 class BoundSupertypeList(
     val clauses: List<BoundSupertypeDeclaration>,
@@ -25,72 +23,43 @@ class BoundSupertypeList(
         return reportings
     }
 
+    /**
+     * initialized during [semanticAnalysisPhase2]. Will contain duplicates by [BoundMemberFunction.canonicalName]
+     * and parameter count. This is because the overload-set level logic on a derived type also needs to account
+     * for the additional [BoundMemberFunction]s in that derived type. So the merging of overloads happens in
+     * [BoundBaseTypeDefinition].
+     */
+    lateinit var inheritedMemberFunctions: List<InheritedBoundMemberFunction>
+        private set
+
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = mutableListOf<Reporting>()
         clauses.forEach {
             reportings.addAll(it.semanticAnalysisPhase2())
         }
 
-        clauses
-            .filter { it.resolvedReference != null }
-            .groupBy { it.resolvedReference!!.baseType }
-            .values
-            .filter { it.size > 1}
-            .forEach { duplicateSupertypes ->
-                duplicateSupertypes
-                    .drop(1)
-                    .forEach {
-                        it as SourceBoundSupertypeDeclaration // TODO this assumption will always be true once all basetypes are declared in emerge source
-                        reportings.add(Reporting.duplicateSupertype(it.astNode))
-                    }
+        val distinctSuperBaseTypes = mutableSetOf<BaseType>()
+        val distinctSupertypes = ArrayList<RootResolvedTypeReference>(clauses.size)
+        for (clause in clauses) {
+            val resolvedReference = clause.resolvedReference ?: continue
+            if (!distinctSuperBaseTypes.add(resolvedReference.baseType)) {
+                clause as SourceBoundSupertypeDeclaration // TODO this assumption will always be true once all basetypes are declared in emerge source
+                reportings.add(Reporting.duplicateSupertype(clause.astNode))
             }
 
-        val inheritedOverloadSetsByNameAndParameterCount = clauses
-            .asSequence()
-            .mapNotNull { it.resolvedReference }
-            .flatMap { it.memberFunctions }
-            .filter { it.declaresReceiver } // static methods are not inherited
-            .groupBy { Pair(it.canonicalName.simpleName, it.parameterCount) }
-
-        // TODO: on all inherited member functions, narrow the type of the receiver to the subtype
-        // this is currently not easy because the BuiltinTypes are not declared in emerge source, should
-        // become very feasible afterwards.
-        val localInheritedMemberFunctions = mutableListOf<BoundOverloadSet<BoundMemberFunction>>()
-        for ((nameAndParamCount, overloadSets) in inheritedOverloadSetsByNameAndParameterCount) {
-            if (overloadSets.size == 1) {
-                // any errors relate to the definition of the supertype - not relevant for the subtype
-                localInheritedMemberFunctions.add(overloadSets.single())
-            } else {
-                // ambiguous overloads may result from the diamond problem
-                val allOverloads = overloadSets
-                    .flatMap { it.overloads }
-                val diamondSources = allOverloads
-                    .map { (it as BoundDeclaredBaseTypeMemberFunction).declaredOnType } // TODO: this assumption will break sooner or later!
-                    .toSet()
-
-                val combinedSetName = CanonicalElementName.Function(
-                    typeDef.canonicalName,
-                    nameAndParamCount.first
-                )
-                val combinedSet = BoundOverloadSet(combinedSetName, nameAndParamCount.second, allOverloads)
-                val combinedReportings = (combinedSet.semanticAnalysisPhase1() + combinedSet.semanticAnalysisPhase2() + combinedSet.semanticAnalysisPhase3())
-                combinedReportings
-                    .map { MultipleInheritanceIssueReporting(it, diamondSources, typeDef) }
-                    .forEach(reportings::add)
-                localInheritedMemberFunctions.add(combinedSet)
-            }
+            distinctSupertypes.add(resolvedReference)
         }
 
-        this.inheritedMemberFunctions = localInheritedMemberFunctions
+        this.inheritedMemberFunctions = distinctSupertypes
+            .asSequence()
+            .flatMap { it.memberFunctions }
+            .filter { it.declaresReceiver }
+            .flatMap { it.overloads }
+            .map { InheritedBoundMemberFunction(it, typeDef) }
+            .toList()
 
         return reportings
     }
-
-    /**
-     * initialized during [semanticAnalysisPhase3]
-     */
-    lateinit var inheritedMemberFunctions: List<BoundOverloadSet<BoundMemberFunction>>
-        private set
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         val reportings = mutableListOf<Reporting>()

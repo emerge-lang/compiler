@@ -43,27 +43,12 @@ class BoundDeclaredBaseTypeMemberFunction(
     override val isVirtual get() = declaresReceiver
     override val isAbstract = !attributes.impliesNoBody && body == null
 
-    override var overrides: BoundMemberFunction? = null
+    override var overrides: InheritedBoundMemberFunction? = null
         private set
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = super.semanticAnalysisPhase3().toMutableList()
+    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        val reportings = super.semanticAnalysisPhase2().toMutableList()
         determineOverride(reportings)
-
-        if (attributes.externalAttribute != null) {
-            reportings.add(Reporting.externalMemberFunction(this))
-        }
-
-        if (body != null) {
-            if (attributes.impliesNoBody) {
-                reportings.add(Reporting.illegalFunctionBody(declaration))
-            }
-        } else {
-            if (!attributes.impliesNoBody && !declaredOnType.kind.memberFunctionsAbstractByDefault) {
-                reportings.add(Reporting.missingFunctionBody(declaration))
-            }
-        }
-
         return reportings
     }
 
@@ -108,16 +93,15 @@ class BoundDeclaredBaseTypeMemberFunction(
         overrides = superFn
     }
 
-    private fun findOverriddenFunction(): Collection<Pair<BaseType, BoundMemberFunction>> {
+    private fun findOverriddenFunction(): Collection<Pair<BaseType, InheritedBoundMemberFunction>> {
         val selfParameterTypes = parameterTypes.asElementNotNullable()
             ?: return emptySet()
 
-        declaredOnType.superTypes.semanticAnalysisPhase3()
+        declaredOnType.superTypes.semanticAnalysisPhase2()
         return declaredOnType.superTypes.inheritedMemberFunctions
             .asSequence()
             .filter { it.canonicalName.simpleName == this.name }
-            .filter { it.parameterCount == this.parameters.parameters.size }
-            .flatMap { it.overloads }
+            .filter { it.parameters.parameters.size == this.parameters.parameters.size }
             .filter { potentialSuperFn ->
                 val potentialSuperFnParamTypes = potentialSuperFn.parameterTypes.asElementNotNullable()
                     ?: return@filter false
@@ -126,10 +110,30 @@ class BoundDeclaredBaseTypeMemberFunction(
                     .all { (selfParamType, superParamType) -> superParamType.isAssignableTo(selfParamType) }
             }
             .map { superFn ->
-                val supertype = (superFn as BoundDeclaredBaseTypeMemberFunction).declaredOnType
+                val supertype = superFn.declaredOnType
                 Pair(supertype, superFn)
             }
             .toList()
+    }
+
+    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+        val reportings = super.semanticAnalysisPhase3().toMutableList()
+
+        if (attributes.externalAttribute != null) {
+            reportings.add(Reporting.externalMemberFunction(this))
+        }
+
+        if (body != null) {
+            if (attributes.impliesNoBody) {
+                reportings.add(Reporting.illegalFunctionBody(declaration))
+            }
+        } else {
+            if (!attributes.impliesNoBody && !declaredOnType.kind.memberFunctionsAbstractByDefault) {
+                reportings.add(Reporting.missingFunctionBody(declaration))
+            }
+        }
+
+        return reportings
     }
 
     override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
