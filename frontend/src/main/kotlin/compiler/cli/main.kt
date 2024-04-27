@@ -72,7 +72,9 @@ object CompileCommand : CliktCommand() {
                 }
                 .map { SourceFileRule.match(lex(it), it) }
                 .forEach {
-                    it.reportings.forEach(this::echo)
+                    it.reportings
+                        .filter { it.level > Reporting.Level.CONSECUTIVE }
+                        .forEach(this::echo)
                     anyParseErrors = anyParseErrors || it.reportings.containsErrors
                     it.item?.let(moduleContext::addSourceFile)
                 }
@@ -93,7 +95,9 @@ object CompileCommand : CliktCommand() {
         val semanticResults = swCtx.doSemanticAnalysis()
         val semanticCompleteAt = measureClock.instant()
 
-        semanticResults.forEach(this::echo)
+        semanticResults
+            .filter { it.level > Reporting.Level.CONSECUTIVE }
+            .forEach(this::echo)
 
         if (semanticResults.any { it.level >= Reporting.Level.ERROR}) {
             throw PrintMessage(
