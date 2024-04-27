@@ -33,6 +33,14 @@ interface IrMemberFunction : IrFunction {
 }
 
 /**
+ * Denotes that this member function is fully reused from the supertype, so the compilation result of the
+ * supertype function could be re-used to save on program size.
+ */
+interface IrFullyInheritedMemberFunction : IrMemberFunction {
+    val superFunction: IrMemberFunction
+}
+
+/**
  * A group of function declarations, all with the same name and parameter count (receiver/self is always counted)
  */
 interface IrOverloadGroup<out T> {

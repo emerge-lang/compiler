@@ -10,6 +10,8 @@ import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrFullyInheritedMemberFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 
 class InheritedBoundMemberFunction(
     val supertypeMemberFn: BoundMemberFunction,
@@ -72,7 +74,16 @@ class InheritedBoundMemberFunction(
         return emptySet()
     }
 
+    private val backendIr by lazy {
+        IrFullyInheritedMemberFunctionImpl(supertypeMemberFn.toBackendIr())
+    }
+    override fun toBackendIr(): IrMemberFunction = backendIr
+
     override fun toString(): String {
         return "$canonicalName(${parameters.parameters.joinToString(separator = ", ", transform = { it.typeAtDeclarationTime.toString() })}) -> $returnType"
     }
 }
+
+private class IrFullyInheritedMemberFunctionImpl(
+    override val superFunction: IrMemberFunction
+) : IrFullyInheritedMemberFunction, IrMemberFunction by superFunction

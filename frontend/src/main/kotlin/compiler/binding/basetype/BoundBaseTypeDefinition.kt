@@ -39,6 +39,8 @@ import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
+import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
 import kotlinext.duplicatesBy
 import java.util.Collections
 import java.util.IdentityHashMap
@@ -330,7 +332,7 @@ private class IrInterfaceImpl(
 ) : IrInterface {
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
     override val parameters = typeDef.typeParameters.map { it.toBackendIr() }
-    override val memberFunctions by lazy { TODO() }
+    override val memberFunctions by lazy { typeDef.memberFunctions.map { it.toBackendIr() as IrOverloadGroup<IrMemberFunction> } }
 }
 
 private class IrClassImpl(
@@ -339,7 +341,7 @@ private class IrClassImpl(
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
     override val parameters = typeDef.typeParameters.map { it.toBackendIr() }
     override val memberVariables by lazy { typeDef.memberVariables.map { it.toBackendIr() } }
-    override val memberFunctions by lazy { TODO() }
+    override val memberFunctions by lazy { typeDef.memberFunctions.map { it.toBackendIr() as IrOverloadGroup<IrMemberFunction> } }
     override val constructor by lazy { typeDef.constructor!!.toBackendIr() }
     override val destructor by lazy { typeDef.destructor!!.toBackendIr() }
 }

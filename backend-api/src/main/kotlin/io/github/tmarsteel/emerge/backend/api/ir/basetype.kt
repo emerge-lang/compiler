@@ -5,6 +5,11 @@ import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 interface IrBaseType {
     val canonicalName: CanonicalElementName.BaseType
     val parameters: List<Parameter>
+
+    /**
+     * All member functions that can be found in this type, including inherited ones. Type-check on
+     * [IrFullyInheritedMemberFunction] and look at [IrMemberFunction.overrides] to distinguish.
+     */
     val memberFunctions: Collection<IrOverloadGroup<IrMemberFunction>>
 
     interface Parameter {
