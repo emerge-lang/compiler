@@ -27,7 +27,8 @@ interface BoundSupertypeDeclaration : SemanticallyAnalyzable {
 
 class SourceBoundSupertypeDeclaration(
     val subtypeContext: CTContext,
-    val getTypeDef: () -> BoundBaseTypeDefinition,
+    /** @return the subtype */
+    private val getTypeDef: () -> BoundBaseTypeDefinition,
     val astNode: TypeReference,
 ) : BoundSupertypeDeclaration {
     private val seanHelper = SeanHelper()

@@ -4,6 +4,7 @@ import compiler.binding.basetype.BoundBaseTypeDefinition
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.basetype.BoundClassDestructor
+import compiler.reportings.CyclicInheritanceReporting
 import compiler.reportings.EntryNotAllowedInBaseTypeReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
@@ -47,5 +48,32 @@ class InterfaceErrors : FreeSpec({
                 it.typeKind shouldBe BoundBaseTypeDefinition.Kind.INTERFACE
                 it.violatingEntry should beInstanceOf<BoundBaseTypeMemberVariable>()
             }
+    }
+
+    "cyclic inheritance" - {
+        "cycle size 1" {
+            validateModule("""
+                interface A : A {}
+            """.trimIndent())
+                .shouldReport<CyclicInheritanceReporting>()
+        }
+
+        "cycle size 2" {
+            validateModule("""
+                interface A : B {}
+                interface B : A {}
+            """.trimIndent())
+                .shouldReport<CyclicInheritanceReporting>()
+        }
+
+        "cycle size 4" {
+            validateModule("""
+                interface A : D {}
+                interface B : A {}
+                interface C : B {}
+                interface D : C {}
+            """.trimIndent())
+                .shouldReport<CyclicInheritanceReporting>()
+        }
     }
 })

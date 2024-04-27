@@ -40,6 +40,10 @@ private class EarlyStackOverflowException(val context: ContextAtStackFrame? = nu
 
 private val contexts: ThreadLocal<MutableSet<ContextAtStackFrame>> = ThreadLocal.withInitial(::HashSet)
 
+/**
+ * this makes functional correctness rely on the layout of the stack; may become unreliable with runtime optimizations
+ * TODO: find a new way to implement this. [SeanHelper] may be the right place
+ */
 fun <R> handleCyclicInvocation(
     context: Any,
     action: () -> R,

@@ -30,8 +30,10 @@ import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeParameter
+import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
+import compiler.reportings.CyclicInheritanceReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
@@ -162,8 +164,55 @@ class BoundBaseTypeDefinition(
         }
     }
 
+    private var cyclicInheritanceTested = false
+    private var cyclicInheritanceDetected = false
+    /**
+     * does _nothing_ except invoking this method on all the supertypes of this type,
+     * and by that in turn on all supertypes in the hierarchy. If there is a cycle in the subtype<->supertype
+     * graph, this will enter an endless loop/stack overflow. That is detected using [handleCyclicInvocation]
+     * to produce a reporting on an illegal inheritance cycle.
+     *
+     * To be invoked during [semanticAnalysisPhase2]
+     */
+    internal fun walkAllSupertypes(): Collection<CyclicInheritanceReporting> {
+        if (cyclicInheritanceTested) {
+            return emptySet()
+        }
+
+        val cyclicReportings = superTypes.clauses
+            // TODO: remove this filter as soon as all basetypes are declared in emerge source - it shouldn't be necessary then
+            .filterIsInstance<SourceBoundSupertypeDeclaration>()
+            .filter { it.resolvedReference != null }
+            .filter { it.resolvedReference!!.baseType is BoundBaseTypeDefinition }  // TODO: this should go away with the filterIsInstance above
+            .flatMap { supertypeDecl ->
+                val superBasetype = supertypeDecl.resolvedReference!!.baseType
+                superBasetype as BoundBaseTypeDefinition
+                handleCyclicInvocation(
+                    this,
+                    action = {
+                        superBasetype.walkAllSupertypes()
+                    },
+                    onCycle = {
+                        setOf(Reporting.cyclicInheritance(this, supertypeDecl))
+                    }
+                )
+            }
+
+        cyclicInheritanceTested = true
+        cyclicInheritanceDetected = cyclicReportings.isNotEmpty()
+        return cyclicReportings
+    }
+
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return seanHelper.phase2 {
+            val cyclicInheritanceErrors = walkAllSupertypes()
+            if (cyclicInheritanceErrors.isNotEmpty()) {
+                return@phase2 cyclicInheritanceErrors
+            }
+            if (cyclicInheritanceDetected) {
+                return@phase2 setOf(Reporting.consecutive("not validating further due to cyclic inheritance", declaration.declaredAt))
+            }
+
             val reportings = entries.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
 
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase2).forEach(reportings::addAll)
@@ -180,7 +229,7 @@ class BoundBaseTypeDefinition(
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
+        return seanHelper.phase3(runIfErrorsPreviously = false) {
             val reportings = entries.flatMap { it.semanticAnalysisPhase3() }.toMutableList()
 
             typeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
