@@ -270,10 +270,17 @@ class BoundBaseTypeDefinition(
             constructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
             destructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
 
+            allMemberFunctionOverloadSetsByName.values.forEach { overloadSets ->
+                overloadSets.forEach {
+                    reportings.addAll(it.semanticAnalysisPhase3())
+                }
+            }
+
             if (!kind.memberFunctionsAbstractByDefault) {
                 val memberFunctionsBySuperFunction = memberFunctions.asSequence()
                     .flatMap { it.overloads }
                     .associateBy { it.overrides }
+
                 superTypes.inheritedMemberFunctions
                     .filter { it.isAbstract }
                     .forEach { abstractSuperFn ->
@@ -281,12 +288,6 @@ class BoundBaseTypeDefinition(
                             reportings.add(Reporting.abstractInheritedFunctionNotImplemented(this, abstractSuperFn))
                         }
                     }
-            }
-
-            allMemberFunctionOverloadSetsByName.values.forEach { overloadSets ->
-                overloadSets.forEach {
-                    reportings.addAll(it.semanticAnalysisPhase3())
-                }
             }
 
             return@phase3 reportings

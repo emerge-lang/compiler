@@ -3,10 +3,12 @@ package compiler.binding.basetype
 import compiler.ast.VariableDeclaration
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundMemberFunction
+import compiler.binding.BoundParameter
 import compiler.binding.BoundParameterList
 import compiler.binding.BoundVariable
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeReference
+import compiler.lexer.IdentifierToken
 import compiler.reportings.Reporting
 
 class InheritedBoundMemberFunction(
@@ -29,18 +31,22 @@ class InheritedBoundMemberFunction(
         return subtype.baseReference
     }
 
-    override val parameters: BoundParameterList by lazy {
+    private val boundNarrowedReceiverParameter: BoundParameter = run {
         val inheritedReceiverParameter = supertypeMemberFn.parameters.declaredReceiver!!
+        val sourceLocation = inheritedReceiverParameter.declaration.declaredAt.deriveGenerated()
         val narrowedReceiverParameter = VariableDeclaration(
-            inheritedReceiverParameter.declaration.declaredAt,
+            sourceLocation,
             null,
             null,
             inheritedReceiverParameter.declaration.ownership,
             inheritedReceiverParameter.declaration.name,
-            TypeReference(subtype.simpleName),
+            TypeReference(subtype.simpleName, declaringNameToken = IdentifierToken(subtype.simpleName, sourceLocation)),
             null,
         )
-        val boundNarrowedReceiverParameter = narrowedReceiverParameter.bindTo(inheritedReceiverParameter.context, BoundVariable.Kind.PARAMETER)
+        narrowedReceiverParameter.bindTo(inheritedReceiverParameter.context, BoundVariable.Kind.PARAMETER)
+    }
+
+    override val parameters: BoundParameterList = run {
         BoundParameterList(
             supertypeMemberFn.parameters.context,
             supertypeMemberFn.parameters.declaration,
@@ -48,16 +54,25 @@ class InheritedBoundMemberFunction(
         )
     }
 
+    override val parameterTypes get() = super.parameterTypes
+
     // semantic analysis not needed here
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
+        check(boundNarrowedReceiverParameter.semanticAnalysisPhase1().isEmpty())
         return emptySet()
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        check(boundNarrowedReceiverParameter.semanticAnalysisPhase2().isEmpty())
         return emptySet()
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
+        check(boundNarrowedReceiverParameter.semanticAnalysisPhase3().isEmpty())
         return emptySet()
+    }
+
+    override fun toString(): String {
+        return "$canonicalName(${parameters.parameters.joinToString(separator = ", ", transform = { it.typeAtDeclarationTime.toString() })}) -> $returnType"
     }
 }

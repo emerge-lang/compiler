@@ -1,6 +1,7 @@
 package compiler.binding.basetype
 
 import compiler.binding.BoundMemberFunction
+import compiler.binding.SeanHelper
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.type.BaseType
 import compiler.binding.type.RootResolvedTypeReference
@@ -12,15 +13,19 @@ class BoundSupertypeList(
 ) : SemanticallyAnalyzable {
     private val typeDef by lazy(getTypeDef)
 
+    private val seanHelper = SeanHelper()
+
     /** the base types that are being extended from, initialized in [semanticAnalysisPhase1] */
     lateinit var baseTypes: List<BaseType>
         private set
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        clauses.flatMap { it.semanticAnalysisPhase1() }.forEach(reportings::add)
-        baseTypes = clauses.mapNotNull { it.resolvedReference?.baseType }
-        return reportings
+        return seanHelper.phase1 {
+            val reportings = mutableListOf<Reporting>()
+            clauses.flatMap { it.semanticAnalysisPhase1() }.forEach(reportings::add)
+            baseTypes = clauses.mapNotNull { it.resolvedReference?.baseType }
+            return@phase1 reportings
+        }
     }
 
     /**
@@ -33,39 +38,49 @@ class BoundSupertypeList(
         private set
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        clauses.forEach {
-            reportings.addAll(it.semanticAnalysisPhase2())
-        }
-
-        val distinctSuperBaseTypes = mutableSetOf<BaseType>()
-        val distinctSupertypes = ArrayList<RootResolvedTypeReference>(clauses.size)
-        for (clause in clauses) {
-            val resolvedReference = clause.resolvedReference ?: continue
-            if (!distinctSuperBaseTypes.add(resolvedReference.baseType)) {
-                clause as SourceBoundSupertypeDeclaration // TODO this assumption will always be true once all basetypes are declared in emerge source
-                reportings.add(Reporting.duplicateSupertype(clause.astNode))
+        return seanHelper.phase2 {
+            val reportings = mutableListOf<Reporting>()
+            clauses.forEach {
+                reportings.addAll(it.semanticAnalysisPhase2())
             }
 
-            distinctSupertypes.add(resolvedReference)
+            val distinctSuperBaseTypes = mutableSetOf<BaseType>()
+            val distinctSupertypes = ArrayList<RootResolvedTypeReference>(clauses.size)
+            for (clause in clauses) {
+                val resolvedReference = clause.resolvedReference ?: continue
+                if (!distinctSuperBaseTypes.add(resolvedReference.baseType)) {
+                    clause as SourceBoundSupertypeDeclaration // TODO this assumption will always be true once all basetypes are declared in emerge source
+                    reportings.add(Reporting.duplicateSupertype(clause.astNode))
+                }
+
+                distinctSupertypes.add(resolvedReference)
+            }
+
+            inheritedMemberFunctions = distinctSupertypes
+                .asSequence()
+                .flatMap { it.memberFunctions }
+                .filter { it.declaresReceiver }
+                .flatMap { it.overloads }
+                .map { InheritedBoundMemberFunction(it, typeDef) }
+                .toList()
+
+            inheritedMemberFunctions.forEach {
+                reportings.addAll(it.semanticAnalysisPhase1())
+                reportings.addAll(it.semanticAnalysisPhase2())
+            }
+
+            return@phase2 reportings
         }
-
-        this.inheritedMemberFunctions = distinctSupertypes
-            .asSequence()
-            .flatMap { it.memberFunctions }
-            .filter { it.declaresReceiver }
-            .flatMap { it.overloads }
-            .map { InheritedBoundMemberFunction(it, typeDef) }
-            .toList()
-
-        return reportings
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
+        return seanHelper.phase3 {
+            val reportings = mutableListOf<Reporting>()
 
-        clauses.flatMap { it.semanticAnalysisPhase3() }.forEach(reportings::add)
+            clauses.flatMap { it.semanticAnalysisPhase3() }.forEach(reportings::add)
+            inheritedMemberFunctions.flatMap { it.semanticAnalysisPhase3() }.forEach(reportings::add)
 
-        return reportings
+            return@phase3 reportings
+        }
     }
 }

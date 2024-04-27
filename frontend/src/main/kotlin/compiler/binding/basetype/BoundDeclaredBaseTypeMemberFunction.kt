@@ -6,6 +6,7 @@ import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundParameterList
+import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
 import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeParameter
@@ -33,6 +34,8 @@ class BoundDeclaredBaseTypeMemberFunction(
     parameters,
     body,
 ) {
+    private val seanHelper = SeanHelper()
+
     override val declaredOnType by lazy(getTypeDef)
     override val canonicalName by lazy {
         CanonicalElementName.Function(
@@ -46,10 +49,18 @@ class BoundDeclaredBaseTypeMemberFunction(
     override var overrides: InheritedBoundMemberFunction? = null
         private set
 
+    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+        return seanHelper.phase1 {
+            super.semanticAnalysisPhase1()
+        }
+    }
+
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = super.semanticAnalysisPhase2().toMutableList()
-        determineOverride(reportings)
-        return reportings
+        return seanHelper.phase2 {
+            val reportings = super.semanticAnalysisPhase2().toMutableList()
+            determineOverride(reportings)
+            return@phase2 reportings
+        }
     }
 
     private fun determineOverride(reportings: MutableCollection<Reporting>) {
@@ -94,7 +105,9 @@ class BoundDeclaredBaseTypeMemberFunction(
     }
 
     private fun findOverriddenFunction(): Collection<Pair<BaseType, InheritedBoundMemberFunction>> {
-        val selfParameterTypes = parameterTypes.asElementNotNullable()
+        val selfParameterTypes = parameterTypes
+            .drop(1) // ignore receiver
+            .asElementNotNullable()
             ?: return emptySet()
 
         declaredOnType.superTypes.semanticAnalysisPhase2()
@@ -103,10 +116,12 @@ class BoundDeclaredBaseTypeMemberFunction(
             .filter { it.canonicalName.simpleName == this.name }
             .filter { it.parameters.parameters.size == this.parameters.parameters.size }
             .filter { potentialSuperFn ->
-                val potentialSuperFnParamTypes = potentialSuperFn.parameterTypes.asElementNotNullable()
-                    ?: return@filter false
-                selfParameterTypes.asSequence().zip(potentialSuperFnParamTypes.asSequence())
+                val potentialSuperFnParamTypes = potentialSuperFn.parameterTypes
                     .drop(1) // ignore receiver
+                    .asElementNotNullable()
+                    ?: return@filter false
+
+                selfParameterTypes.asSequence().zip(potentialSuperFnParamTypes.asSequence())
                     .all { (selfParamType, superParamType) -> superParamType.isAssignableTo(selfParamType) }
             }
             .map { superFn ->
@@ -117,23 +132,25 @@ class BoundDeclaredBaseTypeMemberFunction(
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = super.semanticAnalysisPhase3().toMutableList()
+        return seanHelper.phase3 {
+            val reportings = super.semanticAnalysisPhase3().toMutableList()
 
-        if (attributes.externalAttribute != null) {
-            reportings.add(Reporting.externalMemberFunction(this))
-        }
-
-        if (body != null) {
-            if (attributes.impliesNoBody) {
-                reportings.add(Reporting.illegalFunctionBody(declaration))
+            if (attributes.externalAttribute != null) {
+                reportings.add(Reporting.externalMemberFunction(this))
             }
-        } else {
-            if (!attributes.impliesNoBody && !declaredOnType.kind.memberFunctionsAbstractByDefault) {
-                reportings.add(Reporting.missingFunctionBody(declaration))
-            }
-        }
 
-        return reportings
+            if (body != null) {
+                if (attributes.impliesNoBody) {
+                    reportings.add(Reporting.illegalFunctionBody(declaration))
+                }
+            } else {
+                if (!attributes.impliesNoBody && !declaredOnType.kind.memberFunctionsAbstractByDefault) {
+                    reportings.add(Reporting.missingFunctionBody(declaration))
+                }
+            }
+
+            return@phase3 reportings
+        }
     }
 
     override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
@@ -141,6 +158,10 @@ class BoundDeclaredBaseTypeMemberFunction(
     }
 
     override fun toStringForErrorMessage() = "member function $name"
+
+    override fun toString(): String {
+        return "$canonicalName(${parameters.parameters.joinToString(separator = ", ", transform= { it.typeAtDeclarationTime.toString() })}) -> $returnType"
+    }
 
     private val backendIr by lazy { IrMemberFunctionImpl(this) }
     override fun toBackendIr(): IrMemberFunction = backendIr

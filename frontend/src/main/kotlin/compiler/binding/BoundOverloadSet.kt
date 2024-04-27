@@ -31,6 +31,8 @@ class BoundOverloadSet<out Fn : BoundFunction>(
         assert(overloads.all { it.parameters.parameters.size == parameterCount })
     }
 
+    private val seanHelper = SeanHelper()
+
     /** set during [semanticAnalysisPhase1] */
     var declaresReceiver: Boolean by Delegates.notNull()
         private set
@@ -38,50 +40,64 @@ class BoundOverloadSet<out Fn : BoundFunction>(
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         // the individual overload implementations are validated through the regular/obvious tree structure (SourceFile)
 
-        val reportings = mutableListOf<Reporting>()
+        return seanHelper.phase1 {
+            val reportings = mutableListOf<Reporting>()
 
-        val (withReceiver, withoutReceiver) = overloads.partition { it.declaresReceiver }
-        if (withReceiver.isNotEmpty() && withoutReceiver.isNotEmpty()) {
-            reportings.add(InconsistentReceiverPresenceInOverloadSetReporting(this))
+            val (withReceiver, withoutReceiver) = overloads.partition { it.declaresReceiver }
+            if (withReceiver.isNotEmpty() && withoutReceiver.isNotEmpty()) {
+                reportings.add(InconsistentReceiverPresenceInOverloadSetReporting(this))
+            }
+            this.declaresReceiver = withReceiver.size >= withoutReceiver.size
+
+            return@phase1 reportings
         }
-        this.declaresReceiver = withReceiver.size >= withoutReceiver.size
-
-        return reportings
     }
+
+    /**
+     * `true` iff [semanticAnalysisPhase1] nor [semanticAnalysisPhase2] produced any errors.
+     */
+    val isValidAfterSemanticPhase2: Boolean
+        get() {
+            return !seanHelper.phase1HadErrors && !seanHelper.phase2HadErrors
+        }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         // the individual overload implementations are validated through the regular/obvious tree structure (SourceFile)
-        return emptySet()
+
+        return seanHelper.phase2 {
+            if (overloads.size == 1) {
+                // not actually overloaded
+                return@phase2 emptySet()
+            }
+
+            val hasAtLeastOneDisjointParameter = this.overloads
+                .map { it.parameters.parameters.asSequence() }
+                .asSequence()
+                .pivot()
+                .filter { parametersAtIndex ->
+                    assert(parametersAtIndex.all { it != null })
+                    @Suppress("UNCHECKED_CAST")
+                    parametersAtIndex as List<BoundParameter>
+                    val parameterIsDisjoint = parametersAtIndex
+                        .nonDisjointPairs()
+                        .none()
+                    return@filter parameterIsDisjoint
+                }
+                .any()
+
+            if (hasAtLeastOneDisjointParameter) {
+                return@phase2 emptySet()
+            }
+
+            return@phase2 setOf(OverloadSetHasNoDisjointParameterReporting(this))
+        }
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        // // the individual overload implementations are validated through the regular/obvious tree structure (SourceFile)
-
-        if (overloads.size == 1) {
-            // not actually overloaded
-            return emptySet()
+        // the individual overload implementations are validated through the regular/obvious tree structure (SourceFile)
+        return seanHelper.phase3 {
+            emptySet()
         }
-
-        val hasAtLeastOneDisjointParameter = this.overloads
-            .map { it.parameters.parameters.asSequence() }
-            .asSequence()
-            .pivot()
-            .filter { parametersAtIndex ->
-                assert(parametersAtIndex.all { it != null })
-                @Suppress("UNCHECKED_CAST")
-                parametersAtIndex as List<BoundParameter>
-                val parameterIsDisjoint = parametersAtIndex
-                    .nonDisjointPairs()
-                    .none()
-                return@filter parameterIsDisjoint
-            }
-            .any()
-
-        if (hasAtLeastOneDisjointParameter) {
-            return emptySet()
-        }
-
-        return setOf(OverloadSetHasNoDisjointParameterReporting(this))
     }
 
     fun toBackendIr(): IrOverloadGroup<IrFunction> {

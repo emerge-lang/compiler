@@ -8,8 +8,28 @@ import compiler.reportings.Reporting
  */
 class SeanHelper {
     private lateinit var phase1Results: Collection<Reporting>
+    var phase1HadErrors = false
+        get() {
+            requirePhase1Done()
+            return field
+        }
+        private set
+
     private lateinit var phase2Results: Collection<Reporting>
+    var phase2HadErrors = false
+        get() {
+            requirePhase2Done()
+            return field
+        }
+        private set
+
     private lateinit var phase3Results: Collection<Reporting>
+    var phase3HadErrors = false
+        get() {
+            requirePhase3Done()
+            return field
+        }
+        private set
 
     fun phase1(impl: () -> Collection<Reporting>): Collection<Reporting> {
         if (this::phase1Results.isInitialized) {
@@ -18,6 +38,7 @@ class SeanHelper {
 
         val results = impl()
         phase1Results = results
+        phase1HadErrors = results.any { it.level >= Reporting.Level.ERROR }
         return results
     }
 
@@ -30,6 +51,7 @@ class SeanHelper {
 
         val results = impl()
         phase2Results = results
+        phase2HadErrors = results.any { it.level >= Reporting.Level.ERROR }
         return results
     }
 
@@ -44,16 +66,13 @@ class SeanHelper {
             return this.phase3Results
         }
 
-        if (!runIfErrorsPreviously) {
-            val phase1hadErrors = this.phase1Results.any { it.level >= Reporting.Level.ERROR }
-            val phase2hadErrors = this.phase2Results.any { it.level >= Reporting.Level.ERROR }
-            if (phase1hadErrors || phase2hadErrors) {
-                return emptySet()
-            }
+        if (!runIfErrorsPreviously && (phase1HadErrors || phase2HadErrors)) {
+            return emptySet()
         }
 
         val results = impl()
         phase3Results = results
+        phase3HadErrors = results.any { it.level >= Reporting.Level.ERROR }
         return results
     }
 
@@ -101,5 +120,37 @@ class SeanHelper {
         if (this::phase3Results.isInitialized) {
             throw InternalCompilerError("Semantic analysis phase 3 must not have been done yet.")
         }
+    }
+
+    override fun toString(): String {
+        val phase1State = if (this::phase1Results.isInitialized) {
+            if (phase1HadErrors) {
+                "\u274C"
+            } else {
+                "\u2705"
+            }
+        } else {
+            "?"
+        }
+        val phase2State = if (this::phase2Results.isInitialized) {
+            if (phase2HadErrors) {
+                "\u274C"
+            } else {
+                "\u2705"
+            }
+        } else {
+            "?"
+        }
+        val phase3State = if (this::phase3Results.isInitialized) {
+            if (phase3HadErrors) {
+                "\u274C"
+            } else {
+                "\u2705"
+            }
+        } else {
+            "?"
+        }
+
+        return "SeanHelper[1$phase1State 2$phase2State 3$phase3State]"
     }
 }
