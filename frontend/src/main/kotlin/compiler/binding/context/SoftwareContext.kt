@@ -83,6 +83,7 @@ class SoftwareContext {
         return (modules.flatMap { it.semanticAnalysisPhase1() } +
                 packages.values.flatMap { it.semanticAnalysisPhase1() } +
                 modules.flatMap { it.semanticAnalysisPhase2() } +
+                packages.values.flatMap { it.semanticAnalysisPhase2() } +
                 modules.flatMap { it.semanticAnalysisPhase3() } +
                 packages.values.flatMap { it.semanticAnalysisPhase3() })
             .toSet()

@@ -68,9 +68,11 @@ class PackageContext(
     val allToplevelFunctionOverloadSets: Sequence<BoundOverloadSet<*>> = sequence { yieldAll(overloadSetsBySimpleName.values) }.flatten()
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return (sourceFiles.flatMap { it.semanticAnalysisPhase2() } +
-                overloadSetsBySimpleName.values.flatten().flatMap { it.semanticAnalysisPhase2() })
-            .toList()
+        val reportings = mutableListOf<Reporting>()
+        sourceFiles.flatMap { it.semanticAnalysisPhase2() }.forEach(reportings::add)
+        overloadSetsBySimpleName.values.flatten().flatMap { it.semanticAnalysisPhase2() }.forEach(reportings::add)
+
+        return reportings
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
