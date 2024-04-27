@@ -10,6 +10,7 @@ import compiler.reportings.MissingVariableTypeReporting
 import compiler.reportings.MultipleInheritanceIssueReporting
 import compiler.reportings.MultipleParameterDeclarationsReporting
 import compiler.reportings.OverloadSetHasNoDisjointParameterReporting
+import compiler.reportings.Reporting
 import compiler.reportings.ReturnTypeMismatchReporting
 import compiler.reportings.ToplevelFunctionWithOverrideAttributeReporting
 import compiler.reportings.TypeParameterNameConflictReporting
@@ -203,12 +204,30 @@ class FunctionErrors : FreeSpec({
                     interface B {
                         fun foo(self, p1: Any)
                     }
-                    class C : A, B {}
+                    interface Irrelevant {
+                        fun bar(self)
+                    }
+                    class C : A, B {
+                        override fun bar(self) {}
+                    }
                 """.trimIndent())
                     .shouldReport<MultipleInheritanceIssueReporting> {
                         it.base should beInstanceOf<OverloadSetHasNoDisjointParameterReporting>()
                         it.conflictOnSubType.canonicalName.toString() shouldBe "testmodule.C"
+                        it.contributingSuperTypes.map { it.canonicalName.simpleName }.toSet() shouldBe setOf("A", "B")
                     }
+            }
+
+            "inherited overload disjointness is reported only once" {
+                val results = validateModule("""
+                    interface Problematic {
+                        fun foo(self, p1: Int)
+                        fun foo(self, p1: Any)
+                    }
+                    interface Innocent : Problematic {}
+                """.trimIndent())
+                results.second.count { it.level >= Reporting.Level.ERROR } shouldBe 1
+                results.shouldReport<OverloadSetHasNoDisjointParameterReporting>()
             }
         }
     }

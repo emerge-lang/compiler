@@ -34,6 +34,7 @@ import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundMemberFunction
+import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundReturnStatement
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
@@ -43,6 +44,7 @@ import compiler.binding.basetype.BoundBaseTypeDefinition
 import compiler.binding.basetype.BoundBaseTypeEntry
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
+import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.binding.basetype.SourceBoundSupertypeDeclaration
 import compiler.binding.context.effect.VariableLifetime
 import compiler.binding.expression.*
@@ -222,6 +224,65 @@ abstract class Reporting internal constructor(
 
         fun noMatchingFunctionOverload(functionNameReference: IdentifierToken, receiverType: BoundTypeReference?, valueArguments: List<BoundExpression<*>>, functionDeclaredAtAll: Boolean)
             = UnresolvableFunctionOverloadReporting(functionNameReference, receiverType, valueArguments.map { it.type }, functionDeclaredAtAll)
+
+        fun overloadSetHasNoDisjointParameter(overloadSet: BoundOverloadSet<*>): Reporting {
+            val baseReporting = OverloadSetHasNoDisjointParameterReporting(overloadSet)
+
+            // hypothesis / edge case to find: the problem is created by (multiple) inheritance _only_
+            val allMemberFns = overloadSet.overloads.filterIsInstance<BoundMemberFunction>()
+            if (allMemberFns.size < overloadSet.overloads.size) {
+                // there are top-level functions at play
+                return baseReporting
+            }
+
+            val sampleMemberFn = allMemberFns.first()
+            val subtype = (sampleMemberFn as? InheritedBoundMemberFunction)?.subtype ?: sampleMemberFn.declaredOnType
+
+            val onlyInheritedOverloads = allMemberFns.filterIsInstance<InheritedBoundMemberFunction>()
+            if (onlyInheritedOverloads.isEmpty() || BoundOverloadSet.areOverloadsDisjoint(onlyInheritedOverloads)) {
+                // the member functions declared in the subtype clearly have an effect on the ambiguity of the overload-set
+                return baseReporting
+            }
+
+            val overloadsImportedBySupertype = allMemberFns
+                .groupBy { (it as? InheritedBoundMemberFunction ?: it.overrides)?.declaredOnType }
+                .toMutableMap()
+            overloadsImportedBySupertype.remove(null)
+            @Suppress("UNCHECKED_CAST") // the remove(null) right before ensures exactly that
+            overloadsImportedBySupertype as MutableMap<BaseType, List<BoundMemberFunction>>
+
+            val someSupertypeHasAmbiguity = overloadsImportedBySupertype.values.any {
+                !BoundOverloadSet.areOverloadsDisjoint(it)
+            }
+            if (someSupertypeHasAmbiguity) {
+                // the problem was inherited from one of the supertypes -> ignore, gets reported by the supertype
+                return consecutive("overload disjoint problem inherited into ${subtype.canonicalName} from a supertype", baseReporting.sourceLocation)
+            }
+
+            // the problem is created by multiple inheritance; find the subset of supertypes that creates the problem
+            val supertypeOverloadsIterator = overloadsImportedBySupertype.iterator()
+            while (supertypeOverloadsIterator.hasNext()) {
+                val (supertype, _) = supertypeOverloadsIterator.next()
+                val problemExistsWithoutThisSupertype = !BoundOverloadSet.areOverloadsDisjoint(
+                    overloadsImportedBySupertype.entries.asSequence()
+                        .filter { (k, _) -> k === supertype }
+                        .map { (_, overloads) -> overloads }
+                        .flatMap { it }
+                )
+                if (problemExistsWithoutThisSupertype) {
+                    supertypeOverloadsIterator.remove()
+                }
+            }
+
+            check(overloadsImportedBySupertype.isNotEmpty()) {
+                "This means that the problem is indeed created by member functions in the subtype. But that should have been caught earlier! ${subtype.canonicalName}"
+            }
+            return MultipleInheritanceIssueReporting(
+                baseReporting,
+                overloadsImportedBySupertype.keys,
+                subtype,
+            )
+        }
 
         fun unresolvableConstructor(nameToken: IdentifierToken, valueArguments: List<BoundExpression<*>>, functionsWithNameAvailable: Boolean)
             = UnresolvableConstructorReporting(nameToken, valueArguments.map { it.type }, functionsWithNameAvailable)

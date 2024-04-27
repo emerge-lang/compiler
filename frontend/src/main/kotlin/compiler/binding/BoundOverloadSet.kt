@@ -4,7 +4,6 @@ import compiler.binding.misc_ir.IrOverloadGroupImpl
 import compiler.binding.type.nonDisjointPairs
 import compiler.pivot
 import compiler.reportings.InconsistentReceiverPresenceInOverloadSetReporting
-import compiler.reportings.OverloadSetHasNoDisjointParameterReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
@@ -70,26 +69,11 @@ class BoundOverloadSet<out Fn : BoundFunction>(
                 return@phase2 emptySet()
             }
 
-            val hasAtLeastOneDisjointParameter = this.overloads
-                .map { it.parameters.parameters.asSequence() }
-                .asSequence()
-                .pivot()
-                .filter { parametersAtIndex ->
-                    assert(parametersAtIndex.all { it != null })
-                    @Suppress("UNCHECKED_CAST")
-                    parametersAtIndex as List<BoundParameter>
-                    val parameterIsDisjoint = parametersAtIndex
-                        .nonDisjointPairs()
-                        .none()
-                    return@filter parameterIsDisjoint
-                }
-                .any()
-
-            if (hasAtLeastOneDisjointParameter) {
-                return@phase2 emptySet()
+            return@phase2 if (areOverloadsDisjoint(overloads)) {
+                emptySet()
+            } else {
+                setOf(Reporting.overloadSetHasNoDisjointParameter(this))
             }
-
-            return@phase2 setOf(OverloadSetHasNoDisjointParameterReporting(this))
         }
     }
 
@@ -111,6 +95,24 @@ class BoundOverloadSet<out Fn : BoundFunction>(
                 fn.parameters.parameters.size,
                 setOf(fn),
             )
+        }
+
+        fun areOverloadsDisjoint(overloads: Collection<BoundFunction>) = areOverloadsDisjoint(overloads.asSequence())
+        fun areOverloadsDisjoint(overloads: Sequence<BoundFunction>): Boolean {
+            require(overloads.any())
+            return overloads
+                .map { it.parameters.parameters.asSequence() }
+                .pivot()
+                .filter { parametersAtIndex ->
+                    assert(parametersAtIndex.all { it != null })
+                    @Suppress("UNCHECKED_CAST")
+                    parametersAtIndex as List<BoundParameter>
+                    val parameterIsDisjoint = parametersAtIndex
+                        .nonDisjointPairs()
+                        .none()
+                    return@filter parameterIsDisjoint
+                }
+                .any()
         }
     }
 }
