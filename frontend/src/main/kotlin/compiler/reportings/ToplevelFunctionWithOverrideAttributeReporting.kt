@@ -6,7 +6,7 @@ class ToplevelFunctionWithOverrideAttributeReporting(
     val overrideKeyword: Token,
 ) : Reporting(
     Level.ERROR,
-    "Top-level functions cannot override (the concept of overriding does not apply here)",
+    "Top-level functions cannot override (the concept of overriding only applies in interfaces and classes)",
     overrideKeyword.sourceLocation,
 ) {
     override fun equals(other: Any?): Boolean {
