@@ -97,9 +97,18 @@ class BoundOverloadSet<out Fn : BoundFunction>(
             )
         }
 
-        fun areOverloadsDisjoint(overloads: Collection<BoundFunction>) = areOverloadsDisjoint(overloads.asSequence())
-        fun areOverloadsDisjoint(overloads: Sequence<BoundFunction>): Boolean {
-            require(overloads.any())
+        /**
+         * see the ([Sequence]) overload
+         */
+        internal fun areOverloadsDisjoint(overloads: Collection<BoundFunction>) = areOverloadsDisjoint(overloads.asSequence())
+
+        /**
+         * internal because it assumes some things that are checked in [BoundOverloadSet], but not here:
+         * * [overloads] is not empty
+         * * all functions in [overloads] have the same number of parameters
+         * * all parameter types of the functions in [overloads] are resolved
+         */
+        internal fun areOverloadsDisjoint(overloads: Sequence<BoundFunction>): Boolean {
             return overloads
                 .map { it.parameters.parameters.asSequence() }
                 .pivot()
