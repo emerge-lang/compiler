@@ -104,9 +104,8 @@ class BoundClassDestructor(
         declaration.code.bindTo(parameters.modifiedContext)
     }
 
-    override val isPure = false
-    override val isReadonly = false
-    override val isGuaranteedToThrow get() = userDefinedCode.isGuaranteedToThrow ?: false
+    override val purity = BoundFunction.Purity.MODIFYING
+    override val isGuaranteedToThrow get() = userDefinedCode.isGuaranteedToThrow
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return userDefinedCode.semanticAnalysisPhase1()

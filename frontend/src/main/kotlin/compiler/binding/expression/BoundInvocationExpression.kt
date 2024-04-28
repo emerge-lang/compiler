@@ -277,14 +277,12 @@ class BoundInvocationExpression(
         val byReceiver = receiverExpression?.findReadsBeyond(boundary) ?: emptySet()
         val byParameters = valueArguments.flatMap { it.findReadsBeyond(boundary) }
 
-        if (functionToInvoke != null) {
-            if (functionToInvoke!!.isPure == null) {
-                functionToInvoke!!.semanticAnalysisPhase3()
-            }
-        }
+        val invokedFunctionIsPure = functionToInvoke?.let {
+            it.semanticAnalysisPhase3()
+            BoundFunction.Purity.PURE.contains(it.purity)
+        } ?: true
 
-        val dispatchedFunctionIsPure = functionToInvoke?.isPure ?: true
-        val bySelf = if (dispatchedFunctionIsPure) emptySet() else setOf(this)
+        val bySelf = if (invokedFunctionIsPure) emptySet() else setOf(this)
 
         return byReceiver + byParameters + bySelf
     }
@@ -295,14 +293,11 @@ class BoundInvocationExpression(
         val byReceiver = receiverExpression?.findWritesBeyond(boundary) ?: emptySet()
         val byParameters = valueArguments.flatMap { it.findWritesBeyond(boundary) }
 
-        if (functionToInvoke != null) {
-            if (functionToInvoke!!.isReadonly == null) {
-                functionToInvoke!!.semanticAnalysisPhase3()
-            }
-        }
-
-        val thisExpressionIsReadonly = functionToInvoke?.isReadonly ?: true
-        val bySelf: Collection<BoundStatement<*>> = if (thisExpressionIsReadonly) emptySet() else setOf(this)
+        val invokedFunctionIsReadonly = functionToInvoke?.let {
+            it.semanticAnalysisPhase3()
+            BoundFunction.Purity.READONLY.contains(it.purity)
+        } ?: true
+        val bySelf: Collection<BoundStatement<*>> = if (invokedFunctionIsReadonly) emptySet() else setOf(this)
 
         return byReceiver + byParameters + bySelf
     }
@@ -318,7 +313,7 @@ class BoundInvocationExpression(
     override val isCompileTimeConstant: Boolean
         get() {
             val localDispatchedFunction = functionToInvoke ?: return false
-            if (localDispatchedFunction.isPure != true) {
+            if (!BoundFunction.Purity.PURE.contains(localDispatchedFunction.purity)) {
                 return false
             }
             val receiverIsConstant = receiverExpression?.isCompileTimeConstant ?: true

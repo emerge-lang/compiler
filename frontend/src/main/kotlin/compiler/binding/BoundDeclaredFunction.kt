@@ -59,21 +59,12 @@ abstract class BoundDeclaredFunction(
     var isEffectivelyReadonly: Boolean? = null
         private set
 
-    final override val isPure: Boolean?
-        get() = when {
-            attributes.isDeclaredPure -> true
-            attributes.isDeclaredReadonly || attributes.isDeclaredModifying -> false
-            body == null -> false
-            else -> isEffectivelyPure
-        }
+    final override val purity: BoundFunction.Purity get() = when {
+        attributes.isDeclaredPure || isEffectivelyPure == true -> BoundFunction.Purity.PURE
+        attributes.isDeclaredReadonly || isEffectivelyReadonly == true -> BoundFunction.Purity.READONLY
+        else -> BoundFunction.Purity.MODIFYING
+    }
 
-    final override val isReadonly: Boolean?
-        get() = when {
-            attributes.isDeclaredReadonly || attributes.isDeclaredPure -> true
-            attributes.isDeclaredModifying -> false
-            body == null -> false
-            else -> isEffectivelyReadonly
-        }
 
     final override val isGuaranteedToThrow: Boolean?
         get() = handleCyclicInvocation(

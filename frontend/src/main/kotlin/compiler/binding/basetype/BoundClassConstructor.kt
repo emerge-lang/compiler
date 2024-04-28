@@ -250,15 +250,13 @@ class BoundClassConstructor(
     private var isEffectivelyReadonly: Boolean? = null
         private set
 
-    override val isPure: Boolean? get() = when {
-        attributes.isDeclaredPure -> true
-        else -> isEffectivelyPure
+    override val purity: BoundFunction.Purity get() = when {
+        attributes.isDeclaredPure || isEffectivelyPure == true -> BoundFunction.Purity.PURE
+        attributes.isDeclaredReadonly || isEffectivelyReadonly == true -> BoundFunction.Purity.READONLY
+        else -> BoundFunction.Purity.MODIFYING
     }
-    override val isReadonly: Boolean? get() = when {
-        attributes.isDeclaredPure || attributes.isDeclaredReadonly -> true
-        else -> isEffectivelyReadonly
-    }
-    override val isGuaranteedToThrow get() = boundMemberVariableInitCodeFromExpression.isGuaranteedToThrow || (additionalInitCode.isGuaranteedToThrow ?: false)
+
+    override val isGuaranteedToThrow get() = boundMemberVariableInitCodeFromExpression.isGuaranteedToThrow || additionalInitCode.isGuaranteedToThrow
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return seanHelper.phase3 {

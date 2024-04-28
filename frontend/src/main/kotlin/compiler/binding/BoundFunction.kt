@@ -62,24 +62,12 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
     val declaredTypeParameters: List<BoundTypeParameter>
 
     /**
-     * Whether this function should be considered pure by other code using it. This is true if the function is
-     * declared pure. If that is not the case the function is still considered pure if the declared
-     * body behaves in a pure way.
-     * This value is null if the purity was not yet determined; it must be non-null when semantic analysis is completed.
-     * @see [BoundFunctionAttributeList.isDeclaredPure]
-     * @see [BoundDeclaredFunction.isEffectivelyPure]
+     * The side-effect category of this function. May give a stricter value than declared in [attributes]
+     * if [semanticAnalysisPhase3] can proove that the code adheres to that stricter ruleset.
+     * This value starts out with what can be derived from [attributes]. May change to be progressively more strict
+     * as semantic analysis continues
      */
-    val isPure: Boolean?
-
-    /**
-     * Whether this function should be considered readonly by other code using it. This is true if the function is
-     * declared readonly or pure. If that is not the case the function is still considered readonly if the declared
-     * body behaves in a readonly way.
-     * This value is null if the purity was not yet determined; it must be non-null when semantic analysis is completed.
-     * @see [BoundFunctionAttributeList.isDeclaredReadonly]
-     * @see [BoundDeclaredFunction.isEffectivelyReadonly]
-     */
-    val isReadonly: Boolean?
+    val purity: Purity
 
     val isGuaranteedToThrow: Boolean?
 
@@ -96,6 +84,22 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
     override fun toStringForErrorMessage() = "function $name"
 
     fun toBackendIr(): IrFunction
+
+    enum class Purity {
+        PURE,
+        READONLY,
+        MODIFYING,
+        ;
+
+        /**
+         * @return whether [other] allows the same set or a subset of the side effects allowed by `this`.
+         */
+        fun contains(other: Purity): Boolean = when(this) {
+            PURE -> other == PURE
+            READONLY -> other == PURE || other == READONLY
+            MODIFYING -> true
+        }
+    }
 }
 
 interface BoundMemberFunction : BoundFunction {
