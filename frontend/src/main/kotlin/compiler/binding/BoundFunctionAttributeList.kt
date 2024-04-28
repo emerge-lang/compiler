@@ -72,16 +72,25 @@ class BoundFunctionAttributeList(
      * Whether this function is pure as per its declaration. Functions are pure by default, so this is the case
      * if neither [FunctionModifier.Readonly] nor [FunctionModifier.Modifying] is present.
      */
-    val isDeclaredPure: Boolean = firstPureAttribute != null || (firstReadonlyAttribute == null && firstModifyingAttribute == null)
+    private val isDeclaredPure: Boolean = firstPureAttribute != null || (firstReadonlyAttribute == null && firstModifyingAttribute == null)
 
     /**
      * Whether this function is readonly as per its declaration. Functions are pure by default, so this is `false`
-     * by default. It is true iff the function is explicitly marked with [AstFunctionAttribute.EffectCategory.Category.READONLY]
-     * and is not marked with [AstFunctionAttribute.EffectCategory.Category.MODIFYING]
+     * by default. It is true iff the function is explicitly marked with [AstFunctionAttribute.EffectCategory.Category.READONLY].
      */
-    val isDeclaredReadonly: Boolean = firstReadonlyAttribute != null
+    private val isDeclaredReadonly: Boolean = firstReadonlyAttribute != null
 
-    val isDeclaredModifying: Boolean = firstModifyingAttribute != null
+    val purity: BoundFunction.Purity = when {
+        isDeclaredPure -> BoundFunction.Purity.PURE
+        isDeclaredReadonly -> BoundFunction.Purity.READONLY
+        else -> BoundFunction.Purity.MODIFYING
+    }
+
+    val purityAttribute: AstFunctionAttribute? = when(purity) {
+        BoundFunction.Purity.PURE -> firstPureAttribute
+        BoundFunction.Purity.READONLY -> firstReadonlyAttribute
+        BoundFunction.Purity.MODIFYING -> firstModifyingAttribute
+    }
 
     companion object {
         private fun conflictsWith(a: AstFunctionAttribute, b: AstFunctionAttribute): Boolean = when (a) {

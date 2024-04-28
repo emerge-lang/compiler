@@ -41,11 +41,11 @@ abstract class PurityViolationReporting protected constructor(
 
         class Function(val function: BoundFunction) : Boundary(
             run {
-                val modifier = if (function.attributes.isDeclaredPure) "pure" else "readonly"
+                val modifier = if (BoundFunction.Purity.PURE.contains(function.purity)) "pure" else "readonly"
                 val kindAndName = if (function is BoundClassConstructor) "constructor of class ${function.classDef.simpleName}" else "function ${function.name}"
                 "$modifier $kindAndName"
             },
-            function.attributes.isDeclaredPure,
+            BoundFunction.Purity.PURE.contains(function.purity),
         )
         class ClassMemberInitializer(val member: BoundBaseTypeMemberVariable) : Boundary("member variable initializer", true)
     }

@@ -145,6 +145,12 @@ class BoundDeclaredBaseTypeMemberFunction(
                 }
             }
 
+            overrides?.let { superFn ->
+                if (!superFn.purity.contains(this.purity)) {
+                    reportings.add(Reporting.overrideAddsSideEffects(this, superFn))
+                }
+            }
+
             return@phase3 reportings
         }
     }

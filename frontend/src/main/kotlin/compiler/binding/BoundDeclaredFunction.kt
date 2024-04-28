@@ -45,27 +45,6 @@ abstract class BoundDeclaredFunction(
     final override var returnType: BoundTypeReference? = null
         private set
 
-    /**
-     * Whether this functions code is pure. Is null if that has not yet been determined (see semantic
-     * analysis) or if the function has no body.
-     */
-    var isEffectivelyPure: Boolean? = null
-        private set
-
-    /**
-     * Whether this functions code behaves in a readonly way. Is null if that has not yet been determined (see semantic
-     * analysis) or if the function has no body.
-     */
-    var isEffectivelyReadonly: Boolean? = null
-        private set
-
-    final override val purity: BoundFunction.Purity get() = when {
-        attributes.isDeclaredPure || isEffectivelyPure == true -> BoundFunction.Purity.PURE
-        attributes.isDeclaredReadonly || isEffectivelyReadonly == true -> BoundFunction.Purity.READONLY
-        else -> BoundFunction.Purity.MODIFYING
-    }
-
-
     final override val isGuaranteedToThrow: Boolean?
         get() = handleCyclicInvocation(
                     context = this,
@@ -162,34 +141,23 @@ abstract class BoundDeclaredFunction(
             if (body != null) {
                 reportings += body.semanticAnalysisPhase3()
 
-                // readonly and purity checks
-                val statementsReadingBeyondFunctionContext = handleCyclicInvocation(
-                    context = this,
-                    action = { body.findReadsBeyond(context) },
-                    onCycle = ::emptySet,
-                )
-                val statementsWritingBeyondFunctionContext = handleCyclicInvocation(
-                    context = this,
-                    action = { body.findWritesBeyond(context) },
-                    onCycle = ::emptySet,
-                )
+                if (BoundFunction.Purity.READONLY.contains(this.purity)) {
+                    val statementsWritingBeyondFunctionContext = handleCyclicInvocation(
+                        context = this,
+                        action = { body.findWritesBeyond(context) },
+                        onCycle = ::emptySet,
+                    )
 
-                isEffectivelyReadonly = statementsWritingBeyondFunctionContext.isEmpty()
-                isEffectivelyPure = isEffectivelyReadonly!! && statementsReadingBeyondFunctionContext.isEmpty()
-
-                if (attributes.isDeclaredPure) {
-                    if (!isEffectivelyPure!!) {
-                        reportings.addAll(
-                            Reporting.purityViolations(
-                                statementsReadingBeyondFunctionContext,
-                                statementsWritingBeyondFunctionContext,
-                                this
-                            )
+                    if (BoundFunction.Purity.PURE.contains(this.purity)) {
+                        val statementsReadingBeyondFunctionContext = handleCyclicInvocation(
+                            context = this,
+                            action = { body.findReadsBeyond(context) },
+                            onCycle = ::emptySet,
                         )
+                        reportings.addAll(Reporting.purityViolations(statementsReadingBeyondFunctionContext, statementsWritingBeyondFunctionContext, this))
+                    } else {
+                        reportings.addAll(Reporting.readonlyViolations(statementsWritingBeyondFunctionContext, this))
                     }
-                    // else: effectively pure means effectively readonly
-                } else if (attributes.isDeclaredReadonly && !isEffectivelyReadonly!!) {
-                    reportings.addAll(Reporting.readonlyViolations(statementsWritingBeyondFunctionContext, this))
                 }
 
                 // assure all paths return or throw

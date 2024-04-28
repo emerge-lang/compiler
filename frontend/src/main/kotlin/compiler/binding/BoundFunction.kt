@@ -62,12 +62,9 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
     val declaredTypeParameters: List<BoundTypeParameter>
 
     /**
-     * The side-effect category of this function. May give a stricter value than declared in [attributes]
-     * if [semanticAnalysisPhase3] can proove that the code adheres to that stricter ruleset.
-     * This value starts out with what can be derived from [attributes]. May change to be progressively more strict
-     * as semantic analysis continues
+     * The side-effect category of this function, strictly as derived from [attributes].
      */
-    val purity: Purity
+    val purity: Purity get() = attributes.purity
 
     val isGuaranteedToThrow: Boolean?
 
@@ -99,6 +96,8 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
             READONLY -> other == PURE || other == READONLY
             MODIFYING -> true
         }
+
+        override fun toString() = name.lowercase()
     }
 }
 

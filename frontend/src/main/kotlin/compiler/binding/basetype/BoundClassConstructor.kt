@@ -250,11 +250,7 @@ class BoundClassConstructor(
     private var isEffectivelyReadonly: Boolean? = null
         private set
 
-    override val purity: BoundFunction.Purity get() = when {
-        attributes.isDeclaredPure || isEffectivelyPure == true -> BoundFunction.Purity.PURE
-        attributes.isDeclaredReadonly || isEffectivelyReadonly == true -> BoundFunction.Purity.READONLY
-        else -> BoundFunction.Purity.MODIFYING
-    }
+    override val purity = attributes.purity
 
     override val isGuaranteedToThrow get() = boundMemberVariableInitCodeFromExpression.isGuaranteedToThrow || additionalInitCode.isGuaranteedToThrow
 
@@ -269,31 +265,33 @@ class BoundClassConstructor(
             reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase3())
             reportings.addAll(additionalInitCode.semanticAnalysisPhase3())
 
-            val statementsReadingBeyondConstructorContext: Collection<BoundExpression<*>> = handleCyclicInvocation(
-                this,
-                action = {
-                    boundMemberVariableInitCodeFromExpression.findReadsBeyond(constructorFunctionRootContext) +
-                        additionalInitCode.findReadsBeyond(constructorFunctionRootContext)
-                },
-                onCycle = ::emptySet,
-            )
-            val statementsWritingBeyondConstructorContext: Collection<BoundStatement<*>> = handleCyclicInvocation(
-                this,
-                action = {
-                    boundMemberVariableInitCodeFromExpression.findWritesBeyond(constructorFunctionRootContext) +
-                        additionalInitCode.findWritesBeyond(constructorFunctionRootContext)
-                },
-                onCycle = ::emptySet,
-            )
-            if (attributes.isDeclaredPure) {
-                reportings.addAll(Reporting.purityViolations(statementsReadingBeyondConstructorContext, statementsWritingBeyondConstructorContext, this))
-            } else if (attributes.isDeclaredReadonly) {
-                reportings.addAll(Reporting.readonlyViolations(statementsWritingBeyondConstructorContext, this))
-            }
-            isEffectivelyPure = statementsReadingBeyondConstructorContext.isEmpty() && statementsWritingBeyondConstructorContext.isEmpty()
-            isEffectivelyReadonly = statementsWritingBeyondConstructorContext.isEmpty()
+            if (BoundFunction.Purity.READONLY.contains(this.purity)) {
+                val statementsWritingBeyondConstructorContext: Collection<BoundStatement<*>> = handleCyclicInvocation(
+                    this,
+                    action = {
+                        boundMemberVariableInitCodeFromExpression.findWritesBeyond(constructorFunctionRootContext) +
+                                additionalInitCode.findWritesBeyond(constructorFunctionRootContext)
+                    },
+                    onCycle = ::emptySet,
+                )
 
-            if (attributes.isDeclaredModifying) {
+                if (BoundFunction.Purity.PURE.contains(this.purity)) {
+                    val statementsReadingBeyondConstructorContext: Collection<BoundExpression<*>> = handleCyclicInvocation(
+                        this,
+                        action = {
+                            boundMemberVariableInitCodeFromExpression.findReadsBeyond(constructorFunctionRootContext) +
+                                    additionalInitCode.findReadsBeyond(constructorFunctionRootContext)
+                        },
+                        onCycle = ::emptySet,
+                    )
+
+                    reportings.addAll(Reporting.purityViolations(statementsReadingBeyondConstructorContext, statementsWritingBeyondConstructorContext, this))
+                } else {
+                    reportings.addAll(Reporting.readonlyViolations(statementsWritingBeyondConstructorContext, this))
+                }
+            }
+
+            if (purity.contains(BoundFunction.Purity.MODIFYING)) {
                 reportings.add(Reporting.constructorDeclaredAsModifying(this))
             }
 

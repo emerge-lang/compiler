@@ -363,6 +363,9 @@ abstract class Reporting internal constructor(
         fun superfluousSafeObjectTraversal(nonNullExpression: BoundExpression<*>, superfluousSafeOperator: OperatorToken)
             = SuperfluousSafeObjectTraversal(nonNullExpression, superfluousSafeOperator)
 
+        fun overrideAddsSideEffects(override: BoundMemberFunction, superFunction: BoundMemberFunction)
+            = OverrideAddsSideEffectsReporting(override, superFunction)
+
         fun purityViolations(readingViolations: Collection<BoundExpression<*>>, writingViolations: Collection<BoundStatement<*>>, context: BoundFunction): Collection<Reporting> {
             val boundary = PurityViolationReporting.Boundary.Function(context)
             val readingReportings = readingViolations.map { readingPurityViolationToReporting(it, boundary) }
@@ -459,7 +462,7 @@ abstract class Reporting internal constructor(
             }
 
             check(violation is BoundInvocationExpression)
-            if (violation.functionToInvoke?.attributes?.isDeclaredReadonly == false) {
+            if (violation.functionToInvoke?.purity?.contains(BoundFunction.Purity.MODIFYING) == true) {
                 return ModifyingInvocationInReadonlyContextReporting(violation, boundary)
             } else {
                 return ImpureInvocationInPureContextReporting(violation, boundary)
