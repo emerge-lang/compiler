@@ -18,6 +18,7 @@ import compiler.reportings.MultipleClassDestructorsReporting
 import compiler.reportings.ObjectNotFullyInitializedReporting
 import compiler.reportings.OverloadSetHasNoDisjointParameterReporting
 import compiler.reportings.ReadInPureContextReporting
+import compiler.reportings.Reporting
 import compiler.reportings.StateModificationOutsideOfPurityBoundaryReporting
 import compiler.reportings.StaticFunctionDeclaredOverrideReporting
 import compiler.reportings.SuperFunctionForOverrideNotFoundReporting
@@ -27,6 +28,7 @@ import compiler.reportings.UndeclaredOverrideReporting
 import compiler.reportings.UnknownTypeReporting
 import compiler.reportings.UseOfUninitializedClassMemberVariableReporting
 import compiler.reportings.ValueNotAssignableReporting
+import io.kotest.assertions.fail
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forAll
 import io.kotest.matchers.collections.haveSize
@@ -595,6 +597,20 @@ class ClassErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<IncompatibleReturnTypeOnOverrideReporting>()
+        }
+
+        "overriding function cannot have more side-effects" {
+            validateModule("""
+                interface I {
+                    fun foo(self) -> Int
+                }
+                class C : I {
+                    override readonly fun foo(self) -> Int = 3
+                }
+            """.trimIndent())
+                .shouldReport<Reporting> {
+                    fail("implement")
+                }
         }
     }
 })
