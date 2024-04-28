@@ -365,12 +365,22 @@ abstract class Reporting internal constructor(
 
         fun purityViolations(readingViolations: Collection<BoundExpression<*>>, writingViolations: Collection<BoundStatement<*>>, context: BoundFunction): Collection<Reporting> {
             val boundary = PurityViolationReporting.Boundary.Function(context)
-            return readingViolations.map { readingPurityViolationToReporting(it, boundary) } + writingViolations.map { modifyingPurityViolationToReporting(it, boundary) }
+            val readingReportings = readingViolations.map { readingPurityViolationToReporting(it, boundary) }
+            val writingReportings = writingViolations.asSequence()
+                .filter { it !in readingViolations }
+                .map { modifyingPurityViolationToReporting(it, boundary) }
+
+            return readingReportings + writingReportings
         }
 
         fun purityViolations(readingViolations: Collection<BoundExpression<*>>, writingViolations: Collection<BoundStatement<*>>, context: BoundBaseTypeMemberVariable): Collection<Reporting> {
             val boundary = PurityViolationReporting.Boundary.ClassMemberInitializer(context)
-            return readingViolations.map { readingPurityViolationToReporting(it, boundary) } + writingViolations.map { modifyingPurityViolationToReporting(it, boundary) }
+            val readingReportings = readingViolations.map { readingPurityViolationToReporting(it, boundary) }
+            val writingReportings = writingViolations.asSequence()
+                .filter { it !in readingViolations }
+                .map { modifyingPurityViolationToReporting(it, boundary) }
+
+            return readingReportings + writingReportings
         }
 
         fun readonlyViolations(writingViolations: Collection<BoundStatement<*>>, readonlyFunction: BoundFunction): Collection<Reporting> {
