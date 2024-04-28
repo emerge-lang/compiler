@@ -15,6 +15,6 @@ export ENOSPC = 28
 export EPERM = 1
 export EPIPE = 32
 
-export external(C) fun __errno_location() -> CPointer<Int>
+export external(C) readonly fun __errno_location() -> CPointer<Int>
 
-export fun getErrno() -> Int = __errno_location().pointed
+export readonly fun getErrno() -> Int = __errno_location().pointed
