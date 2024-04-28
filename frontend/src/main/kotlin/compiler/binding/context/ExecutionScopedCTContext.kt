@@ -190,6 +190,25 @@ open class MutableExecutionScopedCTContext protected constructor(
         return (parentContext as? ExecutionScopedCTContext)?.containsWithinBoundary(variable, boundary) ?: false
     }
 
+    override fun toString(): String {
+        var str = "MutExecCT["
+        if (parentContext is ExecutionScopedCTContext) {
+            str += "nested"
+        } else {
+            str += "root"
+        }
+
+        if (isFunctionRoot) {
+            str += ", functionRoot"
+        } else if (isScopeBoundary) {
+            str += ", scopeBoundary"
+        }
+
+        str += "]"
+
+        return str
+    }
+
     companion object {
         fun functionRootIn(parentContext: CTContext): MutableExecutionScopedCTContext {
             return MutableExecutionScopedCTContext(parentContext, isScopeBoundary = true, isFunctionRoot = true)
