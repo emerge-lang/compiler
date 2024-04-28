@@ -87,11 +87,9 @@ class BoundDeclaredBaseTypeMemberFunction(
             }
         }
 
-        if (!isDeclaredOverride) {
-            return
-        }
-
         val superFn = superFns.singleOrNull()?.second ?: return
+        overrides = superFn
+
         returnType?.let { overriddenReturnType ->
             superFn.returnType?.let { superReturnType ->
                 overriddenReturnType.evaluateAssignabilityTo(superReturnType, overriddenReturnType.sourceLocation ?: SourceLocation.UNKNOWN)
@@ -100,8 +98,6 @@ class BoundDeclaredBaseTypeMemberFunction(
                     }
             }
         }
-
-        overrides = superFn
     }
 
     private fun findOverriddenFunction(): Collection<Pair<BaseType, InheritedBoundMemberFunction>> {

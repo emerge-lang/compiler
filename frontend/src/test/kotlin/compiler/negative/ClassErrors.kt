@@ -16,6 +16,7 @@ import compiler.reportings.MissingFunctionBodyReporting
 import compiler.reportings.MultipleClassConstructorsReporting
 import compiler.reportings.MultipleClassDestructorsReporting
 import compiler.reportings.ObjectNotFullyInitializedReporting
+import compiler.reportings.OverloadSetHasNoDisjointParameterReporting
 import compiler.reportings.ReadInPureContextReporting
 import compiler.reportings.StateModificationOutsideOfPurityBoundaryReporting
 import compiler.reportings.StaticFunctionDeclaredOverrideReporting
@@ -551,6 +552,9 @@ class ClassErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<UndeclaredOverrideReporting>()
+                // this could happen if the inherited and the subtype-declared function are considered different
+                // and thus clash in the overload-set
+                .shouldNotReport<OverloadSetHasNoDisjointParameterReporting>()
         }
 
         "actually overrides nothing" {

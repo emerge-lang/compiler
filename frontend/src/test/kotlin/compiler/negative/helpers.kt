@@ -14,6 +14,7 @@ import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
 import io.github.tmarsteel.emerge.backend.api.ir.IrModule
 import io.github.tmarsteel.emerge.backend.noop.NoopBackend
+import io.kotest.inspectors.forNone
 import io.kotest.inspectors.forOne
 import io.kotest.matchers.Matcher
 import io.kotest.matchers.MatcherResult
@@ -141,6 +142,19 @@ inline fun <reified T : Reporting> Pair<SoftwareContext, Collection<Reporting>>.
 
 inline fun <reified T : Reporting> Collection<Reporting>.shouldReport(additional: (T) -> Unit = {}): Collection<Reporting> {
     forOne {
+        it.shouldBeInstanceOf<T>()
+        additional(it)
+    }
+    return this
+}
+
+inline fun <reified T : Reporting> Pair<SoftwareContext, Collection<Reporting>>.shouldNotReport(additional: (T) -> Unit = {}): Pair<SoftwareContext, Collection<Reporting>> {
+    second.shouldNotReport<T>(additional)
+    return this
+}
+
+inline fun <reified T : Reporting> Collection<Reporting>.shouldNotReport(additional: (T) -> Unit = {}): Collection<Reporting> {
+    forNone {
         it.shouldBeInstanceOf<T>()
         additional(it)
     }
