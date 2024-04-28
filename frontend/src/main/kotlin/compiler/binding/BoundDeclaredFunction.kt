@@ -62,13 +62,15 @@ abstract class BoundDeclaredFunction(
     final override val isPure: Boolean?
         get() = when {
             attributes.isDeclaredPure -> true
+            attributes.isDeclaredReadonly || attributes.isDeclaredModifying -> false
             body == null -> false
             else -> isEffectivelyPure
         }
 
     final override val isReadonly: Boolean?
         get() = when {
-            attributes.isDeclaredPure || attributes.isDeclaredReadonly -> true
+            attributes.isDeclaredReadonly || attributes.isDeclaredPure -> true
+            attributes.isDeclaredModifying -> false
             body == null -> false
             else -> isEffectivelyReadonly
         }
