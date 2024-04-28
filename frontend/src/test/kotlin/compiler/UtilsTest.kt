@@ -1,7 +1,9 @@
 package compiler.compiler
 
+import compiler.groupRunsBy
 import compiler.pivot
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 
 class UtilsTest : FreeSpec({
@@ -32,6 +34,30 @@ class UtilsTest : FreeSpec({
                 listOf(4, 8, null),
                 listOf(null, 9, null),
                 listOf(null, 10, null),
+            )
+        }
+    }
+
+    "groupRunsBy" - {
+        "empty" {
+            emptyList<String>().groupRunsBy { it.first() }.toList().shouldBeEmpty()
+        }
+        "last run has single element" {
+            val elements = listOf(3, 6, 9, 4, 7, 10, 12)
+            val runs = elements.groupRunsBy { it % 3 }.toList()
+            runs shouldBe listOf(
+                Pair(0, listOf(3, 6, 9)),
+                Pair(1, listOf(4, 7, 10)),
+                Pair(0, listOf(12)),
+            )
+        }
+        "last run has multiple elements" {
+            val elements = listOf(3, 6, 9, 4, 7, 10, 12, 15, 18)
+            val runs = elements.groupRunsBy { it % 3 }.toList()
+            runs shouldBe listOf(
+                Pair(0, listOf(3, 6, 9)),
+                Pair(1, listOf(4, 7, 10)),
+                Pair(0, listOf(12, 15, 18)),
             )
         }
     }

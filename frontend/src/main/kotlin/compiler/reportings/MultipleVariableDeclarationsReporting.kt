@@ -39,11 +39,11 @@ data class MultipleVariableDeclarationsReporting(
     additionalDeclaration.sourceLocation
 ) {
     override fun toString(): String {
-        if (originalDeclaration.sourceLocation.file == additionalDeclaration.sourceLocation.file) {
-            val illustration = getIllustrationForHighlightedLines(listOf(originalDeclaration.sourceLocation, additionalDeclaration.sourceLocation))
-            return "$levelAndMessage\n$illustration\nin ${additionalDeclaration.sourceLocation.fileLineColumnText}"
-        } else {
-            return "$levelAndMessage\nOriginally declared here:\n${originalDeclaration.sourceLocation}\ndeclared again here:\n${additionalDeclaration.declaredAt}"
-        }
+        var str = "$levelAndMessage\n"
+        str += illustrateHints(
+            SourceHint(originalDeclaration.sourceLocation, "originally declared here", relativeOrderMatters = true),
+            SourceHint(additionalDeclaration.sourceLocation, "declared again here", relativeOrderMatters = true),
+        )
+        return str
     }
 }

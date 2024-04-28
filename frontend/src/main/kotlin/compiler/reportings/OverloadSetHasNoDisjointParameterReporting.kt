@@ -13,14 +13,8 @@ class OverloadSetHasNoDisjointParameterReporting(
     val overloadSetParameterCount = overloadSet.overloads.first().parameters.parameters.size
 
     override fun toString(): String {
-        var str = levelAndMessage
-        overloadSet.overloads
-            .groupBy { it.declaredAt.file }
-            .forEach { (file, overloadsInFile) ->
-                str += "\nin $file:\n"
-                str += getIllustrationForHighlightedLines(overloadsInFile.map { it.declaredAt }, 0u)
-            }
-
+        var str = "${levelAndMessage}\n"
+        str += illustrateSourceLocations(overloadSet.overloads.map { it.declaredAt })
         return str
     }
 

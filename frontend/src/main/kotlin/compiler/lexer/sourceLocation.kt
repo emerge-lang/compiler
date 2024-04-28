@@ -18,7 +18,7 @@
 
 package compiler.lexer
 
-import compiler.reportings.getIllustrationForHighlightedLines
+import compiler.reportings.illustrateSourceLocations
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import org.apache.commons.io.input.BOMInputStream
 import java.nio.charset.Charset
@@ -150,7 +150,7 @@ data class SourceLocation constructor(
         return if (generated) {
             "code generated from $fileLineColumnText"
         } else {
-            "$file:\n${getIllustrationForHighlightedLines(setOf(this))}"
+            illustrateSourceLocations(setOf(this))
         }
     }
 

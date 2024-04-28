@@ -13,7 +13,7 @@ abstract class MultiFunctionAttributeReporting(
         require(sourceLocations.map { it.file }.toSet().size == 1)
     }
 
-    override fun toString() = "$levelAndMessage\nin ${sourceLocations.first().file}:\n${getIllustrationForHighlightedLines(sourceLocations)}"
+    override fun toString() = "$levelAndMessage\nin ${illustrateSourceLocations(sourceLocations)}"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

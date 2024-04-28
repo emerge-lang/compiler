@@ -14,14 +14,8 @@ class DuplicateBaseTypesReporting(
     private val simpleName = duplicates.first().name.value
 
     override fun toString(): String {
-        var str = levelAndMessage
-        duplicates
-            .map { it.declaredAt }
-            .groupBy { it.file }
-            .forEach { (file, locations) ->
-                str += "\nin ${file}:\n${getIllustrationForHighlightedLines(locations, nLinesContext = 0u)}"
-            }
-
+        var str = "${levelAndMessage}\n"
+        str += illustrateSourceLocations(duplicates.map { it.declaredAt })
         return str
     }
 

@@ -152,4 +152,48 @@ fun <T> List<T>.twoElementPermutationsUnordered(): Sequence<Pair<T, T>> {
     }
 }
 
+fun <T, K> Iterable<T>.groupRunsBy(runKeyEquals: (K, K) -> Boolean = { a, b -> a == b }, runKeySelector: (T) -> K): Iterable<Pair<K, List<T>>> = object : Iterable<Pair<K, List<T>>> {
+    override fun iterator(): Iterator<Pair<K, List<T>>> {
+        val baseIterator = this@groupRunsBy.iterator()
+        if (!baseIterator.hasNext()) {
+            return emptyList<Pair<K, List<T>>>().iterator()
+        }
+        return object : Iterator<Pair<K, List<T>>> {
+            val firstElement = baseIterator.next()
+            var currentKey: K = runKeySelector(firstElement)
+            var currentRun: MutableList<T> = ArrayList()
+            init {
+                currentRun.add(firstElement)
+            }
+            private var lastRunYielded = false
+            override fun hasNext(): Boolean {
+                return baseIterator.hasNext() || !lastRunYielded
+            }
+            override fun next(): Pair<K, List<T>> {
+                while(baseIterator.hasNext()) {
+                    val nextElement = baseIterator.next()
+                    val nextElementKey = runKeySelector(nextElement)
+                    if (!runKeyEquals(currentKey, nextElementKey)) {
+                        val keyToYield = currentKey
+                        val runToYield = currentRun
+                        currentRun = ArrayList()
+                        currentRun.add(nextElement)
+                        currentKey = nextElementKey
+                        return Pair(keyToYield, runToYield)
+                    }
+
+                    currentRun.add(nextElement)
+                }
+
+                if (lastRunYielded) {
+                    throw NoSuchElementException()
+                } else {
+                    lastRunYielded = true
+                    return Pair(currentKey, currentRun)
+                }
+            }
+        }
+    }
+}
+
 infix fun <Input, Intermediate, Result> ((Input) -> Intermediate).andThen(other: (Intermediate) -> Result): (Input) -> Result = { other(this(it)) }

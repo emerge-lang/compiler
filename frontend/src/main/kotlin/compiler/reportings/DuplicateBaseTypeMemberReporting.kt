@@ -32,7 +32,7 @@ class DuplicateBaseTypeMemberReporting(
     override fun toString(): String {
         var txt = "$levelAndMessage\nin ${typeDef.declaration.declaredAt}\n"
 
-        txt += getIllustrationForHighlightedLines(
+        txt += illustrateSourceLocations(
             duplicates.map { it.declaration.sourceLocation },
         )
 
