@@ -215,7 +215,7 @@ class LexerTest : FreeSpec() {init {
 
     "combo test with code" {
         val result = lexCode("""package foo
-            fun foobar(var x: Int = 24) = return (142.12)?.toLong() == x
+            fun foobar(var x: S32 = 24) = return (142.12)?.toLong() == x
         """, false).tokens
 
         result.size shouldBe 25
@@ -248,7 +248,7 @@ class LexerTest : FreeSpec() {init {
         (result[8] as OperatorToken).operator shouldBe Operator.COLON
 
         result[9] should beInstanceOf(IdentifierToken::class)
-        (result[9] as IdentifierToken).value shouldBe "Int"
+        (result[9] as IdentifierToken).value shouldBe "S32"
 
         result[10] should beInstanceOf(OperatorToken::class)
         (result[10] as OperatorToken).operator shouldBe Operator.ASSIGNMENT

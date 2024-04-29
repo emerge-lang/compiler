@@ -18,7 +18,6 @@
 
 package compiler.ast
 
-import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
 import compiler.ast.AstSupertypeList.Companion.bindTo
 import compiler.ast.type.TypeArgument
@@ -69,7 +68,7 @@ class BaseTypeDeclaration(
         val typeVisibility = visibility?.bindTo(fileContext) ?: BoundVisibility.default(fileContext)
         val (boundTypeParameters, fileContextWithTypeParams) = typeParameters.chain(fileContext)
         val typeRootContext = MutableCTContext(fileContextWithTypeParams, typeVisibility)
-        val boundSupertypes = supertypes.bindTo(typeRootContext, name.sourceLocation, typeDefAccessor)
+        val boundSupertypes = supertypes.bindTo(typeRootContext, typeDefAccessor)
         val memberVariableInitializationContext = MutableExecutionScopedCTContext.functionRootIn(typeRootContext)
         val selfTypeReference = TypeReference(
             simpleName = this.name.value,
@@ -117,14 +116,12 @@ data class AstSupertypeList(
     companion object {
         fun AstSupertypeList?.bindTo(
             typeRootContext: CTContext,
-            typeDeclaredAt: SourceLocation,
             getTypeDef: () -> BoundBaseTypeDefinition,
         ): BoundSupertypeList {
-            val effectiveSupertypes = this?.typeRefs
-                ?: listOf(TypeReference(IdentifierToken(CoreIntrinsicsModule.ANY_TYPE_NAME.simpleName, typeDeclaredAt.deriveGenerated())))
-            val boundSupertypes = effectiveSupertypes.map { SourceBoundSupertypeDeclaration(typeRootContext, getTypeDef, it) }
+            val effectiveTypeRefs = (this?.typeRefs ?: emptyList())
+            val boundSupertypes = effectiveTypeRefs.map { SourceBoundSupertypeDeclaration(typeRootContext, getTypeDef, it) }
 
-            return BoundSupertypeList(boundSupertypes, getTypeDef)
+            return BoundSupertypeList(typeRootContext, boundSupertypes, getTypeDef)
         }
     }
 }

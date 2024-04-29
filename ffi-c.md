@@ -50,7 +50,7 @@ by value, use `CValue`.
 Like in rust and D, functions using the C calling convention can be declared in Emerge and then linked
 to an actual implementation from a static library or linked dynamically by the linker:
 
-    external(C) fun getpid() -> Int
+    external(C) fun getpid() -> S32
 
 There are special types to use for arguments and return types that allow do denote C-specific concepts like
 raw pointers. Using this notation you can basically write the equivalent of a C header file and invoke these

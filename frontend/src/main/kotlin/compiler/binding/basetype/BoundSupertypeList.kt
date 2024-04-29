@@ -3,10 +3,12 @@ package compiler.binding.basetype
 import compiler.binding.BoundMemberFunction
 import compiler.binding.SeanHelper
 import compiler.binding.SemanticallyAnalyzable
+import compiler.binding.context.CTContext
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.reportings.Reporting
 
 class BoundSupertypeList(
+    val context: CTContext,
     val clauses: List<BoundSupertypeDeclaration>,
     getTypeDef: () -> BoundBaseTypeDefinition,
 ) : SemanticallyAnalyzable {
@@ -23,6 +25,11 @@ class BoundSupertypeList(
             val reportings = mutableListOf<Reporting>()
             clauses.flatMap { it.semanticAnalysisPhase1() }.forEach(reportings::add)
             baseTypes = clauses.mapNotNull { it.resolvedReference?.baseType }
+
+            // all types that don't declare supertype, except Any itself, inherit from Any implicitly
+            if (clauses.isEmpty() && typeDef !== context.swCtx.any) {
+                baseTypes = listOf(context.swCtx.any)
+            }
             return@phase1 reportings
         }
     }

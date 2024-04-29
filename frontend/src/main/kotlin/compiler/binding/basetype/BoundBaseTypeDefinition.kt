@@ -320,16 +320,31 @@ class BoundBaseTypeDefinition(
     override fun toString() = "${kind.name.lowercase()} $canonicalName"
 
     /**
-     * If true, values of this type can by design not change. This is the case for primitives like booleans
-     * and ints, but could also apply to classes who are declared as "immutable".
+     * True iff this is one of the core scalar types of the language:
+     * * all the numeric types, ints and floats
+     * * bool
      */
-    val isAtomic: Boolean
-        get() = TODO("implement")
+    val isCoreScalar: Boolean
+        get() = this in setOf(
+            context.swCtx.s8,
+            context.swCtx.u8,
+            context.swCtx.s16,
+            context.swCtx.u16,
+            context.swCtx.s32,
+            context.swCtx.u32,
+            context.swCtx.s64,
+            context.swCtx.u64,
+            context.swCtx.sword,
+            context.swCtx.uword,
+            context.swCtx.f32,
+            context.swCtx.bool,
+        )
 
     /** @return Whether this type is the same as or a subtype of the given type. */
     infix fun isSubtypeOf(other: BoundBaseTypeDefinition): Boolean {
         if (other === this) return true
         if (other === context.swCtx.nothing) return false
+        if (this === context.swCtx.nothing) return true
 
         return superTypes.baseTypes
             .map { it.isSubtypeOf(other) }
@@ -343,8 +358,20 @@ class BoundBaseTypeDefinition(
         val memberFunctionsAbstractByDefault: Boolean,
         val memberFunctionsVirtualByDefault: Boolean,
     ) {
-        CLASS("classes", hasCtorsAndDtors = true, allowsMemberVariables = true, memberFunctionsAbstractByDefault = false, memberFunctionsVirtualByDefault = false),
-        INTERFACE("interfaces", hasCtorsAndDtors = false, allowsMemberVariables = false, memberFunctionsAbstractByDefault = true, memberFunctionsVirtualByDefault = true),
+        CLASS(
+            "classes",
+            hasCtorsAndDtors = true,
+            allowsMemberVariables = true,
+            memberFunctionsAbstractByDefault = false,
+            memberFunctionsVirtualByDefault = false,
+        ),
+        INTERFACE(
+            "interfaces",
+            hasCtorsAndDtors = false,
+            allowsMemberVariables = false,
+            memberFunctionsAbstractByDefault = true,
+            memberFunctionsVirtualByDefault = true
+        ),
         ;
 
         fun toBackendIr(typeDef: BoundBaseTypeDefinition): IrBaseType = when(this) {

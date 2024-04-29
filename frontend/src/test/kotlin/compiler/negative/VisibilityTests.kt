@@ -70,7 +70,7 @@ class VisibilityTests : FreeSpec({
                 IntegrationTestModule.of("module_B", """
                     package module_B
                     import module_A.Foo
-                    fun test() -> Int {
+                    fun test() -> S32 {
                         v = Foo()
                         return v.x
                     }
@@ -107,7 +107,7 @@ class VisibilityTests : FreeSpec({
         "explicit overexposure export over default module" {
             validateModule("""
                 class Foo {
-                    export bla: Int = init
+                    export bla: S32 = init
                 }
             """.trimIndent())
                 .shouldReport<ShadowedVisibilityReporting> {
@@ -118,7 +118,7 @@ class VisibilityTests : FreeSpec({
         "explicit overexposure export over private" {
             validateModule("""
                 private class Foo {
-                    export bla: Int = init
+                    export bla: S32 = init
                 }
             """.trimIndent())
                 .shouldReport<ShadowedVisibilityReporting> {
@@ -129,7 +129,7 @@ class VisibilityTests : FreeSpec({
         "explicit overexposure explicit module over private" {
             validateModule("""
                 private class Foo {
-                    module bla: Int = init
+                    module bla: S32 = init
                 }
             """.trimIndent())
                 .shouldReport<ShadowedVisibilityReporting> {

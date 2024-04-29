@@ -9,11 +9,11 @@ import io.kotest.core.spec.style.FreeSpec
 class PurityErrors : FreeSpec({
     "reading compile-time constant globals is okay from a pure context" {
         validateModule("""
-            fun computeSomething(y: Int) -> Int {
+            fun computeSomething(y: S32) -> S32 {
                 return y
             }
             x = computeSomething(2)
-            fun test() -> Int {
+            fun test() -> S32 {
                 return x
             }
         """.trimIndent()).shouldHaveNoDiagnostics()
@@ -21,9 +21,9 @@ class PurityErrors : FreeSpec({
 
     "reading runtime-dependent final globals is not okay in a pure context" {
         validateModule("""
-            intrinsic readonly fun readRuntimeState() -> Int
+            intrinsic readonly fun readRuntimeState() -> S32
             x = readRuntimeState()
-            fun test() -> Int {
+            fun test() -> S32 {
                 return x
             }
         """.trimIndent())

@@ -107,32 +107,34 @@ class SoftwareContext {
         getPackage(CoreIntrinsicsModule.NAME)!!
     }
 
-    private val coreType get() = object {
+    private fun coreType(name: String? = null) = object {
         private lateinit var value: BoundBaseTypeDefinition
         operator fun getValue(thisRef: Any, p: KProperty<*>): BoundBaseTypeDefinition {
             if (!this::value.isInitialized) {
-                val simpleTypeName = p.name.capitalizeFirst()
-                value = emergeCorePackage.types.single { it.simpleName == simpleTypeName }
+                val simpleTypeName = name ?: p.name.capitalizeFirst()
+                value = emergeCorePackage.types.find { it.simpleName == simpleTypeName }
+                    ?: throw InternalCompilerError("Did not find core type $simpleTypeName")
             }
             return value
         }
     }
 
-    val any: BoundBaseTypeDefinition by coreType
-    val nothing: BoundBaseTypeDefinition by coreType
-    val unit: BoundBaseTypeDefinition by coreType
-    val bool: BoundBaseTypeDefinition by coreType
-    val s8: BoundBaseTypeDefinition by coreType
-    val u8: BoundBaseTypeDefinition by coreType
-    val s16: BoundBaseTypeDefinition by coreType
-    val u16: BoundBaseTypeDefinition by coreType
-    val s32: BoundBaseTypeDefinition by coreType
-    val u32: BoundBaseTypeDefinition by coreType
-    val s64: BoundBaseTypeDefinition by coreType
-    val u64: BoundBaseTypeDefinition by coreType
-    val sword: BoundBaseTypeDefinition by coreType
-    val uword: BoundBaseTypeDefinition by coreType
-    val f32: BoundBaseTypeDefinition by coreType
+    val any: BoundBaseTypeDefinition by coreType()
+    val nothing: BoundBaseTypeDefinition by coreType()
+    val unit: BoundBaseTypeDefinition by coreType()
+    val bool: BoundBaseTypeDefinition by coreType()
+    val s8: BoundBaseTypeDefinition by coreType()
+    val u8: BoundBaseTypeDefinition by coreType()
+    val s16: BoundBaseTypeDefinition by coreType()
+    val u16: BoundBaseTypeDefinition by coreType()
+    val s32: BoundBaseTypeDefinition by coreType()
+    val u32: BoundBaseTypeDefinition by coreType()
+    val s64: BoundBaseTypeDefinition by coreType()
+    val u64: BoundBaseTypeDefinition by coreType()
+    val sword: BoundBaseTypeDefinition by coreType("SWord")
+    val uword: BoundBaseTypeDefinition by coreType("UWord")
+    val string: BoundBaseTypeDefinition by coreType()
+    val f32: BoundBaseTypeDefinition by coreType()
 
     /** the type to use when a type cannot be determined, see [UnresolvedType] */
     val unresolvableReplacementType: BoundTypeReference by lazy {

@@ -41,7 +41,7 @@ class InterfaceErrors : FreeSpec({
     "member variables not allowed" {
         validateModule("""
             interface Foo {
-                x: Int = 3
+                x: S32 = 3
             }
         """.trimIndent())
             .shouldReport<EntryNotAllowedInBaseTypeReporting> {

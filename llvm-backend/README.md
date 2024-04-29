@@ -33,7 +33,7 @@ by the source program as these types have no internal mutability.
 Boxing is not a concept present in Emerge as a language. The LLVM backend will box value types
 whenever they are assigned to one of their non-value supertypes `Number` or `Any`:
 
-    val x: Int = 3 // value type, no heap allocation
+    val x: S32 = 3 // value type, no heap allocation
     val y: Any = x // new heap-allocated box, gets filled with a copy of x
 
 Or, more formally: Whenever a value of type `V` is to be assigned to a target of type `T` where `V` is a value
@@ -99,7 +99,7 @@ to a contiguous block of memory.
 Though, doing that poses another boxing problem:
 
 ```
-val x: Array<Int> = [1, 2, 3, 4]
+val x: Array<S32> = [1, 2, 3, 4]
 val y: Array<out Any> = x
 ```
 
@@ -431,7 +431,7 @@ At the location of each functions prefix there would be the address of that func
     0b00001         0x0000000000000000
     0b00010         0x0000000000000000
     0b00011         0x0000000000000000
-    0b00100         0x0000000000056de0   foo(x: Int)
+    0b00100         0x0000000000056de0   foo(x: S32)
     0b00101         0x00000000000a183c   foo(x: Boolean)
     0b00110         0x0000000000000000
     0b00111         0x0000000000000000
@@ -509,8 +509,8 @@ define ptr @getDynamicCallAddress(ptr %anyvalue_reference, %word %hash) {
     %shiftAmountPtr = getelementptr %typeinfo, ptr %typeinfoPtr, i32 0, i32 0
     %shiftAmount = load %word, ptr %shiftAmountPtr, align 8
     %shortHash = lshr %word %hash, %shiftAmount
-    %offsetIntoVtable = getelementptr %typeinfo, ptr %typeinfoPtr, i32 0, i32 2, i64 %shortHash
-    %targetAddress = load ptr, ptr %offsetIntoVtable, align 8
+    %offsetS32oVtable = getelementptr %typeinfo, ptr %typeinfoPtr, i32 0, i32 2, i64 %shortHash
+    %targetAddress = load ptr, ptr %offsetS32oVtable, align 8
     ret %targetAddress
 }
 

@@ -53,7 +53,7 @@ class TypeInferenceErrors : FreeSpec({
         validateModule("""
             class S<T> {}
             fun foo() {
-                x: _<Int> = S()
+                x: _<S32> = S()
             }
         """.trimIndent())
             .shouldReport<ExplicitInferTypeWithArgumentsReporting>()

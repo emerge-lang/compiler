@@ -32,7 +32,7 @@ class FunctionErrors : FreeSpec({
         "external function cannot have body" {
             validateModule(
                 """
-                external(C) fun foo() -> Int {
+                external(C) fun foo() -> S32 {
                     return 3
                 }
             """.trimIndent()
@@ -43,7 +43,7 @@ class FunctionErrors : FreeSpec({
         "non-external function must have body" {
             validateModule(
                 """
-                fun foo() -> Int
+                fun foo() -> S32
             """.trimIndent()
             )
                 .shouldReport<MissingFunctionBodyReporting>()
@@ -64,7 +64,7 @@ class FunctionErrors : FreeSpec({
 
         "parameter name duplicate" {
             validateModule("""
-                fun foo(a: Int, a: Boolean, b: Int) {}
+                fun foo(a: S32, a: Boolean, b: S32) {}
             """.trimIndent())
                     .shouldReport<MultipleParameterDeclarationsReporting> {
                         it.firstDeclaration.name.value shouldBe "a"
@@ -116,7 +116,7 @@ class FunctionErrors : FreeSpec({
         "overload-set with single non-disjoint parameter is not valid" {
             validateModule("""
                 fun foo(a: Number) {}
-                fun foo(a: Int) {}
+                fun foo(a: S32) {}
             """.trimIndent())
                 .shouldReport<OverloadSetHasNoDisjointParameterReporting>()
         }
@@ -131,8 +131,8 @@ class FunctionErrors : FreeSpec({
 
         "overload set with multiple parameters, only one of which has disjoint types, is valid" {
             validateModule("""
-                fun foo(a: Any, b: Any, c: Int, d: Any) {}
-                fun foo(a: Int, b: String, c: String, d: Number) {}
+                fun foo(a: Any, b: Any, c: S32, d: Any) {}
+                fun foo(a: S32, b: String, c: String, d: Number) {}
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
         }
@@ -152,8 +152,8 @@ class FunctionErrors : FreeSpec({
             validateModule("""
                 class A {}
                 class B {}
-                fun foo(disjoint: A, p: Int) {}
-                fun foo(disjoint: B, p: Int) {}
+                fun foo(disjoint: A, p: S32) {}
+                fun foo(disjoint: B, p: S32) {}
                 fun test() {
                     foo(0, 0)
                 }
@@ -165,8 +165,8 @@ class FunctionErrors : FreeSpec({
             val (_, reportings) = validateModule("""
                 class A {}
                 class B {}
-                fun foo(disjoint: A, p1: Int, p2: Int) {}
-                fun foo(disjoint: B, p1: Int, p2: Int) {}
+                fun foo(disjoint: A, p1: S32, p2: S32) {}
+                fun foo(disjoint: B, p1: S32, p2: S32) {}
                 fun test() {
                     foo(A(), "123", B())
                 }
@@ -176,21 +176,21 @@ class FunctionErrors : FreeSpec({
             reportings.forOne {
                 it.shouldBeInstanceOf<ValueNotAssignableReporting>().also {
                     it.sourceType.toString() shouldBe "immutable String"
-                    it.targetType.toString() shouldBe "immutable Int"
+                    it.targetType.toString() shouldBe "immutable S32"
                 }
             }
             reportings.forOne {
                 it.shouldBeInstanceOf<ValueNotAssignableReporting>().also {
                     it.sourceType.toString() shouldBe "exclusive testmodule.B"
-                    it.targetType.toString() shouldBe "immutable Int"
+                    it.targetType.toString() shouldBe "immutable S32"
                 }
             }
         }
 
         "presence of receiver must be consistent" {
             validateModule("""
-                fun foo(self: Int, p2: String) {}
-                fun foo(p1: Int, p2: Int) {}
+                fun foo(self: S32, p2: String) {}
+                fun foo(p1: S32, p2: S32) {}
             """.trimIndent())
                 .shouldReport<InconsistentReceiverPresenceInOverloadSetReporting>()
         }
@@ -199,7 +199,7 @@ class FunctionErrors : FreeSpec({
             "inheriting from two types creates ambiguous overload" {
                 validateModule("""
                     interface A {
-                        fun foo(self, p1: Int)
+                        fun foo(self, p1: S32)
                     }
                     interface B {
                         fun foo(self, p1: Any)
@@ -221,7 +221,7 @@ class FunctionErrors : FreeSpec({
             "inherited overload disjointness is reported only once" {
                 val results = validateModule("""
                     interface Problematic {
-                        fun foo(self, p1: Int)
+                        fun foo(self, p1: S32)
                         fun foo(self, p1: Any)
                     }
                     interface Innocent : Problematic {}
@@ -244,7 +244,7 @@ class FunctionErrors : FreeSpec({
     "termination" - {
         "empty body in non-unit function" {
             validateModule("""
-                fun a() -> Int {
+                fun a() -> S32 {
                 }
             """.trimIndent())
                 .shouldReport<UncertainTerminationReporting>()
@@ -253,7 +253,7 @@ class FunctionErrors : FreeSpec({
         "return type mismatch" - {
             "on return statement" {
                 validateModule("""
-                    fun a() -> Int {
+                    fun a() -> S32 {
                         return true
                     }
                 """.trimIndent())
@@ -262,7 +262,7 @@ class FunctionErrors : FreeSpec({
 
             "on single-expression body" {
                 validateModule("""
-                    fun a() -> Int = false
+                    fun a() -> S32 = false
                 """.trimIndent())
                     .shouldReport<ReturnTypeMismatchReporting>()
             }
@@ -289,7 +289,7 @@ class FunctionErrors : FreeSpec({
 
             "from function that declares non-unit return type" {
                 validateModule("""
-                    fun a() -> Int {
+                    fun a() -> S32 {
                         return
                     }
                 """.trimIndent())
@@ -299,7 +299,7 @@ class FunctionErrors : FreeSpec({
 
         "if where only then returns" {
             validateModule("""
-                fun a(p: Boolean) -> Int {
+                fun a(p: Boolean) -> S32 {
                     if p {
                         return 0
                     } else {
@@ -311,7 +311,7 @@ class FunctionErrors : FreeSpec({
 
         "if where only else returns" {
             validateModule("""
-                fun a(p: Boolean) -> Int {
+                fun a(p: Boolean) -> S32 {
                     if p {
                     } else {
                         return 0
@@ -362,7 +362,7 @@ class FunctionErrors : FreeSpec({
 
         "type parameter name collides with top level type" {
             validateModule("""
-                fun foo<Int>() {}
+                fun foo<S32>() {}
             """.trimIndent())
                 .shouldReport<TypeParameterNameConflictReporting>()
         }

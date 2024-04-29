@@ -124,11 +124,11 @@ class TypeErrors : FreeSpec({
         "reference to generic type with too many type arguments when they are required" {
             validateModule("""
                 class X<T> {}
-                x: X<Int, Int, Boolean>
+                x: X<S32, S32, Boolean>
             """.trimIndent())
                 .shouldReport<SuperfluousTypeArgumentsReporting> {
                     it.nExpected shouldBe 1
-                    it.firstSuperfluousArgument.type.simpleName shouldBe "Int"
+                    it.firstSuperfluousArgument.type.simpleName shouldBe "S32"
                 }
         }
 
@@ -160,10 +160,10 @@ class TypeErrors : FreeSpec({
                     class A<T : mutable Any> {
                         prop: T
                     }
-                    fun foo(p: A<immutable Int>) {}
+                    fun foo(p: A<immutable S32>) {}
                 """.trimIndent())
                     .shouldReport<TypeArgumentOutOfBoundsReporting> {
-                        it.argument.astNode.type shouldBe TypeReference("Int", TypeReference.Nullability.UNSPECIFIED, TypeMutability.IMMUTABLE)
+                        it.argument.astNode.type shouldBe TypeReference("S32", TypeReference.Nullability.UNSPECIFIED, TypeMutability.IMMUTABLE)
                     }
             }
 
@@ -175,7 +175,7 @@ class TypeErrors : FreeSpec({
                     x = A(2)
                 """.trimIndent())
                     .shouldReport<ValueNotAssignableReporting> {
-                        it.sourceType.toString() shouldBe "immutable Int"
+                        it.sourceType.toString() shouldBe "immutable S32"
                         it.targetType.toString() shouldBe "mutable Any"
                         it.reason shouldBe "cannot assign a immutable value to a mutable reference"
                     }
@@ -188,11 +188,11 @@ class TypeErrors : FreeSpec({
                     propOne: T = init
                     propTwo: T = init
                 }
-                x: A<Int> = A(2, false)
+                x: A<S32> = A(2, false)
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
                     it.sourceType.toString() shouldBe "immutable Any"
-                    it.targetType.toString() shouldBe "immutable Int"
+                    it.targetType.toString() shouldBe "immutable S32"
                 }
         }
 
@@ -236,7 +236,7 @@ class TypeErrors : FreeSpec({
                     y: Array<String> = x
                 """.trimIndent())
                     .shouldReport<ValueNotAssignableReporting> {
-                        it.sourceType.toString() shouldBe "immutable Int"
+                        it.sourceType.toString() shouldBe "immutable S32"
                         it.targetType.toString() shouldBe "immutable String"
                     }
             }
@@ -266,11 +266,11 @@ class TypeErrors : FreeSpec({
 
         "validates expected return element type against elements" {
             validateModule("""
-                x: Array<Int> = [1, 2, 3, "4"]
+                x: Array<S32> = [1, 2, 3, "4"]
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
                     it.sourceType.toString() shouldBe "immutable String"
-                    it.targetType.toString() shouldBe "immutable Int"
+                    it.targetType.toString() shouldBe "immutable S32"
                 }
         }
     }

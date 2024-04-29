@@ -17,7 +17,7 @@ class U16Box {
 }
 
 class S32Box {
-    value: Int = init
+    value: S32 = init
 }
 
 class U32Box {
@@ -33,11 +33,11 @@ class U64Box {
 }
 
 class SWordBox {
-    value: iword = init
+    value: SWord = init
 }
 
 class UWordBox {
-    value: uword = init
+    value: UWord = init
 }
 
 class BooleanBox {

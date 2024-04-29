@@ -26,7 +26,7 @@ class LiteralErrors : FreeSpec({
 
         "integer literal out of range - expecting int" {
             validateModule("""
-                x: Int = 100000000000000
+                x: S32 = 100000000000000
             """.trimIndent())
                 .shouldReport<IntegerLiteralOutOfRangeReporting> {
                     it.expectedType shouldBe s32

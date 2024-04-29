@@ -12,9 +12,9 @@ class ExpressionErrors : FreeSpec({
     "unsafe object traversal" {
         validateModule("""
             class X {
-                a: Int
+                a: S32
             }
-            fun foo(p: X?) -> Int {
+            fun foo(p: X?) -> S32 {
                 return p.a
             }
         """.trimIndent())
@@ -26,7 +26,7 @@ class ExpressionErrors : FreeSpec({
     "implicitly evaluating statement" - {
         "return - should not error" {
             validateModule("""
-                fun foo() -> Int {
+                fun foo() -> S32 {
                     x: Boolean = if true {
                         return 3
                     } else {

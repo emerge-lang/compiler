@@ -10,9 +10,9 @@ class BorrowAndLifetimeErrors : FreeSpec({
         "use by reading member" {
             validateModule("""
                 class Test {
-                    m: Int = 0
+                    m: S32 = 0
                 }
-                fun test() -> Int {
+                fun test() -> S32 {
                     v: exclusive _ = Test()
                     v2 = v
                     return v.m
@@ -27,9 +27,9 @@ class BorrowAndLifetimeErrors : FreeSpec({
         "use by writing member" {
             validateModule("""
                 class Test {
-                    m: Int = 0
+                    m: S32 = 0
                 }
-                fun test() -> Int {
+                fun test() -> S32 {
                     v: exclusive _ = Test()
                     v2 = v
                     set v.m = 1
@@ -192,7 +192,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
     "exclusive value can be borrowed both mutably and immutably" {
         validateModule("""
             class Test {
-                m: Int = 0
+                m: S32 = 0
             }
             fun borrowMut(borrow p1: mutable Test) {}
             fun borrowImm(borrow p2: immutable Test) {}
@@ -209,7 +209,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
     "readonly capture doesn't end a lifetime" {
         validateModule("""
             class Test {
-                m: Int = 0
+                m: S32 = 0
             }
             fun captureRead(p1: readonly Test) {}
             fun test() -> Test {

@@ -41,8 +41,8 @@ internal val IrType.llvmValueType: LlvmType? by tackLazyVal {
         "emerge.core.Short",
         "emerge.core.UShort" -> LlvmI16Type
 
-        "emerge.core.Int",
-        "emerge.core.UInt" -> LlvmI32Type
+        "emerge.core.S32",
+        "emerge.core.US32" -> LlvmI32Type
 
         "emerge.core.Long",
         "emerge.core.ULong" -> LlvmI64Type

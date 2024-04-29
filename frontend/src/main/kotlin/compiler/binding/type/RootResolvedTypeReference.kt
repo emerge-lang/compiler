@@ -26,7 +26,7 @@ class RootResolvedTypeReference private constructor(
     val baseType: BoundBaseTypeDefinition,
     val arguments: List<BoundTypeArgument>,
 ) : BoundTypeReference {
-    override val mutability = if (baseType.isAtomic) TypeMutability.IMMUTABLE else (explicitMutability ?: original?.mutability ?: TypeMutability.READONLY)
+    override val mutability = if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else (explicitMutability ?: original?.mutability ?: TypeMutability.READONLY)
     override val simpleName = original?.simpleName ?: baseType.simpleName
     override val sourceLocation = original?.declaringNameToken?.sourceLocation
 
@@ -46,7 +46,7 @@ class RootResolvedTypeReference private constructor(
         return RootResolvedTypeReference(
             original,
             isNullable,
-            if (baseType.isAtomic) TypeMutability.IMMUTABLE else modifier,
+            if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else modifier,
             baseType,
             arguments.map { it.defaultMutabilityTo(modifier) },
         )

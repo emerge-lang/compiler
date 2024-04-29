@@ -390,8 +390,8 @@ class EmergeLlvmContext(
                         "emerge.core.UByte" -> EmergeU8ArrayType
                         "emerge.core.Short" -> EmergeS16ArrayType
                         "emerge.core.UShort" -> EmergeU16ArrayType
-                        "emerge.core.Int" -> EmergeS32ArrayType
-                        "emerge.core.UInt" -> EmergeU32ArrayType
+                        "emerge.core.S32" -> EmergeS32ArrayType
+                        "emerge.core.US32" -> EmergeU32ArrayType
                         "emerge.core.Long" -> EmergeS64ArrayType
                         "emerge.core.ULong" -> EmergeU64ArrayType
                         "emerge.core.iword" -> EmergeSWordArrayType

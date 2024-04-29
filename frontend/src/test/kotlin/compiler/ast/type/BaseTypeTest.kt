@@ -20,22 +20,23 @@ package compiler.compiler.ast.type
 
 import compiler.binding.basetype.BoundBaseTypeDefinition
 import compiler.binding.context.SoftwareContext
+import compiler.compiler.negative.emptySoftwareContext
+import compiler.compiler.negative.validateModule
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
-import io.mockk.every
-import io.mockk.mockk
 
 class BaseTypeTest : FreeSpec() { init {
-    val swCtx = mockk<SoftwareContext> {
-        every { any } returns fakeType("Any")
-        every { nothing } returns fakeType("Nothing")
-        every { s32 } returns fakeType("S32")
-    }
-
     "Given a class hierarchy A; B: A; C : B" - {
-        val typeA = fakeType("A")
-        val typeB = fakeType("B", typeA)
-        val typeC = fakeType("C", typeB)
+        val swCtx = validateModule("""
+            interface A {}
+            interface B : A {}
+            interface C : B {}
+        """.trimIndent()).first
+
+        val typeA = swCtx.getTestType("A")
+        val typeB = swCtx.getTestType("B")
+        val typeC = swCtx.getTestType("C")
 
         "then A is a subtype of A" {
             typeA.isSubtypeOf(typeA)
@@ -59,14 +60,24 @@ class BaseTypeTest : FreeSpec() { init {
     }
     
     "Given a class hierarchy Z; A; B : A; C : A, D : B, E : B, F : A, Z; G: A, Z" - {
-        val typeZ = fakeType("Z")
-        val typeA = fakeType("A")
-        val typeB = fakeType("B", typeA)
-        val typeC = fakeType("C", typeA)
-        val typeD = fakeType("D", typeB)
-        val typeE = fakeType("E", typeB)
-        val typeF = fakeType("F", typeA, typeZ)
-        val typeG = fakeType("G", typeA, typeZ)
+        val swCtx = validateModule("""
+            interface Z {}
+            interface A {}
+            interface B : A {}
+            interface C : A {}
+            interface D : B {}
+            interface E : B {}
+            interface F : A, Z {}
+            interface G : A, Z {}
+        """.trimIndent())
+            .first
+        val typeA = swCtx.getTestType("A")
+        val typeB = swCtx.getTestType("B")
+        val typeC = swCtx.getTestType("C")
+        val typeD = swCtx.getTestType("D")
+        val typeE = swCtx.getTestType("E")
+        val typeF = swCtx.getTestType("F")
+        val typeG = swCtx.getTestType("G")
 
         "Then the closest common ancestor of" - {
             "B and A is A" {
@@ -97,6 +108,7 @@ class BaseTypeTest : FreeSpec() { init {
     }
 
     "Nothing" - {
+        val swCtx = emptySoftwareContext()
         "Nothing is subtype of all types" {
             swCtx.nothing.isSubtypeOf(swCtx.s32) shouldBe true
         }
@@ -111,3 +123,7 @@ class BaseTypeTest : FreeSpec() { init {
         }
     }
 }}
+
+private fun SoftwareContext.getTestType(simpleName: String): BoundBaseTypeDefinition {
+    return getPackage(CanonicalElementName.Package(listOf("testmodule")))!!.resolveBaseType(simpleName)!!
+}

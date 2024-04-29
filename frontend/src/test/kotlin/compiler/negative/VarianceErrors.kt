@@ -177,7 +177,7 @@ class VarianceErrors : FreeSpec({
                     p: T
                 }
                 fun test<T : Number>() {
-                    a: A<in Int> = A(2)
+                    a: A<in S32> = A(2)
                     var x: T
                     set x = a.p
                 }

@@ -216,7 +216,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       sent across threads? This is important to get a decent WorkerThread/ForkJoinPool API.
     * On the matter of ForkJoin/WorkerThread: this would necessitate a Futures API:
       ```
-      val futureVal: Future<Int> = forkJoinPool.submit({ doExpensiveComputation() })
+      val futureVal: Future<S32> = forkJoinPool.submit({ doExpensiveComputation() })
       ```
       Which brings the important question to the table: Push-Based or Pull-Based futures?
 -----
@@ -252,7 +252,7 @@ so, e.g. before:
 
 ```emerge
 class Foo {
-    x: Int = init
+    x: S32 = init
     y = 0
     z = 0
     
@@ -267,9 +267,9 @@ after:
 
 ```emerge
 class Foo {
-    x: Int = init
+    x: S32 = init
     y = self.x / 10
-    z: Int
+    z: S32
     a: Boolean
     
     constructor(self) {
@@ -304,7 +304,7 @@ An example:
 
 ```emerge
 var global: Any? = null
-mutable fun foo(x: immutable Array<Int>) {
+mutable fun foo(x: immutable Array<S32>) {
     set global = x
 }
 
@@ -320,7 +320,7 @@ You'll notice that the array mutation doesn't capture the `ints` variable, even 
 call as well. This is because the set method borrows the array:
 
 ```emerge
-intrinsic mutable fun set(borrow self: mutable Array<Int>, value: Int) -> Unit
+intrinsic mutable fun set(borrow self: mutable Array<S32>, value: S32) -> Unit
 ```
 
 #### Exposing the `exclusive` mutability to the language
@@ -338,11 +338,11 @@ putting it together:
 
 ```emerge
 class Foo {
-    x: Int = init
-    y: Int = init
-    z: Int = 0
+    x: S32 = init
+    y: S32 = init
+    z: S32 = 0
     
-    fun of(value: Int) -> exclusive Foo {
+    fun of(value: S32) -> exclusive Foo {
         derived = deriveWithComplexCalculation(value)
         exclusive foo = Foo(value, derived)
         foo.z = 13
@@ -386,8 +386,8 @@ fun reduce(readonly self: List<out T> + !Empty, reductor: (T, T) -> T) -> T {
 
 And callers would then first have to check for that property, smart-casts enabling sane UX:
 ```
-val myList: List<Int>
-val result: Int = if (myList !is Empty) myList.reduce(Int::plus) else 0
+val myList: List<S32>
+val result: S32 = if (myList !is Empty) myList.reduce(S32::plus) else 0
 ```
 
 Properties could also subtype each other, meaning that one property implies the other:

@@ -10,7 +10,7 @@ class MutabilityErrors : FreeSpec({
         "members cannot be mutated" {
             validateModule("""
                 class X {
-                    var a: Int = init
+                    var a: S32 = init
                 }
                 fun test() {
                     myX = X(2)
@@ -23,7 +23,7 @@ class MutabilityErrors : FreeSpec({
         "cannot be assigned to a mutable reference" {
             validateModule("""
                 class X {
-                    a: Int = init
+                    a: S32 = init
                 }
                 fun test() {
                     myX = X(2)
@@ -38,7 +38,7 @@ class MutabilityErrors : FreeSpec({
         "can be assigned to an immutable reference" {
             validateModule("""
                 class X {
-                    a: Int = init
+                    a: S32 = init
                 }
                 fun test() {
                     myX = X(2)
@@ -52,7 +52,7 @@ class MutabilityErrors : FreeSpec({
         "prohibits writes to immutable element" {
             validateModule("""
                 class A {
-                    someVal: Int = init
+                    someVal: S32 = init
                 }
                 class B<T> {
                     genericVal: T = init
@@ -74,7 +74,7 @@ class MutabilityErrors : FreeSpec({
         "mutable value to immutable parameter" {
             validateModule("""
                 class S {
-                    field: Int
+                    field: S32
                 }
                 fun foo(p: immutable S) {}
                 fun test(p: mutable S) {
@@ -89,7 +89,7 @@ class MutabilityErrors : FreeSpec({
         "readonly value to mutable parameter" {
             validateModule("""
                 class S {
-                    field: Int
+                    field: S32
                 }
                 fun foo(p: mutable S) {}
                 fun test(p: readonly S) {
@@ -104,7 +104,7 @@ class MutabilityErrors : FreeSpec({
         "readonly value to immutable parameter" {
             validateModule("""
                 class S {
-                    field: Int
+                    field: S32
                 }
                 fun foo(p: immutable S) {}
                 fun test(p: readonly S) {
@@ -119,7 +119,7 @@ class MutabilityErrors : FreeSpec({
         "immutable value to mutable parameter" {
             validateModule("""
                 class S {
-                    field: Int
+                    field: S32
                 }
                 fun foo(p: mutable S) {}
                 fun test(p: immutable S) {
@@ -134,7 +134,7 @@ class MutabilityErrors : FreeSpec({
         "mutable value to exclusive parameter" {
             validateModule("""
                 class S {
-                    field: Int = init
+                    field: S32 = init
                 }
                 fun foo(p: exclusive S) {}
                 fun test(p: mutable S) {
@@ -149,7 +149,7 @@ class MutabilityErrors : FreeSpec({
         "readonly value to exclusive parameter" {
             validateModule("""
                 class S {
-                    field: Int = init
+                    field: S32 = init
                 }
                 fun foo(p: exclusive S) {}
                 fun test(p: readonly S) {
@@ -164,7 +164,7 @@ class MutabilityErrors : FreeSpec({
         "immutable value to exclusive parameter" {
             validateModule("""
                 class S {
-                    field: Int = init
+                    field: S32 = init
                 }
                 fun foo(p: exclusive S) {}
                 fun test(p: immutable S) {

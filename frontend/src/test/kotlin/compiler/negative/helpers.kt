@@ -85,12 +85,27 @@ class IntegrationTestModule(
     }
 }
 
-fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext, Collection<Reporting>> {
+fun emptySoftwareContext(validate: Boolean = true): SoftwareContext {
     val swCtxt = SoftwareContext()
     defaultModulesParsed.forEach { (moduleName, sources) ->
         val moduleCtx = swCtxt.registerModule(moduleName)
         sources.forEach(moduleCtx::addSourceFile)
     }
+
+    if (validate) {
+        swCtxt
+            .doSemanticAnalysis()
+            .find { it.level >= Reporting.Level.ERROR }
+            ?.let {
+                error("SoftwareContext without any user code contains errors:\n$it")
+            }
+    }
+
+    return swCtxt
+}
+
+fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext, Collection<Reporting>> {
+    val swCtxt = emptySoftwareContext(false)
 
     val lexicalReportings = mutableListOf<Reporting>()
     modules.forEach { module ->

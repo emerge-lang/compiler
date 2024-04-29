@@ -37,8 +37,8 @@ class ClassErrors : FreeSpec({
     "duplicate member" {
         validateModule("""
             class X {
-                a: Int
-                b: Int
+                a: S32
+                b: S32
                 a: Boolean
             }
         """.trimIndent())
@@ -62,7 +62,7 @@ class ClassErrors : FreeSpec({
     "calling a constructor with incorrect argument types" {
         validateModule("""
             class X {
-                a: Int = init
+                a: S32 = init
             }
             
             fun foo() {
@@ -82,7 +82,7 @@ class ClassErrors : FreeSpec({
         "class member variables must be initialized" {
             validateModule("""
                 class Foo {
-                    x: Int
+                    x: S32
                 }
             """.trimIndent())
                 .shouldReport<ClassMemberVariableNotInitializedDuringObjectConstructionReporting>()
@@ -91,7 +91,7 @@ class ClassErrors : FreeSpec({
         "members can be initialized in the custom constructor by assignment" {
             validateModule("""
                 class Foo {
-                    x: Int
+                    x: S32
                     
                     constructor {
                         set self.x = 3
@@ -104,9 +104,9 @@ class ClassErrors : FreeSpec({
         "class member variable initializers are pure" - {
             "cannot read" {
                 validateModule("""
-                    var x: Int = 3
+                    var x: S32 = 3
                     class Foo {
-                        y: Int = x
+                        y: S32 = x
                     }
                 """.trimIndent())
                     .shouldReport<ReadInPureContextReporting>()
@@ -114,9 +114,9 @@ class ClassErrors : FreeSpec({
 
             "cannot call readonly functions" {
                 validateModule("""
-                    intrinsic readonly fun bar() -> Int
+                    intrinsic readonly fun bar() -> S32
                     class Foo {
-                        x: Int = bar()
+                        x: S32 = bar()
                     }
                 """.trimIndent())
                     .shouldReport<ImpureInvocationInPureContextReporting>()
@@ -128,7 +128,7 @@ class ClassErrors : FreeSpec({
         "cannot declare ownership" {
             validateModule("""
                 class Foo {
-                    borrow x: Int
+                    borrow x: S32
                 }
             """.trimIndent())
                 .shouldReport<ExplicitOwnershipNotAllowedReporting>()
@@ -228,8 +228,8 @@ class ClassErrors : FreeSpec({
             "constructor cannot use that member variables" {
                 validateModule("""
                     class Foo {
-                        x: Int
-                        y: Int = 2
+                        x: S32
+                        y: S32 = 2
                         
                         constructor {
                             doSomething(self.y)
@@ -239,7 +239,7 @@ class ClassErrors : FreeSpec({
                         }
                     }
                     
-                    fun doSomething(p: Int) {}
+                    fun doSomething(p: S32) {}
                 """.trimIndent())
                     .shouldReport<UseOfUninitializedClassMemberVariableReporting> {
                         it.member.name.value shouldBe "x"
@@ -249,8 +249,8 @@ class ClassErrors : FreeSpec({
             "constructor cannot use self" {
                 validateModule("""
                     class Foo {
-                        x: Int
-                        y: Int = 2
+                        x: S32
+                        y: S32 = 2
                         
                         constructor {
                             doSomething(self)
@@ -273,7 +273,7 @@ class ClassErrors : FreeSpec({
                 validateModule("""
                     class Foo {
                         cond: Boolean = init
-                        x: Int
+                        x: S32
                         
                         constructor {
                             if self.cond {
@@ -283,7 +283,7 @@ class ClassErrors : FreeSpec({
                         }
                     }
                     
-                    fun doSomething(p: Int) {}
+                    fun doSomething(p: S32) {}
                 """.trimIndent())
                     .shouldReport<UseOfUninitializedClassMemberVariableReporting> {
                         it.member.name.value shouldBe "x"
@@ -294,7 +294,7 @@ class ClassErrors : FreeSpec({
                 validateModule("""
                     class Foo {
                         cond: Boolean = init
-                        x: Int
+                        x: S32
                         
                         constructor {
                             if self.cond {
@@ -318,7 +318,7 @@ class ClassErrors : FreeSpec({
                 validateModule("""
                     class Foo {
                         cond: Boolean = init
-                        x: Int
+                        x: S32
                         
                         constructor {
                             if self.cond {
@@ -330,7 +330,7 @@ class ClassErrors : FreeSpec({
                         }
                     }
                     
-                    fun doSomething(p: Int) {}
+                    fun doSomething(p: S32) {}
                 """.trimIndent())
                     .shouldHaveNoDiagnostics()
             }
@@ -339,7 +339,7 @@ class ClassErrors : FreeSpec({
                 validateModule("""
                     class Foo {
                         cond: Boolean = init
-                        x: Int
+                        x: S32
                         
                         constructor {
                             if self.cond {
@@ -361,10 +361,10 @@ class ClassErrors : FreeSpec({
             "constructor is pure by default" - {
                 "cannot read global state" {
                     validateModule("""
-                        intrinsic readonly fun foo() -> Int
-                        x: Int = foo()
+                        intrinsic readonly fun foo() -> S32
+                        x: S32 = foo()
                         class Test {
-                            y: Int
+                            y: S32
                             constructor {
                                 set self.y = x
                             }
@@ -375,7 +375,7 @@ class ClassErrors : FreeSpec({
 
                 "cannot write global state" {
                     validateModule("""
-                        var x: Int = 0
+                        var x: S32 = 0
                         class Test {
                             constructor {
                                 set x = 1
@@ -389,10 +389,10 @@ class ClassErrors : FreeSpec({
             "constructor declared as readonly" - {
                 "can read global state" {
                     validateModule("""
-                        intrinsic readonly fun foo() -> Int
-                        x: Int = foo()
+                        intrinsic readonly fun foo() -> S32
+                        x: S32 = foo()
                         class Test {
-                            y: Int
+                            y: S32
                             readonly constructor {
                                 set self.y = x
                             }
@@ -403,7 +403,7 @@ class ClassErrors : FreeSpec({
 
                 "cannot write global state" {
                     validateModule("""
-                        var x: Int = 0
+                        var x: S32 = 0
                         class Test {
                             readonly constructor {
                                 set x = 1
@@ -461,7 +461,7 @@ class ClassErrors : FreeSpec({
 
         "type parameter name clashes with top level type" {
             validateModule("""
-                class Test<Int> {}
+                class Test<S32> {}
             """.trimIndent())
                 .shouldReport<TypeParameterNameConflictReporting>()
         }
@@ -560,7 +560,7 @@ class ClassErrors : FreeSpec({
         "actually overrides nothing" {
             validateModule("""
                 interface I {
-                    fun foo(self, p: Int)
+                    fun foo(self, p: S32)
                 }
                 class C : I {
                     override fun foo(self, p: String) {
@@ -573,7 +573,7 @@ class ClassErrors : FreeSpec({
         "widening the type of a parameter does not count as overriding" {
             validateModule("""
                 interface I {
-                    fun foo(self, p1: Int)
+                    fun foo(self, p1: S32)
                 }
                 class C : I {
                     override fun foo(self, p1: Any) {}
@@ -585,7 +585,7 @@ class ClassErrors : FreeSpec({
         "return type not compatible" {
             validateModule("""
                 interface I {
-                    fun foo(self) -> Int
+                    fun foo(self) -> S32
                 }
                 class C : I {
                     override fun foo(self) -> String {
@@ -599,10 +599,10 @@ class ClassErrors : FreeSpec({
         "overriding function cannot have more side-effects" {
             validateModule("""
                 interface I {
-                    fun foo(self) -> Int
+                    fun foo(self) -> S32
                 }
                 class C : I {
-                    override readonly fun foo(self) -> Int = 3
+                    override readonly fun foo(self) -> S32 = 3
                 }
             """.trimIndent())
                 .shouldReport<OverrideAddsSideEffectsReporting>()

@@ -7,7 +7,7 @@ class NumberFormatErrors : FreeSpec({
     "integer" - {
         "illegal char" {
             validateModule("""
-                a: Int = 3a
+                a: S32 = 3a
             """.trimIndent())
                 .shouldReport<ErroneousLiteralExpressionReporting>()
         }

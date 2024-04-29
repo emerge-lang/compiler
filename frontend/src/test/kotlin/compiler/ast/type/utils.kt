@@ -26,7 +26,7 @@ import io.mockk.every
 import io.mockk.mockk
 
 fun fakeType(name: String, vararg superTypes: BoundBaseTypeDefinition): BoundBaseTypeDefinition = mockk<BoundBaseTypeDefinition> {
-    every { toString() } returns name
+    every { this@mockk.toString() } returns name
     every { visibility } returns BoundVisibility.ExportedScope(mockk(), mockk())
     every { validateAccessFrom(any()) } returns emptySet()
     every { toStringForErrorMessage() } returns "fake type $name"

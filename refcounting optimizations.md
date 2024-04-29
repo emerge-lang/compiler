@@ -25,9 +25,9 @@ Incrementing the refcount after a constructor invocation would be incorrect and 
 Suppose an object is only used in the stackframe of the function that created it, e.g.:
 
     struct Foo {
-        x: Int
+        x: S32
     }
-    fun main() -> Int {
+    fun main() -> S32 {
         val foo = Foo(3)
         return foo.x
     }
@@ -52,7 +52,7 @@ This even applies when the parameter is passed to another function where its not
 to the object. Consider this code:
 
     struct Foo {
-        x: Int
+        x: S32
     }
 
     fun a(p: Foo) {
@@ -70,7 +70,7 @@ to the object. Consider this code:
         }
     }
 
-    fun main() -> Int {
+    fun main() -> S32 {
         val foo = Foo(3)
         c(foo)
         return foo.x
@@ -118,7 +118,7 @@ the count must be incremented by 1.
 
 So, consider a caller of `a`:
 
-    fun b() -> Int {
+    fun b() -> S32 {
         val foo1 = Foo(2)
         val foo2 = Foo(3)
         val selected = a(foo1, foo2)
