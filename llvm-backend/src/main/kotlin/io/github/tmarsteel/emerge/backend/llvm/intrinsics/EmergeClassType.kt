@@ -19,7 +19,7 @@ import io.github.tmarsteel.emerge.backend.llvm.indexInLlvmStruct
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
-import io.github.tmarsteel.emerge.backend.llvm.signatureHash
+import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
 import org.bytedeco.llvm.global.LLVM
@@ -55,7 +55,8 @@ internal class EmergeClassType private constructor(
                     .asSequence()
                     .flatMap { it.overloads }
                     .filter { it.supportsDynamicDispatch }
-                    .associate { it.signatureHash to it.llvmRef!! }
+                    .flatMap { memberFn -> memberFn.signatureHashes.map { hash -> Pair(hash, memberFn.llvmRef!!) } }
+                    .associate { it }
             }
         )
     }

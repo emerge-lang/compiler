@@ -1,14 +1,16 @@
 package compiler.reportings
 
 import compiler.ast.FunctionDeclaration
+import compiler.binding.basetype.InheritedBoundMemberFunction
 
 class IncompatibleReturnTypeOnOverrideReporting(
     val override: FunctionDeclaration,
+    val superFunction: InheritedBoundMemberFunction,
     private val base: ValueNotAssignableReporting,
 ) : Reporting(
     Level.ERROR,
-    "The return type of this override must be a subtype of the overridden functions return type: ${base.reason}",
+    "The return type of this override is not a subtype the overridden functions return type: ${base.reason}",
     base.sourceLocation,
 ) {
-    override fun toString() = "$levelAndMessage  overridden function returns: ${base.targetType}\n  override returns:            ${base.sourceType}\n\nin $sourceLocation"
+    override fun toString() = "$levelAndMessage  overridden function: ${superFunction.canonicalName}\n  overridden function returns: ${base.targetType}\n  override returns:            ${base.sourceType}\n\nin $sourceLocation"
 }

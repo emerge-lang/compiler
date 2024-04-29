@@ -109,9 +109,9 @@ interface BoundMemberFunction : BoundFunction {
     val isAbstract: Boolean
 
     /**
-     * Becomes meaningful during [semanticAnalysisPhase3]. Only set if [isVirtual]
+     * Becomes meaningful during [semanticAnalysisPhase3].
      */
-    val overrides: InheritedBoundMemberFunction?
+    val overrides: Set<InheritedBoundMemberFunction>?
 
     override fun toBackendIr(): IrMemberFunction
 }

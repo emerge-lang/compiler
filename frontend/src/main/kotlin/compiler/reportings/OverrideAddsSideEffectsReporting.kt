@@ -16,7 +16,7 @@ data class OverrideAddsSideEffectsReporting(
         var str = "${levelAndMessage}\n"
         str += illustrateHints(
             SourceHint(superFunction.purityDeclarationLocation, "overridden function is ${superFunction.purity}"),
-            SourceHint(override.purityDeclarationLocation, "override declared ${override.purity} here"),
+            SourceHint(override.purityDeclarationLocation, "override is ${override.purity}"),
         )
         return str
     }

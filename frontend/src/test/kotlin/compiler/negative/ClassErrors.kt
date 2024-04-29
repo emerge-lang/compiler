@@ -1,7 +1,6 @@
 package compiler.compiler.negative
 
 import compiler.reportings.AbstractInheritedFunctionNotImplementedReporting
-import compiler.reportings.AmbiguousFunctionOverrideReporting
 import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
 import compiler.reportings.ConstructorDeclaredModifyingReporting
 import compiler.reportings.DuplicateBaseTypeMemberReporting
@@ -571,17 +570,16 @@ class ClassErrors : FreeSpec({
                 .shouldReport<SuperFunctionForOverrideNotFoundReporting>()
         }
 
-        "parameter type widening is ambiguous" {
+        "widening the type of a parameter does not count as overriding" {
             validateModule("""
                 interface I {
                     fun foo(self, p1: Int)
-                    fun foo(self, p1: uword)
                 }
                 class C : I {
                     override fun foo(self, p1: Any) {}
                 }
             """.trimIndent())
-                .shouldReport<AmbiguousFunctionOverrideReporting>()
+                .shouldReport<SuperFunctionForOverrideNotFoundReporting>()
         }
 
         "return type not compatible" {

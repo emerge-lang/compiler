@@ -210,9 +210,6 @@ abstract class Reporting internal constructor(
         fun functionDoesNotOverride(function: BoundDeclaredFunction)
             = SuperFunctionForOverrideNotFoundReporting(function.declaration)
 
-        fun ambiguousOverride(function: BoundDeclaredFunction)
-            = AmbiguousFunctionOverrideReporting(function.declaration)
-
         fun undeclaredOverride(function: BoundDeclaredFunction, onSupertype: BaseType)
             = UndeclaredOverrideReporting(function.declaration, onSupertype)
 
@@ -244,8 +241,16 @@ abstract class Reporting internal constructor(
                 return baseReporting
             }
 
-            val overloadsImportedBySupertype = allMemberFns
-                .groupBy { (it as? InheritedBoundMemberFunction ?: it.overrides)?.declaredOnType }
+            val overloadsImportedBySupertype: MutableMap<BaseType?, List<BoundMemberFunction>> = allMemberFns
+                .flatMap { subtypeMemberFn ->
+                    if (subtypeMemberFn is InheritedBoundMemberFunction) {
+                        setOf(subtypeMemberFn)
+                    } else {
+                        subtypeMemberFn.overrides ?: emptySet()
+                    }
+
+                }
+                .groupBy { it.declaredOnType }
                 .toMutableMap()
             overloadsImportedBySupertype.remove(null)
             @Suppress("UNCHECKED_CAST") // the remove(null) right before ensures exactly that

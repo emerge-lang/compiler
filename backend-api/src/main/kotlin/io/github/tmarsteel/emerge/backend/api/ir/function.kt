@@ -19,9 +19,9 @@ interface IrFunction {
 
 interface IrMemberFunction : IrFunction {
     /**
-     * If this is a virtual function override, this points to the function in the supertype that is being overridden.
+     * If this is a virtual function override, this points to the functions that are being overridden.
      */
-    val overrides: IrMemberFunction?
+    val overrides: Set<IrMemberFunction>
 
     /**
      * True if this function can be dynamically dispatched on its receiver (need not always be, though!). This is

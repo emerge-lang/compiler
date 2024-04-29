@@ -9,15 +9,16 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
 
 internal var IrMemberFunction.llvmFunctionType: LlvmFunctionType<*> by tackLateInitState()
-internal val IrMemberFunction.signatureHash: Long by tackLazyVal {
-    var topmostFn = this
-    while (true) {
-        topmostFn = topmostFn.overrides ?: break
+internal val IrMemberFunction.rootSignatureHash: Long by tackLazyVal {
+    check(overrides.isEmpty())
+    calculateSignatureHash(this)
+}
+internal val IrMemberFunction.signatureHashes: Set<Long> by tackLazyVal {
+    if (overrides.isEmpty()) {
+        setOf(rootSignatureHash)
+    } else {
+        overrides.flatMap { it.signatureHashes }.toSet()
     }
-    if (topmostFn === this) {
-        return@tackLazyVal calculateSignatureHash(this)
-    }
-    return@tackLazyVal topmostFn.signatureHash
 }
 
 private fun calculateSignatureHash(fn: IrMemberFunction): Long {

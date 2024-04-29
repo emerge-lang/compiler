@@ -227,7 +227,7 @@ class BoundBaseTypeDefinition(
             val allMemberFunctions = mutableListOf<BoundMemberFunction>()
             entries.asSequence().filterIsInstance<BoundMemberFunction>().forEach {
                 allMemberFunctions.add(it)
-                it.overrides?.let(overriddenInheritedFunctions::add)
+                it.overrides?.forEach(overriddenInheritedFunctions::add)
             }
             superTypes.inheritedMemberFunctions.asSequence()
                 .filter { it !in overriddenInheritedFunctions }
@@ -279,14 +279,16 @@ class BoundBaseTypeDefinition(
             }
 
             if (!kind.memberFunctionsAbstractByDefault) {
-                val memberFunctionsBySuperFunction = memberFunctions.asSequence()
+                val overriddenSuperFns = memberFunctions
+                    .asSequence()
                     .flatMap { it.overloads }
-                    .associateBy { it.overrides }
+                    .flatMap { it.overrides ?: emptyList() }
+                    .toCollection(Collections.newSetFromMap(IdentityHashMap()))
 
                 superTypes.inheritedMemberFunctions
                     .filter { it.isAbstract }
                     .forEach { abstractSuperFn ->
-                        if (abstractSuperFn !in memberFunctionsBySuperFunction) {
+                        if (abstractSuperFn !in overriddenSuperFns) {
                             reportings.add(Reporting.abstractInheritedFunctionNotImplemented(this, abstractSuperFn))
                         }
                     }

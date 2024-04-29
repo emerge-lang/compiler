@@ -7,7 +7,7 @@ class SuperFunctionForOverrideNotFoundReporting(
     val overridingFunction: FunctionDeclaration,
 ) : Reporting(
     Level.ERROR,
-    "Function ${overridingFunction.name.value} doesn't override anything. Check the name and the types.",
+    "Function ${overridingFunction.name.value} doesn't override anything. The types of an overriding function must match exactly.",
     overridingFunction.attributes.first { it is AstFunctionAttribute.Override }.sourceLocation,
 ) {
     override fun equals(other: Any?): Boolean {

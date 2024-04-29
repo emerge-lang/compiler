@@ -8,15 +8,15 @@ import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundParameterList
 import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
-import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeParameter
-import compiler.binding.type.isAssignableTo
 import compiler.lexer.SourceLocation
 import compiler.reportings.IncompatibleReturnTypeOnOverrideReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
+import java.util.Collections
+import java.util.IdentityHashMap
 
 class BoundDeclaredBaseTypeMemberFunction(
     functionRootContext: CTContext,
@@ -46,7 +46,7 @@ class BoundDeclaredBaseTypeMemberFunction(
     override val isVirtual get() = declaresReceiver
     override val isAbstract = !attributes.impliesNoBody && body == null
 
-    override var overrides: InheritedBoundMemberFunction? = null
+    override var overrides: Set<InheritedBoundMemberFunction>? = null
         private set
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
@@ -72,35 +72,34 @@ class BoundDeclaredBaseTypeMemberFunction(
 
         val superFns = findOverriddenFunction()
         if (isDeclaredOverride) {
-            when (superFns.size) {
-                0 -> reportings.add(Reporting.functionDoesNotOverride(this))
-                1 -> { /* awesome, things are as they should be */ }
-                else -> reportings.add(Reporting.ambiguousOverride(this))
+            if (superFns.isEmpty()) {
+                reportings.add(Reporting.functionDoesNotOverride(this))
             }
         } else {
-            when (superFns.size) {
-                0 ->  { /* awesome, things are as they should be */ }
-                else -> {
-                    val supertype = superFns.first().first
-                    reportings.add(Reporting.undeclaredOverride(this, supertype))
-                }
+            if (superFns.isNotEmpty()) {
+                val supertype = superFns.first().declaredOnType
+                reportings.add(Reporting.undeclaredOverride(this, supertype))
             }
         }
 
-        val superFn = superFns.singleOrNull()?.second ?: return
-        overrides = superFn
+        overrides = superFns
 
         returnType?.let { overriddenReturnType ->
-            superFn.returnType?.let { superReturnType ->
-                overriddenReturnType.evaluateAssignabilityTo(superReturnType, overriddenReturnType.sourceLocation ?: SourceLocation.UNKNOWN)
-                    ?.let {
-                        reportings.add(IncompatibleReturnTypeOnOverrideReporting(declaration, it))
-                    }
+            for (superFn in superFns) {
+                superFn.returnType?.let { superReturnType ->
+                    overriddenReturnType.evaluateAssignabilityTo(
+                        superReturnType,
+                        overriddenReturnType.sourceLocation ?: SourceLocation.UNKNOWN
+                    )
+                        ?.let { typeError ->
+                            reportings.add(IncompatibleReturnTypeOnOverrideReporting(declaration, superFn, typeError))
+                        }
+                }
             }
         }
     }
 
-    private fun findOverriddenFunction(): Collection<Pair<BaseType, InheritedBoundMemberFunction>> {
+    private fun findOverriddenFunction(): Set<InheritedBoundMemberFunction> {
         val selfParameterTypes = parameterTypes
             .drop(1) // ignore receiver
             .asElementNotNullable()
@@ -118,13 +117,9 @@ class BoundDeclaredBaseTypeMemberFunction(
                     ?: return@filter false
 
                 selfParameterTypes.asSequence().zip(potentialSuperFnParamTypes.asSequence())
-                    .all { (selfParamType, superParamType) -> superParamType.isAssignableTo(selfParamType) }
+                    .all { (selfParamType, superParamType) -> superParamType == selfParamType }
             }
-            .map { superFn ->
-                val supertype = superFn.declaredOnType
-                Pair(supertype, superFn)
-            }
-            .toList()
+            .toCollection(Collections.newSetFromMap(IdentityHashMap()))
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
@@ -145,7 +140,7 @@ class BoundDeclaredBaseTypeMemberFunction(
                 }
             }
 
-            overrides?.let { superFn ->
+            overrides?.forEach { superFn ->
                 if (!superFn.purity.contains(this.purity)) {
                     reportings.add(Reporting.overrideAddsSideEffects(this, superFn))
                 }
@@ -186,7 +181,7 @@ private class IrMemberFunctionImpl(
     override val returnType by lazy { boundFn.returnType!!.toBackendIr() }
     override val isExternalC = boundFn.attributes.externalAttribute?.ffiName?.value == "C"
     override val body: IrCodeChunk? by lazy { boundFn.body?.toBackendIr() }
-    override val overrides: IrMemberFunction? by lazy { boundFn.overrides?.toBackendIr() }
+    override val overrides: Set<IrMemberFunction> by lazy { (boundFn.overrides ?: emptyList()).map { it.toBackendIr() }.toSet() }
     override val supportsDynamicDispatch = boundFn.isVirtual
     override val declaredOn by lazy { boundFn.declaredOnType.toBackendIr() }
 }

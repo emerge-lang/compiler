@@ -54,7 +54,7 @@ import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.llvmType
-import io.github.tmarsteel.emerge.backend.llvm.signatureHash
+import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
 import io.github.tmarsteel.emerge.backend.llvm.tackLateInitState
 import io.github.tmarsteel.emerge.backend.llvm.tackState
 
@@ -181,7 +181,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         is IrDynamicDispatchFunctionInvocationExpression -> {
             val targetAddr = call(context.registerIntrinsic(getDynamicCallAddress), listOf(
                 expression.dispatchOn.declaration.llvmValue,
-                context.word(expression.function.signatureHash),
+                context.word(expression.function.signatureHashes.first()),
             ))
             val callResult = call(targetAddr, expression.function.llvmFunctionType, expression.arguments.map { it.declaration.llvmValue })
             return ExpressionResult.Value(callResult)
