@@ -84,8 +84,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        3. ~~implement visibility~~
        4. ~~allow finalizer customization~~
     2. add interfaces and inheritance class impls interface
-        1. implement generic supertypes - yey, another logic monstrosity
-        2. add the cast operation
+        * add the cast operation
 24. move intrinsic types 100% into emerge source. Both frontend and backend should
     have the necessary toolset now to still hook in and handle them correctly
 25. implement weak references
@@ -141,6 +140,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     4. deal with the wrapper mutability problem: do types need to be generic on mutability?
     5. add `sealed` interfaces as in Kotlin
 33. general iterable types
+    * implement generic supertypes - yey, another logic monstrosity
     * Like Java Iterable<T>, D ranges, ... ?
     * for each over iterable
 34. for each loops over arrays
