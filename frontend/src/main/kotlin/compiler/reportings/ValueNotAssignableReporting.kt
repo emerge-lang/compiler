@@ -21,6 +21,7 @@ package compiler.reportings
 import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.UnresolvedType
 import compiler.binding.type.isAssignableTo
 import compiler.lexer.SourceLocation
 
@@ -39,7 +40,7 @@ open class ValueNotAssignableReporting(
 
     assignmentLocation: SourceLocation
 ) : Reporting(
-    Level.ERROR,
+    if (targetType is UnresolvedType || sourceType is UnresolvedType) Level.CONSECUTIVE else Level.ERROR,
     "Type mismatch: $reason",
     assignmentLocation
 ) {

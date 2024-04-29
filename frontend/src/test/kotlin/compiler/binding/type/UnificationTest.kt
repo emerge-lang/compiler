@@ -27,7 +27,7 @@ class UnificationTest : FreeSpec({
             )
                 .shouldReport<ValueNotAssignableReporting> {
                     it.sourceType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType shouldBe bool
-                    it.targetType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType shouldBe unit
+                    it.targetType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType shouldBe s32
                 }
         }
 

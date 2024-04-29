@@ -404,7 +404,7 @@ abstract class Reporting internal constructor(
 
         fun conditionIsNotBoolean(condition: BoundExpression<*>, location: SourceLocation): Reporting {
             if (condition.type == null) {
-                return consecutive("The condition must evaluate to Boolean, cannot determine type", location)
+                return consecutive("The condition must evaluate to Bool, cannot determine type", location)
             }
 
             return ConditionNotBooleanReporting(condition, location)

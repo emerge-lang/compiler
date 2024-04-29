@@ -46,7 +46,7 @@ class TypeErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.sourceType.simpleName shouldBe "Boolean"
+                    it.sourceType.simpleName shouldBe "Bool"
                     it.targetType.shouldBeInstanceOf<GenericTypeReference>().simpleName shouldBe "T"
                 }
         }
@@ -76,7 +76,7 @@ class TypeErrors : FreeSpec({
                     }
                 """.trimIndent())
                     .shouldReport<ValueNotAssignableReporting> {
-                        it.sourceType.toString() shouldBe "immutable Boolean"
+                        it.sourceType.toString() shouldBe "immutable Bool"
                         it.targetType.toString() shouldBe "T"
                     }
             }
@@ -85,7 +85,8 @@ class TypeErrors : FreeSpec({
         "reference to generic type with arguments out of bounds" - {
             "unspecified variance" {
                 validateModule("""
-                    class X<T : Number> {}
+                    interface I {}
+                    class X<T : I> {}
                     
                     x: X<Any>
                 """.trimIndent())
@@ -94,7 +95,8 @@ class TypeErrors : FreeSpec({
 
             "out variance" {
                 validateModule("""
-                    class X<out T : Number> {}
+                    interface I {}
+                    class X<out T : I> {}
                     
                     x: X<Any>
                 """.trimIndent())
@@ -103,7 +105,8 @@ class TypeErrors : FreeSpec({
 
             "in variance" {
                 validateModule("""
-                    class X<in T : Number> {}
+                    interface I {}
+                    class X<in T : I> {}
                     
                     x: X<Any>
                 """.trimIndent())
@@ -124,7 +127,7 @@ class TypeErrors : FreeSpec({
         "reference to generic type with too many type arguments when they are required" {
             validateModule("""
                 class X<T> {}
-                x: X<S32, S32, Boolean>
+                x: X<S32, S32, Bool>
             """.trimIndent())
                 .shouldReport<SuperfluousTypeArgumentsReporting> {
                     it.nExpected shouldBe 1
@@ -243,11 +246,11 @@ class TypeErrors : FreeSpec({
 
             "different types" {
                 validateModule("""
-                    x = [1, 1.2, 2, 2.5]
+                    x = [1, 2, 4, 5]
                     y: Array<String> = x
                 """.trimIndent())
                     .shouldReport<ValueNotAssignableReporting> {
-                        it.sourceType.toString() shouldBe "immutable Number"
+                        it.sourceType.toString() shouldBe "immutable S32"
                         it.targetType.toString() shouldBe "immutable String"
                     }
             }
@@ -255,11 +258,11 @@ class TypeErrors : FreeSpec({
 
         "uses element type from expected return" {
             validateModule("""
-                x: Array<Number> = [1, 2, 3, 4]
+                x: Array<S32> = [1, 2, 3, 4]
                 y: Array<String> = x
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.sourceType.toString() shouldBe "immutable Number"
+                    it.sourceType.toString() shouldBe "immutable S32"
                     it.targetType.toString() shouldBe "immutable String"
                 }
         }

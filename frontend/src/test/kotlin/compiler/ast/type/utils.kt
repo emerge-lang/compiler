@@ -18,23 +18,10 @@
 
 package compiler.compiler.ast.type
 
-import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundBaseTypeDefinition
-import compiler.binding.basetype.BoundSupertypeList
+import compiler.binding.context.SoftwareContext
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
-import io.mockk.every
-import io.mockk.mockk
 
-fun fakeType(name: String, vararg superTypes: BoundBaseTypeDefinition): BoundBaseTypeDefinition = mockk<BoundBaseTypeDefinition> {
-    every { this@mockk.toString() } returns name
-    every { visibility } returns BoundVisibility.ExportedScope(mockk(), mockk())
-    every { validateAccessFrom(any()) } returns emptySet()
-    every { toStringForErrorMessage() } returns "fake type $name"
-    every { this@mockk.superTypes } returns mockk<BoundSupertypeList> {
-        every { baseTypes } returns superTypes.toList()
-    }
-    every { canonicalName } returns CanonicalElementName.BaseType(
-        CanonicalElementName.Package(listOf("fake")),
-        name,
-    )
+internal fun SoftwareContext.getTestType(simpleName: String): BoundBaseTypeDefinition {
+    return getPackage(CanonicalElementName.Package(listOf("testmodule")))!!.resolveBaseType(simpleName)!!
 }

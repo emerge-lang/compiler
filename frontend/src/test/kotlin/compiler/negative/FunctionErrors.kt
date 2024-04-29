@@ -64,7 +64,7 @@ class FunctionErrors : FreeSpec({
 
         "parameter name duplicate" {
             validateModule("""
-                fun foo(a: S32, a: Boolean, b: S32) {}
+                fun foo(a: S32, a: Bool, b: S32) {}
             """.trimIndent())
                     .shouldReport<MultipleParameterDeclarationsReporting> {
                         it.firstDeclaration.name.value shouldBe "a"
@@ -123,8 +123,8 @@ class FunctionErrors : FreeSpec({
 
         "overload-set with multiple parameters, none of which has disjoint types, is not valid" {
             validateModule("""
-                fun foo(a: Number, b: Any) {}
-                fun foo(a: Any, b: Number) {}
+                fun foo(a: S32, b: Any) {}
+                fun foo(a: Any, b: S32) {}
             """.trimIndent())
                 .shouldReport<OverloadSetHasNoDisjointParameterReporting>()
         }
@@ -132,7 +132,7 @@ class FunctionErrors : FreeSpec({
         "overload set with multiple parameters, only one of which has disjoint types, is valid" {
             validateModule("""
                 fun foo(a: Any, b: Any, c: S32, d: Any) {}
-                fun foo(a: S32, b: String, c: String, d: Number) {}
+                fun foo(a: S32, b: String, c: String, d: S32) {}
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
         }
@@ -299,7 +299,7 @@ class FunctionErrors : FreeSpec({
 
         "if where only then returns" {
             validateModule("""
-                fun a(p: Boolean) -> S32 {
+                fun a(p: Bool) -> S32 {
                     if p {
                         return 0
                     } else {
@@ -311,7 +311,7 @@ class FunctionErrors : FreeSpec({
 
         "if where only else returns" {
             validateModule("""
-                fun a(p: Boolean) -> S32 {
+                fun a(p: Bool) -> S32 {
                     if p {
                     } else {
                         return 0

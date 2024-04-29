@@ -396,7 +396,7 @@ class EmergeLlvmContext(
                         "emerge.core.ULong" -> EmergeU64ArrayType
                         "emerge.core.iword" -> EmergeSWordArrayType
                         "emerge.core.uword" -> EmergeUWordArrayType
-                        "emerge.core.Boolean" -> EmergeBooleanArrayType
+                        "emerge.core.Bool" -> EmergeBooleanArrayType
                         "emerge.core.Any" -> EmergeArrayBaseType
                         "emerge.core.Number" -> EmergeArrayBaseType
                         else -> EmergeReferenceArrayType

@@ -22,7 +22,7 @@ class VariableErrors : FreeSpec({
                 foo: S32 = false
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.sourceType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType.canonicalName.toString() shouldBe "emerge.core.Boolean"
+                    it.sourceType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType.canonicalName.toString() shouldBe "emerge.core.Bool"
                     it.targetType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType.canonicalName.toString() shouldBe "emerge.core.S32"
                 }
         }
@@ -193,7 +193,7 @@ class VariableErrors : FreeSpec({
 
             "cannot access variable that is only maybe initialized" {
                 validateModule("""
-                    readonly intrinsic fun random() -> Boolean
+                    readonly intrinsic fun random() -> Bool
                     fun doStuff(p: S32) {}
                     readonly fun test() {
                         x: S32
@@ -210,7 +210,7 @@ class VariableErrors : FreeSpec({
 
             "accessing a variable that is initialized in two branches of an if-expression is okay" {
                 validateModule("""
-                    readonly intrinsic fun random() -> Boolean
+                    readonly intrinsic fun random() -> Bool
                     fun doStuff(p: S32) {}
                     readonly fun test() {
                         x: S32
@@ -227,7 +227,7 @@ class VariableErrors : FreeSpec({
 
             "assigning to a assign-once variable that maybe have already been initialized is not allowed" {
                 validateModule("""
-                    readonly intrinsic fun random() -> Boolean
+                    readonly intrinsic fun random() -> Bool
                     fun doStuff(p: S32) {}
                     readonly fun test() {
                         x: S32
@@ -288,7 +288,7 @@ class VariableErrors : FreeSpec({
         "in function - parameter shadowing global" {
             validateModule("""
                 a = 3
-                fun foo(a: Boolean) {
+                fun foo(a: Bool) {
                 }
             """.trimIndent())
                 .shouldReport<MultipleVariableDeclarationsReporting> {

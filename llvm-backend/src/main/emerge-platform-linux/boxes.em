@@ -41,5 +41,5 @@ class UWordBox {
 }
 
 class BooleanBox {
-    value: Boolean = init
+    value: Bool = init
 }

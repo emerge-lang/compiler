@@ -63,6 +63,10 @@ open class BoundNumericLiteral(
             return
         }
 
+        if (!type.baseType.isCoreNumericType) {
+            return
+        }
+
         // assure completed
         type.baseType.semanticAnalysisPhase1()
 

@@ -15,16 +15,16 @@ class LiteralErrors : FreeSpec({
                 }
         }
 
-        "integer literal out of range - expecting byte" {
+        "integer literal out of range - expecting S8" {
             validateModule("""
-                x: Byte = 200
+                x: S8 = 200
             """.trimIndent())
                 .shouldReport<IntegerLiteralOutOfRangeReporting> {
                     it.expectedType shouldBe s8
                 }
         }
 
-        "integer literal out of range - expecting int" {
+        "integer literal out of range - expecting S32" {
             validateModule("""
                 x: S32 = 100000000000000
             """.trimIndent())
@@ -33,18 +33,18 @@ class LiteralErrors : FreeSpec({
                 }
         }
 
-        "integer literal out of range - expecting iword" {
+        "integer literal out of range - expecting SWord" {
             validateModule("""
-                x: iword = 2147483649
+                x: SWord = 2147483649
             """.trimIndent())
                 .shouldReport<IntegerLiteralOutOfRangeReporting> {
                     it.expectedType shouldBe sword
                 }
         }
 
-        "integer literal out of range - expecting uword" {
+        "integer literal out of range - expecting UWord" {
             validateModule("""
-                x: uword = 4294967298
+                x: UWord = 4294967298
             """.trimIndent())
                 .shouldReport<IntegerLiteralOutOfRangeReporting> {
                     it.expectedType shouldBe uword

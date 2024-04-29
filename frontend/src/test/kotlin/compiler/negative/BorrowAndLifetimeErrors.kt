@@ -95,7 +95,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
             validateModule("""
                 class Test {}
                 fun capture(p: Test) {}
-                fun test(cond: Boolean) {
+                fun test(cond: Bool) {
                     v: exclusive _ = Test()
                     if (cond) {
                         v2 = v
@@ -113,7 +113,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
             validateModule("""
                 class Test {}
                 fun capture(p: Test) {}
-                fun test(cond: Boolean) {
+                fun test(cond: Bool) {
                     v: exclusive _ = Test()
                     if (cond) {
                         v2 = v
@@ -132,7 +132,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
             validateModule("""
                 class Test {}
                 fun capture(p: Test) {}
-                fun test(cond: Boolean) {
+                fun test(cond: Bool) {
                     v: exclusive _ = Test()
                     if (cond) {
                         v2 = v
@@ -240,7 +240,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
             validateModule("""
                 class Test {}
                 fun capture(p: immutable Any) {}
-                fun test(cond: Boolean) {
+                fun test(cond: Bool) {
                     var v1: exclusive _ = Test()
                     capture(v1)
                     if cond {
@@ -258,7 +258,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
             validateModule("""
                 class Test {}
                 fun capture(p: immutable Any) {}
-                fun test(cond: Boolean) {
+                fun test(cond: Bool) {
                     var v1: exclusive _ = Test()
                     capture(v1)
                     if cond {

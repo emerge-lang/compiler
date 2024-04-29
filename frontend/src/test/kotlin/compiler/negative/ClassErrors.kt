@@ -39,7 +39,7 @@ class ClassErrors : FreeSpec({
             class X {
                 a: S32
                 b: S32
-                a: Boolean
+                a: Bool
             }
         """.trimIndent())
             .shouldReport<DuplicateBaseTypeMemberReporting> {
@@ -272,7 +272,7 @@ class ClassErrors : FreeSpec({
             "constructor cannot use that member variable" {
                 validateModule("""
                     class Foo {
-                        cond: Boolean = init
+                        cond: Bool = init
                         x: S32
                         
                         constructor {
@@ -293,7 +293,7 @@ class ClassErrors : FreeSpec({
             "constructor cannot use self" {
                 validateModule("""
                     class Foo {
-                        cond: Boolean = init
+                        cond: Bool = init
                         x: S32
                         
                         constructor {
@@ -317,7 +317,7 @@ class ClassErrors : FreeSpec({
             "constructor can use that member variable" {
                 validateModule("""
                     class Foo {
-                        cond: Boolean = init
+                        cond: Bool = init
                         x: S32
                         
                         constructor {
@@ -338,7 +338,7 @@ class ClassErrors : FreeSpec({
             "constructor can use self" {
                 validateModule("""
                     class Foo {
-                        cond: Boolean = init
+                        cond: Bool = init
                         x: S32
                         
                         constructor {

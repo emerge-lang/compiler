@@ -27,7 +27,7 @@ class OperatorOverloadErrors : FreeSpec({
 
     "unary minus declared without operator modifier" {
         validateModule("""
-            intrinsic fun unaryMinus(self: Boolean) -> Boolean
+            intrinsic fun unaryMinus(self: Bool) -> Bool
             fun foo() {
                 x = -false
             }

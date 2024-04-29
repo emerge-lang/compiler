@@ -322,9 +322,8 @@ class BoundBaseTypeDefinition(
     /**
      * True iff this is one of the core scalar types of the language:
      * * all the numeric types, ints and floats
-     * * bool
      */
-    val isCoreScalar: Boolean
+    val isCoreNumericType: Boolean
         get() = this in setOf(
             context.swCtx.s8,
             context.swCtx.u8,
@@ -337,6 +336,15 @@ class BoundBaseTypeDefinition(
             context.swCtx.sword,
             context.swCtx.uword,
             context.swCtx.f32,
+        )
+
+    /**
+     * True iff this is one of the core scalar types of the language:
+     * * all the numeric types, ints and floats
+     * * bool
+     */
+    val isCoreScalar: Boolean
+        get() = isCoreNumericType || this in setOf(
             context.swCtx.bool,
         )
 

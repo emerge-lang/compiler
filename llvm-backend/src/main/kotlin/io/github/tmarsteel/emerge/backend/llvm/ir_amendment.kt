@@ -50,7 +50,7 @@ internal val IrType.llvmValueType: LlvmType? by tackLazyVal {
         "emerge.core.iword",
         "emerge.core.uword" -> EmergeWordType
 
-        "emerge.core.Boolean" -> LlvmBooleanType
+        "emerge.core.Bool" -> LlvmBooleanType
 
         "emerge.ffi.c.COpaquePointer" -> LlvmPointerType(LlvmVoidType)
 

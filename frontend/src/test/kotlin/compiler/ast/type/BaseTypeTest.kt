@@ -19,10 +19,8 @@
 package compiler.compiler.ast.type
 
 import compiler.binding.basetype.BoundBaseTypeDefinition
-import compiler.binding.context.SoftwareContext
 import compiler.compiler.negative.emptySoftwareContext
 import compiler.compiler.negative.validateModule
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 
@@ -123,7 +121,3 @@ class BaseTypeTest : FreeSpec() { init {
         }
     }
 }}
-
-private fun SoftwareContext.getTestType(simpleName: String): BoundBaseTypeDefinition {
-    return getPackage(CanonicalElementName.Package(listOf("testmodule")))!!.resolveBaseType(simpleName)!!
-}
