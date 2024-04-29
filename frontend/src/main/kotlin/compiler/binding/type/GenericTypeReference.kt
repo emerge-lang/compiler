@@ -5,6 +5,7 @@ import compiler.andThen
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
+import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
@@ -12,6 +13,8 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 sealed class GenericTypeReference : BoundTypeReference {
+    abstract val context: CTContext
+
     abstract val original: TypeReference
     abstract val parameter: BoundTypeParameter
     abstract val effectiveBound: BoundTypeReference
@@ -55,7 +58,7 @@ sealed class GenericTypeReference : BoundTypeReference {
             is BoundTypeArgument -> when (assigneeType.variance) {
                 TypeVariance.OUT,
                 TypeVariance.UNSPECIFIED -> unify(assigneeType.type, assignmentLocation, carry)
-                TypeVariance.IN -> unify(BoundTypeParameter.TYPE_PARAMETER_DEFAULT_BOUND, assignmentLocation, carry)
+                TypeVariance.IN -> unify(context.swCtx.typeParameterDefaultBound, assignmentLocation, carry)
             }
             is GenericTypeReference -> {
                 // current assumption: confusing two distinct generics with the same name is not possible, given
@@ -162,6 +165,7 @@ private class NakedGenericTypeReference(
     override val original: TypeReference,
     override val parameter: BoundTypeParameter,
 ) : GenericTypeReference() {
+    override val context = parameter.context
     override val effectiveBound: BoundTypeReference
         get() = parameter.bound
 }
@@ -170,12 +174,15 @@ private class ResolvedBoundGenericTypeReference(
     override val original: TypeReference,
     override val parameter: BoundTypeParameter,
     override val effectiveBound: BoundTypeReference,
-) : GenericTypeReference()
+) : GenericTypeReference() {
+    override val context = parameter.context
+}
 
 private class MappedEffectiveBoundGenericTypeReference private constructor(
     private val delegate: GenericTypeReference,
     private val mapper: (BoundTypeReference) -> BoundTypeReference,
 ) : GenericTypeReference() {
+    override val context = delegate.context
     override val original = delegate.original
     override val parameter = delegate.parameter
     override val effectiveBound by lazy {

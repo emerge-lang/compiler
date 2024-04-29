@@ -5,35 +5,38 @@ import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance.IN
 import compiler.ast.type.TypeVariance.OUT
 import compiler.ast.type.TypeVariance.UNSPECIFIED
-import compiler.binding.context.SoftwareContext
-import compiler.binding.type.BaseType
+import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.lexer.SourceLocation
 import compiler.reportings.ValueNotAssignableReporting
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.Matcher
 import io.kotest.matchers.MatcherResult
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNot
+import io.mockk.every
 import io.mockk.mockk
-import compiler.binding.type.BuiltinInt as BuiltinIntType
-import compiler.binding.type.BuiltinNumber as BuiltinNumberType
-
 
 class VarianceErrors : FreeSpec({
-    val swCtx = SoftwareContext()
-    swCtx.registerModule(CoreIntrinsicsModule.NAME)
-    CoreIntrinsicsModule.amendCoreModuleIn(swCtx)
+    val swCtx = validateModule("""
+        interface Parent {}
+        interface Child : Parent {}
+    """.trimIndent()).first
+    val ctCtx = mockk<CTContext> {
+        every { swCtx } returns swCtx
+    }
 
-    val Parent = BuiltinNumberType
-    val Child = BuiltinIntType
+    val Parent = swCtx.getPackage(CanonicalElementName.Package(listOf("testmodule")))!!.types.single { it.simpleName == "Parent" }
+    val Child = swCtx.getPackage(CanonicalElementName.Package(listOf("testmodule")))!!.types.single { it.simpleName == "Parent" }
 
-    fun varIn(t: BaseType) = BoundTypeArgument(mockk(), IN, t.baseReference)
-    fun varOut(t: BaseType) = BoundTypeArgument(mockk(), OUT, t.baseReference)
-    fun varExact(t: BaseType) = BoundTypeArgument(mockk(), UNSPECIFIED, t.baseReference)
+    fun varIn(t: BoundBaseTypeDefinition) = BoundTypeArgument(ctCtx, mockk(), IN, t.baseReference)
+    fun varOut(t: BoundBaseTypeDefinition) = BoundTypeArgument(ctCtx, mockk(), OUT, t.baseReference)
+    fun varExact(t: BoundBaseTypeDefinition) = BoundTypeArgument(ctCtx, mockk(), UNSPECIFIED, t.baseReference)
 
     fun arrayOf(element: BoundTypeArgument): BoundTypeReference = RootResolvedTypeReference(
         TypeReference("Array"),

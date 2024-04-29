@@ -24,8 +24,8 @@ import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
+import compiler.binding.basetype.BoundBaseTypeDefinition
 import compiler.binding.context.effect.EphemeralStateClass
-import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
@@ -76,14 +76,14 @@ interface CTContext {
      */
     val visibility: BoundVisibility
 
-    fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean = false): BaseType?
+    fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean = false): BoundBaseTypeDefinition?
 
     fun resolveTypeParameter(simpleName: String): BoundTypeParameter?
 
     val allTypeParameters: Sequence<BoundTypeParameter>
 
     fun resolveType(ref: TypeArgument): BoundTypeArgument {
-        return BoundTypeArgument(ref, ref.variance, resolveType(ref))
+        return BoundTypeArgument(this, ref, ref.variance, resolveType(ref))
     }
 
     fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean = false): BoundTypeReference

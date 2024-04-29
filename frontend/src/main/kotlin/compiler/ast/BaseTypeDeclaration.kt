@@ -18,6 +18,7 @@
 
 package compiler.ast
 
+import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
 import compiler.ast.AstSupertypeList.Companion.bindTo
 import compiler.ast.type.TypeArgument
@@ -40,7 +41,6 @@ import compiler.binding.context.MutableCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeParameter.Companion.chain
-import compiler.binding.type.BuiltinAny
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
@@ -121,7 +121,7 @@ data class AstSupertypeList(
             getTypeDef: () -> BoundBaseTypeDefinition,
         ): BoundSupertypeList {
             val effectiveSupertypes = this?.typeRefs
-                ?: listOf(TypeReference(IdentifierToken(BuiltinAny.simpleName, typeDeclaredAt.deriveGenerated())))
+                ?: listOf(TypeReference(IdentifierToken(CoreIntrinsicsModule.ANY_TYPE_NAME.simpleName, typeDeclaredAt.deriveGenerated())))
             val boundSupertypes = effectiveSupertypes.map { SourceBoundSupertypeDeclaration(typeRootContext, getTypeDef, it) }
 
             return BoundSupertypeList(boundSupertypes, getTypeDef)

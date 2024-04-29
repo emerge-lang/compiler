@@ -18,18 +18,21 @@
 
 package compiler.binding.basetype
 
+import compiler.InternalCompilerError
 import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
 import compiler.ast.CodeChunk
+import compiler.ast.type.TypeReference
 import compiler.binding.BoundElement
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVisibility
+import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
-import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeParameter
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.SourceLocation
@@ -42,26 +45,32 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
 import kotlinext.duplicatesBy
+import kotlinext.get
 import java.util.Collections
 import java.util.IdentityHashMap
 
+// TODO: rename to BoundBaseType
 class BoundBaseTypeDefinition(
     private val fileContext: CTContext,
     private val typeRootContext: CTContext,
     val kind: Kind,
     override val visibility: BoundVisibility,
-    override val typeParameters: List<BoundTypeParameter>,
-    override val superTypes: BoundSupertypeList,
+    val typeParameters: List<BoundTypeParameter>,
+    val superTypes: BoundSupertypeList,
     override val declaration: BaseTypeDeclaration,
     val entries: List<BoundBaseTypeEntry<*>>,
-) : BaseType, BoundElement<BaseTypeDeclaration> {
+) : BoundElement<BaseTypeDeclaration>, DefinitionWithVisibility {
     private val seanHelper = SeanHelper()
 
     override val context: CTContext = fileContext
-    override val canonicalName by lazy {
+    val canonicalName: CanonicalElementName.BaseType by lazy {
         CanonicalElementName.BaseType(context.sourceFile.packageName, declaration.name.value)
     }
-    override val simpleName: String = declaration.name.value
+    val simpleName: String = declaration.name.value
+    val baseReference: RootResolvedTypeReference
+        get() = RootResolvedTypeReference(TypeReference(this.simpleName), this, typeParameters.map {
+            throw InternalCompilerError("cannot use baseReference on types with parameters")
+        })
 
     val memberVariables: List<BoundBaseTypeMemberVariable> = entries.filterIsInstance<BoundBaseTypeMemberVariable>()
     val declaredConstructors: Sequence<BoundClassConstructor> = entries.asSequence().filterIsInstance<BoundClassConstructor>()
@@ -71,14 +80,14 @@ class BoundBaseTypeDefinition(
      * Always `null` if [Kind.hasCtorsAndDtors] is `false`. If `true`, is initialized in
      * [semanticAnalysisPhase1] to a given declaration or a generated one.
      */
-    override var constructor: BoundClassConstructor? = null
+    var constructor: BoundClassConstructor? = null
         private set
 
     /**
      * Always `null` if [Kind.hasCtorsAndDtors] is `false`. If `true`, is initialized in
      * [semanticAnalysisPhase1] to a given declaration or a generated one.
      */
-    override var destructor: BoundClassDestructor? = null
+    var destructor: BoundClassDestructor? = null
         private set
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
@@ -184,8 +193,17 @@ class BoundBaseTypeDefinition(
 
 
     private lateinit var allMemberFunctionOverloadSetsByName: Map<String, Collection<BoundOverloadSet<BoundMemberFunction>>>
+    val memberFunctions: Collection<BoundOverloadSet<BoundMemberFunction>>
+        get() {
+            seanHelper.requirePhase2Done()
+            if (!this::allMemberFunctionOverloadSetsByName.isInitialized) {
+                return emptySet()
+            }
 
-    override fun resolveMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> {
+            return allMemberFunctionOverloadSetsByName.values.flatten()
+        }
+    /** @return The member function overloads for the given name or an empty collection if no such member function is defined. */
+    fun resolveMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> {
         semanticAnalysisPhase2()
         if (!this::allMemberFunctionOverloadSetsByName.isInitialized) {
             return emptySet()
@@ -195,15 +213,7 @@ class BoundBaseTypeDefinition(
             .filter { it.canonicalName.simpleName == name }
     }
 
-    override val memberFunctions: Collection<BoundOverloadSet<BoundMemberFunction>>
-        get() {
-            seanHelper.requirePhase2Done()
-            if (!this::allMemberFunctionOverloadSetsByName.isInitialized) {
-                return emptySet()
-            }
-
-            return allMemberFunctionOverloadSetsByName.values.flatten()
-        }
+    fun resolveMemberVariable(name: String): BoundBaseTypeMemberVariable? = memberVariables.find { it.name == name }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return seanHelper.phase2 {
@@ -304,12 +314,27 @@ class BoundBaseTypeDefinition(
 
     override fun toStringForErrorMessage() = "class $simpleName"
 
-    override fun resolveMemberVariable(name: String): BoundBaseTypeMemberVariable? = memberVariables.find { it.name == name }
-
     private val backendIr by lazy { kind.toBackendIr(this) }
-    override fun toBackendIr(): IrBaseType = backendIr
+    fun toBackendIr(): IrBaseType = backendIr
 
     override fun toString() = "${kind.name.lowercase()} $canonicalName"
+
+    /**
+     * If true, values of this type can by design not change. This is the case for primitives like booleans
+     * and ints, but could also apply to classes who are declared as "immutable".
+     */
+    val isAtomic: Boolean
+        get() = TODO("implement")
+
+    /** @return Whether this type is the same as or a subtype of the given type. */
+    infix fun isSubtypeOf(other: BoundBaseTypeDefinition): Boolean {
+        if (other === this) return true
+        if (other === context.swCtx.nothing) return false
+
+        return superTypes.baseTypes
+            .map { it.isSubtypeOf(other) }
+            .fold(false, Boolean::or)
+    }
 
     enum class Kind(
         val namePlural: String,
@@ -325,6 +350,70 @@ class BoundBaseTypeDefinition(
         fun toBackendIr(typeDef: BoundBaseTypeDefinition): IrBaseType = when(this) {
             CLASS -> IrClassImpl(typeDef)
             INTERFACE -> IrInterfaceImpl(typeDef)
+        }
+    }
+
+    companion object {
+        /**
+         * Suppose
+         *
+         *     class A
+         *     class AB : A
+         *     class ABC : AB
+         *     class C
+         *
+         * then these are the closest common ancestors:
+         *
+         * | Types       | Closes common ancestor |
+         * | ----------- | ---------------------- |
+         * | A, AB       | A                      |
+         * | AB, ABC     | AB                     |
+         * | A, ABC      | A                      |
+         * | C, A        | Any                    |
+         * | AB, C       | Any                    |
+         *
+         * @return the most specific type that all the given types can be assigned to
+         */
+        fun closestCommonSupertypeOf(types: List<BoundBaseTypeDefinition>): BoundBaseTypeDefinition {
+            if (types.isEmpty()) throw IllegalArgumentException("At least one type must be provided")
+
+            val typesExcludingNothing = types.filter { it !== it.context.swCtx.nothing }
+            if (typesExcludingNothing.isEmpty()) {
+                return types.first() // is definitely the nothing type, just checked
+            }
+            if (typesExcludingNothing.size == 1) {
+                return typesExcludingNothing[0]
+            }
+
+            var pivot = typesExcludingNothing[0]
+            for (_type in typesExcludingNothing[1..<typesExcludingNothing.size]) {
+                var type = _type
+                var swapped = false
+                while (!(type isSubtypeOf pivot)) {
+                    if (pivot.superTypes.baseTypes.isEmpty()) return pivot.context.swCtx.any
+                    if (pivot.superTypes.baseTypes.size > 1) {
+                        if (swapped) {
+                            return pivot.context.swCtx.any
+                        }
+                        val temp = pivot
+                        pivot = type
+                        type = temp
+                        swapped = true
+                    }
+                    else {
+                        pivot = pivot.superTypes.baseTypes.first()
+                    }
+                }
+            }
+
+            return pivot
+        }
+
+        /**
+         * @see [closestCommonSupertypeOf]
+         */
+        fun closestCommonSupertypeOf(vararg types: BoundBaseTypeDefinition): BoundBaseTypeDefinition {
+            return closestCommonSupertypeOf(types.asList())
         }
     }
 }

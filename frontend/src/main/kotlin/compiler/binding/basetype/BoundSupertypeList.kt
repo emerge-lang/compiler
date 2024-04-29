@@ -3,20 +3,19 @@ package compiler.binding.basetype
 import compiler.binding.BoundMemberFunction
 import compiler.binding.SeanHelper
 import compiler.binding.SemanticallyAnalyzable
-import compiler.binding.type.BaseType
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.reportings.Reporting
 
 class BoundSupertypeList(
     val clauses: List<BoundSupertypeDeclaration>,
-    getTypeDef: () -> BaseType,
+    getTypeDef: () -> BoundBaseTypeDefinition,
 ) : SemanticallyAnalyzable {
     private val typeDef by lazy(getTypeDef)
 
     private val seanHelper = SeanHelper()
 
     /** the base types that are being extended from, initialized in [semanticAnalysisPhase1] */
-    lateinit var baseTypes: List<BaseType>
+    lateinit var baseTypes: List<BoundBaseTypeDefinition>
         private set
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
@@ -44,7 +43,7 @@ class BoundSupertypeList(
                 reportings.addAll(it.semanticAnalysisPhase2())
             }
 
-            val distinctSuperBaseTypes = mutableSetOf<BaseType>()
+            val distinctSuperBaseTypes = mutableSetOf<BoundBaseTypeDefinition>()
             val distinctSupertypes = ArrayList<RootResolvedTypeReference>(clauses.size)
             for (clause in clauses) {
                 val resolvedReference = clause.resolvedReference ?: continue

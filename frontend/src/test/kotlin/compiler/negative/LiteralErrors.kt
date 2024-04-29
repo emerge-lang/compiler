@@ -1,9 +1,5 @@
 package compiler.compiler.negative
 
-import compiler.binding.type.BuiltinByte
-import compiler.binding.type.BuiltinInt
-import compiler.binding.type.BuiltinSignedWord
-import compiler.binding.type.BuiltinUnsignedWord
 import compiler.reportings.IntegerLiteralOutOfRangeReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
@@ -15,7 +11,7 @@ class LiteralErrors : FreeSpec({
                 x = 100000000000000
             """.trimIndent())
                 .shouldReport<IntegerLiteralOutOfRangeReporting> {
-                    it.expectedType shouldBe BuiltinInt
+                    it.expectedType shouldBe s32
                 }
         }
 
@@ -24,7 +20,7 @@ class LiteralErrors : FreeSpec({
                 x: Byte = 200
             """.trimIndent())
                 .shouldReport<IntegerLiteralOutOfRangeReporting> {
-                    it.expectedType shouldBe BuiltinByte
+                    it.expectedType shouldBe s8
                 }
         }
 
@@ -33,7 +29,7 @@ class LiteralErrors : FreeSpec({
                 x: Int = 100000000000000
             """.trimIndent())
                 .shouldReport<IntegerLiteralOutOfRangeReporting> {
-                    it.expectedType shouldBe BuiltinInt
+                    it.expectedType shouldBe s32
                 }
         }
 
@@ -42,7 +38,7 @@ class LiteralErrors : FreeSpec({
                 x: iword = 2147483649
             """.trimIndent())
                 .shouldReport<IntegerLiteralOutOfRangeReporting> {
-                    it.expectedType shouldBe BuiltinSignedWord
+                    it.expectedType shouldBe sword
                 }
         }
 
@@ -51,7 +47,7 @@ class LiteralErrors : FreeSpec({
                 x: uword = 4294967298
             """.trimIndent())
                 .shouldReport<IntegerLiteralOutOfRangeReporting> {
-                    it.expectedType shouldBe BuiltinUnsignedWord
+                    it.expectedType shouldBe uword
                 }
         }
     }

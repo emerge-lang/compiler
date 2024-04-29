@@ -91,7 +91,6 @@ fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext
         val moduleCtx = swCtxt.registerModule(moduleName)
         sources.forEach(moduleCtx::addSourceFile)
     }
-    CoreIntrinsicsModule.amendCoreModuleIn(swCtxt)
 
     val lexicalReportings = mutableListOf<Reporting>()
     modules.forEach { module ->
@@ -135,8 +134,10 @@ fun validateModule(
 
 // TODO: most test cases expect EXACTLY one reporting, extra reportings are out-of-spec. This one lets extra reportings pass :(
 // the trick is finding the test that actually want more than one reporting and adapting that test code
-inline fun <reified T : Reporting> Pair<SoftwareContext, Collection<Reporting>>.shouldReport(additional: (T) -> Unit = {}): Pair<SoftwareContext, Collection<Reporting>> {
-    second.shouldReport<T>(additional)
+inline fun <reified T : Reporting> Pair<SoftwareContext, Collection<Reporting>>.shouldReport(additional: SoftwareContext.(T) -> Unit = {}): Pair<SoftwareContext, Collection<Reporting>> {
+    second.shouldReport<T> {
+        first.additional(it)
+    }
     return this
 }
 

@@ -21,19 +21,11 @@ package compiler.binding.expression
 import compiler.InternalCompilerError
 import compiler.ast.expression.NumericLiteralExpression
 import compiler.binding.BoundStatement
+import compiler.binding.basetype.BoundBaseTypeDefinition
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.BuiltinByte
-import compiler.binding.type.BuiltinInt
-import compiler.binding.type.BuiltinLong
-import compiler.binding.type.BuiltinNumber
-import compiler.binding.type.BuiltinSignedWord
-import compiler.binding.type.BuiltinType
-import compiler.binding.type.BuiltinUByte
-import compiler.binding.type.BuiltinUInt
-import compiler.binding.type.BuiltinULong
-import compiler.binding.type.BuiltinUnsignedWord
+import compiler.binding.type.CoreTypes
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -65,22 +57,14 @@ open class BoundNumericLiteral(
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> = emptySet()
 
-    protected var expectedNumericType: BuiltinType? = null
+    protected var expectedNumericType: BoundBaseTypeDefinition? = null
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         if (type !is RootResolvedTypeReference) {
             return
         }
 
-        if (type.baseType !is BuiltinType) {
-            return
-        }
-
         // assure completed
         type.baseType.semanticAnalysisPhase1()
-
-        if (!type.baseType.isSubtypeOf(BuiltinNumber)) {
-            return
-        }
 
         expectedNumericType = type.baseType
     }
@@ -99,14 +83,14 @@ class BoundIntegerLiteral(
     val integer: BigInteger,
     reportings: Collection<Reporting>
 ) : BoundNumericLiteral(context, declaration, reportings) {
-    override var type = BuiltinInt.baseReference
+    override var type = context.swCtx.s32.baseReference
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
         if (expectedNumericType == null) {
-            if (integer !in BuiltinInt.MIN .. BuiltinInt.MAX) {
+            if (integer !in CoreTypes.S32_RANGE) {
                 reportings.add(Reporting.integerLiteralOutOfRange(
-                    declaration, BuiltinInt, BuiltinInt.MIN .. BuiltinInt.MAX
+                    declaration, context.swCtx.s32, CoreTypes.S32_RANGE
                 ))
             }
             return reportings
@@ -114,14 +98,16 @@ class BoundIntegerLiteral(
 
         expectedNumericType?.let { expectedType ->
             val range: ClosedRange<BigInteger> = when (expectedType) {
-                BuiltinByte -> BuiltinByte.MIN .. BuiltinByte.MAX
-                BuiltinUByte -> BuiltinUByte.MIN .. BuiltinUByte.MAX
-                BuiltinInt -> BuiltinInt.MIN .. BuiltinInt.MAX
-                BuiltinUInt -> BuiltinUInt.MIN .. BuiltinUInt.MAX
-                BuiltinLong -> BuiltinLong.MIN .. BuiltinLong.MAX
-                BuiltinULong -> BuiltinULong.MIN .. BuiltinULong.MAX
-                BuiltinSignedWord -> BuiltinSignedWord.SAFE_MIN .. BuiltinSignedWord.SAFE_MAX
-                BuiltinUnsignedWord -> BuiltinUnsignedWord.SAFE_MIN .. BuiltinUnsignedWord.SAFE_MAX
+                context.swCtx.s8 -> CoreTypes.S8_RANGE
+                context.swCtx.u8 -> CoreTypes.U8_RANGE
+                context.swCtx.s16 -> CoreTypes.S16_RANGE
+                context.swCtx.u16 -> CoreTypes.U16_RANGE
+                context.swCtx.s32 -> CoreTypes.S32_RANGE
+                context.swCtx.u32 -> CoreTypes.U32_RANGE
+                context.swCtx.s64 -> CoreTypes.S64_RANGE
+                context.swCtx.u64 -> CoreTypes.U64_RANGE
+                context.swCtx.sword -> CoreTypes.SWORD_SAFE_RANGE
+                context.swCtx.uword -> CoreTypes.UWORD_SAFE_RANGE
                 else -> return reportings
             }
 
@@ -151,7 +137,7 @@ class BoundFloatingPointLiteral(
     val float: BigDecimal,
     reportings: Collection<Reporting>
 ) : BoundNumericLiteral(context, declaration, reportings) {
-    override val type = compiler.binding.type.BuiltinFloat.baseReference
+    override val type = context.swCtx.f32.baseReference
 
     override fun toBackendIrExpression(): IrExpression {
         TODO()

@@ -21,7 +21,6 @@ package compiler.binding.expression
 import compiler.ast.expression.BooleanLiteralExpression
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.BuiltinBoolean
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBooleanLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -32,7 +31,7 @@ class BoundBooleanLiteralExpression(
     override val declaration: BooleanLiteralExpression,
     val value: Boolean
 ) : BoundExpression<BooleanLiteralExpression> {
-    override val type: BoundTypeReference = BuiltinBoolean.baseReference
+    override val type: BoundTypeReference = context.swCtx.bool.baseReference
 
     override val isGuaranteedToThrow: Boolean = false
 

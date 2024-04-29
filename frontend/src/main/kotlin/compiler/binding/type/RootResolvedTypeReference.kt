@@ -7,6 +7,7 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
+import compiler.binding.basetype.BoundBaseTypeDefinition
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
@@ -22,7 +23,7 @@ class RootResolvedTypeReference private constructor(
     val original: TypeReference?,
     override val isNullable: Boolean,
     private val explicitMutability: TypeMutability?,
-    val baseType: BaseType,
+    val baseType: BoundBaseTypeDefinition,
     val arguments: List<BoundTypeArgument>,
 ) : BoundTypeReference {
     override val mutability = if (baseType.isAtomic) TypeMutability.IMMUTABLE else (explicitMutability ?: original?.mutability ?: TypeMutability.READONLY)
@@ -33,7 +34,7 @@ class RootResolvedTypeReference private constructor(
         TypeUnification.fromExplicit(baseType.typeParameters, arguments, sourceLocation ?: SourceLocation.UNKNOWN)
     }
 
-    constructor(original: TypeReference, baseType: BaseType, parameters: List<BoundTypeArgument>) : this(
+    constructor(original: TypeReference, baseType: BoundBaseTypeDefinition, parameters: List<BoundTypeArgument>) : this(
         original,
         original.nullability == TypeReference.Nullability.NULLABLE,
         original.mutability,
@@ -113,7 +114,7 @@ class RootResolvedTypeReference private constructor(
         return when (other) {
             is UnresolvedType -> other.closestCommonSupertypeWith(this)
             is RootResolvedTypeReference -> {
-                val commonSupertype = BaseType.closestCommonSupertypeOf(this.baseType, other.baseType)
+                val commonSupertype = BoundBaseTypeDefinition.closestCommonSupertypeOf(this.baseType, other.baseType)
                 check(commonSupertype.typeParameters.isEmpty()) { "Generic supertypes are not implemented, yet." }
                 RootResolvedTypeReference(
                     null,

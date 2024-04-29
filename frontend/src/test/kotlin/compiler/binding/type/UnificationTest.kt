@@ -1,7 +1,5 @@
 package compiler.compiler.binding.type
 
-import compiler.binding.type.BuiltinBoolean
-import compiler.binding.type.BuiltinInt
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.compiler.negative.shouldHaveNoDiagnostics
 import compiler.compiler.negative.shouldReport
@@ -24,12 +22,12 @@ class UnificationTest : FreeSpec({
                 class A<T> {
                     prop: T = init
                 }
-                x = A::<Int>(false)
+                x = A::<S32>(false)
             """.trimIndent()
             )
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.sourceType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType shouldBe BuiltinBoolean
-                    it.targetType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType shouldBe BuiltinInt
+                    it.sourceType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType shouldBe bool
+                    it.targetType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType shouldBe unit
                 }
         }
 
@@ -39,12 +37,12 @@ class UnificationTest : FreeSpec({
                 class A<T> {
                     prop: T = init
                 }
-                x: A<Int> = A(false)
+                x: A<S32> = A(false)
             """.trimIndent()
             )
                 .shouldReport<ValueNotAssignableReporting> {
                     it.sourceType.toString() shouldBe "immutable Any"
-                    it.targetType.toString() shouldBe "immutable Int"
+                    it.targetType.toString() shouldBe "immutable S32"
                 }
         }
     }

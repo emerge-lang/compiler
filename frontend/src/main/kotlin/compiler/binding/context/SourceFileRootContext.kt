@@ -9,7 +9,7 @@ import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
-import compiler.binding.type.BaseType
+import compiler.binding.basetype.BoundBaseTypeDefinition
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
@@ -26,7 +26,7 @@ class SourceFileRootContext(
 
     val variables: Collection<BoundVariable> = _variables.values
     val functions: Collection<BoundFunction> = _functions
-    val types: Collection<BaseType> = _types
+    val types: Collection<BoundBaseTypeDefinition> = _types
 
     override fun addDeferredCode(code: Statement) {
         throw InternalCompilerError("Deferred code on source-file level is currently not possible. Maybe implement as global destructors in the future?")
@@ -70,10 +70,11 @@ class SourceFileRootContext(
             override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? = null
             override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean = false
             override fun resolveTypeParameter(simpleName: String): BoundTypeParameter? = null
-            override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BaseType? = null
+            override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BoundBaseTypeDefinition? = null
             override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference = UnresolvedType(
+                this,
                 ref,
-                ref.arguments.map { BoundTypeArgument(it, it.variance, this.resolveType(it.type)) },
+                ref.arguments.map { BoundTypeArgument(this, it, it.variance, this.resolveType(it.type)) },
             )
             override fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet<*>> = emptySet()
 
@@ -105,7 +106,7 @@ class SourceFileRootContext(
             return packageContext.resolveVariable(name)
         }
 
-        override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BaseType? {
+        override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BoundBaseTypeDefinition? {
             if (fromOwnFileOnly) {
                 return EMPTY.resolveBaseType(simpleName, fromOwnFileOnly)
             }

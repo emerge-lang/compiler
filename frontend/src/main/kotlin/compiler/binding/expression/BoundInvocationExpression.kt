@@ -75,7 +75,7 @@ class BoundInvocationExpression(
         private set
 
     /**
-     * [receiverExpression], but `null` iff it is a direct referral to a [BaseType]
+     * [receiverExpression], but `null` iff it is a direct referral to a [BoundBaseTypeDefinition]
      */
     private val receiverExceptReferringType: BoundExpression<*>?
         get() = receiverExpression?.takeUnless { it is BoundIdentifierExpression && it.referral is BoundIdentifierExpression.ReferringType }

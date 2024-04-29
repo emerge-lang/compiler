@@ -32,7 +32,6 @@ import compiler.binding.misc_ir.IrCreateReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.BuiltinAny
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
 import compiler.handleCyclicInvocation
@@ -75,7 +74,7 @@ class BoundVariable(
      */
     private var resolvedDeclaredType: BoundTypeReference? = null
     private val expectedInitializerEvaluationType: BoundTypeReference
-        get() = this.resolvedDeclaredType ?: BuiltinAny.baseReference
+        get() = this.resolvedDeclaredType ?: context.swCtx.unit.baseReference // TODO parens around the elvis??
             .withCombinedNullability(declaration.type?.nullability ?: TypeReference.Nullability.NULLABLE)
             .withMutability(declaration.type?.mutability ?: implicitMutability)
 

@@ -4,7 +4,6 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.basetype.BoundBaseTypeDefinition
-import compiler.binding.type.BaseType
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 
@@ -16,14 +15,14 @@ class PackageContext(
         yieldAll(moduleContext.sourceFiles)
     }.filter { it.packageName == packageName }
 
-    val types: Sequence<BaseType> get() {
+    val types: Sequence<BoundBaseTypeDefinition> get() {
         return sourceFiles
             .filter { it.packageName == packageName }
             .flatMap { it.context.types }
     }
 
-    private val typeByNameCache = HashMap<String, BaseType>()
-    fun resolveBaseType(simpleName: String): BaseType? {
+    private val typeByNameCache = HashMap<String, BoundBaseTypeDefinition>()
+    fun resolveBaseType(simpleName: String): BoundBaseTypeDefinition? {
         typeByNameCache[simpleName]?.let { return it }
         val type = types.find { it.simpleName == simpleName } ?: return null
         typeByNameCache[simpleName] = type

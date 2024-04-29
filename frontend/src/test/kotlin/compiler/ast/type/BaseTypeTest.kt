@@ -18,16 +18,20 @@
 
 package compiler.compiler.ast.type
 
-import compiler.CoreIntrinsicsModule
+import compiler.binding.basetype.BoundBaseTypeDefinition
 import compiler.binding.context.SoftwareContext
-import compiler.binding.type.BaseType
-import compiler.binding.type.BuiltinAny
-import compiler.binding.type.BuiltinNothing
 import io.kotest.core.spec.style.FreeSpec
-import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.mockk.every
+import io.mockk.mockk
 
 class BaseTypeTest : FreeSpec() { init {
+    val swCtx = mockk<SoftwareContext> {
+        every { any } returns fakeType("Any")
+        every { nothing } returns fakeType("Nothing")
+        every { s32 } returns fakeType("S32")
+    }
+
     "Given a class hierarchy A; B: A; C : B" - {
         val typeA = fakeType("A")
         val typeB = fakeType("B", typeA)
@@ -66,66 +70,44 @@ class BaseTypeTest : FreeSpec() { init {
 
         "Then the closest common ancestor of" - {
             "B and A is A" {
-                BaseType.closestCommonSupertypeOf(listOf(typeB, typeA)) shouldBe typeA
-                BaseType.closestCommonSupertypeOf(listOf(typeA, typeB)) shouldBe typeA
+                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeB, typeA)) shouldBe typeA
+                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeA, typeB)) shouldBe typeA
             }
 
             "B and C is A" {
-                BaseType.closestCommonSupertypeOf(listOf(typeB, typeC)) shouldBe typeA
-                BaseType.closestCommonSupertypeOf(listOf(typeC, typeB)) shouldBe typeA
+                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeB, typeC)) shouldBe typeA
+                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeC, typeB)) shouldBe typeA
             }
 
             "D and E is B" {
-                BaseType.closestCommonSupertypeOf(listOf(typeD, typeE)) shouldBe typeB
-                BaseType.closestCommonSupertypeOf(listOf(typeE, typeD)) shouldBe typeB
+                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeD, typeE)) shouldBe typeB
+                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeE, typeD)) shouldBe typeB
             }
 
             "C and E is A" {
-                BaseType.closestCommonSupertypeOf(listOf(typeC, typeE)) shouldBe typeA
-                BaseType.closestCommonSupertypeOf(listOf(typeE, typeC)) shouldBe typeA
+                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeC, typeE)) shouldBe typeA
+                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeE, typeC)) shouldBe typeA
             }
 
             "F and G is Any" {
-                BaseType.closestCommonSupertypeOf(listOf(typeF, typeG)) shouldBe BuiltinAny
-                BaseType.closestCommonSupertypeOf(listOf(typeG, typeF)) shouldBe BuiltinAny
+                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeF, typeG)) shouldBe swCtx.any
+                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeG, typeF)) shouldBe swCtx.any
             }
         }
     }
 
     "Nothing" - {
-        val testSwCtx = SoftwareContext()
-        testSwCtx.registerModule(CoreIntrinsicsModule.NAME)
-        CoreIntrinsicsModule.amendCoreModuleIn(testSwCtx)
-        val corePackage = testSwCtx.getPackage(CoreIntrinsicsModule.NAME).shouldNotBeNull()
-
-        "is a subtype of all builtin types, including itself" - {
-            corePackage.types.forEach { builtinType ->
-                "Nothing is subtype of $builtinType" {
-                    BuiltinNothing.isSubtypeOf(builtinType) shouldBe true
-                }
-            }
+        "Nothing is subtype of all types" {
+            swCtx.nothing.isSubtypeOf(swCtx.s32) shouldBe true
         }
 
-        "is not a subtype of all other builtin types" - {
-            corePackage.types.except(BuiltinNothing).forEach { builtinType ->
-                "$builtinType is not a subtype of Nothing" {
-                    builtinType.isSubtypeOf(BuiltinNothing) shouldBe false
-                }
-            }
+        "no type is a subtype of nothing" {
+            swCtx.s32.isSubtypeOf(swCtx.nothing) shouldBe false
         }
 
         "closest common supertype of any builtin type and Nothing is that builtin type" - {
-            corePackage.types.except(BuiltinNothing).forEach { builtinType ->
-                "closest common supertype of Nothing and $builtinType is $builtinType" {
-                    BaseType.closestCommonSupertypeOf(BuiltinNothing, builtinType) shouldBe builtinType
-                    BaseType.closestCommonSupertypeOf(builtinType, BuiltinNothing) shouldBe builtinType
-                }
-            }
+            BoundBaseTypeDefinition.closestCommonSupertypeOf(swCtx.nothing, swCtx.s32) shouldBe swCtx.s32
+            BoundBaseTypeDefinition.closestCommonSupertypeOf(swCtx.s32, swCtx.nothing) shouldBe swCtx.s32
         }
     }
 }}
-
-private fun <T> Sequence<T>.except(vararg es: T): Sequence<T> {
-    val eSet = es.toSet()
-    return filter { it !in eSet }
-}

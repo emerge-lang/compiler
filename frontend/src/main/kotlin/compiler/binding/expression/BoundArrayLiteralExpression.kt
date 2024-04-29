@@ -7,12 +7,11 @@ import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundStatement
+import compiler.binding.basetype.BoundBaseTypeDefinition
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.BuiltinAny
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUnification
 import compiler.nullableOr
@@ -36,7 +35,7 @@ class BoundArrayLiteralExpression(
 
     override val implicitEvaluationResultType get() = type
 
-    private val arrayType: BaseType = run {
+    private val arrayType: BoundBaseTypeDefinition = run {
         val corePackage = context.swCtx.getPackage(CoreIntrinsicsModule.NAME)
             ?: throw InternalCompilerError("The software context doesn't define the default package ${CoreIntrinsicsModule.NAME}")
         corePackage.resolveBaseType("Array")
@@ -67,13 +66,14 @@ class BoundArrayLiteralExpression(
             elementType = elements
                 .mapNotNull { it.type }
                 .reduceOrNull(BoundTypeReference::closestCommonSupertypeWith)
-                ?: BuiltinAny.baseReference
+                ?: context.swCtx.any.baseReference
         }
 
         type = RootResolvedTypeReference(
             TypeReference(arrayType.simpleName),
             arrayType,
             listOf(BoundTypeArgument(
+                context,
                 TypeArgument(TypeVariance.UNSPECIFIED, TypeReference("_")),
                 TypeVariance.UNSPECIFIED,
                 elementType,

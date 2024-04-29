@@ -28,7 +28,6 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.BuiltinUInt
 import compiler.handleCyclicInvocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -157,7 +156,7 @@ class BoundCodeChunk(
         }
 
         // TODO: implicit unit return requires unit reference, doesn't exist yet
-        val standInLiteralTemporary = IrCreateTemporaryValueImpl(IrIntegerLiteralExpressionImpl(BigInteger.ZERO, BuiltinUInt.baseReference.toBackendIr()))
+        val standInLiteralTemporary = IrCreateTemporaryValueImpl(IrIntegerLiteralExpressionImpl(BigInteger.ZERO, context.swCtx.unit.baseReference.toBackendIr()))
         return IrImplicitEvaluationExpressionImpl(
             IrCodeChunkImpl(plainStatements + listOfNotNull(lastStatement?.toBackendIrStatement()) + getDeferredCodeAtEndOfChunk() + listOf(standInLiteralTemporary)),
             IrTemporaryValueReferenceImpl(standInLiteralTemporary),

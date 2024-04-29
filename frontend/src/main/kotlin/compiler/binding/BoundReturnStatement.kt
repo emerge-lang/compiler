@@ -87,7 +87,7 @@ class BoundReturnStatement(
                 }
         }
 
-        if (expectedReturnType is RootResolvedTypeReference && expectedReturnType.baseType != context.swCtx.unitBaseType && expression == null) {
+        if (expectedReturnType is RootResolvedTypeReference && expectedReturnType.baseType != context.swCtx.unit && expression == null) {
             reportings.add(Reporting.missingReturnValue(this, expectedReturnType))
         }
 

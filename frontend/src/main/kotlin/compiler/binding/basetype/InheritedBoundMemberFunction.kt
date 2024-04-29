@@ -6,7 +6,6 @@ import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundParameter
 import compiler.binding.BoundParameterList
 import compiler.binding.BoundVariable
-import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.reportings.Reporting
@@ -15,7 +14,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 
 class InheritedBoundMemberFunction(
     val supertypeMemberFn: BoundMemberFunction,
-    val subtype: BaseType,
+    val subtype: BoundBaseTypeDefinition,
 ) : BoundMemberFunction by supertypeMemberFn {
     init {
         check(supertypeMemberFn.declaresReceiver) {

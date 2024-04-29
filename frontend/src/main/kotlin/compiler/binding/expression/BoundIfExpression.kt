@@ -30,7 +30,6 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.BuiltinBoolean
 import compiler.binding.type.isAssignableTo
 import compiler.nullableAnd
 import compiler.reportings.Reporting
@@ -64,7 +63,7 @@ class BoundIfExpression(
         private set
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        type = context.swCtx.unitBaseType.baseReference
+        type = context.swCtx.unit.baseReference
 
         var reportings = condition.semanticAnalysisPhase1() + thenCode.semanticAnalysisPhase1()
 
@@ -125,7 +124,7 @@ class BoundIfExpression(
 
         if (condition.type != null) {
             val conditionType = condition.type!!
-            if (!conditionType.isAssignableTo(BuiltinBoolean.baseReference)) {
+            if (!conditionType.isAssignableTo(context.swCtx.bool.baseReference)) {
                 reportings.add(Reporting.conditionIsNotBoolean(condition, condition.declaration.sourceLocation))
             }
         }

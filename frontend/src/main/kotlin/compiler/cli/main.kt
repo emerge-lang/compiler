@@ -90,8 +90,6 @@ object CompileCommand : CliktCommand() {
             )
         }
 
-        CoreIntrinsicsModule.amendCoreModuleIn(swCtx)
-
         val semanticResults = swCtx.doSemanticAnalysis()
         val semanticCompleteAt = measureClock.instant()
 

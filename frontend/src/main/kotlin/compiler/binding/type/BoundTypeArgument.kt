@@ -4,6 +4,7 @@ import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
+import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
@@ -11,6 +12,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 
 class BoundTypeArgument(
+    val context: CTContext,
     val astNode: TypeArgument,
     val variance: TypeVariance,
     val type: BoundTypeReference,
@@ -24,6 +26,7 @@ class BoundTypeArgument(
         get() = TypeUnification.EMPTY
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeArgument = BoundTypeArgument(
+        context,
         astNode,
         variance,
         type.defaultMutabilityTo(mutability),
@@ -34,7 +37,7 @@ class BoundTypeArgument(
     }
 
     override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeArgument {
-        return BoundTypeArgument(astNode, variance, type.withTypeVariables(variables))
+        return BoundTypeArgument(context, astNode, variance, type.withTypeVariables(variables))
     }
 
     override fun unify(assigneeType: BoundTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
@@ -109,11 +112,11 @@ class BoundTypeArgument(
             return binding
         }
 
-        return BoundTypeArgument(astNode, variance, binding)
+        return BoundTypeArgument(this.context, astNode, variance, binding)
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeArgument {
-        return BoundTypeArgument(astNode, variance, type.instantiateAllParameters(context))
+        return BoundTypeArgument(this.context, astNode, variance, type.instantiateAllParameters(context))
     }
 
     override fun withMutability(modifier: TypeMutability?): BoundTypeReference {
@@ -122,6 +125,7 @@ class BoundTypeArgument(
         }
 
         return BoundTypeArgument(
+            context,
             astNode,
             variance,
             type.withMutability(modifier),
@@ -134,6 +138,7 @@ class BoundTypeArgument(
         }
 
         return BoundTypeArgument(
+            context,
             astNode,
             variance,
             type.withCombinedMutability(mutability),
@@ -142,6 +147,7 @@ class BoundTypeArgument(
 
     override fun withCombinedNullability(nullability: TypeReference.Nullability): BoundTypeReference {
         return BoundTypeArgument(
+            context,
             astNode,
             variance,
             type.withCombinedNullability(nullability),
@@ -152,7 +158,7 @@ class BoundTypeArgument(
         return when (variance) {
             TypeVariance.UNSPECIFIED,
             TypeVariance.OUT -> type.closestCommonSupertypeWith(other)
-            TypeVariance.IN -> BuiltinAny.baseReference.closestCommonSupertypeWith(other)
+            TypeVariance.IN -> context.swCtx.any.baseReference.closestCommonSupertypeWith(other)
         }
     }
 

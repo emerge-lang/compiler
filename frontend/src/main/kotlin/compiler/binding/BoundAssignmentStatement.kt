@@ -39,7 +39,6 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.IrGenericTypeReferenceImpl
 import compiler.binding.type.IrParameterizedTypeImpl
 import compiler.binding.type.IrSimpleTypeImpl
-import compiler.binding.type.UnresolvedType
 import compiler.nullableOr
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
@@ -168,7 +167,7 @@ class BoundAssignmentStatement(
     }
 
     inner class VariableTarget(val reference: BoundIdentifierExpression.ReferringVariable) : AssignmentTarget {
-        override val type get() = reference.variable.getTypeInContext(context) ?: UnresolvedType.STAND_IN_TYPE
+        override val type get() = reference.variable.getTypeInContext(context) ?: context.swCtx.unresolvableReplacementType
 
         override fun semanticAnalysisPhase2(): Collection<Reporting> {
             _modifiedContext.trackSideEffect(VariableLifetime.Effect.NewValueAssigned(reference.variable))

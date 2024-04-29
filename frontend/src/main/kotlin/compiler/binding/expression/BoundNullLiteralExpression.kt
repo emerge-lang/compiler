@@ -24,7 +24,6 @@ import compiler.binding.BoundStatement
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.BuiltinAny
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullLiteralExpression
@@ -57,7 +56,7 @@ class BoundNullLiteralExpression(
     override val isCompileTimeConstant = true
 
     override fun toBackendIrExpression(): IrExpression {
-        return IrNullLiteralExpressionImpl(type?.toBackendIr() ?: BuiltinAny.baseReference.withCombinedNullability(TypeReference.Nullability.NULLABLE).toBackendIr())
+        return IrNullLiteralExpressionImpl(type?.toBackendIr() ?: context.swCtx.any.baseReference.withCombinedNullability(TypeReference.Nullability.NULLABLE).toBackendIr())
     }
 }
 

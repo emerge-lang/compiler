@@ -1,12 +1,12 @@
 package compiler.reportings
 
-import compiler.binding.type.BaseType
+import compiler.binding.basetype.BoundBaseTypeDefinition
 import textutils.assureEndsWith
 
 class MultipleInheritanceIssueReporting(
     val base: Reporting,
-    val contributingSuperTypes: Collection<BaseType>,
-    val conflictOnSubType: BaseType,
+    val contributingSuperTypes: Collection<BoundBaseTypeDefinition>,
+    val conflictOnSubType: BoundBaseTypeDefinition,
 ) : Reporting(
     base.level,
     run {

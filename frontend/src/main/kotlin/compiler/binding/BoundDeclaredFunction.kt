@@ -101,7 +101,7 @@ abstract class BoundDeclaredFunction(
                 if (this.body is Body.SingleExpression) {
                     this.returnType = this.body.expression.type
                 } else {
-                    this.returnType = context.swCtx.unitBaseType.baseReference
+                    this.returnType = context.swCtx.unit.baseReference
                         .withMutability(TypeMutability.READONLY)
                 }
             }
@@ -168,7 +168,7 @@ abstract class BoundDeclaredFunction(
                     // if the function is declared to return Unit a return of Unit is implied and should be inserted by backends
                     // if this is a single-expression function (fun a() = 3), return is implied
                     if (localReturnType == null || this.body !is Body.SingleExpression) {
-                        val isImplicitUnitReturn = localReturnType is RootResolvedTypeReference && localReturnType.baseType == context.swCtx.unitBaseType
+                        val isImplicitUnitReturn = localReturnType is RootResolvedTypeReference && localReturnType.baseType == context.swCtx.unit
                         if (!isImplicitUnitReturn) {
                             reportings.add(Reporting.uncertainTermination(this))
                         }

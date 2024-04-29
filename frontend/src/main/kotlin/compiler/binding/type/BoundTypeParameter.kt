@@ -1,7 +1,6 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
-import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
@@ -42,7 +41,7 @@ data class BoundTypeParameter(
             ?.let { preExistingType ->
                 reportings.add(Reporting.typeParameterNameConflict(preExistingType, this))
             }
-        bound = astNode.bound?.let(context::resolveType) ?: TYPE_PARAMETER_DEFAULT_BOUND
+        bound = astNode.bound?.let(context::resolveType) ?: context.swCtx.typeParameterDefaultBound
         return reportings
     }
 
@@ -82,10 +81,6 @@ data class BoundTypeParameter(
     }
 
     companion object {
-        val TYPE_PARAMETER_DEFAULT_BOUND: BoundTypeReference = BuiltinAny.baseReference
-            .withMutability(TypeMutability.READONLY)
-            .withCombinedNullability(TypeReference.Nullability.NULLABLE)
-
         fun List<TypeParameter>.chain(context: CTContext): Pair<List<BoundTypeParameter>, CTContext> {
             var carry = context
             val boundParams = ArrayList<BoundTypeParameter>(size)

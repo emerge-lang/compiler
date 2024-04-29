@@ -19,11 +19,10 @@
 package compiler.reportings
 
 import compiler.binding.expression.BoundExpression
-import compiler.binding.type.BuiltinBoolean
 import compiler.lexer.SourceLocation
 
 internal class ConditionNotBooleanReporting(val condition: BoundExpression<*>, location: SourceLocation)
-    : ValueNotAssignableReporting(BuiltinBoolean.baseReference, condition.type!!, "", location)
+    : ValueNotAssignableReporting(condition.context.swCtx.bool.baseReference, condition.type!!, "", location)
 {
-    override val message: String = "The condition must evaluate to Boolean, got ${condition.type!!}"
+    override val message: String = "The condition must evaluate to ${condition.context.swCtx.bool.simpleName}, got ${condition.type!!}"
 }

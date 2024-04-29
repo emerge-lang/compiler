@@ -195,7 +195,7 @@ sealed interface BoundTypeReference {
      * For parameterized types contains the bindings already resulting from that parameterization
      * in the [TypeUnification.left] part:
      *
-     * given a `class S<T>` [BaseType] and a `S<Int>` [BoundTypeReference], returns
+     * given a `class S<T>` [BoundBaseTypeDefinition] and a `S<Int>` [BoundTypeReference], returns
      * `T => Int` in [TypeUnification.left]
      */
     val inherentTypeBindings: TypeUnification

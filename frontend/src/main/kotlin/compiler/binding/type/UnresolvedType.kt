@@ -3,6 +3,7 @@ package compiler.binding.type
 import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.binding.context.CTContext
 import compiler.lexer.SourceLocation
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -12,8 +13,8 @@ class UnresolvedType private constructor(
     private val reference: TypeReference,
     val parameters: List<BoundTypeArgument>,
 ) : BoundTypeReference {
-    constructor(reference: TypeReference, parameters: List<BoundTypeArgument>) : this(
-        STAND_IN_TYPE,
+    constructor(context: CTContext, reference: TypeReference, parameters: List<BoundTypeArgument>) : this(
+        context.swCtx.unresolvableReplacementType,
         reference,
         parameters,
     )
@@ -106,11 +107,5 @@ class UnresolvedType private constructor(
 
     override fun toBackendIr(): IrType {
         throw InternalCompilerError("Attempting to create backend IR from unresolved type at $sourceLocation")
-    }
-
-    companion object {
-        val STAND_IN_TYPE: BoundTypeReference = BuiltinAny.baseReference
-            .withMutability(TypeMutability.READONLY)
-            .withCombinedNullability(TypeReference.Nullability.NULLABLE)
     }
 }

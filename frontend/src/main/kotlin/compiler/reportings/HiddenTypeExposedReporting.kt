@@ -1,11 +1,11 @@
 package compiler.reportings
 
 import compiler.binding.DefinitionWithVisibility
-import compiler.binding.type.BaseType
+import compiler.binding.basetype.BoundBaseTypeDefinition
 import compiler.lexer.SourceLocation
 
 class HiddenTypeExposedReporting(
-    val type: BaseType,
+    val type: BoundBaseTypeDefinition,
     val exposedBy: DefinitionWithVisibility,
     exposedAt: SourceLocation,
 ) : Reporting(

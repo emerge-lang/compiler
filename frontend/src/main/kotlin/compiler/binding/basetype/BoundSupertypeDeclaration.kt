@@ -5,7 +5,6 @@ import compiler.binding.SeanHelper
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.BuiltinAny
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
@@ -77,7 +76,7 @@ class SourceBoundSupertypeDeclaration(
             }
 
             val localResolvedReference = resolvedReference ?: return@phase3 reportings
-            if (localResolvedReference.baseType === BuiltinAny) {
+            if (localResolvedReference.baseType === subtypeContext.swCtx.unit) {
                 return@phase3 reportings
             }
 

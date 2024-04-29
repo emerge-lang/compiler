@@ -48,7 +48,6 @@ import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.binding.basetype.SourceBoundSupertypeDeclaration
 import compiler.binding.context.effect.VariableLifetime
 import compiler.binding.expression.*
-import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
@@ -210,7 +209,7 @@ abstract class Reporting internal constructor(
         fun functionDoesNotOverride(function: BoundDeclaredFunction)
             = SuperFunctionForOverrideNotFoundReporting(function.declaration)
 
-        fun undeclaredOverride(function: BoundDeclaredFunction, onSupertype: BaseType)
+        fun undeclaredOverride(function: BoundDeclaredFunction, onSupertype: BoundBaseTypeDefinition)
             = UndeclaredOverrideReporting(function.declaration, onSupertype)
 
         fun staticFunctionDeclaredOverride(function: BoundDeclaredFunction)
@@ -241,7 +240,7 @@ abstract class Reporting internal constructor(
                 return baseReporting
             }
 
-            val overloadsImportedBySupertype: MutableMap<BaseType?, List<BoundMemberFunction>> = allMemberFns
+            val overloadsImportedBySupertype: MutableMap<BoundBaseTypeDefinition?, List<BoundMemberFunction>> = allMemberFns
                 .flatMap { subtypeMemberFn ->
                     if (subtypeMemberFn is InheritedBoundMemberFunction) {
                         setOf(subtypeMemberFn)
@@ -254,7 +253,7 @@ abstract class Reporting internal constructor(
                 .toMutableMap()
             overloadsImportedBySupertype.remove(null)
             @Suppress("UNCHECKED_CAST") // the remove(null) right before ensures exactly that
-            overloadsImportedBySupertype as MutableMap<BaseType, List<BoundMemberFunction>>
+            overloadsImportedBySupertype as MutableMap<BoundBaseTypeDefinition, List<BoundMemberFunction>>
 
             val someSupertypeHasAmbiguity = overloadsImportedBySupertype.values.any {
                 !BoundOverloadSet.areOverloadsDisjoint(it)
@@ -426,7 +425,7 @@ abstract class Reporting internal constructor(
         fun incorrectPackageDeclaration(name: AstPackageName, expected: CanonicalElementName.Package)
             = IncorrectPackageDeclarationReporting(name, expected)
 
-        fun integerLiteralOutOfRange(literal: Expression, expectedType: BaseType, expectedRange: ClosedRange<BigInteger>)
+        fun integerLiteralOutOfRange(literal: Expression, expectedType: BoundBaseTypeDefinition, expectedRange: ClosedRange<BigInteger>)
             = IntegerLiteralOutOfRangeReporting(literal, expectedType, expectedRange)
 
         fun multipleClassConstructors(additionalCtors: Collection<BaseTypeConstructorDeclaration>)
@@ -450,7 +449,7 @@ abstract class Reporting internal constructor(
         fun visibilityShadowed(element: DefinitionWithVisibility, contextVisibility: BoundVisibility)
             = ShadowedVisibilityReporting(element, contextVisibility)
 
-        fun hiddenTypeExposed(type: BaseType, exposedBy: DefinitionWithVisibility, exposedAt: SourceLocation)
+        fun hiddenTypeExposed(type: BoundBaseTypeDefinition, exposedBy: DefinitionWithVisibility, exposedAt: SourceLocation)
             = HiddenTypeExposedReporting(type, exposedBy, exposedAt)
 
         private fun readingPurityViolationToReporting(violation: BoundExpression<*>, boundary: PurityViolationReporting.Boundary): Reporting {

@@ -30,7 +30,6 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundBaseTypeDefinition
-import compiler.binding.type.BaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
@@ -74,16 +73,16 @@ open class MutableCTContext(
     protected val _functions: MutableSet<BoundFunction> = HashSet()
 
     /** Holds all the base types defined in this context */
-    protected val _types: MutableSet<BaseType> = HashSet()
+    protected val _types: MutableSet<BoundBaseTypeDefinition> = HashSet()
 
     fun addImport(decl: ImportDeclaration) {
         this._imports.add(decl.bindTo(this))
     }
 
     /**
-     * Adds the given [BaseType] to this context, possibly overriding
+     * Adds the given [BoundBaseTypeDefinition] to this context, possibly overriding
      */
-    open fun addBaseType(type: BaseType) {
+    open fun addBaseType(type: BoundBaseTypeDefinition) {
         _types.add(type)
     }
 
@@ -108,7 +107,7 @@ open class MutableCTContext(
         return typeParameters[simpleName] ?: parentContext.resolveTypeParameter(simpleName)
     }
 
-    override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BaseType? {
+    override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BoundBaseTypeDefinition? {
         _types.find { it.simpleName == simpleName }?.let { return it }
 
         val fromImport = if (fromOwnFileOnly) null else {
@@ -122,7 +121,9 @@ open class MutableCTContext(
     }
 
     override fun resolveType(ref: TypeArgument): BoundTypeArgument {
-        return BoundTypeArgument(ref, ref.variance, resolveType(ref.type))
+        // this is also defined on CTContext, but the last argument differs (is just resolveType(ref))
+        // TODO: pick one!
+        return BoundTypeArgument(this, ref, ref.variance, resolveType(ref.type))
     }
 
     override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
@@ -133,7 +134,7 @@ open class MutableCTContext(
         val resolvedParameters = ref.arguments.map { resolveType(it).defaultMutabilityTo(ref.mutability) }
         return resolveBaseType(ref.simpleName)
             ?.let { RootResolvedTypeReference(ref, it, resolvedParameters) }
-            ?: UnresolvedType(ref, resolvedParameters)
+            ?: UnresolvedType(this, ref, resolvedParameters)
     }
 
     override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? {

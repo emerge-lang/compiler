@@ -23,11 +23,8 @@ import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
-import compiler.binding.context.SoftwareContext
-import compiler.binding.context.SourceFileRootContext
-import compiler.binding.type.BuiltinAny
-import compiler.binding.type.BuiltinArray
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.compiler.negative.validateModule
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 
@@ -145,9 +142,7 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
     }
 
     "generics" - {
-        val swCtx = SoftwareContext()
-        swCtx.registerModule(CoreIntrinsicsModule.NAME)
-        CoreIntrinsicsModule.amendCoreModuleIn(swCtx)
+        val swCtx = validateModule("").first
         val context = swCtx.getPackage(CoreIntrinsicsModule.NAME)!!.moduleContext.sourceFiles.single().context
 
         "mutability projection" - {
