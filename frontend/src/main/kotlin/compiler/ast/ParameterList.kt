@@ -37,7 +37,10 @@ data class ParameterList (
                 val actualType = when {
                     parameter.type == null -> impliedReceiverType
                     impliedReceiverType != null && parameter.type.simpleName == BoundVariable.DECLARATION_TYPE_NAME_INFER -> {
-                        parameter.type.copy(simpleName = impliedReceiverType.simpleName)
+                        parameter.type.copy(
+                            simpleName = impliedReceiverType.simpleName,
+                            arguments = parameter.type.arguments ?: impliedReceiverType.arguments
+                        )
                     }
                     else -> parameter.type
                 }
