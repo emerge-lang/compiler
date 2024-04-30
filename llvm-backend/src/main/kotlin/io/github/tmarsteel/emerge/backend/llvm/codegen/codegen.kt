@@ -48,6 +48,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS8ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceCreated
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceDropped
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arraySize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getDynamicCallAddress
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
@@ -179,6 +180,15 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             )
         }
         is IrDynamicDispatchFunctionInvocationExpression -> {
+            val intrinsicOverride = when (expression.function.canonicalName.toString()) {
+                arraySize.name -> arraySize
+                else -> null
+            }
+            if (intrinsicOverride != null) {
+                val callResult = call(context.registerIntrinsic(arraySize), expression.arguments.map { it.declaration.llvmValue })
+                return ExpressionResult.Value(callResult)
+            }
+
             val targetAddr = call(context.registerIntrinsic(getDynamicCallAddress), listOf(
                 expression.dispatchOn.declaration.llvmValue,
                 context.word(expression.function.signatureHashes.first()),
