@@ -65,3 +65,9 @@ export class Bool {
 export class Array<Element> {
     private constructor {}
 }
+
+export intrinsic fun get<T>(self: readonly Array<out T>, index: UWord) -> T
+
+export intrinsic fun set<T>(self: mutable Array<in T>, index: UWord, value: T) -> Unit
+
+export intrinsic fun size(self: readonly Array<out readonly Any?>) -> UWord

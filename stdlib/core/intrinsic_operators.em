@@ -12,5 +12,3 @@ export intrinsic operator fun opMinus(self: SWord, summand: SWord) -> SWord
 
 export intrinsic operator fun opPlus(self: UWord, summand: UWord) -> UWord
 export intrinsic operator fun opMinus(self: UWord, sommand: UWord) -> UWord
-
-
