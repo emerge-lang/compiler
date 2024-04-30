@@ -36,6 +36,10 @@ export class U16 {
 
 export class S32 {
     private constructor {}
+
+    export intrinsic operator fun unaryMinus(self) -> S32
+    export intrinsic operator fun opPlus(self, summand: S32) -> S32
+    export intrinsic operator fun opMinus(self, operand: S32) -> S32
 }
 
 export class U32 {
@@ -52,10 +56,17 @@ export class U64 {
 
 export class SWord {
     private constructor {}
+
+    export intrinsic operator fun unaryMinus(self) -> SWord
+    export intrinsic operator fun opPlus(self, summand: SWord) -> SWord
+    export intrinsic operator fun opMinus(self, summand: SWord) -> SWord
 }
 
 export class UWord {
     private constructor {}
+
+    export intrinsic operator fun opPlus(self, summand: UWord) -> UWord
+    export intrinsic operator fun opMinus(self, summand: UWord) -> UWord
 }
 
 export class Bool {
