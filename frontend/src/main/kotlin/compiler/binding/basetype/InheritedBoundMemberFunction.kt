@@ -26,7 +26,7 @@ class InheritedBoundMemberFunction(
     override val declaredOnType get()= supertypeMemberFn.declaredOnType
 
     override val receiverType: BoundTypeReference get() {
-        check(subtype.typeParameters.isEmpty()) {
+        check(subtype.typeParameters.isNullOrEmpty()) {
             "Not supported yet"
         }
         return subtype.baseReference

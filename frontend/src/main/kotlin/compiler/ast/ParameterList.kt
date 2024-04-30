@@ -32,17 +32,19 @@ data class ParameterList (
     fun bindTo(context: ExecutionScopedCTContext, impliedReceiverType: TypeReference? = null) = BoundParameterList(
         context,
         this,
-        parameters.mapIndexed { index, it ->
-            if (index == 0 && it.name.value == BoundParameterList.RECEIVER_PARAMETER_NAME ) {
+        parameters.mapIndexed { index, parameter ->
+            if (index == 0 && parameter.name.value == BoundParameterList.RECEIVER_PARAMETER_NAME ) {
                 val actualType = when {
-                    it.type == null -> impliedReceiverType
-                    impliedReceiverType != null && it.type.simpleName == BoundVariable.DECLARATION_TYPE_NAME_INFER -> it.type.copy(simpleName = impliedReceiverType.simpleName)
-                    else -> it.type
+                    parameter.type == null -> impliedReceiverType
+                    impliedReceiverType != null && parameter.type.simpleName == BoundVariable.DECLARATION_TYPE_NAME_INFER -> {
+                        parameter.type.copy(simpleName = impliedReceiverType.simpleName)
+                    }
+                    else -> parameter.type
                 }
-                return@mapIndexed it.copy(type = actualType).bindTo(context, BoundVariable.Kind.PARAMETER)
+                return@mapIndexed parameter.copy(type = actualType).bindTo(context, BoundVariable.Kind.PARAMETER)
             }
 
-            return@mapIndexed it.bindTo(context, BoundVariable.Kind.PARAMETER)
+            return@mapIndexed parameter.bindTo(context, BoundVariable.Kind.PARAMETER)
         },
     )
 }

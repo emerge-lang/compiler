@@ -39,7 +39,7 @@ class UnaryExpression(
                 OperatorToken(Operator.DOT, operatorToken.sourceLocation),
                 IdentifierToken(functionName, operatorToken.sourceLocation),
             ),
-            emptyList(),
+            null,
             emptyList(),
             operatorToken.sourceLocation .. valueExpression.sourceLocation,
         )

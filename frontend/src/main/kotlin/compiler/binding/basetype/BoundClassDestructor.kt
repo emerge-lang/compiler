@@ -58,7 +58,7 @@ class BoundClassDestructor(
                 TypeReference.Nullability.NOT_NULLABLE,
                 TypeMutability.EXCLUSIVE,
                 classDef.declaration.name,
-                classDef.typeParameters.map {
+                classDef.typeParameters?.map {
                     TypeArgument(
                         TypeVariance.UNSPECIFIED,
                         TypeReference(it.astNode.name),

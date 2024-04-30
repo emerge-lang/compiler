@@ -74,7 +74,7 @@ class SourceFileRootContext(
             override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference = UnresolvedType(
                 this,
                 ref,
-                ref.arguments.map { BoundTypeArgument(this, it, it.variance, this.resolveType(it.type)) },
+                ref.arguments?.map { BoundTypeArgument(this, it, it.variance, this.resolveType(it.type)) },
             )
             override fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet<*>> = emptySet()
 

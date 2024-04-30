@@ -46,7 +46,7 @@ class BoundBinaryExpression(
                     OperatorToken(Operator.DOT, declaration.op.sourceLocation),
                     IdentifierToken(operatorFunctionName(operator), declaration.op.sourceLocation)
             ),
-            emptyList(),
+            null,
             listOf(rightHandSide.declaration),
             leftHandSide.declaration.sourceLocation .. rightHandSide.declaration.sourceLocation,
         )

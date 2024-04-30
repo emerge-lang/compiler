@@ -28,7 +28,7 @@ class NotNullExpressionPostfix(
 }
 
 class InvocationExpressionPostfix(
-    val typeArguments: List<TypeArgument>,
+    val typeArguments: List<TypeArgument>?,
     val valueParameterExpressions: List<Expression>,
     val closingParenthesis: OperatorToken,
 ) : ExpressionPostfix<InvocationExpression> {

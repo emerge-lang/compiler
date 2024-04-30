@@ -110,7 +110,7 @@ class BoundArrayLiteralExpression(
             return
         }
 
-        expectedElementType = type.arguments.firstOrNull()?.type ?: return
+        expectedElementType = type.arguments?.firstOrNull()?.type ?: return
         elements.forEach { it.setExpectedEvaluationResultType(expectedElementType!!) }
     }
 
@@ -121,7 +121,7 @@ class BoundArrayLiteralExpression(
 
     override fun toBackendIrExpression(): IrExpression {
         val irType = type!!.toBackendIr()
-        val irElementType = (type as RootResolvedTypeReference).arguments.single().type.toBackendIr()
+        val irElementType = (type as RootResolvedTypeReference).arguments!!.single().type.toBackendIr()
 
         return buildInvocationLikeIr(
             elements,

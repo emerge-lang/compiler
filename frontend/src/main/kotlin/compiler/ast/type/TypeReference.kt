@@ -26,7 +26,7 @@ data class TypeReference(
     val nullability: Nullability = Nullability.UNSPECIFIED,
     val mutability: TypeMutability? = null,
     val declaringNameToken: IdentifierToken? = null,
-    val arguments: List<TypeArgument> = emptyList(),
+    val arguments: List<TypeArgument>? = null,
 ) {
     constructor(simpleName: IdentifierToken) : this(simpleName.value, declaringNameToken = simpleName)
 
@@ -58,7 +58,7 @@ data class TypeReference(
                 buffer.append(simpleName)
             }
 
-            if (arguments.isNotEmpty()) {
+            if (arguments != null) {
                 buffer.append(arguments.joinToString(
                     prefix = "<",
                     separator = ", ",

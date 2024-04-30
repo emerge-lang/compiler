@@ -307,14 +307,14 @@ val ExpressionPostfixInvocation = sequence("function invocation") {
     operator(Operator.PARANT_CLOSE)
 }
     .astTransformation { tokens ->
-        val typeArguments: List<TypeArgument>
+        val typeArguments: List<TypeArgument>?
         val next = tokens.next()!!
         if (next is TypeArgumentBundle) {
             typeArguments = next.arguments
             // skip PARANT_OPEN
             tokens.next() as OperatorToken
         } else {
-            typeArguments = emptyList()
+            typeArguments = null
             // skip PARANT_OPEN
             next as OperatorToken
         }

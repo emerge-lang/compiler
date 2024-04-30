@@ -185,12 +185,12 @@ val Type: Rule<TypeReference> = sequence("type") {
         }
 
         var next = tokens.next()
-        val arguments: List<TypeArgument>
+        val arguments: List<TypeArgument>?
         if (next is TypeArgumentBundle) {
             arguments = next.arguments
             next = tokens.next()
         } else {
-            arguments = emptyList()
+            arguments = null
         }
 
         val nullability = when (next) {

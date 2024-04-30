@@ -24,17 +24,23 @@ class RootResolvedTypeReference private constructor(
     override val isNullable: Boolean,
     private val explicitMutability: TypeMutability?,
     val baseType: BoundBaseTypeDefinition,
-    val arguments: List<BoundTypeArgument>,
+    val arguments: List<BoundTypeArgument>?,
 ) : BoundTypeReference {
+    init {
+        if (baseType.declaration.typeParameters == null && arguments != null) {
+            throw InternalCompilerError("Type arguments for a type that doesn't declare parameters!")
+        }
+    }
+
     override val mutability = if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else (explicitMutability ?: original?.mutability ?: TypeMutability.READONLY)
     override val simpleName = original?.simpleName ?: baseType.simpleName
     override val sourceLocation = original?.declaringNameToken?.sourceLocation
 
     override val inherentTypeBindings by lazy {
-        TypeUnification.fromExplicit(baseType.typeParameters, arguments, sourceLocation ?: SourceLocation.UNKNOWN)
+        TypeUnification.fromExplicit(baseType.typeParameters ?: emptyList(), arguments, sourceLocation ?: SourceLocation.UNKNOWN)
     }
 
-    constructor(original: TypeReference, baseType: BoundBaseTypeDefinition, parameters: List<BoundTypeArgument>) : this(
+    constructor(original: TypeReference, baseType: BoundBaseTypeDefinition, parameters: List<BoundTypeArgument>?) : this(
         original,
         original.nullability == TypeReference.Nullability.NULLABLE,
         original.mutability,
@@ -48,7 +54,7 @@ class RootResolvedTypeReference private constructor(
             isNullable,
             if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else modifier,
             baseType,
-            arguments.map { it.defaultMutabilityTo(modifier) },
+            arguments?.map { it.defaultMutabilityTo(modifier) },
         )
     }
 
@@ -59,7 +65,7 @@ class RootResolvedTypeReference private constructor(
             isNullable,
             combinedMutability,
             baseType,
-            arguments.map { it.defaultMutabilityTo(combinedMutability) },
+            arguments?.map { it.defaultMutabilityTo(combinedMutability) },
         )
     }
 
@@ -87,14 +93,14 @@ class RootResolvedTypeReference private constructor(
             isNullable,
             mutability,
             baseType,
-            arguments.map { it.defaultMutabilityTo(mutability) },
+            arguments?.map { it.defaultMutabilityTo(mutability) },
         )
     }
 
     override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
 
-        arguments.forEach { reportings.addAll(it.validate(forUsage.deriveIrrelevant())) }
+        arguments?.forEach { reportings.addAll(it.validate(forUsage.deriveIrrelevant())) }
         reportings.addAll(inherentTypeBindings.reportings)
         reportings.addAll(baseType.validateAccessFrom(forUsage.usageLocation))
         forUsage.exposedBy?.let { exposer ->
@@ -115,13 +121,13 @@ class RootResolvedTypeReference private constructor(
             is UnresolvedType -> other.closestCommonSupertypeWith(this)
             is RootResolvedTypeReference -> {
                 val commonSupertype = BoundBaseTypeDefinition.closestCommonSupertypeOf(this.baseType, other.baseType)
-                check(commonSupertype.typeParameters.isEmpty()) { "Generic supertypes are not implemented, yet." }
+                check(commonSupertype.typeParameters.isNullOrEmpty()) { "Generic supertypes are not implemented, yet." }
                 RootResolvedTypeReference(
                     null,
                     this.isNullable || other.isNullable,
                     this.mutability.combinedWith(other.mutability),
                     commonSupertype,
-                    emptyList(),
+                    null,
                 )
             }
             is GenericTypeReference -> other.closestCommonSupertypeWith(this)
@@ -144,7 +150,7 @@ class RootResolvedTypeReference private constructor(
             isNullable,
             explicitMutability,
             baseType,
-            arguments.map { it.withTypeVariables(variables) },
+            arguments?.map { it.withTypeVariables(variables) },
         )
     }
 
@@ -171,8 +177,10 @@ class RootResolvedTypeReference private constructor(
                     )
                 }
 
-                return this.arguments
-                    .zip(assigneeType.arguments)
+                val selfArgs = this.arguments ?: emptyList()
+                val assigneeArgs = assigneeType.arguments ?: emptyList()
+                return selfArgs
+                    .zip(assigneeArgs)
                     .fold(carry) { innerCarry, (targetArg, sourceArg) ->
                         targetArg.unify(sourceArg, assignmentLocation, innerCarry)
                     }
@@ -195,7 +203,7 @@ class RootResolvedTypeReference private constructor(
             isNullable,
             explicitMutability,
             baseType,
-            arguments.map { it.instantiateFreeVariables(context) },
+            arguments?.map { it.instantiateFreeVariables(context) },
         )
     }
 
@@ -205,7 +213,7 @@ class RootResolvedTypeReference private constructor(
             isNullable,
             explicitMutability,
             baseType,
-            arguments.map { it.instantiateAllParameters(context) },
+            arguments?.map { it.instantiateAllParameters(context) },
         )
     }
 
@@ -219,7 +227,7 @@ class RootResolvedTypeReference private constructor(
             else -> baseType.canonicalName.toString()
         }
 
-        if (arguments.isNotEmpty()) {
+        if (arguments != null) {
             str += arguments.joinToString(
                 prefix = "<",
                 separator = ", ",
@@ -236,7 +244,7 @@ class RootResolvedTypeReference private constructor(
 
     override fun toBackendIr(): IrType {
         val raw = IrSimpleTypeImpl(baseType.toBackendIr(), isNullable)
-        if (arguments.isEmpty()) {
+        if (arguments.isNullOrEmpty() || baseType.typeParameters.isNullOrEmpty()) {
             return raw
         }
 

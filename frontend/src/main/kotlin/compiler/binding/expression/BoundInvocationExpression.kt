@@ -57,7 +57,7 @@ class BoundInvocationExpression(
     /** The receiver expression; is null if not specified in the source */
     val receiverExpression: BoundExpression<*>?,
     val functionNameToken: IdentifierToken,
-    val valueArguments: List<BoundExpression<*>>
+    val valueArguments: List<BoundExpression<*>>,
 ) : BoundExpression<InvocationExpression>, BoundExecutable<InvocationExpression> {
 
     private val seanHelper = SeanHelper()
@@ -71,7 +71,7 @@ class BoundInvocationExpression(
     override var type: BoundTypeReference? = null
         private set
 
-    lateinit var typeArguments: List<BoundTypeArgument>
+    var typeArguments: List<BoundTypeArgument>? = null
         private set
 
     /**
@@ -88,7 +88,7 @@ class BoundInvocationExpression(
             val reportings = mutableSetOf<Reporting>()
             receiverExpression?.semanticAnalysisPhase1()?.let(reportings::addAll)
             valueArguments.map(BoundExpression<*>::semanticAnalysisPhase1).forEach(reportings::addAll)
-            typeArguments = declaration.typeArguments.map(context::resolveType)
+            typeArguments = declaration.typeArguments?.map(context::resolveType)
             reportings
         }
 
@@ -100,7 +100,7 @@ class BoundInvocationExpression(
             val reportings = mutableSetOf<Reporting>()
 
             receiverExpression?.semanticAnalysisPhase2()?.let(reportings::addAll)
-            typeArguments.forEach { reportings.addAll(it.validate(TypeUseSite.Irrelevant(it.sourceLocation, null))) }
+            typeArguments?.forEach { reportings.addAll(it.validate(TypeUseSite.Irrelevant(it.sourceLocation, null))) }
             valueArguments.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
 
             val chosenOverload = selectOverload(reportings) ?: return@phase2 reportings
@@ -371,7 +371,7 @@ class BoundInvocationExpression(
 private fun Iterable<BoundOverloadSet<*>>.filterAndSortByMatchForInvocationTypes(
     receiver: BoundExpression<*>?,
     valueArguments: List<BoundExpression<*>>,
-    typeArguments: List<BoundTypeArgument>,
+    typeArguments: List<BoundTypeArgument>?,
     expectedReturnType: BoundTypeReference?,
 ): List<OverloadCandidateEvaluation> {
     check((receiver != null) xor (receiver?.type == null))
@@ -393,7 +393,7 @@ private fun Iterable<BoundOverloadSet<*>>.filterAndSortByMatchForInvocationTypes
 
             // TODO: source location
             val returnTypeWithVariables = candidateFn.returnType?.withTypeVariables(candidateFn.allTypeParameters)
-            var unification = TypeUnification.fromExplicit(candidateFn.declaredTypeParameters, typeArguments, SourceLocation.UNKNOWN, allowZeroTypeArguments = true)
+            var unification = TypeUnification.fromExplicit(candidateFn.declaredTypeParameters, typeArguments, SourceLocation.UNKNOWN, allowMissingTypeArguments = true)
             if (returnTypeWithVariables != null) {
                 if (expectedReturnType != null) {
                     unification = unification.doWithIgnoringReportings { obliviousUnification ->

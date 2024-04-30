@@ -55,7 +55,7 @@ class BoundBaseTypeDefinition(
     private val typeRootContext: CTContext,
     val kind: Kind,
     override val visibility: BoundVisibility,
-    val typeParameters: List<BoundTypeParameter>,
+    val typeParameters: List<BoundTypeParameter>?,
     val superTypes: BoundSupertypeList,
     override val declaration: BaseTypeDeclaration,
     val entries: List<BoundBaseTypeEntry<*>>,
@@ -68,9 +68,11 @@ class BoundBaseTypeDefinition(
     }
     val simpleName: String = declaration.name.value
     val baseReference: RootResolvedTypeReference
-        get() = RootResolvedTypeReference(TypeReference(this.simpleName), this, typeParameters.map {
-            throw InternalCompilerError("cannot use baseReference on types with parameters")
-        })
+        get() = RootResolvedTypeReference(
+            TypeReference(this.simpleName),
+            this,
+            if (typeParameters.isNullOrEmpty()) null else throw InternalCompilerError("cannot use baseReference on types with parameters")
+        )
 
     val memberVariables: List<BoundBaseTypeMemberVariable> = entries.filterIsInstance<BoundBaseTypeMemberVariable>()
     val declaredConstructors: Sequence<BoundClassConstructor> = entries.asSequence().filterIsInstance<BoundClassConstructor>()
@@ -94,7 +96,7 @@ class BoundBaseTypeDefinition(
         return seanHelper.phase1 {
             val reportings = mutableSetOf<Reporting>()
 
-            typeParameters.flatMap { it.semanticAnalysisPhase1() }.forEach(reportings::add)
+            typeParameters?.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
             reportings.addAll(superTypes.semanticAnalysisPhase1())
 
             entries.forEach {
@@ -227,7 +229,7 @@ class BoundBaseTypeDefinition(
 
             val reportings = entries.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
 
-            typeParameters.map(BoundTypeParameter::semanticAnalysisPhase2).forEach(reportings::addAll)
+            typeParameters?.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
             reportings.addAll(superTypes.semanticAnalysisPhase2())
             entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase2).forEach(reportings::addAll)
             constructor?.semanticAnalysisPhase2()?.let(reportings::addAll)
@@ -276,7 +278,7 @@ class BoundBaseTypeDefinition(
         return seanHelper.phase3(runIfErrorsPreviously = false) {
             val reportings = entries.flatMap { it.semanticAnalysisPhase3() }.toMutableList()
 
-            typeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
+            typeParameters?.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
             reportings.addAll(superTypes.semanticAnalysisPhase3())
             entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase3).forEach(reportings::addAll)
             constructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
@@ -457,7 +459,7 @@ private class IrInterfaceImpl(
     typeDef: BoundBaseTypeDefinition,
 ) : IrInterface {
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
-    override val parameters = typeDef.typeParameters.map { it.toBackendIr() }
+    override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()
     override val memberFunctions by lazy { typeDef.memberFunctions.map { it.toBackendIr() as IrOverloadGroup<IrMemberFunction> } }
 }
 
@@ -465,7 +467,7 @@ private class IrClassImpl(
     typeDef: BoundBaseTypeDefinition,
 ) : IrClass {
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
-    override val parameters = typeDef.typeParameters.map { it.toBackendIr() }
+    override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()
     override val memberVariables by lazy { typeDef.memberVariables.map { it.toBackendIr() } }
     override val memberFunctions by lazy { typeDef.memberFunctions.map { it.toBackendIr() as IrOverloadGroup<IrMemberFunction> } }
     override val constructor by lazy { typeDef.constructor!!.toBackendIr() }

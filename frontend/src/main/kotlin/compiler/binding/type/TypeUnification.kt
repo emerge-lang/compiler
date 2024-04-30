@@ -53,15 +53,22 @@ interface TypeUnification {
          */
         fun fromExplicit(
             typeParameters: List<BoundTypeParameter>,
-            arguments: List<BoundTypeArgument>,
+            arguments: List<BoundTypeArgument>?,
             argumentsLocation: SourceLocation,
-            allowZeroTypeArguments: Boolean = false,
+            allowMissingTypeArguments: Boolean = false,
         ): TypeUnification {
-            if (arguments.isEmpty() && allowZeroTypeArguments) {
-                return EMPTY
+            var unification = EMPTY
+
+            if (arguments == null) {
+                if (typeParameters.isNotEmpty() && !allowMissingTypeArguments) {
+                    for (typeParam in typeParameters) {
+                        unification = unification.plusReporting(Reporting.missingTypeArgument(typeParam, argumentsLocation))
+                    }
+                }
+
+                return unification
             }
 
-            var unification = EMPTY
             for (i in 0..typeParameters.lastIndex.coerceAtMost(arguments.lastIndex)) {
                 val parameter = typeParameters[i]
                 val argument = arguments[i]

@@ -33,7 +33,7 @@ class InvocationExpression(
      * * `obj.doStuff()` => `MemberAccessExpression(obj, doStuff)`
      */
     val targetExpression: Expression,
-    val typeArguments: List<TypeArgument>,
+    val typeArguments: List<TypeArgument>?,
     val argumentExpressions: List<Expression>,
     override val sourceLocation: SourceLocation,
 ) :Expression {

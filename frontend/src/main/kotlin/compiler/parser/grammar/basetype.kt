@@ -166,12 +166,12 @@ val BaseTypeDefinition = sequence("base type definition") {
         val name = tokens.next()!! as IdentifierToken
         next = tokens.next()
 
-        val typeParameters: List<TypeParameter>
+        val typeParameters: List<TypeParameter>?
         if (next is TypeParameterBundle) {
             typeParameters = next.parameters
             next = tokens.next()
         } else {
-            typeParameters = emptyList()
+            typeParameters = null
         }
 
         val supertypes: AstSupertypeList?

@@ -66,7 +66,7 @@ class SourceBoundSupertypeDeclaration(
         return seanHelper.phase3 {
             val reportings = mutableListOf<Reporting>()
 
-            if (astNode.arguments.isNotEmpty()) {
+            if (!astNode.arguments.isNullOrEmpty()) {
                 reportings.add(
                     Reporting.illegalSupertype(
                         astNode,

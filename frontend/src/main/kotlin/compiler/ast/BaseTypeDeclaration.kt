@@ -51,7 +51,7 @@ class BaseTypeDeclaration(
     val name: IdentifierToken,
     val supertypes: AstSupertypeList?,
     val entryDeclarations: List<BaseTypeEntryDeclaration>,
-    val typeParameters: List<TypeParameter>,
+    val typeParameters: List<TypeParameter>?,
 ) : AstFileLevelDeclaration {
     override val declaredAt = name.sourceLocation
 
@@ -66,7 +66,7 @@ class BaseTypeDeclaration(
             else -> throw InternalCompilerError("Unknown base type declaration keyword ${declarationKeyword.sourceLocation}")
         }
         val typeVisibility = visibility?.bindTo(fileContext) ?: BoundVisibility.default(fileContext)
-        val (boundTypeParameters, fileContextWithTypeParams) = typeParameters.chain(fileContext)
+        val (boundTypeParameters, fileContextWithTypeParams) = typeParameters?.chain(fileContext) ?: Pair(null, fileContext)
         val typeRootContext = MutableCTContext(fileContextWithTypeParams, typeVisibility)
         val boundSupertypes = supertypes.bindTo(typeRootContext, typeDefAccessor)
         val memberVariableInitializationContext = MutableExecutionScopedCTContext.functionRootIn(typeRootContext)
@@ -75,7 +75,7 @@ class BaseTypeDeclaration(
             nullability = TypeReference.Nullability.NOT_NULLABLE,
             mutability = TypeMutability.READONLY,
             declaringNameToken = this.name,
-            typeParameters.map {
+            typeParameters?.map {
                 TypeArgument(TypeVariance.UNSPECIFIED, TypeReference(it.name))
             },
         )
@@ -156,8 +156,8 @@ class BaseTypeConstructorDeclaration(
 ) : BaseTypeEntryDeclaration {
     override val sourceLocation = constructorKeyword.sourceLocation
 
-    fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>, getClassDef: () -> BoundBaseTypeDefinition) : BoundClassConstructor {
-        return BoundClassConstructor(fileContextWithTypeParameters, typeParameters, getClassDef, this)
+    fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>?, getClassDef: () -> BoundBaseTypeDefinition) : BoundClassConstructor {
+        return BoundClassConstructor(fileContextWithTypeParameters, typeParameters ?: emptyList(), getClassDef, this)
     }
 }
 
@@ -167,8 +167,8 @@ class BaseTypeDestructorDeclaration(
 ) : BaseTypeEntryDeclaration {
     override val sourceLocation = destructorKeyword.sourceLocation
 
-    fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>, getClassDef: () -> BoundBaseTypeDefinition): BoundClassDestructor {
-        return BoundClassDestructor(fileContextWithTypeParameters, typeParameters, getClassDef, this)
+    fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>?, getClassDef: () -> BoundBaseTypeDefinition): BoundClassDestructor {
+        return BoundClassDestructor(fileContextWithTypeParameters, typeParameters ?: emptyList(), getClassDef, this)
     }
 }
 
