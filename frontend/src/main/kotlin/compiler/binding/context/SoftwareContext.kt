@@ -104,7 +104,8 @@ class SoftwareContext {
     }
 
     val emergeCorePackage: PackageContext by lazy {
-        getPackage(CoreIntrinsicsModule.NAME)!!
+        getPackage(CoreIntrinsicsModule.NAME)
+            ?: throw InternalCompilerError("Core package ${CoreIntrinsicsModule.NAME} is not registered")
     }
 
     private fun coreType(name: String? = null) = object {

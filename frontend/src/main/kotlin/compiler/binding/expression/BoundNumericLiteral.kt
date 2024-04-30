@@ -87,41 +87,27 @@ class BoundIntegerLiteral(
     val integer: BigInteger,
     reportings: Collection<Reporting>
 ) : BoundNumericLiteral(context, declaration, reportings) {
-    override var type = context.swCtx.s32.baseReference
+    override lateinit var type: RootResolvedTypeReference
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
-        if (expectedNumericType == null) {
-            if (integer !in CoreTypes.S32_RANGE) {
-                reportings.add(Reporting.integerLiteralOutOfRange(
-                    declaration, context.swCtx.s32, CoreTypes.S32_RANGE
-                ))
-            }
-            return reportings
+        type = (expectedNumericType ?: context.swCtx.s32).baseReference
+        val typeRange = when (type.baseType) {
+            context.swCtx.s8 -> CoreTypes.S8_RANGE
+            context.swCtx.u8 -> CoreTypes.U8_RANGE
+            context.swCtx.s16 -> CoreTypes.S16_RANGE
+            context.swCtx.u16 -> CoreTypes.U16_RANGE
+            context.swCtx.s32 -> CoreTypes.S32_RANGE
+            context.swCtx.u32 -> CoreTypes.U32_RANGE
+            context.swCtx.s64 -> CoreTypes.S64_RANGE
+            context.swCtx.u64 -> CoreTypes.U64_RANGE
+            context.swCtx.sword -> CoreTypes.SWORD_SAFE_RANGE
+            context.swCtx.uword -> CoreTypes.UWORD_SAFE_RANGE
+            else -> throw InternalCompilerError("How did the type $type end up here - apparently not an integer type")
         }
 
-        expectedNumericType?.let { expectedType ->
-            val range: ClosedRange<BigInteger> = when (expectedType) {
-                context.swCtx.s8 -> CoreTypes.S8_RANGE
-                context.swCtx.u8 -> CoreTypes.U8_RANGE
-                context.swCtx.s16 -> CoreTypes.S16_RANGE
-                context.swCtx.u16 -> CoreTypes.U16_RANGE
-                context.swCtx.s32 -> CoreTypes.S32_RANGE
-                context.swCtx.u32 -> CoreTypes.U32_RANGE
-                context.swCtx.s64 -> CoreTypes.S64_RANGE
-                context.swCtx.u64 -> CoreTypes.U64_RANGE
-                context.swCtx.sword -> CoreTypes.SWORD_SAFE_RANGE
-                context.swCtx.uword -> CoreTypes.UWORD_SAFE_RANGE
-                else -> return reportings
-            }
-
-            // even if the literal doesn't fit into the expected type, setting this makes sense: it makes a
-            // possible cannot-be-assigned error go away. there already is an error for the out-of-range literal,
-            // no need for a second reporting on the same error
-            type = expectedType.baseReference
-            if (integer !in range) {
-                reportings.add(Reporting.integerLiteralOutOfRange(declaration, expectedType, range))
-            }
+        if (integer !in typeRange) {
+            reportings.add(Reporting.integerLiteralOutOfRange(declaration, type.baseType, typeRange))
         }
 
         return reportings
