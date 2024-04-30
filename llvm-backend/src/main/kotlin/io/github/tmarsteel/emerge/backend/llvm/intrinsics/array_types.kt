@@ -429,8 +429,9 @@ internal val arrayAddressOfFirst = KotlinLlvmFunction.define<LlvmContext, _>(
         ret(ptr)
     }
 }
+
 internal val arraySize = KotlinLlvmFunction.define<LlvmContext, _>(
-    "emerge.core.size",
+    "emerge.core.Array::size",
     EmergeWordType,
 ) {
     val arrayPointer by param(pointerTo(EmergeArrayBaseType))
@@ -441,5 +442,46 @@ internal val arraySize = KotlinLlvmFunction.define<LlvmContext, _>(
                 .get()
                 .dereference()
         )
+    }
+}
+
+/**
+ * this must never be invoked directly. Either one of these gets invoked directly or through the vtable
+ * * [referenceArrayElementGetter]
+ * * [buildValueArrayBoxingElementGetter]
+ *
+ * or the backend must emit specialized code for accessing the elements, just as in [buildValueArrayBoxingElementGetter],
+ * because that depends on the element size.
+ */
+internal val arrayAbstractGet = KotlinLlvmFunction.define<LlvmContext, _>(
+    "emerge.core.Array::get",
+    PointerToAnyEmergeValue,
+) {
+    param(pointerTo(EmergeArrayBaseType))
+    param(EmergeWordType)
+    body {
+        // TODO: panic
+        ret(context.undefValue(PointerToAnyEmergeValue))
+    }
+}
+
+/**
+ * this must never be invoked directly. Either one of these gets invoked directly or through the vtable
+ * * [referenceArrayElementSetter]
+ * * [buildValueArrayBoxingElementSetter]
+ *
+ * or the backend must emit specialized code for accessing the elements, just as in [buildValueArrayBoxingElementSetter],
+ * because that depends on the element size.
+ */
+internal val arrayAbstractSet = KotlinLlvmFunction.define<LlvmContext, _>(
+    "emerge.core.Array::set",
+    LlvmVoidType,
+) {
+    param(pointerTo(EmergeArrayBaseType))
+    param(EmergeWordType)
+    param(PointerToAnyEmergeValue)
+    body {
+        // TODO: panic
+        retVoid()
     }
 }

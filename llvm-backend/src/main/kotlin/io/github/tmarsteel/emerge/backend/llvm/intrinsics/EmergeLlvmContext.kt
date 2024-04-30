@@ -461,5 +461,7 @@ fun <T : LlvmType> BasicBlockBuilder<EmergeLlvmContext, *>.heapAllocate(type: T)
 private val intrinsicFunctions: Map<String, KotlinLlvmFunction<in EmergeLlvmContext, *>> = listOf(
     arrayAddressOfFirst,
     arraySize,
+    arrayAbstractGet,
+    arrayAbstractSet,
 )
     .associateBy { it.name }
