@@ -307,7 +307,7 @@ internal val EmergeS64ArrayType = buildValueArrayType("s64", LlvmI8Type, EmergeL
 internal val EmergeU64ArrayType = buildValueArrayType("u64", LlvmI8Type, EmergeLlvmContext::boxTypeU64)
 internal val EmergeSWordArrayType = buildValueArrayType("sword", LlvmI8Type, EmergeLlvmContext::boxTypeSWord)
 internal val EmergeUWordArrayType = buildValueArrayType("uword", LlvmI8Type, EmergeLlvmContext::boxTypeUWord)
-internal val EmergeBooleanArrayType = buildValueArrayType("bool", LlvmBooleanType, EmergeLlvmContext::boxTypeBoolean)
+internal val EmergeBooleanArrayType = buildValueArrayType("bool", LlvmBooleanType, EmergeLlvmContext::boxTypeBool)
 
 private val referenceArrayElementGetter: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>> = KotlinLlvmFunction.define(
     "emerge.platform.referenceArrayGet",

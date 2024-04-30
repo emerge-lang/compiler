@@ -1,19 +1,19 @@
 package emerge.platform
 
 class S8Box {
-    value: Byte = init
+    value: S8 = init
 }
 
 class U8Box {
-    value: UByte = init
+    value: U8 = init
 }
 
 class S16Box {
-    value: Short = init
+    value: S16 = init
 }
 
 class U16Box {
-    value: UShort = init
+    value: U16 = init
 }
 
 class S32Box {
@@ -21,15 +21,15 @@ class S32Box {
 }
 
 class U32Box {
-    value: UInt = init
+    value: U32 = init
 }
 
 class S64Box {
-    value: Long = init
+    value: S64 = init
 }
 
 class U64Box {
-    value: ULong = init
+    value: U64 = init
 }
 
 class SWordBox {
@@ -40,6 +40,6 @@ class UWordBox {
     value: UWord = init
 }
 
-class BooleanBox {
+class BoolBox {
     value: Bool = init
 }

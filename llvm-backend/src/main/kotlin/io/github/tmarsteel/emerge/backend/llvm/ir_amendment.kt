@@ -1,5 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm
 
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrPackage
@@ -29,26 +30,22 @@ Once the LLVM backend is somewhat stable all of this should move into a new set 
  * Null otherwise, which means that the value should probably be represented as a
  * `pointerTo(AnyvalueType)`
  */
-internal val IrType.llvmValueType: LlvmType? by tackLazyVal {
-    if (this !is IrSimpleType) {
-        return@tackLazyVal null
-    }
+internal val IrBaseType.llvmValueType: LlvmType? by tackLazyVal {
+    when (this.canonicalName.toString()) {
+        "emerge.core.S8",
+        "emerge.core.U8" -> LlvmI8Type
 
-    when (this.baseType.canonicalName.toString()) {
-        "emerge.core.Byte",
-        "emerge.core.UByte" -> LlvmI8Type
-
-        "emerge.core.Short",
-        "emerge.core.UShort" -> LlvmI16Type
+        "emerge.core.S16",
+        "emerge.core.U16" -> LlvmI16Type
 
         "emerge.core.S32",
-        "emerge.core.US32" -> LlvmI32Type
+        "emerge.core.U32" -> LlvmI32Type
 
-        "emerge.core.Long",
-        "emerge.core.ULong" -> LlvmI64Type
+        "emerge.core.S64",
+        "emerge.core.U64" -> LlvmI64Type
 
-        "emerge.core.iword",
-        "emerge.core.uword" -> EmergeWordType
+        "emerge.core.UWord",
+        "emerge.core.SWord" -> EmergeWordType
 
         "emerge.core.Bool" -> LlvmBooleanType
 
@@ -56,6 +53,25 @@ internal val IrType.llvmValueType: LlvmType? by tackLazyVal {
 
         else -> null
     }
+}
+
+/**
+ * @return whether this is a type that, even though declared as a class in emerge source,
+ * is handled as a value-type in LLVM (e.g. S32)
+ */
+internal val IrBaseType.isOpaquePrimitiveType: Boolean get() = llvmValueType != null
+
+/**
+ * If this is one of the emerge value types, returns the corresponding type.
+ * Null otherwise, which means that the value should probably be represented as a
+ * `pointerTo(AnyvalueType)`
+ */
+internal val IrType.llvmValueType: LlvmType? by tackLazyVal {
+    if (this !is IrSimpleType) {
+        return@tackLazyVal null
+    }
+
+    baseType.llvmValueType
 }
 internal val IrType.isUnit by tackLazyVal { this is IrSimpleType && this.baseType.canonicalName.toString() == "emerge.core.Unit" }
 

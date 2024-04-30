@@ -14,6 +14,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.PassBuilderOptions
 import io.github.tmarsteel.emerge.backend.llvm.getLlvmMessage
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.isOpaquePrimitiveType
 import io.github.tmarsteel.emerge.backend.llvm.linux.EmergeEntrypoint
 import io.github.tmarsteel.emerge.backend.llvm.linux.LinuxLinker
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
@@ -83,7 +84,9 @@ class Linux_x68_64_Backend : EmergeBackend {
 
         EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-unknown")) { llvmContext ->
             softwareContext.packagesSeq.forEach { pkg ->
-                pkg.classes.forEach(llvmContext::registerClass)
+                pkg.classes
+                    .filterNot { it.isOpaquePrimitiveType }
+                    .forEach(llvmContext::registerClass)
             }
             softwareContext.packagesSeq
                 .flatMap { it.interfaces }
@@ -123,6 +126,7 @@ class Linux_x68_64_Backend : EmergeBackend {
             softwareContext.modules
                 .flatMap { it.packages }
                 .flatMap { it.classes }
+                .filterNot { it.isOpaquePrimitiveType }
                 .forEach { clazz ->
                     llvmContext.defineFunctionBody(clazz.constructor)
                     clazz.memberFunctions

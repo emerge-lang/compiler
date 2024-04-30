@@ -99,8 +99,8 @@ class EmergeLlvmContext(
     internal lateinit var boxTypeSWord: EmergeClassType
     /** `emerge.platform.UWordBox` */
     internal lateinit var boxTypeUWord: EmergeClassType
-    /** `emerge.platform.BooleanBox` */
-    internal lateinit var boxTypeBoolean: EmergeClassType
+    /** `emerge.platform.BoolBox` */
+    internal lateinit var boxTypeBool: EmergeClassType
 
     /** `emerge.core.Unit` */
     internal lateinit var unitType: EmergeClassType
@@ -138,6 +138,7 @@ class EmergeLlvmContext(
             "emerge.platform.U64Box" -> boxTypeU64 = emergeClassType
             "emerge.platform.SWordBox" -> boxTypeSWord = emergeClassType
             "emerge.platform.UWordBox" -> boxTypeUWord = emergeClassType
+            "emerge.platform.BoolBox" -> boxTypeBool = emergeClassType
             "emerge.core.Unit" -> {
                 unitType = emergeClassType
                 pointerToPointerToUnitInstance = addGlobal(undefValue(pointerTo(emergeClassType)), LlvmGlobal.ThreadLocalMode.SHARED)
@@ -386,19 +387,18 @@ class EmergeLlvmContext(
                     }
 
                     return when ((component.type as IrSimpleType).baseType.canonicalName.toString()) {
-                        "emerge.core.Byte" -> EmergeS8ArrayType
-                        "emerge.core.UByte" -> EmergeU8ArrayType
-                        "emerge.core.Short" -> EmergeS16ArrayType
-                        "emerge.core.UShort" -> EmergeU16ArrayType
+                        "emerge.core.S8" -> EmergeS8ArrayType
+                        "emerge.core.U8" -> EmergeU8ArrayType
+                        "emerge.core.S16" -> EmergeS16ArrayType
+                        "emerge.core.U16" -> EmergeU16ArrayType
                         "emerge.core.S32" -> EmergeS32ArrayType
-                        "emerge.core.US32" -> EmergeU32ArrayType
-                        "emerge.core.Long" -> EmergeS64ArrayType
-                        "emerge.core.ULong" -> EmergeU64ArrayType
-                        "emerge.core.iword" -> EmergeSWordArrayType
-                        "emerge.core.uword" -> EmergeUWordArrayType
+                        "emerge.core.U32" -> EmergeU32ArrayType
+                        "emerge.core.S64" -> EmergeS64ArrayType
+                        "emerge.core.U64" -> EmergeU64ArrayType
+                        "emerge.core.SWord" -> EmergeSWordArrayType
+                        "emerge.core.UWord" -> EmergeUWordArrayType
                         "emerge.core.Bool" -> EmergeBooleanArrayType
                         "emerge.core.Any" -> EmergeArrayBaseType
-                        "emerge.core.Number" -> EmergeArrayBaseType
                         else -> EmergeReferenceArrayType
                     }
                 }
