@@ -74,6 +74,8 @@ export class Bool {
 }
 
 export class Array<Element> {
+    export size: UWord = init
+
     private constructor {}
 
     export intrinsic fun get(self: readonly _<out Element>, index: UWord) -> Element

@@ -8,5 +8,5 @@ FD_STDOUT: S32 = 1
 FD_STDERR: S32 = 2
 
 export mutable fun print(str: String) {
-    write(FD_STDOUT, str.utf8Data.addressOfFirst(), str.utf8Data.size())
+    write(FD_STDOUT, str.utf8Data.addressOfFirst(), str.utf8Data.size)
 }

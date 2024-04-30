@@ -126,7 +126,7 @@ class Linux_x68_64_Backend : EmergeBackend {
             softwareContext.modules
                 .flatMap { it.packages }
                 .flatMap { it.classes }
-                .filterNot { it.isOpaquePrimitiveType }
+                .filterNot { it.isOpaquePrimitiveType || it.canonicalName.toString() == "emerge.core.Array" }
                 .forEach { clazz ->
                     llvmContext.defineFunctionBody(clazz.constructor)
                     clazz.memberFunctions

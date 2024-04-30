@@ -20,6 +20,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNotReallyAnExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
@@ -160,6 +161,14 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             return ExpressionResult.Value(stringTemporary)
         }
         is IrClassMemberVariableAccessExpression -> {
+            if ((expression.base.type as? IrParameterizedType)?.simpleType?.baseType?.canonicalName?.toString() == "emerge.core.Array") {
+                if (expression.memberVariable.name == "size") {
+                    return ExpressionResult.Value(
+                        call(context.registerIntrinsic(arraySize), listOf(expression.base.declaration.llvmValue))
+                    )
+                }
+            }
+
             val memberPointer = getPointerToStructMember(
                 expression.base.declaration.llvmValue,
                 expression.memberVariable,
@@ -180,15 +189,6 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             )
         }
         is IrDynamicDispatchFunctionInvocationExpression -> {
-            val intrinsicOverride = when (expression.function.canonicalName.toString()) {
-                arraySize.name -> arraySize
-                else -> null
-            }
-            if (intrinsicOverride != null) {
-                val callResult = call(context.registerIntrinsic(arraySize), expression.arguments.map { it.declaration.llvmValue })
-                return ExpressionResult.Value(callResult)
-            }
-
             val targetAddr = call(context.registerIntrinsic(getDynamicCallAddress), listOf(
                 expression.dispatchOn.declaration.llvmValue,
                 context.word(expression.function.signatureHashes.first()),
