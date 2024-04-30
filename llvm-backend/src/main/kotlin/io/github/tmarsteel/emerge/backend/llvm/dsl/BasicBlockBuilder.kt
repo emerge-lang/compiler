@@ -23,7 +23,9 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun <T : LlvmIntegerType> sub(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> mul(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> icmp(lhs: LlvmValue<T>, type: IntegerComparison, rhs: LlvmValue<T>): LlvmValue<LlvmBooleanType>
+    fun <T : LlvmIntegerType> shl(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> lshr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T>
+    fun <Small : LlvmIntegerType, Large : LlvmIntegerType> enlargeUnsigned(value: LlvmValue<Small>, to: Large): LlvmValue<Large>
     fun <T: LlvmType> alloca(type: T): LlvmValue<LlvmPointerType<T>>
     fun <R : LlvmType> call(function: LlvmFunction<R>, args: List<LlvmValue<*>>): LlvmValue<R>
     fun <R : LlvmType> call(function: LlvmValue<LlvmFunctionAddressType>, functionType: LlvmFunctionType<R>, args: List<LlvmValue<*>>): LlvmValue<R>
@@ -177,9 +179,22 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         return LlvmValue(cmpInstr, LlvmBooleanType)
     }
 
+    override fun <T : LlvmIntegerType> shl(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T> {
+        val shiftInstr = LLVM.LLVMBuildShl(builder, value.raw, shiftAmount.raw, tmpVars.next())
+        return LlvmValue(shiftInstr, value.type)
+    }
+
     override fun <T : LlvmIntegerType> lshr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T> {
         val shiftInstr = LLVM.LLVMBuildLShr(builder, value.raw, shiftAmount.raw, tmpVars.next())
         return LlvmValue(shiftInstr, value.type)
+    }
+
+    override fun <Small : LlvmIntegerType, Large : LlvmIntegerType> enlargeUnsigned(
+        value: LlvmValue<Small>,
+        to: Large,
+    ): LlvmValue<Large> {
+        val zextInstr = LLVM.LLVMBuildZExt(builder, value.raw, to.getRawInContext(context), tmpVars.next())
+        return LlvmValue(zextInstr, to)
     }
 
     override fun <T: LlvmType> alloca(type: T): LlvmValue<LlvmPointerType<T>> {

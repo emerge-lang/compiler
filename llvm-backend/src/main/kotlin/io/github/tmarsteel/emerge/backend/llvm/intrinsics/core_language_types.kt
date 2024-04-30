@@ -20,6 +20,7 @@ import org.bytedeco.llvm.global.LLVM
 
 internal object EmergeWordType : LlvmCachedType(), LlvmIntegerType {
     override fun computeRaw(context: LlvmContext) = LLVM.LLVMIntTypeInContext(context.ref, context.targetData.pointerSizeInBytes * 8)
+    override fun toString() = "%word"
 }
 
 internal fun LlvmContext.word(value: Int): LlvmConstant<EmergeWordType> {
@@ -45,6 +46,8 @@ internal fun LlvmContext.word(value: Long): LlvmConstant<EmergeWordType> {
         EmergeWordType,
     )
 }
+
+internal fun LlvmContext.word(value: ULong): LlvmConstant<EmergeWordType> = word(value.toLong())
 
 internal object EmergeAnyValueVirtualsType : LlvmStructType("anyvalue_virtuals") {
     val finalizeFunction by structMember(LlvmFunctionAddressType)

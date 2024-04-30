@@ -45,7 +45,7 @@ internal class EmergeClassType private constructor(
     val constructor get() = irClass.constructor.llvmRef!! as LlvmFunction<LlvmPointerType<EmergeClassType>>
     val destructor get() = irClass.destructor.llvmRef!! as LlvmFunction<LlvmVoidType>
 
-    private val typeinfo by lazy {
+    private val typeinfoProvider by lazy {
         StaticAndDynamicTypeInfo.define(
             irClass.llvmName,
             emptyList(),
@@ -62,9 +62,15 @@ internal class EmergeClassType private constructor(
     }
 
     private val anyValueBaseTemplateDynamic: LlvmGlobal<EmergeHeapAllocatedValueBaseType> by lazy {
+        val typeinfo = try {
+            typeinfoProvider.provide(context)
+        } catch (ex: VirtualFunctionHashCollisionException) {
+            throw VirtualFunctionHashCollisionException("Type ${irClass.canonicalName}: ${ex.message}", ex)
+        }
+
         val constant = EmergeHeapAllocatedValueBaseType.buildConstantIn(context) {
             setValue(EmergeHeapAllocatedValueBaseType.strongReferenceCount, context.word(1))
-            setValue(EmergeHeapAllocatedValueBaseType.typeinfo, typeinfo.provide(context).dynamic)
+            setValue(EmergeHeapAllocatedValueBaseType.typeinfo, typeinfo.dynamic)
             setValue(EmergeHeapAllocatedValueBaseType.weakReferenceCollection, context.nullValue(pointerTo(EmergeWeakReferenceCollectionType)))
         }
         context.addGlobal(constant, LlvmGlobal.ThreadLocalMode.SHARED)

@@ -9,11 +9,11 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
 
 internal var IrMemberFunction.llvmFunctionType: LlvmFunctionType<*> by tackLateInitState()
-internal val IrMemberFunction.rootSignatureHash: Long by tackLazyVal {
+internal val IrMemberFunction.rootSignatureHash: ULong by tackLazyVal {
     check(overrides.isEmpty())
     calculateSignatureHash(this)
 }
-internal val IrMemberFunction.signatureHashes: Set<Long> by tackLazyVal {
+internal val IrMemberFunction.signatureHashes: Set<ULong> by tackLazyVal {
     if (overrides.isEmpty()) {
         setOf(rootSignatureHash)
     } else {
@@ -21,7 +21,7 @@ internal val IrMemberFunction.signatureHashes: Set<Long> by tackLazyVal {
     }
 }
 
-private fun calculateSignatureHash(fn: IrMemberFunction): Long {
+private fun calculateSignatureHash(fn: IrMemberFunction): ULong {
     // TODO: this is totally preliminary, needs to be redone to account for ultra low collision rate (and performance?)
     var signatureString = fn.declaredOn.toStringForSignature()
     fn.parameters.forEach {
@@ -34,7 +34,7 @@ private fun calculateSignatureHash(fn: IrMemberFunction): Long {
     val lo = loPart.hashCode()
     val hi = hiPart.hashCode()
 
-    return lo.toLong() or (hi.toLong() shl 32)
+    return lo.toULong() or (hi.toULong() shl 32)
 }
 
 private fun IrBaseType.toStringForSignature(): String = canonicalName.toString().lengthEncode()

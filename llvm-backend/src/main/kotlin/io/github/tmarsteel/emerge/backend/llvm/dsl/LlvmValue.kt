@@ -1,6 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
+import io.github.tmarsteel.emerge.backend.llvm.getLlvmMessage
 import org.bytedeco.llvm.LLVM.LLVMValueRef
 import org.bytedeco.llvm.global.LLVM
 
@@ -22,6 +23,8 @@ class LlvmConstant<out Type : LlvmType>(
     init {
         check(LLVM.LLVMIsConstant(raw) == 1)
     }
+
+    override fun toString(): String = getLlvmMessage(LLVM.LLVMPrintValueToString(raw))?.trim() ?: "?"
 }
 
 class LlvmGlobal<Type : LlvmType>(

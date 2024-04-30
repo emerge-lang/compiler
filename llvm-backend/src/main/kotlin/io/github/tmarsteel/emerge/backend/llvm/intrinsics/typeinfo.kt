@@ -1,7 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import com.google.common.collect.MapMaker
-import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
@@ -12,12 +11,13 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmStructType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
+import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.requireStructuralSupertypeOf
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
 import org.bytedeco.llvm.global.LLVM
@@ -34,16 +34,20 @@ internal val staticObjectFinalizer: KotlinLlvmFunction<LlvmContext, LlvmVoidType
     }
 }
 
-internal class TypeinfoType private constructor(val nVTableEntries: Long) : LlvmStructType("typeinfo$nVTableEntries") {
-    val shiftRightAmount by structMember(EmergeWordType)
+internal class VTableType(val nEntries: Long) : LlvmStructType("vtable_vectors") {
+    val shiftLeftAmount by structMember(LlvmI32Type)
+    val shiftRightAmount by structMember(LlvmI32Type)
+    val addresses by structMember(LlvmArrayType(nEntries, LlvmFunctionAddressType))
+}
 
+internal class TypeinfoType private constructor(val nVTableEntries: Long) : LlvmStructType("typeinfo$nVTableEntries") {
     /**
      * actually always is a [PointerToEmergeArrayOfPointersToTypeInfoType]. Declaring that type here would create a cyclic
      * reference on JVM classload time. This is cast back in the [getSupertypePointers] intrinsic.
      */
     val supertypes by structMember(PointerToAnyEmergeValue)
     val anyValueVirtuals by structMember(EmergeAnyValueVirtualsType)
-    val vtableBlob by structMember(LlvmArrayType(nVTableEntries, LlvmFunctionAddressType))
+    val vtable by structMember(VTableType(nVTableEntries))
 
     override fun computeRaw(context: LlvmContext): LLVMTypeRef {
         if (nVTableEntries == 0L) {
@@ -145,14 +149,14 @@ internal class StaticAndDynamicTypeInfo private constructor(
         val typeName: String,
         val supertypes: List<LlvmConstant<LlvmPointerType<TypeinfoType>>>,
         val finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<LlvmVoidType>,
-        val virtualFunctions: EmergeLlvmContext.() -> Map<Long, LlvmFunction<*>>,
+        val virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
     ) : Provider {
         private val byContext: MutableMap<LlvmContext, StaticAndDynamicTypeInfo> = MapMaker().weakKeys().makeMap()
         override fun provide(context: EmergeLlvmContext): StaticAndDynamicTypeInfo {
             byContext[context]?.let { return it }
 
-            val (vtableBlob, shiftRightAmount) = buildVTable(context, virtualFunctions(context))
-            val typeinfoType = TypeinfoType(vtableBlob.type.elementCount)
+            val vtableConstant = buildVTable(context, virtualFunctions(context))
+            val typeinfoType = TypeinfoType(vtableConstant.type.nEntries)
 
             val dynamicGlobal = context.addGlobal(context.undefValue(typeinfoType), LlvmGlobal.ThreadLocalMode.SHARED)
             val staticGlobal = context.addGlobal(context.undefValue(typeinfoType), LlvmGlobal.ThreadLocalMode.SHARED)
@@ -160,7 +164,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
             // register now to break loops
             byContext[context] = bundle
 
-            val (dynamicConstant, staticConstant) = build(context, typeinfoType, vtableBlob, shiftRightAmount)
+            val (dynamicConstant, staticConstant) = build(context, typeinfoType, vtableConstant)
             LLVM.LLVMSetInitializer(dynamicGlobal.raw, dynamicConstant.raw)
             LLVM.LLVMSetInitializer(staticGlobal.raw, staticConstant.raw)
 
@@ -170,29 +174,26 @@ internal class StaticAndDynamicTypeInfo private constructor(
         private fun build(
             context: EmergeLlvmContext,
             typeinfoType: TypeinfoType,
-            vtableBlob: LlvmValue<LlvmArrayType<LlvmFunctionAddressType>>,
-            shiftRightAmount: LlvmConstant<EmergeWordType>
+            vtable: LlvmConstant<VTableType>,
         ): Pair<LlvmConstant<TypeinfoType>, LlvmConstant<TypeinfoType>> {
             val supertypesData = PointerToEmergeArrayOfPointersToTypeInfoType.pointed.buildConstantIn(context, supertypes, { it })
             val supertypesGlobal = context.addGlobal(supertypesData, LlvmGlobal.ThreadLocalMode.SHARED)
                 .reinterpretAs(PointerToAnyEmergeValue)
 
             val typeinfoDynamicData = typeinfoType.buildConstantIn(context) {
-                setValue(typeinfoType.shiftRightAmount, shiftRightAmount)
+                setValue(typeinfoType.vtable, vtable)
                 setValue(typeinfoType.supertypes, supertypesGlobal)
                 setValue(typeinfoType.anyValueVirtuals, EmergeAnyValueVirtualsType.buildConstantIn(context) {
                     setValue(EmergeAnyValueVirtualsType.finalizeFunction, finalizerFunction(context).address)
                 })
-                setValue(typeinfoType.vtableBlob, vtableBlob)
             }
 
             val typeinfoStaticData = typeinfoType.buildConstantIn(context) {
-                setValue(typeinfoType.shiftRightAmount, shiftRightAmount)
+                setValue(typeinfoType.vtable, vtable)
                 setValue(typeinfoType.supertypes, supertypesGlobal)
                 setValue(typeinfoType.anyValueVirtuals, EmergeAnyValueVirtualsType.buildConstantIn(context) {
                     setValue(EmergeAnyValueVirtualsType.finalizeFunction, context.registerIntrinsic(staticObjectFinalizer).address)
                 })
-                setValue(typeinfoType.vtableBlob, vtableBlob)
             }
 
             return Pair(typeinfoDynamicData, typeinfoStaticData)
@@ -204,42 +205,58 @@ internal class StaticAndDynamicTypeInfo private constructor(
             typeName: String,
             supertypes: List<LlvmConstant<LlvmPointerType<TypeinfoType>>>,
             finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<LlvmVoidType>,
-            virtualFunctions: EmergeLlvmContext.() -> Map<Long, LlvmFunction<*>>,
+            virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
         ): Provider = ProviderImpl(typeName, supertypes, finalizerFunction, virtualFunctions)
     }
 }
 
-private fun buildVTable(context: EmergeLlvmContext, functions: Map<Long, LlvmFunction<*>>): Pair<LlvmValue<LlvmArrayType<LlvmFunctionAddressType>>, LlvmConstant<EmergeWordType>> {
-    var prefixLength = 1
+private fun buildVTable(context: EmergeLlvmContext, functions: Map<ULong, LlvmFunction<*>>): LlvmConstant<VTableType> {
+    fun getSection(hash: ULong, shiftLeftAmount: Int, shiftRightAmount: Int): ULong {
+        return (hash shl shiftLeftAmount) shr shiftRightAmount
+    }
+
+    var windowSize = 2
+    var shiftLeftAmount: Int
     var shiftRightAmount: Int
-    while (true) {
-        if (prefixLength > 10) {
-            throw CodeGenerationException("signature collision. Couldn't find a unique prefix of <= 10 bits for hashes ${functions.keys.joinToString()}")
+    tryWindowSize@while (true) {
+        if (windowSize > 10) {
+            throw VirtualFunctionHashCollisionException("signature collision. Couldn't find a unique window of <= 10 bits for hashes ${functions.keys.joinToString()}")
         }
-        shiftRightAmount = 64 - prefixLength
-        val prefixes = functions.keys.map { it ushr shiftRightAmount }
-        if (prefixes.isDistinct()) {
-            break
+        shiftLeftAmount = 0
+        while (shiftLeftAmount <= 63) {
+            shiftRightAmount = shiftLeftAmount + (63 - shiftLeftAmount) - windowSize
+            assert(shiftLeftAmount < shiftRightAmount)
+            val sections = functions.keys.map { getSection(it, shiftLeftAmount, shiftRightAmount) }
+            if (sections.isDistinct()) {
+                break@tryWindowSize
+            }
+
+            shiftLeftAmount++
         }
-        prefixLength++
+        windowSize++
     }
 
-    val entries = Array<LlvmFunction<*>?>(1 shl prefixLength) { null }
+    val maxSection = StrictMath.toIntExact(getSection(ULong.MAX_VALUE, shiftLeftAmount, shiftRightAmount).toLong())
+    val entries = Array<LlvmFunction<*>?>(maxSection + 1) { null }
     functions.forEach { (hash, fn) ->
-        val prefix = StrictMath.toIntExact(hash ushr shiftRightAmount)
-        entries[prefix] = fn
+        val section = StrictMath.toIntExact(getSection(hash, shiftLeftAmount, shiftRightAmount).toLong())
+        entries[section] = fn
     }
 
-    val vtableBlobType = LlvmArrayType(entries.size.toLong(), LlvmFunctionAddressType)
-    val vtableBlob = vtableBlobType.buildConstantIn(context, entries.map { fnPtr ->
-        fnPtr?.address ?: context.nullValue(LlvmFunctionAddressType)
-    })
+    val addressesArrayType = LlvmArrayType(entries.size.toLong(), LlvmFunctionAddressType)
 
-    return Pair(vtableBlob, context.word(shiftRightAmount))
+    val vtableType = VTableType(entries.size.toLong())
+    return vtableType.buildConstantIn(context) {
+        setValue(vtableType.shiftLeftAmount, context.i32(shiftLeftAmount))
+        setValue(vtableType.shiftRightAmount, context.i32(shiftRightAmount))
+        setValue(vtableType.addresses, addressesArrayType.buildConstantIn(context, entries.map { fnPtr ->
+            fnPtr?.address ?: context.nullValue(LlvmFunctionAddressType)
+        }))
+    }
 }
 
-private fun List<Long>.isDistinct(): Boolean {
-    val seen = HashSet<Long>()
+private fun List<ULong>.isDistinct(): Boolean {
+    val seen = HashSet<ULong>()
     for (n in this) {
         if (!seen.add(n)) {
             return false
@@ -260,17 +277,28 @@ val getDynamicCallAddress: KotlinLlvmFunction<EmergeLlvmContext, LlvmFunctionAdd
             .member { typeinfo }
             .get()
             .dereference()
-        val shiftRightAmount = getelementptr(typeinfoPtr)
+        val shiftLeftAmountI32 = getelementptr(typeinfoPtr)
+            .member { vtable }
+            .member { shiftLeftAmount }
+            .get()
+            .dereference()
+        val shiftLeftAmountWord = enlargeUnsigned(shiftLeftAmountI32, EmergeWordType)
+        val shiftRightAmountI32 = getelementptr(typeinfoPtr)
+            .member { vtable }
             .member { shiftRightAmount }
             .get()
             .dereference()
+        val shiftRightAmountWord = enlargeUnsigned(shiftRightAmountI32, EmergeWordType)
 
-        val reducedHash = lshr(hash, shiftRightAmount)
+        val reducedHash = lshr(shl(hash, shiftLeftAmountWord), shiftRightAmountWord)
         val functionAddress = getelementptr(typeinfoPtr)
-            .member { vtableBlob }
+            .member { vtable }
+            .member { addresses }
             .index(reducedHash)
             .get()
             .dereference()
         ret(functionAddress)
     }
 }
+
+class VirtualFunctionHashCollisionException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
