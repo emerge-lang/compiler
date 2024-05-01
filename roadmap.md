@@ -226,7 +226,6 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 * syntax opinionation
   * steal from rust
     * use `fn` instead of `fun`?
-    * numeric types: `i8`, `i16`, `i32`, `i64` instead of `Byte`, `Short`, `Int` and `Long`?
   * shorter keywords for mutability
     * `imm`, `mut`, `read`?
   * type names MUST start with an uppercase letter, identifiers MUST start with a lowercase letter
