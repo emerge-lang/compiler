@@ -170,10 +170,7 @@ class BoundBaseTypeDefinition(
         }
 
         val cyclicReportings = superTypes.clauses
-            // TODO: remove this filter as soon as all basetypes are declared in emerge source - it shouldn't be necessary then
-            .filterIsInstance<SourceBoundSupertypeDeclaration>()
             .filter { it.resolvedReference != null }
-            .filter { it.resolvedReference!!.baseType is BoundBaseTypeDefinition }  // TODO: this should go away with the filterIsInstance above
             .flatMap { supertypeDecl ->
                 val superBasetype = supertypeDecl.resolvedReference!!.baseType
                 superBasetype as BoundBaseTypeDefinition

@@ -32,8 +32,8 @@ import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.basetype.BoundClassDestructor
 import compiler.binding.basetype.BoundDeclaredBaseTypeMemberFunction
+import compiler.binding.basetype.BoundSupertypeDeclaration
 import compiler.binding.basetype.BoundSupertypeList
-import compiler.binding.basetype.SourceBoundSupertypeDeclaration
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableCTContext
@@ -119,7 +119,7 @@ data class AstSupertypeList(
             getTypeDef: () -> BoundBaseTypeDefinition,
         ): BoundSupertypeList {
             val effectiveTypeRefs = (this?.typeRefs ?: emptyList())
-            val boundSupertypes = effectiveTypeRefs.map { SourceBoundSupertypeDeclaration(typeRootContext, getTypeDef, it) }
+            val boundSupertypes = effectiveTypeRefs.map { BoundSupertypeDeclaration(typeRootContext, getTypeDef, it) }
 
             return BoundSupertypeList(typeRootContext, boundSupertypes, getTypeDef)
         }

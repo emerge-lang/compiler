@@ -12,28 +12,21 @@ import compiler.reportings.Reporting
 
 /**
  * Resembles a supertype declared on a subtype
- *
- * TODO: remove the interface abstraction as soon as all base types are declared in emerge source
  */
-interface BoundSupertypeDeclaration : SemanticallyAnalyzable {
-    /**
-     * Is initialized in [semanticAnalysisPhase1]. Remains `null` if [astNode] does not refer directly to a
-     * base type (inheriting from a generic type is not allowed).
-     */
-    val resolvedReference: RootResolvedTypeReference?
-}
-
-
-class SourceBoundSupertypeDeclaration(
+class BoundSupertypeDeclaration(
     val subtypeContext: CTContext,
     /** @return the subtype */
     private val getTypeDef: () -> BoundBaseTypeDefinition,
     val astNode: TypeReference,
-) : BoundSupertypeDeclaration {
+) : SemanticallyAnalyzable {
     private val seanHelper = SeanHelper()
     private lateinit var unfilteredResolved: BoundTypeReference
 
-    override var resolvedReference: RootResolvedTypeReference? = null
+    /**
+     * Is initialized in [semanticAnalysisPhase1]. Remains `null` if [astNode] does not refer directly to a
+     * base type (inheriting from a generic type is not allowed).
+     */
+    var resolvedReference: RootResolvedTypeReference? = null
         get() {
             seanHelper.requirePhase1Done()
             return field
@@ -80,7 +73,7 @@ class SourceBoundSupertypeDeclaration(
                 return@phase3 reportings
             }
 
-            if (localResolvedReference.baseType !is BoundBaseTypeDefinition || localResolvedReference.baseType.kind != BoundBaseTypeDefinition.Kind.INTERFACE) {
+            if (localResolvedReference.baseType.kind != BoundBaseTypeDefinition.Kind.INTERFACE) {
                 reportings.add(Reporting.illegalSupertype(astNode, "can only inherit from interfaces"))
             }
 

@@ -44,8 +44,8 @@ import compiler.binding.basetype.BoundBaseTypeDefinition
 import compiler.binding.basetype.BoundBaseTypeEntry
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
+import compiler.binding.basetype.BoundSupertypeDeclaration
 import compiler.binding.basetype.InheritedBoundMemberFunction
-import compiler.binding.basetype.SourceBoundSupertypeDeclaration
 import compiler.binding.context.effect.VariableLifetime
 import compiler.binding.expression.*
 import compiler.binding.type.BoundTypeArgument
@@ -200,7 +200,7 @@ abstract class Reporting internal constructor(
         fun duplicateSupertype(ref: TypeReference)
             = DuplicateSupertypeReporting(ref)
 
-        fun cyclicInheritance(type: BoundBaseTypeDefinition, involvingSupertype: SourceBoundSupertypeDeclaration)
+        fun cyclicInheritance(type: BoundBaseTypeDefinition, involvingSupertype: BoundSupertypeDeclaration)
             = CyclicInheritanceReporting(type.declaration, involvingSupertype)
 
         fun duplicateBaseTypes(packageName: CanonicalElementName.Package, duplicates: List<BoundBaseTypeDefinition>)

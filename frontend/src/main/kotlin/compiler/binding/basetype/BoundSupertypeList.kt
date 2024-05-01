@@ -55,7 +55,6 @@ class BoundSupertypeList(
             for (clause in clauses) {
                 val resolvedReference = clause.resolvedReference ?: continue
                 if (!distinctSuperBaseTypes.add(resolvedReference.baseType)) {
-                    clause as SourceBoundSupertypeDeclaration // TODO this assumption will always be true once all basetypes are declared in emerge source
                     reportings.add(Reporting.duplicateSupertype(clause.astNode))
                 }
 

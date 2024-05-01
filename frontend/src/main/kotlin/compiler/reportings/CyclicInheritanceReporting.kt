@@ -1,12 +1,12 @@
 package compiler.reportings
 
 import compiler.ast.BaseTypeDeclaration
-import compiler.binding.basetype.SourceBoundSupertypeDeclaration
+import compiler.binding.basetype.BoundSupertypeDeclaration
 import compiler.lexer.SourceLocation
 
 class CyclicInheritanceReporting(
     onType: BaseTypeDeclaration,
-    involvingSupertype: SourceBoundSupertypeDeclaration,
+    involvingSupertype: BoundSupertypeDeclaration,
 ) : Reporting(
     Level.ERROR,
     "Type ${onType.name.value} inheriting from ${involvingSupertype.resolvedReference!!.baseType.canonicalName} creates a cycle in the type hierarchy. That is not allowed.",
