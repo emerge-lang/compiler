@@ -3,28 +3,35 @@ package compiler.reportings
 import compiler.ast.VariableDeclaration
 import compiler.lexer.Span
 
-class VariableUsedAfterLifetimeReporting(
+class VariableUsedAfterLifetimeReporting private constructor(
     val variable: VariableDeclaration,
     val usageAt: Span,
     val lifetimeEndedAt: Span,
-    /** If the lifetime hasn't _definitley_ ended, just might have */
-    val lifetimeEndedMaybe: Boolean,
+    private val endedPhrase: String,
 ) : Reporting(
     Level.ERROR,
     run {
-        val endedPhrase = if (lifetimeEndedMaybe) "might have ended" else "has ended"
-        "The lifetime of variable ${variable.name.value} $endedPhrase, it cannot be used anymore"
+        "Cannot use variable ${variable.name.value} after its lifetime $endedPhrase"
     },
     usageAt,
 ) {
+    constructor(
+        variable: VariableDeclaration,
+        usageAt: Span,
+        lifetimeEndedAt: Span,
+        /** If the lifetime hasn't _definitley_ ended, just might have */
+        lifetimeEndedMaybe: Boolean,
+    ) : this(
+        variable,
+        usageAt,
+        lifetimeEndedAt,
+        if (lifetimeEndedMaybe) "might have ended" else "has ended",
+    )
     override fun toString(): String {
-        // TODO: single illustration with both locations if possible, just like rusts borrow errors.
-        // Text rendering for that is not implemented yet
-
-        var str = super.toString()
-        str += "\nThe lifetime of ${variable.name.value} ended\nin $lifetimeEndedAt"
-
-        return str
+        return levelAndMessage + "\nin " + illustrateHints(
+            SourceHint(lifetimeEndedAt, "variable ${variable.name.value} is captured here, ending its lifetime", relativeOrderMatters = true),
+            SourceHint(usageAt, "usage after lifetime $endedPhrase", relativeOrderMatters = true),
+        )
     }
 
     override fun equals(other: Any?): Boolean {

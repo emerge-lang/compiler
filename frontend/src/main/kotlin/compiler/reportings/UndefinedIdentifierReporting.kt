@@ -22,8 +22,6 @@ import compiler.ast.expression.IdentifierExpression
 
 /**
  * Reported when the identifier [expr] is used but it is not defined at that point.
- *
- * TODO: if there is a self in the scope and it has a member of the requested (or edit-distance similar?) name, suggest it!
  */
 class UndefinedIdentifierReporting(val expr: IdentifierExpression, messageOverride: String? = null) : Reporting(
     Level.ERROR,
