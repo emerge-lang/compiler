@@ -68,7 +68,6 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
 
     val isGuaranteedToThrow: Boolean?
 
-    /** todo: remove for easier decoration using parameterTypes only */
     val parameters: BoundParameterList
 
     val parameterTypes: List<BoundTypeReference?>

@@ -113,7 +113,6 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     3. special rule: only emerge.std may depend on emerge.platform
     4. special rule: only emerge.platform may depend on emerge.ffi.c
 31. Stdlib _absolute_ Basics
-    * get type names in order: decide on i8+u8 vs s8+u8 vs Byte, ...
     * arithmetic
         * overflow-safe implementations of the actual operators + - * ...
         * overflow-unsafe intrinsics, e.g. `emerge.std.math.addWithOverflow(a: i32, b: i32)`

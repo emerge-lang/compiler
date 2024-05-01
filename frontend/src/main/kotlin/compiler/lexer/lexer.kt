@@ -81,8 +81,7 @@ private fun PositionTrackingCodePointTransactionalSequence.skipWhitespace() {
     }
 }
 
-// TODO: rename to nextCodePointsAsString
-private fun PositionTrackingCodePointTransactionalSequence.nextChars(sourceFile: SourceFile, n: Int): Pair<String, SourceLocation>? {
+private fun PositionTrackingCodePointTransactionalSequence.nextCodePointsAsString(sourceFile: SourceFile, n: Int): Pair<String, SourceLocation>? {
     check(n > 0)
     if (nCodePointsRemaining < n) {
         return null
@@ -102,7 +101,7 @@ private fun PositionTrackingCodePointTransactionalSequence.tryMatchOperator(sour
     for (operator in Operator.valuesSortedForLexing) {
         mark()
 
-        val nextText = nextChars(sourceFile, operator.text.length)
+        val nextText = nextCodePointsAsString(sourceFile, operator.text.length)
         if (nextText != null && nextText.first == operator.text) {
             if (doCommit) commit() else rollback()
             return OperatorToken(operator, nextText.second)

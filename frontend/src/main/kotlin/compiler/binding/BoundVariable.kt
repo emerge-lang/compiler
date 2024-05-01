@@ -74,7 +74,7 @@ class BoundVariable(
      */
     private var resolvedDeclaredType: BoundTypeReference? = null
     private val expectedInitializerEvaluationType: BoundTypeReference
-        get() = this.resolvedDeclaredType ?: context.swCtx.unit.baseReference // TODO parens around the elvis??
+        get() = (this.resolvedDeclaredType ?: context.swCtx.unit.baseReference)
             .withCombinedNullability(declaration.type?.nullability ?: TypeReference.Nullability.NULLABLE)
             .withMutability(declaration.type?.mutability ?: implicitMutability)
 
