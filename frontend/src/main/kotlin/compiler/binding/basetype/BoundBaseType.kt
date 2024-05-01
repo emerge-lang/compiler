@@ -126,7 +126,6 @@ class BoundBaseType(
 
                 if (declaredConstructors.none()) {
                     val defaultCtorAst = BaseTypeConstructorDeclaration(emptyList(), IdentifierToken("constructor", declaration.declaredAt), CodeChunk(emptyList()))
-                    // TODO: maybe has to be bound to fileContextWithTypeParameters
                     constructor = defaultCtorAst.bindTo(typeRootContext, typeParameters) { this }
                     reportings.addAll(constructor!!.semanticAnalysisPhase1())
                 } else {
@@ -134,7 +133,6 @@ class BoundBaseType(
                 }
                 if (declaredDestructors.none()) {
                     val defaultDtorAst = BaseTypeDestructorDeclaration(IdentifierToken("destructor", declaration.declaredAt), CodeChunk(emptyList()))
-                    // TODO: maybe has to be bound to fileContextWithTypeParameters
                     destructor = defaultDtorAst.bindTo(typeRootContext, typeParameters) { this }
                     reportings.addAll(destructor!!.semanticAnalysisPhase1())
                 } else {
@@ -261,10 +259,6 @@ class BoundBaseType(
                     reportings.addAll(overloadSet.semanticAnalysisPhase2())
                 }
             }
-
-            // TODO?: merge inherited and declared member fns
-            // TODO?: on all inherited member functions, narrow the type of the receiver to the subtype
-
 
             return@phase2 reportings
         }
