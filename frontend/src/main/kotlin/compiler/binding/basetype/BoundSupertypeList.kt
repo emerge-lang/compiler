@@ -10,14 +10,14 @@ import compiler.reportings.Reporting
 class BoundSupertypeList(
     val context: CTContext,
     val clauses: List<BoundSupertypeDeclaration>,
-    getTypeDef: () -> BoundBaseTypeDefinition,
+    getTypeDef: () -> BoundBaseType,
 ) : SemanticallyAnalyzable {
     private val typeDef by lazy(getTypeDef)
 
     private val seanHelper = SeanHelper()
 
     /** the base types that are being extended from, initialized in [semanticAnalysisPhase1] */
-    lateinit var baseTypes: List<BoundBaseTypeDefinition>
+    lateinit var baseTypes: List<BoundBaseType>
         private set
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
@@ -38,7 +38,7 @@ class BoundSupertypeList(
      * initialized during [semanticAnalysisPhase2]. Will contain duplicates by [BoundMemberFunction.canonicalName]
      * and parameter count. This is because the overload-set level logic on a derived type also needs to account
      * for the additional [BoundMemberFunction]s in that derived type. So the merging of overloads happens in
-     * [BoundBaseTypeDefinition].
+     * [BoundBaseType].
      */
     lateinit var inheritedMemberFunctions: List<InheritedBoundMemberFunction>
         private set
@@ -50,7 +50,7 @@ class BoundSupertypeList(
                 reportings.addAll(it.semanticAnalysisPhase2())
             }
 
-            val distinctSuperBaseTypes = mutableSetOf<BoundBaseTypeDefinition>()
+            val distinctSuperBaseTypes = mutableSetOf<BoundBaseType>()
             val distinctSupertypes = ArrayList<RootResolvedTypeReference>(clauses.size)
             for (clause in clauses) {
                 val resolvedReference = clause.resolvedReference ?: continue

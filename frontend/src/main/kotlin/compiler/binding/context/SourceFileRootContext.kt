@@ -9,7 +9,7 @@ import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
@@ -26,7 +26,7 @@ class SourceFileRootContext(
 
     val variables: Collection<BoundVariable> = _variables.values
     val functions: Collection<BoundFunction> = _functions
-    val types: Collection<BoundBaseTypeDefinition> = _types
+    val types: Collection<BoundBaseType> = _types
 
     override fun addDeferredCode(code: Statement) {
         throw InternalCompilerError("Deferred code on source-file level is currently not possible. Maybe implement as global destructors in the future?")
@@ -44,11 +44,7 @@ class SourceFileRootContext(
         throw InternalCompilerError("Deferred code on source-file level is currently not possible. Maybe implement as global destructors in the future?")
     }
 
-    /**
-     * TODO: only accessible so the builtins have access to a dummy context (EMPTY).
-     * Make private again as soon as builtin types are declared in emerge source!
-     */
-    companion object {
+    private companion object {
         val EMPTY = object : ExecutionScopedCTContext {
             override val swCtx: SoftwareContext
                 get() = throw InternalCompilerError("${this::swCtx.name} not initialized yet")
@@ -70,7 +66,7 @@ class SourceFileRootContext(
             override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? = null
             override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean = false
             override fun resolveTypeParameter(simpleName: String): BoundTypeParameter? = null
-            override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BoundBaseTypeDefinition? = null
+            override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BoundBaseType? = null
             override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference = UnresolvedType(
                 this,
                 ref,
@@ -106,7 +102,7 @@ class SourceFileRootContext(
             return packageContext.resolveVariable(name)
         }
 
-        override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BoundBaseTypeDefinition? {
+        override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BoundBaseType? {
             if (fromOwnFileOnly) {
                 return EMPTY.resolveBaseType(simpleName, fromOwnFileOnly)
             }

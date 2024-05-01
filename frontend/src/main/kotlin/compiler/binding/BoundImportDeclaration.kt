@@ -1,7 +1,7 @@
 package compiler.binding
 
 import compiler.ast.ImportDeclaration
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.PackageContext
 import compiler.reportings.Reporting
@@ -50,7 +50,7 @@ class BoundImportDeclaration(
         is ResolutionResult.Erroneous -> emptySet()
     }
 
-    fun getBaseTypeOfName(simpleName: String): BoundBaseTypeDefinition? = when(val result = resolutionResult) {
+    fun getBaseTypeOfName(simpleName: String): BoundBaseType? = when(val result = resolutionResult) {
         is ResolutionResult.EntirePackage -> result.packageContext.resolveBaseType(simpleName)
         is ResolutionResult.BaseType -> result.baseType.takeIf { it.simpleName == simpleName }
         is ResolutionResult.OverloadSets,
@@ -104,7 +104,7 @@ class BoundImportDeclaration(
     private sealed interface ResolutionResult {
         class EntirePackage(val packageContext: PackageContext) : ResolutionResult
         class OverloadSets(val simpleName: String, val sets: Collection<BoundOverloadSet<*>>) : ResolutionResult
-        class BaseType(val baseType: BoundBaseTypeDefinition) : ResolutionResult
+        class BaseType(val baseType: BoundBaseType) : ResolutionResult
         class Variable(val variable: BoundVariable) : ResolutionResult
         class Erroneous(error: Reporting) : ResolutionResult {
             val errors = setOf(error)

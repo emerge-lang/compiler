@@ -37,10 +37,10 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 class BoundClassDestructor(
     private val fileContextWithTypeParameters: CTContext,
     override val declaredTypeParameters: List<BoundTypeParameter>,
-    getClassDef: () -> BoundBaseTypeDefinition,
+    getClassDef: () -> BoundBaseType,
     val declaration: BaseTypeDestructorDeclaration,
 ) : BoundFunction, BoundBaseTypeEntry<BaseTypeDestructorDeclaration> {
-    val classDef: BoundBaseTypeDefinition by lazy(getClassDef)
+    val classDef: BoundBaseType by lazy(getClassDef)
     override val declaredAt = declaration.sourceLocation
     private val generatedSourceLocation = declaredAt.deriveGenerated()
     override val canonicalName: CanonicalElementName.Function by lazy {

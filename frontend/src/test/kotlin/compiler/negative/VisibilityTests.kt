@@ -2,7 +2,7 @@ package compiler.compiler.negative
 
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundVariable
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.reportings.ElementNotAccessibleReporting
@@ -243,7 +243,7 @@ class VisibilityTests : FreeSpec({
                 """.trimIndent()),
             )
                 .shouldReport<ElementNotAccessibleReporting> {
-                    it.element should beInstanceOf<BoundBaseTypeDefinition>()
+                    it.element should beInstanceOf<BoundBaseType>()
                 }
         }
 
@@ -262,7 +262,7 @@ class VisibilityTests : FreeSpec({
                     """.trimIndent()),
                 )
                     .shouldReport<ElementNotAccessibleReporting> {
-                        it.element should beInstanceOf<BoundBaseTypeDefinition>()
+                        it.element should beInstanceOf<BoundBaseType>()
                     }
             }
 
@@ -280,7 +280,7 @@ class VisibilityTests : FreeSpec({
                     """.trimIndent()),
                 )
                     .shouldReport<ElementNotAccessibleReporting> {
-                        it.element should beInstanceOf<BoundBaseTypeDefinition>()
+                        it.element should beInstanceOf<BoundBaseType>()
                     }
             }
 
@@ -299,7 +299,7 @@ class VisibilityTests : FreeSpec({
                     """.trimIndent()),
                 )
                     .shouldReport<ElementNotAccessibleReporting> {
-                        it.element should beInstanceOf<BoundBaseTypeDefinition>()
+                        it.element should beInstanceOf<BoundBaseType>()
                     }
             }
         }

@@ -1,7 +1,7 @@
 package compiler.reportings
 
 import compiler.InternalCompilerError
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeEntry
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
@@ -9,7 +9,7 @@ import compiler.binding.basetype.BoundClassDestructor
 import textutils.capitalizeFirst
 
 class EntryNotAllowedInBaseTypeReporting(
-    val typeKind: BoundBaseTypeDefinition.Kind,
+    val typeKind: BoundBaseType.Kind,
     val violatingEntry: BoundBaseTypeEntry<*>,
 ) : Reporting(
     Level.ERROR,

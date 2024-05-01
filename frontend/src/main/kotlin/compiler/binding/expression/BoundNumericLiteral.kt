@@ -21,7 +21,7 @@ package compiler.binding.expression
 import compiler.InternalCompilerError
 import compiler.ast.expression.NumericLiteralExpression
 import compiler.binding.BoundStatement
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
@@ -57,7 +57,7 @@ open class BoundNumericLiteral(
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> = emptySet()
 
-    protected var expectedNumericType: BoundBaseTypeDefinition? = null
+    protected var expectedNumericType: BoundBaseType? = null
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         if (type !is RootResolvedTypeReference) {
             return

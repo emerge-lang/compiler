@@ -24,7 +24,7 @@ import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.effect.EphemeralStateClass
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
@@ -76,7 +76,7 @@ interface CTContext {
      */
     val visibility: BoundVisibility
 
-    fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean = false): BoundBaseTypeDefinition?
+    fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean = false): BoundBaseType?
 
     fun resolveTypeParameter(simpleName: String): BoundTypeParameter?
 

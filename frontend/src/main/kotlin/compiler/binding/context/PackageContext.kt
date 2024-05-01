@@ -3,7 +3,7 @@ package compiler.binding.context
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 
@@ -15,14 +15,14 @@ class PackageContext(
         yieldAll(moduleContext.sourceFiles)
     }.filter { it.packageName == packageName }
 
-    val types: Sequence<BoundBaseTypeDefinition> get() {
+    val types: Sequence<BoundBaseType> get() {
         return sourceFiles
             .filter { it.packageName == packageName }
             .flatMap { it.context.types }
     }
 
-    private val typeByNameCache = HashMap<String, BoundBaseTypeDefinition>()
-    fun resolveBaseType(simpleName: String): BoundBaseTypeDefinition? {
+    private val typeByNameCache = HashMap<String, BoundBaseType>()
+    fun resolveBaseType(simpleName: String): BoundBaseType? {
         typeByNameCache[simpleName]?.let { return it }
         val type = types.find { it.simpleName == simpleName } ?: return null
         typeByNameCache[simpleName] = type
@@ -82,11 +82,10 @@ class PackageContext(
         types
             .asSequence()
             .groupBy { it.simpleName }
-            .filter { (_, types) -> types.size > 1 }
-            .forEach { (simpleName, duplicateTypes) ->
-                // TODO: remove filter as soon as all basetypes are in emerge source
-                val dupes = duplicateTypes.filterIsInstance<BoundBaseTypeDefinition>()
-                reportings.add(Reporting.duplicateBaseTypes(packageName, dupes))
+            .values
+            .filter { it.size > 1 }
+            .forEach { duplicateTypes ->
+                reportings.add(Reporting.duplicateBaseTypes(packageName, duplicateTypes))
             }
 
         return reportings

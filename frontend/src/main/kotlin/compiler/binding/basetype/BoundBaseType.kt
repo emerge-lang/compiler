@@ -49,8 +49,7 @@ import kotlinext.get
 import java.util.Collections
 import java.util.IdentityHashMap
 
-// TODO: rename to BoundBaseType
-class BoundBaseTypeDefinition(
+class BoundBaseType(
     private val fileContext: CTContext,
     private val typeRootContext: CTContext,
     val kind: Kind,
@@ -173,7 +172,7 @@ class BoundBaseTypeDefinition(
             .filter { it.resolvedReference != null }
             .flatMap { supertypeDecl ->
                 val superBasetype = supertypeDecl.resolvedReference!!.baseType
-                superBasetype as BoundBaseTypeDefinition
+                superBasetype as BoundBaseType
                 handleCyclicInvocation(
                     this,
                     action = {
@@ -247,7 +246,7 @@ class BoundBaseTypeDefinition(
                 .map { (nameAndParamCount, overloads) ->
                     BoundOverloadSet(
                         CanonicalElementName.Function(
-                            this@BoundBaseTypeDefinition.canonicalName,
+                            this@BoundBaseType.canonicalName,
                             nameAndParamCount.first,
                         ),
                         nameAndParamCount.second,
@@ -348,7 +347,7 @@ class BoundBaseTypeDefinition(
         )
 
     /** @return Whether this type is the same as or a subtype of the given type. */
-    infix fun isSubtypeOf(other: BoundBaseTypeDefinition): Boolean {
+    infix fun isSubtypeOf(other: BoundBaseType): Boolean {
         if (other === this) return true
         if (other === context.swCtx.nothing) return false
         if (this === context.swCtx.nothing) return true
@@ -381,7 +380,7 @@ class BoundBaseTypeDefinition(
         ),
         ;
 
-        fun toBackendIr(typeDef: BoundBaseTypeDefinition): IrBaseType = when(this) {
+        fun toBackendIr(typeDef: BoundBaseType): IrBaseType = when(this) {
             CLASS -> IrClassImpl(typeDef)
             INTERFACE -> IrInterfaceImpl(typeDef)
         }
@@ -408,7 +407,7 @@ class BoundBaseTypeDefinition(
          *
          * @return the most specific type that all the given types can be assigned to
          */
-        fun closestCommonSupertypeOf(types: List<BoundBaseTypeDefinition>): BoundBaseTypeDefinition {
+        fun closestCommonSupertypeOf(types: List<BoundBaseType>): BoundBaseType {
             if (types.isEmpty()) throw IllegalArgumentException("At least one type must be provided")
 
             val typesExcludingNothing = types.filter { it !== it.context.swCtx.nothing }
@@ -446,14 +445,14 @@ class BoundBaseTypeDefinition(
         /**
          * @see [closestCommonSupertypeOf]
          */
-        fun closestCommonSupertypeOf(vararg types: BoundBaseTypeDefinition): BoundBaseTypeDefinition {
+        fun closestCommonSupertypeOf(vararg types: BoundBaseType): BoundBaseType {
             return closestCommonSupertypeOf(types.asList())
         }
     }
 }
 
 private class IrInterfaceImpl(
-    typeDef: BoundBaseTypeDefinition,
+    typeDef: BoundBaseType,
 ) : IrInterface {
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
     override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()
@@ -461,7 +460,7 @@ private class IrInterfaceImpl(
 }
 
 private class IrClassImpl(
-    typeDef: BoundBaseTypeDefinition,
+    typeDef: BoundBaseType,
 ) : IrClass {
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
     override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()

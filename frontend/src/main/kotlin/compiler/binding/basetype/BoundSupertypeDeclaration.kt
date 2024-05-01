@@ -16,7 +16,7 @@ import compiler.reportings.Reporting
 class BoundSupertypeDeclaration(
     val subtypeContext: CTContext,
     /** @return the subtype */
-    private val getTypeDef: () -> BoundBaseTypeDefinition,
+    private val getTypeDef: () -> BoundBaseType,
     val astNode: TypeReference,
 ) : SemanticallyAnalyzable {
     private val seanHelper = SeanHelper()
@@ -73,7 +73,7 @@ class BoundSupertypeDeclaration(
                 return@phase3 reportings
             }
 
-            if (localResolvedReference.baseType.kind != BoundBaseTypeDefinition.Kind.INTERFACE) {
+            if (localResolvedReference.baseType.kind != BoundBaseType.Kind.INTERFACE) {
                 reportings.add(Reporting.illegalSupertype(astNode, "can only inherit from interfaces"))
             }
 

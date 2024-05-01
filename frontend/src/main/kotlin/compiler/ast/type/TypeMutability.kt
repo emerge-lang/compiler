@@ -25,7 +25,6 @@ enum class TypeMutability(
     READONLY(isMutable = false),
     IMMUTABLE(isMutable = false),
     EXCLUSIVE(isMutable = true),
-    // TODO: do we need a UNSPECIFIED placeholder here?
     ;
 
     infix fun isAssignableTo(targetMutability: TypeMutability): Boolean =

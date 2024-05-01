@@ -18,7 +18,7 @@
 
 package compiler.compiler.ast.type
 
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.compiler.negative.emptySoftwareContext
 import compiler.compiler.negative.validateModule
 import io.kotest.core.spec.style.FreeSpec
@@ -79,28 +79,28 @@ class BaseTypeTest : FreeSpec() { init {
 
         "Then the closest common ancestor of" - {
             "B and A is A" {
-                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeB, typeA)) shouldBe typeA
-                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeA, typeB)) shouldBe typeA
+                BoundBaseType.closestCommonSupertypeOf(listOf(typeB, typeA)) shouldBe typeA
+                BoundBaseType.closestCommonSupertypeOf(listOf(typeA, typeB)) shouldBe typeA
             }
 
             "B and C is A" {
-                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeB, typeC)) shouldBe typeA
-                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeC, typeB)) shouldBe typeA
+                BoundBaseType.closestCommonSupertypeOf(listOf(typeB, typeC)) shouldBe typeA
+                BoundBaseType.closestCommonSupertypeOf(listOf(typeC, typeB)) shouldBe typeA
             }
 
             "D and E is B" {
-                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeD, typeE)) shouldBe typeB
-                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeE, typeD)) shouldBe typeB
+                BoundBaseType.closestCommonSupertypeOf(listOf(typeD, typeE)) shouldBe typeB
+                BoundBaseType.closestCommonSupertypeOf(listOf(typeE, typeD)) shouldBe typeB
             }
 
             "C and E is A" {
-                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeC, typeE)) shouldBe typeA
-                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeE, typeC)) shouldBe typeA
+                BoundBaseType.closestCommonSupertypeOf(listOf(typeC, typeE)) shouldBe typeA
+                BoundBaseType.closestCommonSupertypeOf(listOf(typeE, typeC)) shouldBe typeA
             }
 
             "F and G is Any" {
-                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeF, typeG)) shouldBe swCtx.any
-                BoundBaseTypeDefinition.closestCommonSupertypeOf(listOf(typeG, typeF)) shouldBe swCtx.any
+                BoundBaseType.closestCommonSupertypeOf(listOf(typeF, typeG)) shouldBe swCtx.any
+                BoundBaseType.closestCommonSupertypeOf(listOf(typeG, typeF)) shouldBe swCtx.any
             }
         }
     }
@@ -116,8 +116,8 @@ class BaseTypeTest : FreeSpec() { init {
         }
 
         "closest common supertype of any builtin type and Nothing is that builtin type" - {
-            BoundBaseTypeDefinition.closestCommonSupertypeOf(swCtx.nothing, swCtx.s32) shouldBe swCtx.s32
-            BoundBaseTypeDefinition.closestCommonSupertypeOf(swCtx.s32, swCtx.nothing) shouldBe swCtx.s32
+            BoundBaseType.closestCommonSupertypeOf(swCtx.nothing, swCtx.s32) shouldBe swCtx.s32
+            BoundBaseType.closestCommonSupertypeOf(swCtx.s32, swCtx.nothing) shouldBe swCtx.s32
         }
     }
 }}

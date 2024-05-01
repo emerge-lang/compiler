@@ -22,7 +22,7 @@ import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.reportings.Reporting
@@ -109,8 +109,8 @@ class SoftwareContext {
     }
 
     private fun coreType(name: String? = null) = object {
-        private lateinit var value: BoundBaseTypeDefinition
-        operator fun getValue(thisRef: Any, p: KProperty<*>): BoundBaseTypeDefinition {
+        private lateinit var value: BoundBaseType
+        operator fun getValue(thisRef: Any, p: KProperty<*>): BoundBaseType {
             if (!this::value.isInitialized) {
                 val simpleTypeName = name ?: p.name.capitalizeFirst()
                 value = emergeCorePackage.types.find { it.simpleName == simpleTypeName }
@@ -120,22 +120,22 @@ class SoftwareContext {
         }
     }
 
-    val any: BoundBaseTypeDefinition by coreType()
-    val nothing: BoundBaseTypeDefinition by coreType()
-    val unit: BoundBaseTypeDefinition by coreType()
-    val bool: BoundBaseTypeDefinition by coreType()
-    val s8: BoundBaseTypeDefinition by coreType()
-    val u8: BoundBaseTypeDefinition by coreType()
-    val s16: BoundBaseTypeDefinition by coreType()
-    val u16: BoundBaseTypeDefinition by coreType()
-    val s32: BoundBaseTypeDefinition by coreType()
-    val u32: BoundBaseTypeDefinition by coreType()
-    val s64: BoundBaseTypeDefinition by coreType()
-    val u64: BoundBaseTypeDefinition by coreType()
-    val sword: BoundBaseTypeDefinition by coreType("SWord")
-    val uword: BoundBaseTypeDefinition by coreType("UWord")
-    val string: BoundBaseTypeDefinition by coreType()
-    val f32: BoundBaseTypeDefinition by coreType()
+    val any: BoundBaseType by coreType()
+    val nothing: BoundBaseType by coreType()
+    val unit: BoundBaseType by coreType()
+    val bool: BoundBaseType by coreType()
+    val s8: BoundBaseType by coreType()
+    val u8: BoundBaseType by coreType()
+    val s16: BoundBaseType by coreType()
+    val u16: BoundBaseType by coreType()
+    val s32: BoundBaseType by coreType()
+    val u32: BoundBaseType by coreType()
+    val s64: BoundBaseType by coreType()
+    val u64: BoundBaseType by coreType()
+    val sword: BoundBaseType by coreType("SWord")
+    val uword: BoundBaseType by coreType("UWord")
+    val string: BoundBaseType by coreType()
+    val f32: BoundBaseType by coreType()
 
     /** the type to use when a type cannot be determined, see [UnresolvedType] */
     val unresolvableReplacementType: BoundTypeReference by lazy {

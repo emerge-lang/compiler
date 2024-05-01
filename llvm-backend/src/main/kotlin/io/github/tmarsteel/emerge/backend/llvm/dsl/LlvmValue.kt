@@ -6,8 +6,7 @@ import org.bytedeco.llvm.LLVM.LLVMValueRef
 import org.bytedeco.llvm.global.LLVM
 
 /**
- * A type-safe wrapper around [LLVMValueRef].
- * TODO: can this be optimized out to a @JvmInline value type?
+ * A type-safe wrapper around [LLVMValueRef]
  */
 open class LlvmValue<out Type : LlvmType>(
     val raw: LLVMValueRef,

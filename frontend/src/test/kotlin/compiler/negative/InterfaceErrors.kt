@@ -1,6 +1,6 @@
 package compiler.compiler.negative
 
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.basetype.BoundClassDestructor
@@ -20,7 +20,7 @@ class InterfaceErrors : FreeSpec({
             }
         """.trimIndent())
             .shouldReport<EntryNotAllowedInBaseTypeReporting> {
-                it.typeKind shouldBe BoundBaseTypeDefinition.Kind.INTERFACE
+                it.typeKind shouldBe BoundBaseType.Kind.INTERFACE
                 it.violatingEntry should beInstanceOf<BoundClassConstructor>()
             }
     }
@@ -33,7 +33,7 @@ class InterfaceErrors : FreeSpec({
             }
         """.trimIndent())
             .shouldReport<EntryNotAllowedInBaseTypeReporting> {
-                it.typeKind shouldBe BoundBaseTypeDefinition.Kind.INTERFACE
+                it.typeKind shouldBe BoundBaseType.Kind.INTERFACE
                 it.violatingEntry should beInstanceOf<BoundClassDestructor>()
             }
     }
@@ -45,7 +45,7 @@ class InterfaceErrors : FreeSpec({
             }
         """.trimIndent())
             .shouldReport<EntryNotAllowedInBaseTypeReporting> {
-                it.typeKind shouldBe BoundBaseTypeDefinition.Kind.INTERFACE
+                it.typeKind shouldBe BoundBaseType.Kind.INTERFACE
                 it.violatingEntry should beInstanceOf<BoundBaseTypeMemberVariable>()
             }
     }

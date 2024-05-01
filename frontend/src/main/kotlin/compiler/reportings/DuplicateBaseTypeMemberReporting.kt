@@ -18,11 +18,11 @@
 
 package compiler.reportings
 
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 
 class DuplicateBaseTypeMemberReporting(
-    val typeDef: BoundBaseTypeDefinition,
+    val typeDef: BoundBaseType,
     val duplicates: Set<BoundBaseTypeMemberVariable>
 ) : Reporting(
     Level.ERROR,

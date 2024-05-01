@@ -7,7 +7,7 @@ import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundStatement
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeArgument
@@ -35,7 +35,7 @@ class BoundArrayLiteralExpression(
 
     override val implicitEvaluationResultType get() = type
 
-    private val arrayType: BoundBaseTypeDefinition = run {
+    private val arrayType: BoundBaseType = run {
         val corePackage = context.swCtx.getPackage(CoreIntrinsicsModule.NAME)
             ?: throw InternalCompilerError("The software context doesn't define the default package ${CoreIntrinsicsModule.NAME}")
         corePackage.resolveBaseType("Array")

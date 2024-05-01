@@ -5,7 +5,7 @@ import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance.IN
 import compiler.ast.type.TypeVariance.OUT
 import compiler.ast.type.TypeVariance.UNSPECIFIED
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
@@ -30,9 +30,9 @@ class VarianceErrors : FreeSpec({
     val Child = swCtx.getTestType("Child")
     val ctCtx = Parent.context
 
-    fun varIn(t: BoundBaseTypeDefinition) = BoundTypeArgument(ctCtx, mockk(), IN, t.baseReference)
-    fun varOut(t: BoundBaseTypeDefinition) = BoundTypeArgument(ctCtx, mockk(), OUT, t.baseReference)
-    fun varExact(t: BoundBaseTypeDefinition) = BoundTypeArgument(ctCtx, mockk(), UNSPECIFIED, t.baseReference)
+    fun varIn(t: BoundBaseType) = BoundTypeArgument(ctCtx, mockk(), IN, t.baseReference)
+    fun varOut(t: BoundBaseType) = BoundTypeArgument(ctCtx, mockk(), OUT, t.baseReference)
+    fun varExact(t: BoundBaseType) = BoundTypeArgument(ctCtx, mockk(), UNSPECIFIED, t.baseReference)
 
     fun arrayOf(element: BoundTypeArgument): BoundTypeReference = RootResolvedTypeReference(
         TypeReference("Array"),

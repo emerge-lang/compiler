@@ -25,7 +25,7 @@ class BoundDeclaredBaseTypeMemberFunction(
     declaredTypeParameters: List<BoundTypeParameter>,
     parameters: BoundParameterList,
     body: Body?,
-    getTypeDef: () -> BoundBaseTypeDefinition,
+    getTypeDef: () -> BoundBaseType,
 ) : BoundBaseTypeEntry<BaseTypeMemberFunctionDeclaration>, BoundMemberFunction, BoundDeclaredFunction(
     functionRootContext,
     declaration,

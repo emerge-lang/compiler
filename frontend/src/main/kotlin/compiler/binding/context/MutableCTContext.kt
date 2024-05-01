@@ -29,7 +29,7 @@ import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
@@ -73,20 +73,20 @@ open class MutableCTContext(
     protected val _functions: MutableSet<BoundFunction> = HashSet()
 
     /** Holds all the base types defined in this context */
-    protected val _types: MutableSet<BoundBaseTypeDefinition> = HashSet()
+    protected val _types: MutableSet<BoundBaseType> = HashSet()
 
     fun addImport(decl: ImportDeclaration) {
         this._imports.add(decl.bindTo(this))
     }
 
     /**
-     * Adds the given [BoundBaseTypeDefinition] to this context, possibly overriding
+     * Adds the given [BoundBaseType] to this context, possibly overriding
      */
-    open fun addBaseType(type: BoundBaseTypeDefinition) {
+    open fun addBaseType(type: BoundBaseType) {
         _types.add(type)
     }
 
-    open fun addBaseType(definition: BaseTypeDeclaration): BoundBaseTypeDefinition {
+    open fun addBaseType(definition: BaseTypeDeclaration): BoundBaseType {
         val bound = definition.bindTo(this)
         _types.add(bound)
         return bound
@@ -107,7 +107,7 @@ open class MutableCTContext(
         return typeParameters[simpleName] ?: parentContext.resolveTypeParameter(simpleName)
     }
 
-    override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BoundBaseTypeDefinition? {
+    override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BoundBaseType? {
         _types.find { it.simpleName == simpleName }?.let { return it }
 
         val fromImport = if (fromOwnFileOnly) null else {

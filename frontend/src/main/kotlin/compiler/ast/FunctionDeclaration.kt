@@ -23,7 +23,7 @@ import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundTopLevelFunction
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundDeclaredBaseTypeMemberFunction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -62,7 +62,7 @@ data class FunctionDeclaration(
     fun bindToAsMember(
         context: CTContext,
         impliedReceiverType: TypeReference,
-        getTypeDef: () -> BoundBaseTypeDefinition
+        getTypeDef: () -> BoundBaseType
     ): BoundDeclaredBaseTypeMemberFunction {
         val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(context)
         val functionContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)

@@ -58,10 +58,10 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 class BoundClassConstructor(
     private val fileContextWithTypeParameters: CTContext,
     override val declaredTypeParameters: List<BoundTypeParameter>,
-    getClassDef: () -> BoundBaseTypeDefinition,
+    getClassDef: () -> BoundBaseType,
     val declaration: BaseTypeConstructorDeclaration,
 ) : BoundFunction, BoundBaseTypeEntry<BaseTypeConstructorDeclaration> {
-    val classDef: BoundBaseTypeDefinition by lazy(getClassDef)
+    val classDef: BoundBaseType by lazy(getClassDef)
     private val generatedSourceLocation = declaration.sourceLocation.deriveGenerated()
     override val canonicalName: CanonicalElementName.Function by lazy {
         CanonicalElementName.Function(classDef.canonicalName, "\$constructor")
@@ -334,7 +334,7 @@ class BoundClassConstructor(
     override fun toBackendIr(): IrFunction = backendIr
 }
 
-private class IrClassSimpleType(val classDef: BoundBaseTypeDefinition) : IrSimpleType {
+private class IrClassSimpleType(val classDef: BoundBaseType) : IrSimpleType {
     override val isNullable = false
     override val baseType get() = classDef.toBackendIr()
 }
@@ -349,9 +349,9 @@ private class IrDefaultConstructorImpl(
     override val isExternalC = false
 }
 
-private class IrAllocateObjectExpressionImpl(val classDef: BoundBaseTypeDefinition) : IrAllocateObjectExpression {
+private class IrAllocateObjectExpressionImpl(val classDef: BoundBaseType) : IrAllocateObjectExpression {
     init {
-        require(classDef.kind == BoundBaseTypeDefinition.Kind.CLASS)
+        require(classDef.kind == BoundBaseType.Kind.CLASS)
     }
     override val clazz: IrClass by lazy { classDef.toBackendIr() as IrClass }
     override val evaluatesTo = object : IrSimpleType {

@@ -1,10 +1,10 @@
 package compiler.reportings
 
 import compiler.binding.BoundMemberFunction
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 
 class AbstractInheritedFunctionNotImplementedReporting(
-    val implementingType: BoundBaseTypeDefinition,
+    val implementingType: BoundBaseType,
     val functionToImplement: BoundMemberFunction,
 ) : Reporting(
     Level.ERROR,

@@ -25,7 +25,7 @@ import compiler.ast.type.TypeReference
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -177,7 +177,7 @@ class BoundIdentifierExpression(
                 if (!allowPartiallyUninitialized) {
                     variable.getTypeInContext(context)
                         ?.let { it as? RootResolvedTypeReference }
-                        ?.let { it.baseType as? BoundBaseTypeDefinition }
+                        ?.let { it.baseType as? BoundBaseType }
                         ?.let { typeAsClassDef ->
                             context.getEphemeralState(PartialObjectInitialization, variable)
                                 .getUninitializedMembers(typeAsClassDef)

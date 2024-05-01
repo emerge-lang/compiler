@@ -40,7 +40,7 @@ import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeEntry
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
@@ -200,22 +200,22 @@ abstract class Reporting internal constructor(
         fun duplicateSupertype(ref: TypeReference)
             = DuplicateSupertypeReporting(ref)
 
-        fun cyclicInheritance(type: BoundBaseTypeDefinition, involvingSupertype: BoundSupertypeDeclaration)
+        fun cyclicInheritance(type: BoundBaseType, involvingSupertype: BoundSupertypeDeclaration)
             = CyclicInheritanceReporting(type.declaration, involvingSupertype)
 
-        fun duplicateBaseTypes(packageName: CanonicalElementName.Package, duplicates: List<BoundBaseTypeDefinition>)
+        fun duplicateBaseTypes(packageName: CanonicalElementName.Package, duplicates: List<BoundBaseType>)
             = DuplicateBaseTypesReporting(packageName, duplicates.map { it.declaration })
 
         fun functionDoesNotOverride(function: BoundDeclaredFunction)
             = SuperFunctionForOverrideNotFoundReporting(function.declaration)
 
-        fun undeclaredOverride(function: BoundDeclaredFunction, onSupertype: BoundBaseTypeDefinition)
+        fun undeclaredOverride(function: BoundDeclaredFunction, onSupertype: BoundBaseType)
             = UndeclaredOverrideReporting(function.declaration, onSupertype)
 
         fun staticFunctionDeclaredOverride(function: BoundDeclaredFunction)
             = StaticFunctionDeclaredOverrideReporting(function.attributes.firstOverrideAttribute!!)
 
-        fun abstractInheritedFunctionNotImplemented(implementingType: BoundBaseTypeDefinition, functionToImplement: BoundMemberFunction)
+        fun abstractInheritedFunctionNotImplemented(implementingType: BoundBaseType, functionToImplement: BoundMemberFunction)
             = AbstractInheritedFunctionNotImplementedReporting(implementingType, functionToImplement)
 
         fun noMatchingFunctionOverload(functionNameReference: IdentifierToken, receiverType: BoundTypeReference?, valueArguments: List<BoundExpression<*>>, functionDeclaredAtAll: Boolean)
@@ -240,7 +240,7 @@ abstract class Reporting internal constructor(
                 return baseReporting
             }
 
-            val overloadsImportedBySupertype: MutableMap<BoundBaseTypeDefinition?, List<BoundMemberFunction>> = allMemberFns
+            val overloadsImportedBySupertype: MutableMap<BoundBaseType?, List<BoundMemberFunction>> = allMemberFns
                 .flatMap { subtypeMemberFn ->
                     if (subtypeMemberFn is InheritedBoundMemberFunction) {
                         setOf(subtypeMemberFn)
@@ -253,7 +253,7 @@ abstract class Reporting internal constructor(
                 .toMutableMap()
             overloadsImportedBySupertype.remove(null)
             @Suppress("UNCHECKED_CAST") // the remove(null) right before ensures exactly that
-            overloadsImportedBySupertype as MutableMap<BoundBaseTypeDefinition, List<BoundMemberFunction>>
+            overloadsImportedBySupertype as MutableMap<BoundBaseType, List<BoundMemberFunction>>
 
             val someSupertypeHasAmbiguity = overloadsImportedBySupertype.values.any {
                 !BoundOverloadSet.areOverloadsDisjoint(it)
@@ -413,7 +413,7 @@ abstract class Reporting internal constructor(
         fun typeParameterNameConflict(originalType: BoundTypeReference, conflicting: BoundTypeParameter)
             = TypeParameterNameConflictReporting(originalType, conflicting)
 
-        fun duplicateBaseTypeMembers(typeDef: BoundBaseTypeDefinition, duplicateMembers: Set<BoundBaseTypeMemberVariable>) =
+        fun duplicateBaseTypeMembers(typeDef: BoundBaseType, duplicateMembers: Set<BoundBaseTypeMemberVariable>) =
             DuplicateBaseTypeMemberReporting(typeDef, duplicateMembers)
 
         fun assignmentUsedAsExpression(assignment: BoundAssignmentStatement)
@@ -425,7 +425,7 @@ abstract class Reporting internal constructor(
         fun incorrectPackageDeclaration(name: AstPackageName, expected: CanonicalElementName.Package)
             = IncorrectPackageDeclarationReporting(name, expected)
 
-        fun integerLiteralOutOfRange(literal: Expression, expectedType: BoundBaseTypeDefinition, expectedRange: ClosedRange<BigInteger>)
+        fun integerLiteralOutOfRange(literal: Expression, expectedType: BoundBaseType, expectedRange: ClosedRange<BigInteger>)
             = IntegerLiteralOutOfRangeReporting(literal, expectedType, expectedRange)
 
         fun multipleClassConstructors(additionalCtors: Collection<BaseTypeConstructorDeclaration>)
@@ -434,7 +434,7 @@ abstract class Reporting internal constructor(
         fun multipleClassDestructors(additionalDtors: Collection<BaseTypeDestructorDeclaration>)
             = MultipleClassDestructorsReporting(additionalDtors)
 
-        fun entryNotAllowedOnBaseType(baseType: BoundBaseTypeDefinition, entry: BoundBaseTypeEntry<*>)
+        fun entryNotAllowedOnBaseType(baseType: BoundBaseType, entry: BoundBaseTypeEntry<*>)
             = EntryNotAllowedInBaseTypeReporting(baseType.kind, entry)
 
         fun elementNotAccessible(element: DefinitionWithVisibility, visibility: BoundVisibility, accessAt: SourceLocation)
@@ -449,7 +449,7 @@ abstract class Reporting internal constructor(
         fun visibilityShadowed(element: DefinitionWithVisibility, contextVisibility: BoundVisibility)
             = ShadowedVisibilityReporting(element, contextVisibility)
 
-        fun hiddenTypeExposed(type: BoundBaseTypeDefinition, exposedBy: DefinitionWithVisibility, exposedAt: SourceLocation)
+        fun hiddenTypeExposed(type: BoundBaseType, exposedBy: DefinitionWithVisibility, exposedAt: SourceLocation)
             = HiddenTypeExposedReporting(type, exposedBy, exposedAt)
 
         private fun readingPurityViolationToReporting(violation: BoundExpression<*>, boundary: PurityViolationReporting.Boundary): Reporting {

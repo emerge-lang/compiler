@@ -1,7 +1,7 @@
 package compiler.binding.context.effect
 
 import compiler.binding.BoundVariable
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 
 object PartialObjectInitialization : EphemeralStateClass<BoundVariable, PartialObjectInitialization.State, PartialObjectInitialization.Effect> {
@@ -42,7 +42,7 @@ object PartialObjectInitialization : EphemeralStateClass<BoundVariable, PartialO
             return knownMemberStates[member.name] ?: VariableInitialization.State.INITIALIZED
         }
 
-        fun getUninitializedMembers(classDef: BoundBaseTypeDefinition): Collection<BoundBaseTypeMemberVariable> {
+        fun getUninitializedMembers(classDef: BoundBaseType): Collection<BoundBaseTypeMemberVariable> {
             if (knownMemberStates.isEmpty()) {
                 return emptySet()
             }
@@ -60,7 +60,7 @@ object PartialObjectInitialization : EphemeralStateClass<BoundVariable, PartialO
 
         class MarkObjectAsEntireUninitializedEffect(
             override val subject: BoundVariable,
-            val classDef: BoundBaseTypeDefinition,
+            val classDef: BoundBaseType,
         ) : Effect
 
         class WriteToMemberVariableEffect(

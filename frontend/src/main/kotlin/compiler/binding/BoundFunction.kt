@@ -18,7 +18,7 @@
 
 package compiler.binding
 
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
@@ -102,7 +102,7 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
 }
 
 interface BoundMemberFunction : BoundFunction {
-    val declaredOnType: BoundBaseTypeDefinition
+    val declaredOnType: BoundBaseType
 
     val isVirtual: Boolean
 

@@ -14,7 +14,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 
 class InheritedBoundMemberFunction(
     val supertypeMemberFn: BoundMemberFunction,
-    val subtype: BoundBaseTypeDefinition,
+    val subtype: BoundBaseType,
 ) : BoundMemberFunction by supertypeMemberFn {
     init {
         check(supertypeMemberFn.declaresReceiver) {

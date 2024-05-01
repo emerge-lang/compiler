@@ -26,7 +26,7 @@ import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundVisibility
-import compiler.binding.basetype.BoundBaseTypeDefinition
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeEntry
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
@@ -55,14 +55,14 @@ class BaseTypeDeclaration(
 ) : AstFileLevelDeclaration {
     override val declaredAt = name.sourceLocation
 
-    fun bindTo(fileContext: CTContext): BoundBaseTypeDefinition {
+    fun bindTo(fileContext: CTContext): BoundBaseType {
         // declare this now to allow passing forward references to all children
-        lateinit var boundTypeDef: BoundBaseTypeDefinition
+        lateinit var boundTypeDef: BoundBaseType
         val typeDefAccessor = { boundTypeDef }
 
         val kind = when (declarationKeyword.keyword) {
-            Keyword.CLASS_DEFINITION -> BoundBaseTypeDefinition.Kind.CLASS
-            Keyword.INTERFACE_DEFINITION -> BoundBaseTypeDefinition.Kind.INTERFACE
+            Keyword.CLASS_DEFINITION -> BoundBaseType.Kind.CLASS
+            Keyword.INTERFACE_DEFINITION -> BoundBaseType.Kind.INTERFACE
             else -> throw InternalCompilerError("Unknown base type declaration keyword ${declarationKeyword.sourceLocation}")
         }
         val typeVisibility = visibility?.bindTo(fileContext) ?: BoundVisibility.default(fileContext)
@@ -96,7 +96,7 @@ class BaseTypeDeclaration(
             } }
             .toMutableList()
 
-        boundTypeDef = BoundBaseTypeDefinition(
+        boundTypeDef = BoundBaseType(
             fileContext,
             typeRootContext,
             kind,
@@ -116,7 +116,7 @@ data class AstSupertypeList(
     companion object {
         fun AstSupertypeList?.bindTo(
             typeRootContext: CTContext,
-            getTypeDef: () -> BoundBaseTypeDefinition,
+            getTypeDef: () -> BoundBaseType,
         ): BoundSupertypeList {
             val effectiveTypeRefs = (this?.typeRefs ?: emptyList())
             val boundSupertypes = effectiveTypeRefs.map { BoundSupertypeDeclaration(typeRootContext, getTypeDef, it) }
@@ -126,7 +126,6 @@ data class AstSupertypeList(
     }
 }
 
-/** TODO: rename to BaseTypeEntryDeclaration */
 sealed interface BaseTypeEntryDeclaration {
     val sourceLocation: SourceLocation
 }
@@ -156,7 +155,7 @@ class BaseTypeConstructorDeclaration(
 ) : BaseTypeEntryDeclaration {
     override val sourceLocation = constructorKeyword.sourceLocation
 
-    fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>?, getClassDef: () -> BoundBaseTypeDefinition) : BoundClassConstructor {
+    fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>?, getClassDef: () -> BoundBaseType) : BoundClassConstructor {
         return BoundClassConstructor(fileContextWithTypeParameters, typeParameters ?: emptyList(), getClassDef, this)
     }
 }
@@ -167,7 +166,7 @@ class BaseTypeDestructorDeclaration(
 ) : BaseTypeEntryDeclaration {
     override val sourceLocation = destructorKeyword.sourceLocation
 
-    fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>?, getClassDef: () -> BoundBaseTypeDefinition): BoundClassDestructor {
+    fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>?, getClassDef: () -> BoundBaseType): BoundClassDestructor {
         return BoundClassDestructor(fileContextWithTypeParameters, typeParameters ?: emptyList(), getClassDef, this)
     }
 }
@@ -181,7 +180,7 @@ class BaseTypeMemberFunctionDeclaration(
     fun bindTo(
         typeRootContext: CTContext,
         selfType: TypeReference,
-        getTypeDef: () -> BoundBaseTypeDefinition,
+        getTypeDef: () -> BoundBaseType,
     ): BoundDeclaredBaseTypeMemberFunction {
         return functionDeclaration.bindToAsMember(
             typeRootContext,
