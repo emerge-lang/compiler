@@ -9,7 +9,7 @@ import compiler.binding.BoundParameterList
 import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.reportings.IncompatibleReturnTypeOnOverrideReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
@@ -89,7 +89,7 @@ class BoundDeclaredBaseTypeMemberFunction(
                 superFn.returnType?.let { superReturnType ->
                     overriddenReturnType.evaluateAssignabilityTo(
                         superReturnType,
-                        overriddenReturnType.sourceLocation ?: SourceLocation.UNKNOWN
+                        overriddenReturnType.span ?: Span.UNKNOWN
                     )
                         ?.let { typeError ->
                             reportings.add(IncompatibleReturnTypeOnOverrideReporting(declaration, superFn, typeError))
@@ -150,7 +150,7 @@ class BoundDeclaredBaseTypeMemberFunction(
         }
     }
 
-    override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
+    override fun validateAccessFrom(location: Span): Collection<Reporting> {
         return visibility.validateAccessFrom(location, this)
     }
 

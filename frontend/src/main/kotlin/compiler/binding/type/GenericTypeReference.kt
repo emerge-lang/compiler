@@ -6,7 +6,7 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
@@ -22,7 +22,7 @@ sealed class GenericTypeReference : BoundTypeReference {
     override val simpleName get() = parameter.name
     override val isNullable get() = effectiveBound.isNullable
     override val mutability get() = effectiveBound.mutability
-    override val sourceLocation get() = original.declaringNameToken?.sourceLocation
+    override val span get() = original.declaringNameToken?.span
     override val inherentTypeBindings = TypeUnification.EMPTY
 
     override fun withMutability(modifier: TypeMutability?): GenericTypeReference {
@@ -45,7 +45,7 @@ sealed class GenericTypeReference : BoundTypeReference {
         return other is GenericTypeReference && this.parameter === other.parameter
     }
 
-    override fun unify(assigneeType: BoundTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
+    override fun unify(assigneeType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification {
         return when (assigneeType) {
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
             is RootResolvedTypeReference -> carry.plusReporting(Reporting.valueNotAssignable(

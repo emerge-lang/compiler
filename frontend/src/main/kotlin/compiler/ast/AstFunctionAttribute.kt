@@ -11,7 +11,7 @@ sealed class AstFunctionAttribute(
     val attributeName: Token,
 ) {
     open val impliesNoBody: Boolean = false
-    val sourceLocation = attributeName.sourceLocation
+    val sourceLocation = attributeName.span
 
     /**
      * This function is eligible to override syntactic operators, e.g. `*`

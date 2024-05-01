@@ -73,7 +73,7 @@ class BoundImportDeclaration(
     override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val lastIdentifierAt = declaration.identifiers.last().sourceLocation
+        val lastIdentifierAt = declaration.identifiers.last().span
         val reportings = mutableListOf<Reporting>()
         when (val result = resolutionResult) {
             is ResolutionResult.Variable -> {

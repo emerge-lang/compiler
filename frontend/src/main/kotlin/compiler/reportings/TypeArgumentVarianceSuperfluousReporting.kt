@@ -1,14 +1,14 @@
 package compiler.reportings
 
 import compiler.binding.type.BoundTypeArgument
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 class TypeArgumentVarianceSuperfluousReporting(
     val argument: BoundTypeArgument,
 ) : Reporting(
     Level.WARNING,
     "Superfluous variance on type argument. The parameter is already declared as ${argument.variance.name.lowercase()}",
-    argument.sourceLocation ?: SourceLocation.UNKNOWN,
+    argument.span ?: Span.UNKNOWN,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -16,12 +16,12 @@ class TypeArgumentVarianceSuperfluousReporting(
 
         other as TypeArgumentVarianceSuperfluousReporting
 
-        return argument == other.argument && argument.sourceLocation == other.argument.sourceLocation
+        return argument == other.argument && argument.span == other.argument.span
     }
 
     override fun hashCode(): Int {
         var result = argument.hashCode()
-        result = result * 31 + argument.sourceLocation.hashCode()
+        result = result * 31 + argument.span.hashCode()
         return result
     }
 }

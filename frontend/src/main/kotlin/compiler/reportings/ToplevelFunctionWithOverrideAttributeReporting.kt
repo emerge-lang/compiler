@@ -7,7 +7,7 @@ class ToplevelFunctionWithOverrideAttributeReporting(
 ) : Reporting(
     Level.ERROR,
     "Top-level functions cannot override (the concept of overriding only applies in interfaces and classes)",
-    overrideKeyword.sourceLocation,
+    overrideKeyword.span,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

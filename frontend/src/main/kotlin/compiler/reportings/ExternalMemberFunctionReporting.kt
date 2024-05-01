@@ -9,5 +9,5 @@ class ExternalMemberFunctionReporting(
 ) : Reporting(
     Level.ERROR,
     "Member functions cannot be external; declare ${memberFunction.name.value} as a top-level function instead.",
-    externalKeyword.sourceLocation,
+    externalKeyword.span,
 )

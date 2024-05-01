@@ -25,7 +25,7 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundParameter
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.reportings.Reporting
 import compiler.reportings.ValueNotAssignableReporting
 import compiler.twoElementPermutationsUnordered
@@ -37,7 +37,7 @@ sealed interface BoundTypeReference {
     val simpleName: String?
 
     val mutability: TypeMutability
-    val sourceLocation: SourceLocation?
+    val span: Span?
 
     /**
      * @return this type, with the given mutability if it doesn't explicitly have one.
@@ -77,7 +77,7 @@ sealed interface BoundTypeReference {
      * @return `null` if the assignment is allowed, a reporting of level [Reporting.Level.ERROR] describing the
      * problem with the assignment in case it is not possible
      */
-    fun evaluateAssignabilityTo(other: BoundTypeReference, assignmentLocation: SourceLocation): ValueNotAssignableReporting? {
+    fun evaluateAssignabilityTo(other: BoundTypeReference, assignmentLocation: Span): ValueNotAssignableReporting? {
         val unification = other.unify(this, assignmentLocation, TypeUnification.EMPTY)
         return unification.reportings.firstOrNull { it.level >= Reporting.Level.ERROR } as ValueNotAssignableReporting?
     }
@@ -148,7 +148,7 @@ sealed interface BoundTypeReference {
      * @param carry When multiple types have to be found at the same time (a function invocation with more than one parameter),
      *              one can carry the context/result between the unifications).
      */
-    fun unify(assigneeType: BoundTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification
+    fun unify(assigneeType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification
 
     /**
      * Replaces [TypeVariable] in this type with their bindings from [context].
@@ -216,5 +216,5 @@ fun List<BoundParameter>.nonDisjointPairs(): Sequence<Pair<BoundParameter, Bound
 }
 
 infix fun BoundTypeReference.isAssignableTo(other: BoundTypeReference): Boolean {
-    return evaluateAssignabilityTo(other, SourceLocation.UNKNOWN) == null
+    return evaluateAssignabilityTo(other, Span.UNKNOWN) == null
 }

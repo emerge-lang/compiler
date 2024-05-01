@@ -10,7 +10,7 @@ class IncompatibleReturnTypeOnOverrideReporting(
 ) : Reporting(
     Level.ERROR,
     "The return type of this override is not a subtype the overridden functions return type: ${base.reason}",
-    base.sourceLocation,
+    base.span,
 ) {
-    override fun toString() = "$levelAndMessage  overridden function: ${superFunction.canonicalName}\n  overridden function returns: ${base.targetType}\n  override returns:            ${base.sourceType}\n\nin $sourceLocation"
+    override fun toString() = "$levelAndMessage  overridden function: ${superFunction.canonicalName}\n  overridden function returns: ${base.targetType}\n  override returns:            ${base.sourceType}\n\nin $span"
 }

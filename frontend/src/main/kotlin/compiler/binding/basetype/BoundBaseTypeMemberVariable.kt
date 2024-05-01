@@ -27,7 +27,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -37,7 +37,7 @@ class BoundBaseTypeMemberVariable(
     val declaration: BaseTypeMemberVariableDeclaration,
 ) : BoundBaseTypeEntry<BaseTypeMemberDeclaration>, DefinitionWithVisibility {
     val name = declaration.name.value
-    override val declaredAt = declaration.sourceLocation
+    override val declaredAt = declaration.span
     val isReAssignable = declaration.variableDeclaration.isReAssignable
 
     val isConstructorParameterInitialized = if (declaration.variableDeclaration.initializerExpression is IdentifierExpression) {
@@ -80,9 +80,9 @@ class BoundBaseTypeMemberVariable(
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = boundEffectiveVariableDeclaration.semanticAnalysisPhase2().toMutableList()
         val typeUseSite = if (declaration.variableDeclaration.isReAssignable) {
-            TypeUseSite.InvariantUsage(declaration.variableDeclaration.type?.sourceLocation ?: declaration.sourceLocation, this)
+            TypeUseSite.InvariantUsage(declaration.variableDeclaration.type?.span ?: declaration.span, this)
         } else {
-            TypeUseSite.OutUsage(declaration.variableDeclaration.type?.sourceLocation ?: declaration.sourceLocation, this)
+            TypeUseSite.OutUsage(declaration.variableDeclaration.type?.span ?: declaration.span, this)
         }
         reportings.addAll(type!!.validate(typeUseSite))
         return reportings
@@ -103,7 +103,7 @@ class BoundBaseTypeMemberVariable(
         return reportings
     }
 
-    override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
+    override fun validateAccessFrom(location: Span): Collection<Reporting> {
         return visibility.validateAccessFrom(location, this)
     }
 

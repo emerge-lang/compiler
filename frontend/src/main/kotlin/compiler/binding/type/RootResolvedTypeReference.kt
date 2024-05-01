@@ -9,7 +9,7 @@ import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
@@ -34,10 +34,10 @@ class RootResolvedTypeReference private constructor(
 
     override val mutability = if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else (explicitMutability ?: original?.mutability ?: TypeMutability.READONLY)
     override val simpleName = original?.simpleName ?: baseType.simpleName
-    override val sourceLocation = original?.declaringNameToken?.sourceLocation
+    override val span = original?.declaringNameToken?.span
 
     override val inherentTypeBindings by lazy {
-        TypeUnification.fromExplicit(baseType.typeParameters ?: emptyList(), arguments, sourceLocation ?: SourceLocation.UNKNOWN)
+        TypeUnification.fromExplicit(baseType.typeParameters ?: emptyList(), arguments, span ?: Span.UNKNOWN)
     }
 
     constructor(original: TypeReference, baseType: BoundBaseType, parameters: List<BoundTypeArgument>?) : this(
@@ -105,7 +105,7 @@ class RootResolvedTypeReference private constructor(
         reportings.addAll(baseType.validateAccessFrom(forUsage.usageLocation))
         forUsage.exposedBy?.let { exposer ->
             if (exposer.visibility.isPossiblyBroaderThan(baseType.visibility)) {
-                reportings.add(Reporting.hiddenTypeExposed(baseType, exposer, sourceLocation ?: SourceLocation.UNKNOWN))
+                reportings.add(Reporting.hiddenTypeExposed(baseType, exposer, span ?: Span.UNKNOWN))
             }
         }
 
@@ -154,7 +154,7 @@ class RootResolvedTypeReference private constructor(
         )
     }
 
-    override fun unify(assigneeType: BoundTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
+    override fun unify(assigneeType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification {
         when (assigneeType) {
             is RootResolvedTypeReference -> {
                 // this must be a subtype of other

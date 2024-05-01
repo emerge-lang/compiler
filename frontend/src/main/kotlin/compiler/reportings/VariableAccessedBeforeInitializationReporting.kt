@@ -14,7 +14,7 @@ data class VariableAccessedBeforeInitializationReporting(
     } else {
         "Variable ${declaration.name.value} has not been initialized yet. It must be initialized before use."
     },
-    access.sourceLocation,
+    access.span,
 ) {
     override fun toString() = super.toString()
 }

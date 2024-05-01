@@ -35,7 +35,7 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.reportings.CyclicInheritanceReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
@@ -300,7 +300,7 @@ class BoundBaseType(
         }
     }
 
-    override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
+    override fun validateAccessFrom(location: Span): Collection<Reporting> {
         return visibility.validateAccessFrom(location, this)
     }
 

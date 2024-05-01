@@ -125,10 +125,8 @@ class MemorySourceFile(
 
 /**
  * Describes a location within a source text (line + column)
- *
- * TODO: rename to Span, naming stolen from rust nom
  */
-data class SourceLocation constructor(
+data class Span(
     val file: SourceFile,
     val fromLineNumber: UInt,
     val fromColumnNumber: UInt,
@@ -154,9 +152,9 @@ data class SourceLocation constructor(
         }
     }
 
-    operator fun rangeTo(other: SourceLocation): SourceLocation {
+    operator fun rangeTo(other: Span): Span {
         check(file == other.file)
-        return SourceLocation(
+        return Span(
             file,
             this.fromLineNumber.coerceAtMost(other.fromLineNumber),
             this.fromColumnNumber.coerceAtMost(other.fromColumnNumber),
@@ -169,7 +167,7 @@ data class SourceLocation constructor(
     val fileLineColumnText: String get() = "$file on line $fromLineNumber at column $fromColumnNumber"
 
     companion object {
-        val UNKNOWN = SourceLocation(MemorySourceFile("UNKNOWN", CanonicalElementName.Package(listOf("unknown")), ""), 1u, 1u, 1u, 1u)
+        val UNKNOWN = Span(MemorySourceFile("UNKNOWN", CanonicalElementName.Package(listOf("unknown")), ""), 1u, 1u, 1u, 1u)
     }
 }
 

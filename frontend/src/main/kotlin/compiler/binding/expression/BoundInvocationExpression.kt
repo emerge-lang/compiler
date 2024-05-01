@@ -38,7 +38,7 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.*
 import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrDynamicDispatchFunctionInvocationExpression
@@ -100,7 +100,7 @@ class BoundInvocationExpression(
             val reportings = mutableSetOf<Reporting>()
 
             receiverExpression?.semanticAnalysisPhase2()?.let(reportings::addAll)
-            typeArguments?.forEach { reportings.addAll(it.validate(TypeUseSite.Irrelevant(it.sourceLocation, null))) }
+            typeArguments?.forEach { reportings.addAll(it.validate(TypeUseSite.Irrelevant(it.span, null))) }
             valueArguments.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
 
             val chosenOverload = selectOverload(reportings) ?: return@phase2 reportings
@@ -114,7 +114,7 @@ class BoundInvocationExpression(
                         reportings.add(
                             Reporting.typeDeductionError(
                                 "Cannot infer return type of the call to function ${functionNameToken.value} because the inference is cyclic here. Specify the return type explicitly.",
-                                declaration.sourceLocation,
+                                declaration.span,
                             )
                         )
                     }
@@ -263,7 +263,7 @@ class BoundInvocationExpression(
             reportings += valueArguments.flatMap { it.semanticAnalysisPhase3() }
             functionToInvoke?.let { targetFn ->
                 reportings.addAll(
-                    targetFn.validateAccessFrom(functionNameToken.sourceLocation)
+                    targetFn.validateAccessFrom(functionNameToken.span)
                 )
             }
 
@@ -393,15 +393,15 @@ private fun Iterable<BoundOverloadSet<*>>.filterAndSortByMatchForInvocationTypes
 
             // TODO: source location
             val returnTypeArgsLocation = typeArguments
-                ?.mapNotNull { it.sourceLocation }
-                ?.reduce(SourceLocation::rangeTo)
-                ?: SourceLocation.UNKNOWN
+                ?.mapNotNull { it.span }
+                ?.reduce(Span::rangeTo)
+                ?: Span.UNKNOWN
             val returnTypeWithVariables = candidateFn.returnType?.withTypeVariables(candidateFn.allTypeParameters)
             var unification = TypeUnification.fromExplicit(candidateFn.declaredTypeParameters, typeArguments, returnTypeArgsLocation, allowMissingTypeArguments = true)
             if (returnTypeWithVariables != null) {
                 if (expectedReturnType != null) {
                     unification = unification.doWithIgnoringReportings { obliviousUnification ->
-                        expectedReturnType.unify(returnTypeWithVariables, SourceLocation.UNKNOWN, obliviousUnification)
+                        expectedReturnType.unify(returnTypeWithVariables, Span.UNKNOWN, obliviousUnification)
                     }
                 }
             }
@@ -415,7 +415,7 @@ private fun Iterable<BoundOverloadSet<*>>.filterAndSortByMatchForInvocationTypes
             unification = argumentsIncludingReceiver
                 .zip(rightSideTypes)
                 .foldIndexed(unification) { parameterIndex, carryUnification, (argument, parameterType) ->
-                    val unificationAfterParameter = parameterType.unify(argument.type!!, argument.declaration.sourceLocation, carryUnification)
+                    val unificationAfterParameter = parameterType.unify(argument.type!!, argument.declaration.span, carryUnification)
                     if (unificationAfterParameter.getErrorsNotIn(carryUnification).any()) {
                         indicesOfErroneousParameters.add(parameterIndex)
                     }

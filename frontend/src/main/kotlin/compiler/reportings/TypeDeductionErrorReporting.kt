@@ -18,10 +18,10 @@
 
 package compiler.reportings
 
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 /** Reported when a type cannot be inferred. */
 class TypeDeductionErrorReporting(
     message: String,
-    location: SourceLocation
+    location: Span
 ) : Reporting(Level.ERROR, message, location)

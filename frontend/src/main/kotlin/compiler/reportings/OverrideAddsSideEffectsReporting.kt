@@ -2,7 +2,7 @@ package compiler.reportings
 
 import compiler.binding.BoundFunction
 import compiler.binding.BoundMemberFunction
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 data class OverrideAddsSideEffectsReporting(
     val override: BoundMemberFunction,
@@ -22,5 +22,5 @@ data class OverrideAddsSideEffectsReporting(
     }
 }
 
-private val BoundFunction.purityDeclarationLocation: SourceLocation
+private val BoundFunction.purityDeclarationLocation: Span
     get() = attributes.purityAttribute?.sourceLocation ?: declaredAt

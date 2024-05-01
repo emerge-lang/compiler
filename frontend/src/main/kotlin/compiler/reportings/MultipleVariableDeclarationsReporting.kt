@@ -36,13 +36,13 @@ data class MultipleVariableDeclarationsReporting(
         }
         msg
     },
-    additionalDeclaration.sourceLocation
+    additionalDeclaration.span
 ) {
     override fun toString(): String {
         var str = "$levelAndMessage\n"
         str += illustrateHints(
-            SourceHint(originalDeclaration.sourceLocation, "originally declared here", relativeOrderMatters = true),
-            SourceHint(additionalDeclaration.sourceLocation, "declared again here", relativeOrderMatters = true),
+            SourceHint(originalDeclaration.span, "originally declared here", relativeOrderMatters = true),
+            SourceHint(additionalDeclaration.span, "declared again here", relativeOrderMatters = true),
         )
         return str
     }

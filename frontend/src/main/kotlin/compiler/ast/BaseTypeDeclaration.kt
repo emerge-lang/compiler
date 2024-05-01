@@ -43,7 +43,7 @@ import compiler.binding.type.BoundTypeParameter.Companion.chain
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 class BaseTypeDeclaration(
     val declarationKeyword: KeywordToken,
@@ -53,7 +53,7 @@ class BaseTypeDeclaration(
     val entryDeclarations: List<BaseTypeEntryDeclaration>,
     val typeParameters: List<TypeParameter>?,
 ) : AstFileLevelDeclaration {
-    override val declaredAt = name.sourceLocation
+    override val declaredAt = name.span
 
     fun bindTo(fileContext: CTContext): BoundBaseType {
         // declare this now to allow passing forward references to all children
@@ -63,7 +63,7 @@ class BaseTypeDeclaration(
         val kind = when (declarationKeyword.keyword) {
             Keyword.CLASS_DEFINITION -> BoundBaseType.Kind.CLASS
             Keyword.INTERFACE_DEFINITION -> BoundBaseType.Kind.INTERFACE
-            else -> throw InternalCompilerError("Unknown base type declaration keyword ${declarationKeyword.sourceLocation}")
+            else -> throw InternalCompilerError("Unknown base type declaration keyword ${declarationKeyword.span}")
         }
         val typeVisibility = visibility?.bindTo(fileContext) ?: BoundVisibility.default(fileContext)
         val (boundTypeParameters, fileContextWithTypeParams) = typeParameters?.chain(fileContext) ?: Pair(null, fileContext)
@@ -127,7 +127,7 @@ data class AstSupertypeList(
 }
 
 sealed interface BaseTypeEntryDeclaration {
-    val sourceLocation: SourceLocation
+    val span: Span
 }
 
 sealed class BaseTypeMemberDeclaration : BaseTypeEntryDeclaration {
@@ -137,7 +137,7 @@ sealed class BaseTypeMemberDeclaration : BaseTypeEntryDeclaration {
 class BaseTypeMemberVariableDeclaration(
     val variableDeclaration: VariableDeclaration,
 ) : BaseTypeMemberDeclaration() {
-    override val sourceLocation = variableDeclaration.declaredAt
+    override val span = variableDeclaration.declaredAt
     override val name = variableDeclaration.name
 
     fun bindTo(context: ExecutionScopedCTContext): BoundBaseTypeMemberVariable {
@@ -153,7 +153,7 @@ class BaseTypeConstructorDeclaration(
     val constructorKeyword: IdentifierToken,
     val code: CodeChunk,
 ) : BaseTypeEntryDeclaration {
-    override val sourceLocation = constructorKeyword.sourceLocation
+    override val span = constructorKeyword.span
 
     fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>?, getClassDef: () -> BoundBaseType) : BoundClassConstructor {
         return BoundClassConstructor(fileContextWithTypeParameters, typeParameters ?: emptyList(), getClassDef, this)
@@ -164,7 +164,7 @@ class BaseTypeDestructorDeclaration(
     val destructorKeyword: IdentifierToken,
     val code: CodeChunk,
 ) : BaseTypeEntryDeclaration {
-    override val sourceLocation = destructorKeyword.sourceLocation
+    override val span = destructorKeyword.span
 
     fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>?, getClassDef: () -> BoundBaseType): BoundClassDestructor {
         return BoundClassDestructor(fileContextWithTypeParameters, typeParameters ?: emptyList(), getClassDef, this)
@@ -174,7 +174,7 @@ class BaseTypeDestructorDeclaration(
 class BaseTypeMemberFunctionDeclaration(
     val functionDeclaration: FunctionDeclaration
 ) : BaseTypeMemberDeclaration() {
-    override val sourceLocation = functionDeclaration.declaredAt
+    override val span = functionDeclaration.declaredAt
     override val name = functionDeclaration.name
 
     fun bindTo(

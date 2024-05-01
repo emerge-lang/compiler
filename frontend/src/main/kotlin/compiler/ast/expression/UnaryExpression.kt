@@ -29,19 +29,19 @@ class UnaryExpression(
     val operatorToken: OperatorToken,
     val valueExpression: Expression,
 ):Expression {
-    override val sourceLocation = valueExpression.sourceLocation
+    override val span = valueExpression.span
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundUnaryExpression {
         val functionName = operatorFunctionName(operatorToken.operator)
         val hiddenInvocation = InvocationExpression(
             MemberAccessExpression(
                 valueExpression,
-                OperatorToken(Operator.DOT, operatorToken.sourceLocation),
-                IdentifierToken(functionName, operatorToken.sourceLocation),
+                OperatorToken(Operator.DOT, operatorToken.span),
+                IdentifierToken(functionName, operatorToken.span),
             ),
             null,
             emptyList(),
-            operatorToken.sourceLocation .. valueExpression.sourceLocation,
+            operatorToken.span .. valueExpression.span,
         )
 
         return BoundUnaryExpression(

@@ -11,5 +11,5 @@ class IntegerLiteralOutOfRangeReporting(
 ) : Reporting(
     Level.ERROR,
     "An ${expectedType.simpleName} is expected here, but this literal is out of range. Must be in [${expectedRange.start}; ${expectedRange.endInclusive}]",
-    literal.sourceLocation,
+    literal.span,
 )

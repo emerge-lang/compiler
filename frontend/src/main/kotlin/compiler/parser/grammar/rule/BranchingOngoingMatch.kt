@@ -96,8 +96,8 @@ private inline fun <T, reified M> Collection<T>.mapIndexedToArray(mapper: (Int, 
 
 private val parseErrorComparator: Comparator<ParsingMismatchReporting> =
     compareBy<ParsingMismatchReporting> { it.level }
-    .thenBy { it.sourceLocation.fromLineNumber }
-    .thenBy { it.sourceLocation.fromColumnNumber }
+    .thenBy { it.span.fromLineNumber }
+    .thenBy { it.span.fromColumnNumber }
 
 internal fun reduceCombineParseError(a: ParsingMismatchReporting, b: ParsingMismatchReporting): ParsingMismatchReporting {
     val comparison = parseErrorComparator.compare(a, b)

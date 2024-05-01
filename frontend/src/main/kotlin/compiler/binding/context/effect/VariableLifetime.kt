@@ -5,7 +5,7 @@ import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeMutability
 import compiler.binding.BoundVariable
 import compiler.binding.expression.BoundIdentifierExpression
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.reportings.Reporting
 
 object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.State, VariableLifetime.Effect> {
@@ -76,7 +76,7 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
 
         data class Dead(
             val variable: BoundVariable,
-            val lifetimeEndedAt: SourceLocation,
+            val lifetimeEndedAt: Span,
             val maybe: Boolean = false,
         ) : State {
             override fun maybe() = if (maybe) this else Dead(variable, lifetimeEndedAt, true)
@@ -92,7 +92,7 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
         data class ValueCaptured(
             override val subject: BoundVariable,
             val withMutability: TypeMutability,
-            val capturedAt: SourceLocation,
+            val capturedAt: Span,
         ) : Effect
 
         data class NewValueAssigned(

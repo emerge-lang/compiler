@@ -33,7 +33,7 @@ import compiler.lexer.IdentifierToken
  * * within a constructor invocation: [InvocationExpression] may read the [identifier] and treat it as a type name
  */
 class IdentifierExpression(val identifier: IdentifierToken) :Expression {
-    override val sourceLocation = identifier.sourceLocation
+    override val span = identifier.span
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundIdentifierExpression {
         return BoundIdentifierExpression(context, this)

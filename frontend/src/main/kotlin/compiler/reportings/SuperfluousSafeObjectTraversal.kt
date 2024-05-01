@@ -24,5 +24,5 @@ import compiler.lexer.OperatorToken
 class SuperfluousSafeObjectTraversal(val nonNullExpression: BoundExpression<*>, val superfluousSafeOperator: OperatorToken) : Reporting(
     Level.INFO,
     "Null-safe object traversal is superfluous here; the receiver expression cannot evaluate to null",
-    superfluousSafeOperator.sourceLocation
+    superfluousSafeOperator.span
 )

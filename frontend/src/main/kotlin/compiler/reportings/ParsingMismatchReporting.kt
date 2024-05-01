@@ -8,7 +8,7 @@ class ParsingMismatchReporting(
 ) : Reporting(
     Level.ERROR,
     "<mismatch>",
-    actual.sourceLocation
+    actual.span
 ) {
     override val message: String by lazy {
         val uniqueAlternatives = expectedAlternatives.toSet()

@@ -48,7 +48,7 @@ private val defaultModulesParsed: List<Pair<CanonicalElementName.Package, List<A
             val sourceFiles = SourceSet.load(module.path, module.moduleName)
                 .map {
                     val tokens = lex(it)
-                    SourceFileRule.match(tokens, tokens.peek()!!.sourceLocation.file)
+                    SourceFileRule.match(tokens, tokens.peek()!!.span.file)
                 }
                 .partition { it.hasErrors }
                 .let { (withErrors, withoutErrors) ->
@@ -109,11 +109,11 @@ fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext
 
     val lexicalReportings = mutableListOf<Reporting>()
     modules.forEach { module ->
-        val lexerSourceFile = module.tokens.peek()!!.sourceLocation.file
+        val lexerSourceFile = module.tokens.peek()!!.span.file
         val result = SourceFileRule.match(module.tokens, lexerSourceFile)
         if (result.item == null) {
             val error = result.reportings.maxBy { it.level }
-            throw AssertionError("Failed to parse code: ${error.message} in ${error.sourceLocation}")
+            throw AssertionError("Failed to parse code: ${error.message} in ${error.span}")
         }
         lexicalReportings.addAll(result.reportings)
         val sourceFile = result.item!!

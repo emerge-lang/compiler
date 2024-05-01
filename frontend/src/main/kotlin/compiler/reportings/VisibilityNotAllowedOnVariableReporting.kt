@@ -7,7 +7,7 @@ data class VisibilityNotAllowedOnVariableReporting(
 ) : Reporting(
     Level.ERROR,
     "${variable.kind}s cannot have a visibility",
-    variable.declaration.visibility?.sourceLocation ?: variable.declaration.sourceLocation,
+    variable.declaration.visibility?.sourceLocation ?: variable.declaration.span,
 ) {
     override fun toString() = super.toString()
 }

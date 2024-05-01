@@ -1,7 +1,7 @@
 package compiler.reportings
 
 import compiler.ast.type.TypeReference
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 class IllegalSupertypeReporting(
     val supertype: TypeReference,
@@ -9,18 +9,18 @@ class IllegalSupertypeReporting(
 ) : Reporting(
     Level.ERROR,
     "Cannot inherit from this type: $reason",
-    supertype.sourceLocation ?: SourceLocation.UNKNOWN,
+    supertype.span ?: Span.UNKNOWN,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is IllegalSupertypeReporting) return false
 
-        if (supertype.sourceLocation != other.supertype.sourceLocation) return false
+        if (supertype.span != other.supertype.span) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return supertype.sourceLocation.hashCode()
+        return supertype.span.hashCode()
     }
 }

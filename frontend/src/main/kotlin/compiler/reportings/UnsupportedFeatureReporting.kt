@@ -18,7 +18,7 @@
 
 package compiler.reportings
 
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 /** Used when input source code uses a feature that is not fully supported by the compiler */
-class UnsupportedFeatureReporting(message: String, location: SourceLocation) : Reporting(Level.ERROR, message, location)
+class UnsupportedFeatureReporting(message: String, location: Span) : Reporting(Level.ERROR, message, location)

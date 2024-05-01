@@ -2,7 +2,7 @@ package compiler.reportings
 
 import compiler.ast.type.TypeParameter
 import compiler.binding.type.BoundTypeArgument
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 class TypeArgumentOutOfBoundsReporting(
     val parameter: TypeParameter,
@@ -11,7 +11,7 @@ class TypeArgumentOutOfBoundsReporting(
 ) : Reporting(
     Level.ERROR,
     "Argument for type parameter ${parameter.name.value} is not within the bound: $reason",
-    argument.sourceLocation ?: SourceLocation.UNKNOWN,
+    argument.span ?: Span.UNKNOWN,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -21,7 +21,7 @@ class TypeArgumentOutOfBoundsReporting(
 
         if (parameter != other.parameter) return false
         if (argument != other.argument) return false
-        if (argument.sourceLocation != other.argument.sourceLocation) return false
+        if (argument.span != other.argument.span) return false
 
         return true
     }
@@ -29,7 +29,7 @@ class TypeArgumentOutOfBoundsReporting(
     override fun hashCode(): Int {
         var result = parameter.hashCode()
         result = 31 * result + argument.hashCode()
-        result = 31 * result + argument.sourceLocation.hashCode()
+        result = 31 * result + argument.span.hashCode()
         return result
     }
 }

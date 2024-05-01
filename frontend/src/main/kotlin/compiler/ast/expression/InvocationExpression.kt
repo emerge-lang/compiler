@@ -24,7 +24,7 @@ import compiler.ast.Expression.Companion.chain
 import compiler.ast.type.TypeArgument
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundInvocationExpression
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 class InvocationExpression(
     /**
@@ -35,7 +35,7 @@ class InvocationExpression(
     val targetExpression: Expression,
     val typeArguments: List<TypeArgument>?,
     val argumentExpressions: List<Expression>,
-    override val sourceLocation: SourceLocation,
+    override val span: Span,
 ) :Expression {
     override fun bindTo(context: ExecutionScopedCTContext): BoundInvocationExpression {
         // bind all the parameters

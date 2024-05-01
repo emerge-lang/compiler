@@ -7,7 +7,7 @@ data class MultipleClassConstructorsReporting(
 ) : Reporting(
     Level.ERROR,
     "Classes can have only one constructor. These must be removed",
-    additionalConstructors.first().sourceLocation,
+    additionalConstructors.first().span,
 ) {
-    override fun toString() = "$levelAndMessage\n${illustrateSourceLocations(additionalConstructors.map { it.sourceLocation })}"
+    override fun toString() = "$levelAndMessage\n${illustrateSourceLocations(additionalConstructors.map { it.span })}"
 }

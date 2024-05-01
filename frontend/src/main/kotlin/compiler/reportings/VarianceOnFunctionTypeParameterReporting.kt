@@ -7,7 +7,7 @@ class VarianceOnFunctionTypeParameterReporting(
 ) : Reporting(
     Level.ERROR,
     "Type parameters on functions cannot have variance",
-    parameter.name.sourceLocation,
+    parameter.name.span,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -15,12 +15,12 @@ class VarianceOnFunctionTypeParameterReporting(
 
         other as VarianceOnFunctionTypeParameterReporting
 
-        return parameter == other.parameter && parameter.bound?.sourceLocation == other.parameter.bound?.sourceLocation
+        return parameter == other.parameter && parameter.bound?.span == other.parameter.bound?.span
     }
 
     override fun hashCode(): Int {
         var result = parameter.hashCode()
-        result = result * 31 + parameter.bound?.sourceLocation.hashCode()
+        result = result * 31 + parameter.bound?.span.hashCode()
         return result
     }
 }

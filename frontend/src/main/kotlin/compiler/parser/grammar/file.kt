@@ -93,7 +93,7 @@ val ImportDeclaration = sequence("import declaration") {
             tokens.next()
         }
 
-        ImportDeclaration(keyword.sourceLocation, identifiers)
+        ImportDeclaration(keyword.span, identifiers)
     }
 
 val TopLevelVariableDeclaration = sequence("variable declaration") {

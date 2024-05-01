@@ -51,7 +51,7 @@ class BoundSupertypeDeclaration(
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return seanHelper.phase2 {
             resolvedReference?.baseType?.semanticAnalysisPhase2()
-            unfilteredResolved.validate(TypeUseSite.Irrelevant(astNode.sourceLocation, getTypeDef()))
+            unfilteredResolved.validate(TypeUseSite.Irrelevant(astNode.span, getTypeDef()))
         }
     }
 

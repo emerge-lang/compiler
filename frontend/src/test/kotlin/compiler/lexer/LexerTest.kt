@@ -45,8 +45,8 @@ class LexerTest : FreeSpec() {init {
             result[0] should beInstanceOf(KeywordToken::class)
             (result[0] as KeywordToken).keyword shouldBe Keyword.PACKAGE
             (result[0] as KeywordToken).sourceText shouldBe "package"
-            (result[0] as KeywordToken).sourceLocation.fromLineNumber shouldBe 1u
-            (result[0] as KeywordToken).sourceLocation.fromColumnNumber shouldBe 4u
+            (result[0] as KeywordToken).span.fromLineNumber shouldBe 1u
+            (result[0] as KeywordToken).span.fromColumnNumber shouldBe 4u
         }
 
         "should be case insensitive" {
@@ -186,18 +186,18 @@ class LexerTest : FreeSpec() {init {
 
         tokens[1].shouldBeInstanceOf<OperatorToken>().let {
             it.operator shouldBe Operator.STRING_DELIMITER
-            it.sourceLocation.fromColumnNumber shouldBe 5u
-            it.sourceLocation.toColumnNumber shouldBe 5u
+            it.span.fromColumnNumber shouldBe 5u
+            it.span.toColumnNumber shouldBe 5u
         }
         tokens[2].shouldBeInstanceOf<StringLiteralContentToken>().let {
             it.content shouldBe "some {test} data"
-            it.sourceLocation.fromColumnNumber shouldBe 6u
-            it.sourceLocation.toColumnNumber shouldBe 21u
+            it.span.fromColumnNumber shouldBe 6u
+            it.span.toColumnNumber shouldBe 21u
         }
         tokens[3].shouldBeInstanceOf<OperatorToken>().let {
             it.operator shouldBe Operator.STRING_DELIMITER
-            it.sourceLocation.fromColumnNumber shouldBe 22u
-            it.sourceLocation.toColumnNumber shouldBe 22u
+            it.span.fromColumnNumber shouldBe 22u
+            it.span.toColumnNumber shouldBe 22u
         }
 
         tokens[4].shouldBeInstanceOf<OperatorToken>().operator shouldBe Operator.STRING_DELIMITER

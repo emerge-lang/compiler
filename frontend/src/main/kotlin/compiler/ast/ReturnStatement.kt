@@ -26,7 +26,7 @@ class ReturnStatement(
     val returnKeyword: KeywordToken,
     val expression: Expression?,
 ) : Statement {
-    override val sourceLocation = if (expression == null) returnKeyword.sourceLocation else returnKeyword.sourceLocation .. expression.sourceLocation
+    override val span = if (expression == null) returnKeyword.span else returnKeyword.span .. expression.span
 
     override fun bindTo(context: ExecutionScopedCTContext) = BoundReturnStatement(context, this)
 }

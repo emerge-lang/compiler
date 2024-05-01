@@ -11,7 +11,7 @@ class ArrayLiteralExpression(
     val elements: List<Expression>,
     val rightBracket: OperatorToken,
 ) : Expression {
-    override val sourceLocation = leftBracket.sourceLocation .. rightBracket.sourceLocation
+    override val span = leftBracket.span .. rightBracket.span
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundArrayLiteralExpression {
         var carryContext = context

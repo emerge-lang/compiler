@@ -43,14 +43,14 @@ class AbstractInheritedFunctionNotImplementedReporting(
 
         if (other !is AbstractInheritedFunctionNotImplementedReporting) return false
 
-        if (other.sourceLocation != this.sourceLocation) return false
+        if (other.span != this.span) return false
         if (other.functionToImplement !== this.functionToImplement) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        var result = sourceLocation.hashCode()
+        var result = span.hashCode()
         result = 31 * result + System.identityHashCode(functionToImplement)
         return result
     }

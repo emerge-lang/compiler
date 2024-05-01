@@ -3,7 +3,7 @@ package compiler.binding.type
 import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
@@ -33,10 +33,10 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
  */
 class TypeVariable(
     val parameter: BoundTypeParameter,
-    override val sourceLocation: SourceLocation?,
+    override val span: Span?,
 ) : BoundTypeReference {
-    constructor(ref: GenericTypeReference) : this(ref.parameter, ref.sourceLocation)
-    constructor(parameter: BoundTypeParameter) : this(parameter, parameter.astNode.name.sourceLocation)
+    constructor(ref: GenericTypeReference) : this(ref.parameter, ref.span)
+    constructor(parameter: BoundTypeParameter) : this(parameter, parameter.astNode.name.span)
 
     override val isNullable get() = parameter.bound.isNullable
     override val simpleName get() = parameter.name
@@ -73,7 +73,7 @@ class TypeVariable(
 
     override fun unify(
         assigneeType: BoundTypeReference,
-        assignmentLocation: SourceLocation,
+        assignmentLocation: Span,
         carry: TypeUnification
     ): TypeUnification {
         return when (assigneeType) {
@@ -89,7 +89,7 @@ class TypeVariable(
         }
     }
 
-    fun flippedUnify(targetType: BoundTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
+    fun flippedUnify(targetType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification {
         val newCarry = carry.plus(this, targetType, assignmentLocation)
         val selfBinding = carry.bindings[this] ?: return newCarry
         return targetType.unify(selfBinding, assignmentLocation, newCarry)
@@ -108,7 +108,7 @@ class TypeVariable(
     }
 
     override fun toBackendIr(): IrType {
-        throw InternalCompilerError("Attempting to create BackendIr from unresolved type variable $this at ${this.sourceLocation}")
+        throw InternalCompilerError("Attempting to create BackendIr from unresolved type variable $this at ${this.span}")
     }
 
     override fun toString() = simpleName

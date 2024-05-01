@@ -7,7 +7,7 @@ data class GlobalVariableNotInitializedReporting(
 ) : Reporting(
     Level.ERROR,
     "Variable ${declaration.name.value} must be initialized at the declaration because it is a global.",
-    declaration.sourceLocation,
+    declaration.span,
 ) {
     override fun toString() = super.toString()
 }

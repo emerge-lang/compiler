@@ -1,12 +1,12 @@
 package compiler.reportings
 
 import compiler.ast.VariableDeclaration
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 class VariableUsedAfterLifetimeReporting(
     val variable: VariableDeclaration,
-    val usageAt: SourceLocation,
-    val lifetimeEndedAt: SourceLocation,
+    val usageAt: Span,
+    val lifetimeEndedAt: Span,
     /** If the lifetime hasn't _definitley_ ended, just might have */
     val lifetimeEndedMaybe: Boolean,
 ) : Reporting(

@@ -1,7 +1,7 @@
 package compiler.reportings
 
 import compiler.ast.type.TypeArgument
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 data class SuperfluousTypeArgumentsReporting(
     val nExpected: Int,
@@ -9,7 +9,7 @@ data class SuperfluousTypeArgumentsReporting(
 ) : Reporting(
     Level.ERROR,
     "Too many type arguments, expected only $nExpected",
-    firstSuperfluousArgument.sourceLocation ?: SourceLocation.UNKNOWN,
+    firstSuperfluousArgument.span ?: Span.UNKNOWN,
 ) {
     override fun toString() = super.toString()
 }

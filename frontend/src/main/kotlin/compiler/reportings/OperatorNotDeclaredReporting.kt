@@ -23,7 +23,7 @@ import compiler.ast.Expression
 class OperatorNotDeclaredReporting(message: String, val expression: Expression) : Reporting(
     Level.ERROR,
     message,
-    expression.sourceLocation
+    expression.span
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

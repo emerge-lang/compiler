@@ -9,7 +9,7 @@ class AmbiguousInvocationReporting(
 ) : Reporting(
     Reporting.Level.ERROR,
     "Multiple overloads of ${candidates.first().name} apply to this invocation. Disambiguate by casting parameters explicitly.",
-    invocation.sourceLocation,
+    invocation.span,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

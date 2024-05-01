@@ -8,7 +8,7 @@ data class ImplicitlyEvaluatedStatementReporting(
 ) : Reporting(
     Level.ERROR,
     "A value must be given here (implicit evaluation)",
-    statement.sourceLocation,
+    statement.span,
 ) {
     init {
         require(statement !is Expression)

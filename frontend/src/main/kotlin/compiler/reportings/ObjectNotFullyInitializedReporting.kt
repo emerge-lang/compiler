@@ -1,29 +1,29 @@
 package compiler.reportings
 
 import compiler.ast.BaseTypeMemberVariableDeclaration
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 class ObjectNotFullyInitializedReporting(
     val uninitializedMembers: Collection<BaseTypeMemberVariableDeclaration>,
-    sourceLocation: SourceLocation,
+    span: Span,
 ) : Reporting(
     Level.ERROR,
     run {
         val memberList = uninitializedMembers.joinToString(transform = { "- ${it.name.value}" }, separator = "\n")
         "The object is not fully initialized yet. These member variables must be initialized before the object can be used regularly:\n$memberList"
     },
-    sourceLocation,
+    span,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is ObjectNotFullyInitializedReporting) return false
 
-        if (sourceLocation != other.sourceLocation) return false
+        if (span != other.span) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return sourceLocation.hashCode()
+        return span.hashCode()
     }
 }

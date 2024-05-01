@@ -29,7 +29,7 @@ class NotNullExpression(
     val notNullOperator: OperatorToken
 ) :Expression
 {
-    override val sourceLocation = nullableExpression.sourceLocation
+    override val span = nullableExpression.span
 
     override fun bindTo(context: ExecutionScopedCTContext) = BoundNotNullExpression(
         context,

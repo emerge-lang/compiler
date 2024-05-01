@@ -39,11 +39,11 @@ interface Rule<out Item : Any> {
         }
 
         if (previousAccepted) {
-            val eoiLocation = previous.sourceLocation.copy(
-                fromLineNumber = previous.sourceLocation.toLineNumber,
-                fromColumnNumber = previous.sourceLocation.toColumnNumber + 1u,
-                toLineNumber = previous.sourceLocation.toLineNumber,
-                toColumnNumber = previous.sourceLocation.toColumnNumber + 1u,
+            val eoiLocation = previous.span.copy(
+                fromLineNumber = previous.span.toLineNumber,
+                fromColumnNumber = previous.span.toColumnNumber + 1u,
+                toLineNumber = previous.span.toLineNumber,
+                toColumnNumber = previous.span.toColumnNumber + 1u,
             )
             ongoing.step(EndOfInputToken(eoiLocation))
         }

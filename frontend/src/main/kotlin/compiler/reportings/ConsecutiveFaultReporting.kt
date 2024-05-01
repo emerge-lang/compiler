@@ -18,7 +18,7 @@
 
 package compiler.reportings
 
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 /**
  * An error that results from another one. These should not be shown to an end-user because - assuming the compiler
@@ -27,6 +27,6 @@ import compiler.lexer.SourceLocation
  * information is missing)
  */
 class ConsecutiveFaultReporting(
-        message: String,
-        sourceLocation: SourceLocation = SourceLocation.UNKNOWN
-) : Reporting(Level.CONSECUTIVE, message, sourceLocation)
+    message: String,
+    span: Span = Span.UNKNOWN
+) : Reporting(Level.CONSECUTIVE, message, span)

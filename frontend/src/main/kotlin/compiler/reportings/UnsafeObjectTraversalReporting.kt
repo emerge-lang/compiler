@@ -32,7 +32,7 @@ data class UnsafeObjectTraversalReporting(
     Level.ERROR,
     "Receiver expression could evaluate to null (type is ${nullableExpression.type}). " +
         "Assert non null (operator ${Operator.NOTNULL.text}) or use the safe object traversal operator ${Operator.SAFEDOT.text}",
-    faultyAccessOperator.sourceLocation,
+    faultyAccessOperator.span,
 ) {
     override fun toString() = super.toString()
 }

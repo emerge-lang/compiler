@@ -110,14 +110,14 @@ val STRING_ESCAPE_CHAR = CodePoint('\\'.code)
 val STRING_DELIMITER = CodePoint('"'.code)
 
 abstract class Token {
-    abstract val sourceLocation: SourceLocation
+    abstract val span: Span
 
     override fun toString(): String {
-        if (sourceLocation === SourceLocation.UNKNOWN) {
+        if (span === Span.UNKNOWN) {
             return toStringWithoutLocation()
         }
 
-        return toStringWithoutLocation() + " in " + sourceLocation.fileLineColumnText
+        return toStringWithoutLocation() + " in " + span.fileLineColumnText
     }
 
     abstract fun toStringWithoutLocation(): String
@@ -127,7 +127,7 @@ class KeywordToken(
         val keyword: Keyword,
         /** The actual CharSequence as it appears in the source code */
         val sourceText: String = keyword.text,
-        override val sourceLocation: SourceLocation = SourceLocation.UNKNOWN
+        override val span: Span = Span.UNKNOWN
 ): Token() {
     override fun toStringWithoutLocation() = "keyword " + keyword.text.lowercase()
 
@@ -147,7 +147,7 @@ class KeywordToken(
 
 class OperatorToken(
         val operator: Operator,
-        override val sourceLocation: SourceLocation = SourceLocation.UNKNOWN
+        override val span: Span = Span.UNKNOWN
 ) : Token() {
     override fun toStringWithoutLocation() = operator.toString()
 
@@ -167,7 +167,7 @@ class OperatorToken(
 
 class IdentifierToken(
     val value: String,
-    override val sourceLocation: SourceLocation = SourceLocation.UNKNOWN
+    override val span: Span = Span.UNKNOWN
 ) : Token() {
     override fun toStringWithoutLocation() = "identifier $value"
 
@@ -186,8 +186,8 @@ class IdentifierToken(
 }
 
 class NumericLiteralToken(
-        override val sourceLocation: SourceLocation,
-        val stringContent: String
+    override val span: Span,
+    val stringContent: String
 ): Token() {
     override fun toStringWithoutLocation() = "number $stringContent"
 }
@@ -197,14 +197,14 @@ class NumericLiteralToken(
  * helps the parser ambiguity detection
  */
 class StringLiteralContentToken(
-    override val sourceLocation: SourceLocation,
+    override val span: Span,
     val content: String,
 ) : Token() {
     override fun toStringWithoutLocation() = "string literal"
 }
 
-class EndOfInputToken(lastLocationInFile: SourceLocation) : Token() {
-    override val sourceLocation = lastLocationInFile
+class EndOfInputToken(lastLocationInFile: Span) : Token() {
+    override val span = lastLocationInFile
     override fun toStringWithoutLocation() = "end of input"
 
     override fun equals(other: Any?): Boolean {

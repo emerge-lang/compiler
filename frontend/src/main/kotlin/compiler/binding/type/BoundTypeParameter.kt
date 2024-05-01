@@ -9,7 +9,7 @@ import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
@@ -46,14 +46,14 @@ data class BoundTypeParameter(
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return bound.validate(TypeUseSite.Irrelevant(astNode.name.sourceLocation, this))
+        return bound.validate(TypeUseSite.Irrelevant(astNode.name.span, this))
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return emptySet()
     }
 
-    override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
+    override fun validateAccessFrom(location: Span): Collection<Reporting> {
         throw InternalCompilerError("This should not ever matter")
     }
 

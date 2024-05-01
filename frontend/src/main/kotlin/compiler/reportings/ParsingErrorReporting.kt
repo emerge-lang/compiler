@@ -18,7 +18,7 @@
 
 package compiler.reportings
 
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 /** Used for all parser errors */
-class ParsingErrorReporting(message: String, location: SourceLocation) : Reporting(Level.ERROR, message, location)
+class ParsingErrorReporting(message: String, location: Span) : Reporting(Level.ERROR, message, location)

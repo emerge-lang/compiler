@@ -1,7 +1,7 @@
 package compiler.ast
 
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 sealed interface Executable {
-    val sourceLocation: SourceLocation
+    val span: Span
 }

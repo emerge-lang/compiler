@@ -1,15 +1,15 @@
 package compiler.reportings
 
 import compiler.ast.type.TypeParameter
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 class MissingTypeArgumentReporting(
     val parameter: TypeParameter,
-    sourceLocation: SourceLocation,
+    span: Span,
 ) : Reporting(
     Level.ERROR,
     "No argument supplied for type parameter ${parameter.name.value}",
-    sourceLocation,
+    span,
 ) {
     override fun toString() = super.toString()
 
@@ -18,14 +18,14 @@ class MissingTypeArgumentReporting(
         if (other !is MissingTypeArgumentReporting) return false
 
         if (parameter != other.parameter) return false
-        if (sourceLocation != other.sourceLocation) return false
+        if (span != other.span) return false
 
         return true
     }
 
     override fun hashCode(): Int {
         var result = parameter.hashCode()
-        result = result * 31 + sourceLocation.hashCode()
+        result = result * 31 + span.hashCode()
         return result
     }
 }

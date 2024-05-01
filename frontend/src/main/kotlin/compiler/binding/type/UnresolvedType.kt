@@ -4,7 +4,7 @@ import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
@@ -22,7 +22,7 @@ class UnresolvedType private constructor(
     override val simpleName = "<ERROR>"
     override val isNullable get() = standInType.isNullable
     override val mutability get() = standInType.mutability
-    override val sourceLocation = reference.declaringNameToken?.sourceLocation
+    override val span = reference.declaringNameToken?.span
     override val inherentTypeBindings = TypeUnification.EMPTY
 
     override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
@@ -61,7 +61,7 @@ class UnresolvedType private constructor(
         )
     }
 
-    override fun unify(assigneeType: BoundTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
+    override fun unify(assigneeType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification {
         return when(assigneeType) {
             is RootResolvedTypeReference,
             is GenericTypeReference,
@@ -110,6 +110,6 @@ class UnresolvedType private constructor(
     override fun toString() = simpleName
 
     override fun toBackendIr(): IrType {
-        throw InternalCompilerError("Attempting to create backend IR from unresolved type at $sourceLocation")
+        throw InternalCompilerError("Attempting to create backend IR from unresolved type at $span")
     }
 }

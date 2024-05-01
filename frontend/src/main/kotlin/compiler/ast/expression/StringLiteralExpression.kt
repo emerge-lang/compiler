@@ -11,7 +11,7 @@ class StringLiteralExpression(
     val content: StringLiteralContentToken,
     val endingDelimiter: OperatorToken,
 ) :Expression {
-    override val sourceLocation = startingDelimiter.sourceLocation .. endingDelimiter.sourceLocation
+    override val span = startingDelimiter.span .. endingDelimiter.span
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundStringLiteralExpression {
         return BoundStringLiteralExpression(context, this)

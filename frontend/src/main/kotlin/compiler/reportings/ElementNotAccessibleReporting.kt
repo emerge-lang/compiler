@@ -2,12 +2,12 @@ package compiler.reportings
 
 import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 class ElementNotAccessibleReporting(
     val element: DefinitionWithVisibility,
     val visibility: BoundVisibility,
-    val accessAt: SourceLocation
+    val accessAt: Span
 ) : Reporting(
     Level.ERROR,
     run {

@@ -18,23 +18,23 @@
 
 package compiler.parser
 
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.lexer.Token
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 
-class TokenSequence(val tokens: List<Token>, val initialSourceLocation: SourceLocation) : TransactionalSequence<Token, Position>(tokens)
+class TokenSequence(val tokens: List<Token>, val initialSpan: Span) : TransactionalSequence<Token, Position>(tokens)
 {
     override var currentPosition: Position = Position(0)
 
-    val currentSourceLocation: SourceLocation
+    val currentSpan: Span
         get() {
             var index = currentPosition.sourceIndex
             if (index > tokens.lastIndex) {
                 index = tokens.lastIndex
             }
 
-            return tokens.getOrNull(index)?.sourceLocation ?: initialSourceLocation
+            return tokens.getOrNull(index)?.span ?: initialSpan
         }
 
     override fun copyOfPosition(position: Position): Position = Position(position.sourceIndex)

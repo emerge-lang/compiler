@@ -41,7 +41,7 @@ data class FunctionDeclaration(
     val parsedReturnType: TypeReference?,
     val body: Body?,
 ) : AstFileLevelDeclaration {
-    override val declaredAt = name.sourceLocation
+    override val declaredAt = name.span
 
     fun bindToAsTopLevel(context: CTContext): BoundTopLevelFunction {
         val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(context)

@@ -13,10 +13,10 @@ class IdentifierTokenRule(
 ) : SingleTokenRule<IdentifierToken>("an identifier", { token -> when(token) {
     is IdentifierToken -> token
     is OperatorToken -> if (token.operator in acceptedOperators) {
-        IdentifierToken(token.operator.text, token.sourceLocation)
+        IdentifierToken(token.operator.text, token.span)
     } else null
     is KeywordToken -> if (token.keyword in acceptedKeywords) {
-        IdentifierToken(token.sourceText, token.sourceLocation)
+        IdentifierToken(token.sourceText, token.span)
     } else null
     else -> null
 } })

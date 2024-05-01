@@ -2,12 +2,12 @@ package compiler.reportings
 
 import compiler.binding.DefinitionWithVisibility
 import compiler.binding.basetype.BoundBaseType
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 class HiddenTypeExposedReporting(
     val type: BoundBaseType,
     val exposedBy: DefinitionWithVisibility,
-    exposedAt: SourceLocation,
+    exposedAt: Span,
 ) : Reporting(
     Level.ERROR,
     run {
@@ -31,14 +31,14 @@ class HiddenTypeExposedReporting(
         if (other !is HiddenTypeExposedReporting) return false
 
         if (type != other.type) return false
-        if (sourceLocation != other.sourceLocation) return false
+        if (span != other.span) return false
 
         return true
     }
 
     override fun hashCode(): Int {
         var result = type.hashCode()
-        result = 31 * result + sourceLocation.hashCode()
+        result = 31 * result + span.hashCode()
         return result
     }
 }

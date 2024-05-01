@@ -184,7 +184,7 @@ class BoundIdentifierExpression(
                         }
                         ?.takeUnless { it.isEmpty() }
                         ?.let {
-                            reportings.add(Reporting.objectNotFullyInitialized(it, declaration.sourceLocation))
+                            reportings.add(Reporting.objectNotFullyInitialized(it, declaration.span))
                         }
                 }
             }
@@ -202,14 +202,14 @@ class BoundIdentifierExpression(
                         VariableLifetime.Effect.ValueCaptured(
                             variable,
                             capturedWithMutability,
-                            declaration.sourceLocation,
+                            declaration.span,
                         )
                     )
                 }
             }
 
             if (variable.kind.allowsVisibility) {
-                reportings.addAll(variable.visibility.validateAccessFrom(declaration.sourceLocation, variable))
+                reportings.addAll(variable.visibility.validateAccessFrom(declaration.span, variable))
             }
 
             return reportings

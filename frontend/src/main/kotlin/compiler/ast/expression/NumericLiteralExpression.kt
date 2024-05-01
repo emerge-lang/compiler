@@ -39,7 +39,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
     /** Cached validation result; numeric literals are the same in every context */
     private var validationResult: Collection<Reporting>? = null
 
-    override val sourceLocation = literalToken.sourceLocation
+    override val span = literalToken.span
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundNumericLiteral {
         validate()
@@ -65,7 +65,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
         return BoundNumericLiteral(
             context,
             this,
-            validationResult ?: setOf(Reporting.erroneousLiteralExpression("Could not determine type of numeric literal", this.sourceLocation))
+            validationResult ?: setOf(Reporting.erroneousLiteralExpression("Could not determine type of numeric literal", this.span))
         )
     }
 
@@ -88,7 +88,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
             if (unallowed.isNotEmpty()) {
                 validationResult = setOf(Reporting.erroneousLiteralExpression(
                     "Floating point literal contains unallowed characters: ${unallowed.unique()}",
-                    literalToken.sourceLocation
+                    literalToken.span
                 ))
                 return
             }
@@ -123,7 +123,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
                 // preComma is not OK
                 validationResult = setOf(Reporting.erroneousLiteralExpression(
                     "Floating point literal contains non-decimal characters before the floating point: ${preComma.minus(allowedChars).unique()}",
-                    literalToken.sourceLocation
+                    literalToken.span
                 ))
                 return
             }
@@ -132,7 +132,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
                 // postComma is not OK
                 validationResult = setOf(Reporting.erroneousLiteralExpression(
                     "Floating point literal contains non-decimal characters after the floating point: ${postComma.minus(allowedChars).unique()}",
-                    literalToken.sourceLocation
+                    literalToken.span
                 ))
                 return
             }
@@ -140,7 +140,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
             if (exp != null && exp.isBlank()) {
                 validationResult =  setOf(Reporting.erroneousLiteralExpression(
                     "Empty exponent in floating point literal",
-                    literalToken.sourceLocation
+                    literalToken.span
                 ))
                 return
             }
@@ -149,7 +149,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
                 // exponent is not OK
                 validationResult = setOf(Reporting.erroneousLiteralExpression(
                     "Floating point literal contains non-decimal characters in the exponent: ${exp.minus(allowedChars).unique()}",
-                    literalToken.sourceLocation
+                    literalToken.span
                 ))
                 return
             }
@@ -186,7 +186,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
             if (unallowed.isNotEmpty()) {
                 validationResult = setOf(Reporting.erroneousLiteralExpression(
                     "Integer literal contains unallowed characters: ${unallowed.unique()}",
-                    literalToken.sourceLocation
+                    literalToken.span
                 ))
                 return
             }

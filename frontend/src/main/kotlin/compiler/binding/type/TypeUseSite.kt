@@ -2,7 +2,7 @@ package compiler.binding.type
 
 import compiler.ast.type.TypeVariance
 import compiler.binding.DefinitionWithVisibility
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.reportings.Reporting
 import compiler.reportings.UnsupportedTypeUsageVarianceReporting
 
@@ -11,11 +11,11 @@ import compiler.reportings.UnsupportedTypeUsageVarianceReporting
  * read-only properties are [TypeVariance.OUT], mutable properties are [TypeVariance.UNSPECIFIED].
  */
 sealed class TypeUseSite(
-    givenUsageLocation: SourceLocation?,
+    givenUsageLocation: Span?,
     val varianceDescription: String,
     val exposedBy: DefinitionWithVisibility?,
 ) {
-    val usageLocation: SourceLocation = givenUsageLocation ?: SourceLocation.UNKNOWN
+    val usageLocation: Span = givenUsageLocation ?: Span.UNKNOWN
 
     abstract fun validateForTypeVariance(typeVariance: TypeVariance): Reporting?
 
@@ -39,7 +39,7 @@ sealed class TypeUseSite(
 
 
     class InUsage(
-        usageLocation: SourceLocation?,
+        usageLocation: Span?,
         exposedBy: DefinitionWithVisibility?,
     ): TypeUseSite(usageLocation, "in", exposedBy) {
         override fun validateForTypeVariance(typeVariance: TypeVariance): UnsupportedTypeUsageVarianceReporting? {
@@ -52,7 +52,7 @@ sealed class TypeUseSite(
     }
 
     class OutUsage(
-        usageLocation: SourceLocation?,
+        usageLocation: Span?,
         exposedBy: DefinitionWithVisibility?,
     ): TypeUseSite(usageLocation, "out", exposedBy) {
         override fun validateForTypeVariance(typeVariance: TypeVariance): UnsupportedTypeUsageVarianceReporting? {
@@ -65,7 +65,7 @@ sealed class TypeUseSite(
     }
 
     class InvariantUsage(
-        usageLocation: SourceLocation?,
+        usageLocation: Span?,
         exposedBy: DefinitionWithVisibility?,
     ): TypeUseSite(usageLocation, "invariant", exposedBy) {
         override fun validateForTypeVariance(typeVariance: TypeVariance): UnsupportedTypeUsageVarianceReporting? {
@@ -78,7 +78,7 @@ sealed class TypeUseSite(
     }
 
     class Irrelevant(
-        usageLocation: SourceLocation?,
+        usageLocation: Span?,
         exposedBy: DefinitionWithVisibility?,
     ) : TypeUseSite(usageLocation, "irrelevant", exposedBy) {
         override fun validateForTypeVariance(typeVariance: TypeVariance) = null

@@ -28,7 +28,7 @@ import compiler.ast.expression.IdentifierExpression
 class UndefinedIdentifierReporting(val expr: IdentifierExpression, messageOverride: String? = null) : Reporting(
     Level.ERROR,
     messageOverride ?: "${expr.identifier.value} is not defined",
-    expr.sourceLocation
+    expr.span
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

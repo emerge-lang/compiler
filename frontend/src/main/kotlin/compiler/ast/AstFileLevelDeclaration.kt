@@ -1,7 +1,7 @@
 package compiler.ast
 
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 interface AstFileLevelDeclaration {
-    val declaredAt: SourceLocation
+    val declaredAt: Span
 }

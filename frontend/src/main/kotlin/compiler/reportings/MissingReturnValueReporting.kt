@@ -9,7 +9,7 @@ data class MissingReturnValueReporting(
 ) : Reporting(
     Level.ERROR,
     "Expecting a return value of type ${expectedType.simpleName}",
-    valueLessReturn.sourceLocation,
+    valueLessReturn.span,
 ) {
     override fun toString() = super.toString()
 }

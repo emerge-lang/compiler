@@ -7,7 +7,7 @@ import compiler.binding.context.ModuleContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.PackageContext
 import compiler.binding.context.SourceFileRootContext
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forNone
@@ -150,7 +150,7 @@ private fun mockDeferrable() = object {
     operator fun getValue(thisRef: Any?, prop: KProperty<*>): Statement {
         if (!this::instance.isInitialized) {
             this.instance = object : Statement, BoundStatement<Statement> by mockk() {
-                override val sourceLocation: SourceLocation
+                val span: Span
                     get() = mockk()
 
                 override lateinit var modifiedContext: ExecutionScopedCTContext

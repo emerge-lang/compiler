@@ -19,7 +19,7 @@
 package compiler.ast.type
 
 import compiler.lexer.IdentifierToken
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 data class TypeReference(
     val simpleName: String,
@@ -30,7 +30,7 @@ data class TypeReference(
 ) {
     constructor(simpleName: IdentifierToken) : this(simpleName.value, declaringNameToken = simpleName)
 
-    val sourceLocation: SourceLocation? = declaringNameToken?.sourceLocation
+    val span: Span? = declaringNameToken?.span
 
     fun withMutability(mutability: TypeMutability): TypeReference {
         return TypeReference(

@@ -16,7 +16,7 @@ class UnresolvableConstructorReporting(
         }
         message
     },
-    typeName.sourceLocation,
+    typeName.span,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

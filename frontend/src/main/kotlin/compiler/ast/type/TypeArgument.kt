@@ -1,6 +1,6 @@
 package compiler.ast.type
 
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 /**
  * Type parameterization on the referencing side.
@@ -10,7 +10,7 @@ data class TypeArgument(
     val variance: TypeVariance,
     val type: TypeReference,
 ) {
-    val sourceLocation: SourceLocation? = type.sourceLocation
+    val span: Span? = type.span
 
     override fun toString(): String {
         var str = ""

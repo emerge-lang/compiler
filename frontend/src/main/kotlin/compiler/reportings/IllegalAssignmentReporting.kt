@@ -26,5 +26,5 @@ class IllegalAssignmentReporting(
 ) : Reporting(
     Level.ERROR,
     message,
-    statement.declaration.assignmentOperatorToken.sourceLocation,
+    statement.declaration.assignmentOperatorToken.span,
 )

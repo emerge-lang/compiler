@@ -14,7 +14,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 class DropLocalVariableStatement(
     val variable: BoundVariable,
 ) : Statement {
-    override val sourceLocation = variable.declaration.sourceLocation
+    override val span = variable.declaration.span
     override fun bindTo(contextOnDeferredExecution: ExecutionScopedCTContext) = object : BoundStatement<VariableDeclaration> {
         override val context = contextOnDeferredExecution
         override val declaration = variable.declaration

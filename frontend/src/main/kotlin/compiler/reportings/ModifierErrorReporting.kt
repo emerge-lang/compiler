@@ -18,7 +18,7 @@
 
 package compiler.reportings
 
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 /**
  * Reported on generic modifier *errors*, e.g. when
@@ -27,5 +27,5 @@ import compiler.lexer.SourceLocation
  */
 class ModifierErrorReporting(
     message: String,
-    location: SourceLocation
+    location: Span
 ) : Reporting(Level.ERROR, message, location)

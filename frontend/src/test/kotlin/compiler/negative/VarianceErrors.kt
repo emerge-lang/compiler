@@ -10,7 +10,7 @@ import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.compiler.ast.type.getTestType
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.reportings.ValueNotAssignableReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.Matcher
@@ -44,7 +44,7 @@ class VarianceErrors : FreeSpec({
         override fun test(value: BoundTypeArgument): MatcherResult {
             val sourceType = arrayOf(value)
             val targetType = arrayOf(target)
-            val error = sourceType.evaluateAssignabilityTo(targetType, SourceLocation.UNKNOWN)
+            val error = sourceType.evaluateAssignabilityTo(targetType, Span.UNKNOWN)
             return object : MatcherResult {
                 override fun failureMessage() = "$sourceType should be assignable to $targetType, but its not: ${error?.reason}"
                 override fun negatedFailureMessage() = "$sourceType should not be assignable to $targetType, but it is"

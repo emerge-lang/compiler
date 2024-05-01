@@ -7,7 +7,7 @@ data class MultipleClassDestructorsReporting(
 ) : Reporting(
     Level.ERROR,
     "Classes can have only one destructor. These must be removed",
-    additionalDestructors.first().sourceLocation,
+    additionalDestructors.first().span,
 ) {
-    override fun toString() = "$levelAndMessage\n${illustrateSourceLocations(additionalDestructors.map { it.sourceLocation })}"
+    override fun toString() = "$levelAndMessage\n${illustrateSourceLocations(additionalDestructors.map { it.span })}"
 }

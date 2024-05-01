@@ -5,7 +5,7 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -20,7 +20,7 @@ class BoundTypeArgument(
     override val isNullable get() = type.isNullable
     override val mutability get() = type.mutability
     override val simpleName get() = toString()
-    override val sourceLocation get() = astNode.sourceLocation
+    override val span get() = astNode.span
 
     override val inherentTypeBindings: TypeUnification
         get() = TypeUnification.EMPTY
@@ -40,7 +40,7 @@ class BoundTypeArgument(
         return BoundTypeArgument(context, astNode, variance, type.withTypeVariables(variables))
     }
 
-    override fun unify(assigneeType: BoundTypeReference, assignmentLocation: SourceLocation, carry: TypeUnification): TypeUnification {
+    override fun unify(assigneeType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification {
         if (assigneeType !is BoundTypeArgument && this.variance == TypeVariance.OUT) {
             return carry.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "Cannot assign to a reference of an out-variant type", assignmentLocation))
         }

@@ -30,7 +30,7 @@ class AssignmentStatement(
     val valueExpression: Expression
 ) : Statement {
 
-    override val sourceLocation = setKeyword.sourceLocation
+    override val span = setKeyword.span
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundAssignmentStatement {
         val boundTarget = targetExpression.bindTo(context)

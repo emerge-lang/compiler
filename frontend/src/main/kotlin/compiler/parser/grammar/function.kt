@@ -95,7 +95,7 @@ val Parameter = sequence("parameter declaration") {
         }
 
         VariableDeclaration(
-            name.sourceLocation,
+            name.span,
             null,
             varKeywordToken,
             ownership,

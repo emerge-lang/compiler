@@ -25,9 +25,9 @@ package compiler.reportings
 class ReturnTypeMismatchReporting(private val base: ValueNotAssignableReporting) : Reporting(
     base.level,
     base.message,
-    base.sourceLocation,
+    base.span,
 ) {
-    override fun toString(): String = "$levelAndMessage  declared return type is  ${base.targetType}\n  got a value of type      ${base.sourceType}\n\nin $sourceLocation"
+    override fun toString(): String = "$levelAndMessage  declared return type is  ${base.targetType}\n  got a value of type      ${base.sourceType}\n\nin $span"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

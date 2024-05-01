@@ -26,7 +26,7 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -41,7 +41,7 @@ class BoundClassDestructor(
     val declaration: BaseTypeDestructorDeclaration,
 ) : BoundFunction, BoundBaseTypeEntry<BaseTypeDestructorDeclaration> {
     val classDef: BoundBaseType by lazy(getClassDef)
-    override val declaredAt = declaration.sourceLocation
+    override val declaredAt = declaration.span
     private val generatedSourceLocation = declaredAt.deriveGenerated()
     override val canonicalName: CanonicalElementName.Function by lazy {
         CanonicalElementName.Function(classDef.canonicalName, "\$destructor")
@@ -119,7 +119,7 @@ class BoundClassDestructor(
         return userDefinedCode.semanticAnalysisPhase3()
     }
 
-    override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
+    override fun validateAccessFrom(location: Span): Collection<Reporting> {
         throw InternalCompilerError("Access checks on destructors are not supposed to happen")
     }
 

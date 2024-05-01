@@ -10,7 +10,7 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
 import compiler.ast.VariableDeclaration
 import compiler.lexer.IdentifierToken
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.parser.grammar.SourceFileGrammar
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.reportings.Reporting
@@ -71,7 +71,7 @@ object SourceFileRule {
         if (astSourceFile.selfDeclaration == null) {
             astSourceFile.addParseTimeReporting(Reporting.parsingError(
                 "No package declaration found.",
-                (input.items.getOrNull(0) as AstFileLevelDeclaration?)?.declaredAt ?: SourceLocation.UNKNOWN
+                (input.items.getOrNull(0) as AstFileLevelDeclaration?)?.declaredAt ?: Span.UNKNOWN
             ))
         }
 
@@ -79,13 +79,13 @@ object SourceFileRule {
         // TODO: refactor this into the binding code, its not part of the input sources
         astSourceFile.imports.add(
             ImportDeclaration(
-                SourceLocation.UNKNOWN,
+                Span.UNKNOWN,
                 (CoreIntrinsicsModule.NAME.components + "*").map(::IdentifierToken),
             )
         )
         astSourceFile.imports.add(
             ImportDeclaration(
-                SourceLocation.UNKNOWN,
+                Span.UNKNOWN,
                 (StandardLibraryModule.NAME.components + "*").map(::IdentifierToken),
             )
         )

@@ -28,7 +28,7 @@ class BinaryExpression(
     val op: OperatorToken,
     val rightHandSide: Expression
 ) : Expression {
-    override val sourceLocation = leftHandSide.sourceLocation
+    override val span = leftHandSide.span
 
     // simply rewrite to an invocation
     override fun bindTo(context: ExecutionScopedCTContext) = BoundBinaryExpression(

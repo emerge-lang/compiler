@@ -19,12 +19,12 @@
 package compiler.reportings
 
 import compiler.ast.type.TypeReference
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 class UnknownTypeReporting(val erroneousReference: TypeReference) : Reporting(
     Level.ERROR,
     "Cannot resolve type ${erroneousReference.simpleName}",
-    if (erroneousReference.declaringNameToken == null) SourceLocation.UNKNOWN else erroneousReference.declaringNameToken.sourceLocation
+    if (erroneousReference.declaringNameToken == null) Span.UNKNOWN else erroneousReference.declaringNameToken.span
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

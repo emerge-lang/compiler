@@ -37,7 +37,7 @@ import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
@@ -62,7 +62,7 @@ class BoundClassConstructor(
     val declaration: BaseTypeConstructorDeclaration,
 ) : BoundFunction, BoundBaseTypeEntry<BaseTypeConstructorDeclaration> {
     val classDef: BoundBaseType by lazy(getClassDef)
-    private val generatedSourceLocation = declaration.sourceLocation.deriveGenerated()
+    private val generatedSourceLocation = declaration.span.deriveGenerated()
     override val canonicalName: CanonicalElementName.Function by lazy {
         CanonicalElementName.Function(classDef.canonicalName, "\$constructor")
     }
@@ -77,7 +77,7 @@ class BoundClassConstructor(
     private val constructorFunctionRootContext = MutableExecutionScopedCTContext.functionRootIn(fileContextWithTypeParameters)
     override val context = fileContextWithTypeParameters
 
-    override val declaredAt get() = declaration.sourceLocation
+    override val declaredAt get() = declaration.span
     override val receiverType = null
     override val declaresReceiver = false
     override val name get() = classDef.simpleName
@@ -132,7 +132,7 @@ class BoundClassConstructor(
         val astParameterList = ParameterList(classDef.memberVariables
             .filter { it.isConstructorParameterInitialized }
             .map { member ->
-                val location = member.declaration.sourceLocation.deriveGenerated()
+                val location = member.declaration.span.deriveGenerated()
                 VariableDeclaration(
                     location,
                     null,
@@ -158,7 +158,7 @@ class BoundClassConstructor(
             .map { memberVariable ->
                 val parameter = parameters.parameters.single { it.name == memberVariable.name }
                 AssignmentStatement(
-                    KeywordToken(Keyword.SET, sourceLocation = generatedSourceLocation),
+                    KeywordToken(Keyword.SET, span = generatedSourceLocation),
                     MemberAccessExpression(
                         IdentifierExpression(IdentifierToken(selfVariableForInitCode.name, generatedSourceLocation)),
                         OperatorToken(Operator.DOT, generatedSourceLocation),
@@ -179,7 +179,7 @@ class BoundClassConstructor(
             .filter { it.initializer != null  /* if null, there should be another error diagnosed for it */ }
             .map { memberVariable ->
                 AssignmentStatement(
-                    KeywordToken(Keyword.SET, sourceLocation = generatedSourceLocation),
+                    KeywordToken(Keyword.SET, span = generatedSourceLocation),
                     MemberAccessExpression(
                         IdentifierExpression(IdentifierToken(selfVariableForInitCode.name, generatedSourceLocation)),
                         OperatorToken(Operator.DOT, generatedSourceLocation),
@@ -306,7 +306,7 @@ class BoundClassConstructor(
         }
     }
 
-    override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
+    override fun validateAccessFrom(location: Span): Collection<Reporting> {
         return attributes.visibility.validateAccessFrom(location, this)
     }
 

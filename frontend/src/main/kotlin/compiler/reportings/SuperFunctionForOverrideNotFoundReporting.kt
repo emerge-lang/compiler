@@ -14,12 +14,12 @@ class SuperFunctionForOverrideNotFoundReporting(
         if (this === other) return true
         if (other !is SuperFunctionForOverrideNotFoundReporting) return false
 
-        if (sourceLocation != other.sourceLocation) return false
+        if (span != other.span) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return sourceLocation.hashCode()
+        return span.hashCode()
     }
 }

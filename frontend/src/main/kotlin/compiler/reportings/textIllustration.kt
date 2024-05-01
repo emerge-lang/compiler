@@ -20,38 +20,38 @@ package compiler.reportings
 
 import compiler.groupRunsBy
 import compiler.lexer.SourceFile
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import kotlin.math.min
 
 data class SourceHint(
-    val sourceLocation: SourceLocation,
+    val span: Span,
     val description: String?,
     val relativeOrderMatters: Boolean = false,
     val nLinesContext: UInt = 1u,
 )
 
-fun illustrateSourceLocations(locations: Collection<SourceLocation>): String = illustrateHints(locations.map { SourceHint(it, null) })
+fun illustrateSourceLocations(locations: Collection<Span>): String = illustrateHints(locations.map { SourceHint(it, null) })
 fun illustrateHints(vararg hints: SourceHint): String = illustrateHints(hints.toList())
 fun illustrateHints(hints: Collection<SourceHint>): String {
     if (hints.isEmpty()) {
         throw IllegalArgumentException("No locations given to highlight")
     }
-    hints.find { it.sourceLocation.fromLineNumber != it.sourceLocation.toLineNumber }?.let {
-        throw NotImplementedError("Cannot highlight source locations that span multiple lines: ${it.sourceLocation.fileLineColumnText}")
+    hints.find { it.span.fromLineNumber != it.span.toLineNumber }?.let {
+        throw NotImplementedError("Cannot highlight source locations that span multiple lines: ${it.span.fileLineColumnText}")
         //
     }
 
     val hintGroups = hints
         .filter { it.relativeOrderMatters }
-        .groupRunsBy { it.sourceLocation.file }
+        .groupRunsBy { it.span.file }
         .map { (file, hints) -> Pair(file, hints.toMutableList()) }
         .toMutableList()
     hints
         .filterNot { it.relativeOrderMatters }
         .forEach { unorderedHint ->
-            var lastGroupOfFile = hintGroups.lastOrNull { it.first == unorderedHint.sourceLocation.file }
+            var lastGroupOfFile = hintGroups.lastOrNull { it.first == unorderedHint.span.file }
             if (lastGroupOfFile == null) {
-               lastGroupOfFile = Pair(unorderedHint.sourceLocation.file, ArrayList())
+               lastGroupOfFile = Pair(unorderedHint.span.file, ArrayList())
                hintGroups.add(lastGroupOfFile)
             }
             lastGroupOfFile.second.add(unorderedHint)
@@ -72,15 +72,15 @@ private fun buildIllustrationForSingleFile(
     sb: StringBuilder,
 ) {
     val sourceLines = file.content.split('\n')
-    hints.find { it.sourceLocation.fromLineNumber > sourceLines.size.toUInt() }?.let {
+    hints.find { it.span.fromLineNumber > sourceLines.size.toUInt() }?.let {
         throw IllegalArgumentException("Source lines out of range: $it")
     }
 
-    val hintsByLine = hints.groupBy { it.sourceLocation.fromLineNumber }
+    val hintsByLine = hints.groupBy { it.span.fromLineNumber }
 
     val lineNumbersToOutput = mutableSetOf<UInt>()
     for (hint in hints) {
-        val desiredLine = hint.sourceLocation.fromLineNumber
+        val desiredLine = hint.span.fromLineNumber
         lineNumbersToOutput.add(desiredLine)
         for (i in 1u .. hint.nLinesContext) {
             if (desiredLine > 2u) {
@@ -110,10 +110,10 @@ private fun buildIllustrationForSingleFile(
 
     fun StringBuilder.appendHintDescriptionLine(hint: SourceHint, isAbove: Boolean) {
         appendUnnumberedLinePrefix()
-        repeat(hint.sourceLocation.fromColumnNumber.toInt() - commonNumberOfLeadingSpaces - 1) {
+        repeat(hint.span.fromColumnNumber.toInt() - commonNumberOfLeadingSpaces - 1) {
             append(' ')
         }
-        val nCols = (hint.sourceLocation.toColumnNumber - hint.sourceLocation.fromColumnNumber).toInt() + 1
+        val nCols = (hint.span.toColumnNumber - hint.span.fromColumnNumber).toInt() + 1
         val nSgwigglesBefore = if (nCols % 2 == 0) (nCols / 2) - 1 else nCols / 2
         val nSgiwgglesAfter = nCols / 2
         check(nSgwigglesBefore + 1 + nSgiwgglesAfter == nCols)

@@ -125,7 +125,7 @@ class BoundIfExpression(
         if (condition.type != null) {
             val conditionType = condition.type!!
             if (!conditionType.isAssignableTo(context.swCtx.bool.baseReference)) {
-                reportings.add(Reporting.conditionIsNotBoolean(condition, condition.declaration.sourceLocation))
+                reportings.add(Reporting.conditionIsNotBoolean(condition, condition.declaration.span))
             }
         }
 

@@ -27,7 +27,7 @@ data class MissingVariableTypeReporting(
 ) : Reporting(
     Level.ERROR,
     "The type of $kind ${parameter.name.value} must be explicitly declared.",
-    parameter.sourceLocation
+    parameter.span
 ) {
     override fun toString() = super.toString()
 }

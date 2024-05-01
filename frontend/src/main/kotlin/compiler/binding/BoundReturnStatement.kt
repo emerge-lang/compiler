@@ -74,14 +74,14 @@ class BoundReturnStatement(
         if (expectedReturnType == null) {
             return reportings + Reporting.consecutive(
                 "Cannot check return value type because the expected return type is not known",
-                declaration.sourceLocation
+                declaration.span
             )
         }
 
         val expressionType = expression?.type
 
         if (expressionType != null) {
-            expressionType.evaluateAssignabilityTo(expectedReturnType, declaration.sourceLocation)
+            expressionType.evaluateAssignabilityTo(expectedReturnType, declaration.span)
                 ?.let {
                     reportings.add(ReturnTypeMismatchReporting(it))
                 }
@@ -110,7 +110,7 @@ class BoundReturnStatement(
     override fun toBackendIrStatement(): IrExecutable {
         val actualExpression: BoundExpression<*> = this.expression ?: run {
             // TODO: this is a dirty hack, Unit could be aliased in this context
-            val ast = IdentifierExpression(IdentifierToken("Unit", declaration.returnKeyword.sourceLocation))
+            val ast = IdentifierExpression(IdentifierToken("Unit", declaration.returnKeyword.span))
             val bound = ast.bindTo(context)
             check(bound.semanticAnalysisPhase1().isEmpty())
             check(bound.semanticAnalysisPhase2().isEmpty())

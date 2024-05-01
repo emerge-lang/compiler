@@ -195,7 +195,7 @@ class BoundAssignmentStatement(
                 }
             }
 
-            toAssignExpression.type?.evaluateAssignabilityTo(type, toAssignExpression.declaration.sourceLocation)
+            toAssignExpression.type?.evaluateAssignabilityTo(type, toAssignExpression.declaration.span)
                 ?.let(reportings::add)
 
             return reportings
@@ -283,12 +283,12 @@ class BoundAssignmentStatement(
                         memberOwnerType.withMutability(TypeMutability.MUTABLE),
                         memberOwnerType,
                         "Cannot mutate a value of type $memberOwnerType",
-                        this.memberAccess.declaration.sourceLocation,
+                        this.memberAccess.declaration.span,
                     )
                 }
             }
             memberAccess.type?.let { targetType ->
-                toAssignExpression.type?.evaluateAssignabilityTo(targetType, toAssignExpression.declaration.sourceLocation)
+                toAssignExpression.type?.evaluateAssignabilityTo(targetType, toAssignExpression.declaration.span)
                     ?.let(reportings::add)
             }
 

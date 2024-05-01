@@ -43,12 +43,12 @@ class BoundBinaryExpression(
     private val hiddenInvocation: BoundInvocationExpression = InvocationExpression(
             MemberAccessExpression(
                     leftHandSide.declaration,
-                    OperatorToken(Operator.DOT, declaration.op.sourceLocation),
-                    IdentifierToken(operatorFunctionName(operator), declaration.op.sourceLocation)
+                    OperatorToken(Operator.DOT, declaration.op.span),
+                    IdentifierToken(operatorFunctionName(operator), declaration.op.span)
             ),
             null,
             listOf(rightHandSide.declaration),
-            leftHandSide.declaration.sourceLocation .. rightHandSide.declaration.sourceLocation,
+            leftHandSide.declaration.span .. rightHandSide.declaration.span,
         )
             .bindTo(context)
 
@@ -68,7 +68,7 @@ class BoundBinaryExpression(
         val opFn = hiddenInvocation.functionToInvoke
         if (opFn != null) {
             if (!opFn.attributes.isDeclaredOperator) {
-                reportings.add(Reporting.modifierError("Function ${opFn.canonicalName} cannot be used as an operator: the operator modifier is missing", declaration.sourceLocation))
+                reportings.add(Reporting.modifierError("Function ${opFn.canonicalName} cannot be used as an operator: the operator modifier is missing", declaration.span))
             }
         }
 

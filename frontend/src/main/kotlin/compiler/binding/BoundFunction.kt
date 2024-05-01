@@ -23,14 +23,14 @@ import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 
 interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
     val context: CTContext
-    val declaredAt: SourceLocation
+    val declaredAt: Span
 
     /**
      * The type of the receiver. Is null if the declared function has no receiver or if the declared receiver type

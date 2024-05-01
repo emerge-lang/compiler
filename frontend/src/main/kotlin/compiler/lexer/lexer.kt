@@ -22,7 +22,7 @@ import compiler.parser.TokenSequence
 
 fun lex(sourceFile: SourceFile): TokenSequence {
     val iterator = PositionTrackingCodePointTransactionalSequence(sourceFile.content.codePoints().toArray())
-    val initialSourceLocation = SourceLocation(sourceFile, iterator.currentPosition, iterator.currentPosition)
+    val initialSpan = Span(sourceFile, iterator.currentPosition, iterator.currentPosition)
 
     val generator = sequence {
         tokenLoop@ while (iterator.hasNext) {
@@ -71,7 +71,7 @@ fun lex(sourceFile: SourceFile): TokenSequence {
         }
     }
 
-    return TokenSequence(generator.toList(), initialSourceLocation)
+    return TokenSequence(generator.toList(), initialSpan)
 }
 
 private fun PositionTrackingCodePointTransactionalSequence.skipWhitespace() {
@@ -81,7 +81,7 @@ private fun PositionTrackingCodePointTransactionalSequence.skipWhitespace() {
     }
 }
 
-private fun PositionTrackingCodePointTransactionalSequence.nextCodePointsAsString(sourceFile: SourceFile, n: Int): Pair<String, SourceLocation>? {
+private fun PositionTrackingCodePointTransactionalSequence.nextCodePointsAsString(sourceFile: SourceFile, n: Int): Pair<String, Span>? {
     check(n > 0)
     if (nCodePointsRemaining < n) {
         return null
@@ -94,7 +94,7 @@ private fun PositionTrackingCodePointTransactionalSequence.nextCodePointsAsStrin
         buf.appendCodePoint(nextOrThrow().value)
     }
 
-    return Pair(buf.toString(), SourceLocation(sourceFile, start, currentPosition))
+    return Pair(buf.toString(), Span(sourceFile, start, currentPosition))
 }
 
 private fun PositionTrackingCodePointTransactionalSequence.tryMatchOperator(sourceFile: SourceFile, doCommit: Boolean = true): OperatorToken? {
@@ -113,7 +113,7 @@ private fun PositionTrackingCodePointTransactionalSequence.tryMatchOperator(sour
     return null
 }
 
-private fun PositionTrackingCodePointTransactionalSequence.collectUntilOperatorOrWhitespace(sourceFile: SourceFile): Pair<String, SourceLocation> {
+private fun PositionTrackingCodePointTransactionalSequence.collectUntilOperatorOrWhitespace(sourceFile: SourceFile): Pair<String, Span> {
     val buf = StringBuilder()
     var start: SourceSpot? = null
 
@@ -129,7 +129,7 @@ private fun PositionTrackingCodePointTransactionalSequence.collectUntilOperatorO
         start = start ?: currentPosition
     }
 
-    return Pair(buf.toString(), SourceLocation(sourceFile, start ?: currentPosition, currentPosition))
+    return Pair(buf.toString(), Span(sourceFile, start ?: currentPosition, currentPosition))
 }
 
 private fun PositionTrackingCodePointTransactionalSequence.tryMatchNumericLiteral(sourceFile: SourceFile): NumericLiteralToken? {
@@ -170,7 +170,7 @@ private fun PositionTrackingCodePointTransactionalSequence.tryMatchNumericLitera
     return NumericLiteralToken(firstIntegerStringLocation, firstIntegerString)
 }
 
-private fun PositionTrackingCodePointTransactionalSequence.collectStringContent(sourceFile: SourceFile): Pair<String, SourceLocation> {
+private fun PositionTrackingCodePointTransactionalSequence.collectStringContent(sourceFile: SourceFile): Pair<String, Span> {
     val data = StringBuilder()
     var start: SourceSpot? = null
     while (true) {
@@ -182,11 +182,11 @@ private fun PositionTrackingCodePointTransactionalSequence.collectStringContent(
             val next = try {
                 nextOrThrow() // consume
             } catch (ex: NoSuchElementException) {
-                throw IllegalEscapeSequenceException(SourceLocation(sourceFile, escapeStart, currentPosition), "Unexpected EOF in escape sequence", ex)
+                throw IllegalEscapeSequenceException(Span(sourceFile, escapeStart, currentPosition), "Unexpected EOF in escape sequence", ex)
             }
 
             val actualChar = ESCAPE_SEQUENCES[next]
-                ?: throw IllegalEscapeSequenceException(SourceLocation(sourceFile, escapeStart, currentPosition), "Illegal escape sequence")
+                ?: throw IllegalEscapeSequenceException(Span(sourceFile, escapeStart, currentPosition), "Illegal escape sequence")
 
             data.appendCodePoint(actualChar.value)
             continue
@@ -202,7 +202,7 @@ private fun PositionTrackingCodePointTransactionalSequence.collectStringContent(
         data.appendCodePoint(peeked.value)
     }
 
-    return Pair(data.toString(), SourceLocation(sourceFile, start ?: currentPosition, currentPosition))
+    return Pair(data.toString(), Span(sourceFile, start ?: currentPosition, currentPosition))
 }
 
 private val ESCAPE_SEQUENCES: Map<CodePoint, CodePoint> = mapOf<Char, Char>(

@@ -25,7 +25,7 @@ data class MultipleParameterDeclarationsReporting(
     val additionalDeclaration: VariableDeclaration
 ) : Reporting(
     Level.ERROR,
-    "Parameter ${additionalDeclaration.name.value} has already been declared in ${firstDeclaration.sourceLocation.fileLineColumnText}",
+    "Parameter ${additionalDeclaration.name.value} has already been declared in ${firstDeclaration.span.fileLineColumnText}",
     additionalDeclaration.declaredAt
 ) {
     override fun toString() = super.toString()

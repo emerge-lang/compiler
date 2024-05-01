@@ -24,10 +24,10 @@ import compiler.binding.BoundVisibility
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 data class VariableDeclaration(
-    override val declaredAt: SourceLocation,
+    override val declaredAt: Span,
     val visibility: AstVisibility?,
     val varToken: KeywordToken?,
     val ownership: Pair<VariableOwnership, IdentifierToken>?,
@@ -35,7 +35,7 @@ data class VariableDeclaration(
     val type: TypeReference?,
     val initializerExpression: Expression?
 ) : Statement, AstFileLevelDeclaration {
-    override val sourceLocation get() = declaredAt
+    override val span get() = declaredAt
     val isReAssignable: Boolean = varToken != null
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundVariable = bindTo(context, BoundVariable.Kind.LOCAL_VARIABLE)

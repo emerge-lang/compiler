@@ -21,14 +21,13 @@ package compiler.ast.expression
 import compiler.ast.Expression
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundNullLiteralExpression
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 /**
  * The null literal
  */
 class NullLiteralExpression(
-    override val sourceLocation: SourceLocation
-
-) :Expression {
+    override val span: Span
+) : Expression {
     override fun bindTo(context: ExecutionScopedCTContext) = BoundNullLiteralExpression(context, this)
 }

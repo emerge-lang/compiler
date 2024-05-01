@@ -1,6 +1,6 @@
 package compiler.reportings
 
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import java.nio.file.Path
 
@@ -10,5 +10,5 @@ class ModuleWithoutSourcesReporting(
 ) : Reporting(
     Reporting.Level.WARNING,
     "Found no source files for module $moduleName in $srcDir",
-    SourceLocation.UNKNOWN,
+    Span.UNKNOWN,
 )

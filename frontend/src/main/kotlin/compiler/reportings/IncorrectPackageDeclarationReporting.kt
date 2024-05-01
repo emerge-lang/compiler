@@ -9,5 +9,5 @@ class IncorrectPackageDeclarationReporting(
 ) : Reporting(
     Level.ERROR,
     "Incorrect package declaration. This file must be in package $expected",
-    given.sourceLocation,
+    given.span,
 )

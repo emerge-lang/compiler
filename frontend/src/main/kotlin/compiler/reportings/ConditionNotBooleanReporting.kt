@@ -19,9 +19,9 @@
 package compiler.reportings
 
 import compiler.binding.expression.BoundExpression
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
-internal class ConditionNotBooleanReporting(val condition: BoundExpression<*>, location: SourceLocation)
+internal class ConditionNotBooleanReporting(val condition: BoundExpression<*>, location: Span)
     : ValueNotAssignableReporting(condition.context.swCtx.bool.baseReference, condition.type!!, "", location)
 {
     override val message: String = "The condition must evaluate to ${condition.context.swCtx.bool.simpleName}, got ${condition.type!!}"

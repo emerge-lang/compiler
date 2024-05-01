@@ -21,7 +21,7 @@ package compiler.ast.expression;
 import compiler.ast.Expression
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 /**
  * Wraps another [Expression] in order to influence evaluation order and operator precedence. The evidence of the
@@ -29,7 +29,7 @@ import compiler.lexer.SourceLocation
  */
 class ParenthesisedExpression(
     val nested: Expression,
-    override val sourceLocation: SourceLocation,
+    override val span: Span,
 ) : Expression {
     override fun bindTo(context: ExecutionScopedCTContext): BoundExpression<*> {
         return nested.bindTo(context)

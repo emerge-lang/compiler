@@ -16,7 +16,7 @@ class MultipleInheritanceIssueReporting(
         )
         "The multiple inheritance ${conflictOnSubType.simpleName} : $supertypeList creates this problem:"
     },
-    base.sourceLocation,
+    base.span,
 ) {
     override fun toString() = "${levelAndMessage.assureEndsWith('\n')}${base}"
 

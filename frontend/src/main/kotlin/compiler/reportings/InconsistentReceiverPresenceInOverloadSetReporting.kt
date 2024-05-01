@@ -12,7 +12,7 @@ class InconsistentReceiverPresenceInOverloadSetReporting(
     override fun toString(): String {
         var str = "${levelAndMessage}\n"
         str += illustrateHints(overloadSet.overloads.map {
-            SourceHint(it.parameters.declaredReceiver?.declaration?.sourceLocation ?: it.declaredAt, null, nLinesContext = 0u)
+            SourceHint(it.parameters.declaredReceiver?.declaration?.span ?: it.declaredAt, null, nLinesContext = 0u)
         })
 
         return str

@@ -147,8 +147,8 @@ val IdentifierExpression = sequence("identifier") {
     .astTransformation { tokens ->
         val identifier = tokens.next() as IdentifierToken
         when (identifier.value) {
-            "true", "false" -> BooleanLiteralExpression(identifier.sourceLocation, identifier.value == "true")
-            "null" -> NullLiteralExpression(identifier.sourceLocation)
+            "true", "false" -> BooleanLiteralExpression(identifier.span, identifier.value == "true")
+            "null" -> NullLiteralExpression(identifier.span)
             else -> IdentifierExpression(identifier)
         }
     }
@@ -168,7 +168,7 @@ val ParanthesisedExpression: Rule<AstExpression> = sequence("paranthesised expre
         val parantOpen = tokens.next()!! as OperatorToken
         val nested = tokens.next()!! as AstExpression
 
-        ParenthesisedExpression(nested, parantOpen.sourceLocation)
+        ParenthesisedExpression(nested, parantOpen.span)
     }
 
 val UnaryExpression = sequence("unary expression") {
@@ -257,7 +257,7 @@ val IfExpression = sequence("if-expression") {
         }
 
         IfExpression(
-            ifKeyword.sourceLocation,
+            ifKeyword.span,
             condition,
             thenCode,
             elseCode

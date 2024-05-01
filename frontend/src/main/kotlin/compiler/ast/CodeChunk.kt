@@ -23,7 +23,7 @@ import compiler.ast.Statement.Companion.chain
 import compiler.binding.BoundCodeChunk
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 /**
  * A piece of executable code
@@ -31,7 +31,7 @@ import compiler.lexer.SourceLocation
 class CodeChunk(
     val statements: List<Statement>
 ) : Executable {
-    override val sourceLocation: SourceLocation = statements.firstOrNull()?.sourceLocation ?: SourceLocation.UNKNOWN
+    override val span: Span = statements.firstOrNull()?.span ?: Span.UNKNOWN
 
     fun bindTo(context: CTContext): BoundCodeChunk {
         val initialContext = context as? ExecutionScopedCTContext ?: throw InternalCompilerError("Can this ever happen? If yes: easy fix right here")

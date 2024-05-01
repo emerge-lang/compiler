@@ -35,7 +35,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
 import compiler.handleCyclicInvocation
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -200,7 +200,7 @@ class BoundVariable(
                         reportings.add(
                             Reporting.typeDeductionError(
                                 "Cannot infer the type of variable $name because the type inference is cyclic here. Specify the type of one element explicitly.",
-                                initializerExpression.declaration.sourceLocation
+                                initializerExpression.declaration.span
                             )
                         )
                     },
@@ -229,7 +229,7 @@ class BoundVariable(
                         if (initializerType !is UnresolvedType) {
                             initializerType.evaluateAssignabilityTo(
                                 typeAtDeclarationTime!!,
-                                declaration.initializerExpression!!.sourceLocation
+                                declaration.initializerExpression!!.span
                             )
                                 ?.let(reportings::add)
                         }
@@ -243,7 +243,7 @@ class BoundVariable(
             }
 
             if (resolvedDeclaredType != null) {
-                val useSite = kind.getTypeUseSite(this, declaration.sourceLocation)
+                val useSite = kind.getTypeUseSite(this, declaration.span)
                 resolvedDeclaredType!!.validate(useSite).let(reportings::addAll)
             }
 
@@ -299,7 +299,7 @@ class BoundVariable(
         return typeAtDeclarationTime
     }
 
-    override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
+    override fun validateAccessFrom(location: Span): Collection<Reporting> {
         if (!kind.allowsVisibility) {
             throw InternalCompilerError("A $kind does not have visibility, cannot validate access")
         }
@@ -384,7 +384,7 @@ class BoundVariable(
         }
 
         override fun toString() = name.lowercase().replace('_', ' ')
-        fun getTypeUseSite(exposedBy: DefinitionWithVisibility,  location: SourceLocation): TypeUseSite {
+        fun getTypeUseSite(exposedBy: DefinitionWithVisibility,  location: Span): TypeUseSite {
             val effectiveExposedBy = exposedBy.takeIf { allowsVisibility }
             return when (this) {
                 LOCAL_VARIABLE,

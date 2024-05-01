@@ -18,7 +18,7 @@
 
 package compiler.reportings
 
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.lexer.Token
 
 /**
@@ -26,5 +26,5 @@ import compiler.lexer.Token
  */
 class MissingTokenReporting(
     val expected: Token,
-    sourceLocation: SourceLocation
-) : Reporting(Level.ERROR, "Unexpected EOI, expecting ${expected.toStringWithoutLocation()}", sourceLocation)
+    span: Span
+) : Reporting(Level.ERROR, "Unexpected EOI, expecting ${expected.toStringWithoutLocation()}", span)

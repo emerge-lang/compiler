@@ -18,9 +18,9 @@
 
 package compiler.reportings
 
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
-class UnexpectedEndOfInputReporting(location: SourceLocation, expected: String) : Reporting(
+class UnexpectedEndOfInputReporting(location: Span, expected: String) : Reporting(
     Level.ERROR,
     "Unexpected end of input, expected $expected",
     location

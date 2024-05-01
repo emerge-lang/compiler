@@ -5,7 +5,7 @@ import compiler.binding.context.CTContext
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.SourceFile
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 
@@ -21,7 +21,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
      * **WARNING:** You very likely do not want to use this method, but [DefinitionWithVisibility.validateAccessFrom]
      * instead.
      */
-    abstract fun validateAccessFrom(accessAt: SourceLocation, subject: DefinitionWithVisibility): Collection<Reporting>
+    abstract fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility): Collection<Reporting>
 
     abstract fun isStrictlyBroarderThan(other: BoundVisibility): Boolean
     abstract fun isPossiblyBroaderThan(other: BoundVisibility): Boolean
@@ -43,7 +43,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
 
     class FileScope(override val context: CTContext, override val astNode: AstVisibility) : BoundVisibility() {
         val lexerFile: SourceFile get() = context.sourceFile.lexerFile
-        override fun validateAccessFrom(accessAt: SourceLocation, subject: DefinitionWithVisibility): Collection<Reporting> {
+        override fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility): Collection<Reporting> {
             if (lexerFile == accessAt.file) {
                 return emptySet()
             }
@@ -76,7 +76,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
             return emptySet()
         }
 
-        override fun validateAccessFrom(accessAt: SourceLocation, subject: DefinitionWithVisibility): Collection<Reporting> {
+        override fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility): Collection<Reporting> {
             if (packageName.containsOrEquals(accessAt.file.packageName)) {
                 return emptySet()
             }
@@ -111,7 +111,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
         override val context: CTContext,
         override val astNode: AstVisibility,
     ) : BoundVisibility() {
-        override fun validateAccessFrom(accessAt: SourceLocation, subject: DefinitionWithVisibility): Collection<Reporting> {
+        override fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility): Collection<Reporting> {
             return emptySet()
         }
 

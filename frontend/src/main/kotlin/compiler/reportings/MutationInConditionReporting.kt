@@ -7,5 +7,5 @@ class MutationInConditionReporting(
 ) : Reporting(
     Level.WARNING,
     "This operation is mutating state in a condition.",
-    mutation.sourceLocation,
+    mutation.span,
 )

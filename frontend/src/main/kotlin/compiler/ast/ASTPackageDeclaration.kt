@@ -27,5 +27,5 @@ class ASTPackageDeclaration(
     val packageKeyword: KeywordToken,
     val packageName: AstPackageName,
 ) : AstFileLevelDeclaration {
-    override val declaredAt = packageKeyword.sourceLocation
+    override val declaredAt = packageKeyword.span
 }

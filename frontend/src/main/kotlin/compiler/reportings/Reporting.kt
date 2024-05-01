@@ -54,7 +54,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.lexer.IdentifierToken
 import compiler.lexer.OperatorToken
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.lexer.Token
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import textutils.indentByFromSecondLine
@@ -67,7 +67,7 @@ import java.math.BigInteger
 abstract class Reporting internal constructor(
     val level: Level,
     open val message: String,
-    val sourceLocation: SourceLocation
+    val span: Span
 ) : Comparable<Reporting>
 {
     override fun compareTo(other: Reporting): Int {
@@ -81,20 +81,20 @@ abstract class Reporting internal constructor(
     /**
      * TODO: currently, all subclasses must override this with super.toString(), because `data` is needed to detect double-reporting the same problem
      */
-    override fun toString() = "$levelAndMessage\nin $sourceLocation"
+    override fun toString() = "$levelAndMessage\nin $span"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is Reporting) return false
 
         if (javaClass != other.javaClass) return false
-        if (sourceLocation != other.sourceLocation) return false
+        if (span != other.span) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        var result = sourceLocation.hashCode()
+        var result = span.hashCode()
         result = 31 * result + javaClass.hashCode()
         return result
     }
@@ -109,10 +109,10 @@ abstract class Reporting internal constructor(
 
     // convenience methods so that the bulky constructors of the reporting class do not have to be used
     companion object {
-        fun consecutive(message: String, sourceLocation: SourceLocation = SourceLocation.UNKNOWN)
-            = ConsecutiveFaultReporting(message, sourceLocation)
+        fun consecutive(message: String, span: Span = Span.UNKNOWN)
+            = ConsecutiveFaultReporting(message, span)
 
-        fun unexpectedEOI(expected: String, erroneousLocation: SourceLocation)
+        fun unexpectedEOI(expected: String, erroneousLocation: Span)
             = UnexpectedEndOfInputReporting(erroneousLocation, expected)
 
         fun unknownType(erroneousRef: TypeReference)
@@ -121,13 +121,13 @@ abstract class Reporting internal constructor(
         fun parsingMismatch(expected: String, actual: Token)
             = ParsingMismatchReporting(listOf(expected), actual)
 
-        fun parsingError(message: String, location: SourceLocation)
+        fun parsingError(message: String, location: Span)
             = ParsingErrorReporting(message, location)
 
-        fun unsupported(message: String, location: SourceLocation)
+        fun unsupported(message: String, location: Span)
             = UnsupportedFeatureReporting(message, location)
 
-        fun valueNotAssignable(targetType: BoundTypeReference, sourceType: BoundTypeReference, reason: String, assignmentLocation: SourceLocation)
+        fun valueNotAssignable(targetType: BoundTypeReference, sourceType: BoundTypeReference, reason: String, assignmentLocation: Span)
             = ValueNotAssignableReporting(targetType, sourceType, reason, assignmentLocation)
 
         fun undefinedIdentifier(expr: IdentifierExpression, messageOverride: String? = null)
@@ -155,8 +155,8 @@ abstract class Reporting internal constructor(
         fun varianceOnFunctionTypeParameter(parameter: BoundTypeParameter)
             = VarianceOnFunctionTypeParameterReporting(parameter.astNode)
 
-        fun missingTypeArgument(parameter: BoundTypeParameter, sourceLocation: SourceLocation)
-            = MissingTypeArgumentReporting(parameter.astNode, sourceLocation)
+        fun missingTypeArgument(parameter: BoundTypeParameter, span: Span)
+            = MissingTypeArgumentReporting(parameter.astNode, span)
 
         fun superfluousTypeArguments(nExpectedArguments: Int, firstSuperfluousArgument: BoundTypeArgument)
             = SuperfluousTypeArgumentsReporting(nExpectedArguments, firstSuperfluousArgument.astNode)
@@ -173,7 +173,7 @@ abstract class Reporting internal constructor(
         fun unsupportedTypeUsageVariance(useSite: TypeUseSite, erroneousVariance: TypeVariance)
             = UnsupportedTypeUsageVarianceReporting(useSite, erroneousVariance)
 
-        fun erroneousLiteralExpression(message: String, location: SourceLocation)
+        fun erroneousLiteralExpression(message: String, location: Span)
             = ErroneousLiteralExpressionReporting(message, location)
 
         fun illegalAssignment(message: String, assignmentStatement: BoundAssignmentStatement)
@@ -263,7 +263,7 @@ abstract class Reporting internal constructor(
             }
             if (someSupertypeHasAmbiguity) {
                 // the problem was inherited from one of the supertypes -> ignore, gets reported by the supertype
-                return consecutive("overload disjoint problem inherited into ${subtype.canonicalName} from a supertype", baseReporting.sourceLocation)
+                return consecutive("overload disjoint problem inherited into ${subtype.canonicalName} from a supertype", baseReporting.span)
             }
 
             // the problem is created by multiple inheritance; find the subset of supertypes that creates the problem
@@ -297,7 +297,7 @@ abstract class Reporting internal constructor(
         fun unresolvableMemberVariable(accessExpression: BoundMemberAccessExpression, hostType: BoundTypeReference)
             = UnresolvedMemberVariableReporting(accessExpression.declaration, hostType)
 
-        fun unresolvablePackageName(name: CanonicalElementName.Package, location: SourceLocation)
+        fun unresolvablePackageName(name: CanonicalElementName.Package, location: Span)
             = UnresolvablePackageNameReporting(name, location)
 
         fun unresolvableImport(import: BoundImportDeclaration)
@@ -312,7 +312,7 @@ abstract class Reporting internal constructor(
         fun ambiguousInvocation(invocation: BoundInvocationExpression, candidates: List<BoundFunction>)
             = AmbiguousInvocationReporting(invocation.declaration, candidates)
 
-        fun typeDeductionError(message: String, location: SourceLocation)
+        fun typeDeductionError(message: String, location: Span)
             = TypeDeductionErrorReporting(message, location)
 
         fun explicitInferTypeWithArguments(type: TypeReference)
@@ -321,7 +321,7 @@ abstract class Reporting internal constructor(
         fun explicitInferTypeNotAllowed(type: TypeReference)
             = ExplicitInferTypeNotAllowedReporting(type)
 
-        fun modifierError(message: String, location: SourceLocation)
+        fun modifierError(message: String, location: Span)
             = ModifierErrorReporting(message, location)
 
         fun operatorNotDeclared(message: String, expression: Expression)
@@ -333,7 +333,7 @@ abstract class Reporting internal constructor(
         fun externalMemberFunction(function: BoundDeclaredFunction)
             = ExternalMemberFunctionReporting(function.declaration, function.attributes.externalAttribute!!.attributeName)
 
-        fun objectNotFullyInitialized(uninitializedMembers: Collection<BoundBaseTypeMemberVariable>, usedAt: SourceLocation): ObjectNotFullyInitializedReporting {
+        fun objectNotFullyInitialized(uninitializedMembers: Collection<BoundBaseTypeMemberVariable>, usedAt: Span): ObjectNotFullyInitializedReporting {
             return ObjectNotFullyInitializedReporting(
                 uninitializedMembers.map { it.declaration },
                 usedAt
@@ -342,7 +342,7 @@ abstract class Reporting internal constructor(
 
         fun useOfUninitializedMember(access: BoundMemberAccessExpression) = UseOfUninitializedClassMemberVariableReporting(
             access.member!!.declaration,
-            access.declaration.memberName.sourceLocation,
+            access.declaration.memberName.span,
         )
 
         fun constructorDeclaredAsModifying(constructor: BoundClassConstructor) = ConstructorDeclaredModifyingReporting(
@@ -354,10 +354,10 @@ abstract class Reporting internal constructor(
             = ExplicitOwnershipNotAllowedReporting(variable.declaration.ownership!!.second)
 
         fun variableUsedAfterLifetime(variable: BoundVariable, read: BoundIdentifierExpression, deadState: VariableLifetime.State.Dead)
-            = VariableUsedAfterLifetimeReporting(variable.declaration, read.declaration.sourceLocation, deadState.lifetimeEndedAt, deadState.maybe)
+            = VariableUsedAfterLifetimeReporting(variable.declaration, read.declaration.span, deadState.lifetimeEndedAt, deadState.maybe)
 
         fun borrowedVariableCaptured(variable: BoundVariable, capture: BoundIdentifierExpression)
-            = BorrowedVariableCapturedReporting(variable.declaration, capture.declaration.sourceLocation)
+            = BorrowedVariableCapturedReporting(variable.declaration, capture.declaration.span)
 
         /**
          * An expression is used in a way that requires it to be non-null but the type of the expression is nullable.
@@ -405,7 +405,7 @@ abstract class Reporting internal constructor(
         fun uncertainTermination(function: BoundDeclaredFunction) =
             UncertainTerminationReporting(function)
 
-        fun conditionIsNotBoolean(condition: BoundExpression<*>, location: SourceLocation): Reporting {
+        fun conditionIsNotBoolean(condition: BoundExpression<*>, location: Span): Reporting {
             if (condition.type == null) {
                 return consecutive("The condition must evaluate to Bool, cannot determine type", location)
             }
@@ -440,7 +440,7 @@ abstract class Reporting internal constructor(
         fun entryNotAllowedOnBaseType(baseType: BoundBaseType, entry: BoundBaseTypeEntry<*>)
             = EntryNotAllowedInBaseTypeReporting(baseType.kind, entry)
 
-        fun elementNotAccessible(element: DefinitionWithVisibility, visibility: BoundVisibility, accessAt: SourceLocation)
+        fun elementNotAccessible(element: DefinitionWithVisibility, visibility: BoundVisibility, accessAt: Span)
             = ElementNotAccessibleReporting(element, visibility, accessAt)
 
         fun visibilityTooBroad(owningModule: CanonicalElementName.Package, visibilityDeclaration: BoundVisibility.PackageScope)
@@ -452,7 +452,7 @@ abstract class Reporting internal constructor(
         fun visibilityShadowed(element: DefinitionWithVisibility, contextVisibility: BoundVisibility)
             = ShadowedVisibilityReporting(element, contextVisibility)
 
-        fun hiddenTypeExposed(type: BoundBaseType, exposedBy: DefinitionWithVisibility, exposedAt: SourceLocation)
+        fun hiddenTypeExposed(type: BoundBaseType, exposedBy: DefinitionWithVisibility, exposedAt: Span)
             = HiddenTypeExposedReporting(type, exposedBy, exposedAt)
 
         private fun readingPurityViolationToReporting(violation: BoundExpression<*>, boundary: PurityViolationReporting.Boundary): Reporting {

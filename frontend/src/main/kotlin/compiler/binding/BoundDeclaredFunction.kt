@@ -13,7 +13,7 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 import compiler.reportings.Reporting
 import compiler.reportings.ReturnTypeMismatchReporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -105,14 +105,14 @@ abstract class BoundDeclaredFunction(
             }
 
             receiverType?.let {
-                it.validate(TypeUseSite.InUsage(it.sourceLocation, this)).let(reportings::addAll)
+                it.validate(TypeUseSite.InUsage(it.span, this)).let(reportings::addAll)
             }
             parameterTypes.forEach {
-                it?.validate(TypeUseSite.InUsage(it.sourceLocation, this))?.let(reportings::addAll)
+                it?.validate(TypeUseSite.InUsage(it.span, this))?.let(reportings::addAll)
             }
             returnType?.let {
                 val returnTypeUseSite = TypeUseSite.OutUsage(
-                    declaration.parsedReturnType?.declaringNameToken?.sourceLocation
+                    declaration.parsedReturnType?.declaringNameToken?.span
                         ?: this.declaredAt,
                     this,
                 )
@@ -178,7 +178,7 @@ abstract class BoundDeclaredFunction(
         }
     }
 
-    override fun validateAccessFrom(location: SourceLocation): Collection<Reporting> {
+    override fun validateAccessFrom(location: Span): Collection<Reporting> {
         return attributes.visibility.validateAccessFrom(location, this)
     }
 
@@ -198,7 +198,7 @@ abstract class BoundDeclaredFunction(
                 reportings.addAll(expression.semanticAnalysisPhase3())
                 expectedReturnType?.let { declaredReturnType ->
                     expression.type?.let { actualReturnType ->
-                        actualReturnType.evaluateAssignabilityTo(declaredReturnType, expression.declaration.sourceLocation)
+                        actualReturnType.evaluateAssignabilityTo(declaredReturnType, expression.declaration.span)
                             ?.let(::ReturnTypeMismatchReporting)
                             ?.let(reportings::add)
                     }

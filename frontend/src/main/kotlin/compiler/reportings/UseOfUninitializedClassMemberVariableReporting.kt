@@ -1,11 +1,11 @@
 package compiler.reportings
 
 import compiler.ast.BaseTypeMemberVariableDeclaration
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 data class UseOfUninitializedClassMemberVariableReporting(
     val member: BaseTypeMemberVariableDeclaration,
-    val usedAt: SourceLocation,
+    val usedAt: Span,
 ) : Reporting(
     Level.ERROR,
     run {

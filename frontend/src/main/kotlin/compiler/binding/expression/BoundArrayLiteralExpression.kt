@@ -58,7 +58,7 @@ class BoundArrayLiteralExpression(
             elementType = expectedElementType!!
             elements.forEach { element ->
                 element.type?.let {
-                    val unification = elementType.unify(it, element.declaration.sourceLocation, TypeUnification.EMPTY)
+                    val unification = elementType.unify(it, element.declaration.span, TypeUnification.EMPTY)
                     reportings.addAll(unification.reportings)
                 }
             }

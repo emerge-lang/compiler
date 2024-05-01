@@ -21,15 +21,14 @@ package compiler.ast
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundIfExpression
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 class IfExpression (
-    override val sourceLocation: SourceLocation,
+    override val span: Span,
     val condition: Expression,
     val thenCode: Executable,
     val elseCode: Executable?
 ) : Expression {
-
     override fun bindTo(context: ExecutionScopedCTContext): BoundIfExpression {
         val contextBeforeCondition: ExecutionScopedCTContext = MutableExecutionScopedCTContext.deriveFrom(context)
         val boundCondition = condition.bindTo(contextBeforeCondition)

@@ -7,5 +7,5 @@ class AssignmenUsedAsExpressionReporting(
 ) : Reporting(
     Level.ERROR,
     "Assignments are not expressions.",
-    assignment.assignmentOperatorToken.sourceLocation,
+    assignment.assignmentOperatorToken.span,
 )

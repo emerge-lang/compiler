@@ -10,7 +10,7 @@ data class FunctionMissingModifierReporting(
 ) : Reporting(
     Reporting.Level.ERROR,
     "Missing modifier \"${missingAttribute::class.simpleName?.lowercase()}\" on function ${function.canonicalName}",
-    usageRequiringModifier.sourceLocation,
+    usageRequiringModifier.span,
 ) {
     override fun toString() = super.toString() + "\ndeclared without this modifier here:\n${function.declaredAt}"
 }

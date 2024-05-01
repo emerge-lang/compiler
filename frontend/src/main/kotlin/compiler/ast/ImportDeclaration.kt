@@ -21,13 +21,13 @@ package compiler.ast
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.context.CTContext
 import compiler.lexer.IdentifierToken
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 /**
  * An import statement
  */
 class ImportDeclaration(
-    override val declaredAt: SourceLocation,
+    override val declaredAt: Span,
     /** The identifiers in order of the source: `import pkg1.pkg2.component` => `[pkg1, pkg2, component]` */
     val identifiers: List<IdentifierToken>
 ) : AstFileLevelDeclaration {

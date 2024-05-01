@@ -1,11 +1,11 @@
 package compiler.reportings
 
 import compiler.ast.VariableDeclaration
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 class BorrowedVariableCapturedReporting(
     val variable: VariableDeclaration,
-    captureAt: SourceLocation,
+    captureAt: Span,
 ) : Reporting(
     Level.ERROR,
     "Cannot capture a borrowed value",
@@ -16,14 +16,14 @@ class BorrowedVariableCapturedReporting(
         if (other !is BorrowedVariableCapturedReporting) return false
 
         if (variable != other.variable) return false
-        if (sourceLocation != other.sourceLocation) return false
+        if (span != other.span) return false
 
         return true
     }
 
     override fun hashCode(): Int {
         var result = variable.hashCode()
-        result = 31 * result + sourceLocation.hashCode()
+        result = 31 * result + span.hashCode()
         return result
     }
 }

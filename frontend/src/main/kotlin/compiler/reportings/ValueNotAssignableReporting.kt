@@ -23,7 +23,7 @@ import compiler.ast.type.TypeMutability
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.binding.type.isAssignableTo
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 /**
  * Reported when a value of tye [sourceType] is to be written to a storage of type [targetType] and the types
@@ -38,7 +38,7 @@ open class ValueNotAssignableReporting(
 
     val reason: String,
 
-    assignmentLocation: SourceLocation
+    assignmentLocation: Span
 ) : Reporting(
     if (targetType is UnresolvedType || sourceType is UnresolvedType) Level.CONSECUTIVE else Level.ERROR,
     "Type mismatch: $reason",
@@ -74,5 +74,5 @@ open class ValueNotAssignableReporting(
         }
     }
 
-    override fun toString() = "$levelAndMessage  Required: $targetType\n  Found:    $sourceType\n\nin $sourceLocation"
+    override fun toString() = "$levelAndMessage  Required: $targetType\n  Found:    $sourceType\n\nin $span"
 }

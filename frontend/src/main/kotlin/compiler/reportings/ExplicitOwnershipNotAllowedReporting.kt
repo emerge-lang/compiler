@@ -7,18 +7,18 @@ class ExplicitOwnershipNotAllowedReporting(
 ) : Reporting(
     Level.ERROR,
     "Declaring an ownership mode is only allowed on parameters, not on variables",
-    token.sourceLocation,
+    token.span,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is ExplicitOwnershipNotAllowedReporting) return false
 
-        if (token.sourceLocation != other.token.sourceLocation) return false
+        if (token.span != other.token.span) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return token.sourceLocation.hashCode()
+        return token.span.hashCode()
     }
 }

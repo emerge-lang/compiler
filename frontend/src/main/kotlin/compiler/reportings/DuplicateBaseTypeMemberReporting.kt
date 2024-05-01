@@ -33,7 +33,7 @@ class DuplicateBaseTypeMemberReporting(
         var txt = "$levelAndMessage\nin ${typeDef.declaration.declaredAt}\n"
 
         txt += illustrateSourceLocations(
-            duplicates.map { it.declaration.sourceLocation },
+            duplicates.map { it.declaration.span },
         )
 
         return txt.trimEnd()

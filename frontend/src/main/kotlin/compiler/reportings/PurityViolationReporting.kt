@@ -29,7 +29,7 @@ import compiler.binding.expression.BoundInvocationExpression
 abstract class PurityViolationReporting protected constructor(
     val violation: BoundStatement<*>,
     message: String
-) : Reporting(Level.ERROR, message, violation.declaration.sourceLocation) {
+) : Reporting(Level.ERROR, message, violation.declaration.span) {
     sealed class Boundary(
         val asString: String,
         /**
@@ -59,13 +59,13 @@ class ReadInPureContextReporting internal constructor(val readingExpression: Bou
         if (this === other) return true
         if (other !is ReadInPureContextReporting) return false
 
-        if (readingExpression.declaration.sourceLocation != other.readingExpression.declaration.sourceLocation) return false
+        if (readingExpression.declaration.span != other.readingExpression.declaration.span) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return readingExpression.declaration.sourceLocation.hashCode()
+        return readingExpression.declaration.span.hashCode()
     }
 }
 
@@ -77,13 +77,13 @@ class ImpureInvocationInPureContextReporting internal constructor(val invcExpr: 
         if (this === other) return true
         if (other !is ImpureInvocationInPureContextReporting) return false
 
-        if (invcExpr.declaration.sourceLocation != other.invcExpr.declaration.sourceLocation) return false
+        if (invcExpr.declaration.span != other.invcExpr.declaration.span) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return invcExpr.declaration.sourceLocation.hashCode()
+        return invcExpr.declaration.span.hashCode()
     }
 }
 
@@ -95,13 +95,13 @@ class ModifyingInvocationInReadonlyContextReporting internal constructor(val inv
         if (this === other) return true
         if (other !is ModifyingInvocationInReadonlyContextReporting) return false
 
-        if (invcExpr.declaration.sourceLocation != other.invcExpr.declaration.sourceLocation) return false
+        if (invcExpr.declaration.span != other.invcExpr.declaration.span) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return invcExpr.declaration.sourceLocation.hashCode()
+        return invcExpr.declaration.span.hashCode()
     }
 }
 
@@ -116,12 +116,12 @@ class StateModificationOutsideOfPurityBoundaryReporting internal constructor(val
         if (this === other) return true
         if (other !is StateModificationOutsideOfPurityBoundaryReporting) return false
 
-        if (assignment.declaration.sourceLocation != other.assignment.declaration.sourceLocation) return false
+        if (assignment.declaration.span != other.assignment.declaration.span) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return assignment.declaration.sourceLocation.hashCode()
+        return assignment.declaration.span.hashCode()
     }
 }

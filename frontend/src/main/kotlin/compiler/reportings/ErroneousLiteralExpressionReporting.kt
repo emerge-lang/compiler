@@ -18,14 +18,14 @@
 
 package compiler.reportings
 
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 /** Reported on incorrect simple literals (e.g. numeric) */
 class ErroneousLiteralExpressionReporting(
     message: String,
-    sourceLocation: SourceLocation
+    span: Span
 ) : Reporting(
     Level.ERROR,
     message,
-    sourceLocation
+    span
 )

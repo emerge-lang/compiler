@@ -1,25 +1,25 @@
 package compiler.reportings
 
 import compiler.ast.type.TypeReference
-import compiler.lexer.SourceLocation
+import compiler.lexer.Span
 
 class DuplicateSupertypeReporting(
     val supertype: TypeReference,
 ) : Reporting(
     Level.ERROR,
     "Can inherit from ${supertype.simpleName} only once",
-    supertype.sourceLocation ?: SourceLocation.UNKNOWN,
+    supertype.span ?: Span.UNKNOWN,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is DuplicateSupertypeReporting) return false
 
-        if (supertype.sourceLocation != other.supertype.sourceLocation) return false
+        if (supertype.span != other.supertype.span) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return supertype.sourceLocation.hashCode()
+        return supertype.span.hashCode()
     }
 }

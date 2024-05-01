@@ -34,10 +34,10 @@ class InvocationExpressionPostfix(
 ) : ExpressionPostfix<InvocationExpression> {
     override fun modify(expr: Expression): InvocationExpression {
         val startLocation = when (expr) {
-            is MemberAccessExpression -> expr.memberName.sourceLocation
-            else -> expr.sourceLocation
+            is MemberAccessExpression -> expr.memberName.span
+            else -> expr.span
         }
-        val invocationLocation = startLocation .. closingParenthesis.sourceLocation
+        val invocationLocation = startLocation .. closingParenthesis.span
         return InvocationExpression(expr, typeArguments, valueParameterExpressions, invocationLocation)
     }
 }

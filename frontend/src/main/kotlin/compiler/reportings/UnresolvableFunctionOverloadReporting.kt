@@ -44,7 +44,7 @@ class UnresolvableFunctionOverloadReporting(
 
         message
     },
-    functionNameReference.sourceLocation,
+    functionNameReference.span,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
