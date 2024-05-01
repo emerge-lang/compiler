@@ -392,8 +392,12 @@ private fun Iterable<BoundOverloadSet<*>>.filterAndSortByMatchForInvocationTypes
             }
 
             // TODO: source location
+            val returnTypeArgsLocation = typeArguments
+                ?.mapNotNull { it.sourceLocation }
+                ?.reduce(SourceLocation::rangeTo)
+                ?: SourceLocation.UNKNOWN
             val returnTypeWithVariables = candidateFn.returnType?.withTypeVariables(candidateFn.allTypeParameters)
-            var unification = TypeUnification.fromExplicit(candidateFn.declaredTypeParameters, typeArguments, SourceLocation.UNKNOWN, allowMissingTypeArguments = true)
+            var unification = TypeUnification.fromExplicit(candidateFn.declaredTypeParameters, typeArguments, returnTypeArgsLocation, allowMissingTypeArguments = true)
             if (returnTypeWithVariables != null) {
                 if (expectedReturnType != null) {
                     unification = unification.doWithIgnoringReportings { obliviousUnification ->

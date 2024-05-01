@@ -155,7 +155,6 @@ class BoundCodeChunk(
             )
         }
 
-        // TODO: implicit unit return requires unit reference, doesn't exist yet
         val standInLiteralTemporary = IrCreateTemporaryValueImpl(IrIntegerLiteralExpressionImpl(BigInteger.ZERO, context.swCtx.unit.baseReference.toBackendIr()))
         return IrImplicitEvaluationExpressionImpl(
             IrCodeChunkImpl(plainStatements + listOfNotNull(lastStatement?.toBackendIrStatement()) + getDeferredCodeAtEndOfChunk() + listOf(standInLiteralTemporary)),

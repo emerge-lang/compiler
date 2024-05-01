@@ -17,6 +17,7 @@ import compiler.reportings.TypeParameterNameConflictReporting
 import compiler.reportings.UncertainTerminationReporting
 import compiler.reportings.UnknownTypeReporting
 import compiler.reportings.UnresolvableFunctionOverloadReporting
+import compiler.reportings.UnsupportedCallingConventionReporting
 import compiler.reportings.ValueNotAssignableReporting
 import compiler.reportings.VarianceOnFunctionTypeParameterReporting
 import io.kotest.core.spec.style.FreeSpec
@@ -375,6 +376,15 @@ class FunctionErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<ToplevelFunctionWithOverrideAttributeReporting>()
+        }
+    }
+
+    "ffi" - {
+        "unsupported FFI" {
+            validateModule("""
+                override external(Rust) fun test()
+            """.trimIndent())
+                .shouldReport<UnsupportedCallingConventionReporting>()
         }
     }
 })

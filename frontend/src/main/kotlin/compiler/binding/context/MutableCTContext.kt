@@ -21,7 +21,6 @@ package compiler.binding.context
 import compiler.InternalCompilerError
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.ImportDeclaration
-import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundFunction
@@ -30,7 +29,6 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundBaseType
-import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.GenericTypeReference
@@ -118,12 +116,6 @@ open class MutableCTContext(
         }
 
         return fromImport ?: parentContext.resolveBaseType(simpleName, fromOwnFileOnly)
-    }
-
-    override fun resolveType(ref: TypeArgument): BoundTypeArgument {
-        // this is also defined on CTContext, but the last argument differs (is just resolveType(ref))
-        // TODO: pick one!
-        return BoundTypeArgument(this, ref, ref.variance, resolveType(ref.type))
     }
 
     override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {

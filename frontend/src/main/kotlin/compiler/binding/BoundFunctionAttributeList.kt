@@ -66,6 +66,13 @@ class BoundFunctionAttributeList(
             .forEach { (a, b) ->
                 reportings.add(Reporting.conflictingModifiers(listOf(a, b)))
             }
+
+        attributes
+            .filterIsInstance<AstFunctionAttribute.External>()
+            .filter { it.ffiName.value !in SUPPORTED_EXTERNAL_CALLING_CONVENTIONS }
+            .forEach {
+                reportings.add(Reporting.unsupportedCallingConvention(it, SUPPORTED_EXTERNAL_CALLING_CONVENTIONS))
+            }
     }
 
     /**
@@ -93,6 +100,7 @@ class BoundFunctionAttributeList(
     }
 
     companion object {
+        val SUPPORTED_EXTERNAL_CALLING_CONVENTIONS = setOf("C")
         private fun conflictsWith(a: AstFunctionAttribute, b: AstFunctionAttribute): Boolean = when (a) {
             is AstVisibility -> b is AstVisibility && a != b
             is AstFunctionAttribute.EffectCategory -> {

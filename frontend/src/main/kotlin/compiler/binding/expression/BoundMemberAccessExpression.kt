@@ -75,7 +75,6 @@ class BoundMemberAccessExpression(
         if (valueType != null) {
             if (valueType.isNullable && !isNullSafeAccess) {
                 reportings.add(Reporting.unsafeObjectTraversal(valueExpression, declaration.accessOperatorToken))
-                // TODO: set the type of this expression nullable
             }
             else if (!valueType.isNullable && isNullSafeAccess) {
                 reportings.add(Reporting.superfluousSafeObjectTraversal(valueExpression, declaration.accessOperatorToken))

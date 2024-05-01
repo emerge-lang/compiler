@@ -55,8 +55,6 @@ abstract class BoundDeclaredFunction(
     private val seanHelper = SeanHelper()
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        // TODO: check FFI name of external modifier
-
         return seanHelper.phase1 {
             val reportings = mutableSetOf<Reporting>()
 

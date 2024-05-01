@@ -194,6 +194,9 @@ abstract class Reporting internal constructor(
         fun toplevelFunctionWithOverrideAttribute(attr: AstFunctionAttribute.Override)
             = ToplevelFunctionWithOverrideAttributeReporting(attr.attributeName)
 
+        fun unsupportedCallingConvention(attr: AstFunctionAttribute.External, supportedConventions: Set<String>)
+            = UnsupportedCallingConventionReporting(attr, supportedConventions)
+
         fun illegalSupertype(ref: TypeReference, reason: String)
             = IllegalSupertypeReporting(ref, reason)
 
