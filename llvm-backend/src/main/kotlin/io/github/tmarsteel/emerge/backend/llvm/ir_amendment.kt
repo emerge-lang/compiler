@@ -17,6 +17,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
 import org.bytedeco.llvm.LLVM.LLVMTypeRef
 
@@ -25,54 +26,37 @@ Amendmends to the backend-api IR using tack.kt
 Once the LLVM backend is somewhat stable all of this should move into a new set of AST classes
  */
 
-/**
- * If this is one of the emerge value types, returns the corresponding type.
- * Null otherwise, which means that the value should probably be represented as a
- * `pointerTo(AnyvalueType)`
- */
-internal val IrBaseType.llvmValueType: LlvmType? by tackLazyVal {
+internal data class BoxableTyping(
+    val boxedAllocationSiteType: (EmergeLlvmContext) -> EmergeClassType,
+    val unboxedType: LlvmType,
+)
+
+internal val IrBaseType.boxableTyping: BoxableTyping? by tackLazyVal {
     when (this.canonicalName.toString()) {
-        "emerge.core.S8",
-        "emerge.core.U8" -> LlvmI8Type
-
-        "emerge.core.S16",
-        "emerge.core.U16" -> LlvmI16Type
-
-        "emerge.core.S32",
-        "emerge.core.U32" -> LlvmI32Type
-
-        "emerge.core.S64",
-        "emerge.core.U64" -> LlvmI64Type
-
-        "emerge.core.UWord",
-        "emerge.core.SWord" -> EmergeWordType
-
-        "emerge.core.Bool" -> LlvmBooleanType
-
-        "emerge.ffi.c.COpaquePointer" -> LlvmPointerType(LlvmVoidType)
-
+        "emerge.core.S8" -> BoxableTyping(EmergeLlvmContext::boxTypeS8, LlvmI8Type)
+        "emerge.core.U8" -> BoxableTyping(EmergeLlvmContext::boxTypeU8, LlvmI8Type)
+        "emerge.core.S16" -> BoxableTyping(EmergeLlvmContext::boxTypeS16, LlvmI16Type)
+        "emerge.core.U16" -> BoxableTyping(EmergeLlvmContext::boxTypeU16, LlvmI16Type)
+        "emerge.core.S32" -> BoxableTyping(EmergeLlvmContext::boxTypeU32, LlvmI32Type)
+        "emerge.core.U32" -> BoxableTyping(EmergeLlvmContext::boxTypeS32, LlvmI32Type)
+        "emerge.core.S64" -> BoxableTyping(EmergeLlvmContext::boxTypeS64, LlvmI64Type)
+        "emerge.core.U64" -> BoxableTyping(EmergeLlvmContext::boxTypeU64, LlvmI64Type)
+        "emerge.core.SWord" -> BoxableTyping(EmergeLlvmContext::boxTypeU64, EmergeWordType)
+        "emerge.core.UWord" -> BoxableTyping(EmergeLlvmContext::boxTypeU64, EmergeWordType)
+        "emerge.core.Bool" -> BoxableTyping(EmergeLlvmContext::boxTypeBool, LlvmBooleanType)
+        "emerge.ffi.c.COpaquePointer" -> BoxableTyping(EmergeLlvmContext::cOpaquePointerType, LlvmPointerType(LlvmVoidType))
         else -> null
     }
 }
 
-/**
- * @return whether this is a type that, even though declared as a class in emerge source,
- * is handled as a value-type in LLVM (e.g. S32)
- */
-internal val IrBaseType.isOpaquePrimitiveType: Boolean get() = llvmValueType != null
-
-/**
- * If this is one of the emerge value types, returns the corresponding type.
- * Null otherwise, which means that the value should probably be represented as a
- * `pointerTo(AnyvalueType)`
- */
-internal val IrType.llvmValueType: LlvmType? by tackLazyVal {
+internal val IrType.boxableTyping: BoxableTyping? get() {
     if (this !is IrSimpleType) {
-        return@tackLazyVal null
+        return null
     }
 
-    baseType.llvmValueType
+    return baseType.boxableTyping
 }
+
 internal val IrType.isUnit by tackLazyVal { this is IrSimpleType && this.baseType.canonicalName.toString() == "emerge.core.Unit" }
 
 internal var IrClass.rawLlvmRef: LLVMTypeRef? by tackState { null }

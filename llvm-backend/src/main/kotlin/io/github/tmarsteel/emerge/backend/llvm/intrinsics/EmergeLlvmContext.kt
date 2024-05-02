@@ -15,6 +15,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.backend.llvm.bodyDefined
+import io.github.tmarsteel.emerge.backend.llvm.boxableTyping
 import io.github.tmarsteel.emerge.backend.llvm.codegen.ExecutableResult
 import io.github.tmarsteel.emerge.backend.llvm.codegen.ExpressionResult
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitCode
@@ -43,7 +44,6 @@ import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.llvmType
-import io.github.tmarsteel.emerge.backend.llvm.llvmValueType
 import io.github.tmarsteel.emerge.backend.llvm.rawLlvmRef
 import org.bytedeco.llvm.global.LLVM
 import java.util.Collections
@@ -101,6 +101,8 @@ class EmergeLlvmContext(
     internal lateinit var boxTypeUWord: EmergeClassType
     /** `emerge.platform.BoolBox` */
     internal lateinit var boxTypeBool: EmergeClassType
+    /** `emerge.ffi.c.COpaquePointer` */
+    internal lateinit var cOpaquePointerType: EmergeClassType
 
     /** `emerge.core.Unit` */
     internal lateinit var unitType: EmergeClassType
@@ -139,6 +141,7 @@ class EmergeLlvmContext(
             "emerge.platform.SWordBox" -> boxTypeSWord = emergeClassType
             "emerge.platform.UWordBox" -> boxTypeUWord = emergeClassType
             "emerge.platform.BoolBox" -> boxTypeBool = emergeClassType
+            "emerge.ffi.c.COpaquePointer" -> cOpaquePointerType = emergeClassType
             "emerge.core.Unit" -> {
                 unitType = emergeClassType
                 pointerToPointerToUnitInstance = addGlobal(undefValue(pointerTo(emergeClassType)), LlvmGlobal.ThreadLocalMode.SHARED)
@@ -361,7 +364,7 @@ class EmergeLlvmContext(
      * @return the [LlvmType] of the given emerge type, for use in the reference location. This is
      * [LlvmPointerType] for all structural/heap-allocated types, and an LLVM value type for the emerge value types.
      */
-    fun getReferenceSiteType(type: IrType): LlvmType {
+    fun getReferenceSiteType(type: IrType, forceBoxed: Boolean = false): LlvmType {
         if (type is IrParameterizedType && type.simpleType.baseType.canonicalName.toString() == "emerge.ffi.c.CPointer") {
             return LlvmPointerType(getReferenceSiteType(type.arguments.values.single().type))
         }
@@ -372,7 +375,10 @@ class EmergeLlvmContext(
             is IrGenericTypeReference -> return getReferenceSiteType(type.effectiveBound)
         }
 
-        type.llvmValueType?.let { return it }
+        baseType.boxableTyping?.let { boxable ->
+            return if (forceBoxed) boxable.boxedAllocationSiteType(this) else boxable.unboxedType
+        }
+
         return pointerTo(getAllocationSiteType(type))
     }
 
@@ -417,7 +423,7 @@ class EmergeLlvmContext(
                 else -> return getAllocationSiteType(type.simpleType)
             }
             is IrSimpleType -> {
-                type.llvmValueType?.let { return it }
+                type.boxableTyping?.let { return it.unboxedType }
                 return when(type.baseType) {
                     is IrIntrinsicType -> when (type.baseType.canonicalName.toString()) {
                         "emerge.core.Any",

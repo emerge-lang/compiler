@@ -6,6 +6,7 @@ import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.EmergeBackend
 import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
+import io.github.tmarsteel.emerge.backend.llvm.boxableTyping
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmCompiler
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
@@ -14,7 +15,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.PassBuilderOptions
 import io.github.tmarsteel.emerge.backend.llvm.getLlvmMessage
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
-import io.github.tmarsteel.emerge.backend.llvm.isOpaquePrimitiveType
 import io.github.tmarsteel.emerge.backend.llvm.linux.EmergeEntrypoint
 import io.github.tmarsteel.emerge.backend.llvm.linux.LinuxLinker
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
@@ -85,7 +85,7 @@ class Linux_x68_64_Backend : EmergeBackend {
         EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-unknown")) { llvmContext ->
             softwareContext.packagesSeq.forEach { pkg ->
                 pkg.classes
-                    .filterNot { it.isOpaquePrimitiveType }
+                    .filter { it.boxableTyping == null }
                     .forEach(llvmContext::registerClass)
             }
             softwareContext.packagesSeq
@@ -126,7 +126,7 @@ class Linux_x68_64_Backend : EmergeBackend {
             softwareContext.modules
                 .flatMap { it.packages }
                 .flatMap { it.classes }
-                .filterNot { it.isOpaquePrimitiveType || it.canonicalName.toString() == "emerge.core.Array" }
+                .filterNot { it.boxableTyping != null || it.canonicalName.toString() == "emerge.core.Array" }
                 .forEach { clazz ->
                     llvmContext.defineFunctionBody(clazz.constructor)
                     clazz.memberFunctions

@@ -1,6 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.llvm.boxableTyping
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
@@ -11,7 +12,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
-import io.github.tmarsteel.emerge.backend.llvm.llvmValueType
 
 internal val nullWeakReferences = KotlinLlvmFunction.define<LlvmContext, _>("emerge.platform.nullWeakReferences", LlvmVoidType) {
     val self by param(PointerToAnyEmergeValue)
@@ -101,7 +101,7 @@ context(BasicBlockBuilder<EmergeLlvmContext, *>)
 internal fun LlvmValue<out LlvmType>.afterReferenceCreated(
     emergeType: IrType,
 ) {
-    if (emergeType.llvmValueType != null || type == LlvmVoidType) {
+    if (emergeType.boxableTyping != null || type == LlvmVoidType) {
         return
     }
 
@@ -172,7 +172,7 @@ context(BasicBlockBuilder<EmergeLlvmContext, *>)
 internal fun LlvmValue<out LlvmType>.afterReferenceDropped(
     emergeType: IrType,
 ) {
-    if (emergeType.llvmValueType != null || type == LlvmVoidType) {
+    if (emergeType.boxableTyping != null || type == LlvmVoidType) {
         return
     }
 
