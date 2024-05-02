@@ -38,7 +38,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
         }.flatten().mapResult { it.remainingToList() }
 
         "match first path" {
-            val tokens = lexCode("intrinsic operator nothrow fun", addPackageDeclaration = false)
+            val tokens = lexCode("intrinsic operator nothrow fn", addPackageDeclaration = false)
             val result = grammar.match(tokens)
 
             result.item.shouldBeInstanceOf<List<Any>>()
@@ -50,7 +50,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
         }
 
         "match second path with backtracing" {
-            val tokens = lexCode("intrinsic operator readonly var", addPackageDeclaration = false)
+            val tokens = lexCode("intrinsic operator read var", addPackageDeclaration = false)
             val result = grammar.match(tokens)
 
             result.item.shouldBeInstanceOf<List<Any>>()
@@ -62,7 +62,7 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
         }
 
         "mismatch on ambiguous token" {
-            val tokens = lexCode("intrinsic operator pure fun", addPackageDeclaration = false)
+            val tokens = lexCode("intrinsic operator pure fn", addPackageDeclaration = false)
             val result = grammar.match(tokens)
 
             result.item shouldBe null
@@ -75,13 +75,13 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
 
             result.item shouldBe null
             result.reportings.shouldReport<ParsingMismatchReporting> {
-                it.expectedAlternatives shouldBe listOf("keyword fun")
+                it.expectedAlternatives shouldBe listOf("keyword fn")
                 it.actual shouldBe KeywordToken(Keyword.CLASS_DEFINITION)
             }
         }
 
         "mismatch after disambiguifying token in second branch" {
-            val tokens = lexCode("intrinsic operator readonly class", addPackageDeclaration = false)
+            val tokens = lexCode("intrinsic operator read class", addPackageDeclaration = false)
             val result = grammar.match(tokens)
 
             result.item shouldBe null

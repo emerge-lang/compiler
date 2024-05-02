@@ -9,11 +9,11 @@ import io.kotest.core.spec.style.FreeSpec
 class PurityErrors : FreeSpec({
     "reading compile-time constant globals is okay from a pure context" {
         validateModule("""
-            fun computeSomething(y: S32) -> S32 {
+            fn computeSomething(y: S32) -> S32 {
                 return y
             }
             x = computeSomething(2)
-            fun test() -> S32 {
+            fn test() -> S32 {
                 return x
             }
         """.trimIndent()).shouldHaveNoDiagnostics()
@@ -21,22 +21,22 @@ class PurityErrors : FreeSpec({
 
     "reading runtime-dependent final globals is not okay in a pure context" {
         validateModule("""
-            intrinsic readonly fun readRuntimeState() -> S32
+            intrinsic read fn readRuntimeState() -> S32
             x = readRuntimeState()
-            fun test() -> S32 {
+            fn test() -> S32 {
                 return x
             }
         """.trimIndent())
             .shouldReport<ReadInPureContextReporting>()
     }
 
-    "calling a readonly function from a pure context" {
+    "calling a read function from a pure context" {
         validateModule("""
             var x = 1
-            readonly fun a() {
+            read fn a() {
                 y = x + 1
             }
-            fun b() {
+            fn b() {
                 a()
             }
         """.trimIndent())
@@ -46,23 +46,23 @@ class PurityErrors : FreeSpec({
     "calling a modifying function from a pure context" {
         validateModule("""
             var x = 1
-            mutable fun a() {
+            mut fn a() {
                 set x = 2
             }
-            pure fun b() {
+            pure fn b() {
                 a()
             }
         """.trimIndent())
             .shouldReport<ImpureInvocationInPureContextReporting>()
     }
 
-    "calling a modifying function from a readonly context" {
+    "calling a modifying function from a read context" {
         validateModule("""
             var x = 1
-            mutable fun a() {
+            mut fn a() {
                 set x = 2
             }
-            readonly fun b() {
+            read fn b() {
                 a()
             }
         """.trimIndent())
@@ -72,7 +72,7 @@ class PurityErrors : FreeSpec({
     "reading from outside a pure context" {
         validateModule("""
             var x = 1
-            pure fun a() {
+            pure fn a() {
                 x
             }
         """.trimIndent())
@@ -82,17 +82,17 @@ class PurityErrors : FreeSpec({
     "mutating outside of a pure context" {
         validateModule("""
             var x = 1
-            pure fun a() {
+            pure fn a() {
                 set x = 2
             }
         """.trimIndent())
             .shouldReport<StateModificationOutsideOfPurityBoundaryReporting>()
     }
 
-    "mutation outside of a readonly context" {
+    "mutation outside of a read context" {
         validateModule("""
             var x = 1
-            readonly fun a() {
+            read fn a() {
                 set x = 2
             }
         """.trimIndent())

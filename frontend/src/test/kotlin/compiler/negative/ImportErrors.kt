@@ -10,7 +10,7 @@ class ImportErrors : FreeSpec({
             validateModule("""
                 import foo.bar.unused
                 
-                fun foo() -> String {
+                fn foo() -> String {
                     return "123"
                 }
             """.trimIndent())
@@ -21,7 +21,7 @@ class ImportErrors : FreeSpec({
             validateModule("""
                 import emerge.core.asdoghwegsdfas
                 
-                fun foo() -> String {
+                fn foo() -> String {
                     return "123"
                 }
             """.trimIndent())

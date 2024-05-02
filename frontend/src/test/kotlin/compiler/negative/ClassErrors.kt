@@ -65,7 +65,7 @@ class ClassErrors : FreeSpec({
                 a: S32 = init
             }
             
-            fun foo() {
+            fn foo() {
                 x = X(true)
             }
         """.trimIndent())
@@ -112,9 +112,9 @@ class ClassErrors : FreeSpec({
                     .shouldReport<ReadInPureContextReporting>()
             }
 
-            "cannot call readonly functions" {
+            "cannot call read functions" {
                 validateModule("""
-                    intrinsic readonly fun bar() -> S32
+                    intrinsic read fn bar() -> S32
                     class Foo {
                         x: S32 = bar()
                     }
@@ -139,7 +139,7 @@ class ClassErrors : FreeSpec({
         "must have a body" {
             validateModule("""
                 class Test {
-                    fun test(self)
+                    fn test(self)
                 }
             """.trimIndent())
                 .shouldReport<MissingFunctionBodyReporting>()
@@ -148,7 +148,7 @@ class ClassErrors : FreeSpec({
         "intrinsic must not have a body" {
             validateModule("""
                 class Test {
-                    intrinsic fun test(self) {}
+                    intrinsic fn test(self) {}
                 }
             """.trimIndent())
                 .shouldReport<IllegalFunctionBodyReporting>()
@@ -158,7 +158,7 @@ class ClassErrors : FreeSpec({
             "on class" {
                 validateModule("""
                     class Test {
-                        external(C) fun foo()
+                        external(C) fn foo()
                     }
                 """.trimIndent())
                     .shouldReport<ExternalMemberFunctionReporting>()
@@ -167,7 +167,7 @@ class ClassErrors : FreeSpec({
             "on interface" {
                 validateModule("""
                     interface Test {
-                        external(C) fun foo()
+                        external(C) fn foo()
                     }
                 """.trimIndent())
                     .shouldReport<ExternalMemberFunctionReporting>()
@@ -178,7 +178,7 @@ class ClassErrors : FreeSpec({
             "single degree of inheritance" {
                 validateModule("""
                     interface Animal {
-                        fun makeSound(self)
+                        fn makeSound(self)
                     }
                     class Dog : Animal {}
                 """.trimIndent())
@@ -188,7 +188,7 @@ class ClassErrors : FreeSpec({
             "two degrees of inheritance" {
                 validateModule("""
                     interface Animal {
-                        fun makeSound(self)
+                        fn makeSound(self)
                     }
                     interface QuadraPede : Animal {}
                     class Dog : QuadraPede {}
@@ -199,10 +199,10 @@ class ClassErrors : FreeSpec({
             "first degree of inheritance implements abstract method from second degree" {
                 validateModule("""
                     interface Animal {
-                        fun makeSound(self)
+                        fn makeSound(self)
                     }
                     interface QuadraPede : Animal {
-                        override fun makeSound(self) {}
+                        override fn makeSound(self) {}
                     }
                     class Dog : QuadraPede {}
                 """.trimIndent())
@@ -239,7 +239,7 @@ class ClassErrors : FreeSpec({
                         }
                     }
                     
-                    fun doSomething(p: S32) {}
+                    fn doSomething(p: S32) {}
                 """.trimIndent())
                     .shouldReport<UseOfUninitializedClassMemberVariableReporting> {
                         it.member.name.value shouldBe "x"
@@ -259,7 +259,7 @@ class ClassErrors : FreeSpec({
                         }
                     }
                     
-                    fun doSomething(p: Foo) {}
+                    fn doSomething(p: Foo) {}
                 """.trimIndent())
                     .shouldReport<ObjectNotFullyInitializedReporting> {
                         it.uninitializedMembers should haveSize(1)
@@ -283,7 +283,7 @@ class ClassErrors : FreeSpec({
                         }
                     }
                     
-                    fun doSomething(p: S32) {}
+                    fn doSomething(p: S32) {}
                 """.trimIndent())
                     .shouldReport<UseOfUninitializedClassMemberVariableReporting> {
                         it.member.name.value shouldBe "x"
@@ -304,7 +304,7 @@ class ClassErrors : FreeSpec({
                         }
                     }
                     
-                    fun doSomething(p: Foo) {}
+                    fn doSomething(p: Foo) {}
                 """.trimIndent())
                     .shouldReport<ObjectNotFullyInitializedReporting> {
                         it.uninitializedMembers should haveSize(1)
@@ -330,7 +330,7 @@ class ClassErrors : FreeSpec({
                         }
                     }
                     
-                    fun doSomething(p: S32) {}
+                    fn doSomething(p: S32) {}
                 """.trimIndent())
                     .shouldHaveNoDiagnostics()
             }
@@ -351,7 +351,7 @@ class ClassErrors : FreeSpec({
                         }
                     }
                     
-                    fun doSomething(borrow p: Foo) {}
+                    fn doSomething(borrow p: Foo) {}
                 """.trimIndent())
                     .shouldHaveNoDiagnostics()
             }
@@ -361,7 +361,7 @@ class ClassErrors : FreeSpec({
             "constructor is pure by default" - {
                 "cannot read global state" {
                     validateModule("""
-                        intrinsic readonly fun foo() -> S32
+                        intrinsic read fn foo() -> S32
                         x: S32 = foo()
                         class Test {
                             y: S32
@@ -386,14 +386,14 @@ class ClassErrors : FreeSpec({
                 }
             }
 
-            "constructor declared as readonly" - {
+            "constructor declared as read" - {
                 "can read global state" {
                     validateModule("""
-                        intrinsic readonly fun foo() -> S32
+                        intrinsic read fn foo() -> S32
                         x: S32 = foo()
                         class Test {
                             y: S32
-                            readonly constructor {
+                            read constructor {
                                 set self.y = x
                             }
                         }
@@ -405,7 +405,7 @@ class ClassErrors : FreeSpec({
                     validateModule("""
                         var x: S32 = 0
                         class Test {
-                            readonly constructor {
+                            read constructor {
                                 set x = 1
                             }
                         }
@@ -418,7 +418,7 @@ class ClassErrors : FreeSpec({
                 validateModule("""
                     var x = 0
                     class Test {
-                        mutable constructor {
+                        mut constructor {
                             set x = 1
                         }
                     }
@@ -469,7 +469,7 @@ class ClassErrors : FreeSpec({
         "member functions cannot re-declare type parameters declared on class level" {
             validateModule("""
                 class Test<T> {
-                    fun foo<T>() {}
+                    fn foo<T>() {}
                 }
             """.trimIndent())
                 .shouldReport<TypeParameterNameConflictReporting>()
@@ -532,10 +532,10 @@ class ClassErrors : FreeSpec({
         "static functions cannot override" {
             validateModule("""
                 interface I {
-                    fun foo()
+                    fn foo()
                 }
                 class C : I {
-                    override fun foo()
+                    override fn foo()
                 }
             """.trimIndent())
                 .shouldReport<StaticFunctionDeclaredOverrideReporting>()
@@ -544,10 +544,10 @@ class ClassErrors : FreeSpec({
         "override must be declared" {
             validateModule("""
                 interface I {
-                    fun foo(self)
+                    fn foo(self)
                 }
                 class C : I {
-                    fun foo(self) {
+                    fn foo(self) {
                     }
                 }
             """.trimIndent())
@@ -560,10 +560,10 @@ class ClassErrors : FreeSpec({
         "actually overrides nothing" {
             validateModule("""
                 interface I {
-                    fun foo(self, p: S32)
+                    fn foo(self, p: S32)
                 }
                 class C : I {
-                    override fun foo(self, p: String) {
+                    override fn foo(self, p: String) {
                     }
                 }
             """.trimIndent())
@@ -573,10 +573,10 @@ class ClassErrors : FreeSpec({
         "widening the type of a parameter does not count as overriding" {
             validateModule("""
                 interface I {
-                    fun foo(self, p1: S32)
+                    fn foo(self, p1: S32)
                 }
                 class C : I {
-                    override fun foo(self, p1: Any) {}
+                    override fn foo(self, p1: Any) {}
                 }
             """.trimIndent())
                 .shouldReport<SuperFunctionForOverrideNotFoundReporting>()
@@ -585,10 +585,10 @@ class ClassErrors : FreeSpec({
         "return type not compatible" {
             validateModule("""
                 interface I {
-                    fun foo(self) -> S32
+                    fn foo(self) -> S32
                 }
                 class C : I {
-                    override fun foo(self) -> String {
+                    override fn foo(self) -> String {
                         return ""
                     }
                 }
@@ -599,10 +599,10 @@ class ClassErrors : FreeSpec({
         "overriding function cannot have more side-effects" {
             validateModule("""
                 interface I {
-                    fun foo(self) -> S32
+                    fn foo(self) -> S32
                 }
                 class C : I {
-                    override readonly fun foo(self) -> S32 = 3
+                    override read fn foo(self) -> S32 = 3
                 }
             """.trimIndent())
                 .shouldReport<OverrideAddsSideEffectsReporting>()

@@ -1,3 +1,3 @@
 package emerge.platform
 
-export mutable fun print(str: String) {}
+export mut fn print(str: String) {}

@@ -14,7 +14,7 @@ class ExpressionErrors : FreeSpec({
             class X {
                 a: S32
             }
-            fun foo(p: X?) -> S32 {
+            fn foo(p: X?) -> S32 {
                 return p.a
             }
         """.trimIndent())
@@ -26,7 +26,7 @@ class ExpressionErrors : FreeSpec({
     "implicitly evaluating statement" - {
         "return - should not error" {
             validateModule("""
-                fun foo() -> S32 {
+                fn foo() -> S32 {
                     x: Bool = if true {
                         return 3
                     } else {
@@ -39,7 +39,7 @@ class ExpressionErrors : FreeSpec({
 
         "variable declaration" {
             validateModule("""
-                fun foo() {
+                fn foo() {
                     x: Bool = if true {
                         y = 3 
                     } else {

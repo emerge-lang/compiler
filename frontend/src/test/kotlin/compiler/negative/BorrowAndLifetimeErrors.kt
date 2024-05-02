@@ -12,7 +12,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 class Test {
                     m: S32 = 0
                 }
-                fun test() -> S32 {
+                fn test() -> S32 {
                     v: exclusive _ = Test()
                     v2 = v
                     return v.m
@@ -29,7 +29,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 class Test {
                     m: S32 = 0
                 }
-                fun test() -> S32 {
+                fn test() -> S32 {
                     v: exclusive _ = Test()
                     v2 = v
                     set v.m = 1
@@ -44,7 +44,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
         "use by return" {
             validateModule("""
                 class Test {}
-                fun test() -> immutable Test {
+                fn test() -> const Test {
                     v: exclusive _ = Test()
                     v2 = v
                     return v
@@ -60,13 +60,13 @@ class BorrowAndLifetimeErrors : FreeSpec({
     "assigning to a variable ends the lifetime" {
         validateModule("""
             class Test {}
-            fun test() -> Test {
-                var v2: immutable _ = Test()
+            fn test() -> Test {
+                var v2: const _ = Test()
                 v: exclusive _ = Test()
                 set v2 = v
                 return v
             }
-            fun capture(p: immutable Test) {}
+            fn capture(p: const Test) {}
         """.trimIndent())
             .shouldReport<VariableUsedAfterLifetimeReporting> {
                 it.variable.name.value shouldBe "v"
@@ -77,12 +77,12 @@ class BorrowAndLifetimeErrors : FreeSpec({
     "passing to capturing function parameter ends lifetime" {
         validateModule("""
             class Test {}
-            fun test() -> Test {
+            fn test() -> Test {
                 v: exclusive _ = Test()
                 capture(v)
                 return v
             }
-            fun capture(p: immutable Test) {}
+            fn capture(p: const Test) {}
         """.trimIndent())
             .shouldReport<VariableUsedAfterLifetimeReporting> {
                 it.variable.name.value shouldBe "v"
@@ -94,8 +94,8 @@ class BorrowAndLifetimeErrors : FreeSpec({
         "lifetime ended in then-only if" {
             validateModule("""
                 class Test {}
-                fun capture(p: Test) {}
-                fun test(cond: Bool) {
+                fn capture(p: Test) {}
+                fn test(cond: Bool) {
                     v: exclusive _ = Test()
                     if (cond) {
                         v2 = v
@@ -112,8 +112,8 @@ class BorrowAndLifetimeErrors : FreeSpec({
         "lifetime ended in one branch of if" {
             validateModule("""
                 class Test {}
-                fun capture(p: Test) {}
-                fun test(cond: Bool) {
+                fn capture(p: Test) {}
+                fn test(cond: Bool) {
                     v: exclusive _ = Test()
                     if (cond) {
                         v2 = v
@@ -131,8 +131,8 @@ class BorrowAndLifetimeErrors : FreeSpec({
         "lifetime ended in both branches of if" {
             validateModule("""
                 class Test {}
-                fun capture(p: Test) {}
-                fun test(cond: Bool) {
+                fn capture(p: Test) {}
+                fn test(cond: Bool) {
                     v: exclusive _ = Test()
                     if (cond) {
                         v2 = v
@@ -153,8 +153,8 @@ class BorrowAndLifetimeErrors : FreeSpec({
         "capture by passing to a capturing function parameter" {
             validateModule("""
                 class Test {}
-                fun capture(p1: Test) {}
-                fun test(borrow p2: Test) {
+                fn capture(p1: Test) {}
+                fn test(borrow p2: Test) {
                     capture(p2)
                 }
             """.trimIndent())
@@ -166,7 +166,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
         "capture by initializing a variable" {
             validateModule("""
                 class Test {}
-                fun test(borrow p2: Test) {
+                fn test(borrow p2: Test) {
                     p3 = p2
                 }
             """.trimIndent())
@@ -178,7 +178,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
         "capture by passing assigning to a variable" {
             validateModule("""
                 class Test {}
-                fun test(borrow p2: Test) {
+                fn test(borrow p2: Test) {
                     var v = Test()
                     v = p2
                 }
@@ -194,9 +194,9 @@ class BorrowAndLifetimeErrors : FreeSpec({
             class Test {
                 m: S32 = 0
             }
-            fun borrowMut(borrow p1: mutable Test) {}
-            fun borrowImm(borrow p2: immutable Test) {}
-            fun test() -> Test {
+            fn borrowMut(borrow p1: mut Test) {}
+            fn borrowImm(borrow p2: const Test) {}
+            fn test() -> Test {
                 v: exclusive _ = Test()
                 borrowMut(v)
                 borrowImm(v)
@@ -206,13 +206,13 @@ class BorrowAndLifetimeErrors : FreeSpec({
             .shouldHaveNoDiagnostics()
     }
 
-    "readonly capture doesn't end a lifetime" {
+    "read capture doesn't end a lifetime" {
         validateModule("""
             class Test {
                 m: S32 = 0
             }
-            fun captureRead(p1: readonly Test) {}
-            fun test() -> Test {
+            fn captureRead(p1: read Test) {}
+            fn test() -> Test {
                 v: exclusive _ = Test()
                 captureRead(v)
                 return v
@@ -225,8 +225,8 @@ class BorrowAndLifetimeErrors : FreeSpec({
         "definitely with linear control flow" {
             validateModule("""
                 class Test {}
-                fun capture(p: immutable Any) {}
-                fun test() {
+                fn capture(p: const Any) {}
+                fn test() {
                     var v1: exclusive _ = Test()
                     capture(v1)
                     set v1 = Test()
@@ -239,8 +239,8 @@ class BorrowAndLifetimeErrors : FreeSpec({
         "definitely with branched control flow" {
             validateModule("""
                 class Test {}
-                fun capture(p: immutable Any) {}
-                fun test(cond: Bool) {
+                fn capture(p: const Any) {}
+                fn test(cond: Bool) {
                     var v1: exclusive _ = Test()
                     capture(v1)
                     if cond {
@@ -257,8 +257,8 @@ class BorrowAndLifetimeErrors : FreeSpec({
         "maybe with branched control flow" {
             validateModule("""
                 class Test {}
-                fun capture(p: immutable Any) {}
-                fun test(cond: Bool) {
+                fn capture(p: const Any) {}
+                fn test(cond: Bool) {
                     var v1: exclusive _ = Test()
                     capture(v1)
                     if cond {

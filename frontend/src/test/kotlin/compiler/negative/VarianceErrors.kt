@@ -167,19 +167,19 @@ class VarianceErrors : FreeSpec({
         }
     }
 
-    "in-variant type argument assumes type readonly Any? in out-position" {
+    "in-variant type argument assumes type read Any? in out-position" {
         validateModule("""
                 class A<T : Number> {
                     p: T
                 }
-                fun test<T : Number>() {
+                fn test<T : Number>() {
                     a: A<in S32> = A(2)
                     var x: T
                     set x = a.p
                 }
             """.trimIndent())
             .shouldReport<ValueNotAssignableReporting> {
-                it.sourceType.toString() shouldBe "readonly Any?"
+                it.sourceType.toString() shouldBe "read Any?"
                 it.targetType.toString() shouldBe "T"
             }
     }

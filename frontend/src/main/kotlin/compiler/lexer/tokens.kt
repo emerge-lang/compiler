@@ -25,13 +25,13 @@ enum class Keyword(val text: String)
     PACKAGE("package"),
     IMPORT("import"),
 
-    FUNCTION("fun"),
+    FUNCTION("fn"),
     VAR("var"),
     SET("set"),
 
-    MUTABLE("mutable"),
-    READONLY("readonly"),
-    IMMUTABLE("immutable"),
+    MUTABLE("mut"),
+    READONLY("read"),
+    IMMUTABLE("const"),
     EXCLUSIVE("exclusive"),
 
     NOTHROW("nothrow"),

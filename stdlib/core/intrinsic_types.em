@@ -37,9 +37,9 @@ export class U16 {
 export class S32 {
     private constructor {}
 
-    export intrinsic operator fun unaryMinus(self) -> S32
-    export intrinsic operator fun opPlus(self, summand: S32) -> S32
-    export intrinsic operator fun opMinus(self, operand: S32) -> S32
+    export intrinsic operator fn unaryMinus(self) -> S32
+    export intrinsic operator fn opPlus(self, summand: S32) -> S32
+    export intrinsic operator fn opMinus(self, operand: S32) -> S32
 }
 
 export class U32 {
@@ -57,16 +57,16 @@ export class U64 {
 export class SWord {
     private constructor {}
 
-    export intrinsic operator fun unaryMinus(self) -> SWord
-    export intrinsic operator fun opPlus(self, summand: SWord) -> SWord
-    export intrinsic operator fun opMinus(self, summand: SWord) -> SWord
+    export intrinsic operator fn unaryMinus(self) -> SWord
+    export intrinsic operator fn opPlus(self, summand: SWord) -> SWord
+    export intrinsic operator fn opMinus(self, summand: SWord) -> SWord
 }
 
 export class UWord {
     private constructor {}
 
-    export intrinsic operator fun opPlus(self, summand: UWord) -> UWord
-    export intrinsic operator fun opMinus(self, summand: UWord) -> UWord
+    export intrinsic operator fn opPlus(self, summand: UWord) -> UWord
+    export intrinsic operator fn opMinus(self, summand: UWord) -> UWord
 }
 
 export class Bool {
@@ -78,9 +78,9 @@ export class Array<Element> {
 
     private constructor {}
 
-    export intrinsic fun get(self: readonly _<out Element>, index: UWord) -> Element
+    export intrinsic fn get(self: read _<out Element>, index: UWord) -> Element
 
-    export intrinsic fun set(self: mutable _<in Element>, index: UWord, value: Element) -> Unit
+    export intrinsic fn set(self: mut _<in Element>, index: UWord, value: Element) -> Unit
 
-    export intrinsic fun size(self: readonly _) -> UWord
+    export intrinsic fn size(self: read _) -> UWord
 }

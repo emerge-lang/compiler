@@ -22,7 +22,7 @@ class TypeErrors : FreeSpec({
                     prop: T
                 }
                 
-                fun foo() {
+                fn foo() {
                     var myX: X<out Number> = X(2)
                     set myX.prop = 2
                 }
@@ -32,7 +32,7 @@ class TypeErrors : FreeSpec({
 
         "assignment of generically typed value to directly typed variable" {
             validateModule("""
-                fun foo<T>(p: T) {
+                fn foo<T>(p: T) {
                     x: Any? = p
                 }
             """.trimIndent())
@@ -41,7 +41,7 @@ class TypeErrors : FreeSpec({
 
         "assignment of directly typed value to generically typed variable" {
             validateModule("""
-                fun foo<T>() {
+                fn foo<T>() {
                     x: T = false
                 }
             """.trimIndent())
@@ -57,7 +57,7 @@ class TypeErrors : FreeSpec({
                     class Foo<T> {
                         var prop: T = init
                     }
-                    fun test<T>(tInst1: T, tInst2: T) {
+                    fn test<T>(tInst1: T, tInst2: T) {
                         var v = Foo(tInst1)
                         set v.prop = tInst2
                     }
@@ -70,13 +70,13 @@ class TypeErrors : FreeSpec({
                     class Foo<T> {
                         var x: T = init
                     }
-                    fun test<T>(tInst1: T) {
+                    fn test<T>(tInst1: T) {
                         var v = Foo(tInst1)
                         set v.x = false
                     }
                 """.trimIndent())
                     .shouldReport<ValueNotAssignableReporting> {
-                        it.sourceType.toString() shouldBe "immutable Bool"
+                        it.sourceType.toString() shouldBe "const Bool"
                         it.targetType.toString() shouldBe "T"
                     }
             }
@@ -160,10 +160,10 @@ class TypeErrors : FreeSpec({
         "reference to generic type with incompatible type argument mutability" - {
             "declaration-site" {
                 validateModule("""
-                    class A<T : mutable Any> {
+                    class A<T : mut Any> {
                         prop: T
                     }
-                    fun foo(p: A<immutable S32>) {}
+                    fn foo(p: A<const S32>) {}
                 """.trimIndent())
                     .shouldReport<TypeArgumentOutOfBoundsReporting> {
                         it.argument.astNode.type shouldBe TypeReference("S32", TypeReference.Nullability.UNSPECIFIED, TypeMutability.IMMUTABLE)
@@ -172,15 +172,15 @@ class TypeErrors : FreeSpec({
 
             "use-site" {
                 validateModule("""
-                    class A<T : mutable Any> {
+                    class A<T : mut Any> {
                         prop: T = init
                     }
                     x = A(2)
                 """.trimIndent())
                     .shouldReport<ValueNotAssignableReporting> {
-                        it.sourceType.toString() shouldBe "immutable S32"
-                        it.targetType.toString() shouldBe "mutable Any"
-                        it.reason shouldBe "cannot assign a immutable value to a mutable reference"
+                        it.sourceType.toString() shouldBe "const S32"
+                        it.targetType.toString() shouldBe "mut Any"
+                        it.reason shouldBe "cannot assign a const value to a mut reference"
                     }
             }
         }
@@ -194,8 +194,8 @@ class TypeErrors : FreeSpec({
                 x: A<S32> = A(2, false)
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.sourceType.toString() shouldBe "immutable Any"
-                    it.targetType.toString() shouldBe "immutable S32"
+                    it.sourceType.toString() shouldBe "const Any"
+                    it.targetType.toString() shouldBe "const S32"
                 }
         }
 
@@ -227,8 +227,8 @@ class TypeErrors : FreeSpec({
                 y: Array<String> = x
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.sourceType.toString() shouldBe "immutable Any"
-                    it.targetType.toString() shouldBe "immutable String"
+                    it.sourceType.toString() shouldBe "const Any"
+                    it.targetType.toString() shouldBe "const String"
                 }
         }
 
@@ -239,8 +239,8 @@ class TypeErrors : FreeSpec({
                     y: Array<String> = x
                 """.trimIndent())
                     .shouldReport<ValueNotAssignableReporting> {
-                        it.sourceType.toString() shouldBe "immutable S32"
-                        it.targetType.toString() shouldBe "immutable String"
+                        it.sourceType.toString() shouldBe "const S32"
+                        it.targetType.toString() shouldBe "const String"
                     }
             }
 
@@ -250,8 +250,8 @@ class TypeErrors : FreeSpec({
                     y: Array<String> = x
                 """.trimIndent())
                     .shouldReport<ValueNotAssignableReporting> {
-                        it.sourceType.toString() shouldBe "immutable S32"
-                        it.targetType.toString() shouldBe "immutable String"
+                        it.sourceType.toString() shouldBe "const S32"
+                        it.targetType.toString() shouldBe "const String"
                     }
             }
         }
@@ -262,8 +262,8 @@ class TypeErrors : FreeSpec({
                 y: Array<String> = x
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.sourceType.toString() shouldBe "immutable S32"
-                    it.targetType.toString() shouldBe "immutable String"
+                    it.sourceType.toString() shouldBe "const S32"
+                    it.targetType.toString() shouldBe "const String"
                 }
         }
 
@@ -272,8 +272,8 @@ class TypeErrors : FreeSpec({
                 x: Array<S32> = [1, 2, 3, "4"]
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.sourceType.toString() shouldBe "immutable String"
-                    it.targetType.toString() shouldBe "immutable S32"
+                    it.sourceType.toString() shouldBe "const String"
+                    it.targetType.toString() shouldBe "const S32"
                 }
         }
     }

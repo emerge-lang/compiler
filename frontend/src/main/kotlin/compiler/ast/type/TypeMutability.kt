@@ -18,13 +18,16 @@
 
 package compiler.ast.type
 
+import compiler.lexer.Keyword
+
 enum class TypeMutability(
+    val keyword: Keyword,
     val isMutable: Boolean,
 ) {
-    MUTABLE(isMutable = true),
-    READONLY(isMutable = false),
-    IMMUTABLE(isMutable = false),
-    EXCLUSIVE(isMutable = true),
+    MUTABLE(Keyword.MUTABLE, isMutable = true),
+    READONLY(Keyword.READONLY, isMutable = false),
+    IMMUTABLE(Keyword.IMMUTABLE, isMutable = false),
+    EXCLUSIVE(Keyword.EXCLUSIVE, isMutable = true),
     ;
 
     infix fun isAssignableTo(targetMutability: TypeMutability): Boolean =
@@ -62,5 +65,5 @@ enum class TypeMutability(
         else -> READONLY
     }
 
-    override fun toString() = name.lowercase()
+    override fun toString() = keyword.text
 }

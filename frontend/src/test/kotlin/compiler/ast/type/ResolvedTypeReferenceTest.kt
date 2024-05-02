@@ -53,94 +53,94 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
         val immutableC = readonlyC.withMutability(TypeMutability.IMMUTABLE)
 
         "the closest common ancestor of" - {
-            "mutable B and mutable A is mutable A" {
+            "mut B and mut A is mut A" {
                 mutableA.closestCommonSupertypeWith(mutableB) shouldBe mutableA
                 mutableB.closestCommonSupertypeWith(mutableA) shouldBe mutableA
             }
 
-            "mutable B and readonly A is readonly A" {
+            "mut B and read A is read A" {
                 readonlyA.closestCommonSupertypeWith(mutableB) shouldBe readonlyA
                 mutableB.closestCommonSupertypeWith(readonlyA) shouldBe readonlyA
             }
 
-            "mutable B and immutable A is readonly A" {
+            "mut B and const A is read A" {
                 immutableA.closestCommonSupertypeWith(mutableB) shouldBe readonlyA
                 mutableB.closestCommonSupertypeWith(immutableA) shouldBe readonlyA
             }
 
-            "readonly B and mutable A is readonly A" {
+            "read B and mut A is read A" {
                 mutableA.closestCommonSupertypeWith(readonlyB) shouldBe readonlyA
                 readonlyB.closestCommonSupertypeWith(mutableA) shouldBe readonlyA
             }
 
-            "readonly B and readonly A is readonly A" {
+            "read B and read A is read A" {
                 readonlyA.closestCommonSupertypeWith(readonlyB) shouldBe readonlyA
                 readonlyB.closestCommonSupertypeWith(readonlyA) shouldBe readonlyA
             }
 
-            "readonly B and immutable A is readonly A" {
+            "read B and const A is read A" {
                 immutableA.closestCommonSupertypeWith(readonlyB) shouldBe readonlyA
                 readonlyB.closestCommonSupertypeWith(immutableA) shouldBe readonlyA
             }
 
-            "immutable B and mutable A is readonly A" {
+            "const B and mut A is read A" {
                 mutableA.closestCommonSupertypeWith(immutableB) shouldBe readonlyA
                 immutableB.closestCommonSupertypeWith(mutableA) shouldBe readonlyA
             }
 
-            "immutable B and readonly A is readonly A" {
+            "const B and read A is read A" {
                 readonlyA.closestCommonSupertypeWith(immutableB) shouldBe readonlyA
                 immutableB.closestCommonSupertypeWith(readonlyA) shouldBe readonlyA
             }
 
-            "immutable B and immutable A is immutable A" {
+            "const B and const A is const A" {
                 immutableA.closestCommonSupertypeWith(immutableB) shouldBe immutableA
                 immutableB.closestCommonSupertypeWith(immutableA) shouldBe immutableA
             }
 
             //----
 
-            "mutable B and mutable C is mutable A" {
+            "mut B and mut C is mut A" {
                 mutableC.closestCommonSupertypeWith(mutableB) shouldBe mutableA
                 mutableB.closestCommonSupertypeWith(mutableC) shouldBe mutableA
             }
 
-            "mutable B and readonly C is readonly A" {
+            "mut B and read C is read A" {
                 readonlyC.closestCommonSupertypeWith(mutableB) shouldBe readonlyA
                 mutableB.closestCommonSupertypeWith(readonlyC) shouldBe readonlyA
             }
 
-            "mutable B and immutable C is readonly A" {
+            "mut B and const C is read A" {
                 immutableC.closestCommonSupertypeWith(mutableB) shouldBe readonlyA
                 mutableB.closestCommonSupertypeWith(immutableC) shouldBe readonlyA
             }
 
-            "readonly B and mutable C is readonly A" {
+            "read B and mut C is read A" {
                 mutableC.closestCommonSupertypeWith(readonlyB) shouldBe readonlyA
                 readonlyB.closestCommonSupertypeWith(mutableC) shouldBe readonlyA
             }
 
-            "readonly B and readonly C is readonly A" {
+            "read B and read C is read A" {
                 readonlyC.closestCommonSupertypeWith(readonlyB) shouldBe readonlyA
                 readonlyB.closestCommonSupertypeWith(readonlyC) shouldBe readonlyA
             }
 
-            "readonly B and immutable C is readonly A" {
+            "read B and const C is read A" {
                 immutableC.closestCommonSupertypeWith(readonlyB) shouldBe readonlyA
                 readonlyB.closestCommonSupertypeWith(immutableC) shouldBe readonlyA
             }
 
-            "immutable B and mutable C is readonly A" {
+            "const B and mut C is read A" {
                 mutableC.closestCommonSupertypeWith(immutableB) shouldBe readonlyA
                 immutableB.closestCommonSupertypeWith(mutableC) shouldBe readonlyA
             }
 
-            "immutable B and readonly C is readonly A" {
+            "const B and read C is read A" {
                 readonlyC.closestCommonSupertypeWith(immutableB) shouldBe readonlyA
                 immutableB.closestCommonSupertypeWith(readonlyC) shouldBe readonlyA
             }
 
-            "immutable B and immutable C is immutable A" {
+            "const B and const C is const A" {
                 immutableC.closestCommonSupertypeWith(immutableB) shouldBe immutableA
                 immutableB.closestCommonSupertypeWith(immutableC) shouldBe immutableA
             }

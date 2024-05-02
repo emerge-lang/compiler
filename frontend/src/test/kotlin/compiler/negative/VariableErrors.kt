@@ -52,7 +52,7 @@ class VariableErrors : FreeSpec({
     "in function" - {
         "cannot assign to final variable" {
             validateModule("""
-                fun foo() {
+                fn foo() {
                     a = 3
                     set a = 5
                 }
@@ -62,7 +62,7 @@ class VariableErrors : FreeSpec({
 
         "cannot assign to a type" {
             validateModule("""
-                fun foo() {
+                fn foo() {
                     set S32 = 3
                 }
             """.trimIndent())
@@ -71,7 +71,7 @@ class VariableErrors : FreeSpec({
 
         "cannot assign to value" {
             validateModule("""
-                fun foo() {
+                fn foo() {
                     set false  = 3
                 }
             """.trimIndent())
@@ -80,7 +80,7 @@ class VariableErrors : FreeSpec({
 
         "cannot assign to parameter" {
             validateModule("""
-                fun foo(p: S32) {
+                fn foo(p: S32) {
                     set p = 2
                 }
             """.trimIndent())
@@ -89,7 +89,7 @@ class VariableErrors : FreeSpec({
 
         "variable declared multiple times" {
             validateModule("""
-                fun foo() {
+                fn foo() {
                     x = 3
                     a = 1
                     x = true
@@ -112,7 +112,7 @@ class VariableErrors : FreeSpec({
 
         "unknown declared type" {
             validateModule("""
-                fun test() {
+                fn test() {
                     foo: Foo
                 }
             """.trimIndent())
@@ -121,7 +121,7 @@ class VariableErrors : FreeSpec({
 
         "cannot declare ownership" {
             validateModule("""
-                fun test() {
+                fn test() {
                     capture x: String
                 }
             """.trimIndent())
@@ -138,9 +138,9 @@ class VariableErrors : FreeSpec({
 
             "local final variable can be assigned after declaration and then accessed" {
                 validateModule("""
-                    fun bar(p: S32) {
+                    fn bar(p: S32) {
                     }
-                    fun foo() {
+                    fn foo() {
                         a: S32
                         bar(1)
                         set a = 3
@@ -152,8 +152,8 @@ class VariableErrors : FreeSpec({
 
             "local final variable cannot be accessed before initialization" {
                 validateModule("""
-                    fun bar(p: S32) {}
-                    fun foo() {
+                    fn bar(p: S32) {}
+                    fn foo() {
                         a: S32
                         bar(a)
                         set a = 3
@@ -164,9 +164,9 @@ class VariableErrors : FreeSpec({
 
             "local non-final variable can be assigned after declaration and then accessed, and reassigned" {
                 validateModule("""
-                    fun bar(p: S32) {
+                    fn bar(p: S32) {
                     }
-                    fun foo() {
+                    fn foo() {
                         var a: S32
                         bar(1)
                         set a = 3
@@ -179,8 +179,8 @@ class VariableErrors : FreeSpec({
 
             "local non-final variable cannot be accessed before initialization" {
                 validateModule("""
-                    fun bar(p: S32) {}
-                    fun foo() {
+                    fn bar(p: S32) {}
+                    fn foo() {
                         var a: S32
                         bar(a)
                         a = 3
@@ -193,9 +193,9 @@ class VariableErrors : FreeSpec({
 
             "cannot access variable that is only maybe initialized" {
                 validateModule("""
-                    readonly intrinsic fun random() -> Bool
-                    fun doStuff(p: S32) {}
-                    readonly fun test() {
+                    read intrinsic fn random() -> Bool
+                    fn doStuff(p: S32) {}
+                    read fn test() {
                         x: S32
                         if (random()) {
                             set x = 3
@@ -210,9 +210,9 @@ class VariableErrors : FreeSpec({
 
             "accessing a variable that is initialized in two branches of an if-expression is okay" {
                 validateModule("""
-                    readonly intrinsic fun random() -> Bool
-                    fun doStuff(p: S32) {}
-                    readonly fun test() {
+                    read intrinsic fn random() -> Bool
+                    fn doStuff(p: S32) {}
+                    read fn test() {
                         x: S32
                         if (random()) {
                             set x = 3
@@ -227,9 +227,9 @@ class VariableErrors : FreeSpec({
 
             "assigning to a assign-once variable that maybe have already been initialized is not allowed" {
                 validateModule("""
-                    readonly intrinsic fun random() -> Bool
-                    fun doStuff(p: S32) {}
-                    readonly fun test() {
+                    read intrinsic fn random() -> Bool
+                    fn doStuff(p: S32) {}
+                    read fn test() {
                         x: S32
                         if (random()) {
                             set x = 3
@@ -247,7 +247,7 @@ class VariableErrors : FreeSpec({
     "shadowing" - {
         "in function - forbidden" {
             validateModule("""
-                fun foo() {
+                fn foo() {
                     a = 3
                     if true {
                         a = 3
@@ -262,7 +262,7 @@ class VariableErrors : FreeSpec({
 
         "in function - shadowing parameter" {
             validateModule("""
-                fun foo(a: S32) {
+                fn foo(a: S32) {
                     a = false
                 }
             """.trimIndent())
@@ -275,7 +275,7 @@ class VariableErrors : FreeSpec({
         "in function - shadowing global" {
             validateModule("""
                 a = 3
-                fun foo() {
+                fn foo() {
                     a = false
                 }
             """.trimIndent())
@@ -288,7 +288,7 @@ class VariableErrors : FreeSpec({
         "in function - parameter shadowing global" {
             validateModule("""
                 a = 3
-                fun foo(a: Bool) {
+                fn foo(a: Bool) {
                 }
             """.trimIndent())
                 .shouldReport<MultipleVariableDeclarationsReporting> {
@@ -301,7 +301,7 @@ class VariableErrors : FreeSpec({
     "scoping" - {
         "variable accessed outside of its scope" {
             validateModule("""
-                fun foo() -> S32 {
+                fn foo() -> S32 {
                     if true {
                         a = 3
                     }

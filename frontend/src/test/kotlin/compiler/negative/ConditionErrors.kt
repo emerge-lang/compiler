@@ -7,7 +7,7 @@ import io.kotest.core.spec.style.FreeSpec
 class ConditionErrors : FreeSpec({
     "if on non-Bool" {
         validateModule("""
-            fun test() {
+            fn test() {
                 if 3 {
                 
                 }
@@ -19,11 +19,11 @@ class ConditionErrors : FreeSpec({
     "if containing mutation" {
         validateModule("""
             var x = 0
-            mutable fun modifyingFn() -> Bool {
+            mut fn modifyingFn() -> Bool {
                 set x = 1
                 return true
             }
-            fun test() {
+            fn test() {
                 if modifyingFn() {
                     
                 }

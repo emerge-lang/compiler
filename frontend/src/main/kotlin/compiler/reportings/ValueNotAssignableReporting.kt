@@ -53,20 +53,20 @@ open class ValueNotAssignableReporting(
 
         when (sourceType.mutability) {
             TypeMutability.MUTABLE -> when (targetType.mutability) {
-                TypeMutability.IMMUTABLE -> return "An immutable value is needed here, this one is mutable."
-                TypeMutability.EXCLUSIVE -> return "An exclusive value is needed here, this one is mutable."
+                TypeMutability.IMMUTABLE -> return "A const value is needed here, this one is mut."
+                TypeMutability.EXCLUSIVE -> return "An exclusive value is needed here, this one is mut."
                 TypeMutability.READONLY,
                 TypeMutability.MUTABLE -> throw InternalCompilerError("This should not have happened")
             }
             TypeMutability.READONLY -> when (targetType.mutability) {
-                TypeMutability.MUTABLE -> return "Cannot mutate this value, this is a readonly reference."
-                TypeMutability.EXCLUSIVE -> return "An exclusive value is needed here; this is a readonly reference."
+                TypeMutability.MUTABLE -> return "Cannot mutate this value, this is a read reference."
+                TypeMutability.EXCLUSIVE -> return "An exclusive value is needed here; this is a read reference."
                 TypeMutability.READONLY -> throw InternalCompilerError("This should not have happened")
-                TypeMutability.IMMUTABLE -> return "An immutable value is needed here. This is a readonly reference, immutability is not guaranteed."
+                TypeMutability.IMMUTABLE -> return "A const value is needed here. This is a read reference, immutability is not guaranteed."
             }
             TypeMutability.IMMUTABLE -> when (targetType.mutability) {
-                TypeMutability.MUTABLE -> return "Cannot mutate this value. In fact, this is an immutable value."
-                TypeMutability.EXCLUSIVE -> return "An exclusive value is needed here, this one is immutable."
+                TypeMutability.MUTABLE -> return "Cannot mutate this value. In fact, this is an const value."
+                TypeMutability.EXCLUSIVE -> return "An exclusive value is needed here, this one is const."
                 TypeMutability.READONLY,
                 TypeMutability.IMMUTABLE -> throw InternalCompilerError("This should not have happened")
             }

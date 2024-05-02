@@ -41,8 +41,8 @@ class UnificationTest : FreeSpec({
             """.trimIndent()
             )
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.sourceType.toString() shouldBe "immutable Any"
-                    it.targetType.toString() shouldBe "immutable S32"
+                    it.sourceType.toString() shouldBe "const Any"
+                    it.targetType.toString() shouldBe "const S32"
                 }
         }
     }
@@ -60,7 +60,7 @@ class UnificationTest : FreeSpec({
          */
         validateModule(
             """
-                fun foo<T, E>(p1: T, p2: E) -> T {
+                fn foo<T, E>(p1: T, p2: E) -> T {
                     x: E = foo(p2, p1)
                     return p1
                 }
@@ -72,7 +72,7 @@ class UnificationTest : FreeSpec({
     "generic bound as supertype" - {
         "positive" {
             validateModule("""
-                fun foo<A, B : A>(someA: A, someB: B) {
+                fn foo<A, B : A>(someA: A, someB: B) {
                     otherA: A = someB
                 }
             """.trimIndent())
@@ -82,7 +82,7 @@ class UnificationTest : FreeSpec({
         "negative A" {
             // as compared to the positive case, B does not have A as the bound, so the assignment becomes illegal
             validateModule("""
-                fun foo<A, B>(someA: A, someB: B) {
+                fn foo<A, B>(someA: A, someB: B) {
                     otherA: A = someB
                 }
             """.trimIndent())
@@ -95,7 +95,7 @@ class UnificationTest : FreeSpec({
         "subtyping direction is correct" {
             // as compared to the positive case, the type hierarchy is flipped, also making the assignment illegal
             validateModule("""
-                fun foo<A : B, B>(someA: A, someB: B) {
+                fn foo<A : B, B>(someA: A, someB: B) {
                     otherA: A = someB
                 }
             """.trimIndent())

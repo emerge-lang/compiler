@@ -9,7 +9,7 @@ import io.kotest.matchers.shouldBe
 class OperatorOverloadErrors : FreeSpec({
     "unary minus not declared" {
         validateModule("""
-            fun foo() {
+            fn foo() {
                 a = - false
             }
         """.trimIndent())
@@ -18,7 +18,7 @@ class OperatorOverloadErrors : FreeSpec({
 
     "binary plus not declared" {
         validateModule("""
-            fun foo() {
+            fn foo() {
                 a = false + true
             }
         """.trimIndent())
@@ -27,8 +27,8 @@ class OperatorOverloadErrors : FreeSpec({
 
     "unary minus declared without operator modifier" {
         validateModule("""
-            intrinsic fun unaryMinus(self: Bool) -> Bool
-            fun foo() {
+            intrinsic fn unaryMinus(self: Bool) -> Bool
+            fn foo() {
                 x = -false
             }
         """.trimIndent())

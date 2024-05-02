@@ -28,7 +28,7 @@ class VisibilityTests : FreeSpec({
                     
                     import module_A.x 
                     
-                    fun dummy() {}
+                    fn dummy() {}
                 """.trimIndent())
             )
                 .shouldReport<ElementNotAccessibleReporting> {
@@ -48,7 +48,7 @@ class VisibilityTests : FreeSpec({
                     
                     import module_A.* 
                     
-                    fun dummy() = x
+                    fn dummy() = x
                 """.trimIndent())
             )
                 .shouldReport<ElementNotAccessibleReporting> {
@@ -70,7 +70,7 @@ class VisibilityTests : FreeSpec({
                 IntegrationTestModule.of("module_B", """
                     package module_B
                     import module_A.Foo
-                    fun test() -> S32 {
+                    fn test() -> S32 {
                         v = Foo()
                         return v.x
                     }
@@ -93,7 +93,7 @@ class VisibilityTests : FreeSpec({
                 IntegrationTestModule.of("module_B", """
                     package module_B
                     import module_A.Foo
-                    fun test() {
+                    fn test() {
                         v = Foo()
                         set v.x = 5
                     }
@@ -146,13 +146,13 @@ class VisibilityTests : FreeSpec({
                     
                     class Foo {
                         export constructor {}
-                        module fun foo(self) {}
+                        module fn foo(self) {}
                     }
                 """.trimIndent()),
                 IntegrationTestModule.of("module_B", """
                     package module_B
                     import module_A.Foo
-                    fun test() {
+                    fn test() {
                         v = Foo()
                         v.foo()
                     }
@@ -177,7 +177,7 @@ class VisibilityTests : FreeSpec({
                 IntegrationTestModule.of("module_B", """
                     package module_B
                     import module_A.Foo
-                    fun test() {
+                    fn test() {
                         v = Foo()
                     }
                 """.trimIndent()),
@@ -194,12 +194,12 @@ class VisibilityTests : FreeSpec({
                 IntegrationTestModule.of("module_A", """
                     package module_A
                     
-                    module fun foo() {}
+                    module fn foo() {}
                 """.trimIndent()),
                 IntegrationTestModule.of("module_B", """
                     package module_B
                     import module_A.foo
-                    fun dummy() {}
+                    fn dummy() {}
                 """.trimIndent()),
             )
                 .shouldReport<ElementNotAccessibleReporting> {
@@ -212,12 +212,12 @@ class VisibilityTests : FreeSpec({
                 IntegrationTestModule.of("module_A", """
                     package module_A
                     
-                    module fun foo() {}
+                    module fn foo() {}
                 """.trimIndent()),
                 IntegrationTestModule.of("module_B", """
                     package module_B
                     import module_A.*
-                    fun test() {
+                    fn test() {
                         foo()
                     }
                 """.trimIndent()),
@@ -239,7 +239,7 @@ class VisibilityTests : FreeSpec({
                 IntegrationTestModule.of("module_B", """
                     package module_B
                     import module_A.Foo
-                    fun dummy() {}
+                    fn dummy() {}
                 """.trimIndent()),
             )
                 .shouldReport<ElementNotAccessibleReporting> {
@@ -258,7 +258,7 @@ class VisibilityTests : FreeSpec({
                     IntegrationTestModule.of("module_B", """
                         package module_B
                         import module_A.*
-                        fun test() -> Foo {}
+                        fn test() -> Foo {}
                     """.trimIndent()),
                 )
                     .shouldReport<ElementNotAccessibleReporting> {
@@ -276,7 +276,7 @@ class VisibilityTests : FreeSpec({
                     IntegrationTestModule.of("module_B", """
                         package module_B
                         import module_A.*
-                        fun test<T : Foo>() {}
+                        fn test<T : Foo>() {}
                     """.trimIndent()),
                 )
                     .shouldReport<ElementNotAccessibleReporting> {
@@ -295,7 +295,7 @@ class VisibilityTests : FreeSpec({
                         package module_B
                         import module_A.*
                         class Bar<T> {}
-                        intrinsic fun test() -> Bar<Foo>
+                        intrinsic fn test() -> Bar<Foo>
                     """.trimIndent()),
                 )
                     .shouldReport<ElementNotAccessibleReporting> {
@@ -309,7 +309,7 @@ class VisibilityTests : FreeSpec({
         "function parameter" {
             validateModule("""
                 private class Foo {}
-                module fun test(p: Foo) {}
+                module fn test(p: Foo) {}
             """.trimIndent())
                 .shouldReport<HiddenTypeExposedReporting> {
                     it.type.simpleName shouldBe "Foo"
@@ -320,7 +320,7 @@ class VisibilityTests : FreeSpec({
             validateModule("""
                 export class A<T> {}
                 private class B {}
-                export fun test(p: A<B>) {}
+                export fn test(p: A<B>) {}
             """.trimIndent())
                 .shouldReport<HiddenTypeExposedReporting> {
                     it.type.simpleName shouldBe "B"
@@ -330,7 +330,7 @@ class VisibilityTests : FreeSpec({
         "function return type" {
             validateModule("""
                 private class Foo {}
-                module fun test() -> Foo {}
+                module fn test() -> Foo {}
             """.trimIndent())
                 .shouldReport<HiddenTypeExposedReporting> {
                     it.type.simpleName shouldBe "Foo"
@@ -341,7 +341,7 @@ class VisibilityTests : FreeSpec({
             validateModule("""
                 export class A<T> {}
                 private class B {}
-                intrinsic export fun test() -> A<B>
+                intrinsic export fn test() -> A<B>
             """.trimIndent())
                 .shouldReport<HiddenTypeExposedReporting> {
                     it.type.simpleName shouldBe "B"
@@ -351,7 +351,7 @@ class VisibilityTests : FreeSpec({
         "function type parameter bound" {
             validateModule("""
                 private class Foo {}
-                module fun test<T : Foo>() {}
+                module fn test<T : Foo>() {}
             """.trimIndent())
                 .shouldReport<HiddenTypeExposedReporting> {
                     it.type.simpleName shouldBe "Foo"

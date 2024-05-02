@@ -177,7 +177,7 @@ class LexerTest : FreeSpec() {init {
 
     "string literals" {
         val code = """
-            fun "some {test} data" "{some} test data" "some test {data}" "\n \t"
+            fn "some {test} data" "{some} test data" "some test {data}" "\n \t"
         """.trimIndent()
         val tokens = lexCode(code, false).tokens
 
@@ -186,18 +186,18 @@ class LexerTest : FreeSpec() {init {
 
         tokens[1].shouldBeInstanceOf<OperatorToken>().let {
             it.operator shouldBe Operator.STRING_DELIMITER
-            it.span.fromColumnNumber shouldBe 5u
-            it.span.toColumnNumber shouldBe 5u
+            it.span.fromColumnNumber shouldBe 4u
+            it.span.toColumnNumber shouldBe 4u
         }
         tokens[2].shouldBeInstanceOf<StringLiteralContentToken>().let {
             it.content shouldBe "some {test} data"
-            it.span.fromColumnNumber shouldBe 6u
-            it.span.toColumnNumber shouldBe 21u
+            it.span.fromColumnNumber shouldBe 5u
+            it.span.toColumnNumber shouldBe 20u
         }
         tokens[3].shouldBeInstanceOf<OperatorToken>().let {
             it.operator shouldBe Operator.STRING_DELIMITER
-            it.span.fromColumnNumber shouldBe 22u
-            it.span.toColumnNumber shouldBe 22u
+            it.span.fromColumnNumber shouldBe 21u
+            it.span.toColumnNumber shouldBe 21u
         }
 
         tokens[4].shouldBeInstanceOf<OperatorToken>().operator shouldBe Operator.STRING_DELIMITER
@@ -215,7 +215,7 @@ class LexerTest : FreeSpec() {init {
 
     "combo test with code" {
         val result = lexCode("""package foo
-            fun foobar(var x: S32 = 24) = return (142.12)?.toLong() == x
+            fn foobar(var x: S32 = 24) = return (142.12)?.toLong() == x
         """, false).tokens
 
         result.size shouldBe 25

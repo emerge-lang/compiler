@@ -24,8 +24,8 @@ class TypeInferenceErrors : FreeSpec({
 
     "cyclic inference in functions" {
         validateModule("""
-            fun a() = b()
-            fun b() = a()
+            fn a() = b()
+            fn b() = a()
         """.trimIndent())
             .shouldReport<TypeDeductionErrorReporting>()
     }
@@ -34,7 +34,7 @@ class TypeInferenceErrors : FreeSpec({
         validateModule("""
             x = y
             y = a()
-            fun a() = z
+            fn a() = z
             z = x
         """.trimIndent())
             .shouldReport<TypeDeductionErrorReporting>()
@@ -42,7 +42,7 @@ class TypeInferenceErrors : FreeSpec({
 
     "cannot infer for variable without initializer expression" {
         validateModule("""
-            fun foo() {
+            fn foo() {
                 x: _
             }
         """.trimIndent())
@@ -52,7 +52,7 @@ class TypeInferenceErrors : FreeSpec({
     "explicit inference type cannot have parameters" {
         validateModule("""
             class S<T> {}
-            fun foo() {
+            fn foo() {
                 x: _<S32> = S()
             }
         """.trimIndent())

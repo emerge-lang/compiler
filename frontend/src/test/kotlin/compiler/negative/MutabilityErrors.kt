@@ -12,7 +12,7 @@ class MutabilityErrors : FreeSpec({
                 class X {
                     var a: S32 = init
                 }
-                fun test() {
+                fn test() {
                     myX = X(2)
                     set myX.a = 3
                 }
@@ -20,36 +20,36 @@ class MutabilityErrors : FreeSpec({
                     .shouldReport<ValueNotAssignableReporting>()
         }
 
-        "cannot be assigned to a mutable reference" {
+        "cannot be assigned to a mut reference" {
             validateModule("""
                 class X {
                     a: S32 = init
                 }
-                fun test() {
+                fn test() {
                     myX = X(2)
-                    var otherX: mutable X = myX
+                    var otherX: mut X = myX
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.reason shouldBe "cannot assign a immutable value to a mutable reference"
+                    it.reason shouldBe "cannot assign a const value to a mut reference"
                 }
         }
 
-        "can be assigned to an immutable reference" {
+        "can be assigned to an const reference" {
             validateModule("""
                 class X {
                     a: S32 = init
                 }
-                fun test() {
+                fn test() {
                     myX = X(2)
-                    otherX: immutable X = myX
+                    otherX: const X = myX
                 }
             """.trimIndent()) should haveNoDiagnostics()
         }
     }
 
     "mutability from use-site generics" - {
-        "prohibits writes to immutable element" {
+        "prohibits writes to const element" {
             validateModule("""
                 class A {
                     someVal: S32 = init
@@ -57,122 +57,122 @@ class MutabilityErrors : FreeSpec({
                 class B<T> {
                     genericVal: T = init
                 }
-                fun test() {
-                    myB: mutable B<immutable A> = B::<immutable A>(A(3))
+                fn test() {
+                    myB: mut B<const A> = B::<const A>(A(3))
                     set myB.genericVal = A(2)
                     set myB.genericVal.someVal = 5
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.targetType.toString() shouldBe "mutable testmodule.A"
-                    it.sourceType.toString() shouldBe "immutable testmodule.A"
+                    it.targetType.toString() shouldBe "mut testmodule.A"
+                    it.sourceType.toString() shouldBe "const testmodule.A"
                 }
         }
     }
 
     "mutability errors when calling functions" - {
-        "mutable value to immutable parameter" {
+        "mut value to const parameter" {
             validateModule("""
                 class S {
                     field: S32
                 }
-                fun foo(p: immutable S) {}
-                fun test(p: mutable S) {
+                fn foo(p: const S) {}
+                fn test(p: mut S) {
                     foo(p)
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.message shouldBe "An immutable value is needed here, this one is mutable."
+                    it.message shouldBe "A const value is needed here, this one is mut."
                 }
         }
 
-        "readonly value to mutable parameter" {
+        "read value to mut parameter" {
             validateModule("""
                 class S {
                     field: S32
                 }
-                fun foo(p: mutable S) {}
-                fun test(p: readonly S) {
+                fn foo(p: mut S) {}
+                fn test(p: read S) {
                     foo(p)
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.message shouldBe "Cannot mutate this value, this is a readonly reference."
+                    it.message shouldBe "Cannot mutate this value, this is a read reference."
                 }
         }
 
-        "readonly value to immutable parameter" {
+        "read value to const parameter" {
             validateModule("""
                 class S {
                     field: S32
                 }
-                fun foo(p: immutable S) {}
-                fun test(p: readonly S) {
+                fn foo(p: const S) {}
+                fn test(p: read S) {
                     foo(p)
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.message shouldBe "An immutable value is needed here. This is a readonly reference, immutability is not guaranteed."
+                    it.message shouldBe "A const value is needed here. This is a read reference, immutability is not guaranteed."
                 }
         }
 
-        "immutable value to mutable parameter" {
+        "const value to mut parameter" {
             validateModule("""
                 class S {
                     field: S32
                 }
-                fun foo(p: mutable S) {}
-                fun test(p: immutable S) {
+                fn foo(p: mut S) {}
+                fn test(p: const S) {
                     foo(p)
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.message shouldBe "Cannot mutate this value. In fact, this is an immutable value."
+                    it.message shouldBe "Cannot mutate this value. In fact, this is an const value."
                 }
         }
 
-        "mutable value to exclusive parameter" {
+        "mut value to exclusive parameter" {
             validateModule("""
                 class S {
                     field: S32 = init
                 }
-                fun foo(p: exclusive S) {}
-                fun test(p: mutable S) {
+                fn foo(p: exclusive S) {}
+                fn test(p: mut S) {
                     foo(p)
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.message shouldBe "An exclusive value is needed here, this one is mutable."
+                    it.message shouldBe "An exclusive value is needed here, this one is mut."
                 }
         }
 
-        "readonly value to exclusive parameter" {
+        "read value to exclusive parameter" {
             validateModule("""
                 class S {
                     field: S32 = init
                 }
-                fun foo(p: exclusive S) {}
-                fun test(p: readonly S) {
+                fn foo(p: exclusive S) {}
+                fn test(p: read S) {
                     foo(p)
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.message shouldBe "An exclusive value is needed here; this is a readonly reference."
+                    it.message shouldBe "An exclusive value is needed here; this is a read reference."
                 }
         }
 
-        "immutable value to exclusive parameter" {
+        "const value to exclusive parameter" {
             validateModule("""
                 class S {
                     field: S32 = init
                 }
-                fun foo(p: exclusive S) {}
-                fun test(p: immutable S) {
+                fn foo(p: exclusive S) {}
+                fn test(p: const S) {
                     foo(p)
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.message shouldBe "An exclusive value is needed here, this one is immutable."
+                    it.message shouldBe "An exclusive value is needed here, this one is const."
                 }
         }
     }
