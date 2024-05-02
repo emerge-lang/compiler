@@ -9,7 +9,7 @@ class PackageVisibilityTooBroadReporting(
     span: Span,
 ) : Reporting(
     Level.ERROR,
-    "Visibilit can only be limited inside the module. Outside visibility must be export.\n"
+    "Visibility can only be limited inside the module. Outside visibility must be export.\n"
             + "Cannot broaden visibility to package $declaredPackageVisibility outside of the own module $owningModule",
     span,
 ) {
