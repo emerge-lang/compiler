@@ -18,16 +18,24 @@
 
 package compiler.ast
 
+import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
+import compiler.StandardLibraryModule
 import compiler.binding.BoundVariable
 import compiler.binding.context.ModuleContext
 import compiler.binding.context.SoftwareContext
 import compiler.binding.context.SourceFile
 import compiler.binding.context.SourceFileRootContext
 import compiler.lexer.IdentifierToken
+import compiler.lexer.Span
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import compiler.lexer.SourceFile as LexerSourceFile
+
+private val DEFAULT_IMPORT_PACKAGES = listOf(
+    CoreIntrinsicsModule.NAME,
+    StandardLibraryModule.NAME,
+)
 
 /**
  * AST representation of a source file
@@ -66,23 +74,10 @@ class ASTSourceFile(
         val reportings = mutableSetOf<Reporting>()
         parseTimeReportings?.let(reportings::addAll)
 
-        imports.forEach(fileContext::addImport)
-        functions.forEach { fnDecl ->
-            fileContext.addFunction(fnDecl.bindToAsTopLevel(fileContext))
-        }
-        baseTypes.forEach(fileContext::addBaseType)
-
-        variables.forEach { declaredVariable ->
-            // check double declare
-            val existingVariable = fileContext.resolveVariable(declaredVariable.name.value, true)
-            if (existingVariable == null || existingVariable.declaration === declaredVariable) {
-                fileContext.addVariable(declaredVariable.bindTo(fileContext, BoundVariable.Kind.GLOBAL_VARIABLE))
-            }
-            else {
-                // variable double-declared
-                reportings.add(Reporting.variableDeclaredMoreThanOnce(existingVariable.declaration, declaredVariable))
-            }
-        }
+        bindImportsInto(fileContext)
+        bindFunctionsInto(fileContext)
+        bindBaseTypesInto(fileContext)
+        bindVariablesInto(fileContext, reportings)
 
         selfDeclaration?.packageName?.let { declaredPackageName ->
             if (declaredPackageName.names.map { it.value } != expectedPackageName.components) {
@@ -96,5 +91,50 @@ class ASTSourceFile(
             fileContext,
             reportings
         )
+    }
+
+    private fun bindImportsInto(fileContext: SourceFileRootContext) {
+        imports.forEach(fileContext::addImport)
+
+        val defaultImportLocation = selfDeclaration?.declaredAt?.deriveGenerated()
+            ?: Span(lexerFile, 1u, 1u, 1u, 1u, true)
+        val defaultImports = DEFAULT_IMPORT_PACKAGES
+            .map { pkgName ->
+                ImportDeclaration(
+                    defaultImportLocation,
+                    (pkgName.components + "*").map(::IdentifierToken),
+                )
+            }
+
+        for (defaultImport in defaultImports) {
+            if (imports.any { it == defaultImport }) {
+                continue
+            }
+            fileContext.addImport(defaultImport)
+        }
+    }
+
+    private fun bindFunctionsInto(fileContext: SourceFileRootContext) {
+        functions.forEach { fnDecl ->
+            fileContext.addFunction(fnDecl.bindToAsTopLevel(fileContext))
+        }
+    }
+
+    private fun bindBaseTypesInto(fileContext: SourceFileRootContext) {
+        baseTypes.forEach(fileContext::addBaseType)
+    }
+
+    private fun bindVariablesInto(fileContext: SourceFileRootContext, reportings: MutableCollection<Reporting>) {
+        variables.forEach { declaredVariable ->
+            // check double declare
+            val existingVariable = fileContext.resolveVariable(declaredVariable.name.value, true)
+            if (existingVariable == null || existingVariable.declaration === declaredVariable) {
+                fileContext.addVariable(declaredVariable.bindTo(fileContext, BoundVariable.Kind.GLOBAL_VARIABLE))
+            }
+            else {
+                // variable double-declared
+                reportings.add(Reporting.variableDeclaredMoreThanOnce(existingVariable.declaration, declaredVariable))
+            }
+        }
     }
 }

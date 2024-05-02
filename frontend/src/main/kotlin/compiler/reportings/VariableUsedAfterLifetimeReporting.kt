@@ -7,24 +7,24 @@ class VariableUsedAfterLifetimeReporting private constructor(
     val variable: VariableDeclaration,
     val usageAt: Span,
     val lifetimeEndedAt: Span,
+    val lifetimeEndedMaybe: Boolean,
     private val endedPhrase: String,
 ) : Reporting(
     Level.ERROR,
-    run {
-        "Cannot use variable ${variable.name.value} after its lifetime $endedPhrase"
-    },
+    "Cannot use variable ${variable.name.value} after its lifetime $endedPhrase",
     usageAt,
 ) {
     constructor(
         variable: VariableDeclaration,
         usageAt: Span,
         lifetimeEndedAt: Span,
-        /** If the lifetime hasn't _definitley_ ended, just might have */
+        /** If the lifetime hasn't _definitely_ ended, just might have */
         lifetimeEndedMaybe: Boolean,
     ) : this(
         variable,
         usageAt,
         lifetimeEndedAt,
+        lifetimeEndedMaybe,
         if (lifetimeEndedMaybe) "might have ended" else "has ended",
     )
     override fun toString(): String {

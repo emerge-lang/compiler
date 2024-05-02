@@ -150,7 +150,7 @@ private fun mockDeferrable() = object {
     operator fun getValue(thisRef: Any?, prop: KProperty<*>): Statement {
         if (!this::instance.isInitialized) {
             this.instance = object : Statement, BoundStatement<Statement> by mockk() {
-                val span: Span
+                override val span: Span
                     get() = mockk()
 
                 override lateinit var modifiedContext: ExecutionScopedCTContext

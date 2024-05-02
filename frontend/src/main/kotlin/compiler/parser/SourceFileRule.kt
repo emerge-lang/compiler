@@ -1,7 +1,5 @@
 package compiler.parser
 
-import compiler.CoreIntrinsicsModule
-import compiler.StandardLibraryModule
 import compiler.ast.ASTPackageDeclaration
 import compiler.ast.ASTSourceFile
 import compiler.ast.AstFileLevelDeclaration
@@ -9,7 +7,6 @@ import compiler.ast.BaseTypeDeclaration
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
 import compiler.ast.VariableDeclaration
-import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
 import compiler.parser.grammar.SourceFileGrammar
 import compiler.parser.grammar.rule.MatchingResult
@@ -74,21 +71,6 @@ object SourceFileRule {
                 (input.items.getOrNull(0) as AstFileLevelDeclaration?)?.declaredAt ?: Span.UNKNOWN
             ))
         }
-
-        // default imports
-        // TODO: refactor this into the binding code, its not part of the input sources
-        astSourceFile.imports.add(
-            ImportDeclaration(
-                Span.UNKNOWN,
-                (CoreIntrinsicsModule.NAME.components + "*").map(::IdentifierToken),
-            )
-        )
-        astSourceFile.imports.add(
-            ImportDeclaration(
-                Span.UNKNOWN,
-                (StandardLibraryModule.NAME.components + "*").map(::IdentifierToken),
-            )
-        )
 
         return MatchingResult(
             item = astSourceFile,
