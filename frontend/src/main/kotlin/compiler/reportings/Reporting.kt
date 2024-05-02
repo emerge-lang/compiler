@@ -197,6 +197,9 @@ abstract class Reporting internal constructor(
         fun unsupportedCallingConvention(attr: AstFunctionAttribute.External, supportedConventions: Set<String>)
             = UnsupportedCallingConventionReporting(attr, supportedConventions)
 
+        fun unconventionalTypeName(name: IdentifierToken, convention: UnconventionalTypeNameReporting.ViolatedConvention)
+            = UnconventionalTypeNameReporting(name, convention)
+
         fun illegalSupertype(ref: TypeReference, reason: String)
             = IllegalSupertypeReporting(ref, reason)
 

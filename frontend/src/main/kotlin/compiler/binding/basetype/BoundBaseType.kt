@@ -38,6 +38,7 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
 import compiler.reportings.CyclicInheritanceReporting
 import compiler.reportings.Reporting
+import compiler.reportings.UnconventionalTypeNameReporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
@@ -146,6 +147,8 @@ class BoundBaseType(
                     reportings.add(Reporting.entryNotAllowedOnBaseType(this, it))
                 }
             }
+
+            lintSean1(reportings)
 
             return@phase1 reportings
         }
@@ -305,6 +308,14 @@ class BoundBaseType(
     }
 
     override fun toStringForErrorMessage() = "class $simpleName"
+
+    private fun lintSean1(reportings: MutableCollection<Reporting>) {
+        if (declaration.name.value.any { !it.isLetter() }) {
+            reportings.add(Reporting.unconventionalTypeName(declaration.name, UnconventionalTypeNameReporting.ViolatedConvention.UPPER_CAMEL_CASE))
+        } else if (!declaration.name.value.first().isUpperCase()) {
+            reportings.add(Reporting.unconventionalTypeName(declaration.name, UnconventionalTypeNameReporting.ViolatedConvention.FIRST_LETTER_UPPERCASE))
+        }
+    }
 
     private val backendIr by lazy { kind.toBackendIr(this) }
     fun toBackendIr(): IrBaseType = backendIr
