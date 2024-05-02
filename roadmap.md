@@ -84,8 +84,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        3. ~~implement visibility~~
        4. ~~allow finalizer customization~~
     2. ~~add interfaces and inheritance class impls interface~~
-24. move intrinsic types 100% into emerge source. Both frontend and backend should
-    have the necessary toolset now to still hook in and handle them correctly
+24. ~~move intrinsic types 100% into emerge source. Both frontend and backend should
+    have the necessary toolset now to still hook in and handle them correctly~~
 25. implement weak references
 26. extend InvocationExpression
     1. ~~handle constructors~~
