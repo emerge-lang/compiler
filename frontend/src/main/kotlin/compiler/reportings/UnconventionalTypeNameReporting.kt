@@ -8,7 +8,7 @@ class UnconventionalTypeNameReporting(
     val violatedConvention: ViolatedConvention,
 ) : Reporting(
     Level.WARNING,
-    violatedConvention.name,
+    violatedConvention.message,
     violatedConvention.transformLocation(typename.span)
 ) {
     override fun equals(other: Any?): Boolean {

@@ -310,7 +310,7 @@ class BoundBaseType(
     override fun toStringForErrorMessage() = "class $simpleName"
 
     private fun lintSean1(reportings: MutableCollection<Reporting>) {
-        if (declaration.name.value.any { !it.isLetter() }) {
+        if (declaration.name.value.any { it == '_' }) {
             reportings.add(Reporting.unconventionalTypeName(declaration.name, UnconventionalTypeNameReporting.ViolatedConvention.UPPER_CAMEL_CASE))
         } else if (!declaration.name.value.first().isUpperCase()) {
             reportings.add(Reporting.unconventionalTypeName(declaration.name, UnconventionalTypeNameReporting.ViolatedConvention.FIRST_LETTER_UPPERCASE))
