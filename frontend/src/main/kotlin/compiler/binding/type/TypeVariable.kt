@@ -11,7 +11,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
  * A generic type in the process of being inferred. To understand the difference between [TypeVariable]
  * and [GenericTypeReference], consider this function:
  *
- *     fun <T> forEach(elements: List<out T>, action: (T) -> Unit) {
+ *     n <T> forEach(elements: List<out T>, action: (T) -> Unit) {
  *
  *     }
  *
@@ -26,22 +26,38 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
  * So, in the context of:
  *
  *     val x: List<Int>
- *     forEach(x, { someX -> TOOD() })
+ *     forEach(x, { someX -> ... })
  *
  * `T` becomes a [TypeVariable] and thus can be inferred to be `Int` for the `x` argument; and as a result the compiler
  * can infer that `someX` in the lambda is of type `Int`.
  */
-class TypeVariable(
+class TypeVariable private constructor(
     val parameter: BoundTypeParameter,
+    override val isNullable: Boolean,
+    override val mutability: TypeMutability,
     override val span: Span?,
 ) : BoundTypeReference {
-    constructor(ref: GenericTypeReference) : this(ref.parameter, ref.span)
-    constructor(parameter: BoundTypeParameter) : this(parameter, parameter.astNode.name.span)
+    constructor(ref: GenericTypeReference) : this(
+        ref.parameter,
+        ref.isNullable,
+        ref.mutability,
+        ref.span,
+    )
+    constructor(parameter: BoundTypeParameter) : this(
+        parameter,
+        parameter.bound.isNullable,
+        parameter.bound.mutability,
+        parameter.astNode.name.span,
+    )
 
-    override val isNullable get() = parameter.bound.isNullable
     override val simpleName get() = parameter.name
-    override val mutability get() = parameter.bound.mutability
     override val inherentTypeBindings = TypeUnification.EMPTY
+
+    val effectiveBound: BoundTypeReference get() {
+        return parameter.bound
+            .withCombinedMutability(mutability)
+            .withCombinedNullability(if (isNullable) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.NOT_NULLABLE)
+    }
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference {
         throw InternalCompilerError("not implemented as it was assumed that this can never happen")
@@ -96,7 +112,7 @@ class TypeVariable(
     }
 
     override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
-        return context.bindings[this] ?: this.parameter.bound
+        return context.bindings[this] ?: parameter.bound
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
@@ -111,7 +127,19 @@ class TypeVariable(
         throw InternalCompilerError("Attempting to create BackendIr from unresolved type variable $this at ${this.span}")
     }
 
-    override fun toString() = simpleName
+    override fun toString(): String {
+        var str = ""
+        if (mutability != parameter.bound.mutability) {
+            str += mutability.keyword.text + " "
+        }
+        str += simpleName
+        if (isNullable && !parameter.bound.isNullable) {
+            str += "?"
+        } else if (!isNullable && parameter.bound.isNullable) {
+            str += "!"
+        }
+        return str
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

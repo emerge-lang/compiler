@@ -170,14 +170,6 @@ private class NakedGenericTypeReference(
         get() = parameter.bound
 }
 
-private class ResolvedBoundGenericTypeReference(
-    override val original: TypeReference,
-    override val parameter: BoundTypeParameter,
-    override val effectiveBound: BoundTypeReference,
-) : GenericTypeReference() {
-    override val context = parameter.context
-}
-
 private class MappedEffectiveBoundGenericTypeReference private constructor(
     private val delegate: GenericTypeReference,
     private val mapper: (BoundTypeReference) -> BoundTypeReference,

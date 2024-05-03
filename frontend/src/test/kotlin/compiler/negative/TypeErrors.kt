@@ -218,6 +218,21 @@ class TypeErrors : FreeSpec({
                     .shouldReport<UnsupportedTypeUsageVarianceReporting>()
             }
         }
+
+        "nullability modification on type parameter" - {
+            "to nullable" {
+                validateModule("""
+                    class Test<T : Any> {
+                        x: T = init
+                        fn get(self) -> T? = self.x
+                    }
+                    fn test() {
+                        y: String? = Test("abc").get()
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+        }
     }
 
     "array literal" - {
