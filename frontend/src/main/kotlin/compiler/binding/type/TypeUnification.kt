@@ -23,9 +23,7 @@ interface TypeUnification {
         return DecoratingTypeUnification.doWithDecorated(ValueNotAssignableAsArgumentOutOfBounds(this, parameter, argument), action)
     }
 
-    fun doWithIgnoringReportings(action: (TypeUnification) -> TypeUnification): TypeUnification {
-        return DecoratingTypeUnification.doWithDecorated(IgnoreReportingsUnification(this), action)
-    }
+    fun doWithIgnoringReportings(action: (TypeUnification) -> TypeUnification): TypeUnification
 
     fun getErrorsNotIn(previous: TypeUnification): Sequence<Reporting> {
         return reportings.asSequence()
@@ -126,10 +124,19 @@ private class DefaultTypeUnification private constructor(
             else -> previousBinding?.closestCommonSupertypeWith(binding) ?: binding
         }
 
+        // TODO: use effectiveBound
         return variable.parameter.bound.unify(
             newBinding,
             assignmentLocation,
             DefaultTypeUnification(bindings.plus(variable to newBinding), reportings),
+        )
+    }
+
+    override fun doWithIgnoringReportings(action: (TypeUnification) -> TypeUnification): TypeUnification {
+        val result = action(this)
+        return DefaultTypeUnification(
+            result.bindings,
+            this.reportings,
         )
     }
 
@@ -163,21 +170,6 @@ private abstract class DecoratingTypeUnification<Self : DecoratingTypeUnificatio
     }
 }
 
-private class IgnoreReportingsUnification(
-    override val undecorated: TypeUnification,
-) : DecoratingTypeUnification<IgnoreReportingsUnification>() {
-    override val bindings get() = undecorated.bindings
-    override val reportings: Set<Reporting> get() = undecorated.reportings
-
-    override fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: Span): IgnoreReportingsUnification {
-        return IgnoreReportingsUnification(undecorated.plus(variable, binding, assignmentLocation))
-    }
-
-    override fun plusReporting(reporting: Reporting): TypeUnification {
-        return this
-    }
-}
-
 private class ValueNotAssignableAsArgumentOutOfBounds(
     override val undecorated: TypeUnification,
     private val parameter: BoundTypeParameter,
@@ -196,5 +188,13 @@ private class ValueNotAssignableAsArgumentOutOfBounds(
 
     override fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: Span): ValueNotAssignableAsArgumentOutOfBounds {
         return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plus(variable, binding, assignmentLocation), parameter, argument)
+    }
+
+    override fun doWithIgnoringReportings(action: (TypeUnification) -> TypeUnification): TypeUnification {
+        return ValueNotAssignableAsArgumentOutOfBounds(
+            doWithIgnoringReportings(action),
+            parameter,
+            argument,
+        )
     }
 }
