@@ -31,18 +31,12 @@ class UnresolvableFunctionOverloadReporting(
     val functionDeclaredAtAll: Boolean,
 ) : Reporting(
     Level.ERROR,
-    run {
-        var message: String = if (functionDeclaredAtAll) {
-            "Function ${functionNameReference.value} is not declared for types ${parameterTypes.typeTupleToString()}"
-        } else {
-            "Cannot resolve function or type ${functionNameReference.value}"
-        }
-
-        if (receiverType != null) {
-            message += " on receiver of type $receiverType"
-        }
-
-        message
+    if (functionDeclaredAtAll) {
+        "Function ${functionNameReference.value} is not declared for types ${parameterTypes.typeTupleToString()}"
+    } else if (receiverType == null) {
+        "Cannot resolve function or type ${functionNameReference.value}"
+    } else {
+        "Cannot resolve function ${functionNameReference.value} on receiver of type $receiverType"
     },
     functionNameReference.span,
 ) {
