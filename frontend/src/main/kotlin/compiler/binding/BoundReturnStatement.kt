@@ -24,7 +24,7 @@ import compiler.ast.type.TypeMutability
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
-import compiler.binding.misc_ir.IrCreateReferenceStatementImpl
+import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
@@ -119,7 +119,7 @@ class BoundReturnStatement(
         }
 
         val valueTemporary = IrCreateTemporaryValueImpl(actualExpression.toBackendIrExpression())
-        val valueTemporaryRefIncrement = IrCreateReferenceStatementImpl(valueTemporary).takeUnless { actualExpression.isEvaluationResultReferenceCounted }
+        val valueTemporaryRefIncrement = IrCreateStrongReferenceStatementImpl(valueTemporary).takeUnless { actualExpression.isEvaluationResultReferenceCounted }
         return IrCodeChunkImpl(
             listOfNotNull(valueTemporary, valueTemporaryRefIncrement) +
             context.getFunctionDeferredCode().map { it.toBackendIrStatement() }.toList() +

@@ -31,9 +31,9 @@ import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundMemberAccessExpression
 import compiler.binding.expression.IrVariableAccessExpressionImpl
-import compiler.binding.misc_ir.IrCreateReferenceStatementImpl
+import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
-import compiler.binding.misc_ir.IrDropReferenceStatementImpl
+import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.IrGenericTypeReferenceImpl
@@ -228,7 +228,7 @@ class BoundAssignmentStatement(
                         IrVariableAccessExpressionImpl(reference.variable.backendIrDeclaration),
                         previousType,
                     )
-                    listOf(previousTemporary, IrDropReferenceStatementImpl(previousTemporary))
+                    listOf(previousTemporary, IrDropStrongReferenceStatementImpl(previousTemporary))
                 }
             }
 
@@ -322,7 +322,7 @@ class BoundAssignmentStatement(
                 val previousTemporary = IrCreateTemporaryValueImpl(memberAccess.toBackendIrExpression(), previousType)
                 dropPreviousReferenceCode = IrCodeChunkImpl(listOf(
                     previousTemporary,
-                    IrDropReferenceStatementImpl(previousTemporary),
+                    IrDropStrongReferenceStatementImpl(previousTemporary),
                 ))
             } else {
                 check(memberIsPotentiallyUninitialized) { "multiple assignments to a non-reassignable target" }
@@ -331,9 +331,9 @@ class BoundAssignmentStatement(
             }
 
             val baseTemporary = IrCreateTemporaryValueImpl(memberAccess.valueExpression.toBackendIrExpression())
-            val baseTemporaryRefIncrement = IrCreateReferenceStatementImpl(baseTemporary).takeUnless { memberAccess.valueExpression.isEvaluationResultReferenceCounted }
+            val baseTemporaryRefIncrement = IrCreateStrongReferenceStatementImpl(baseTemporary).takeUnless { memberAccess.valueExpression.isEvaluationResultReferenceCounted }
             val toAssignTemporary = IrCreateTemporaryValueImpl(toAssignExpression.toBackendIrExpression())
-            val toAssignTemporaryRefIncrement = IrCreateReferenceStatementImpl(toAssignTemporary).takeUnless { toAssignExpression.isEvaluationResultReferenceCounted }
+            val toAssignTemporaryRefIncrement = IrCreateStrongReferenceStatementImpl(toAssignTemporary).takeUnless { toAssignExpression.isEvaluationResultReferenceCounted }
 
             return IrCodeChunkImpl(listOfNotNull(
                 dropPreviousReferenceCode,
@@ -348,7 +348,7 @@ class BoundAssignmentStatement(
                     ),
                     IrTemporaryValueReferenceImpl(toAssignTemporary),
                 ),
-                IrDropReferenceStatementImpl(baseTemporary),
+                IrDropStrongReferenceStatementImpl(baseTemporary),
             ))
         }
     }

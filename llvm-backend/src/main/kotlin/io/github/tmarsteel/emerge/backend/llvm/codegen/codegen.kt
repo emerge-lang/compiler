@@ -8,10 +8,10 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrBooleanLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassMemberVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
-import io.github.tmarsteel.emerge.backend.api.ir.IrCreateReferenceStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrDeallocateObjectStatement
-import io.github.tmarsteel.emerge.backend.api.ir.IrDropReferenceStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrDropStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrDynamicDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -73,11 +73,11 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
     code: IrExecutable,
 ): ExecutableResult {
     when (code) {
-        is IrCreateReferenceStatement -> {
+        is IrCreateStrongReferenceStatement -> {
             code.reference.llvmValue.afterReferenceCreated(code.reference.type)
             return ExecutableResult.ExecutionOngoing
         }
-        is IrDropReferenceStatement -> {
+        is IrDropStrongReferenceStatement -> {
             code.reference.declaration.llvmValue.afterReferenceDropped(code.reference.type)
             return ExecutableResult.ExecutionOngoing
         }

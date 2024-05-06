@@ -28,7 +28,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.expression.BoundExpression
-import compiler.binding.misc_ir.IrCreateReferenceStatementImpl
+import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
@@ -323,7 +323,7 @@ class BoundVariable(
         }
 
         val initialTemporary = IrCreateTemporaryValueImpl(initializerExpression.toBackendIrExpression())
-        val initialTemporaryRefIncrement = IrCreateReferenceStatementImpl(initialTemporary).takeUnless { initializerExpression.isEvaluationResultReferenceCounted }
+        val initialTemporaryRefIncrement = IrCreateStrongReferenceStatementImpl(initialTemporary).takeUnless { initializerExpression.isEvaluationResultReferenceCounted }
         return IrCodeChunkImpl(listOfNotNull(
             backendIrDeclaration,
             initialTemporary,

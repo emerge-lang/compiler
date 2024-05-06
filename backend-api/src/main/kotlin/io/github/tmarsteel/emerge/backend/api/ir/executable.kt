@@ -12,7 +12,7 @@ interface IrCodeChunk : IrExecutable {
  *
  * The purpose of this is to allow the frontend to do the heavy lifting of figuring out when and which references
  * need to be counted, including all the optimizations on that. This allows backend code to be much simpler and simply
- * rely on [IrCreateReferenceStatement] and [IrDropReferenceStatement] nodes to generate correctly reference-counted
+ * rely on [IrCreateStrongReferenceStatement] and [IrDropStrongReferenceStatement] nodes to generate correctly reference-counted
  * code.
  */
 interface IrCreateTemporaryValue : IrExecutable {
@@ -25,11 +25,11 @@ interface IrCreateTemporaryValue : IrExecutable {
  *
  * **Caveats:**
  * * the frontend will emit these for values of **all** types.
- * * the frontend may omit [IrCreateReferenceStatement] and [IrDropReferenceStatement] IR nodes when it can prove
+ * * the frontend may omit [IrCreateStrongReferenceStatement] and [IrDropStrongReferenceStatement] IR nodes when it can prove
  *   that the mutation of the reference counter cannot be observed by the input program.
  */
-interface IrCreateReferenceStatement : IrExecutable {
-    /** the temporary holding the reference to the object whichs reference count needs to increase */
+interface IrCreateStrongReferenceStatement : IrExecutable {
+    /** the temporary holding the reference to the object whichs reference count needs to increased */
     val reference: IrCreateTemporaryValue
 }
 
@@ -37,9 +37,9 @@ interface IrCreateReferenceStatement : IrExecutable {
  * A reference has reached the end of its lifetime. The reference counter of the referred object must be
  * decremented and if it reaches 0, the object must be finalized.
  *
- * **Attention!!:** there are caveats, see [IrCreateReferenceStatement]
+ * **Attention!!:** there are caveats, see [IrCreateStrongReferenceStatement]
  */
-interface IrDropReferenceStatement : IrExecutable {
+interface IrDropStrongReferenceStatement : IrExecutable {
     val reference: IrTemporaryValueReference
 }
 
@@ -77,9 +77,9 @@ interface IrReturnStatement : IrExecutable {
  * The counterpart to [IrDeallocateObjectStatement]. It makes the memory occupied by the given reference.
  *
  * The frontend must emit code prior to this statement that ensures that
- * * any references stored/nested in the object are dropped (see [IrDropReferenceStatement])
+ * * any references stored/nested in the object are dropped (see [IrDropStrongReferenceStatement])
  * * no other references ot the object, including weak ones, exist. This is usually the job of the backend as
- *   part of [IrDropReferenceStatement]; Hence, the only safe place for the frontend to put this code is in the
+ *   part of [IrDropStrongReferenceStatement]; Hence, the only safe place for the frontend to put this code is in the
  *   finalizer of a class (see [IrClass.destructor]). Backends *may* emit code that throws an exception if this
  *   statement is called on an object that still has live references.
  *
@@ -88,4 +88,22 @@ interface IrReturnStatement : IrExecutable {
  */
 interface IrDeallocateObjectStatement : IrExecutable {
     val value: IrTemporaryValueReference
+}
+
+/**
+ * The frontend must emit these alongside the construction of `emerge.core.Weak` instances. A weak
+ * reference needs to be registered with the referred object.
+ */
+interface IrRegisterWeakReferenceStatement : IrExecutable {
+    val referenceStoredIn: IrAssignmentStatement.Target.ClassMemberVariable
+    val referredObject: IrTemporaryValueReference
+}
+
+/**
+ * The frontend must emit these alongside the destruction of `emerge.core.Weak` instances. A weak
+ * reference needs to be de-registered with the referred object.
+ */
+interface IrUnregisterWeakReferenceStatement : IrExecutable {
+    val referenceStoredIn: IrAssignmentStatement.Target.ClassMemberVariable
+    val referredObject: IrTemporaryValueReference
 }

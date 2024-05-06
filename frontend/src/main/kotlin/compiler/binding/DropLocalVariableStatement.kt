@@ -6,7 +6,7 @@ import compiler.ast.VariableDeclaration
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
-import compiler.binding.misc_ir.IrDropReferenceStatementImpl
+import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -29,7 +29,7 @@ class DropLocalVariableStatement(
             val valueTemporary = IrCreateTemporaryValueImpl(IrVariableAccessExpressionImpl(variable.backendIrDeclaration))
             return IrCodeChunkImpl(listOf(
                 valueTemporary,
-                IrDropReferenceStatementImpl(valueTemporary),
+                IrDropStrongReferenceStatementImpl(valueTemporary),
             ))
         }
 

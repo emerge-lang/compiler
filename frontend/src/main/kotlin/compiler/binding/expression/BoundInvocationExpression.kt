@@ -30,9 +30,9 @@ import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.binding.misc_ir.IrCreateReferenceStatementImpl
+import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
-import compiler.binding.misc_ir.IrDropReferenceStatementImpl
+import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.*
@@ -421,7 +421,7 @@ class BoundInvocationExpression(
         return buildInvocationLikeIr(
             listOfNotNull(receiverExceptReferringType) + valueArguments,
             ::buildBackendIrInvocation,
-            { listOf(IrDropReferenceStatementImpl(it)) },
+            { listOf(IrDropStrongReferenceStatementImpl(it)) },
         ).code
     }
 }
@@ -486,9 +486,9 @@ internal fun buildInvocationLikeIr(
         argumentTemporaries.add(temporary)
         prepareArgumentsCode.add(temporary)
         if (!boundArgumentExpr.isEvaluationResultReferenceCounted) {
-            prepareArgumentsCode.add(IrCreateReferenceStatementImpl(temporary))
+            prepareArgumentsCode.add(IrCreateStrongReferenceStatementImpl(temporary))
         }
-        cleanUpArgumentsCode.add(IrDropReferenceStatementImpl(temporary))
+        cleanUpArgumentsCode.add(IrDropStrongReferenceStatementImpl(temporary))
     }
 
     val returnValueTemporary = IrCreateTemporaryValueImpl(

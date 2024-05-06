@@ -26,7 +26,7 @@ import compiler.binding.BoundVariable
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.type.BoundTypeReference
-import io.github.tmarsteel.emerge.backend.api.ir.IrCreateReferenceStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
@@ -83,7 +83,7 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
     /**
      * If `true`, the reference counter in the result of this expression already includes a +1 to account for
      * the fact that the expression result might be used. If `false`, code using the expression result must
-     * make sure to also emit a [IrCreateReferenceStatement] for the result if needed.
+     * make sure to also emit a [IrCreateStrongReferenceStatement] for the result if needed.
      *
      * Prime use case: function calls, as return values always are counted as per the refcounting rules.
      */

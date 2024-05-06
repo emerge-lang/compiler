@@ -1,11 +1,11 @@
 package compiler.binding.misc_ir
 
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
-import io.github.tmarsteel.emerge.backend.api.ir.IrDropReferenceStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrDropStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 
-class IrDropReferenceStatementImpl(
+class IrDropStrongReferenceStatementImpl(
     override val reference: IrTemporaryValueReference,
-) : IrDropReferenceStatement {
+) : IrDropStrongReferenceStatement {
     constructor(t: IrCreateTemporaryValue) : this(IrTemporaryValueReferenceImpl(t))
 }

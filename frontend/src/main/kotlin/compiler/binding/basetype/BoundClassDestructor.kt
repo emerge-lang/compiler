@@ -19,7 +19,7 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.IrClassMemberVariableAccessExpressionImpl
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
-import compiler.binding.misc_ir.IrDropReferenceStatementImpl
+import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.RootResolvedTypeReference
@@ -29,10 +29,12 @@ import compiler.lexer.KeywordToken
 import compiler.lexer.Span
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
+import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrDeallocateObjectStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatement
 
 class BoundClassDestructor(
     private val fileContextWithTypeParameters: CTContext,
@@ -140,10 +142,10 @@ class BoundClassDestructor(
                 )
                 listOf(
                     memberTemporary,
-                    IrDropReferenceStatementImpl(memberTemporary),
+                    IrDropStrongReferenceStatementImpl(memberTemporary),
                 )
             }),
-            IrDeallocateObjectStatementImpl(IrTemporaryValueReferenceImpl(selfTemporary))
+            IrDeallocateObjectStatementImpl(IrTemporaryValueReferenceImpl(selfTemporary)),
         ))
 
         IrDestructorImpl(this, destructorCode)
