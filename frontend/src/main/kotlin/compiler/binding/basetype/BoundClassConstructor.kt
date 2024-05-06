@@ -18,6 +18,7 @@ import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.IrAssignmentStatementImpl
+import compiler.binding.IrAssignmentStatementTargetClassMemberVariableImpl
 import compiler.binding.IrAssignmentStatementTargetVariableImpl
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.IrReturnStatementImpl
@@ -27,6 +28,7 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeParameter
@@ -42,11 +44,14 @@ import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstruc
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrRegisterWeakReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
+import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 
 /**
  * The constructor of a class that, once compiled, does the basic bootstrapping:
@@ -314,21 +319,44 @@ class BoundClassConstructor(
         val selfTemporary = IrCreateTemporaryValueImpl(IrAllocateObjectExpressionImpl(classDef))
         val initIr = ArrayList<IrExecutable>()
         initIr.add(selfTemporary)
-        initIr.add(selfVariableForInitCode.backendIrDeclaration)
-        initIr.add(IrAssignmentStatementImpl(
-            IrAssignmentStatementTargetVariableImpl(selfVariableForInitCode.backendIrDeclaration),
-            IrTemporaryValueReferenceImpl(selfTemporary),
-        ))
-        initIr.add(boundMemberVariableInitCodeFromCtorParams.toBackendIrStatement())
-        initIr.add(boundMemberVariableInitCodeFromExpression.toBackendIrStatement())
-        initIr.add(additionalInitCode.toBackendIrStatement())
+        if (classDef === context.swCtx.weak) {
+            check(additionalInitCode.statements.isEmpty()) {
+                "Additional init code in ${classDef.canonicalName} is not supported"
+            }
+            val referencedObjTemporary = IrCreateTemporaryValueImpl(
+                IrVariableAccessExpressionImpl(parameters.parameters.single().backendIrDeclaration)
+            )
+            initIr.add(referencedObjTemporary)
+            initIr.add(IrAssignmentStatementImpl(
+                IrAssignmentStatementTargetClassMemberVariableImpl(
+                    classDef.memberVariables.single().toBackendIr(),
+                    IrTemporaryValueReferenceImpl(selfTemporary)
+                ),
+                IrTemporaryValueReferenceImpl(referencedObjTemporary),
+            ))
+            initIr.add(IrRegisterWeakReferenceStatementImpl(
+                classDef.memberVariables.single(),
+                IrTemporaryValueReferenceImpl(selfTemporary),
+                IrTemporaryValueReferenceImpl(referencedObjTemporary),
+            ))
+        } else {
+            initIr.add(selfVariableForInitCode.backendIrDeclaration)
+            initIr.add(
+                IrAssignmentStatementImpl(
+                    IrAssignmentStatementTargetVariableImpl(selfVariableForInitCode.backendIrDeclaration),
+                    IrTemporaryValueReferenceImpl(selfTemporary),
+                )
+            )
+            initIr.add(boundMemberVariableInitCodeFromCtorParams.toBackendIrStatement())
+            initIr.add(boundMemberVariableInitCodeFromExpression.toBackendIrStatement())
+            initIr.add(additionalInitCode.toBackendIrStatement())
+        }
+
+        initIr.add(IrReturnStatementImpl(IrTemporaryValueReferenceImpl(selfTemporary)))
 
         IrDefaultConstructorImpl(
             this,
-            IrCodeChunkImpl(listOfNotNull(
-                IrCodeChunkImpl(initIr),
-                IrReturnStatementImpl(IrTemporaryValueReferenceImpl(selfTemporary)),
-            ))
+            IrCodeChunkImpl(initIr),
         )
     }
     override fun toBackendIr(): IrFunction = backendIr
@@ -358,4 +386,17 @@ private class IrAllocateObjectExpressionImpl(val classDef: BoundBaseType) : IrAl
         override val isNullable = false
         override val baseType get() = this@IrAllocateObjectExpressionImpl.clazz
     }
+}
+
+private class IrRegisterWeakReferenceStatementImpl(
+    holderMemberVariable: BoundBaseTypeMemberVariable,
+    weakObjectTemporary: IrTemporaryValueReference,
+    referredObjectTemporary: IrTemporaryValueReference,
+) : IrRegisterWeakReferenceStatement {
+    override val referenceStoredIn = object : IrAssignmentStatement.Target.ClassMemberVariable {
+        override val objectValue = weakObjectTemporary
+        override val memberVariable = holderMemberVariable.toBackendIr()
+    }
+
+    override val referredObject = referredObjectTemporary
 }

@@ -129,6 +129,31 @@ class BoundClassDestructor(
         val selfTemporary = IrCreateTemporaryValueImpl(
             IrVariableAccessExpressionImpl(parameters.parameters.single().backendIrDeclaration)
         )
+        if (classDef === context.swCtx.weak) {
+            return@lazy IrDestructorImpl(this, IrCodeChunkImpl(listOf(
+                userDefinedCode.toBackendIrStatement(),
+                selfTemporary,
+                classDef.memberVariables.single().let { holderMemberVar ->
+                    val referredObjectTemporary = IrCreateTemporaryValueImpl(
+                        IrClassMemberVariableAccessExpressionImpl(
+                            IrTemporaryValueReferenceImpl(selfTemporary),
+                            holderMemberVar.toBackendIr(),
+                            holderMemberVar.type!!.toBackendIr(),
+                        )
+                    )
+                    IrCodeChunkImpl(listOf(
+                        referredObjectTemporary,
+                        IrUnregisterWeakReferenceStatementImpl(
+                            classDef.memberVariables.single(),
+                            IrTemporaryValueReferenceImpl(selfTemporary),
+                            IrTemporaryValueReferenceImpl(referredObjectTemporary),
+                        )
+                    ))
+                },
+                IrDeallocateObjectStatementImpl(IrTemporaryValueReferenceImpl(selfTemporary))
+            )))
+        }
+
         val destructorCode = IrCodeChunkImpl(listOfNotNull(
             userDefinedCode.toBackendIrStatement(),
             selfTemporary,
@@ -168,3 +193,16 @@ private class IrDestructorImpl(
 private class IrDeallocateObjectStatementImpl(
     override val value: IrTemporaryValueReference
 ) : IrDeallocateObjectStatement
+
+private class IrUnregisterWeakReferenceStatementImpl(
+    holderMemberVariable: BoundBaseTypeMemberVariable,
+    weakObjectTemporary: IrTemporaryValueReference,
+    referredObjectTemporary: IrTemporaryValueReference,
+) : IrUnregisterWeakReferenceStatement {
+    override val referenceStoredIn = object : IrAssignmentStatement.Target.ClassMemberVariable {
+        override val objectValue = weakObjectTemporary
+        override val memberVariable = holderMemberVariable.toBackendIr()
+    }
+
+    override val referredObject = referredObjectTemporary
+}
