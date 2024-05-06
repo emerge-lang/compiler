@@ -4,6 +4,9 @@ import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
+import compiler.binding.BoundMemberFunction
+import compiler.binding.BoundOverloadSet
+import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
 import compiler.lexer.Span
 import compiler.reportings.Reporting
@@ -17,7 +20,7 @@ class BoundTypeArgument(
     val variance: TypeVariance,
     val type: BoundTypeReference,
 ) : BoundTypeReference {
-    override val isNullable get() = type.isNullable
+    override val isNullable get()= type.isNullable
     override val mutability get() = type.mutability
     override val simpleName get() = toString()
     override val span get() = astNode.span
@@ -50,7 +53,8 @@ class BoundTypeArgument(
         }
 
         when (assigneeType) {
-            is RootResolvedTypeReference -> {
+            is RootResolvedTypeReference,
+            is NullableTypeReference -> {
                 return type.unify(assigneeType, assignmentLocation, carry)
             }
             is BoundTypeArgument -> {
@@ -160,6 +164,14 @@ class BoundTypeArgument(
             TypeVariance.OUT -> type.closestCommonSupertypeWith(other)
             TypeVariance.IN -> context.swCtx.any.baseReference.closestCommonSupertypeWith(other)
         }
+    }
+
+    override fun findMemberVariable(name: String): BoundBaseTypeMemberVariable? {
+        return type.findMemberVariable(name)
+    }
+
+    override fun findMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> {
+        return type.findMemberFunction(name)
     }
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {

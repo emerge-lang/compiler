@@ -33,8 +33,12 @@ sealed class GenericTypeReference : BoundTypeReference {
         return mapEffectiveBound { it.withCombinedMutability(mutability) }
     }
 
-    override fun withCombinedNullability(nullability: TypeReference.Nullability): GenericTypeReference {
-        return mapEffectiveBound { it.withCombinedNullability(nullability) }
+    override fun withCombinedNullability(nullability: TypeReference.Nullability): BoundTypeReference {
+        return when(nullability) {
+            TypeReference.Nullability.UNSPECIFIED -> this
+            TypeReference.Nullability.NULLABLE -> NullableTypeReference(this)
+            TypeReference.Nullability.NOT_NULLABLE -> mapEffectiveBound { it.withCombinedNullability(nullability) }
+        }
     }
 
     override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
@@ -47,6 +51,12 @@ sealed class GenericTypeReference : BoundTypeReference {
 
     override fun unify(assigneeType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification {
         return when (assigneeType) {
+            is NullableTypeReference -> {
+                // TODO: try the assignment ignoring the nullability problem. If it works, report the nullability problem
+                // otherwise, report the bigger/harder to fix problem first. This requires code in TypeUnification
+                // that can determin success/failure of a sub-unification
+                carry.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "Cannot assign a possibly null value to a non-nullable reference", assignmentLocation))
+            }
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
             is RootResolvedTypeReference -> carry.plusReporting(Reporting.valueNotAssignable(
                 this,
@@ -83,8 +93,6 @@ sealed class GenericTypeReference : BoundTypeReference {
 
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
         return when (other) {
-            is RootResolvedTypeReference,
-            is UnresolvedType-> effectiveBound.closestCommonSupertypeWith(other)
             is GenericTypeReference -> {
                 if (this.isSubtypeOf(other)) {
                     other
@@ -96,6 +104,7 @@ sealed class GenericTypeReference : BoundTypeReference {
             }
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
+            else -> effectiveBound.closestCommonSupertypeWith(other)
         }
     }
 
@@ -130,7 +139,7 @@ sealed class GenericTypeReference : BoundTypeReference {
         return bound.isSubtypeOf(other)
     }
 
-    private fun mapEffectiveBound(mapper: (BoundTypeReference) -> BoundTypeReference): MappedEffectiveBoundGenericTypeReference {
+    fun mapEffectiveBound(mapper: (BoundTypeReference) -> BoundTypeReference): GenericTypeReference {
         return MappedEffectiveBoundGenericTypeReference(this, mapper)
     }
 
@@ -139,21 +148,10 @@ sealed class GenericTypeReference : BoundTypeReference {
         effectiveBound.toBackendIr(),
     )
 
-    override fun toString(): String {
-        var str = parameter.name
-        if (!isNullable) {
-            if (original.nullability == TypeReference.Nullability.NOT_NULLABLE) {
-                str += "!"
-            }
-        } else if (original.nullability == TypeReference.Nullability.NULLABLE) {
-            str += "?"
-        }
-
-        return str
-    }
+    override fun toString() = parameter.name
 
     companion object {
-        operator fun invoke(original: TypeReference, parameter: BoundTypeParameter): GenericTypeReference {
+        operator fun invoke(original: TypeReference, parameter: BoundTypeParameter): BoundTypeReference {
             return NakedGenericTypeReference(original, parameter)
                 .withMutability(original.mutability)
                 .withCombinedNullability(original.nullability)

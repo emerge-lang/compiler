@@ -118,7 +118,7 @@ open class MutableCTContext(
         return fromImport ?: parentContext.resolveBaseType(simpleName, fromOwnFileOnly)
     }
 
-    override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
+    private fun resolveTypeExceptNullability(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
         resolveTypeParameter(ref.simpleName)?.let { parameter ->
             return GenericTypeReference(ref, parameter)
         }
@@ -127,6 +127,11 @@ open class MutableCTContext(
         return resolveBaseType(ref.simpleName)
             ?.let { RootResolvedTypeReference(ref, it, resolvedArguments) }
             ?: UnresolvedType(this, ref, resolvedArguments)
+    }
+
+    override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
+        val resolved = resolveTypeExceptNullability(ref, fromOwnFileOnly)
+        return resolved.withCombinedNullability(ref.nullability)
     }
 
     override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? {

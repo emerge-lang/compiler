@@ -33,30 +33,27 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
  */
 class TypeVariable private constructor(
     val parameter: BoundTypeParameter,
-    override val isNullable: Boolean,
     override val mutability: TypeMutability,
     override val span: Span?,
 ) : BoundTypeReference {
     constructor(ref: GenericTypeReference) : this(
         ref.parameter,
-        ref.isNullable,
         ref.mutability,
         ref.span,
     )
     constructor(parameter: BoundTypeParameter) : this(
         parameter,
-        parameter.bound.isNullable,
         parameter.bound.mutability,
         parameter.astNode.name.span,
     )
 
     override val simpleName get() = parameter.name
+    override val isNullable get() = parameter.bound.isNullable
     override val inherentTypeBindings = TypeUnification.EMPTY
 
     val effectiveBound: BoundTypeReference get() {
         return parameter.bound
             .withCombinedMutability(mutability)
-            .withCombinedNullability(if (isNullable) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.NOT_NULLABLE)
     }
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference {
@@ -102,6 +99,15 @@ class TypeVariable private constructor(
             }
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
+            is NullableTypeReference -> {
+                val carry2 = carry.plusReporting(Reporting.valueNotAssignable(
+                    this,
+                    assigneeType,
+                    "Cannot assign a possibly null value to a non-nullable reference",
+                    assignmentLocation,
+                ))
+                unify(assigneeType.nested, assignmentLocation, carry2)
+            }
         }
     }
 
@@ -112,7 +118,7 @@ class TypeVariable private constructor(
     }
 
     override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
-        return context.bindings[this] ?: parameter.bound
+        return context.bindings[this] ?: effectiveBound
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
@@ -133,11 +139,6 @@ class TypeVariable private constructor(
             str += mutability.keyword.text + " "
         }
         str += simpleName
-        if (isNullable && !parameter.bound.isNullable) {
-            str += "?"
-        } else if (!isNullable && parameter.bound.isNullable) {
-            str += "!"
-        }
         return str
     }
 

@@ -12,7 +12,7 @@ class ExpressionErrors : FreeSpec({
     "unsafe object traversal" {
         validateModule("""
             class X {
-                a: S32
+                a: S32 = init
             }
             fn foo(p: X?) -> S32 {
                 return p.a

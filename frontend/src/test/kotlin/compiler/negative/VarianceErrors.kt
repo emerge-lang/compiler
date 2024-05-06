@@ -169,15 +169,17 @@ class VarianceErrors : FreeSpec({
 
     "in-variant type argument assumes type read Any? in out-position" {
         validateModule("""
-                class A<T : Number> {
-                    p: T
-                }
-                fn test<T : Number>() {
-                    a: A<in S32> = A(2)
-                    var x: T
-                    set x = a.p
-                }
-            """.trimIndent())
+            interface A {}
+            interface B : A {}
+            class C<T : A> {
+                p: T
+            }
+            fn test<T : A>() {
+                a: C<in B> = C(2)
+                var x: T
+                set x = a.p
+            }
+        """.trimIndent())
             .shouldReport<ValueNotAssignableReporting> {
                 it.sourceType.toString() shouldBe "read Any?"
                 it.targetType.toString() shouldBe "T"

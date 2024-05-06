@@ -18,13 +18,15 @@ class TypeErrors : FreeSpec({
     "generics" - {
         "assign to out-variant type parameter" {
             validateModule("""
+                interface A {}
+                class B : A {}
                 class X<T> {
                     prop: T
                 }
                 
                 fn foo() {
-                    var myX: X<out Number> = X(2)
-                    set myX.prop = 2
+                    var myX: X<out A> = X(B())
+                    set myX.prop = B()
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting>()

@@ -21,7 +21,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
  */
 class RootResolvedTypeReference private constructor(
     val original: TypeReference?,
-    override val isNullable: Boolean,
     private val explicitMutability: TypeMutability?,
     val baseType: BoundBaseType,
     val arguments: List<BoundTypeArgument>?,
@@ -32,6 +31,7 @@ class RootResolvedTypeReference private constructor(
         }
     }
 
+    override val isNullable = false
     override val mutability = if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else (explicitMutability ?: original?.mutability ?: TypeMutability.READONLY)
     override val simpleName = original?.simpleName ?: baseType.simpleName
     override val span = original?.declaringNameToken?.span
@@ -42,7 +42,6 @@ class RootResolvedTypeReference private constructor(
 
     constructor(original: TypeReference, baseType: BoundBaseType, parameters: List<BoundTypeArgument>?) : this(
         original,
-        original.nullability == TypeReference.Nullability.NULLABLE,
         original.mutability,
         baseType,
         parameters,
@@ -51,7 +50,6 @@ class RootResolvedTypeReference private constructor(
     override fun withMutability(modifier: TypeMutability?): RootResolvedTypeReference {
         return RootResolvedTypeReference(
             original,
-            isNullable,
             if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else modifier,
             baseType,
             arguments?.map { it.defaultMutabilityTo(modifier) },
@@ -62,25 +60,17 @@ class RootResolvedTypeReference private constructor(
         val combinedMutability = mutability?.let { this.mutability.combinedWith(it) } ?: this.mutability
         return RootResolvedTypeReference(
             original,
-            isNullable,
             combinedMutability,
             baseType,
             arguments?.map { it.defaultMutabilityTo(combinedMutability) },
         )
     }
 
-    override fun withCombinedNullability(nullability: TypeReference.Nullability): RootResolvedTypeReference {
-        return RootResolvedTypeReference(
-            original,
-            when(nullability) {
-                TypeReference.Nullability.NULLABLE -> true
-                TypeReference.Nullability.NOT_NULLABLE -> false
-                TypeReference.Nullability.UNSPECIFIED -> isNullable
-            },
-            explicitMutability,
-            baseType,
-            arguments
-        )
+    override fun withCombinedNullability(nullability: TypeReference.Nullability): BoundTypeReference {
+        if (nullability == TypeReference.Nullability.NULLABLE) {
+            return NullableTypeReference(this)
+        }
+        return this
     }
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): RootResolvedTypeReference {
@@ -90,7 +80,6 @@ class RootResolvedTypeReference private constructor(
 
         return RootResolvedTypeReference(
             original,
-            isNullable,
             mutability,
             baseType,
             arguments?.map { it.defaultMutabilityTo(mutability) },
@@ -119,12 +108,12 @@ class RootResolvedTypeReference private constructor(
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
         return when (other) {
             is UnresolvedType -> other.closestCommonSupertypeWith(this)
+            is NullableTypeReference -> NullableTypeReference(closestCommonSupertypeWith(other.nested))
             is RootResolvedTypeReference -> {
                 val commonSupertype = BoundBaseType.closestCommonSupertypeOf(this.baseType, other.baseType)
                 check(commonSupertype.typeParameters.isNullOrEmpty()) { "Generic supertypes are not implemented, yet." }
                 RootResolvedTypeReference(
                     null,
-                    this.isNullable || other.isNullable,
                     this.mutability.combinedWith(other.mutability),
                     commonSupertype,
                     null,
@@ -147,7 +136,6 @@ class RootResolvedTypeReference private constructor(
     override fun withTypeVariables(variables: List<BoundTypeParameter>): RootResolvedTypeReference {
         return RootResolvedTypeReference(
             original,
-            isNullable,
             explicitMutability,
             baseType,
             arguments?.map { it.withTypeVariables(variables) },
@@ -171,12 +159,6 @@ class RootResolvedTypeReference private constructor(
                     )
                 }
 
-                if (!this.isNullable && assigneeType.isNullable) {
-                    return carry.plusReporting(
-                        Reporting.valueNotAssignable(this, assigneeType, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
-                    )
-                }
-
                 val selfArgs = this.arguments ?: emptyList()
                 val assigneeArgs = assigneeType.arguments ?: emptyList()
                 return selfArgs
@@ -194,13 +176,15 @@ class RootResolvedTypeReference private constructor(
                 return unify(assigneeType.type, assignmentLocation, carry)
             }
             is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
+            is NullableTypeReference -> return carry.plusReporting(
+                Reporting.valueNotAssignable(this, assigneeType, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
+            )
         }
     }
 
     override fun instantiateFreeVariables(context: TypeUnification): RootResolvedTypeReference {
         return RootResolvedTypeReference(
             original,
-            isNullable,
             explicitMutability,
             baseType,
             arguments?.map { it.instantiateFreeVariables(context) },
@@ -210,7 +194,6 @@ class RootResolvedTypeReference private constructor(
     override fun instantiateAllParameters(context: TypeUnification): RootResolvedTypeReference {
         return RootResolvedTypeReference(
             original,
-            isNullable,
             explicitMutability,
             baseType,
             arguments?.map { it.instantiateAllParameters(context) },
@@ -235,15 +218,11 @@ class RootResolvedTypeReference private constructor(
             )
         }
 
-        if (isNullable) {
-            str += '?'
-        }
-
         str
     }
 
     override fun toBackendIr(): IrType {
-        val raw = IrSimpleTypeImpl(baseType.toBackendIr(), isNullable)
+        val raw = IrSimpleTypeImpl(baseType.toBackendIr(), false)
         if (arguments.isNullOrEmpty() || baseType.typeParameters.isNullOrEmpty()) {
             return raw
         }
@@ -264,7 +243,6 @@ class RootResolvedTypeReference private constructor(
 
         other as RootResolvedTypeReference
 
-        if (isNullable != other.isNullable) return false
         if (baseType != other.baseType) return false
         if (arguments != other.arguments) return false
         if (mutability != other.mutability) return false
@@ -273,8 +251,7 @@ class RootResolvedTypeReference private constructor(
     }
 
     override fun hashCode(): Int {
-        var result = isNullable.hashCode()
-        result = 31 * result + baseType.hashCode()
+        var result = baseType.hashCode()
         result = 31 * result + arguments.hashCode()
         result = 31 * result + mutability.hashCode()
         return result

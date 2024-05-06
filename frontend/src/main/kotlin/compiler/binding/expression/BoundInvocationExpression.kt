@@ -184,9 +184,6 @@ class BoundInvocationExpression(
             // for static member fns, receiverExpression helps discover them. But for the actual invocation,
             // the receiver stops to matter
             receiverExceptReferringType,
-            valueArguments,
-            typeArguments,
-            expectedReturnType
         )
 
         if (evaluations.isEmpty()) {
@@ -252,6 +249,79 @@ class BoundInvocationExpression(
         }
     }
 
+    /**
+     * Given the invocation types `receiverType` and `parameterTypes` of an invocation site
+     * returns the functions matching the types sorted by matching quality to the given
+     * types (see [BoundTypeReference.evaluateAssignabilityTo] and [BoundTypeReference.assignMatchQuality])
+     *
+     * In essence, this function is the overload resolution algorithm of Emerge.
+     *
+     * @return a list of matching functions, along with the resolved generics. Use the TypeUnification::right with the
+     * returned function to determine the return type if that function were invoked.
+     * The list is sorted by best-match first, worst-match last. However, if the return value has more than one element,
+     * it has to be treated as an error because the invocation is ambiguous.
+     */
+    private fun Iterable<BoundOverloadSet<*>>.filterAndSortByMatchForInvocationTypes(
+        receiver: BoundExpression<*>?,
+    ): List<OverloadCandidateEvaluation> {
+        check((receiver != null) xor (receiver?.type == null))
+        val receiverType = receiver?.type
+        val argumentsIncludingReceiver = listOfNotNull(receiver) + valueArguments
+        return this
+            .asSequence()
+            .filter { it.parameterCount == argumentsIncludingReceiver.size }
+            .flatMap { it.overloads }
+            // filter by (declared receiver)
+            .filter { candidateFn -> (receiverType != null) == candidateFn.declaresReceiver }
+            // filter by incompatible number of parameters
+            .filter { it.parameters.parameters.size == argumentsIncludingReceiver.size }
+            .mapNotNull { candidateFn ->
+                if (candidateFn.parameterTypes.any { it == null }) {
+                    // types not fully resolved, don't consider
+                    return@mapNotNull null
+                }
+
+                // TODO: source location
+                val returnTypeArgsLocation = typeArguments
+                    ?.mapNotNull { it.span }
+                    ?.reduce(Span::rangeTo)
+                    ?: declaration.span
+                val returnTypeWithVariables = candidateFn.returnType?.withTypeVariables(candidateFn.allTypeParameters)
+                var unification = TypeUnification.fromExplicit(candidateFn.declaredTypeParameters, typeArguments, returnTypeArgsLocation, allowMissingTypeArguments = true)
+                if (returnTypeWithVariables != null) {
+                    if (expectedEvaluationResultType != null) {
+                        unification = unification.doWithIgnoringReportings { obliviousUnification ->
+                            expectedEvaluationResultType!!.unify(returnTypeWithVariables, Span.UNKNOWN, obliviousUnification)
+                        }
+                    }
+                }
+
+                @Suppress("UNCHECKED_CAST") // the check is right above
+                val rightSideTypes = (candidateFn.parameterTypes as List<BoundTypeReference>)
+                    .map { it.withTypeVariables(candidateFn.allTypeParameters) }
+                check(rightSideTypes.size == argumentsIncludingReceiver.size)
+
+                val indicesOfErroneousParameters = ArrayList<Int>(argumentsIncludingReceiver.size)
+                unification = argumentsIncludingReceiver
+                    .zip(rightSideTypes)
+                    .foldIndexed(unification) { parameterIndex, carryUnification, (argument, parameterType) ->
+                        val unificationAfterParameter = parameterType.unify(argument.type!!, argument.declaration.span, carryUnification)
+                        if (unificationAfterParameter.getErrorsNotIn(carryUnification).any()) {
+                            indicesOfErroneousParameters.add(parameterIndex)
+                        }
+                        unificationAfterParameter
+                    }
+
+                OverloadCandidateEvaluation(
+                    candidateFn,
+                    unification,
+                    returnTypeWithVariables?.instantiateFreeVariables(unification),
+                    indicesOfErroneousParameters,
+                )
+            }
+            .toList()
+    }
+
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return seanHelper.phase3 {
             val reportings = mutableSetOf<Reporting>()
@@ -302,11 +372,11 @@ class BoundInvocationExpression(
         return byReceiver + byParameters + bySelf
     }
 
-    private var expectedReturnType: BoundTypeReference? = null
+    private var expectedEvaluationResultType: BoundTypeReference? = null
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         seanHelper.requirePhase2NotDone()
-        expectedReturnType = type
+        expectedEvaluationResultType = type
     }
 
     override val isEvaluationResultReferenceCounted = true
@@ -354,82 +424,6 @@ class BoundInvocationExpression(
             { listOf(IrDropReferenceStatementImpl(it)) },
         ).code
     }
-}
-
-/**
- * Given the invocation types `receiverType` and `parameterTypes` of an invocation site
- * returns the functions matching the types sorted by matching quality to the given
- * types (see [BoundTypeReference.evaluateAssignabilityTo] and [BoundTypeReference.assignMatchQuality])
- *
- * In essence, this function is the overload resolution algorithm of Emerge.
- *
- * @return a list of matching functions, along with the resolved generics. Use the TypeUnification::right with the
- * returned function to determine the return type if that function were invoked.
- * The list is sorted by best-match first, worst-match last. However, if the return value has more than one element,
- * it has to be treated as an error because the invocation is ambiguous.
- */
-private fun Iterable<BoundOverloadSet<*>>.filterAndSortByMatchForInvocationTypes(
-    receiver: BoundExpression<*>?,
-    valueArguments: List<BoundExpression<*>>,
-    typeArguments: List<BoundTypeArgument>?,
-    expectedReturnType: BoundTypeReference?,
-): List<OverloadCandidateEvaluation> {
-    check((receiver != null) xor (receiver?.type == null))
-    val receiverType = receiver?.type
-    val argumentsIncludingReceiver = listOfNotNull(receiver) + valueArguments
-    return this
-        .asSequence()
-        .filter { it.parameterCount == argumentsIncludingReceiver.size }
-        .flatMap { it.overloads }
-        // filter by (declared receiver)
-        .filter { candidateFn -> (receiverType != null) == candidateFn.declaresReceiver }
-        // filter by incompatible number of parameters
-        .filter { it.parameters.parameters.size == argumentsIncludingReceiver.size }
-        .mapNotNull { candidateFn ->
-            if (candidateFn.parameterTypes.any { it == null }) {
-                // types not fully resolved, don't consider
-                return@mapNotNull null
-            }
-
-            // TODO: source location
-            val returnTypeArgsLocation = typeArguments
-                ?.mapNotNull { it.span }
-                ?.reduce(Span::rangeTo)
-                ?: Span.UNKNOWN
-            val returnTypeWithVariables = candidateFn.returnType?.withTypeVariables(candidateFn.allTypeParameters)
-            var unification = TypeUnification.fromExplicit(candidateFn.declaredTypeParameters, typeArguments, returnTypeArgsLocation, allowMissingTypeArguments = true)
-            if (returnTypeWithVariables != null) {
-                if (expectedReturnType != null) {
-                    unification = unification.doWithIgnoringReportings { obliviousUnification ->
-                        expectedReturnType.unify(returnTypeWithVariables, Span.UNKNOWN, obliviousUnification)
-                    }
-                }
-            }
-
-            @Suppress("UNCHECKED_CAST") // the check is right above
-            val rightSideTypes = (candidateFn.parameterTypes as List<BoundTypeReference>)
-                .map { it.withTypeVariables(candidateFn.allTypeParameters) }
-            check(rightSideTypes.size == argumentsIncludingReceiver.size)
-
-            val indicesOfErroneousParameters = ArrayList<Int>(argumentsIncludingReceiver.size)
-            unification = argumentsIncludingReceiver
-                .zip(rightSideTypes)
-                .foldIndexed(unification) { parameterIndex, carryUnification, (argument, parameterType) ->
-                    val unificationAfterParameter = parameterType.unify(argument.type!!, argument.declaration.span, carryUnification)
-                    if (unificationAfterParameter.getErrorsNotIn(carryUnification).any()) {
-                        indicesOfErroneousParameters.add(parameterIndex)
-                    }
-                    unificationAfterParameter
-                }
-
-            OverloadCandidateEvaluation(
-                candidateFn,
-                unification,
-                returnTypeWithVariables?.instantiateFreeVariables(unification),
-                indicesOfErroneousParameters,
-            )
-        }
-        .toList()
 }
 
 private data class AvailableOverloads(
