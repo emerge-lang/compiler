@@ -34,10 +34,17 @@ internal val staticObjectFinalizer: KotlinLlvmFunction<LlvmContext, LlvmVoidType
     }
 }
 
-internal class VTableType(val nEntries: Long) : LlvmStructType("vtable_vectors") {
+internal class VTableType private constructor(val nEntries: Long) : LlvmStructType("vtable_vectors$nEntries") {
     val shiftLeftAmount by structMember(LlvmI32Type)
     val shiftRightAmount by structMember(LlvmI32Type)
     val addresses by structMember(LlvmArrayType(nEntries, LlvmFunctionAddressType))
+
+    companion object {
+        private val cache = MapMaker().weakValues().makeMap<Long, VTableType>()
+        operator fun invoke(nEntries: Long): VTableType {
+            return cache.computeIfAbsent(nEntries, ::VTableType)
+        }
+    }
 }
 
 internal class TypeinfoType private constructor(val nVTableEntries: Long) : LlvmStructType("typeinfo$nVTableEntries") {
