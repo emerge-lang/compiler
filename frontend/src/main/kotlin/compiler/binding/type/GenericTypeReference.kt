@@ -201,4 +201,5 @@ internal class IrGenericTypeReferenceImpl(
     override val effectiveBound: IrType,
 ) : IrGenericTypeReference {
     override fun toString() = "IrGenericReference[${parameter.name} : $effectiveBound]"
+    override fun asNullable(): IrGenericTypeReference = IrGenericTypeReferenceImpl(parameter, effectiveBound.asNullable())
 }

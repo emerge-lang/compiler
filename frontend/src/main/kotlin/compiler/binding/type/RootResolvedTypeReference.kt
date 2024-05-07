@@ -263,6 +263,7 @@ internal class IrSimpleTypeImpl(
     override val isNullable: Boolean,
 ) : IrSimpleType {
     override fun toString() = "IrSimpleType[${baseType.canonicalName}]"
+    override fun asNullable(): IrSimpleType = IrSimpleTypeImpl(baseType, true)
 }
 
 internal class IrParameterizedTypeImpl(
@@ -274,4 +275,6 @@ internal class IrParameterizedTypeImpl(
         transform = { (name, value) -> "$name = $value" },
         postfix = ">]"
     )
+
+    override fun asNullable(): IrParameterizedType = IrParameterizedTypeImpl(simpleType.asNullable(), arguments)
 }

@@ -91,7 +91,7 @@ class NullableTypeReference private constructor(
 
     override val inherentTypeBindings get() = nested.inherentTypeBindings
 
-    override fun toBackendIr() = nested.toBackendIr()
+    override fun toBackendIr() = nested.toBackendIr().asNullable()
 
     override fun toString(): String = "$nested?"
 

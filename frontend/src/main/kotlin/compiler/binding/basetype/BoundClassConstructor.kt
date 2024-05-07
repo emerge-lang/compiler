@@ -32,6 +32,7 @@ import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeParameter
+import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
@@ -362,9 +363,12 @@ class BoundClassConstructor(
     override fun toBackendIr(): IrFunction = backendIr
 }
 
-private class IrClassSimpleType(val classDef: BoundBaseType) : IrSimpleType {
+private class IrClassSimpleType(
+    val classDef: BoundBaseType
+) : IrSimpleType {
     override val isNullable = false
     override val baseType get() = classDef.toBackendIr()
+    override fun asNullable(): IrSimpleType = IrSimpleTypeImpl(baseType, true)
 }
 
 private class IrDefaultConstructorImpl(
@@ -385,6 +389,7 @@ private class IrAllocateObjectExpressionImpl(val classDef: BoundBaseType) : IrAl
     override val evaluatesTo = object : IrSimpleType {
         override val isNullable = false
         override val baseType get() = this@IrAllocateObjectExpressionImpl.clazz
+        override fun asNullable(): IrSimpleType = IrSimpleTypeImpl(baseType, true)
     }
 }
 
