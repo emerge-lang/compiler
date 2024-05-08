@@ -90,6 +90,32 @@ internal class EmergeClassType private constructor(
         return heapAllocation
     }
 
+    private var llvmStructMembersDefined = false
+    fun assureLlvmStructMembersDefined() {
+        if (llvmStructMembersDefined) {
+            return
+        }
+        llvmStructMembersDefined = true
+
+        val baseElements = listOf(
+            EmergeHeapAllocatedValueBaseType
+        ).map { it.getRawInContext(context) }
+
+        irClass.memberVariables.forEachIndexed { index, member ->
+            member.indexInLlvmStruct = baseElements.size + index
+        }
+
+        val emergeMemberTypesRaw = irClass.memberVariables.map { context.getReferenceSiteType(it.type).getRawInContext(context) }
+        val llvmMemberTypesRaw = (baseElements + emergeMemberTypesRaw).toTypedArray()
+
+        val llvmStructElements = PointerPointer(*llvmMemberTypesRaw)
+        LLVM.LLVMStructSetBody(structRef, llvmStructElements, llvmMemberTypesRaw.size, 0)
+
+        check(LLVM.LLVMOffsetOfElement(context.targetData.ref, structRef, 0) == 0L) {
+            "Cannot reinterpret emerge type ${irClass.canonicalName} as Any"
+        }
+    }
+
     override fun pointerToCommonBase(
         builder: BasicBlockBuilder<*, *>,
         value: LlvmValue<*>
@@ -111,24 +137,6 @@ internal class EmergeClassType private constructor(
             structRef: LLVMTypeRef,
             irClass: IrClass,
         ): EmergeClassType {
-            val baseElements = listOf(
-                EmergeHeapAllocatedValueBaseType
-            ).map { it.getRawInContext(context) }
-
-            irClass.memberVariables.forEachIndexed { index, member ->
-                member.indexInLlvmStruct = baseElements.size + index
-            }
-
-            val emergeMemberTypesRaw = irClass.memberVariables.map { context.getReferenceSiteType(it.type).getRawInContext(context) }
-            val llvmMemberTypesRaw = (baseElements + emergeMemberTypesRaw).toTypedArray()
-
-            val llvmStructElements = PointerPointer(*llvmMemberTypesRaw)
-            LLVM.LLVMStructSetBody(structRef, llvmStructElements, llvmMemberTypesRaw.size, 0)
-
-            check(LLVM.LLVMOffsetOfElement(context.targetData.ref, structRef, 0) == 0L) {
-                "Cannot reinterpret emerge type ${irClass.canonicalName} as Any"
-            }
-
             return EmergeClassType(context, structRef, irClass)
         }
 

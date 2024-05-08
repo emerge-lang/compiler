@@ -83,11 +83,10 @@ class Linux_x68_64_Backend : EmergeBackend {
         LLVM.LLVMInitializeAllAsmParsers()
 
         EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-unknown")) { llvmContext ->
-            softwareContext.packagesSeq.forEach { pkg ->
-                pkg.classes
-                    .filter { it.boxableTyping == null }
-                    .forEach(llvmContext::registerClass)
-            }
+            softwareContext.packagesSeq
+                .flatMap { it.classes }
+                .filter { it.boxableTyping == null }
+                .forEach(llvmContext::registerClass)
             softwareContext.packagesSeq
                 .flatMap { it.interfaces }
                 .flatMap { it.memberFunctions }
@@ -106,6 +105,11 @@ class Linux_x68_64_Backend : EmergeBackend {
                     val fn = llvmContext.registerFunction(it) ?: throw CodeGenerationException("toplevel fn not defined/declared in llvm - what?")
                     storeCoreFunctionReference(llvmContext, it.canonicalName, fn)
                 }
+
+            softwareContext.packagesSeq
+                .flatMap { it.classes }
+                .filter { it.boxableTyping == null }
+                .forEach(llvmContext::defineClassStructure)
 
             softwareContext.packagesSeq
                 .flatMap { it.variables }

@@ -161,6 +161,10 @@ class EmergeLlvmContext(
         emergeStructs.add(emergeClassType)
     }
 
+    fun defineClassStructure(clazz: IrClass) {
+        clazz.llvmType.assureLlvmStructMembersDefined()
+    }
+
     fun <R : LlvmType> registerIntrinsic(fn: KotlinLlvmFunction<in EmergeLlvmContext, R>): LlvmFunction<R> {
         val rawFn = this.kotlinLlvmFunctions
             .computeIfAbsent(fn) { it.declareInContext(this) }
