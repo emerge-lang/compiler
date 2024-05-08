@@ -87,11 +87,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 24. ~~move intrinsic types 100% into emerge source. Both frontend and backend should
     have the necessary toolset now to still hook in and handle them correctly~~
 25. ~~implement weak references~~
-26. extend InvocationExpression
-    1. ~~handle constructors~~
-    2. when checking `objRef.method()` error if `method` is a property  
-      (will be implemented with function types later on)
-27. error handling
+26. error handling
     1. this is going to touch the runtime significantly. Use this opportunity to
        1. find out what all the gnu gcc runtime libs do, which and why they're needed
        2. bundle the ones for x86_64 into the compiler, so they're available wherever the compiler can run
@@ -102,17 +98,17 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     4. `Exception`s are checked - must be declared on the signature. Errors can be omitted. This removes the need for
        a `nothrow` modifier
     5. try+catch+finally
-28. add instance-of and cast operations
-29. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
+27. add instance-of and cast operations
+28. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
     1. index access can always throw IndexOutOfBounds; work out a nothrow alternative. Maybe `.safeGet(index)` returning `Either`?
-30. limit c-interface to standard library
+29. limit c-interface to standard library
     1. upgrade the compilers CLI interface to a configuration via a proper config format. NOT YAML! Maybe TOML, maybe PKL. Should have schema
     2. implement dependencies between input modules/source sets
        * stdlib depends on platform module provided by backend
        * modules only have access to things in other modules that they explicitly depend on
     3. special rule: only emerge.std may depend on emerge.platform
     4. special rule: only emerge.platform may depend on emerge.ffi.c
-31. Stdlib _absolute_ Basics
+30. Stdlib _absolute_ Basics
     * arithmetic
         * overflow-safe implementations of the actual operators + - * ...
         * overflow-unsafe intrinsics, e.g. `emerge.std.math.addWithOverflow(a: i32, b: i32)`
@@ -123,8 +119,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       * reference equality operator: really === ??
       * it would be great to be able to do == on Any
     * hashCodes: again, Java-style is overkill, have an explicit Hashable interface 
-32. while + do-while loops
-33. extend OO model
+31. while + do-while loops
+32. extend OO model
     1. class extends class will not be a thing! composition all the way. Probably needs some boilerplate-reduction
        tools, like Kotlins `by`, but more powerful
     2. add accessor-based member variables to interfaces
@@ -138,11 +134,11 @@ This file describes the Items that are next on the TODO list. **This list is NOT
           test the implementation.
     4. deal with the wrapper mutability problem: do types need to be generic on mutability?
     5. add `sealed` interfaces as in Kotlin
-34. general iterable types
+33. general iterable types
     * implement generic supertypes - yey, another logic monstrosity
     * Like Java Iterable<T>, D ranges, ... ?
     * for each over iterable
-35. for each loops over arrays
+34. for each loops over arrays
     ```
     for each item in iterable { /* ... */ }
     // is actually
@@ -156,40 +152,42 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     // gets rewritten to
     for i in 0.rangeTo(10) { /* ... */ }
     ```
-36. Stdlib basics
+35. Stdlib basics
     * some good standard collections
     * ArrayList, LinkedList, (De)Queue, Stack, ...
     * Map
-37. Function types
+36. Function types
     1. `operator fun invoke`: `obj(param)` to `obj.invoke(param)`
     2. Regular functions: `(T1, T2) -> R`
     3. do we need functions with receiver? Or is receiver/self VS regular parameter just a syntax
        thing on the declaration side?
     4. deal with the higher-order function purity problem: do functions need to be generic on purity?
-38. functional-style collection operations (possible because the higher-order function purity problem is solved)
+    5. extend InvocationExpression
+    6. implement `objectRef.foo()` where `foo` is a property of a function type
+37. functional-style collection operations (possible because the higher-order function purity problem is solved)
     1. start simple with forEach
     2. go on with filter, map, fold, ...
     3. more tricky: make sure the code emitted by LLVM doesn't actually do all the allocation. A chain of maps and filters
        should be compiled down to a single loop.
-39. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
-40. optimize reference counting; see [](refcounting optimizations.md)
+38. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
+39. optimize reference counting; see [](refcounting optimizations.md)
     * for this, the logic to determine where reference counts are needed must move from the LLVM backend to
       the frontend; the frontend has the tools to deal with the complexity, the backend doesn't. Especially
       temporary values are BAD offenders
-41. some stdlib primitives for filesystem IO
-42. typealiases
-43. smart casts
-44. optional parameters
+40. some stdlib primitives for filesystem IO
+41. typealiases
+42. smart casts
+43. optional parameters
     * parameter with default value is optional
     * affects overload validation and resolution
     * default value should be evaluated on the caller side because it allows to keep the
       ABI calling conventions
       * as a consequence, only the initial declaration of a function can declare default values,
         overrides cannot
-45. named arguments
+44. named arguments
     * allow to change the order of arguments? Its important to keep the evaluation order on the
       calling side to match the order of the arguments as passed, not as declared
-46. threading
+45. threading
     The whole shtick of the explicit-mutability types is to simplify multithreading. Avoiding the
     complexity of having a `shared` mutability like D allows to infer some properties necessary for
     multithreading:
