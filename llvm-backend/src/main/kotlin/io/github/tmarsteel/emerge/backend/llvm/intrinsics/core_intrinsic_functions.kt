@@ -116,7 +116,7 @@ private val dropReferenceFunction = KotlinLlvmFunction.define<EmergeLlvmContext,
 ) {
     val objectPtr by param(PointerToAnyEmergeValue)
     body {
-        val referenceCountPtr = getelementptr(objectPtr).member { EmergeHeapAllocatedValueBaseType.strongReferenceCount }.get()
+        val referenceCountPtr = getelementptr(objectPtr).member { strongReferenceCount }.get()
         val decremented = sub(referenceCountPtr.dereference(), context.word(1))
         val isZero = icmp(decremented, IntegerComparison.EQUAL, context.word(0))
         conditionalBranch(isZero, ifTrue = {
@@ -131,7 +131,7 @@ private val dropReferenceFunction = KotlinLlvmFunction.define<EmergeLlvmContext,
                 .get()
                 .dereference()
 
-            call(finalizerFn, EmergeAnyValueVirtualsType.finalizeFunctionType, emptyList())
+            call(finalizerFn, EmergeAnyValueVirtualsType.finalizeFunctionType, listOf(objectPtr))
 
             concludeBranch()
         }, ifFalse = {
