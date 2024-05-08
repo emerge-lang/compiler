@@ -46,7 +46,7 @@ class ConstantStructBuilder<S : LlvmStructType, C : LlvmContext>(
 fun <E : LlvmType> LlvmArrayType<E>.buildConstantIn(
     context: LlvmContext,
     data: Iterable<LlvmValue<E>>,
-): LlvmValue<LlvmArrayType<E>> {
+): LlvmConstant<LlvmArrayType<E>> {
     val constantsArray = data.map { it.raw }.toTypedArray()
     val constArray = LLVM.LLVMConstArray2(
         elementType.getRawInContext(context),
@@ -54,5 +54,5 @@ fun <E : LlvmType> LlvmArrayType<E>.buildConstantIn(
         constantsArray.size.toLong(),
     )
 
-    return LlvmValue(constArray, this)
+    return LlvmConstant(constArray, this)
 }

@@ -52,14 +52,18 @@ internal fun LlvmContext.word(value: ULong): LlvmConstant<EmergeWordType> = word
 internal object EmergeAnyValueVirtualsType : LlvmStructType("anyvalue_virtuals") {
     val finalizeFunction by structMember(LlvmFunctionAddressType)
 
-    val finalizeFunctionType = LlvmFunctionType(LlvmVoidType, emptyList())
+    val finalizeFunctionType = LlvmFunctionType(LlvmVoidType, listOf(PointerToAnyEmergeValue))
 }
 
 internal val PointerToAnyEmergeValue: LlvmPointerType<EmergeHeapAllocatedValueBaseType> = pointerTo(EmergeHeapAllocatedValueBaseType)
 
 internal object EmergeWeakReferenceCollectionType : LlvmStructType("weakrefcoll") {
-    val weakObjects by structMember(
-        LlvmArrayType(10, PointerToAnyEmergeValue),
+    /**
+     * pointers to the actual memory locations where a pointer to another object is kept. In practice this
+     * will exclusively be the addresses of the `value` member in the `emerge.core.Weak` class.
+     */
+    val pointersToWeakReferences by structMember(
+        LlvmArrayType(10, pointerTo(PointerToAnyEmergeValue)),
     )
     val next by structMember(pointerTo(this@EmergeWeakReferenceCollectionType))
 }

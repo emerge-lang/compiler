@@ -2,6 +2,7 @@ package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.getLlvmMessage
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
 import org.bytedeco.javacpp.PointerPointer
 import org.bytedeco.llvm.LLVM.LLVMBasicBlockRef
 import org.bytedeco.llvm.LLVM.LLVMBuilderRef
@@ -31,7 +32,9 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun <R : LlvmType> call(function: LlvmValue<LlvmFunctionAddressType>, functionType: LlvmFunctionType<R>, args: List<LlvmValue<*>>): LlvmValue<R>
     fun <T : LlvmIntegerType> ptrtoint(pointer: LlvmValue<LlvmPointerType<*>>, integerType: T): LlvmValue<T>
     fun memcpy(destination: LlvmValue<LlvmPointerType<*>>, source: LlvmValue<LlvmPointerType<*>>, nBytes: LlvmValue<LlvmIntegerType>, volatile: Boolean = false)
+    fun memset(destination: LlvmValue<LlvmPointerType<*>>, value: LlvmValue<LlvmI8Type>, nBytes: LlvmValue<LlvmIntegerType>, volatile: Boolean = false)
     fun isNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
+    fun isEq(pointerA: LlvmValue<LlvmPointerType<*>>, pointerB: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
     fun not(value: LlvmValue<LlvmBooleanType>): LlvmValue<LlvmBooleanType>
 
     /**
@@ -55,6 +58,10 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
         ifFalse: (Branch<C, R>.() -> Termination)? = null
     )
 
+    /**
+     * @param header is executed before every iteration and implements the loop condition
+     * @param body is executed on every iteration, can break out of the loop or continue at the header
+     */
     fun loop(
         header: LoopHeader<C, R>.() -> Termination,
         body: LoopBody<C, R>.() -> Termination,
@@ -252,9 +259,21 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         LLVM.LLVMSetVolatile(inst, if (volatile) 1 else 0)
     }
 
+    override fun memset(destination: LlvmValue<LlvmPointerType<*>>, value: LlvmValue<LlvmI8Type>, nBytes: LlvmValue<LlvmIntegerType>, volatile: Boolean) {
+        // TODO: alignment; 1 is bad
+        val inst = LLVM.LLVMBuildMemSet(builder, destination.raw, value.raw, nBytes.raw, 1)
+        LLVM.LLVMSetVolatile(inst, if (volatile) 1 else 0)
+    }
+
     override fun isNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType> {
         val instr = LLVM.LLVMBuildIsNull(builder, pointer.raw, tmpVars.next())
         return LlvmValue(instr, LlvmBooleanType)
+    }
+
+    override fun isEq(pointerA: LlvmValue<LlvmPointerType<*>>, pointerB: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType> {
+        val aAsInt = ptrtoint(pointerA, EmergeWordType)
+        val bAsInt = ptrtoint(pointerB, EmergeWordType)
+        return icmp(aAsInt, IntegerComparison.EQUAL, bAsInt)
     }
 
     override fun not(value: LlvmValue<LlvmBooleanType>): LlvmValue<LlvmBooleanType> {

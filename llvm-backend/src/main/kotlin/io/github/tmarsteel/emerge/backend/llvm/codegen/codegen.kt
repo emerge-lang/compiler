@@ -21,10 +21,12 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNotReallyAnExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
+import io.github.tmarsteel.emerge.backend.api.ir.IrRegisterWeakReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStringLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
@@ -51,6 +53,8 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceCreated
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceDropped
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arraySize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getDynamicCallAddress
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.registerWeakReference
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.unregisterWeakReference
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
@@ -79,6 +83,20 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         }
         is IrDropStrongReferenceStatement -> {
             code.reference.declaration.llvmValue.afterReferenceDropped(code.reference.type)
+            return ExecutableResult.ExecutionOngoing
+        }
+        is IrRegisterWeakReferenceStatement -> {
+            call(context.registerIntrinsic(registerWeakReference), listOf(
+                getPointerToStructMember(code.referenceStoredIn.objectValue.declaration.llvmValue, code.referenceStoredIn.memberVariable),
+                code.referredObject.declaration.llvmValue,
+            ))
+            return ExecutableResult.ExecutionOngoing
+        }
+        is IrUnregisterWeakReferenceStatement -> {
+            call(context.registerIntrinsic(unregisterWeakReference), listOf(
+                getPointerToStructMember(code.referenceStoredIn.objectValue.declaration.llvmValue, code.referenceStoredIn.memberVariable),
+                code.referredObject.declaration.llvmValue,
+            ))
             return ExecutableResult.ExecutionOngoing
         }
         is IrCreateTemporaryValue -> {
