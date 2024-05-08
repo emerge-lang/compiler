@@ -68,9 +68,7 @@ val LineOfCode = sequence {
         ref(Expression)
     }
 
-    repeating {
-        operator(Operator.NEWLINE)
-    }
+    operator(Operator.NEWLINE)
 }
     .astTransformation { tokens -> tokens.next() as Statement }
 
