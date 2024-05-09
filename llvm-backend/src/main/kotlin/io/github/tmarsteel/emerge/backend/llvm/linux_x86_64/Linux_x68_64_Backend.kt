@@ -38,7 +38,7 @@ class Linux_x68_64_Backend : EmergeBackend {
         writeSoftwareToBitcodeFile(softwareContext, bitcodeFilePath)
 
         /* we cannot use LLVMTargetMachineEmitToFile because:
-        it insits on using .ctor sections for static initializers, but these are LONG deprecated
+        it insists on using .ctor sections for static initializers, but these are LONG deprecated
         the c runtime only looks for init_array sections. For some reason, LLVMTargetMachineEmitToFile
         wants to use .ctors. In C++, one can configure this in the TargetOptions class by setting
         useInitArray to true. Though, there currently is no way to modify the C++ TargetOptions object
@@ -60,9 +60,8 @@ class Linux_x68_64_Backend : EmergeBackend {
         val executablePath = directory.resolve("runnable").toAbsolutePath()
         LinuxLinker.linkObjectFilesToELF(
             listOf(
-                // what other object files we need is just found out from clang -v
-                // this is a rabbit hole to go down, especially why clang uses gcc binaries
-                // but there are more important things right now. This should work on most debian distros.
+                // here is what all of these object files are for:
+                // https://dev.gentoo.org/~vapier/crt.txt
                 Paths.get("/usr/lib/x86_64-linux-gnu/Scrt1.o"),
                 Paths.get("/lib/x86_64-linux-gnu/crti.o"),
                 Paths.get("/usr/lib/gcc/x86_64-linux-gnu/12/crtbeginS.o"),

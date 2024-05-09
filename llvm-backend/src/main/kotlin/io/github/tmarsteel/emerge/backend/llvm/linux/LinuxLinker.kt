@@ -14,7 +14,7 @@ object LinuxLinker {
         objectFiles: List<Path>,
         outputFile: Path,
         dynamicallyLinkAtRuntime: List<String> = emptyList(),
-        runtimeDynamicLinker: UnixPath = UnixPath("/lib64/ld-linux-x86-64.so.2"),
+        runtimeDynamicLinker: UnixPath = UnixPath("/usr/lib64/ld-linux-x86-64.so.2"),
         runtimeLibraryPaths: List<UnixPath> = listOf(UnixPath("/usr/lib/x86_64-linux-gnu/")),
     ) {
         val command = mutableListOf(
