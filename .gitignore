@@ -50,3 +50,9 @@ target/
 
 # Output of this app for testing
 emerge-out/
+
+# holds resources local to the development environment. E.g. C-runtime binaries; readily available on linux dev envs but not on windows
+# the structure is not fixed, every environment/developer can have this as preferred. Files in here are linked/copied
+# into the maven build
+local-resources
+external-deps.properties

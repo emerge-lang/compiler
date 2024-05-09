@@ -36,7 +36,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            /gcc-build/x86_64-pc-linux-gnu/libgcc/crt*.o
+            gcc-build/x86_64-pc-linux-gnu/libgcc/crt*.o
           key: gcc-x86_64-pc-linux-gnu-${{ env.GCC_GIT_REF }}
       - name: checkout GCC source
         if: steps.cache-gcc.outputs.cache-hit != 'true'
@@ -79,6 +79,12 @@ jobs:
           fail-on-cache-miss: true
       - name: checkout
         uses: actions/checkout@v4
+      - name: set up external-deps.properties file
+        run: |
+          echo "emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.scrt1=${{ env.GITHUB_WORKSPACE }}/glibc-build/csu/Scrt1.o" > external-deps.properties
+          echo "emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.crtbeginS=${{ env.GITHUB_WORKSPACE }}/gcc-build/x86_64-pc-linux-gnu/libgcc/crtbeginS.o" >> external-deps.properties
+          echo "emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.crtendS=${{ env.GITHUB_WORKSPACE }}/gcc-build/x86_64-pc-linux-gnu/libgcc/crtendS.o" >> external-deps.properties
+          cat external-deps.properties
       - name: Set up JDK 21
         uses: actions/setup-java@v4.0.0
         with:

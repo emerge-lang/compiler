@@ -17,6 +17,56 @@
         <testSourceDirectory>src/test/kotlin</testSourceDirectory>
         <plugins>
             <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>properties-maven-plugin</artifactId>
+                <version>1.2.1</version>
+                <executions>
+                    <execution>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>read-project-properties</goal>
+                        </goals>
+                        <configuration>
+                            <files>
+                                <file>${project.parent.basedir}/external-deps.properties</file>
+                            </files>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>com.coderplus.maven.plugins</groupId>
+                <artifactId>copy-rename-maven-plugin</artifactId>
+                <version>1.0</version>
+                <executions>
+                    <execution>
+                        <id>copy-file</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <fileSets>
+                                <fileSet>
+                                    <sourceFile>${emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.scrt1}</sourceFile>
+                                    <destinationFile>${project.build.outputDirectory}/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/Scrt1.o</destinationFile>
+                                </fileSet>
+                                <fileSet>
+                                    <sourceFile>${emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.crtbeginS}</sourceFile>
+                                    <destinationFile>${project.build.outputDirectory}/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/crtbeginS.o</destinationFile>
+                                </fileSet>
+                                <fileSet>
+                                    <sourceFile>${emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.crtendS}</sourceFile>
+                                    <destinationFile>${project.build.outputDirectory}/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/crtendS.o</destinationFile>
+                                </fileSet>
+                            </fileSets>
+                            <sourceFile>src/someDirectory/test.environment.properties</sourceFile>
+                            <destinationFile>target/someDir/environment.properties</destinationFile>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <groupId>org.jetbrains.kotlin</groupId>
 
