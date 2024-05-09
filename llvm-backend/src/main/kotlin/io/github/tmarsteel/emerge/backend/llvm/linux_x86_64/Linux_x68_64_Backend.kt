@@ -79,7 +79,7 @@ class Linux_x68_64_Backend : EmergeBackend {
         LLVM.LLVMInitializeAllAsmPrinters()
         LLVM.LLVMInitializeAllAsmParsers()
 
-        EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-unknown")) { llvmContext ->
+        EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-gnu")) { llvmContext ->
             softwareContext.packagesSeq
                 .flatMap { it.classes }
                 .filter { it.boxableTyping == null }
