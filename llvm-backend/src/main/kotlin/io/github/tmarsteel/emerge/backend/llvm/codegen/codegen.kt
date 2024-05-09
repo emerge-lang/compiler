@@ -32,6 +32,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
+import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction.Companion.callIntrinsic
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
@@ -86,14 +87,14 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             return ExecutableResult.ExecutionOngoing
         }
         is IrRegisterWeakReferenceStatement -> {
-            call(context.registerIntrinsic(registerWeakReference), listOf(
+            callIntrinsic(registerWeakReference, listOf(
                 getPointerToStructMember(code.referenceStoredIn.objectValue.declaration.llvmValue, code.referenceStoredIn.memberVariable),
                 code.referredObject.declaration.llvmValue,
             ))
             return ExecutableResult.ExecutionOngoing
         }
         is IrUnregisterWeakReferenceStatement -> {
-            call(context.registerIntrinsic(unregisterWeakReference), listOf(
+            callIntrinsic(unregisterWeakReference, listOf(
                 getPointerToStructMember(code.referenceStoredIn.objectValue.declaration.llvmValue, code.referenceStoredIn.memberVariable),
                 code.referredObject.declaration.llvmValue,
             ))
@@ -182,7 +183,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             if ((expression.base.type as? IrParameterizedType)?.simpleType?.baseType?.canonicalName?.toString() == "emerge.core.Array") {
                 if (expression.memberVariable.name == "size") {
                     return ExpressionResult.Value(
-                        call(context.registerIntrinsic(arraySize), listOf(expression.base.declaration.llvmValue))
+                        callIntrinsic(arraySize, listOf(expression.base.declaration.llvmValue))
                     )
                 }
             }
@@ -207,7 +208,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             )
         }
         is IrDynamicDispatchFunctionInvocationExpression -> {
-            val targetAddr = call(context.registerIntrinsic(getDynamicCallAddress), listOf(
+            val targetAddr = callIntrinsic(getDynamicCallAddress, listOf(
                 expression.dispatchOn.declaration.llvmValue,
                 context.word(expression.function.signatureHashes.first()),
             ))
@@ -233,7 +234,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         is IrArrayLiteralExpression -> {
             val elementCount = context.word(expression.elements.size)
             val arrayType = context.getAllocationSiteType(expression.evaluatesTo) as EmergeArrayType<*>
-            val arrayPtr = call(context.registerIntrinsic(arrayType.constructorOfUndefEntries), listOf(elementCount))
+            val arrayPtr = callIntrinsic(arrayType.constructorOfUndefEntries, listOf(elementCount))
             for ((index, elementExpr) in expression.elements.indexed()) {
                 val slotPtr = getelementptr(arrayPtr)
                     .member { elements }

@@ -1,5 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import org.bytedeco.llvm.LLVM.LLVMValueRef
 import org.bytedeco.llvm.global.LLVM
 import kotlin.reflect.KProperty
@@ -52,6 +53,11 @@ class KotlinLlvmFunction<C : LlvmContext, R : LlvmType> private constructor(
             returnType: R,
             definition: DefinitionReceiver<C, R>.() -> Unit
         ): KotlinLlvmFunction<C, R> = KotlinLlvmFunction(name, returnType, definition)
+
+        context(BasicBlockBuilder<EmergeLlvmContext, *>)
+        fun <R : LlvmType> callIntrinsic(fn: KotlinLlvmFunction<in EmergeLlvmContext, out R>, args: List<LlvmValue<*>>): LlvmValue<R> {
+            return call(context.registerIntrinsic(fn), args)
+        }
     }
 }
 

@@ -9,6 +9,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Compani
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.IntegerComparison
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
+import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction.Companion.callIntrinsic
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
@@ -39,7 +40,7 @@ internal val nullWeakReferences = KotlinLlvmFunction.define<EmergeLlvmContext, _
         conditionalBranch(
             condition = not(isNull(weakRefCollPtr)),
             ifTrue = {
-                call(context.registerIntrinsic(nullAndFreeWeakReferenceCollection), listOf(weakRefCollPtr))
+                callIntrinsic(nullAndFreeWeakReferenceCollection, listOf(weakRefCollPtr))
                 concludeBranch()
             }
         )
@@ -60,7 +61,7 @@ private val nullAndFreeWeakReferenceCollection: KotlinLlvmFunction<EmergeLlvmCon
             conditionalBranch(
                 condition = not(isNull(nextCollPtr)),
                 ifTrue = {
-                    call(context.registerIntrinsic(nullAndFreeWeakReferenceCollection), listOf(nextCollPtr))
+                    callIntrinsic(nullAndFreeWeakReferenceCollection, listOf(nextCollPtr))
                     concludeBranch()
                 }
             )
@@ -300,7 +301,7 @@ private val afterReferenceCreatedNullable = KotlinLlvmFunction.define<EmergeLlvm
     val inputRef by param(PointerToAnyEmergeValue)
     body {
         conditionalBranch(not(isNull(inputRef)), ifTrue = {
-            call(context.registerIntrinsic(afterReferenceCreatedNonNullable), listOf(inputRef))
+            callIntrinsic(afterReferenceCreatedNonNullable, listOf(inputRef))
             concludeBranch()
         })
         retVoid()
@@ -316,9 +317,9 @@ internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceC
     isNullable: Boolean,
 ) {
     if (isNullable) {
-        call(context.registerIntrinsic(afterReferenceCreatedNullable), listOf(this))
+        callIntrinsic(afterReferenceCreatedNullable, listOf(this))
     } else {
-        call(context.registerIntrinsic(afterReferenceCreatedNonNullable), listOf(this))
+        callIntrinsic(afterReferenceCreatedNonNullable, listOf(this))
     }
 }
 
@@ -351,7 +352,7 @@ private val dropReferenceFunction = KotlinLlvmFunction.define<EmergeLlvmContext,
         val decremented = sub(referenceCountPtr.dereference(), context.word(1))
         val isZero = icmp(decremented, IntegerComparison.EQUAL, context.word(0))
         conditionalBranch(isZero, ifTrue = {
-            call(context.registerIntrinsic(nullWeakReferences), listOf(objectPtr))
+            callIntrinsic(nullWeakReferences, listOf(objectPtr))
             val typeinfoPtr = getelementptr(objectPtr)
                 .member { typeinfo }
                 .get()
@@ -384,11 +385,11 @@ internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceD
 ) {
     if (isNullable) {
         conditionalBranch(condition = not(isNull(this)), ifTrue = {
-            call(context.registerIntrinsic(dropReferenceFunction), listOf(this@afterReferenceDropped))
+            callIntrinsic(dropReferenceFunction, listOf(this@afterReferenceDropped))
             concludeBranch()
         })
     } else {
-        call(context.registerIntrinsic(dropReferenceFunction), listOf(this@afterReferenceDropped))
+        callIntrinsic(dropReferenceFunction, listOf(this@afterReferenceDropped))
     }
 }
 
