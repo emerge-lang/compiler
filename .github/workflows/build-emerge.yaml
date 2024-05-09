@@ -2,13 +2,83 @@ name: build emerge
 run-name: Build & Test the Emerge compiler
 on:
   - push
+env:
+  GLIBC_SOURCE_BALL_URL: "https://de.freedif.org/gnu/glibc/glibc-2.38.tar.bz2"
+  GCC_GIT_REF: "releases/gcc-14.1.0"
+
 jobs:
-  maven-build:
-    runs-on: ubuntu-22.04
-    name: maven build
+  build-glibc-x86_64:
+    name: "build glibc for x86_64-pc-linux-gnu"
+    runs-on: ubuntu-latest
     steps:
+      - id: cache-glibc
+        uses: actions/cache@v4
+        with:
+          path: |
+            glibc-build/csu/Scrt1.o
+          key: glibc-x86_64-pc-linux-gnu-${{ env.GLIBC_SOURCE_BALL_URL }}
+      - name: build glibc
+        if: steps.cache-glibc.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get install bison
+          curl "$GLIBC_SOURCE_BALL_URL" | tar --bzip2 --extract
+          mv glibc-2.38 glibc-source
+          mkdir glibc-build
+          cd glibc-build
+          $GITHUB_WORKSPACE/glibc-source/configure --host=x86_64-pc-linux-gnu --target=x86_64-pc-linux-gnu --prefix=$GITHUB_WORKSPACE/glibc-install
+          N_PHYSICAL_CORES=$(cat /proc/cpuinfo | grep -E 'cpu cores\s*:' | head -1 | sed -E 's/^.*([0-9]+)$/\1/')
+          make -j $N_PHYSICAL_CORES
+  build-gcc-x86_64:
+    name: "build gcc for x86_64-pc-linux-gnu"
+    runs-on: ubuntu-latest
+    steps:
+      - id: cache-gcc
+        uses: actions/cache@v4
+        with:
+          path: |
+            /gcc-build/x86_64-pc-linux-gnu/libgcc/crt*.o
+          key: gcc-x86_64-pc-linux-gnu-${{ env.GCC_GIT_REF }}
+      - name: checkout GCC source
+        if: steps.cache-gcc.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: gcc-mirror/gcc
+          ref: ${{ env.GCC_GIT_REF }}
+          path: gcc-source
+      - name: build GCC
+        if: steps.cache-gcc.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get install flex
+          cd gcc-source
+          contrib/download_prerequisites
+          mkdir gcc-build
+          cd gcc-build
+          $GITHUB_WORKSPACE/gcc-source/configure --host=x86_64-pc-linux-gnu --target=x86_64-pc-linux-gnu --disable-multilib --enable-languages=c
+          N_PHYSICAL_CORES=$(cat /proc/cpuinfo | grep -E 'cpu cores\s*:' | head -1 | sed -E 's/^.*([0-9]+)$/\1/')
+          make -j $N_PHYSICAL_CORES
+  emerge-compiler-maven:
+    runs-on: ubuntu-22.04
+    name: emerge compiler maven verify
+    needs:
+      - build-gcc-x86_64
+      - build-glibc-x86_64
+    steps:
+      - name: get C-runtime binaries from glibc
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            glibc-build
+          key: glibc-x86_64-pc-linux-gnu-${{ env.GLIBC_SOURCE_BALL_URL }}
+          fail-on-cache-miss: true
+      - name: get C-runtime binaries from gcc
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            gcc-build
+          key: gcc-x86_64-pc-linux-gnu-${{ env.GCC_GIT_REF }}
+          fail-on-cache-miss: true
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Set up JDK 21
         uses: actions/setup-java@v4.0.0
         with:
