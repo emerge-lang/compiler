@@ -101,14 +101,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 27. add instance-of and cast operations
 28. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
     1. index access can always throw IndexOutOfBounds; work out a nothrow alternative. Maybe `.safeGet(index)` returning `Either`?
-29. limit c-interface to standard library
-    1. upgrade the compilers CLI interface to a configuration via a proper config format. NOT YAML! Maybe TOML, maybe PKL. Should have schema
-    2. implement dependencies between input modules/source sets
-       * stdlib depends on platform module provided by backend
-       * modules only have access to things in other modules that they explicitly depend on
-    3. special rule: only emerge.std may depend on emerge.platform
-    4. special rule: only emerge.platform may depend on emerge.ffi.c
-30. Stdlib _absolute_ Basics
+29. Stdlib _absolute_ Basics
     * arithmetic
         * overflow-safe implementations of the actual operators + - * ...
         * overflow-unsafe intrinsics, e.g. `emerge.std.math.addWithOverflow(a: i32, b: i32)`
@@ -119,7 +112,12 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       * reference equality operator: really === ??
       * it would be great to be able to do == on Any
     * hashCodes: again, Java-style is overkill, have an explicit Hashable interface 
-31. while + do-while loops
+30. while + do-while loops
+31. implement module dependencies and access checks
+    1. upgrade the compilers CLI interface to a configuration via a proper config format. NOT YAML! Maybe TOML, maybe PKL. Should have schema
+    2. implement dependencies between input modules/source sets
+        * stdlib depends on platform module provided by backend
+        * modules only have access to things in other modules that they explicitly depend on
 32. extend OO model
     1. class extends class will not be a thing! composition all the way. Probably needs some boilerplate-reduction
        tools, like Kotlins `by`, but more powerful
