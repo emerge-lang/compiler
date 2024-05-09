@@ -97,6 +97,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        `Error : Throwable` for unrecoverable errors. `Error` cannot be `catch`ed
     4. `Exception`s are checked - must be declared on the signature. Errors can be omitted. This removes the need for
        a `nothrow` modifier
+       * to still allow optimizations: tag intrinsic impls and all external(C) functions with LLVM nounwind. external(C)
+         functions not being able to throw likely needs to be considered in the FE as well, depending on whether the FE
+         will care about landingpads
     5. try+catch+finally
 27. add instance-of and cast operations
 28. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
