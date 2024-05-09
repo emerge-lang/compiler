@@ -63,11 +63,9 @@ class Linux_x68_64_Backend : EmergeBackend {
                 // here is what all of these object files are for:
                 // https://dev.gentoo.org/~vapier/crt.txt
                 Paths.get("/usr/lib/x86_64-linux-gnu/Scrt1.o"),
-                Paths.get("/lib/x86_64-linux-gnu/crti.o"),
                 Paths.get("/usr/lib/gcc/x86_64-linux-gnu/12/crtbeginS.o"),
                 objectFilePath,
                 Paths.get("/usr/lib/gcc/x86_64-linux-gnu/12/crtendS.o"),
-                Paths.get("/lib/x86_64-linux-gnu/crtn.o"),
             ),
             executablePath,
             dynamicallyLinkAtRuntime = listOf("c"),
