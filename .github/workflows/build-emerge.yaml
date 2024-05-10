@@ -49,21 +49,15 @@ jobs:
       - name: build GCC
         if: steps.cache-gcc.outputs.cache-hit != 'true'
         run: |
-          sudo apt-get install flex tree
+          sudo apt-get install flex
           cd gcc-source
           contrib/download_prerequisites
           cd $GITHUB_WORKSPACE
           mkdir gcc-build
           cd gcc-build
-          echo "--- PWD ---"
-          pwd
-          echo "--- /PWD ---"
           $GITHUB_WORKSPACE/gcc-source/configure --host=x86_64-pc-linux-gnu --target=x86_64-pc-linux-gnu --disable-multilib --enable-languages=c
           N_PHYSICAL_CORES=$(cat /proc/cpuinfo | grep -E 'cpu cores\s*:' | head -1 | sed -E 's/^.*([0-9]+)$/\1/')
           make -j $N_PHYSICAL_CORES
-      - name: print build dir tree
-        if: steps.cache-gcc.outputs.cache-hit != 'true'
-        run: tree -L 4 $GITHUB_WORKSPACE/gcc-build
   emerge-compiler-maven:
     runs-on: ubuntu-22.04
     name: emerge compiler maven verify
