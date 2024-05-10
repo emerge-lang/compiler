@@ -1,4 +1,4 @@
-name: build emerge
+name: build emerge compiler
 run-name: Build & Test the Emerge compiler
 on:
   - push
@@ -15,7 +15,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            glibc-build/csu/Scrt1.o
+            ${{ github.workspace }}/glibc-build/csu
+            ${{ github.workspace }}/glibc-build/libc.so
           key: glibc-x86_64-pc-linux-gnu-${{ env.GLIBC_SOURCE_BALL_URL }}
       - name: build glibc
         if: steps.cache-glibc.outputs.cache-hit != 'true'
@@ -36,7 +37,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            gcc-build/x86_64-pc-linux-gnu/libgcc/crt*.o
+            ${{ github.workspace }}/gcc-build/x86_64-pc-linux-gnu/libgcc
           key: gcc-x86_64-pc-linux-gnu-${{ env.GCC_GIT_REF }}
       - name: checkout GCC source
         if: steps.cache-gcc.outputs.cache-hit != 'true'
@@ -48,14 +49,21 @@ jobs:
       - name: build GCC
         if: steps.cache-gcc.outputs.cache-hit != 'true'
         run: |
-          sudo apt-get install flex
+          sudo apt-get install flex tree
           cd gcc-source
           contrib/download_prerequisites
+          cd $GITHUB_WORKSPACE
           mkdir gcc-build
           cd gcc-build
+          echo "--- PWD ---"
+          pwd
+          echo "--- /PWD ---"
           $GITHUB_WORKSPACE/gcc-source/configure --host=x86_64-pc-linux-gnu --target=x86_64-pc-linux-gnu --disable-multilib --enable-languages=c
           N_PHYSICAL_CORES=$(cat /proc/cpuinfo | grep -E 'cpu cores\s*:' | head -1 | sed -E 's/^.*([0-9]+)$/\1/')
           make -j $N_PHYSICAL_CORES
+      - name: print build dir tree
+        if: steps.cache-gcc.outputs.cache-hit != 'true'
+        run: tree -L 4 $GITHUB_WORKSPACE/gcc-build
   emerge-compiler-maven:
     runs-on: ubuntu-22.04
     name: emerge compiler maven verify
@@ -67,14 +75,15 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            glibc-build
+            ${{ github.workspace }}/glibc-build/csu
+            ${{ github.workspace }}/glibc-build/libc.so
           key: glibc-x86_64-pc-linux-gnu-${{ env.GLIBC_SOURCE_BALL_URL }}
           fail-on-cache-miss: true
       - name: get C-runtime binaries from gcc
         uses: actions/cache/restore@v4
         with:
           path: |
-            gcc-build
+            ${{ github.workspace }}/gcc-build/x86_64-pc-linux-gnu/libgcc
           key: gcc-x86_64-pc-linux-gnu-${{ env.GCC_GIT_REF }}
           fail-on-cache-miss: true
       - name: checkout
