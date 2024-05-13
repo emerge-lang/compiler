@@ -13,6 +13,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmTarget
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.PassBuilderOptions
+import io.github.tmarsteel.emerge.backend.llvm.getClasspathResourceAsFileOnDisk
 import io.github.tmarsteel.emerge.backend.llvm.getLlvmMessage
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.linux.EmergeEntrypoint
@@ -62,10 +63,10 @@ class Linux_x68_64_Backend : EmergeBackend {
             listOf(
                 // here is what all of these object files are for:
                 // https://dev.gentoo.org/~vapier/crt.txt
-                Paths.get("/usr/lib/x86_64-linux-gnu/Scrt1.o"),
-                Paths.get("/usr/lib/gcc/x86_64-linux-gnu/12/crtbeginS.o"),
+                getClasspathResourceAsFileOnDisk(javaClass, "/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/Scrt1.o"),
+                getClasspathResourceAsFileOnDisk(javaClass, "/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/crtbeginS.o"),
                 objectFilePath,
-                Paths.get("/usr/lib/gcc/x86_64-linux-gnu/12/crtendS.o"),
+                getClasspathResourceAsFileOnDisk(javaClass, "/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/crtendS.o"),
             ),
             executablePath,
             dynamicallyLinkAtRuntime = listOf("c"),

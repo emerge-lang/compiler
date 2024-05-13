@@ -46,6 +46,7 @@
                             <goal>copy</goal>
                         </goals>
                         <configuration>
+                            <ignoreFileNotFoundOnIncremental>false</ignoreFileNotFoundOnIncremental>
                             <fileSets>
                                 <fileSet>
                                     <sourceFile>${emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.scrt1}</sourceFile>
