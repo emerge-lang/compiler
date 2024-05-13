@@ -26,7 +26,6 @@ import java.time.Duration
 import java.time.Instant
 import java.util.ServiceLoader
 import java.util.stream.Collectors
-import java.util.stream.Stream
 import kotlin.io.path.createDirectories
 import kotlin.time.toKotlinDuration
 
@@ -147,5 +146,3 @@ private fun elapsedBetween(start: Instant, end: Instant): String {
         .replace(Regex("(?<=\\.\\d{3})\\d+"), "")
         .replace(".000", "")
 }
-
-private fun <T : Any> Stream<T?>.filterNotNull(): Stream<T> = filter { it != null } as Stream<T>
