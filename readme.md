@@ -23,7 +23,7 @@ distribution by (TODO!).
 
 This being a Kotlin/JVM codebase, you need the typical tools for that:
 
-* A JDK version 21 or newer (see [.java-version]())
+* A JDK version 21 or newer (see [](.java-version))
 * Maven 3
 * maven will handle all JVM-ecosystem dependencies for you
 
@@ -38,7 +38,7 @@ For all linux targets you need some binaries from GNU libc and gcc, so the emerg
 into the linux executables. You can grab them from linux distro images compatible with the target, or [build
 them yourself (see the GitHub Actions Workflow)](.github/workflows/build-emerge.yaml).
 Store the binaries in you development/build environment (e.g. in `/local-resources`) and put their paths
-into `external-deps.properties` in the project root (copy from [external-deps.properties.dist]())
+into `external-deps.properties` in the project root (copy from [](external-deps.properties.dist))
 
 ### Building
 
