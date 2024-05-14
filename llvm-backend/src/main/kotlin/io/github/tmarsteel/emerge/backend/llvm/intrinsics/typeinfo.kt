@@ -18,14 +18,16 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
+import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 import io.github.tmarsteel.emerge.backend.llvm.requireStructuralSupertypeOf
-import org.bytedeco.llvm.LLVM.LLVMTypeRef
-import org.bytedeco.llvm.global.LLVM
 
 internal val staticObjectFinalizer: KotlinLlvmFunction<LlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
     "emerge.platform.finalizeStaticObject",
     LlvmVoidType,
 ) {
+    @Suppress("UNUSED")
     val self by param(PointerToAnyEmergeValue)
     body {
         // by definition a noop. Static values cannot be finalized. Erroring on static value finalization is not
@@ -56,7 +58,7 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
     val anyValueVirtuals by structMember(EmergeAnyValueVirtualsType)
     val vtable by structMember(VTableType(nVTableEntries))
 
-    override fun computeRaw(context: LlvmContext): LLVMTypeRef {
+    override fun computeRaw(context: LlvmContext): LlvmTypeRef {
         if (nVTableEntries == 0L) {
             return super.computeRaw(context)
         }
@@ -165,15 +167,15 @@ internal class StaticAndDynamicTypeInfo private constructor(
             val vtableConstant = buildVTable(context, virtualFunctions(context))
             val typeinfoType = TypeinfoType(vtableConstant.type.nEntries)
 
-            val dynamicGlobal = context.addGlobal(context.undefValue(typeinfoType), LlvmGlobal.ThreadLocalMode.SHARED)
-            val staticGlobal = context.addGlobal(context.undefValue(typeinfoType), LlvmGlobal.ThreadLocalMode.SHARED)
+            val dynamicGlobal = context.addGlobal(context.undefValue(typeinfoType), LlvmThreadLocalMode.NOT_THREAD_LOCAL)
+            val staticGlobal = context.addGlobal(context.undefValue(typeinfoType), LlvmThreadLocalMode.NOT_THREAD_LOCAL)
             val bundle = StaticAndDynamicTypeInfo(context, dynamicGlobal, staticGlobal)
             // register now to break loops
             byContext[context] = bundle
 
             val (dynamicConstant, staticConstant) = build(context, typeinfoType, vtableConstant)
-            LLVM.LLVMSetInitializer(dynamicGlobal.raw, dynamicConstant.raw)
-            LLVM.LLVMSetInitializer(staticGlobal.raw, staticConstant.raw)
+            Llvm.LLVMSetInitializer(dynamicGlobal.raw, dynamicConstant.raw)
+            Llvm.LLVMSetInitializer(staticGlobal.raw, staticConstant.raw)
 
             return bundle
         }
@@ -184,7 +186,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
             vtable: LlvmConstant<VTableType>,
         ): Pair<LlvmConstant<TypeinfoType>, LlvmConstant<TypeinfoType>> {
             val supertypesData = PointerToEmergeArrayOfPointersToTypeInfoType.pointed.buildConstantIn(context, supertypes, { it })
-            val supertypesGlobal = context.addGlobal(supertypesData, LlvmGlobal.ThreadLocalMode.SHARED)
+            val supertypesGlobal = context.addGlobal(supertypesData, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
                 .reinterpretAs(PointerToAnyEmergeValue)
 
             val typeinfoDynamicData = typeinfoType.buildConstantIn(context) {

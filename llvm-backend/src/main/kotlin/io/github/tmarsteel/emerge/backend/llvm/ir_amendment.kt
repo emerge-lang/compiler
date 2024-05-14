@@ -19,7 +19,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
-import org.bytedeco.llvm.LLVM.LLVMTypeRef
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 
 /*
 Amendmends to the backend-api IR using tack.kt
@@ -59,7 +59,7 @@ internal val IrType.boxableTyping: BoxableTyping? get() {
 
 internal val IrType.isUnit by tackLazyVal { this is IrSimpleType && this.baseType.canonicalName.toString() == "emerge.core.Unit" }
 
-internal var IrClass.rawLlvmRef: LLVMTypeRef? by tackState { null }
+internal var IrClass.rawLlvmRef: LlvmTypeRef? by tackState { null }
 internal val IrClass.llvmName: String get() = this.canonicalName.toString()
 internal var IrClass.llvmType: EmergeClassType by tackLateInitState()
 internal var IrClass.MemberVariable.indexInLlvmStruct: Int? by tackState { null }

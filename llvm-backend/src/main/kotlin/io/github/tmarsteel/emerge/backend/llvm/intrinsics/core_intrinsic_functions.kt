@@ -1,5 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
+import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.llvm.boxableTyping
 import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
@@ -7,7 +8,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
-import io.github.tmarsteel.emerge.backend.llvm.dsl.IntegerComparison
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction.Companion.callIntrinsic
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
@@ -16,7 +16,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
@@ -27,7 +26,9 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
-import org.bytedeco.llvm.global.LLVM
+import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 
 internal val nullWeakReferences = KotlinLlvmFunction.define<EmergeLlvmContext, _>("emerge.platform.nullWeakReferences", LlvmVoidType) {
     val self by param(PointerToAnyEmergeValue)
@@ -38,7 +39,7 @@ internal val nullWeakReferences = KotlinLlvmFunction.define<EmergeLlvmContext, _
         val weakRefCollPtr = weakRefCollPtrPtr.dereference()
         store(context.nullValue(pointerTo(EmergeWeakReferenceCollectionType)), weakRefCollPtrPtr)
         conditionalBranch(
-            condition = not(isNull(weakRefCollPtr)),
+            condition = isNotNull(weakRefCollPtr),
             ifTrue = {
                 callIntrinsic(nullAndFreeWeakReferenceCollection, listOf(weakRefCollPtr))
                 concludeBranch()
@@ -59,7 +60,7 @@ private val nullAndFreeWeakReferenceCollection: KotlinLlvmFunction<EmergeLlvmCon
                 .get()
                 .dereference()
             conditionalBranch(
-                condition = not(isNull(nextCollPtr)),
+                condition = isNotNull(nextCollPtr),
                 ifTrue = {
                     callIntrinsic(nullAndFreeWeakReferenceCollection, listOf(nextCollPtr))
                     concludeBranch()
@@ -68,7 +69,7 @@ private val nullAndFreeWeakReferenceCollection: KotlinLlvmFunction<EmergeLlvmCon
             loop(
                 header = {
                     conditionalBranch(
-                        condition = icmp(currentColIndexPtr.dereference(), IntegerComparison.EQUAL, context.word(EmergeWeakReferenceCollectionType.pointersToWeakReferences.type.elementCount)),
+                        condition = icmp(currentColIndexPtr.dereference(), LlvmIntPredicate.EQUAL, context.word(EmergeWeakReferenceCollectionType.pointersToWeakReferences.type.elementCount)),
                         ifTrue = {
                             breakLoop()
                         }
@@ -82,7 +83,7 @@ private val nullAndFreeWeakReferenceCollection: KotlinLlvmFunction<EmergeLlvmCon
                         .index(currentColIndex)
                         .get()
                     val referringReferencePtr = referringReferencePtrPtr.dereference()
-                    conditionalBranch(condition = not(isNull(referringReferencePtr)), ifTrue = {
+                    conditionalBranch(condition = isNotNull(referringReferencePtr), ifTrue = {
                         store(context.nullValue(PointerToAnyEmergeValue), referringReferencePtr)
                         store(context.nullValue(pointerTo(PointerToAnyEmergeValue)), referringReferencePtrPtr)
                         concludeBranch()
@@ -129,7 +130,7 @@ internal val registerWeakReference = KotlinLlvmFunction.define<EmergeLlvmContext
                 loop(
                     header = innerHeader@{
                         conditionalBranch(
-                            condition = icmp(currentCollIndexPtr.dereference(), IntegerComparison.EQUAL, context.word(EmergeWeakReferenceCollectionType.pointersToWeakReferences.type.elementCount)),
+                            condition = icmp(currentCollIndexPtr.dereference(), LlvmIntPredicate.EQUAL, context.word(EmergeWeakReferenceCollectionType.pointersToWeakReferences.type.elementCount)),
                             ifTrue = {
                                 this@innerHeader.breakLoop()
                             }
@@ -211,7 +212,7 @@ internal val unregisterWeakReference = KotlinLlvmFunction.define<LlvmContext, _>
                 loop(
                     header = innerHeader@{
                         conditionalBranch(
-                            condition = icmp(currentCollIndexPtr.dereference(), IntegerComparison.EQUAL, context.word(EmergeWeakReferenceCollectionType.pointersToWeakReferences.type.elementCount)),
+                            condition = icmp(currentCollIndexPtr.dereference(), LlvmIntPredicate.EQUAL, context.word(EmergeWeakReferenceCollectionType.pointersToWeakReferences.type.elementCount)),
                             ifTrue = {
                                 this@innerHeader.breakLoop()
                             }
@@ -300,7 +301,7 @@ private val afterReferenceCreatedNullable = KotlinLlvmFunction.define<EmergeLlvm
 ) {
     val inputRef by param(PointerToAnyEmergeValue)
     body {
-        conditionalBranch(not(isNull(inputRef)), ifTrue = {
+        conditionalBranch(isNotNull(inputRef), ifTrue = {
             callIntrinsic(afterReferenceCreatedNonNullable, listOf(inputRef))
             concludeBranch()
         })
@@ -330,7 +331,7 @@ internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceC
  * is `true`.
  */
 context(BasicBlockBuilder<EmergeLlvmContext, *>)
-internal fun LlvmValue<out LlvmType>.afterReferenceCreated(
+internal fun LlvmValue<LlvmType>.afterReferenceCreated(
     emergeType: IrType,
 ) {
     if (emergeType.boxableTyping != null || type == LlvmVoidType) {
@@ -350,7 +351,7 @@ private val dropReferenceFunction = KotlinLlvmFunction.define<EmergeLlvmContext,
     body {
         val referenceCountPtr = getelementptr(objectPtr).member { strongReferenceCount }.get()
         val decremented = sub(referenceCountPtr.dereference(), context.word(1))
-        val isZero = icmp(decremented, IntegerComparison.EQUAL, context.word(0))
+        val isZero = icmp(decremented, LlvmIntPredicate.EQUAL, context.word(0))
         conditionalBranch(isZero, ifTrue = {
             callIntrinsic(nullWeakReferences, listOf(objectPtr))
             val typeinfoPtr = getelementptr(objectPtr)
@@ -384,7 +385,7 @@ internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceD
     isNullable: Boolean,
 ) {
     if (isNullable) {
-        conditionalBranch(condition = not(isNull(this)), ifTrue = {
+        conditionalBranch(condition = isNotNull(this), ifTrue = {
             callIntrinsic(dropReferenceFunction, listOf(this@afterReferenceDropped))
             concludeBranch()
         })
@@ -400,7 +401,7 @@ internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceD
  * is `true`.
  */
 context(BasicBlockBuilder<EmergeLlvmContext, *>)
-internal fun LlvmValue<out LlvmType>.afterReferenceDropped(
+internal fun LlvmValue<LlvmType>.afterReferenceDropped(
     emergeType: IrType,
 ) {
     if (emergeType.boxableTyping != null || type == LlvmVoidType) {
@@ -414,7 +415,7 @@ internal fun LlvmValue<out LlvmType>.afterReferenceDropped(
  * for print-debugging intrinsics, is not supposed to be used in productive code
  */
 private fun BasicBlockBuilder<*, *>.debugPrint(msg: String) {
-    val writeFnValue = LLVM.LLVMGetNamedFunction(context.module, "write")
+    val writeFnValue = Llvm.LLVMGetNamedFunction(context.module, "write") ?: throw CodeGenerationException("Function write not defined in module")
     val writeFn = LlvmFunction(LlvmConstant(writeFnValue, LlvmFunctionAddressType), LlvmFunctionType(LlvmVoidType, listOf(
         LlvmI32Type,
         LlvmPointerType(LlvmI8Type),
@@ -422,7 +423,7 @@ private fun BasicBlockBuilder<*, *>.debugPrint(msg: String) {
     )))
     val msgBytes = (msg + "\n").toByteArray()
     val dataConstant = LlvmArrayType(msgBytes.size.toLong(), LlvmI8Type).buildConstantIn(context, msgBytes.map { context.i8(it) })
-    val dataGlobal = context.addGlobal(dataConstant, LlvmGlobal.ThreadLocalMode.LOCAL_EXEC)
+    val dataGlobal = context.addGlobal(dataConstant, LlvmThreadLocalMode.LOCAL_EXEC)
     call(writeFn, listOf(
         context.i32(1),
         getelementptr(dataGlobal)

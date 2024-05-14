@@ -2,9 +2,9 @@ package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import com.google.common.collect.MapMaker
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
-import org.bytedeco.javacpp.PointerPointer
-import org.bytedeco.llvm.LLVM.LLVMTypeRef
-import org.bytedeco.llvm.global.LLVM
+import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
+import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
 import java.math.BigInteger
 
 /**
@@ -12,21 +12,21 @@ import java.math.BigInteger
  * This should allow intrinsic types to be defined as kotlin objects, not class instances
  */
 interface LlvmType {
-    fun getRawInContext(context: LlvmContext): LLVMTypeRef
+    fun getRawInContext(context: LlvmContext): LlvmTypeRef
 }
 
 abstract class LlvmCachedType : LlvmType {
-    private val byContext: MutableMap<LlvmContext, LLVMTypeRef> = MapMaker().weakKeys().makeMap()
-    override fun getRawInContext(context: LlvmContext): LLVMTypeRef {
+    private val byContext: MutableMap<LlvmContext, LlvmTypeRef> = MapMaker().weakKeys().makeMap()
+    override fun getRawInContext(context: LlvmContext): LlvmTypeRef {
         return byContext.computeIfAbsent(context, this::computeRaw)
     }
 
-    protected abstract fun computeRaw(context: LlvmContext): LLVMTypeRef
+    protected abstract fun computeRaw(context: LlvmContext): LlvmTypeRef
 }
 
 object LlvmVoidType : LlvmCachedType() {
-    override fun computeRaw(context: LlvmContext): LLVMTypeRef {
-        return LLVM.LLVMVoidTypeInContext(context.ref)
+    override fun computeRaw(context: LlvmContext): LlvmTypeRef {
+        return Llvm.LLVMVoidTypeInContext(context.ref)
     }
 
     override fun toString() = "void"
@@ -35,7 +35,7 @@ object LlvmVoidType : LlvmCachedType() {
 interface LlvmIntegerType : LlvmType {
     fun getMaxUnsignedValueInContext(context: LlvmContext): BigInteger {
         val rawInContext = EmergeWordType.getRawInContext(context)
-        val nBits = LLVM.LLVMSizeOfTypeInBits(context.targetData.ref, rawInContext)
+        val nBits = Llvm.LLVMSizeOfTypeInBits(context.targetData.ref, rawInContext)
         check(nBits in 0 .. Int.MAX_VALUE)
         return BigInteger.TWO.pow(nBits.toInt()) - BigInteger.ONE
     }
@@ -48,8 +48,8 @@ abstract class LlvmFixedIntegerType(
         check(nBits > 0)
     }
 
-    override fun computeRaw(context: LlvmContext): LLVMTypeRef {
-        return LLVM.LLVMIntTypeInContext(context.ref, nBits)
+    override fun computeRaw(context: LlvmContext): LlvmTypeRef {
+        return Llvm.LLVMIntTypeInContext(context.ref, nBits)
     }
 
     override fun toString() = "i$nBits"
@@ -69,7 +69,7 @@ abstract class LlvmFixedIntegerType(
 }
 
 class LlvmPointerType<Pointed : LlvmType>(val pointed: Pointed) : LlvmType {
-    override fun getRawInContext(context: LlvmContext): LLVMTypeRef = context.rawPointer
+    override fun getRawInContext(context: LlvmContext): LlvmTypeRef = context.rawPointer
 
     override fun toString() = "$pointed*"
 
@@ -102,11 +102,12 @@ abstract class LlvmStructType(
 ) : LlvmCachedType() {
     private var observed = false
 
-    override fun computeRaw(context: LlvmContext): LLVMTypeRef {
+    override fun computeRaw(context: LlvmContext): LlvmTypeRef {
         observed = true
-        val structType = LLVM.LLVMStructCreateNamed(context.ref, name)
-        val elements = PointerPointer(*membersInOrder.map { it.type.getRawInContext(context) }.toTypedArray())
-        LLVM.LLVMStructSetBody(structType, elements, membersInOrder.size, 0)
+        val structType = Llvm.LLVMStructCreateNamed(context.ref, name)
+        NativePointerArray.fromJavaPointers(membersInOrder.map { it.type.getRawInContext(context) }).use { elements ->
+            Llvm.LLVMStructSetBody(structType, elements, membersInOrder.size, 0)
+        }
 
         return structType
     }
@@ -160,10 +161,9 @@ class LlvmInlineStructType(
     val memberTypes: List<LlvmType>,
     val packed: Boolean = false,
 ) : LlvmCachedType() {
-    override fun computeRaw(context: LlvmContext): LLVMTypeRef {
-        val memberTypesRaw = memberTypes.map { it.getRawInContext(context) }.toTypedArray()
-        val memberTypesPointerPointer = PointerPointer(*memberTypesRaw)
-        return LLVM.LLVMStructTypeInContext(context.ref, memberTypesPointerPointer, memberTypesRaw.size, if (packed) 1 else 0)
+    override fun computeRaw(context: LlvmContext): LlvmTypeRef {
+        val memberTypesRaw = NativePointerArray.fromJavaPointers(memberTypes.map { it.getRawInContext(context) })
+        return Llvm.LLVMStructTypeInContext(context.ref, memberTypesRaw, memberTypesRaw.length, if (packed) 1 else 0)
     }
 
     override fun toString() = memberTypes.joinToString(
@@ -196,9 +196,9 @@ class LlvmInlineStructType(
         fun buildInlineTypedConstantIn(context: LlvmContext, vararg members: LlvmValue<*>, packed: Boolean = false): LlvmConstant<LlvmInlineStructType> {
             val type = LlvmInlineStructType(members.map { it.type }, packed)
 
-            val rawMembers = members.map { it.raw }.toTypedArray()
-            val membersPointerPointer = PointerPointer(*rawMembers)
-            val constant = LLVM.LLVMConstStructInContext(context.ref, membersPointerPointer, rawMembers.size, if (packed) 1 else 0)
+            val constant = NativePointerArray.fromJavaPointers(members.map { it.raw }).use { rawMembers ->
+                Llvm.LLVMConstStructInContext(context.ref, rawMembers, rawMembers.length, if (packed) 1 else 0)
+            }
 
             return LlvmConstant(constant, type)
         }
@@ -213,8 +213,8 @@ class LlvmArrayType<Element : LlvmType>(
         require(elementCount >= 0)
     }
 
-    override fun getRawInContext(context: LlvmContext): LLVMTypeRef {
-        return LLVM.LLVMArrayType2(elementType.getRawInContext(context), elementCount)
+    override fun getRawInContext(context: LlvmContext): LlvmTypeRef {
+        return Llvm.LLVMArrayType2(elementType.getRawInContext(context), elementCount)
     }
 
     override fun toString() = "[$elementCount x $elementType]"
@@ -251,14 +251,15 @@ data class LlvmFunctionType<out R : LlvmType>(
         separator = ", ",
         postfix = ") -> $returnType"
     )
-    override fun computeRaw(context: LlvmContext): LLVMTypeRef {
+    override fun computeRaw(context: LlvmContext): LlvmTypeRef {
         val returnTypeRaw = returnType.getRawInContext(context)
-        val parameterTypesRaw = parameterTypes.map { it.getRawInContext(context) }.toTypedArray()
-        return LLVM.LLVMFunctionType(
-            returnTypeRaw,
-            PointerPointer(*parameterTypesRaw),
-            parameterTypesRaw.size,
-            0,
-        )
+        NativePointerArray.fromJavaPointers(parameterTypes.map { it.getRawInContext(context) }).use { parameterTypesRaw ->
+            return Llvm.LLVMFunctionType(
+                returnTypeRaw,
+                parameterTypesRaw,
+                parameterTypesRaw.length,
+                0,
+            )
+        }
     }
 }

@@ -40,12 +40,13 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
+import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.llvmType
 import io.github.tmarsteel.emerge.backend.llvm.rawLlvmRef
-import org.bytedeco.llvm.global.LLVM
 import java.util.Collections
 import java.util.IdentityHashMap
 
@@ -116,7 +117,7 @@ class EmergeLlvmContext(
             return
         }
 
-        val structType = LLVM.LLVMStructCreateNamed(ref, clazz.llvmName)
+        val structType = Llvm.LLVMStructCreateNamed(ref, clazz.llvmName)
         // register here to allow cyclic references
         clazz.rawLlvmRef = structType
         val emergeClassType = EmergeClassType.fromLlvmStructWithoutBody(
@@ -144,7 +145,7 @@ class EmergeLlvmContext(
             "emerge.ffi.c.COpaquePointer" -> cOpaquePointerType = emergeClassType
             "emerge.core.Unit" -> {
                 unitType = emergeClassType
-                pointerToPointerToUnitInstance = addGlobal(undefValue(pointerTo(emergeClassType)), LlvmGlobal.ThreadLocalMode.SHARED)
+                pointerToPointerToUnitInstance = addGlobal(undefValue(pointerTo(emergeClassType)), LlvmThreadLocalMode.NOT_THREAD_LOCAL)
                 addModuleInitFunction(registerIntrinsic(KotlinLlvmFunction.define(
                     "emerge.platform.initUnit",
                     LlvmVoidType,
@@ -213,7 +214,7 @@ class EmergeLlvmContext(
                 return null
             }
         }
-        val rawRef = LLVM.LLVMAddFunction(module, fn.llvmName, functionType.getRawInContext(this))
+        val rawRef = Llvm.LLVMAddFunction(module, fn.llvmName, functionType.getRawInContext(this))
         fn.llvmRef = LlvmFunction(
             LlvmConstant(rawRef, LlvmFunctionAddressType),
             functionType,
@@ -221,7 +222,7 @@ class EmergeLlvmContext(
 
         fn.parameters.forEachIndexed { index, param ->
             param.emitRead = {
-                LlvmValue(LLVM.LLVMGetParam(rawRef, index), getReferenceSiteType(param.type))
+                LlvmValue(Llvm.LLVMGetParam(rawRef, index), getReferenceSiteType(param.type))
             }
             param.emitWrite = {
                 throw CodeGenerationException("Writing to function parameters is forbidden.")
@@ -250,10 +251,10 @@ class EmergeLlvmContext(
         val globalType = getReferenceSiteType(global.type)
         val allocation = addGlobal(
             LlvmConstant(
-                LLVM.LLVMGetUndef(globalType.getRawInContext(this)),
+                Llvm.LLVMGetUndef(globalType.getRawInContext(this)),
                 globalType,
             ),
-            LlvmGlobal.ThreadLocalMode.LOCAL_DYNAMIC,
+            LlvmThreadLocalMode.LOCAL_DYNAMIC,
         )
         global.emitRead = {
             allocation.dereference()

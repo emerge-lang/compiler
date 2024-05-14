@@ -1,6 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
-import org.bytedeco.llvm.LLVM.LLVMValueRef
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmValueRef
 
 sealed class GetElementPointerStep<P : LlvmType> private constructor(
     val pointeeType: P,
@@ -22,9 +22,9 @@ sealed class GetElementPointerStep<P : LlvmType> private constructor(
     /**
      * @return first: the base pointer, second: the list of indices being traversed, third: the type the resulting pointer points to
      */
-    internal fun completeAndGetData(): Triple<LlvmValue<LlvmPointerType<*>>, List<LLVMValueRef>, P> {
+    internal fun completeAndGetData(): Triple<LlvmValue<LlvmPointerType<*>>, List<LlvmValueRef>, P> {
         consume()
-        val indices = ArrayList<LLVMValueRef>()
+        val indices = ArrayList<LlvmValueRef>()
         var pivot: GetElementPointerStep<*> = this
         while (pivot is Subsequent<*>) {
             indices.add(0, pivot.index.raw)

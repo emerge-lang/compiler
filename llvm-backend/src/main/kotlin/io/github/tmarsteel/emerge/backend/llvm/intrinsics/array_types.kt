@@ -6,7 +6,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.r
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
-import io.github.tmarsteel.emerge.backend.llvm.dsl.IntegerComparison
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
@@ -23,8 +22,9 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
-import org.bytedeco.llvm.LLVM.LLVMTypeRef
-import org.bytedeco.llvm.global.LLVM
+import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 
 internal object EmergeArrayBaseType : LlvmStructType("anyarray"), EmergeHeapAllocated {
     val anyBase by structMember(EmergeHeapAllocatedValueBaseType)
@@ -40,8 +40,8 @@ internal object EmergeArrayBaseType : LlvmStructType("anyarray"), EmergeHeapAllo
         }
     }
 
-    override fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LLVMTypeRef) {
-        check(LLVM.LLVMOffsetOfElement(context.targetData.ref, selfInContext, anyBase.indexInStruct) == 0L)
+    override fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LlvmTypeRef) {
+        check(Llvm.LLVMOffsetOfElement(context.targetData.ref, selfInContext, anyBase.indexInStruct) == 0L)
     }
 }
 
@@ -94,14 +94,14 @@ internal class EmergeArrayType<Element : LlvmType>(
         }
     }
 
-    override fun computeRaw(context: LlvmContext): LLVMTypeRef {
+    override fun computeRaw(context: LlvmContext): LlvmTypeRef {
         val raw = super.computeRaw(context)
         assureReinterpretableAsAnyValue(context, raw)
         return raw
     }
 
-    override fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LLVMTypeRef) {
-        check(LLVM.LLVMOffsetOfElement(context.targetData.ref, selfInContext, base.indexInStruct) == 0L)
+    override fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LlvmTypeRef) {
+        check(Llvm.LLVMOffsetOfElement(context.targetData.ref, selfInContext, base.indexInStruct) == 0L)
     }
 
     override fun pointerToCommonBase(
@@ -168,24 +168,24 @@ internal class EmergeArrayType<Element : LlvmType>(
             payload
         )
 
-        val anyArrayBaseOffsetInGeneralType = LLVM.LLVMOffsetOfElement(
+        val anyArrayBaseOffsetInGeneralType = Llvm.LLVMOffsetOfElement(
             context.targetData.ref,
             this.getRawInContext(context),
             base.indexInStruct,
         )
-        val anyArrayBaseOffsetInConstant = LLVM.LLVMOffsetOfElement(
+        val anyArrayBaseOffsetInConstant = Llvm.LLVMOffsetOfElement(
             context.targetData.ref,
             inlineConstant.type.getRawInContext(context),
             0,
         )
         check(anyArrayBaseOffsetInConstant == anyArrayBaseOffsetInGeneralType)
 
-        val firstElementOffsetInGeneralType = LLVM.LLVMOffsetOfElement(
+        val firstElementOffsetInGeneralType = Llvm.LLVMOffsetOfElement(
             context.targetData.ref,
             this.getRawInContext(context),
             1,
         )
-        val firstElementOffsetInConstant = LLVM.LLVMOffsetOfElement(
+        val firstElementOffsetInConstant = Llvm.LLVMOffsetOfElement(
             context.targetData.ref,
             inlineConstant.type.getRawInContext(context),
             1,
@@ -361,7 +361,7 @@ private val referenceArrayFinalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmV
 
         loop(
             header = {
-                val endReached = icmp(indexStackSlot.dereference(), IntegerComparison.EQUAL, size)
+                val endReached = icmp(indexStackSlot.dereference(), LlvmIntPredicate.EQUAL, size)
                 conditionalBranch(endReached, ifTrue = {
                     breakLoop()
                 })

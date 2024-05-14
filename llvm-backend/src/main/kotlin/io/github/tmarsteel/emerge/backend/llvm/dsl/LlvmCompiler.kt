@@ -2,8 +2,10 @@ package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.llvm.ToolDiscoverer
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmCodeGenOptModel
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmCodeModel
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmRelocMode
 import io.github.tmarsteel.emerge.backend.llvm.runSyncCapturing
-import org.bytedeco.llvm.global.LLVM
 import java.nio.file.Path
 
 /**
@@ -18,10 +20,10 @@ object LlvmCompiler {
     fun compileBitcodeFile(
         input: Path,
         output: Path,
-        codeModel: CodeModel = CodeModel.SMALL,
-        relocationModel: RelocationModel = RelocationModel.POSITION_INDEPENDENT,
+        codeModel: LlvmCodeModel = LlvmCodeModel.SMALL,
+        relocationModel: LlvmRelocMode = LlvmRelocMode.POSITION_INDEPENDENT,
         outputType: OutputType = OutputType.OBJECT_FILE,
-        optimizationLevel: OptimizationLevel = OptimizationLevel.DEFAULT,
+        optimizationLevel: LlvmCodeGenOptModel = LlvmCodeGenOptModel.DEFAULT,
     ) {
         val command = mutableListOf(
             executable.toString(),
@@ -53,40 +55,7 @@ object LlvmCompiler {
 
 class LlvmCompilerException(message: String, val exitCode: Int) : CodeGenerationException(message)
 
-enum class CodeModel(val numeric: Int, val llcName: String?) {
-    DEFAULT(LLVM.LLVMCodeModelDefault, null),
-    TINY(LLVM.LLVMCodeModelTiny, "tiny"),
-    SMALL(LLVM.LLVMCodeModelSmall, "small"),
-    KERNEL(LLVM.LLVMCodeModelKernel, "kernel"),
-    MEDIUM(LLVM.LLVMCodeModelMedium, "medium"),
-    LARGE(LLVM.LLVMCodeModelLarge, "large"),
-
-    // JIT_DEFAULT omitted because its not available in llc-17
-}
-
 enum class OutputType(val llcName: String) {
     ASSEMBLY("asm"),
     OBJECT_FILE("obj")
-}
-
-enum class RelocationModel(val numeric: Int, val llcName: String) {
-    /** Non-relocatable code */
-    STATIC(LLVM.LLVMRelocStatic, "static"),
-    /** Fully relocatable, position independent code */
-    POSITION_INDEPENDENT(LLVM.LLVMRelocPIC, "pic"),
-    /** Relocatable external references, non-relocatable code **/
-    RELOCATABLE_EXTERNAL_REFERENCES(LLVM.LLVMRelocDynamicNoPic, "dynamic-no-pic"),
-    /** Code and read-only data relocatable, accessed PC-relative */
-    ROPI(LLVM.LLVMRelocROPI, "ropi"),
-    /** Read-write data relocatable, accessed relative to static base */
-    RWPI(LLVM.LLVMRelocRWPI, "rwpi"),
-    /** Combination of ropi and rwpi */
-    ROPI_RWPI(LLVM.LLVMRelocROPI_RWPI,"ropi-rwpi"),
-}
-
-enum class OptimizationLevel(val numeric: Int) {
-    NONE(LLVM.LLVMCodeGenLevelNone),
-    LESS(LLVM.LLVMCodeGenLevelLess),
-    DEFAULT(LLVM.LLVMCodeGenLevelDefault),
-    AGGRESSIVE(LLVM.LLVMCodeGenLevelAggressive),
 }

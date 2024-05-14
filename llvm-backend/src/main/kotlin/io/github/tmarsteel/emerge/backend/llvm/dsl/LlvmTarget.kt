@@ -1,40 +1,42 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
-import org.bytedeco.javacpp.BytePointer
-import org.bytedeco.javacpp.PointerPointer
-import org.bytedeco.llvm.LLVM.LLVMTargetRef
-import org.bytedeco.llvm.global.LLVM
+import com.sun.jna.ptr.PointerByReference
+import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmCodeGenOptModel
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmCodeModel
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmRelocMode
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTargetRef
 
 class LlvmTarget private constructor(
     val triple: String,
-    internal val ref: LLVMTargetRef,
+    internal val ref: LlvmTargetRef,
 ) {
-    val name: String by lazy {
-        LLVM.LLVMGetTargetName(ref).string
-    }
+    val name: String by lazy { Llvm.LLVMGetTargetName(ref) }
 
     fun createTargetMachine(): LlvmTargetMachine {
-        val ref = LLVM.LLVMCreateTargetMachine(
+        val ref = Llvm.LLVMCreateTargetMachine(
             ref,
             triple,
             "generic",
             "",
-            LLVM.LLVMCodeGenLevelDefault,
-            RelocationModel.POSITION_INDEPENDENT.numeric,
-            CodeModel.SMALL.numeric
+            LlvmCodeGenOptModel.DEFAULT,
+            LlvmRelocMode.POSITION_INDEPENDENT,
+            LlvmCodeModel.SMALL,
         )
         return LlvmTargetMachine(ref)
     }
 
     companion object {
         fun fromTriple(triple: String): LlvmTarget {
-            val dataBuffer = PointerPointer<LLVMTargetRef>(1)
-            val errorBuffer = BytePointer(1024)
-            if (LLVM.LLVMGetTargetFromTriple(triple, dataBuffer, errorBuffer) != 0) {
-                throw IllegalArgumentException(errorBuffer.string)
+            val data = PointerByReference()
+            val error = PointerByReference()
+            if (Llvm.LLVMGetTargetFromTriple(triple, data, error) != 0) {
+                val errorStr = error.value.getString(0)
+                Llvm.LLVMDisposeMessage(error.value)
+                throw IllegalArgumentException(errorStr)
             }
 
-            val targetRef = dataBuffer.get(LLVMTargetRef::class.java, 0L)
+            val targetRef = LlvmTargetRef(data.value)
             return LlvmTarget(triple, targetRef)
         }
     }

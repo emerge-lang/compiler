@@ -58,6 +58,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.registerWeakReference
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.unregisterWeakReference
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.llvmType
@@ -335,7 +336,7 @@ internal fun IrStringLiteralExpression.assureByteArrayConstantIn(context: Emerge
         utf8Bytes.asList(),
         { context.i8(it) }
     )
-    val untypedGlobal = context.addGlobal(constant, LlvmGlobal.ThreadLocalMode.SHARED)
+    val untypedGlobal = context.addGlobal(constant, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
     val global = LlvmGlobal(untypedGlobal.raw, EmergeS8ArrayType)
     byteArrayGlobal = global
     return global

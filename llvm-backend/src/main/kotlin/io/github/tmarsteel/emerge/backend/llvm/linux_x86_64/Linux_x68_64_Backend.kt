@@ -1,5 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.linux_x86_64
 
+import com.sun.jna.ptr.PointerByReference
 import io.github.tmarsteel.emerge.backend.SystemPropertyDelegate.Companion.systemProperty
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
@@ -14,14 +15,13 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmTarget
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.PassBuilderOptions
 import io.github.tmarsteel.emerge.backend.llvm.getClasspathResourceAsFileOnDisk
-import io.github.tmarsteel.emerge.backend.llvm.getLlvmMessage
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmVerifierFailureAction
 import io.github.tmarsteel.emerge.backend.llvm.linux.EmergeEntrypoint
 import io.github.tmarsteel.emerge.backend.llvm.linux.LinuxLinker
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.packagesSeq
-import org.bytedeco.javacpp.BytePointer
-import org.bytedeco.llvm.global.LLVM
 import java.nio.file.Path
 import java.nio.file.Paths
 
@@ -74,11 +74,11 @@ class Linux_x68_64_Backend : EmergeBackend {
     }
 
     private fun writeSoftwareToBitcodeFile(softwareContext: IrSoftwareContext, bitcodeFilePath: Path) {
-        LLVM.LLVMInitializeAllTargetInfos()
-        LLVM.LLVMInitializeAllTargets()
-        LLVM.LLVMInitializeAllTargetMCs()
-        LLVM.LLVMInitializeAllAsmPrinters()
-        LLVM.LLVMInitializeAllAsmParsers()
+        Llvm.LLVMInitializeX86TargetInfo()
+        Llvm.LLVMInitializeX86Target()
+        Llvm.LLVMInitializeX86TargetMC()
+        Llvm.LLVMInitializeX86AsmPrinter()
+        Llvm.LLVMInitializeX86AsmParser()
 
         EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-gnu")) { llvmContext ->
             softwareContext.packagesSeq
@@ -141,41 +141,39 @@ class Linux_x68_64_Backend : EmergeBackend {
             llvmContext.registerIntrinsic(EmergeEntrypoint)
             llvmContext.complete()
 
-            val errorMessageBuffer = BytePointer(1024 * 10)
-
-            errorMessageBuffer.position(0)
-            errorMessageBuffer.limit(errorMessageBuffer.capacity())
-            if (LLVM.LLVMPrintModuleToFile(
+            val errorMessageRef = PointerByReference()
+            if (Llvm.LLVMPrintModuleToFile(
                 llvmContext.module,
                 bitcodeFilePath.parent.resolve("out.ll").toString(),
-                errorMessageBuffer,
+                errorMessageRef
             ) != 0) {
-                // null-terminated, this makes the .getString() function behave correctly
-                errorMessageBuffer.limit(0)
-                throw CodeGenerationException(errorMessageBuffer.string)
+                val errorMessageStr = errorMessageRef.value.getString(0)
+                Llvm.LLVMDisposeMessage(errorMessageRef.value)
+                throw CodeGenerationException(errorMessageStr)
             }
 
-            errorMessageBuffer.position(0)
-            errorMessageBuffer.limit(errorMessageBuffer.capacity())
-            if (LLVM.LLVMVerifyModule(llvmContext.module, LLVM.LLVMReturnStatusAction, errorMessageBuffer) != 0) {
-                // null-terminated, this makes the .getString() function behave correctly
-                errorMessageBuffer.limit(0)
-                throw CodeGenerationException(errorMessageBuffer.string)
+            if (Llvm.LLVMVerifyModule(llvmContext.module, LlvmVerifierFailureAction.RETURN_STATUS, errorMessageRef) != 0) {
+                val errorMessageStr = errorMessageRef.value.getString(0)
+                Llvm.LLVMDisposeMessage(errorMessageRef.value)
+                throw CodeGenerationException(errorMessageStr)
             }
 
             PassBuilderOptions().use { pbo ->
-                val error = LLVM.LLVMRunPasses(
+                val error = Llvm.LLVMRunPasses(
                     llvmContext.module,
                     "default<O0>",
                     llvmContext.targetMachine.ref,
                     pbo.ref,
                 )
                 if (error != null) {
-                    throw CodeGenerationException("LLVM passes failed: ${getLlvmMessage(LLVM.LLVMGetErrorMessage(error))}")
+                    val errorStrPtr = Llvm.LLVMGetErrorMessage(error)
+                    val errorStr = errorStrPtr.getString(0)
+                    Llvm.LLVMDisposeErrorMessage(errorStrPtr)
+                    throw CodeGenerationException("LLVM passes failed: $errorStr")
                 }
             }
 
-            if (LLVM.LLVMWriteBitcodeToFile(llvmContext.module, bitcodeFilePath.toString()) != 0) {
+            if (Llvm.LLVMWriteBitcodeToFile(llvmContext.module, bitcodeFilePath.toString()) != 0) {
                 throw CodeGenerationException("Failed to write LLVM bitcode to $bitcodeFilePath")
             }
         }

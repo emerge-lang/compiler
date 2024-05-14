@@ -1,47 +1,40 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
-import io.github.tmarsteel.emerge.backend.llvm.getLlvmMessage
-import org.bytedeco.llvm.LLVM.LLVMValueRef
-import org.bytedeco.llvm.global.LLVM
+import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmValueKind
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmValueRef
 
 /**
  * A type-safe wrapper around [LLVMValueRef]
  */
 open class LlvmValue<out Type : LlvmType>(
-    val raw: LLVMValueRef,
+    val raw: LlvmValueRef,
     val type: Type,
 ) {
     fun <NewT : LlvmType> reinterpretAs(type: NewT): LlvmValue<NewT> = LlvmValue(raw, type)
 }
 
 class LlvmConstant<out Type : LlvmType>(
-    raw: LLVMValueRef,
+    raw: LlvmValueRef,
     type: Type,
 ) : LlvmValue<Type>(raw, type) {
     init {
-        check(LLVM.LLVMIsConstant(raw) == 1)
+        check(Llvm.LLVMIsConstant(raw) == 1)
     }
 
-    override fun toString(): String = getLlvmMessage(LLVM.LLVMPrintValueToString(raw))?.trim() ?: "?"
+    override fun toString(): String = Llvm.LLVMPrintValueToString(raw)?.value?.trim() ?: "?"
 }
 
 class LlvmGlobal<Type : LlvmType>(
-    raw: LLVMValueRef,
+    raw: LlvmValueRef,
     type: Type,
 ) : LlvmValue<LlvmPointerType<Type>>(raw, pointerTo(type)) {
     init {
-        check(LLVM.LLVMIsAGlobalVariable(raw) != null)
+        check(Llvm.LLVMGetValueKind(raw) == LlvmValueKind.GLOBAL_VARIABLE)
     }
 
-    val mode: ThreadLocalMode
-        get() = ThreadLocalMode.entries.single { it.llvmKindValue == LLVM.LLVMGetThreadLocalMode(raw) }
-
-    enum class ThreadLocalMode(val llvmKindValue: Int) {
-        SHARED(LLVM.LLVMNotThreadLocal),
-        LOCAL_DYNAMIC(LLVM.LLVMLocalDynamicTLSModel),
-        GENERAL_DYNAMIC(LLVM.LLVMGeneralDynamicTLSModel),
-        INITIAL_EXEC(LLVM.LLVMInitialExecTLSModel),
-        LOCAL_EXEC(LLVM.LLVMLocalExecTLSModel)
-    }
+    val mode: LlvmThreadLocalMode
+        get() = Llvm.LLVMGetThreadLocalMode(raw)
 }

@@ -15,11 +15,11 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
-import org.bytedeco.llvm.LLVM.LLVMTypeRef
-import org.bytedeco.llvm.global.LLVM
+import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 
 internal object EmergeWordType : LlvmCachedType(), LlvmIntegerType {
-    override fun computeRaw(context: LlvmContext) = LLVM.LLVMIntTypeInContext(context.ref, context.targetData.pointerSizeInBytes * 8)
+    override fun computeRaw(context: LlvmContext) = Llvm.LLVMIntTypeInContext(context.ref, context.targetData.pointerSizeInBytes * 8)
     override fun toString() = "%word"
 }
 
@@ -30,7 +30,7 @@ internal fun LlvmContext.word(value: Int): LlvmConstant<EmergeWordType> {
     }
 
     return LlvmConstant(
-        LLVM.LLVMConstInt(EmergeWordType.getRawInContext(this), value.toLong(), 0),
+        Llvm.LLVMConstInt(EmergeWordType.getRawInContext(this), value.toLong(), 0),
         EmergeWordType,
     )
 }
@@ -42,7 +42,7 @@ internal fun LlvmContext.word(value: Long): LlvmConstant<EmergeWordType> {
     }
 
     return LlvmConstant(
-        LLVM.LLVMConstInt(EmergeWordType.getRawInContext(this), value, 0),
+        Llvm.LLVMConstInt(EmergeWordType.getRawInContext(this), value, 0),
         EmergeWordType,
     )
 }
@@ -84,7 +84,7 @@ internal object EmergeHeapAllocatedValueBaseType : LlvmStructType("anyvalue"), E
         return builder.getelementptr(value.reinterpretAs(PointerToAnyEmergeValue))
     }
 
-    override fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LLVMTypeRef) {
+    override fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LlvmTypeRef) {
         // this is AnyValue itself, noop
     }
 }
@@ -97,5 +97,5 @@ internal interface EmergeHeapAllocated : LlvmType {
      * can actually be [LlvmValue.reinterpretAs] any([EmergeHeapAllocatedValueBaseType]).
      * @throws CodeGenerationException if that is not the case.
      */
-    fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LLVMTypeRef)
+    fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LlvmTypeRef)
 }

@@ -1,8 +1,8 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
-import org.bytedeco.llvm.LLVM.LLVMValueRef
-import org.bytedeco.llvm.global.LLVM
+import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmValueRef
 import kotlin.reflect.KProperty
 
 class KotlinLlvmFunction<C : LlvmContext, R : LlvmType> private constructor(
@@ -18,7 +18,7 @@ class KotlinLlvmFunction<C : LlvmContext, R : LlvmType> private constructor(
         val definitionReceiver = DefinitionReceiverImpl<C, R>()
         definitionReceiver.definition()
         val functionType = LlvmFunctionType(returnType, definitionReceiver.parameters.map { it.type })
-        val functionRaw = LLVM.LLVMAddFunction(context.module, name, functionType.getRawInContext(context))
+        val functionRaw = Llvm.LLVMAddFunction(context.module, name, functionType.getRawInContext(context))
         val function = LlvmFunction(LlvmConstant(functionRaw, LlvmFunctionAddressType), functionType)
         return DeclaredInContextImpl(
             context,
@@ -65,11 +65,11 @@ private class ParameterDelegateImpl<T : LlvmType>(
     val type: T,
     val index: Int,
 ) : KotlinLlvmFunction.ParameterDelegate<T> {
-    private lateinit var function: LLVMValueRef
+    private lateinit var function: LlvmValueRef
     private var valueCache: LlvmValue<T>? = null
 
-    fun setFunctionInstance(function: LLVMValueRef) {
-        if (this::function.isInitialized && this.function.address() != function.address()) {
+    fun setFunctionInstance(function: LlvmValueRef) {
+        if (this::function.isInitialized && this.function.pointer != function.pointer) {
             valueCache = null
         }
         this.function = function
@@ -77,7 +77,7 @@ private class ParameterDelegateImpl<T : LlvmType>(
 
     override operator fun getValue(thisRef: Nothing?, prop: KProperty<*>): LlvmValue<T> {
         valueCache?.let { return it }
-        val localValue = LlvmValue(LLVM.LLVMGetParam(function, index), type)
+        val localValue = LlvmValue(Llvm.LLVMGetParam(function, index), type)
         valueCache = localValue
         return localValue
     }

@@ -1,17 +1,17 @@
 package io.github.tmarsteel.emerge.backend.llvm
 
-import org.bytedeco.javacpp.BytePointer
-import org.bytedeco.javacpp.PointerPointer
-import org.bytedeco.llvm.LLVM.LLVMTargetDataRef
-import org.bytedeco.llvm.LLVM.LLVMTypeRef
-import org.bytedeco.llvm.global.LLVM
+import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTargetDataRef
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeKind
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
+import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
 import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 
-val LLVMTypeRef.isStruct: Boolean
-    get() = LLVM.LLVMGetTypeKind(this) == LLVM.LLVMStructTypeKind
+val LlvmTypeRef.isStruct: Boolean
+    get() = Llvm.LLVMGetTypeKind(this) == LlvmTypeKind.STRUCT
 
 /**
  * Throws an exception unless
@@ -21,16 +21,16 @@ val LLVMTypeRef.isStruct: Boolean
  *
  * @param inContext requires because the offsets depend on the datalayout
  */
-fun requireStructuralSupertypeOf(supertype: LLVMTypeRef, subtype: LLVMTypeRef, targetData: LLVMTargetDataRef) {
+fun requireStructuralSupertypeOf(supertype: LlvmTypeRef, subtype: LlvmTypeRef, targetData: LlvmTargetDataRef) {
     require(supertype.isStruct)
     require(subtype.isStruct)
 
-    val supertypeMemberCount = LLVM.LLVMCountStructElementTypes(supertype)
-    val subtypeMemberCount = LLVM.LLVMCountStructElementTypes(subtype)
+    val supertypeMemberCount = Llvm.LLVMCountStructElementTypes(supertype)
+    val subtypeMemberCount = Llvm.LLVMCountStructElementTypes(subtype)
     require(subtypeMemberCount >= supertypeMemberCount)
     for (index in 0 until supertypeMemberCount) {
-        val supertypeOffset = LLVM.LLVMOffsetOfElement(targetData, supertype, index)
-        val subtypeOffset = LLVM.LLVMOffsetOfElement(targetData, subtype, index)
+        val supertypeOffset = Llvm.LLVMOffsetOfElement(targetData, supertype, index)
+        val subtypeOffset = Llvm.LLVMOffsetOfElement(targetData, subtype, index)
         require(supertypeOffset == subtypeOffset) {
             "Struct element #$index has different offsets: $supertypeOffset in supertype, $subtypeOffset in subtype"
         }
@@ -75,14 +75,6 @@ internal fun String.copyAsNullTerminated(): ByteArray {
     return buffer
 }
 
-internal fun getLlvmMessage(message: BytePointer): String? {
-    val str: String? = message.string
-    if (str != null) {
-        LLVM.LLVMDisposeMessage(message)
-    }
-    return str
-}
-
 internal fun Path.readToBuffer(): ByteBuffer {
     Files.newByteChannel(this, StandardOpenOption.READ).use { channel ->
         check(channel.size() <= Int.MAX_VALUE)
@@ -104,74 +96,76 @@ internal fun Path.writeBuffer(buffer: ByteBuffer) {
     }
 }
 
-internal fun LLVMTypeRef.describeMemoryLayout(targetDataRef: LLVMTargetDataRef): String {
+internal fun LlvmTypeRef.describeMemoryLayout(targetDataRef: LlvmTargetDataRef): String {
     val sb = StringBuilder()
     describeMemoryLayoutTo(targetDataRef, "", sb, 0)
     return sb.toString()
 }
 
-private fun LLVMTypeRef.describeMemoryLayoutTo(
-    targetDataRef: LLVMTargetDataRef,
+private fun LlvmTypeRef.describeMemoryLayoutTo(
+    targetDataRef: LlvmTargetDataRef,
     indent: String,
     out: StringBuilder,
     baseOffset: Int,
 ) {
-    val kind = LLVM.LLVMGetTypeKind(this)
+    val kind = Llvm.LLVMGetTypeKind(this)
     when (kind) {
-        LLVM.LLVMStructTypeKind -> describeStructMemoryLayoutTo(targetDataRef, indent, out, baseOffset)
-        LLVM.LLVMArrayTypeKind -> describeArrayMemoryLayoutTo(targetDataRef, indent, out)
-        LLVM.LLVMVectorTypeKind,
-        LLVM.LLVMScalableVectorTypeKind -> describeVectorMemoryLayoutTo(targetDataRef, indent, out)
-        LLVM.LLVMIntegerTypeKind -> {
+        LlvmTypeKind.STRUCT -> describeStructMemoryLayoutTo(targetDataRef, indent, out, baseOffset)
+        LlvmTypeKind.ARRAY -> describeArrayMemoryLayoutTo(targetDataRef, indent, out)
+        LlvmTypeKind.VECTOR,
+        LlvmTypeKind.SCALABLE_VECTOR -> describeVectorMemoryLayoutTo(targetDataRef, indent, out)
+        LlvmTypeKind.INTEGER -> {
             out.append("i")
-            out.append(LLVM.LLVMGetIntTypeWidth(this))
+            out.append(Llvm.LLVMGetIntTypeWidth(this))
         }
-        LLVM.LLVMVoidTypeKind -> out.append("void")
-        LLVM.LLVMPointerTypeKind,
-        LLVM.LLVMHalfTypeKind,
-        LLVM.LLVMFloatTypeKind,
-        LLVM.LLVMBFloatTypeKind,
-        LLVM.LLVMDoubleTypeKind,
-        LLVM.LLVMX86_FP80TypeKind,
-        LLVM.LLVMFP128TypeKind,
-        LLVM.LLVMPPC_FP128TypeKind,
-        LLVM.LLVMX86_AMXTypeKind,
-        LLVM.LLVMX86_MMXTypeKind,
-        LLVM.LLVMTargetExtTypeKind,
-        LLVM.LLVMLabelTypeKind,
-        LLVM.LLVMTokenTypeKind,
-        LLVM.LLVMMetadataTypeKind,
-        LLVM.LLVMFunctionTypeKind -> out.append(getLlvmMessage(LLVM.LLVMPrintTypeToString(this)))
+        LlvmTypeKind.VOID -> out.append("void")
+        LlvmTypeKind.POINTER,
+        LlvmTypeKind.HALF,
+        LlvmTypeKind.FLOAT,
+        LlvmTypeKind.BFLOAT,
+        LlvmTypeKind.DOUBLE,
+        LlvmTypeKind.X86_FP80,
+        LlvmTypeKind.FP128,
+        LlvmTypeKind.PPC_FP128,
+        LlvmTypeKind.X86_AMX,
+        LlvmTypeKind.X86_MMX,
+        LlvmTypeKind.TARGETEXT,
+        LlvmTypeKind.LABEL,
+        LlvmTypeKind.TOKEN,
+        LlvmTypeKind.METADATA,
+        LlvmTypeKind.FUNCTION -> out.append(Llvm.LLVMPrintTypeToString(this).value)
         else -> throw UnsupportedOperationException()
     }
 }
 
-private fun LLVMTypeRef.describeStructMemoryLayoutTo(
-    targetDataRef: LLVMTargetDataRef,
+private fun LlvmTypeRef.describeStructMemoryLayoutTo(
+    targetDataRef: LlvmTargetDataRef,
     indent: String,
     out: StringBuilder,
     baseOffset: Int,
 ) {
-    val selfSize = LLVM.LLVMSizeOfTypeInBits(targetDataRef, this) / 8
+    val selfSize = Llvm.LLVMSizeOfTypeInBits(targetDataRef, this) / 8
     out.append("(0x")
     out.append(selfSize.toString(16).padStart(2, '0'))
     out.append(") ")
 
     val selfPrefix = when {
-        LLVM.LLVMIsLiteralStruct(this) == 1 -> ""
-        else -> "%" + LLVM.LLVMGetStructName(this).string + " "
+        Llvm.LLVMIsLiteralStruct(this) == 1 -> ""
+        else -> "%" + Llvm.LLVMGetStructName(this) + " "
     }
 
     out.append(selfPrefix)
     out.append("{\n")
 
-    val nElements = LLVM.LLVMCountStructElementTypes(this)
-    val elementsArray = PointerPointer<LLVMTypeRef>(nElements.toLong())
-    LLVM.LLVMGetStructElementTypes(this, elementsArray)
+    val nElements = Llvm.LLVMCountStructElementTypes(this)
+    val elementTypes = NativePointerArray.allocate(nElements, LlvmTypeRef::class.java).use { elementsArray ->
+        Llvm.LLVMGetStructElementTypes(this, elementsArray)
+        elementsArray.copyToJava()
+    }
 
     for (memberIndex in 0 until nElements) {
-        val memberType = elementsArray.get(LLVMTypeRef::class.java, memberIndex.toLong())
-        val offset = baseOffset + LLVM.LLVMOffsetOfElement(targetDataRef, this, memberIndex).toInt()
+        val memberType = elementTypes[memberIndex]
+        val offset = baseOffset + Llvm.LLVMOffsetOfElement(targetDataRef, this, memberIndex).toInt()
         out.append(indent)
         out.append("  +0x")
         out.append(offset.toString(16).padStart(2, '0'))
@@ -184,27 +178,27 @@ private fun LLVMTypeRef.describeStructMemoryLayoutTo(
     out.append("}")
 }
 
-private fun LLVMTypeRef.describeArrayMemoryLayoutTo(
-    targetDataRef: LLVMTargetDataRef,
+private fun LlvmTypeRef.describeArrayMemoryLayoutTo(
+    targetDataRef: LlvmTargetDataRef,
     indent: String,
     out: StringBuilder,
 ) {
-    val elementType = LLVM.LLVMGetElementType(this)
+    val elementType = Llvm.LLVMGetElementType(this)
     out.append("[")
-    out.append(LLVM.LLVMGetArrayLength2(this).toString())
+    out.append(Llvm.LLVMGetArrayLength2(this).toString())
     out.append(" x ")
     elementType.describeMemoryLayoutTo(targetDataRef, indent + "  ", out, 0)
     out.append("]")
 }
 
-private fun LLVMTypeRef.describeVectorMemoryLayoutTo(
-    targetDataRef: LLVMTargetDataRef,
+private fun LlvmTypeRef.describeVectorMemoryLayoutTo(
+    targetDataRef: LlvmTargetDataRef,
     indent: String,
     out: StringBuilder,
 ) {
-    val elementType = LLVM.LLVMGetElementType(this)
+    val elementType = Llvm.LLVMGetElementType(this)
     out.append("<")
-    out.append(LLVM.LLVMGetVectorSize(this).toString())
+    out.append(Llvm.LLVMGetVectorSize(this).toString())
     out.append(" x ")
     elementType.describeMemoryLayoutTo(targetDataRef, indent + "  ", out, 0)
     out.append(">")

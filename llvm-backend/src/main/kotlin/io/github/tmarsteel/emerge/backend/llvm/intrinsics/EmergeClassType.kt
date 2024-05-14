@@ -17,28 +17,29 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.indexInLlvmStruct
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
+import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
+import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
-import org.bytedeco.javacpp.PointerPointer
-import org.bytedeco.llvm.LLVM.LLVMTypeRef
-import org.bytedeco.llvm.global.LLVM
 
 internal class EmergeClassType private constructor(
     val context: EmergeLlvmContext,
-    val structRef: LLVMTypeRef,
+    val structRef: LlvmTypeRef,
     val irClass: IrClass,
 ) : LlvmType, EmergeHeapAllocated {
     init {
         assureReinterpretableAsAnyValue(context, structRef)
     }
 
-    override fun getRawInContext(context: LlvmContext): LLVMTypeRef {
+    override fun getRawInContext(context: LlvmContext): LlvmTypeRef {
         check(context === context)
         return structRef
     }
 
-    override fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LLVMTypeRef) {
+    override fun assureReinterpretableAsAnyValue(context: LlvmContext, selfInContext: LlvmTypeRef) {
         // done in [fromLlvmStructWithoutBody]
     }
 
@@ -73,7 +74,7 @@ internal class EmergeClassType private constructor(
             setValue(EmergeHeapAllocatedValueBaseType.typeinfo, typeinfo.dynamic)
             setValue(EmergeHeapAllocatedValueBaseType.weakReferenceCollection, context.nullValue(pointerTo(EmergeWeakReferenceCollectionType)))
         }
-        context.addGlobal(constant, LlvmGlobal.ThreadLocalMode.SHARED)
+        context.addGlobal(constant, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
     }
 
     /**
@@ -106,12 +107,11 @@ internal class EmergeClassType private constructor(
         }
 
         val emergeMemberTypesRaw = irClass.memberVariables.map { context.getReferenceSiteType(it.type).getRawInContext(context) }
-        val llvmMemberTypesRaw = (baseElements + emergeMemberTypesRaw).toTypedArray()
+        NativePointerArray.fromJavaPointers(baseElements + emergeMemberTypesRaw).use { llvmMemberTypesRaw ->
+            Llvm.LLVMStructSetBody(structRef, llvmMemberTypesRaw, llvmMemberTypesRaw.length, 0)
+        }
 
-        val llvmStructElements = PointerPointer(*llvmMemberTypesRaw)
-        LLVM.LLVMStructSetBody(structRef, llvmStructElements, llvmMemberTypesRaw.size, 0)
-
-        check(LLVM.LLVMOffsetOfElement(context.targetData.ref, structRef, 0) == 0L) {
+        check(Llvm.LLVMOffsetOfElement(context.targetData.ref, structRef, 0) == 0L) {
             "Cannot reinterpret emerge type ${irClass.canonicalName} as Any"
         }
     }
@@ -134,7 +134,7 @@ internal class EmergeClassType private constructor(
     companion object {
         fun fromLlvmStructWithoutBody(
             context: EmergeLlvmContext,
-            structRef: LLVMTypeRef,
+            structRef: LlvmTypeRef,
             irClass: IrClass,
         ): EmergeClassType {
             return EmergeClassType(context, structRef, irClass)

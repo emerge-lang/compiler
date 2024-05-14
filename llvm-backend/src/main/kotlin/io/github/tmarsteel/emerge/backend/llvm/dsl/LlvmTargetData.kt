@@ -1,12 +1,12 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
-import org.bytedeco.llvm.LLVM.LLVMTargetDataRef
-import org.bytedeco.llvm.global.LLVM
+import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTargetDataRef
 
 class LlvmTargetData(
-    val ref: LLVMTargetDataRef
+    val ref: LlvmTargetDataRef
 ) {
     val pointerSizeInBytes: Int by lazy {
-        LLVM.LLVMPointerSize(ref)
+        Llvm.LLVMPointerSize(ref)
     }
 }

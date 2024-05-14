@@ -1,8 +1,8 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
-import org.bytedeco.javacpp.PointerPointer
-import org.bytedeco.llvm.LLVM.LLVMValueRef
-import org.bytedeco.llvm.global.LLVM
+import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmValueRef
+import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
 
 fun <S : LlvmStructType, C : LlvmContext> S.buildConstantIn(
     context: C,
@@ -27,19 +27,16 @@ class ConstantStructBuilder<S : LlvmStructType, C : LlvmContext>(
         valuesByIndex[member.indexInStruct] = context.nullValue(member.type)
     }
 
-    internal fun build(): LLVMValueRef {
+    internal fun build(): LlvmValueRef {
         (0  until structType.nMembers)
             .find { index -> index !in valuesByIndex }
             ?.let {
                 throw IllegalArgumentException("Missing data for struct member #$it")
             }
 
-        val valuesArray = Array(structType.nMembers) {
-            valuesByIndex[it]!!.raw
+        NativePointerArray.fromJavaPointers(valuesByIndex.entries.sortedBy { it.key }.map { it.value.raw }).use { valuesArray ->
+            return Llvm.LLVMConstNamedStruct(structType.getRawInContext(context), valuesArray, valuesArray.length)
         }
-        val valuesPointerPointer = PointerPointer(*valuesArray)
-
-        return LLVM.LLVMConstNamedStruct(structType.getRawInContext(context), valuesPointerPointer, valuesArray.size)
     }
 }
 
@@ -47,12 +44,12 @@ fun <E : LlvmType> LlvmArrayType<E>.buildConstantIn(
     context: LlvmContext,
     data: Iterable<LlvmValue<E>>,
 ): LlvmConstant<LlvmArrayType<E>> {
-    val constantsArray = data.map { it.raw }.toTypedArray()
-    val constArray = LLVM.LLVMConstArray2(
-        elementType.getRawInContext(context),
-        PointerPointer(*constantsArray),
-        constantsArray.size.toLong(),
-    )
-
+    val constArray = NativePointerArray.fromJavaPointers(data.map { it.raw }).use { rawConstants ->
+        Llvm.LLVMConstArray2(
+            elementType.getRawInContext(context),
+            rawConstants,
+            rawConstants.length.toLong(),
+        )
+    }
     return LlvmConstant(constArray, this)
 }
