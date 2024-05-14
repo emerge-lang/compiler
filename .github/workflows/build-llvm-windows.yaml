@@ -42,6 +42,7 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
             -DLLVM_ENABLE_ASSERTIONS=ON \
             -DLLVM_LIT_ARGS="-v --no-progress-bar" \
+            -DLLVM_BUILD_LLVM_DYLIB=true \
             -S llvm
       - name: Build LLVM
         run: |
