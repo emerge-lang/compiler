@@ -1,21 +1,27 @@
 package io.github.tmarsteel.emerge.backend.llvm.jna;
 
-import com.sun.jna.*;
-import com.sun.jna.ptr.*;
-import org.jetbrains.annotations.*;
+import com.sun.jna.Library;
+import com.sun.jna.Native;
+import com.sun.jna.NativeLibrary;
+import com.sun.jna.Pointer;
+import com.sun.jna.ptr.NativeLongByReference;
+import com.sun.jna.ptr.PointerByReference;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * LLVM C interface functions mapped for LLVM-17 using JNA.
  */
 public class Llvm {
-    static final String LLVM_LIBS_DIR_SYSTEM_PROPERTY = "emerge.backend.llvm.llvm-17-libs-dir";
+    static final String LLVM_BIN_DIR_SYSTEM_PROPERTY = "emerge.backend.llvm.llvm-17-bin-dir";
 
     static {
         var llvmLibsDir = Objects.requireNonNull(
-                System.getProperty(LLVM_LIBS_DIR_SYSTEM_PROPERTY),
-                "You must specify the Java system property " + LLVM_LIBS_DIR_SYSTEM_PROPERTY
+                System.getProperty(LLVM_BIN_DIR_SYSTEM_PROPERTY),
+                "You must specify the Java system property " + LLVM_BIN_DIR_SYSTEM_PROPERTY
         );
         NativeLibrary.addSearchPath("LLVM-17", llvmLibsDir);
         Map<String, Object> options = Map.of(
