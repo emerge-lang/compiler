@@ -5,15 +5,18 @@ on: workflow_dispatch
 
 jobs:
   build-llvm-windows:
-    name: "Build LLVM x86_64-unknown-windows-msvc"
+    name: "Build LLVM x86_64-unknown-windows-gnu"
     runs-on: windows-2022
+    env:
+      LLVM_INSTALL_PATH: ${{ github.workspace }}/llvm-install
+      LLVM_BUILD_PATH: ${{ github.workspace }}/llvm-build
     steps:
       - name: Verify x86_64 host
         shell: pwsh
         # https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-processor
         run: |
           if ((Get-WmiObject win32_processor).Architecture -ne 9) {
-            echo "Not running on an x86_64 machine, cannot build for x86_64-unknown-windows-msvc!"
+            echo "Not running on an x86_64 machine, cannot build for x86_64!"
             exit 1
           }
       - name: Setup Windows
@@ -35,29 +38,47 @@ jobs:
       - name: Configure LLVM
         shell: bash
         run: |
-          cmake -B build -GNinja \
+          sed -i '/find_package(Git/d' llvm/cmake/modules/AddLLVM.cmake llvm/cmake/modules/VersionFromVCS.cmake
+          sed -i '/Generating libLLVM is not supported on MSVC/d' llvm/tools/llvm-shlib/CMakeLists.txt
+          sed -i 's/if (NOT Python3_EXECUTABLE/if (TRUE/g' clang/lib/Tooling/CMakeLists.txt
+          cmake \
+            -G "Ninja" \
+            -S llvm \
+            -B $LLVM_BUILD_PATH \
+            -DLLVM_USE_CRT_RELEASE=MD \
+            -DCMAKE_INSTALL_PREFIX=$LLVM_INSTALL_PATH \
+            -DLLVM_BUILD_LLVM_C_DYLIB=OFF \
+            -DCMAKE_EXE_LINKER_FLAGS="/FORCE:MULTIPLE" \
+            -DCMAKE_SHARED_LINKER_FLAGS="/FORCE:MULTIPLE" \
+            -DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=ON \
+            -DLLVM_BUILD_LLVM_DYLIB=ON \
+            -DLLVM_LINK_LLVM_DYLIB=ON \
             -DCMAKE_BUILD_TYPE=Release \
-            -DLLVM_ENABLE_PROJECTS="llvm;lld;libc" \
-            -DCMAKE_C_COMPILER_LAUNCHER=sccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
-            -DLLVM_ENABLE_ASSERTIONS=ON \
-            -DLLVM_LIT_ARGS="-v --no-progress-bar" \
-            -DLLVM_BUILD_LLVM_DYLIB=true \
-            -S llvm
+            -DLLVM_TARGETS_TO_BUILD=all \
+            -DLLVM_ENABLE_DIA_SDK=OFF \
+            -DLLVM_ENABLE_LIBXML2=OFF \
+            -DLLVM_INCLUDE_TESTS=OFF \
+            -DPYTHON_EXECUTABLE="$(where python.exe | head -1)" \
+            -DLLVM_ENABLE_ZSTD=OFF \
+            -DLLVM_ENABLE_RUNTIMES=libunwind \
+            -DLLVM_ENABLE_PROJECTS="llvm;lld"
       - name: Build LLVM
         run: |
-          ninja -C build check-llvm
-      - name: Collect build artifacts
+          cd "${{ env.LLVM_BUILD_PATH }}"
+          ninja
+          ninja install
+      - name: Collect artifacts
         uses: actions/upload-artifact@v4
         with:
           name: llvm-windows-x86_64
           path: |
-            build/bin
-            build/include
-            !build/include/**/*.cmake
-            build/lib
-            !build/lib/**/*.obj
-            !build/lib/**/*.cmake
-            !build/lib/**/*.dir
-            build/libexec
-            build/share
+            ${{ env.LLVM_BUILD_PATH }}/bin
+            ${{ env.LLVM_BUILD_PATH }}/include
+            !${{ env.LLVM_BUILD_PATH }}/include/**/*.cmake
+            ${{ env.LLVM_BUILD_PATH }}/lib
+            !${{ env.LLVM_BUILD_PATH }}/lib/**/*.obj
+            !${{ env.LLVM_BUILD_PATH }}/lib/**/*.cmake
+            !${{ env.LLVM_BUILD_PATH }}/lib/**/*.dir
+            ${{ env.LLVM_BUILD_PATH }}/libexec
+            ${{ env.LLVM_BUILD_PATH }}/share
+            ${{ env.LLVM_INSTALL_PATH }}
