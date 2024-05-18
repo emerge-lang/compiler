@@ -135,6 +135,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
           test the implementation.
     4. deal with the wrapper mutability problem: do types need to be generic on mutability?
     5. add `sealed` interfaces as in Kotlin
+    6. algebraic data types
+       1. union type: `TypeA | TypeB | TypeC`
+       2. conjunction type: `TypeA & TypeB & TypeC`
 33. general iterable types
     * implement generic supertypes - yey, another logic monstrosity
     * Like Java Iterable<T>, D ranges, ... ?

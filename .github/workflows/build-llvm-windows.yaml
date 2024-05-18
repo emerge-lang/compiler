@@ -60,8 +60,9 @@ jobs:
             -DLLVM_INCLUDE_TESTS=OFF \
             -DPYTHON_EXECUTABLE="$(where python.exe | head -1)" \
             -DLLVM_ENABLE_ZSTD=OFF \
+            -DLLVM_ENABLE_PROJECTS="llvm;lld" \
             -DLLVM_ENABLE_RUNTIMES=libunwind \
-            -DLLVM_ENABLE_PROJECTS="llvm;lld"
+            -DLIBUNWIND_ENABLE_SHARED=false
       - name: Build LLVM
         run: |
           cd "${{ env.LLVM_BUILD_PATH }}"
