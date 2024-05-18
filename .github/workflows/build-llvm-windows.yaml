@@ -5,7 +5,7 @@ on: workflow_dispatch
 
 jobs:
   build-llvm-windows:
-    name: "Build LLVM x86_64-unknown-windows-gnu"
+    name: "Build LLVM x86_64-unknown-windows-msvc"
     runs-on: windows-2022
     env:
       LLVM_INSTALL_PATH: ${{ github.workspace }}/llvm-install
