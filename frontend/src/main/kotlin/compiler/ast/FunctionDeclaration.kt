@@ -44,12 +44,13 @@ data class FunctionDeclaration(
     override val declaredAt = name.span
 
     fun bindToAsTopLevel(context: CTContext): BoundTopLevelFunction {
+        lateinit var boundFn: BoundTopLevelFunction
         val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(context)
         val functionContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)
-        val attributes = BoundFunctionAttributeList(functionContext, attributes)
+        val attributes = BoundFunctionAttributeList(functionContext, { boundFn }, attributes)
         val boundParameterList = parameters.bindTo(functionContext)
 
-        return BoundTopLevelFunction(
+        boundFn = BoundTopLevelFunction(
             functionContext,
             this,
             attributes,
@@ -57,6 +58,7 @@ data class FunctionDeclaration(
             boundParameterList,
             body?.bindTo(boundParameterList.modifiedContext),
         )
+        return boundFn
     }
 
     fun bindToAsMember(
@@ -64,12 +66,13 @@ data class FunctionDeclaration(
         impliedReceiverType: TypeReference,
         getTypeDef: () -> BoundBaseType
     ): BoundDeclaredBaseTypeMemberFunction {
+        lateinit var boundFn: BoundDeclaredBaseTypeMemberFunction
         val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(context)
         val functionContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)
-        val attributes = BoundFunctionAttributeList(functionContext, attributes)
+        val attributes = BoundFunctionAttributeList(functionContext, { boundFn }, attributes)
         val boundParameterList = parameters.bindTo(functionContext, impliedReceiverType)
 
-        return BoundDeclaredBaseTypeMemberFunction(
+        boundFn = BoundDeclaredBaseTypeMemberFunction(
             functionContext,
             this,
             attributes,
@@ -78,6 +81,7 @@ data class FunctionDeclaration(
             body?.bindTo(boundParameterList.modifiedContext),
             getTypeDef,
         )
+        return boundFn
     }
 
     sealed interface Body {

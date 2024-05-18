@@ -25,6 +25,7 @@ import compiler.ast.type.TypeReference
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
+import compiler.binding.SideEffectPrediction
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -56,7 +57,8 @@ class BoundIdentifierExpression(
     var referral: Referral? = null
         private set
 
-    override var isGuaranteedToThrow = false
+    override val throwBehavior = SideEffectPrediction.NEVER
+    override val returnBehavior = SideEffectPrediction.NEVER
 
     private val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(context)
     override val modifiedContext: ExecutionScopedCTContext = _modifiedContext

@@ -19,6 +19,7 @@
 package compiler.binding
 
 import compiler.ast.CodeChunk
+import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
@@ -45,14 +46,8 @@ class BoundCodeChunk(
 
     val statements: List<BoundExecutable<*>>,
 ) : BoundExecutable<CodeChunk> {
-    override val isGuaranteedToThrow: Boolean
-        get() = statements.any { it.isGuaranteedToThrow ?: false }
-
-    override val isGuaranteedToReturn: Boolean
-        get() = statements.any { it.isGuaranteedToReturn ?: false }
-
-    override val mayReturn: Boolean
-        get() = statements.any { it.mayReturn }
+    override val returnBehavior get() = statements.map { it.returnBehavior }.reduceSequentialExecution()
+    override val throwBehavior get() = statements.map { it.throwBehavior }.reduceSequentialExecution()
 
     override val modifiedContext: ExecutionScopedCTContext
         get() = statements.lastOrNull()?.modifiedContext ?: context

@@ -23,6 +23,8 @@ import compiler.binding.IrAssignmentStatementTargetVariableImpl
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.IrReturnStatementImpl
 import compiler.binding.SeanHelper
+import compiler.binding.SideEffectPrediction
+import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
@@ -87,7 +89,7 @@ class BoundClassConstructor(
     override val receiverType = null
     override val declaresReceiver = false
     override val name get() = classDef.simpleName
-    override val attributes = BoundFunctionAttributeList(fileContextWithTypeParameters, declaration.attributes)
+    override val attributes = BoundFunctionAttributeList(fileContextWithTypeParameters, { this }, declaration.attributes)
     override val allTypeParameters = declaredTypeParameters
 
     override val returnType by lazy {
@@ -258,7 +260,7 @@ class BoundClassConstructor(
 
     override val purity = attributes.purity
 
-    override val isGuaranteedToThrow get() = boundMemberVariableInitCodeFromExpression.isGuaranteedToThrow || additionalInitCode.isGuaranteedToThrow
+    override val throwBehavior: SideEffectPrediction? get() = boundMemberVariableInitCodeFromExpression.throwBehavior.combineSequentialExecution(additionalInitCode.throwBehavior)
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return seanHelper.phase3 {

@@ -158,7 +158,7 @@ class ClassErrors : FreeSpec({
             "on class" {
                 validateModule("""
                     class Test {
-                        external(C) fn foo()
+                        external(C) nothrow fn foo()
                     }
                 """.trimIndent())
                     .shouldReport<ExternalMemberFunctionReporting>()
@@ -167,7 +167,7 @@ class ClassErrors : FreeSpec({
             "on interface" {
                 validateModule("""
                     interface Test {
-                        external(C) fn foo()
+                        external(C) nothrow fn foo()
                     }
                 """.trimIndent())
                     .shouldReport<ExternalMemberFunctionReporting>()

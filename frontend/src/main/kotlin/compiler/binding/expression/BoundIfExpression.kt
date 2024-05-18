@@ -23,6 +23,9 @@ import compiler.ast.IfExpression
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundExecutable
 import compiler.binding.IrCodeChunkImpl
+import compiler.binding.SideEffectPrediction
+import compiler.binding.SideEffectPrediction.Companion.combineBranch
+import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecution
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MultiBranchJoinExecutionScopedCTContext
 import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
@@ -31,7 +34,6 @@ import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.isAssignableTo
-import compiler.nullableAnd
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIfExpression
@@ -46,18 +48,15 @@ class BoundIfExpression(
     val thenCode: BoundCodeChunk,
     val elseCode: BoundCodeChunk?
 ) : BoundExpression<IfExpression>, BoundExecutable<IfExpression> {
-    override val isGuaranteedToThrow: Boolean
-        get() = thenCode.isGuaranteedToThrow nullableAnd (elseCode?.isGuaranteedToThrow ?: false)
+    override val throwBehavior: SideEffectPrediction? get() {
+        val branches = thenCode.throwBehavior.combineBranch(if (elseCode == null) SideEffectPrediction.NEVER else elseCode.throwBehavior)
+        return condition.throwBehavior.combineSequentialExecution(branches)
+    }
 
-    override val isGuaranteedToReturn: Boolean
-        get() {
-            if (elseCode == null) {
-                return false
-            }
-            else {
-                return thenCode.isGuaranteedToReturn nullableAnd elseCode.isGuaranteedToReturn
-            }
-        }
+    override val returnBehavior: SideEffectPrediction? get() {
+        val branches = thenCode.returnBehavior.combineBranch(if (elseCode == null) SideEffectPrediction.NEVER else elseCode.returnBehavior)
+        return condition.returnBehavior.combineSequentialExecution(branches)
+    }
 
     override var type: BoundTypeReference? = null
         private set

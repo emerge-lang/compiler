@@ -45,12 +45,17 @@ abstract class BoundDeclaredFunction(
     final override var returnType: BoundTypeReference? = null
         private set
 
-    final override val isGuaranteedToThrow: Boolean?
-        get() = handleCyclicInvocation(
-                    context = this,
-                    action = { body?.isGuaranteedToThrow },
-                    onCycle = { false },
-                )
+    final override val throwBehavior: SideEffectPrediction? get() {
+        if (attributes.isDeclaredNothrow) {
+            return SideEffectPrediction.NEVER
+        }
+
+        return handleCyclicInvocation(
+            context = this,
+            action = { body?.throwBehavior },
+            onCycle = { SideEffectPrediction.POSSIBLY },
+        )
+    }
 
     private val seanHelper = SeanHelper()
 
@@ -159,7 +164,7 @@ abstract class BoundDeclaredFunction(
                 }
 
                 // assure all paths return or throw
-                val isGuaranteedToTerminate = body.isGuaranteedToReturn nullableOr body.isGuaranteedToThrow
+                val isGuaranteedToTerminate = body.returnBehavior == SideEffectPrediction.GUARANTEED || body.throwBehavior == SideEffectPrediction.GUARANTEED
 
                 if (!isGuaranteedToTerminate) {
                     val localReturnType = returnType

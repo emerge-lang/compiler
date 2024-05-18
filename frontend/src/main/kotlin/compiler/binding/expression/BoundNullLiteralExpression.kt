@@ -21,6 +21,7 @@ package compiler.binding.expression
 import compiler.ast.expression.NullLiteralExpression
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundStatement
+import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
@@ -42,7 +43,8 @@ class BoundNullLiteralExpression(
     override val type: BoundTypeReference?
         get() = expectedType?.withCombinedNullability(TypeReference.Nullability.NULLABLE)
 
-    override val isGuaranteedToThrow = null
+    override val throwBehavior = SideEffectPrediction.NEVER
+    override val returnBehavior = SideEffectPrediction.NEVER
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
     override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()

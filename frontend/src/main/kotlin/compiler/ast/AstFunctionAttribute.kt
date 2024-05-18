@@ -1,14 +1,14 @@
 package compiler.ast
 
 import compiler.lexer.IdentifierToken
-import compiler.lexer.Token
+import compiler.lexer.KeywordToken
 
 /**
  * All subclasses define [Any.equals] and [Any.hashCode] in terms of semantics, source location from AST are not
  * considered.
  */
 sealed class AstFunctionAttribute(
-    val attributeName: Token,
+    val attributeName: KeywordToken,
 ) {
     open val impliesNoBody: Boolean = false
     val sourceLocation = attributeName.span
@@ -16,7 +16,7 @@ sealed class AstFunctionAttribute(
     /**
      * This function is eligible to override syntactic operators, e.g. `*`
      */
-    class Operator(nameToken: Token) : AstFunctionAttribute(nameToken) {
+    class Operator(nameToken: KeywordToken) : AstFunctionAttribute(nameToken) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Operator) return false
@@ -32,7 +32,7 @@ sealed class AstFunctionAttribute(
      * The body of the function is provided by the backend. Used for target-specific functions, usually
      * the smallest of building blocks (e.g. `Int.opPlus(Int)`)
      */
-    class Intrinsic(nameToken: Token) : AstFunctionAttribute(nameToken) {
+    class Intrinsic(nameToken: KeywordToken) : AstFunctionAttribute(nameToken) {
         override val impliesNoBody = true
 
         override fun equals(other: Any?): Boolean {
@@ -46,7 +46,7 @@ sealed class AstFunctionAttribute(
         }
     }
 
-    class External(nameToken: Token, val ffiName: IdentifierToken) : AstFunctionAttribute(nameToken) {
+    class External(nameToken: KeywordToken, val ffiName: IdentifierToken) : AstFunctionAttribute(nameToken) {
         override val impliesNoBody = true
 
         override fun equals(other: Any?): Boolean {
@@ -63,10 +63,7 @@ sealed class AstFunctionAttribute(
         }
     }
 
-    /**
-     * TODO: yeet?
-     */
-    class Nothrow(nameToken: Token) : AstFunctionAttribute(nameToken) {
+    class Nothrow(nameToken: KeywordToken) : AstFunctionAttribute(nameToken) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Nothrow) return false
@@ -78,7 +75,7 @@ sealed class AstFunctionAttribute(
         }
     }
 
-    class Override(nameToken: Token) : AstFunctionAttribute(nameToken) {
+    class Override(nameToken: KeywordToken) : AstFunctionAttribute(nameToken) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Override) return false
@@ -90,7 +87,7 @@ sealed class AstFunctionAttribute(
         }
     }
 
-    class EffectCategory(val value: Category, nameToken: Token) : AstFunctionAttribute(nameToken) {
+    class EffectCategory(val value: Category, nameToken: KeywordToken) : AstFunctionAttribute(nameToken) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is EffectCategory) return false

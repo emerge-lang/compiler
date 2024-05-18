@@ -45,10 +45,8 @@ class BoundReturnStatement(
 
     val expression = declaration.expression?.bindTo(context)
 
-    override val isGuaranteedToReturn = true // this is the core LoC that makes the property work big-scale
-    override val mayReturn = true            // this is the core LoC that makes the property work big-scale
-
-    override val isGuaranteedToThrow = expression?.isGuaranteedToThrow ?: false
+    override val returnBehavior = SideEffectPrediction.GUARANTEED // this is the core LoC that makes the property work big-scale
+    override val throwBehavior get() = if (expression == null) SideEffectPrediction.NEVER else expression.throwBehavior
 
     override val implicitEvaluationResultType = null
 

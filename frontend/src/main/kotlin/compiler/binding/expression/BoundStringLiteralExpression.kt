@@ -4,6 +4,7 @@ import compiler.InternalCompilerError
 import compiler.StandardLibraryModule
 import compiler.ast.expression.StringLiteralExpression
 import compiler.ast.type.TypeMutability
+import compiler.binding.SideEffectPrediction
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
@@ -15,7 +16,8 @@ class BoundStringLiteralExpression(
     override val context: ExecutionScopedCTContext,
     override val declaration: StringLiteralExpression,
 ) : BoundExpression<StringLiteralExpression> {
-    override val isGuaranteedToThrow: Boolean = false
+    override val throwBehavior = SideEffectPrediction.NEVER
+    override val returnBehavior = SideEffectPrediction.NEVER
     override var type: BoundTypeReference? = null
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {

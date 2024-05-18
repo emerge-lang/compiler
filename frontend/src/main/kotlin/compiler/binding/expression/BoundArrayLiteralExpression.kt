@@ -7,6 +7,7 @@ import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundStatement
+import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -14,7 +15,6 @@ import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUnification
-import compiler.nullableOr
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrArrayLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -27,7 +27,10 @@ class BoundArrayLiteralExpression(
     val elements: List<BoundExpression<*>>,
 ) : BoundExpression<ArrayLiteralExpression> {
     override val modifiedContext: ExecutionScopedCTContext = elements.lastOrNull()?.modifiedContext ?: context
-    override val isGuaranteedToThrow: Boolean get() = elements.map { it.isGuaranteedToThrow }.reduceOrNull() { a, b -> a nullableOr b } ?: false
+
+    override val throwBehavior get() = elements.map { it.throwBehavior }.reduceSequentialExecution()
+    override val returnBehavior get() = elements.map { it.returnBehavior }.reduceSequentialExecution()
+
     private var expectedEvaluationResultType: BoundTypeReference? = null
     private var expectedElementType: BoundTypeReference? = null
     override var type: BoundTypeReference? = null

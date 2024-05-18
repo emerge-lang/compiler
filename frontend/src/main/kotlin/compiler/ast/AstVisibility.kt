@@ -3,9 +3,8 @@ package compiler.ast
 import compiler.binding.BoundVisibility
 import compiler.binding.context.CTContext
 import compiler.lexer.KeywordToken
-import compiler.lexer.Token
 
-sealed class AstVisibility(nameToken: Token) : AstFunctionAttribute(nameToken) {
+sealed class AstVisibility(nameToken: KeywordToken) : AstFunctionAttribute(nameToken) {
     abstract fun bindTo(context: CTContext) : BoundVisibility
 
     class Private(keyword: KeywordToken) : AstVisibility(keyword) {

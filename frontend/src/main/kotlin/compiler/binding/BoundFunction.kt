@@ -66,7 +66,7 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
      */
     val purity: Purity get() = attributes.purity
 
-    val isGuaranteedToThrow: Boolean?
+    val throwBehavior: SideEffectPrediction?
 
     val parameters: BoundParameterList
 

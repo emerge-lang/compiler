@@ -35,7 +35,8 @@ class BoundUnaryExpression(
     override var type: BoundTypeReference? = null
         private set
 
-    override val isGuaranteedToThrow get() = hiddenInvocation.isGuaranteedToThrow
+    override val throwBehavior get() = hiddenInvocation.throwBehavior
+    override val returnBehavior get() = hiddenInvocation.returnBehavior
 
     override fun semanticAnalysisPhase1() = hiddenInvocation.semanticAnalysisPhase1()
 

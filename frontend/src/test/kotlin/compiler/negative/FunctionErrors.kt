@@ -1,7 +1,9 @@
 package compiler.compiler.negative
 
+import compiler.ast.AstFunctionAttribute
 import compiler.reportings.AmbiguousInvocationReporting
 import compiler.reportings.ExplicitInferTypeNotAllowedReporting
+import compiler.reportings.FunctionMissingDeclaredModifierReporting
 import compiler.reportings.IllegalFunctionBodyReporting
 import compiler.reportings.InconsistentReceiverPresenceInOverloadSetReporting
 import compiler.reportings.MissingFunctionBodyReporting
@@ -385,6 +387,17 @@ class FunctionErrors : FreeSpec({
                 override external(Rust) fn test()
             """.trimIndent())
                 .shouldReport<UnsupportedCallingConventionReporting>()
+        }
+    }
+
+    "attributes" - {
+        "external implies nothrow" {
+            validateModule("""
+                external(C) fn test()
+            """.trimIndent())
+                .shouldReport<FunctionMissingDeclaredModifierReporting> {
+                    it.attribute should beInstanceOf<AstFunctionAttribute.Nothrow>()
+                }
         }
     }
 })

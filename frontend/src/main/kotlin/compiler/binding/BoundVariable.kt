@@ -95,11 +95,8 @@ class BoundVariable(
         get() = declaration.ownership?.first?.takeIf { kind.allowsExplicitOwnership }
             ?: defaultOwnership
 
-    override val isGuaranteedToThrow: Boolean?
-        get() = initializerExpression?.isGuaranteedToThrow
-
-    override val isGuaranteedToReturn: Boolean?
-        get() = initializerExpression?.isGuaranteedToReturn
+    override val returnBehavior get() = if (initializerExpression == null) SideEffectPrediction.NEVER else initializerExpression.returnBehavior
+    override val throwBehavior get() = if (initializerExpression == null) SideEffectPrediction.NEVER else initializerExpression.throwBehavior
 
     private val seanHelper = SeanHelper()
 

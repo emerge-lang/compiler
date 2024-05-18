@@ -29,27 +29,16 @@ interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
     override val context: ExecutionScopedCTContext
 
     /**
-     * Whether this executable is guaranteed to return to the caller; with or without return value.
-     *
-     * Must not be `null` after semantic analysis is complete.
+     * How this executable behaves at runtime with respect to throwing exceptions. Must not be `null` after
+     * [semanticAnalysisPhase3].
      */
-    val isGuaranteedToReturn: Boolean?
-        get() = false
+    val throwBehavior: SideEffectPrediction?
 
     /**
-     * Whether this executable may return to the caller; with or without return value.
-     *
-     * Must not be `null` after semantic analysis is complete.
+     * How this executable behaves at runtime with respect to returning from the call/stack frame. Must not be `null`
+     * after [semanticAnalysisPhase3].
      */
-    val mayReturn: Boolean
-        get() = false
-
-    /**
-     * Whether this executable is guaranteed to throw an exception.
-     *
-     * Must not be `null` after semantic analysis is complete.
-     */
-    val isGuaranteedToThrow: Boolean?
+    val returnBehavior: SideEffectPrediction?
 
     /**
      * When implicitly evaluating the result of this executable, this type is returned. Available after

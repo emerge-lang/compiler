@@ -38,7 +38,8 @@ class BoundNotNullExpression(
     override var type: BoundTypeReference? = null
         private set
 
-    override val isGuaranteedToThrow = false // this MAY throw, but it's not guaranteed to
+    override val throwBehavior get() = nullableExpression.throwBehavior
+    override val returnBehavior get() = nullableExpression.returnBehavior
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return nullableExpression.semanticAnalysisPhase1()

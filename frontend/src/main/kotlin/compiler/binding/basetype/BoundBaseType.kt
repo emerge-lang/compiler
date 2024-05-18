@@ -381,7 +381,7 @@ class BoundBaseType(
             hasCtorsAndDtors = false,
             allowsMemberVariables = false,
             memberFunctionsAbstractByDefault = true,
-            memberFunctionsVirtualByDefault = true
+            memberFunctionsVirtualByDefault = true,
         ),
         ;
 

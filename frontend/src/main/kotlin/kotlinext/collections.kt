@@ -37,19 +37,6 @@ operator fun <T> Collection<T>.get(range: IntRange): List<T> {
     return list
 }
 
-val <T> Iterable<T>.allEqual: Boolean
-    get() {
-        val iterator = iterator()
-        if (!iterator.hasNext()) return true
-        val pivot = iterator.next()
-        while (iterator.hasNext()) {
-            val item = iterator.next()
-            if (pivot != item) return false
-        }
-
-        return true
-    }
-
 /**
  * Returns distinct elements from the collection whose selected properties
  * are equal.

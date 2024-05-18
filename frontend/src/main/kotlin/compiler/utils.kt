@@ -49,21 +49,49 @@ fun parseFromClasspath(path: Path, packageName: CanonicalElementName.Package): A
     return matchResult.item ?: throw InternalCompilerError("Failed to parse from classpath $path")
 }
 
-infix fun Boolean?.nullableOr(other: Boolean?): Boolean {
-    if (this != null && this == true) {
-        return true
+/**
+infix fun Boolean?.nullableOr(other: Boolean?): Boolean? {
+    if (this == null && other == null) {
+        return null
     }
-
-    if (other != null && other == true) {
-        return true
-    }
-
-    return false
+    return this == true || other == true
 }
 
-infix fun Boolean?.nullableAnd(other: Boolean?): Boolean {
-    if (this != null && this == true && other != null && other == true) {
+infix fun Boolean?.nullableAnd(other: Boolean?): Boolean? {
+    if (this == null || other == null) {
+        return null
+    }
+
+    return this && other
+}
+**/
+
+/**
+ * If any of the elements maps to `true`, this short-circuits to `true`. If all elements return `null`,
+ * also returns `null`. Returns `false` iff all elements map to `false`.
+ */
+fun <T : Any> Iterable<T>.mapNullableBoolReduceOr(onEmpty: Boolean?, map: (T) -> Boolean?): Boolean? {
+    val iterator = iterator()
+    if (!iterator.hasNext()) {
+        return onEmpty
+    }
+    var someNull = false
+    var carry = false
+    while (iterator.hasNext()) {
+        val next = map(iterator.next())
+        if (next == null) {
+            someNull = true
+        } else {
+            carry = carry || next
+        }
+    }
+
+    if (carry) {
         return true
+    }
+
+    if (someNull) {
+        return null
     }
 
     return false

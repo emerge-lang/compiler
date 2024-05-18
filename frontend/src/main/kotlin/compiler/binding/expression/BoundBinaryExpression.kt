@@ -28,7 +28,6 @@ import compiler.binding.type.BoundTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
-import compiler.nullableOr
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
@@ -55,8 +54,8 @@ class BoundBinaryExpression(
     override val type: BoundTypeReference?
         get() = hiddenInvocation.type
 
-    override val isGuaranteedToThrow: Boolean
-        get() = leftHandSide.isGuaranteedToThrow nullableOr rightHandSide.isGuaranteedToThrow
+    override val throwBehavior get() = hiddenInvocation.throwBehavior
+    override val returnBehavior get() = hiddenInvocation.returnBehavior
 
     override fun semanticAnalysisPhase1() = hiddenInvocation.semanticAnalysisPhase1()
 

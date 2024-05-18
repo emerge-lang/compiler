@@ -19,6 +19,7 @@
 package compiler.binding.expression
 
 import compiler.ast.expression.BooleanLiteralExpression
+import compiler.binding.SideEffectPrediction
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
@@ -33,7 +34,8 @@ class BoundBooleanLiteralExpression(
 ) : BoundExpression<BooleanLiteralExpression> {
     override val type: BoundTypeReference = context.swCtx.bool.baseReference
 
-    override val isGuaranteedToThrow: Boolean = false
+    override val throwBehavior = SideEffectPrediction.NEVER
+    override val returnBehavior = SideEffectPrediction.NEVER
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // nothing to do: this expression can only ever have one type

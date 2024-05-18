@@ -20,6 +20,7 @@ package compiler.binding
 
 import compiler.ast.AssignmentStatement
 import compiler.ast.type.TypeMutability
+import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -39,7 +40,6 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.IrGenericTypeReferenceImpl
 import compiler.binding.type.IrParameterizedTypeImpl
 import compiler.binding.type.IrSimpleTypeImpl
-import compiler.nullableOr
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
@@ -60,8 +60,13 @@ class BoundAssignmentStatement(
     val targetExpression: BoundExpression<*>,
     val toAssignExpression: BoundExpression<*>
 ) : BoundStatement<AssignmentStatement> {
-    override val isGuaranteedToThrow: Boolean
-        get() = targetExpression.isGuaranteedToThrow nullableOr toAssignExpression.isGuaranteedToThrow
+    override val throwBehavior: SideEffectPrediction? get() {
+        return targetExpression.throwBehavior.combineSequentialExecution(toAssignExpression.throwBehavior)
+    }
+
+    override val returnBehavior: SideEffectPrediction? get() {
+        return targetExpression.returnBehavior.combineSequentialExecution(toAssignExpression.returnBehavior)
+    }
 
     private val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(toAssignExpression.modifiedContext)
     override val modifiedContext: ExecutionScopedCTContext = _modifiedContext

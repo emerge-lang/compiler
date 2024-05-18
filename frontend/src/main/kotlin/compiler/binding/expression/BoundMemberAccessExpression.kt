@@ -58,7 +58,8 @@ class BoundMemberAccessExpression(
     var member: BoundBaseTypeMemberVariable? = null
         private set
 
-    override val isGuaranteedToThrow = false // member accessor CAN throw, but must not ALWAYS do so
+    override val throwBehavior get() = valueExpression.throwBehavior
+    override val returnBehavior get() = valueExpression.returnBehavior
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return valueExpression.semanticAnalysisPhase1()

@@ -3,11 +3,14 @@ package compiler.binding
 import compiler.InternalCompilerError
 import compiler.ast.Statement
 import compiler.ast.VariableDeclaration
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.NullableTypeReference
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
@@ -18,7 +21,17 @@ class DropLocalVariableStatement(
     override fun bindTo(contextOnDeferredExecution: ExecutionScopedCTContext) = object : BoundStatement<VariableDeclaration> {
         override val context = contextOnDeferredExecution
         override val declaration = variable.declaration
-        override val isGuaranteedToThrow = false
+        override val returnBehavior = SideEffectPrediction.NEVER
+        override val throwBehavior: SideEffectPrediction? get() {
+            val type = variable.typeAtDeclarationTime ?: return SideEffectPrediction.POSSIBLY
+            val baseType = when {
+                type is RootResolvedTypeReference -> type.baseType
+                type is NullableTypeReference && type.nested is RootResolvedTypeReference -> type.nested.baseType
+                else -> return SideEffectPrediction.POSSIBLY
+            }
+            if (baseType.kind != BoundBaseType.Kind.CLASS) return SideEffectPrediction.POSSIBLY
+            return baseType.destructor?.throwBehavior
+        }
         override val implicitEvaluationResultType = null
 
         override fun requireImplicitEvaluationTo(type: BoundTypeReference) {

@@ -14,6 +14,7 @@ import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.IrCodeChunkImpl
+import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.IrClassMemberVariableAccessExpressionImpl
@@ -72,6 +73,7 @@ class BoundClassDestructor(
     override val name by lazy { "__${classDef.simpleName}__finalize" }
     override val attributes = BoundFunctionAttributeList(
         fileContextWithTypeParameters,
+        { this },
         listOf(
             AstFunctionAttribute.EffectCategory(
                 AstFunctionAttribute.EffectCategory.Category.MODIFYING,
@@ -107,7 +109,12 @@ class BoundClassDestructor(
     }
 
     override val purity = BoundFunction.Purity.MODIFYING
-    override val isGuaranteedToThrow get() = userDefinedCode.isGuaranteedToThrow
+    override val throwBehavior: SideEffectPrediction? get() {
+        if (attributes.isDeclaredNothrow) {
+            return SideEffectPrediction.NEVER
+        }
+        return userDefinedCode.throwBehavior
+    }
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return userDefinedCode.semanticAnalysisPhase1()

@@ -28,6 +28,8 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundStatement
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
+import compiler.binding.SideEffectPrediction
+import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
@@ -80,8 +82,15 @@ class BoundInvocationExpression(
     private val receiverExceptReferringType: BoundExpression<*>?
         get() = receiverExpression?.takeUnless { it is BoundIdentifierExpression && it.referral is BoundIdentifierExpression.ReferringType }
 
-    override val isGuaranteedToThrow: Boolean?
-        get() = functionToInvoke?.isGuaranteedToThrow
+    override val throwBehavior: SideEffectPrediction? get() {
+        val behaviors = valueArguments.map { it.throwBehavior } + listOf(functionToInvoke?.throwBehavior)
+        return behaviors.reduceSequentialExecution()
+    }
+
+    override val returnBehavior: SideEffectPrediction? get() {
+        val behaviors = valueArguments.map { it.returnBehavior } + listOf(SideEffectPrediction.NEVER)
+        return behaviors.reduceSequentialExecution()
+    }
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> =
         seanHelper.phase1 {

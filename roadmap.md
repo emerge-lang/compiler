@@ -95,8 +95,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     2. `throw` statement
     3. `Throwable` for everything that can be thrown, `Exception : Throwable` for recoverable errors,
        `Error : Throwable` for unrecoverable errors. `Error` cannot be `catch`ed
-    4. `Exception`s are checked - must be declared on the signature. Errors can be omitted. This removes the need for
-       a `nothrow` modifier
+    4. `Exception`s are checked - must be declared on the signature. Errors can be omitted.
        * to still allow optimizations: tag intrinsic impls and all external(C) functions with LLVM nounwind. external(C)
          functions not being able to throw likely needs to be considered in the FE as well, depending on whether the FE
          will care about landingpads

@@ -191,6 +191,9 @@ abstract class Reporting internal constructor(
         fun conflictingModifiers(attributes: Collection<AstFunctionAttribute>)
             = ConflictingFunctionModifiersReporting(attributes)
 
+        fun functionIsMissingDeclaredAttribute(fn: BoundDeclaredFunction, missingAttribute: AstFunctionAttribute, reason: String)
+            = FunctionMissingDeclaredModifierReporting(fn.declaration, missingAttribute, reason)
+
         fun toplevelFunctionWithOverrideAttribute(attr: AstFunctionAttribute.Override)
             = ToplevelFunctionWithOverrideAttributeReporting(attr.attributeName)
 

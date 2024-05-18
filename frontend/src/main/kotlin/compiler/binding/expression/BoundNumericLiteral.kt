@@ -21,6 +21,7 @@ package compiler.binding.expression
 import compiler.InternalCompilerError
 import compiler.ast.expression.NumericLiteralExpression
 import compiler.binding.BoundStatement
+import compiler.binding.SideEffectPrediction
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -45,7 +46,8 @@ open class BoundNumericLiteral(
 ) : BoundExpression<NumericLiteralExpression> {
     override val type: BoundTypeReference? = null // unknown
 
-    override val isGuaranteedToThrow = false
+    override val throwBehavior = SideEffectPrediction.NEVER
+    override val returnBehavior = SideEffectPrediction.NEVER
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableListOf<Reporting>()
