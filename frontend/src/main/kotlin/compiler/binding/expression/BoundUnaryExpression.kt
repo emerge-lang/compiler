@@ -24,6 +24,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
+import compiler.reportings.SideEffectBoundary
 import compiler.reportings.UnresolvableFunctionOverloadReporting
 
 class BoundUnaryExpression(
@@ -68,6 +69,10 @@ class BoundUnaryExpression(
         }
 
         return reportings
+    }
+
+    override fun setNothrow(boundary: SideEffectBoundary) {
+        hiddenInvocation.setNothrow(boundary)
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> = hiddenInvocation.semanticAnalysisPhase3()

@@ -45,6 +45,7 @@ import compiler.lexer.OperatorToken
 import compiler.lexer.Span
 import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
 import compiler.reportings.Reporting
+import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
@@ -247,6 +248,13 @@ class BoundClassConstructor(
             reportings.addAll(boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase2())
             reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase2())
             reportings.addAll(additionalInitCode.semanticAnalysisPhase2())
+
+            if (attributes.isDeclaredNothrow) {
+                val nothrowBoundary = SideEffectBoundary.Function(this)
+                boundMemberVariableInitCodeFromCtorParams.setNothrow(nothrowBoundary)
+                boundMemberVariableInitCodeFromExpression.setNothrow(nothrowBoundary)
+                additionalInitCode.setNothrow(nothrowBoundary)
+            }
 
             reportings
         }

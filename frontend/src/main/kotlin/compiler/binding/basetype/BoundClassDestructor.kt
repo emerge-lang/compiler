@@ -1,7 +1,6 @@
 package compiler.binding.basetype
 
 import compiler.InternalCompilerError
-import compiler.ast.AstFunctionAttribute
 import compiler.ast.BaseTypeDestructorDeclaration
 import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
@@ -25,10 +24,9 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.lexer.IdentifierToken
-import compiler.lexer.Keyword
-import compiler.lexer.KeywordToken
 import compiler.lexer.Span
 import compiler.reportings.Reporting
+import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -41,6 +39,7 @@ class BoundClassDestructor(
     private val fileContextWithTypeParameters: CTContext,
     override val declaredTypeParameters: List<BoundTypeParameter>,
     getClassDef: () -> BoundBaseType,
+    override val attributes: BoundFunctionAttributeList,
     val declaration: BaseTypeDestructorDeclaration,
 ) : BoundFunction, BoundBaseTypeEntry<BaseTypeDestructorDeclaration> {
     val classDef: BoundBaseType by lazy(getClassDef)
@@ -71,16 +70,6 @@ class BoundClassDestructor(
         )
     }
     override val name by lazy { "__${classDef.simpleName}__finalize" }
-    override val attributes = BoundFunctionAttributeList(
-        fileContextWithTypeParameters,
-        { this },
-        listOf(
-            AstFunctionAttribute.EffectCategory(
-                AstFunctionAttribute.EffectCategory.Category.MODIFYING,
-                KeywordToken(Keyword.MUTABLE),
-            ),
-        ),
-    )
     override val allTypeParameters = declaredTypeParameters
     override val returnType get() = fileContextWithTypeParameters.swCtx.unit.baseReference
 
@@ -121,11 +110,24 @@ class BoundClassDestructor(
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return userDefinedCode.semanticAnalysisPhase2()
+        val reportings = userDefinedCode.semanticAnalysisPhase2()
+        if (attributes.isDeclaredNothrow) {
+            userDefinedCode.setNothrow(SideEffectBoundary.Function(this))
+        }
+        return reportings
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return userDefinedCode.semanticAnalysisPhase3()
+        val reportings = mutableListOf<Reporting>()
+        reportings.addAll(userDefinedCode.semanticAnalysisPhase3())
+        if (attributes.isDeclaredNothrow) {
+            val boundary = SideEffectBoundary.Function(this)
+            classDef.memberVariables
+                .filter { it.type?.destructorThrowBehavior != SideEffectPrediction.NEVER }
+                .forEach { reportings.add(Reporting.droppingReferenceToObjectWithThrowingConstructor(it, classDef, boundary))}
+        }
+
+        return reportings
     }
 
     override fun validateAccessFrom(location: Span): Collection<Reporting> {

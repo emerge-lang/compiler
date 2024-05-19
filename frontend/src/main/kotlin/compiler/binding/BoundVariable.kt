@@ -37,6 +37,7 @@ import compiler.binding.type.UnresolvedType
 import compiler.handleCyclicInvocation
 import compiler.lexer.Span
 import compiler.reportings.Reporting
+import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -246,6 +247,10 @@ class BoundVariable(
 
             return@phase2 reportings
         }
+    }
+
+    override fun setNothrow(boundary: SideEffectBoundary) {
+        initializerExpression?.setNothrow(boundary)
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {

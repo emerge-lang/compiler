@@ -36,7 +36,9 @@ import compiler.binding.context.effect.VariableLifetime
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.UnresolvedType
+import compiler.lexer.Span
 import compiler.reportings.Reporting
+import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -123,7 +125,13 @@ class BoundIdentifierExpression(
         // nothing to do. identifiers must always be unambiguous so there is no use for this information
     }
 
+    override fun setNothrow(boundary: SideEffectBoundary) {
+        // nothing to do
+    }
+
     sealed interface Referral : SemanticallyAnalyzable {
+        val span: Span
+
         override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
         override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
         override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
@@ -141,6 +149,7 @@ class BoundIdentifierExpression(
         val isCompileTimeConstant: Boolean
     }
     inner class ReferringVariable(val variable: BoundVariable) : Referral {
+        override val span = declaration.span
         private var usageContext = VariableUsageContext.WRITE
         private var allowPartiallyUninitialized: Boolean = false
         private var thisUsageCapturesWithMutability: TypeMutability? = null
@@ -229,6 +238,7 @@ class BoundIdentifierExpression(
             get() = !variable.isReAssignable && variable.initializerExpression?.isCompileTimeConstant == true
     }
     inner class ReferringType(val reference: BoundTypeReference) : Referral {
+        override val span = declaration.span
         override fun markEvaluationResultUsed() {}
         override fun markEvaluationResultCaptured(withMutability: TypeMutability) {}
 

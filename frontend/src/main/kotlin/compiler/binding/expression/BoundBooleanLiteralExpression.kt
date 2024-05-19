@@ -23,6 +23,7 @@ import compiler.binding.SideEffectPrediction
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
+import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrBooleanLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -39,6 +40,10 @@ class BoundBooleanLiteralExpression(
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
         // nothing to do: this expression can only ever have one type
+    }
+
+    override fun setNothrow(boundary: SideEffectBoundary) {
+        // nothing to do
     }
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()

@@ -35,6 +35,7 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.isAssignableTo
 import compiler.reportings.Reporting
+import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIfExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
@@ -109,6 +110,12 @@ class BoundIfExpression(
         MultiBranchJoinExecutionScopedCTContext(context, listOf(thenCode.modifiedContext, elseCode.modifiedContext))
     } else {
         SingleBranchJoinExecutionScopedCTContext(context, thenCode.modifiedContext)
+    }
+
+    override fun setNothrow(boundary: SideEffectBoundary) {
+        condition.setNothrow(boundary)
+        thenCode.setNothrow(boundary)
+        elseCode?.setNothrow(boundary)
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {

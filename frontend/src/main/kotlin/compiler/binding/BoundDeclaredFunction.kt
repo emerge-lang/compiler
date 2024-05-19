@@ -16,6 +16,7 @@ import compiler.binding.type.TypeUseSite
 import compiler.lexer.Span
 import compiler.reportings.Reporting
 import compiler.reportings.ReturnTypeMismatchReporting
+import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 
@@ -130,6 +131,9 @@ abstract class BoundDeclaredFunction(
                 }
             }
             body?.semanticAnalysisPhase2()?.let(reportings::addAll)
+            if (attributes.isDeclaredNothrow) {
+                body?.setNothrow(SideEffectBoundary.Function(this))
+            }
 
             return@phase2 reportings
         }

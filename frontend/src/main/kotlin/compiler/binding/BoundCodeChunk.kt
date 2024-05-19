@@ -31,6 +31,7 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.handleCyclicInvocation
 import compiler.reportings.Reporting
+import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -72,15 +73,34 @@ class BoundCodeChunk(
         }
     }
 
+    private lateinit var deferredCode: List<BoundExecutable<*>>
+
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return seanHelper.phase2 {
             statements.flatMap { it.semanticAnalysisPhase2() }
         }
     }
 
+    private var nothrowBoundary: SideEffectBoundary? = null
+    override fun setNothrow(boundary: SideEffectBoundary) {
+        this.nothrowBoundary = boundary
+        statements.forEach { it.setNothrow(boundary) }
+    }
+
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return seanHelper.phase3 {
-            statements.flatMap { it.semanticAnalysisPhase3() }
+            val reportings = mutableListOf<Reporting>()
+            statements.flatMap { it.semanticAnalysisPhase3() }.forEach(reportings::add)
+
+            deferredCode = modifiedContext.getScopeLocalDeferredCode().toList()
+            deferredCode.flatMap { it.semanticAnalysisPhase1() }.forEach(reportings::add)
+            deferredCode.flatMap { it.semanticAnalysisPhase2() }.forEach(reportings::add)
+            nothrowBoundary?.let { nothrowBoundary ->
+                deferredCode.forEach { it.setNothrow(nothrowBoundary) }
+            }
+            deferredCode.flatMap { it.semanticAnalysisPhase3() }.forEach(reportings::add)
+
+            return@phase3 reportings
         }
     }
 
@@ -106,7 +126,7 @@ class BoundCodeChunk(
     }
 
     private fun getDeferredCodeAtEndOfChunk(): List<IrExecutable> {
-        return modifiedContext.getScopeLocalDeferredCode().map { it.toBackendIrStatement() }.toList()
+        return deferredCode.map { it.toBackendIrStatement() }
     }
 
     override fun toBackendIrStatement(): IrCodeChunk {

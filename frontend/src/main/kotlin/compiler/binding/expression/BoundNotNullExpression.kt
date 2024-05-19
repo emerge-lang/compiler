@@ -25,6 +25,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Reporting
+import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
 class BoundNotNullExpression(
@@ -50,8 +51,17 @@ class BoundNotNullExpression(
         return nullableExpression.semanticAnalysisPhase2()
     }
 
+    private var nothrowBoundary: SideEffectBoundary? = null
+    override fun setNothrow(boundary: SideEffectBoundary) {
+        this.nothrowBoundary = boundary
+    }
+
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return nullableExpression.semanticAnalysisPhase3()
+        val reportings = nullableExpression.semanticAnalysisPhase3().toMutableList()
+        nothrowBoundary?.let { nothrowBoundary ->
+            reportings.add(Reporting.nothrowViolatingNotNullAssertion(this, nothrowBoundary))
+        }
+        return reportings
     }
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {

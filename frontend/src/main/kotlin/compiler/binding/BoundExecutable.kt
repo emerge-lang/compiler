@@ -23,6 +23,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
+import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
 interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
@@ -71,6 +72,14 @@ interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
      * given type; otherwise an appropriate reporting as to returned from [semanticAnalysisPhase3].
      */
     fun setExpectedReturnType(type: BoundTypeReference) {}
+
+    /**
+     * Called from the context where an [AstFunctionAttribute.Nothrow] is present, to be propagated down the syntax
+     * tree. The most specific node that potentially throws can then issue a corresponding diagnostic.
+     *
+     * Must be called before [semanticAnalysisPhase3] so the diagnostic can be generated there.
+     */
+    fun setNothrow(boundary: SideEffectBoundary)
 
     /**
      * Use to find violations of purity.

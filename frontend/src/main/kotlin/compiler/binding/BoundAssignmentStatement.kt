@@ -40,7 +40,9 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.IrGenericTypeReferenceImpl
 import compiler.binding.type.IrParameterizedTypeImpl
 import compiler.binding.type.IrSimpleTypeImpl
+import compiler.lexer.Span
 import compiler.reportings.Reporting
+import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -135,6 +137,13 @@ class BoundAssignmentStatement(
         }
     }
 
+    private var nothrowBoundary: SideEffectBoundary? = null
+    override fun setNothrow(boundary: SideEffectBoundary) {
+        this.nothrowBoundary = boundary
+        toAssignExpression.setNothrow(boundary)
+        target?.setNothrow(boundary)
+    }
+
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return seanHelper.phase3 {
             val reportings = mutableSetOf<Reporting>()
@@ -164,19 +173,26 @@ class BoundAssignmentStatement(
 
     sealed interface AssignmentTarget {
         val type: BoundTypeReference?
+        val span: Span
         fun semanticAnalysisPhase2(): Collection<Reporting>
         fun semanticAnalysisPhase3(): Collection<Reporting>
         fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>>
         fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>>
+        fun setNothrow(boundary: SideEffectBoundary)
         fun toBackendIrExecutable(): IrExecutable
     }
 
     inner class VariableTarget(val reference: BoundIdentifierExpression.ReferringVariable) : AssignmentTarget {
         override val type get() = reference.variable.getTypeInContext(context) ?: context.swCtx.unresolvableReplacementType
+        override val span = reference.span
 
         override fun semanticAnalysisPhase2(): Collection<Reporting> {
             _modifiedContext.trackSideEffect(VariableLifetime.Effect.NewValueAssigned(reference.variable))
             return emptySet()
+        }
+
+        override fun setNothrow(boundary: SideEffectBoundary) {
+            // nothing to forward to
         }
 
         private lateinit var initializationState: VariableInitialization.State
@@ -184,6 +200,7 @@ class BoundAssignmentStatement(
             val reportings = mutableListOf<Reporting>()
 
             initializationState = reference.variable.getInitializationStateInContext(this@BoundAssignmentStatement.context)
+            val thisAssignmentIsFirstInitialization: Boolean = initializationState == VariableInitialization.State.NOT_INITIALIZED
             if (initializationState == VariableInitialization.State.NOT_INITIALIZED || initializationState == VariableInitialization.State.MAYBE_INITIALIZED) {
                 _modifiedContext.trackSideEffect(VariableInitialization.WriteToVariableEffect(reference.variable))
             }
@@ -202,6 +219,14 @@ class BoundAssignmentStatement(
 
             toAssignExpression.type?.evaluateAssignabilityTo(type, toAssignExpression.declaration.span)
                 ?.let(reportings::add)
+
+            nothrowBoundary?.let { nothrowBoundary ->
+                if (!thisAssignmentIsFirstInitialization) {
+                    if (this.type.destructorThrowBehavior != SideEffectPrediction.NEVER) {
+                        reportings.add(Reporting.droppingReferenceToObjectWithThrowingConstructor(this, nothrowBoundary))
+                    }
+                }
+            }
 
             return reportings
         }
@@ -254,6 +279,7 @@ class BoundAssignmentStatement(
         val memberAccess: BoundMemberAccessExpression,
     ) : AssignmentTarget {
         override val type get() = memberAccess.type
+        override val span = memberAccess.declaration.memberName.span
 
         private var accessBaseVariable: BoundVariable? = null
 
@@ -273,12 +299,17 @@ class BoundAssignmentStatement(
 
         private var memberIsPotentiallyUninitialized by Delegates.notNull<Boolean>()
 
+        override fun setNothrow(boundary: SideEffectBoundary) {
+            memberAccess.setNothrow(boundary)
+        }
+
         override fun semanticAnalysisPhase3(): Collection<Reporting> {
-            memberIsPotentiallyUninitialized = accessBaseVariable?.let { baseVar ->
+            val memberInitializationStateBeforeAssignment = accessBaseVariable?.let { baseVar ->
                 memberAccess.member?.let { member ->
-                    context.getEphemeralState(PartialObjectInitialization, baseVar).getMemberInitializationState(member) != VariableInitialization.State.INITIALIZED
+                    context.getEphemeralState(PartialObjectInitialization, baseVar).getMemberInitializationState(member)
                 }
-            } ?: false
+            } ?: VariableInitialization.State.MAYBE_INITIALIZED
+            memberIsPotentiallyUninitialized = memberInitializationStateBeforeAssignment != VariableInitialization.State.INITIALIZED
 
             val reportings = mutableListOf<Reporting>()
 
@@ -299,6 +330,14 @@ class BoundAssignmentStatement(
 
             if (!memberIsPotentiallyUninitialized && memberAccess.member?.isReAssignable == false) {
                 reportings.add(Reporting.illegalAssignment("Member variable ${memberAccess.member!!.name} cannot be re-assigned", this@BoundAssignmentStatement))
+            }
+
+            nothrowBoundary?.let { nothrowBoundary ->
+                if (memberInitializationStateBeforeAssignment != VariableInitialization.State.NOT_INITIALIZED) {
+                    if (this.type?.destructorThrowBehavior != SideEffectPrediction.NEVER) {
+                        reportings.add(Reporting.droppingReferenceToObjectWithThrowingConstructor(this, nothrowBoundary))
+                    }
+                }
             }
 
             return reportings

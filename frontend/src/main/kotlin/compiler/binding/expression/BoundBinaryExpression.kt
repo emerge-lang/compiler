@@ -29,6 +29,7 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.reportings.Reporting
+import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
 class BoundBinaryExpression(
@@ -72,6 +73,10 @@ class BoundBinaryExpression(
         }
 
         return reportings
+    }
+
+    override fun setNothrow(boundary: SideEffectBoundary) {
+        hiddenInvocation.setNothrow(boundary)
     }
 
     override fun semanticAnalysisPhase3() = hiddenInvocation.semanticAnalysisPhase3()

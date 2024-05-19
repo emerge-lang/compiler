@@ -133,7 +133,7 @@ class BoundBaseType(
                     constructor = declaredConstructors.first()
                 }
                 if (declaredDestructors.none()) {
-                    val defaultDtorAst = BaseTypeDestructorDeclaration(IdentifierToken("destructor", declaration.declaredAt), CodeChunk(emptyList()))
+                    val defaultDtorAst = BaseTypeDestructorDeclaration(IdentifierToken("destructor", declaration.declaredAt), emptyList(), CodeChunk(emptyList()))
                     destructor = defaultDtorAst.bindTo(typeRootContext, typeParameters) { this }
                     reportings.addAll(destructor!!.semanticAnalysisPhase1())
                 } else {
@@ -389,6 +389,8 @@ class BoundBaseType(
             CLASS -> IrClassImpl(typeDef)
             INTERFACE -> IrInterfaceImpl(typeDef)
         }
+
+        override fun toString() = name.lowercase()
     }
 
     companion object {

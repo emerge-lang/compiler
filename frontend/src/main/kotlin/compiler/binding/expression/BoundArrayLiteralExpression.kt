@@ -16,6 +16,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUnification
 import compiler.reportings.Reporting
+import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrArrayLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -87,6 +88,10 @@ class BoundArrayLiteralExpression(
         }
 
         return reportings
+    }
+
+    override fun setNothrow(boundary: SideEffectBoundary) {
+        elements.forEach { it.setNothrow(boundary) }
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {

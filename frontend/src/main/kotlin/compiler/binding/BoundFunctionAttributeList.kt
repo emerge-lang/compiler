@@ -25,11 +25,12 @@ class BoundFunctionAttributeList(
         ?: BoundVisibility.default(context)
 
     val firstOverrideAttribute: AstFunctionAttribute.Override?
+    val firstNothrowAttribute: AstFunctionAttribute?
 
     val impliesNoBody: Boolean
     var isDeclaredOperator: Boolean
         private set
-    val isDeclaredNothrow: Boolean
+    val isDeclaredNothrow: Boolean get() = firstNothrowAttribute != null
 
     init {
         val attrSequence = attributes.asSequence()
@@ -47,7 +48,8 @@ class BoundFunctionAttributeList(
 
         externalAttribute = attrSequence.filterIsInstance<AstFunctionAttribute.External>().firstOrNull()
         firstOverrideAttribute = attrSequence.filterIsInstance<AstFunctionAttribute.Override>().firstOrNull()
-        isDeclaredNothrow = attributes.any { it is AstFunctionAttribute.Nothrow || it is AstFunctionAttribute.External }
+        firstNothrowAttribute = attributes.find { it is AstFunctionAttribute.Nothrow }
+            ?: attributes.find { it is AstFunctionAttribute.External }
     }
 
     private val seanHelper = SeanHelper()

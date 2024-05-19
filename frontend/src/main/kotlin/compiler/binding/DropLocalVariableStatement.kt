@@ -3,15 +3,13 @@ package compiler.binding
 import compiler.InternalCompilerError
 import compiler.ast.Statement
 import compiler.ast.VariableDeclaration
-import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.NullableTypeReference
-import compiler.binding.type.RootResolvedTypeReference
 import compiler.reportings.Reporting
+import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
 class DropLocalVariableStatement(
@@ -22,20 +20,16 @@ class DropLocalVariableStatement(
         override val context = contextOnDeferredExecution
         override val declaration = variable.declaration
         override val returnBehavior = SideEffectPrediction.NEVER
-        override val throwBehavior: SideEffectPrediction? get() {
-            val type = variable.typeAtDeclarationTime ?: return SideEffectPrediction.POSSIBLY
-            val baseType = when {
-                type is RootResolvedTypeReference -> type.baseType
-                type is NullableTypeReference && type.nested is RootResolvedTypeReference -> type.nested.baseType
-                else -> return SideEffectPrediction.POSSIBLY
-            }
-            if (baseType.kind != BoundBaseType.Kind.CLASS) return SideEffectPrediction.POSSIBLY
-            return baseType.destructor?.throwBehavior
-        }
+        override val throwBehavior get() = variable.typeAtDeclarationTime?.destructorThrowBehavior
         override val implicitEvaluationResultType = null
 
         override fun requireImplicitEvaluationTo(type: BoundTypeReference) {
             throw InternalCompilerError("Cannot have a deferred statement be an implicit evaluation result")
+        }
+
+        private var nothrowBoundary: SideEffectBoundary? = null
+        override fun setNothrow(boundary: SideEffectBoundary) {
+            this.nothrowBoundary = boundary
         }
 
         override fun toBackendIrStatement(): IrExecutable {
@@ -48,6 +42,14 @@ class DropLocalVariableStatement(
 
         override fun semanticAnalysisPhase1(): Collection<Reporting> = emptyList()
         override fun semanticAnalysisPhase2(): Collection<Reporting> = emptyList()
-        override fun semanticAnalysisPhase3(): Collection<Reporting> = emptyList()
+        override fun semanticAnalysisPhase3(): Collection<Reporting> {
+            val reportings = mutableListOf<Reporting>()
+            nothrowBoundary?.let { nothrowBoundary ->
+                if (throwBehavior != SideEffectPrediction.NEVER) {
+                    reportings.add(Reporting.droppingReferenceToObjectWithThrowingConstructor(variable, nothrowBoundary))
+                }
+            }
+            return reportings
+        }
     }
 }

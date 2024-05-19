@@ -29,6 +29,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.CoreTypes
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.reportings.Reporting
+import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -58,6 +59,7 @@ open class BoundNumericLiteral(
     override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> = emptySet()
+    override fun setNothrow(boundary: SideEffectBoundary) {}
 
     protected var expectedNumericType: BoundBaseType? = null
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {

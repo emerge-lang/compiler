@@ -25,6 +25,7 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
+import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeEntry
@@ -162,12 +163,21 @@ class BaseTypeConstructorDeclaration(
 
 class BaseTypeDestructorDeclaration(
     val destructorKeyword: IdentifierToken,
+    val attributes: List<AstFunctionAttribute>,
     val code: CodeChunk,
 ) : BaseTypeEntryDeclaration {
     override val span = destructorKeyword.span
 
     fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>?, getClassDef: () -> BoundBaseType): BoundClassDestructor {
-        return BoundClassDestructor(fileContextWithTypeParameters, typeParameters ?: emptyList(), getClassDef, this)
+        lateinit var dtor: BoundClassDestructor
+        dtor = BoundClassDestructor(
+            fileContextWithTypeParameters,
+            typeParameters ?: emptyList(),
+            getClassDef,
+            BoundFunctionAttributeList(fileContextWithTypeParameters, { dtor }, attributes),
+            this
+        )
+        return dtor
     }
 }
 

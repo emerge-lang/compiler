@@ -87,6 +87,7 @@ val BaseTypeConstructor = sequence("constructor declaration") {
     }
 
 val BaseTypeDestructor = sequence("destructor declaration") {
+    ref(FunctionAttributes)
     localKeyword("destructor")
     operator(CBRACE_OPEN)
     ref(CodeChunk)
@@ -94,11 +95,12 @@ val BaseTypeDestructor = sequence("destructor declaration") {
     operator(NEWLINE)
 }
     .astTransformation { tokens ->
+        val attributes = tokens.next() as List<AstFunctionAttribute>
         val dtorKeyword = tokens.next() as IdentifierToken
         tokens.next() as OperatorToken // skip CBRACE_OPEN
         val code = tokens.next() as CodeChunk
 
-        BaseTypeDestructorDeclaration(dtorKeyword, code)
+        BaseTypeDestructorDeclaration(dtorKeyword, attributes, code)
     }
 
 val BaseTypeEntry = eitherOf {
