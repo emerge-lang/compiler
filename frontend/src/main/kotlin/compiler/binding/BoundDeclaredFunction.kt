@@ -202,6 +202,12 @@ abstract class BoundDeclaredFunction(
                 expression.setExpectedEvaluationResultType(type)
             }
 
+            override fun semanticAnalysisPhase1(): Collection<Reporting> {
+                val reportings = expression.semanticAnalysisPhase1()
+                expression.markEvaluationResultUsed()
+                return reportings
+            }
+
             override fun semanticAnalysisPhase3(): Collection<Reporting> {
                 val reportings = mutableListOf<Reporting>()
                 reportings.addAll(expression.semanticAnalysisPhase3())
