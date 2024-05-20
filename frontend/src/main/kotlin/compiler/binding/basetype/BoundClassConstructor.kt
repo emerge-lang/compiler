@@ -24,7 +24,7 @@ import compiler.binding.IrCodeChunkImpl
 import compiler.binding.IrReturnStatementImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
-import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecution
+import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
@@ -44,7 +44,6 @@ import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.Span
 import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
-import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
@@ -250,10 +249,7 @@ class BoundClassConstructor(
             reportings.addAll(additionalInitCode.semanticAnalysisPhase2())
 
             if (attributes.isDeclaredNothrow) {
-                val boundary = NothrowViolationReporting.SideEffectBoundary.Function(this)
-                boundMemberVariableInitCodeFromCtorParams.setNothrow(boundary)
-                boundMemberVariableInitCodeFromExpression.setNothrow(boundary)
-                additionalInitCode.setNothrow(boundary)
+                reportings.add(Reporting.constructorDeclaredNothrow(this))
             }
 
             reportings
@@ -268,7 +264,13 @@ class BoundClassConstructor(
 
     override val purity = attributes.purity
 
-    override val throwBehavior: SideEffectPrediction? get() = boundMemberVariableInitCodeFromExpression.throwBehavior.combineSequentialExecution(additionalInitCode.throwBehavior)
+    override val throwBehavior: SideEffectPrediction? get() {
+        return listOf(
+            SideEffectPrediction.POSSIBLY, // this is for the memory allocation that can always throw OOM
+            boundMemberVariableInitCodeFromExpression.throwBehavior,
+            additionalInitCode.throwBehavior,
+        ).reduceSequentialExecution()
+    }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return seanHelper.phase3 {
