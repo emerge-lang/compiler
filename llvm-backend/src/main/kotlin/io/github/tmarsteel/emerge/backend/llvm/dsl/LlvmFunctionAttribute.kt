@@ -15,6 +15,7 @@ sealed class LlvmFunctionAttribute(val kindName: String, val value: ULong? = nul
     object NoRecurse : LlvmFunctionAttribute("norecurse")
     object NoFree : LlvmFunctionAttribute("nofree")
     object Hot : LlvmFunctionAttribute("hot")
+    object AlwaysInline : LlvmFunctionAttribute("alwaysinline")
 
     /**
      * For passing to [Llvm.LLVMCreateEnumAttribute]

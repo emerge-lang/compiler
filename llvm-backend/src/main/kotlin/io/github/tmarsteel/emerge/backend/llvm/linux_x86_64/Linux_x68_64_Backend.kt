@@ -7,7 +7,8 @@ import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.EmergeBackend
 import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
-import io.github.tmarsteel.emerge.backend.llvm.boxableTyping
+import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
+import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmCompiler
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
@@ -83,7 +84,7 @@ class Linux_x68_64_Backend : EmergeBackend {
         EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-gnu")) { llvmContext ->
             softwareContext.packagesSeq
                 .flatMap { it.classes }
-                .filter { it.boxableTyping == null }
+                .filter { it.autoboxer !is Autoboxer.UserFacingUnboxed }
                 .forEach(llvmContext::registerClass)
             softwareContext.packagesSeq
                 .flatMap { it.interfaces }
@@ -106,7 +107,7 @@ class Linux_x68_64_Backend : EmergeBackend {
 
             softwareContext.packagesSeq
                 .flatMap { it.classes }
-                .filter { it.boxableTyping == null }
+                .filter { it.autoboxer !is Autoboxer.UserFacingUnboxed }
                 .forEach(llvmContext::defineClassStructure)
 
             softwareContext.packagesSeq
@@ -128,7 +129,7 @@ class Linux_x68_64_Backend : EmergeBackend {
             softwareContext.modules
                 .flatMap { it.packages }
                 .flatMap { it.classes }
-                .filterNot { it.boxableTyping != null || it.canonicalName.toString() == "emerge.core.Array" }
+                .filterNot { it.autoboxer is Autoboxer.UserFacingUnboxed || it.canonicalName.toString() == "emerge.core.Array" }
                 .forEach { clazz ->
                     llvmContext.defineFunctionBody(clazz.constructor)
                     clazz.memberFunctions

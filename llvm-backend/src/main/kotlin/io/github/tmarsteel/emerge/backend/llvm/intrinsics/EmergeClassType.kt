@@ -2,23 +2,20 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
-import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
+import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.indexInLlvmStruct
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
-import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
@@ -62,30 +59,38 @@ internal class EmergeClassType private constructor(
         )
     }
 
-    private val anyValueBaseTemplateDynamic: LlvmGlobal<EmergeHeapAllocatedValueBaseType> by lazy {
+    /**
+     * The implementation of [IrAllocateObjectExpression], for objects that are supposed to be de-allocate-able (not static)
+     */
+    fun allocateUninitializedDynamicObject(builder: BasicBlockBuilder<EmergeLlvmContext, *>): LlvmValue<LlvmPointerType<EmergeClassType>> {
         val typeinfo = try {
             typeinfoProvider.provide(context)
         } catch (ex: VirtualFunctionHashCollisionException) {
             throw VirtualFunctionHashCollisionException("Type ${irClass.canonicalName}: ${ex.message}", ex)
         }
 
-        val constant = EmergeHeapAllocatedValueBaseType.buildConstantIn(context) {
-            setValue(EmergeHeapAllocatedValueBaseType.strongReferenceCount, context.word(1))
-            setValue(EmergeHeapAllocatedValueBaseType.typeinfo, typeinfo.dynamic)
-            setValue(EmergeHeapAllocatedValueBaseType.weakReferenceCollection, context.nullValue(pointerTo(EmergeWeakReferenceCollectionType)))
-        }
-        context.addGlobal(constant, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
-    }
-
-    /**
-     * The implementation of [IrAllocateObjectExpression], for objects that are supposed to be de-allocate-able (not static)
-     */
-    fun allocateUninitializedDynamicObject(builder: BasicBlockBuilder<EmergeLlvmContext, *>): LlvmValue<LlvmPointerType<EmergeClassType>> {
         val heapAllocation: LlvmValue<LlvmPointerType<EmergeClassType>>
         with(builder) {
             heapAllocation = heapAllocate(this@EmergeClassType)
             val basePointer = getelementptr(heapAllocation).anyValueBase().get()
-            memcpy(basePointer, anyValueBaseTemplateDynamic, EmergeHeapAllocatedValueBaseType.sizeof(), false)
+            store(
+                context.word(1),
+                getelementptr(basePointer)
+                    .member { this.strongReferenceCount }
+                    .get()
+            )
+            store(
+                typeinfo.dynamic,
+                getelementptr(basePointer)
+                    .member { this.typeinfo }
+                    .get()
+            )
+            store(
+                context.nullValue(pointerTo(EmergeWeakReferenceCollectionType)),
+                getelementptr(basePointer)
+                    .member { this.weakReferenceCollection }
+                    .get()
+            )
         }
 
         return heapAllocation

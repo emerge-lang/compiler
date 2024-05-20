@@ -31,8 +31,8 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun <R : LlvmType> call(function: LlvmFunction<R>, args: List<LlvmValue<*>>): LlvmValue<R>
     fun <R : LlvmType> call(function: LlvmValue<LlvmFunctionAddressType>, functionType: LlvmFunctionType<R>, args: List<LlvmValue<*>>): LlvmValue<R>
     fun <T : LlvmIntegerType> ptrtoint(pointer: LlvmValue<LlvmPointerType<*>>, integerType: T): LlvmValue<T>
-    fun memcpy(destination: LlvmValue<LlvmPointerType<*>>, source: LlvmValue<LlvmPointerType<*>>, nBytes: LlvmValue<LlvmIntegerType>, volatile: Boolean = false)
-    fun memset(destination: LlvmValue<LlvmPointerType<*>>, value: LlvmValue<LlvmI8Type>, nBytes: LlvmValue<LlvmIntegerType>, volatile: Boolean = false)
+    fun memcpy(destination: LlvmValue<LlvmPointerType<*>>, source: LlvmValue<LlvmPointerType<*>>, nBytes: LlvmValue<LlvmIntegerType>)
+    fun memset(destination: LlvmValue<LlvmPointerType<*>>, value: LlvmValue<LlvmI8Type>, nBytes: LlvmValue<LlvmIntegerType>)
     fun isNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
     fun isNotNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
     fun isEq(pointerA: LlvmValue<LlvmPointerType<*>>, pointerB: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
@@ -254,16 +254,14 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         return LlvmValue(inst, integerType)
     }
 
-    override fun memcpy(destination: LlvmValue<LlvmPointerType<*>>, source: LlvmValue<LlvmPointerType<*>>, nBytes: LlvmValue<LlvmIntegerType>, volatile: Boolean) {
+    override fun memcpy(destination: LlvmValue<LlvmPointerType<*>>, source: LlvmValue<LlvmPointerType<*>>, nBytes: LlvmValue<LlvmIntegerType>) {
         // TODO: alignment; 1 is bad
         val inst = Llvm.LLVMBuildMemCpy(builder, destination.raw, 1, source.raw, 1, nBytes.raw)
-        Llvm.LLVMSetVolatile(inst, if (volatile) 1 else 0)
     }
 
-    override fun memset(destination: LlvmValue<LlvmPointerType<*>>, value: LlvmValue<LlvmI8Type>, nBytes: LlvmValue<LlvmIntegerType>, volatile: Boolean) {
+    override fun memset(destination: LlvmValue<LlvmPointerType<*>>, value: LlvmValue<LlvmI8Type>, nBytes: LlvmValue<LlvmIntegerType>) {
         // TODO: alignment; 1 is bad
         val inst = Llvm.LLVMBuildMemSet(builder, destination.raw, value.raw, nBytes.raw, 1)
-        Llvm.LLVMSetVolatile(inst, if (volatile) 1 else 0)
     }
 
     override fun isNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType> {

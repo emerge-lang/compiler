@@ -33,6 +33,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrDeallocateObjectStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatement
 
@@ -201,11 +202,14 @@ class BoundClassDestructor(
 private class IrDestructorImpl(
     val dtor: BoundClassDestructor,
     override val body: IrCodeChunk,
-) : IrFunction {
+) : IrMemberFunction {
     override val canonicalName = dtor.canonicalName
     override val parameters = dtor.parameters.parameters.map { it.backendIrDeclaration }
     override val returnType = dtor.returnType.toBackendIr()
     override val isExternalC = false
+    override val declaredOn get() = dtor.classDef.toBackendIr()
+    override val overrides = emptySet<IrMemberFunction>()
+    override val supportsDynamicDispatch = true
 }
 
 private class IrDeallocateObjectStatementImpl(

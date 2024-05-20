@@ -13,6 +13,7 @@ import java.math.BigInteger
  */
 interface LlvmType {
     fun getRawInContext(context: LlvmContext): LlvmTypeRef
+    fun isAssignableTo(other: LlvmType) = this == other
 }
 
 abstract class LlvmCachedType : LlvmType {
@@ -71,7 +72,16 @@ abstract class LlvmFixedIntegerType(
 class LlvmPointerType<Pointed : LlvmType>(val pointed: Pointed) : LlvmType {
     override fun getRawInContext(context: LlvmContext): LlvmTypeRef = context.rawPointer
 
-    override fun toString() = "$pointed*"
+    override fun isAssignableTo(other: LlvmType): Boolean {
+        if (other is LlvmPointerType<*> && other.pointed == LlvmVoidType) {
+            // any pointer can be assigned to a void-ptr
+            return true
+        }
+
+        return super.isAssignableTo(other)
+    }
+
+    override fun toString() = "*$pointed"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

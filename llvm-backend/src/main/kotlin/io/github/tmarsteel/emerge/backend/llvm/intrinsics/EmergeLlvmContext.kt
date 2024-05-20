@@ -2,6 +2,7 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseTypeFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
@@ -14,8 +15,9 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
+import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
+import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.bodyDefined
-import io.github.tmarsteel.emerge.backend.llvm.boxableTyping
 import io.github.tmarsteel.emerge.backend.llvm.codegen.ExecutableResult
 import io.github.tmarsteel.emerge.backend.llvm.codegen.ExpressionResult
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitCode
@@ -38,7 +40,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmTarget
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
-import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
@@ -102,6 +103,8 @@ class EmergeLlvmContext(
     internal lateinit var boxTypeUWord: EmergeClassType
     /** `emerge.platform.BoolBox` */
     internal lateinit var boxTypeBool: EmergeClassType
+    /** `emerge.ffi.c.CPointer */
+    internal lateinit var cPointerType: EmergeClassType
     /** `emerge.ffi.c.COpaquePointer` */
     internal lateinit var cOpaquePointerType: EmergeClassType
 
@@ -128,9 +131,6 @@ class EmergeLlvmContext(
         clazz.llvmType = emergeClassType
 
         when (clazz.canonicalName.toString()) {
-            "emerge.ffi.c.CPointer" -> {
-                clazz.memberVariables.single { it.name == "pointed" }.isCPointerPointed = true
-            }
             "emerge.platform.S8Box" -> boxTypeS8 = emergeClassType
             "emerge.platform.U8Box" -> boxTypeU8 = emergeClassType
             "emerge.platform.S16Box" -> boxTypeS16 = emergeClassType
@@ -142,6 +142,7 @@ class EmergeLlvmContext(
             "emerge.platform.SWordBox" -> boxTypeSWord = emergeClassType
             "emerge.platform.UWordBox" -> boxTypeUWord = emergeClassType
             "emerge.platform.BoolBox" -> boxTypeBool = emergeClassType
+            "emerge.ffi.c.CPointer" -> cPointerType = emergeClassType
             "emerge.ffi.c.COpaquePointer" -> cOpaquePointerType = emergeClassType
             "emerge.core.Unit" -> {
                 unitType = emergeClassType
@@ -184,22 +185,17 @@ class EmergeLlvmContext(
 
         val parameterTypes = fn.parameters.map { getReferenceSiteType(it.type) }
 
-        if (fn.body == null) {
-            val intrinsic = intrinsicFunctions[fn.canonicalName.toString()]
-            if (intrinsic != null) {
-                // TODO: different intrinsic per overload
-                val intrinsicImpl = registerIntrinsic(intrinsic)
-                check(parameterTypes.size == intrinsicImpl.type.parameterTypes.size)
-                intrinsicImpl.type.parameterTypes.forEachIndexed { paramIndex, intrinsicType ->
-                    val declaredType = parameterTypes[paramIndex]
-                    check(intrinsicType == declaredType) { "${fn.canonicalName} param #$paramIndex; intrinsic $intrinsicType, declared $declaredType" }
-                }
-                fn.llvmRef = intrinsicImpl
-                if (fn is IrMemberFunction) {
-                    fn.llvmFunctionType = intrinsicImpl.type
-                }
-                return intrinsicImpl
+        getInstrinsic(fn)?.let { intrinsic ->
+            check(parameterTypes.size == intrinsic.type.parameterTypes.size)
+            intrinsic.type.parameterTypes.forEachIndexed { paramIndex, intrinsicType ->
+                val declaredType = parameterTypes[paramIndex]
+                check(declaredType.isAssignableTo(intrinsicType)) { "${fn.canonicalName} param #$paramIndex; intrinsic $intrinsicType, declared $declaredType" }
             }
+            fn.llvmRef = intrinsic
+            if (fn is IrMemberFunction) {
+                fn.llvmFunctionType = intrinsic.type
+            }
+            return intrinsic
         }
 
         val returnLlvmType = returnTypeOverride ?: if (fn.returnType.isUnit) LlvmVoidType else getReferenceSiteType(fn.returnType)
@@ -266,8 +262,12 @@ class EmergeLlvmContext(
 
     private var structConstructorsRegistered: Boolean = false
     fun defineFunctionBody(fn: IrFunction) {
+        if (getInstrinsic(fn) != null) {
+            return
+        }
+
         val body = fn.body!!
-        val llvmFunction = fn.llvmRef ?: throw CodeGenerationException("You must register the functions through ${this::registerFunction.name} first to handle cyclic references (especially important for recursion)")
+        val llvmFunction = fn.llvmRef ?: throw CodeGenerationException("You must register the functions through ${this::registerFunction.name} first to handle cyclic references (especially important for recursion): ${fn.canonicalName}")
         if (fn.bodyDefined) {
             throw CodeGenerationException("Cannot define body for function ${fn.canonicalName} multiple times!")
         }
@@ -380,14 +380,13 @@ class EmergeLlvmContext(
             is IrGenericTypeReference -> return getReferenceSiteType(type.effectiveBound)
         }
 
-        baseType.boxableTyping?.let { boxable ->
-            return if (forceBoxed) boxable.boxedAllocationSiteType(this) else boxable.unboxedType
-        }
+        baseType.autoboxer?.let { return it.getReferenceSiteType(this, forceBoxed) }
 
         return pointerTo(getAllocationSiteType(type))
     }
 
     fun getAllocationSiteType(type: IrType): LlvmType {
+        type.autoboxer?.let { return it.unboxedType }
         when (type) {
             is IrGenericTypeReference -> return getAllocationSiteType(type.effectiveBound)
             is IrParameterizedType -> when (type.simpleType.baseType.canonicalName.toString()) {
@@ -428,7 +427,6 @@ class EmergeLlvmContext(
                 else -> return getAllocationSiteType(type.simpleType)
             }
             is IrSimpleType -> {
-                type.boxableTyping?.let { return it.unboxedType }
                 return when(type.baseType) {
                     is IrIntrinsicType -> when (type.baseType.canonicalName.toString()) {
                         "emerge.core.Any",
@@ -443,6 +441,28 @@ class EmergeLlvmContext(
                 // there are no other possibilities AFAICT right now
             }
         }
+    }
+
+    private fun getInstrinsic(fn: IrFunction): LlvmFunction<*>? {
+        var intrinsic: LlvmFunction<*>? = null
+        if (fn is IrBaseTypeFunction) {
+            val autoboxer = fn.declaredOn.autoboxer
+            if (autoboxer is Autoboxer.UserFacingBoxed) {
+                if (fn.canonicalName.simpleName == "\$constructor") {
+                    intrinsic = autoboxer.getConstructorIntrinsic(this, fn.canonicalName)
+                }
+                if (fn.canonicalName.simpleName == "\$destructor") {
+                    intrinsic = autoboxer.getDestructorIntrinsic(this)
+                }
+            }
+        }
+
+        if (intrinsic == null) {
+            intrinsic = intrinsicFunctions[fn.canonicalName.toString()]?.let { this.registerIntrinsic(it) }
+            // TODO: different intrinsic per overload
+        }
+
+        return intrinsic
     }
 
     companion object {
@@ -469,10 +489,24 @@ fun <T : LlvmType> BasicBlockBuilder<EmergeLlvmContext, *>.heapAllocate(type: T)
     return heapAllocate(size).reinterpretAs(pointerTo(type))
 }
 
-private val intrinsicFunctions: Map<String, KotlinLlvmFunction<in EmergeLlvmContext, *>> = listOf(
-    arrayAddressOfFirst,
-    arraySize,
-    arrayAbstractGet,
-    arrayAbstractSet,
-)
-    .associateBy { it.name }
+private val intrinsicFunctions: Map<String, KotlinLlvmFunction<in EmergeLlvmContext, *>> by lazy {
+    listOf(
+        arrayAddressOfFirst,
+        arraySize,
+        arrayAbstractGet,
+        arrayAbstractSet,
+    )
+        .associateBy { it.name }
+}
+
+private val IrFunction.isDestructorOnValueOrBoxType: Boolean get() {
+    return this is IrMemberFunction
+        && this.canonicalName.simpleName == "\$destructor"
+        && this.declaredOn.autoboxer != null
+}
+
+private val IrFunction.isUserFacingBoxDestructor: Boolean get() {
+    return this is IrMemberFunction
+        && this.canonicalName.simpleName == "\$destructor"
+        && this.declaredOn.autoboxer is Autoboxer.UserFacingBoxed
+}

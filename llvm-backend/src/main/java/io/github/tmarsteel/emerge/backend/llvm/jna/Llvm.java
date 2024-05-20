@@ -1,9 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm.jna;
 
-import com.sun.jna.Library;
-import com.sun.jna.Native;
-import com.sun.jna.NativeLibrary;
-import com.sun.jna.Pointer;
+import com.sun.jna.*;
+import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.NativeLongByReference;
 import com.sun.jna.ptr.PointerByReference;
 import org.jetbrains.annotations.NotNull;
@@ -24,12 +22,27 @@ public class Llvm {
                 "You must specify the Java system property " + LLVM_BIN_DIR_SYSTEM_PROPERTY
         );
         NativeLibrary.addSearchPath("LLVM-17", llvmLibsDir);
+        NativeLibrary.addSearchPath("LLVM-C", llvmLibsDir);
         Map<String, Object> options = Map.of(
                 Library.OPTION_TYPE_MAPPER, new LlvmTypeMapper()
         );
-        var llvmLib = NativeLibrary.getInstance("LLVM-17", options);
+        NativeLibrary llvmLib;
+        try {
+            llvmLib = NativeLibrary.getInstance("LLVM-17", options);
+        }
+        catch (UnsatisfiedLinkError ex) {
+            try {
+                llvmLib = NativeLibrary.getInstance("LLVM-C", options);
+            }
+            catch (UnsatisfiedLinkError ex2) {
+                ex.addSuppressed(ex2);
+                throw ex;
+            }
+        }
         Native.register(llvmLib);
     }
+
+    public static native void LLVMGetVersion(@NotNull @Unsigned IntByReference major, @NotNull @Unsigned IntByReference minor, @NotNull @Unsigned IntByReference path);
 
     /** see Core.h */
     public static native @NotNull LlvmContextRef LLVMContextCreate();
@@ -267,6 +280,9 @@ public class Llvm {
             @ArraySizeOf("args") int numArgs,
             @NotNull String name
     );
+
+    /** see Core.h */
+    public static native @NotNull LlvmValueRef LLVMSizeOf(@NotNull LlvmTypeRef type);
 
     /** see Core.h */
     public static native @NotNull LlvmValueRef LLVMBuildPtrToInt(@NotNull LlvmBuilderRef builder, @NotNull LlvmValueRef value, @NotNull LlvmTypeRef destTy, @NotNull String name);

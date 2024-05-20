@@ -29,6 +29,9 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrStringLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
+import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
+import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.requireNotAutoboxed
+import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
@@ -57,7 +60,6 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getDynamicCallAddress
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.registerWeakReference
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.unregisterWeakReference
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
-import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
@@ -88,6 +90,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             return ExecutableResult.ExecutionOngoing
         }
         is IrRegisterWeakReferenceStatement -> {
+            requireNotAutoboxed(code.referredObject, "registering weak references")
             callIntrinsic(registerWeakReference, listOf(
                 getPointerToStructMember(code.referenceStoredIn.objectValue.declaration.llvmValue, code.referenceStoredIn.memberVariable),
                 code.referredObject.declaration.llvmValue,
@@ -95,6 +98,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             return ExecutableResult.ExecutionOngoing
         }
         is IrUnregisterWeakReferenceStatement -> {
+            requireNotAutoboxed(code.referredObject, "unregistering weak references")
             callIntrinsic(unregisterWeakReference, listOf(
                 getPointerToStructMember(code.referenceStoredIn.objectValue.declaration.llvmValue, code.referenceStoredIn.memberVariable),
                 code.referredObject.declaration.llvmValue,
@@ -143,6 +147,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                     localTarget.declaration.emitWrite!!(this, code.value.declaration.llvmValue)
                 }
                 is IrAssignmentStatement.Target.ClassMemberVariable -> {
+                    // TODO: autoboxing
                     val memberPointer = getPointerToStructMember(localTarget.objectValue.declaration.llvmValue, localTarget.memberVariable)
                     store(code.value.declaration.llvmValue, memberPointer)
                 }
@@ -154,6 +159,11 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             return ExpressionResult.Terminated(ret(code.value.declaration.llvmValue))
         }
         is IrDeallocateObjectStatement -> {
+            // the reason boxes are not supported here because in the scope of IrDeallocateObjectStatement,
+            // it is far too late to save the day. The self-parameter to the constructor will already get the wrong type
+            // due to the boxing. Instead, the backend will ignore the destructor given by the frontend and just
+            // insert its own, which calls free on its own terms and types
+            requireNotAutoboxed(code.value, "deallocating")
             call(context.freeFunction, listOf(code.value.declaration.llvmValue))
             return ExecutableResult.ExecutionOngoing
         }
@@ -189,6 +199,11 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 }
             }
 
+            expression.base.type.autoboxer?.let { autoboxer ->
+                if (autoboxer.isAccessingIntoTheBox(context, expression)) {
+                    return ExpressionResult.Value(autoboxer.rewriteAccessIntoTheBox(expression))
+                }
+            }
             val memberPointer = getPointerToStructMember(
                 expression.base.declaration.llvmValue,
                 expression.memberVariable,
@@ -196,6 +211,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             return ExpressionResult.Value(memberPointer.dereference())
         }
         is IrAllocateObjectExpression -> {
+            expression.clazz.autoboxer?.let { autoboxer ->
+                require(autoboxer !is Autoboxer.UserFacingUnboxed) { "Cannot allocate a valuetype on the heap (encountered ${expression.clazz})"}
+            }
             return ExpressionResult.Value(
                 expression.clazz.llvmType.allocateUninitializedDynamicObject(this),
             )
@@ -349,10 +367,6 @@ private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.getPointerToStructMem
     check(structPointer.type is LlvmPointerType<*>)
     @Suppress("UNCHECKED_CAST")
     structPointer as LlvmValue<LlvmPointerType<LlvmType>>
-
-    if (member.isCPointerPointed) {
-        return structPointer
-    }
 
     check(structPointer.type.pointed is EmergeClassType)
     @Suppress("UNCHECKED_CAST")

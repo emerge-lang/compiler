@@ -4,6 +4,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrPackage
+import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -26,35 +27,29 @@ Amendmends to the backend-api IR using tack.kt
 Once the LLVM backend is somewhat stable all of this should move into a new set of AST classes
  */
 
-internal data class BoxableTyping(
-    val boxedAllocationSiteType: (EmergeLlvmContext) -> EmergeClassType,
-    val unboxedType: LlvmType,
-)
-
-internal val IrBaseType.boxableTyping: BoxableTyping? by tackLazyVal {
+internal val IrBaseType.autoboxer: Autoboxer? by tackLazyVal {
     when (this.canonicalName.toString()) {
-        "emerge.core.S8" -> BoxableTyping(EmergeLlvmContext::boxTypeS8, LlvmI8Type)
-        "emerge.core.U8" -> BoxableTyping(EmergeLlvmContext::boxTypeU8, LlvmI8Type)
-        "emerge.core.S16" -> BoxableTyping(EmergeLlvmContext::boxTypeS16, LlvmI16Type)
-        "emerge.core.U16" -> BoxableTyping(EmergeLlvmContext::boxTypeU16, LlvmI16Type)
-        "emerge.core.S32" -> BoxableTyping(EmergeLlvmContext::boxTypeU32, LlvmI32Type)
-        "emerge.core.U32" -> BoxableTyping(EmergeLlvmContext::boxTypeS32, LlvmI32Type)
-        "emerge.core.S64" -> BoxableTyping(EmergeLlvmContext::boxTypeS64, LlvmI64Type)
-        "emerge.core.U64" -> BoxableTyping(EmergeLlvmContext::boxTypeU64, LlvmI64Type)
-        "emerge.core.SWord" -> BoxableTyping(EmergeLlvmContext::boxTypeU64, EmergeWordType)
-        "emerge.core.UWord" -> BoxableTyping(EmergeLlvmContext::boxTypeU64, EmergeWordType)
-        "emerge.core.Bool" -> BoxableTyping(EmergeLlvmContext::boxTypeBool, LlvmBooleanType)
-        "emerge.ffi.c.COpaquePointer" -> BoxableTyping(EmergeLlvmContext::cOpaquePointerType, LlvmPointerType(LlvmVoidType))
+        "emerge.core.S8" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeS8, LlvmI8Type)
+        "emerge.core.U8" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeU8, LlvmI8Type)
+        "emerge.core.S16" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeS16, LlvmI16Type)
+        "emerge.core.U16" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeU16, LlvmI16Type)
+        "emerge.core.S32" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeU32, LlvmI32Type)
+        "emerge.core.U32" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeS32, LlvmI32Type)
+        "emerge.core.S64" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeS64, LlvmI64Type)
+        "emerge.core.U64" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeU64, LlvmI64Type)
+        "emerge.core.SWord" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeU64, EmergeWordType)
+        "emerge.core.UWord" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeU64, EmergeWordType)
+        "emerge.core.Bool" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeBool, LlvmBooleanType)
+        "emerge.ffi.c.CPointer" -> Autoboxer.UserFacingBoxed(EmergeLlvmContext::cPointerType, "pointed", LlvmPointerType(LlvmVoidType))
+        "emerge.ffi.c.COpaquePointer" -> Autoboxer.UserFacingBoxed(EmergeLlvmContext::cOpaquePointerType, "pointed", LlvmPointerType(LlvmVoidType))
         else -> null
     }
 }
 
-internal val IrType.boxableTyping: BoxableTyping? get() {
-    if (this !is IrSimpleType) {
-        return null
-    }
-
-    return baseType.boxableTyping
+internal val IrType.autoboxer: Autoboxer? get() = when(this) {
+    is IrParameterizedType -> simpleType.baseType.autoboxer
+    is IrSimpleType -> baseType.autoboxer
+    else -> null
 }
 
 internal val IrType.isUnit by tackLazyVal { this is IrSimpleType && this.baseType.canonicalName.toString() == "emerge.core.Unit" }

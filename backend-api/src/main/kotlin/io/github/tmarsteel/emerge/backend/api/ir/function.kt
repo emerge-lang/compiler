@@ -17,7 +17,15 @@ interface IrFunction {
     val body: IrCodeChunk?
 }
 
-interface IrMemberFunction : IrFunction {
+interface IrBaseTypeFunction : IrFunction {
+    val declaredOn: IrBaseType
+}
+
+interface IrConstructor : IrBaseTypeFunction {
+
+}
+
+interface IrMemberFunction : IrBaseTypeFunction {
     /**
      * If this is a virtual function override, this points to the functions that are being overridden.
      */
@@ -28,8 +36,6 @@ interface IrMemberFunction : IrFunction {
      * false e.g. for type functions (don't declare a receiver parameter)
      */
     val supportsDynamicDispatch: Boolean
-
-    val declaredOn: IrBaseType
 }
 
 /**

@@ -50,6 +50,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
+import io.github.tmarsteel.emerge.backend.api.ir.IrConstructor
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrRegisterWeakReferenceStatement
@@ -384,13 +385,14 @@ private class IrClassSimpleType(
 }
 
 private class IrDefaultConstructorImpl(
-    ctor: BoundClassConstructor,
+    private val ctor: BoundClassConstructor,
     override val body: IrCodeChunk,
-) : IrFunction {
+) : IrConstructor {
     override val canonicalName = ctor.canonicalName
     override val parameters = ctor.parameters.parameters.map { it.backendIrDeclaration }
     override val returnType = IrClassSimpleType(ctor.classDef)
     override val isExternalC = false
+    override val declaredOn get() = ctor.classDef.toBackendIr()
 }
 
 private class IrAllocateObjectExpressionImpl(val classDef: BoundBaseType) : IrAllocateObjectExpression {

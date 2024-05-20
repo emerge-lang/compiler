@@ -2,7 +2,7 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
-import io.github.tmarsteel.emerge.backend.llvm.boxableTyping
+import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
@@ -15,6 +15,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
@@ -283,7 +284,14 @@ private val afterReferenceCreatedNonNullable = KotlinLlvmFunction.define<EmergeL
     "emerge.platform.afterReferenceCreatedNonNullable",
     LlvmVoidType,
 ) {
+    functionAttribute(LlvmFunctionAttribute.NoUnwind)
+    functionAttribute(LlvmFunctionAttribute.WillReturn)
+    functionAttribute(LlvmFunctionAttribute.AlwaysInline)
+    functionAttribute(LlvmFunctionAttribute.NoFree)
+    functionAttribute(LlvmFunctionAttribute.NoRecurse)
+
     val inputRef by param(PointerToAnyEmergeValue)
+
     body {
         val referenceCountPtr = getelementptr(inputRef).member { strongReferenceCount }.get()
 
@@ -299,7 +307,14 @@ private val afterReferenceCreatedNullable = KotlinLlvmFunction.define<EmergeLlvm
     "emerge.platform.afterReferenceCreatedNullable",
     LlvmVoidType,
 ) {
+    functionAttribute(LlvmFunctionAttribute.NoUnwind)
+    functionAttribute(LlvmFunctionAttribute.WillReturn)
+    functionAttribute(LlvmFunctionAttribute.AlwaysInline)
+    functionAttribute(LlvmFunctionAttribute.NoFree)
+    functionAttribute(LlvmFunctionAttribute.NoRecurse)
+
     val inputRef by param(PointerToAnyEmergeValue)
+
     body {
         conditionalBranch(isNotNull(inputRef), ifTrue = {
             callIntrinsic(afterReferenceCreatedNonNullable, listOf(inputRef))
@@ -334,7 +349,7 @@ context(BasicBlockBuilder<EmergeLlvmContext, *>)
 internal fun LlvmValue<LlvmType>.afterReferenceCreated(
     emergeType: IrType,
 ) {
-    if (emergeType.boxableTyping != null || type == LlvmVoidType) {
+    if (emergeType.autoboxer != null || type == LlvmVoidType) {
         return
     }
 
@@ -404,7 +419,7 @@ context(BasicBlockBuilder<EmergeLlvmContext, *>)
 internal fun LlvmValue<LlvmType>.afterReferenceDropped(
     emergeType: IrType,
 ) {
-    if (emergeType.boxableTyping != null || type == LlvmVoidType) {
+    if (emergeType.autoboxer != null || type == LlvmVoidType) {
         return
     }
 

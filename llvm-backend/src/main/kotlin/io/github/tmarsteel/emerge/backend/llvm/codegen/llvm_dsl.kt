@@ -5,10 +5,10 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeHeapAllocated
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeHeapAllocatedValueBaseType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
+import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 
 context(BasicBlockBuilder<*, *>)
 internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.anyValueBase(): GetElementPointerStep<EmergeHeapAllocatedValueBaseType> {
@@ -17,12 +17,5 @@ internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.anyValueBase():
 
 context(BasicBlockBuilder<*, *>)
 internal fun LlvmType.sizeof(): LlvmValue<EmergeWordType> {
-    // thanks to https://stackoverflow.com/questions/14608250/how-can-i-find-the-size-of-a-type
-    val pointerFromNullToSize = getelementptr(
-        context.nullValue(LlvmPointerType(this)),
-        context.i32(1)
-    )
-        .get()
-
-    return ptrtoint(pointerFromNullToSize, EmergeWordType)
+    return LlvmValue(Llvm.LLVMSizeOf(this.getRawInContext(context)), EmergeWordType)
 }

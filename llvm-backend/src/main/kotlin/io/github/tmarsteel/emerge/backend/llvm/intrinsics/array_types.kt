@@ -12,6 +12,9 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI16Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI64Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmInlineStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
@@ -300,14 +303,14 @@ private fun <Element : LlvmType> buildValueArrayType(
 
 internal val EmergeS8ArrayType = buildValueArrayType("s8", LlvmI8Type, EmergeLlvmContext::boxTypeS8)
 internal val EmergeU8ArrayType = buildValueArrayType("u8", LlvmI8Type, EmergeLlvmContext::boxTypeU8)
-internal val EmergeS16ArrayType = buildValueArrayType("s16", LlvmI8Type, EmergeLlvmContext::boxTypeS16)
-internal val EmergeU16ArrayType = buildValueArrayType("u16", LlvmI8Type, EmergeLlvmContext::boxTypeU16)
-internal val EmergeS32ArrayType = buildValueArrayType("s32", LlvmI8Type, EmergeLlvmContext::boxTypeS32)
-internal val EmergeU32ArrayType = buildValueArrayType("u32", LlvmI8Type, EmergeLlvmContext::boxTypeU32)
-internal val EmergeS64ArrayType = buildValueArrayType("s64", LlvmI8Type, EmergeLlvmContext::boxTypeS64)
-internal val EmergeU64ArrayType = buildValueArrayType("u64", LlvmI8Type, EmergeLlvmContext::boxTypeU64)
-internal val EmergeSWordArrayType = buildValueArrayType("sword", LlvmI8Type, EmergeLlvmContext::boxTypeSWord)
-internal val EmergeUWordArrayType = buildValueArrayType("uword", LlvmI8Type, EmergeLlvmContext::boxTypeUWord)
+internal val EmergeS16ArrayType = buildValueArrayType("s16", LlvmI16Type, EmergeLlvmContext::boxTypeS16)
+internal val EmergeU16ArrayType = buildValueArrayType("u16", LlvmI16Type, EmergeLlvmContext::boxTypeU16)
+internal val EmergeS32ArrayType = buildValueArrayType("s32", LlvmI32Type, EmergeLlvmContext::boxTypeS32)
+internal val EmergeU32ArrayType = buildValueArrayType("u32", LlvmI32Type, EmergeLlvmContext::boxTypeU32)
+internal val EmergeS64ArrayType = buildValueArrayType("s64", LlvmI64Type, EmergeLlvmContext::boxTypeS64)
+internal val EmergeU64ArrayType = buildValueArrayType("u64", LlvmI64Type, EmergeLlvmContext::boxTypeU64)
+internal val EmergeSWordArrayType = buildValueArrayType("sword", EmergeWordType, EmergeLlvmContext::boxTypeSWord)
+internal val EmergeUWordArrayType = buildValueArrayType("uword", EmergeWordType, EmergeLlvmContext::boxTypeUWord)
 internal val EmergeBooleanArrayType = buildValueArrayType("bool", LlvmBooleanType, EmergeLlvmContext::boxTypeBool)
 
 private val referenceArrayElementGetter: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>> = KotlinLlvmFunction.define(
