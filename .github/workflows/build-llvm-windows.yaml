@@ -67,13 +67,4 @@ jobs:
         with:
           name: llvm-windows-x86_64
           path: |
-            ${{ env.LLVM_BUILD_PATH }}/bin
-            ${{ env.LLVM_BUILD_PATH }}/include
-            !${{ env.LLVM_BUILD_PATH }}/include/**/*.cmake
-            ${{ env.LLVM_BUILD_PATH }}/lib
-            !${{ env.LLVM_BUILD_PATH }}/lib/**/*.obj
-            !${{ env.LLVM_BUILD_PATH }}/lib/**/*.cmake
-            !${{ env.LLVM_BUILD_PATH }}/lib/**/*.dir
-            ${{ env.LLVM_BUILD_PATH }}/libexec
-            ${{ env.LLVM_BUILD_PATH }}/share
             ${{ env.LLVM_INSTALL_PATH }}
