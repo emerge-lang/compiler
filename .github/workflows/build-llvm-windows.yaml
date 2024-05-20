@@ -54,7 +54,7 @@ jobs:
             -DLLVM_BUILD_LLVM_DYLIB=ON \
             -DLLVM_LINK_LLVM_DYLIB=ON \
             -DCMAKE_BUILD_TYPE=Release \
-            -DLLVM_TARGETS_TO_BUILD=all \
+            -DLLVM_TARGETS_TO_BUILD=X86 \
             -DLLVM_ENABLE_DIA_SDK=OFF \
             -DLLVM_ENABLE_LIBXML2=OFF \
             -DLLVM_INCLUDE_TESTS=OFF \
