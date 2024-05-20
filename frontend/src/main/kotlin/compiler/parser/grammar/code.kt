@@ -20,6 +20,7 @@ package compiler.parser.grammar
 
 import compiler.InternalCompilerError
 import compiler.ast.AssignmentStatement
+import compiler.ast.AstThrowStatement
 import compiler.ast.CodeChunk
 import compiler.ast.ReturnStatement
 import compiler.ast.Statement
@@ -45,6 +46,17 @@ val ReturnStatement = sequence("return statement") {
         ReturnStatement(keyword, expression)
     }
 
+val ThrowStatement = sequence("throw statement") {
+    keyword(Keyword.THROW)
+    ref(Expression)
+}
+    .astTransformation { tokens ->
+        val keyword = tokens.next()!! as KeywordToken
+        val expression = tokens.next()!! as AstExpression
+
+        AstThrowStatement(keyword, expression)
+    }
+
 val AssignmentStatement = sequence("assignment statement") {
     keyword(Keyword.SET)
     ref(Expression)
@@ -64,6 +76,7 @@ val LineOfCode = sequence {
     eitherOf {
         ref(AssignmentStatement)
         ref(ReturnStatement)
+        ref(ThrowStatement)
         ref(VariableDeclaration)
         ref(Expression)
     }

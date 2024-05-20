@@ -45,6 +45,7 @@ enum class Keyword(val text: String)
     ELSE("else"),
 
     RETURN("return"),
+    THROW("throw"),
 
     CLASS_DEFINITION("class"),
     INTERFACE_DEFINITION("interface"),

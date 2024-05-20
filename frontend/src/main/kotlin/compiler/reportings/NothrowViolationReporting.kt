@@ -1,5 +1,6 @@
 package compiler.reportings
 
+import compiler.ast.AstThrowStatement
 import compiler.ast.expression.NotNullExpression
 import compiler.binding.BoundFunction
 import compiler.binding.basetype.BoundBaseType
@@ -62,6 +63,15 @@ open class NothrowViolationReporting(
         Level.ERROR,
         "Cannot invoke possibly-throwing function ${invocation.functionToInvoke!!.canonicalName} in nothrow $boundary",
         invocation.declaration.span,
+    )
+
+    class ThrowStatement(
+        val statement: AstThrowStatement,
+        val boundary: SideEffectBoundary,
+    ) : NothrowViolationReporting(
+        Level.ERROR,
+        "Cannot throw from nothrow $boundary",
+        statement.span,
     )
 
     sealed interface SideEffectBoundary {

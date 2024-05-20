@@ -84,3 +84,7 @@ export class Array<Element> {
 
     export intrinsic fn size(self: read _) -> UWord
 }
+
+export interface Throwable {}
+export interface Error : Throwable {}
+export interface Exception : Throwable {}

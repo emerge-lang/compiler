@@ -37,6 +37,7 @@ import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundReturnStatement
 import compiler.binding.BoundStatement
+import compiler.binding.BoundThrowStatement
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
@@ -401,6 +402,9 @@ abstract class Reporting internal constructor(
                 returnValueOf.declaration.span,
                 boundary,
             )
+
+        fun throwStatementInNothrowContext(statement: BoundThrowStatement, boundary: NothrowViolationReporting.SideEffectBoundary)
+            = NothrowViolationReporting.ThrowStatement(statement.declaration, boundary)
 
         fun constructorDeclaredNothrow(constructor: BoundClassConstructor)
             = ConstructorDeclaredNothrowReporting(constructor.attributes.firstNothrowAttribute!!.sourceLocation)
