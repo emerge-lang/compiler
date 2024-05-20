@@ -63,10 +63,12 @@ class BoundMemberAccessExpression(
     override val returnBehavior get() = valueExpression.returnBehavior
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return valueExpression.semanticAnalysisPhase1()
-    }
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        val reportings = valueExpression.semanticAnalysisPhase1()
         valueExpression.markEvaluationResultUsed()
+        return reportings
+    }
+
+    override fun semanticAnalysisPhase2(): Collection<Reporting> {
         // partially uninitialized is okay as this class verifies that itself
         (valueExpression as? BoundIdentifierExpression)?.allowPartiallyUninitializedValue()
 

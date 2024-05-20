@@ -394,6 +394,14 @@ abstract class Reporting internal constructor(
         fun droppingReferenceToObjectWithThrowingConstructor(reference: BoundAssignmentStatement.AssignmentTarget, boundary: NothrowViolationReporting.SideEffectBoundary)
             = NothrowViolationReporting.PotentialThrowingDestruction(reference, "the previous value", reference.span, boundary)
 
+        fun droppingReferenceToObjectWithThrowingConstructor(returnValueOf: BoundInvocationExpression, boundary: NothrowViolationReporting.SideEffectBoundary)
+            = NothrowViolationReporting.PotentialThrowingDestruction(
+            returnValueOf,
+            "return value of ${returnValueOf.functionToInvoke?.name ?: returnValueOf.functionNameToken.value}",
+            returnValueOf.declaration.span,
+            boundary,
+        )
+
         fun purityViolations(readingViolations: Collection<BoundExpression<*>>, writingViolations: Collection<BoundStatement<*>>, context: BoundFunction): Collection<Reporting> {
             val boundary = PurityViolationReporting.SideEffectBoundary.Function(context)
             val readingReportings = readingViolations.map { readingPurityViolationToReporting(it, boundary) }

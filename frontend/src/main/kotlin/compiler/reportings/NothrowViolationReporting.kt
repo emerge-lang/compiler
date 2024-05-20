@@ -27,7 +27,7 @@ open class NothrowViolationReporting(
     ) {
         override fun toString() = "$levelAndMessage\n${illustrateHints(
             SourceHint(boundary.nothrowDeclaredAt, "function declared nothrow here"),
-            SourceHint(referenceDroppedOrDeclaredAt, "potential throwing destructor execution here"),
+            SourceHint(referenceDroppedOrDeclaredAt, "potentially throwing destructor execution here"),
         )}"
     }
 

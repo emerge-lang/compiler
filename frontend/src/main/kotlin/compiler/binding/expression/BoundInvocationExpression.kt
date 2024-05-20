@@ -102,6 +102,13 @@ class BoundInvocationExpression(
             reportings
         }
 
+    private var evaluationResultUsed = false
+    override fun markEvaluationResultUsed() {
+        seanHelper.requirePhase1Done()
+        seanHelper.requirePhase2NotDone()
+        evaluationResultUsed = true
+    }
+
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return seanHelper.phase2 {
             receiverExpression?.markEvaluationResultUsed()
@@ -353,6 +360,9 @@ class BoundInvocationExpression(
                 nothrowBoundary?.let { nothrowBoundary ->
                     if (targetFn.throwBehavior != SideEffectPrediction.NEVER) {
                         reportings.add(Reporting.nothrowViolatingInvocation(this, nothrowBoundary))
+                    }
+                    if (!evaluationResultUsed && targetFn.returnType?.destructorThrowBehavior != SideEffectPrediction.NEVER) {
+                        reportings.add(Reporting.droppingReferenceToObjectWithThrowingConstructor(this, nothrowBoundary))
                     }
                 }
             }

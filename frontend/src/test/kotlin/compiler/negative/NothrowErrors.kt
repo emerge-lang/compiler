@@ -1,6 +1,9 @@
 package compiler.compiler.negative
 
 import compiler.ast.AstFunctionAttribute
+import compiler.binding.BoundAssignmentStatement
+import compiler.binding.DropLocalVariableStatement
+import compiler.binding.expression.BoundInvocationExpression
 import compiler.reportings.FunctionMissingDeclaredModifierReporting
 import compiler.reportings.NothrowViolationReporting
 import io.kotest.core.spec.style.FreeSpec
@@ -159,7 +162,20 @@ class NothrowErrors : FreeSpec({
                 .shouldReport<NothrowViolationReporting.PotentialThrowingDestruction>()
         }
 
-        // TODO: BoundInvocationFunction (and in turn even ArrayLiteral) drop the argument temporaries
+        /**
+         * [BoundInvocationExpression] also drops the temporaries for arguments, and other expressions that hide
+         * an invocation consequently do, too (e.g. operators, array literals, ...). This is not a problem for nothrow,
+         * Here goes the proof:
+         *
+         * before a call to another function, the refcount of all the arguments is at least 1. The drop-to-0 may happen
+         * later, but not as a part of a [BoundInvocationExpression]; instead, this happens with [DropLocalVariableStatement].
+         * And even then: if the function being called doesn't remove other heap references to any of its arguments,
+         * there is no way for the refcounter to reach 0 after the invocation. If the called function was to remove heap
+         * references for arguments that potentially throw on destruction, that function being called CANNOT BE nothrow:
+         * To remove those references, it has to assign a new value to a heap reference. This requires refcounting the
+         * previous value, also potentially triggering the destructor that thorws. In that case, that very
+         * [BoundAssignmentStatement] would complain/raise a diagnostic.
+         */
     }
 
     "assigning to a variable where dropping the previous value might throw" - {
