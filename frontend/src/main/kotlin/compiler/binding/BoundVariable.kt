@@ -150,6 +150,7 @@ class BoundVariable(
             if (initializerExpression != null) {
                 reportings.addAll(initializerExpression.semanticAnalysisPhase1())
                 initializerExpression.setExpectedEvaluationResultType(expectedInitializerEvaluationType)
+                initializerExpression.markEvaluationResultUsed()
             }
 
             if (shouldInferBaseType && declaration.type?.arguments?.isNotEmpty() == true) {
