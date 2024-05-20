@@ -13,4 +13,10 @@ data class LlvmFunction<out R : LlvmType>(
         val nameBytes = nameCharsPtr.getByteArray(0, lengthRef.value.toInt())
         return String(nameBytes)
     }
+
+    fun addAttributeToFunction(attribute: LlvmFunctionAttribute) {
+        val contextRef = Llvm.LLVMGetTypeContext(Llvm.LLVMTypeOf(address.raw))
+        val attrRef = attribute.getRawInContext(contextRef)
+        Llvm.LLVMAddAttributeAtIndex(address.raw, -1, attrRef)
+    }
 }

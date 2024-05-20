@@ -91,6 +91,9 @@ public class Llvm {
     public static native @NotNull LlvmTypeRef LLVMTypeOf(@NotNull LlvmValueRef value);
 
     /** see Core.h */
+    public static native @NotNull LlvmContextRef LLVMGetTypeContext(@NotNull LlvmTypeRef type);
+
+    /** see Core.h */
     public static native @NotNull LlvmMessage LLVMPrintTypeToString(@NotNull LlvmTypeRef type);
 
     /** see Core.h */
@@ -416,4 +419,17 @@ public class Llvm {
 
     /** see Error.h */
     public static native void LLVMDisposeErrorMessage(@NotNull Pointer errMsg);
+
+    /** see Core.h */
+    public static native @Unsigned int LLVMGetEnumAttributeKindForName(@NotNull byte[] name, @ArraySizeOf("name") NativeLong len);
+
+    /** see Core.h */
+    public static native @NotNull LlvmAttributeRef LLVMCreateEnumAttribute(@NotNull LlvmContextRef context, @Unsigned int kindId, @Unsigned long val);
+
+    /**
+     * see Core.h
+     * @param index -1 for adding the attribute to the function itself, 0 for adding it to the return value, and 1, 2, 3, ...
+     *              for adding to the parameters
+     */
+    public static native void LLVMAddAttributeAtIndex(@NotNull LlvmValueRef functionValue, int index, @NotNull LlvmAttributeRef attribute);
 }

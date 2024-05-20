@@ -11,6 +11,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmInlineStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
@@ -420,7 +421,13 @@ internal val arrayAddressOfFirst = KotlinLlvmFunction.define<LlvmContext, _>(
     "emerge.ffi.c.addressOfFirst",
     pointerTo(LlvmVoidType),
 ) {
+    functionAttribute(LlvmFunctionAttribute.NoUnwind)
+    functionAttribute(LlvmFunctionAttribute.WillReturn)
+    functionAttribute(LlvmFunctionAttribute.NoRecurse)
+    functionAttribute(LlvmFunctionAttribute.NoFree)
+
     val arrayPointer by param(pointerTo(EmergeArrayBaseType))
+
     body {
         val ptr = getelementptr(arrayPointer, context.i32(1))
             .get()
@@ -434,6 +441,9 @@ internal val arraySize = KotlinLlvmFunction.define<LlvmContext, _>(
     "emerge.core.Array::size",
     EmergeWordType,
 ) {
+    functionAttribute(LlvmFunctionAttribute.NoUnwind)
+    functionAttribute(LlvmFunctionAttribute.WillReturn)
+    functionAttribute(LlvmFunctionAttribute.NoRecurse)
     val arrayPointer by param(pointerTo(EmergeArrayBaseType))
     body {
         ret(

@@ -10,6 +10,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
@@ -279,8 +280,15 @@ val getDynamicCallAddress: KotlinLlvmFunction<EmergeLlvmContext, LlvmFunctionAdd
     "getDynamicCallAddress",
     LlvmFunctionAddressType,
 ) {
+    functionAttribute(LlvmFunctionAttribute.NoUnwind)
+    functionAttribute(LlvmFunctionAttribute.WillReturn)
+    functionAttribute(LlvmFunctionAttribute.NoRecurse)
+    functionAttribute(LlvmFunctionAttribute.NoFree)
+    functionAttribute(LlvmFunctionAttribute.Hot)
+
     val self by param(PointerToAnyEmergeValue)
     val hash by param(EmergeWordType)
+
     body {
         val typeinfoPtr = getelementptr(self)
             .member { typeinfo }

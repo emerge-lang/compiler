@@ -20,6 +20,7 @@ class KotlinLlvmFunction<C : LlvmContext, R : LlvmType> private constructor(
         val functionType = LlvmFunctionType(returnType, definitionReceiver.parameters.map { it.type })
         val functionRaw = Llvm.LLVMAddFunction(context.module, name, functionType.getRawInContext(context))
         val function = LlvmFunction(LlvmConstant(functionRaw, LlvmFunctionAddressType), functionType)
+        definitionReceiver.attributes.forEach(function::addAttributeToFunction)
         return DeclaredInContextImpl(
             context,
             definitionReceiver.parameters,
@@ -45,6 +46,7 @@ class KotlinLlvmFunction<C : LlvmContext, R : LlvmType> private constructor(
     interface DefinitionReceiver<C : LlvmContext, R : LlvmType> {
         fun <T : LlvmType> param(type: T): ParameterDelegate<T>
         fun body(build: CodeGenerator<C, R>)
+        fun functionAttribute(attribute: LlvmFunctionAttribute)
     }
 
     companion object {
@@ -86,6 +88,7 @@ private class ParameterDelegateImpl<T : LlvmType>(
 private class DefinitionReceiverImpl<C : LlvmContext, R : LlvmType> : KotlinLlvmFunction.DefinitionReceiver<C, R> {
     private var state = State.PRELUDE
     val parameters = ArrayList<ParameterDelegateImpl<*>>()
+    val attributes = ArrayList<LlvmFunctionAttribute>()
 
     lateinit var bodyGenerator: CodeGenerator<C, R>
         private set
@@ -106,6 +109,10 @@ private class DefinitionReceiverImpl<C : LlvmContext, R : LlvmType> : KotlinLlvm
 
         state = State.BODY_KNOWN
         bodyGenerator = build
+    }
+
+    override fun functionAttribute(attribute: LlvmFunctionAttribute) {
+        attributes.add(attribute)
     }
 
     private enum class State {
