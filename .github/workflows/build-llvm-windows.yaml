@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: llvm/llvm-project
-          ref: llvmorg-17.0.6
+          ref: llvmorg-18.1.5
           fetch-depth: 2
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1
@@ -45,15 +45,9 @@ jobs:
             -G "Ninja" \
             -S llvm \
             -B $LLVM_BUILD_PATH \
-            -DLLVM_USE_CRT_RELEASE=MD \
             -DCMAKE_INSTALL_PREFIX=$LLVM_INSTALL_PATH \
-            -DLLVM_BUILD_LLVM_C_DYLIB=OFF \
             -DCMAKE_EXE_LINKER_FLAGS="/FORCE:MULTIPLE" \
             -DCMAKE_SHARED_LINKER_FLAGS="/FORCE:MULTIPLE" \
-            -DLLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN=ON \
-            -DLLVM_BUILD_LLVM_DYLIB=ON \
-            -DLLVM_LINK_LLVM_DYLIB=ON \
-            -DCMAKE_BUILD_TYPE=Release \
             -DLLVM_TARGETS_TO_BUILD=X86 \
             -DLLVM_ENABLE_DIA_SDK=OFF \
             -DLLVM_ENABLE_LIBXML2=OFF \
