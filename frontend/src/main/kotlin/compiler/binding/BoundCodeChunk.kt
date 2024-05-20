@@ -30,8 +30,8 @@ import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.handleCyclicInvocation
+import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
-import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -81,8 +81,11 @@ class BoundCodeChunk(
         }
     }
 
-    private var nothrowBoundary: SideEffectBoundary? = null
-    override fun setNothrow(boundary: SideEffectBoundary) {
+    private var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
+    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+        seanHelper.requirePhase3NotDone()
+        require(nothrowBoundary == null) { "setNothrow called more than once" }
+
         this.nothrowBoundary = boundary
         statements.forEach { it.setNothrow(boundary) }
     }

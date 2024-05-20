@@ -30,9 +30,9 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.lexer.IdentifierToken
+import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import compiler.reportings.ReturnTypeMismatchReporting
-import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -64,7 +64,7 @@ class BoundReturnStatement(
         return expression?.semanticAnalysisPhase2() ?: emptySet()
     }
 
-    override fun setNothrow(boundary: SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
         expression?.setNothrow(boundary)
     }
 

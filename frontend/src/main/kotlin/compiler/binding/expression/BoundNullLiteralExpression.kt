@@ -25,8 +25,8 @@ import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
+import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
-import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -53,7 +53,7 @@ class BoundNullLiteralExpression(
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> = emptySet()
-    override fun setNothrow(boundary: SideEffectBoundary) {}
+    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {}
 
     override val isEvaluationResultReferenceCounted = false
     override val isCompileTimeConstant = true

@@ -31,8 +31,8 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
-import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassMemberVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -104,7 +104,7 @@ class BoundMemberAccessExpression(
         return reportings
     }
 
-    override fun setNothrow(boundary: SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
         valueExpression.setNothrow(boundary)
     }
 

@@ -24,8 +24,8 @@ import compiler.binding.BoundStatement
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
+import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
-import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
 class BoundNotNullExpression(
@@ -51,8 +51,8 @@ class BoundNotNullExpression(
         return nullableExpression.semanticAnalysisPhase2()
     }
 
-    private var nothrowBoundary: SideEffectBoundary? = null
-    override fun setNothrow(boundary: SideEffectBoundary) {
+    private var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
+    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
         this.nothrowBoundary = boundary
     }
 

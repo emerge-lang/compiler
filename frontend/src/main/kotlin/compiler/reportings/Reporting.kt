@@ -379,23 +379,23 @@ abstract class Reporting internal constructor(
         fun overrideAddsSideEffects(override: BoundMemberFunction, superFunction: BoundMemberFunction)
             = OverrideAddsSideEffectsReporting(override, superFunction)
 
-        fun nothrowViolatingInvocation(invocation: BoundInvocationExpression, boundary: SideEffectBoundary)
-            = ThrowingInvocationInNothrowContextReporting(invocation, boundary)
+        fun nothrowViolatingInvocation(invocation: BoundInvocationExpression, boundary: NothrowViolationReporting.SideEffectBoundary)
+            = NothrowViolationReporting.ThrowingInvocation(invocation, boundary)
 
-        fun nothrowViolatingNotNullAssertion(assertion: BoundNotNullExpression, boundary: SideEffectBoundary)
-            = NotNullAssertionInNothrowContextReporting(assertion.declaration, boundary)
+        fun nothrowViolatingNotNullAssertion(assertion: BoundNotNullExpression, boundary: NothrowViolationReporting.SideEffectBoundary)
+            = NothrowViolationReporting.NotNullAssertion(assertion.declaration, boundary)
 
-        fun droppingReferenceToObjectWithThrowingConstructor(reference: BoundVariable, boundary: SideEffectBoundary)
-            = DroppingReferenceToObjectWithThrowingDestructorReporting(reference, reference.declaration.span, boundary)
+        fun droppingReferenceToObjectWithThrowingConstructor(reference: BoundVariable, boundary: NothrowViolationReporting.SideEffectBoundary)
+            = NothrowViolationReporting.PotentialThrowingDestruction(reference, "variable ${reference.name}", reference.declaration.span, boundary)
 
-        fun droppingReferenceToObjectWithThrowingConstructor(reference: BoundBaseTypeMemberVariable, ownerType: BoundBaseType, boundary: SideEffectBoundary.Function)
-            = ObjectMemberWithThrowingDestructorReporting(reference, ownerType, boundary)
+        fun droppingReferenceToObjectWithThrowingConstructor(reference: BoundBaseTypeMemberVariable, ownerType: BoundBaseType, boundary: NothrowViolationReporting.SideEffectBoundary)
+            = NothrowViolationReporting.ObjectMemberWithThrowingDestructor(reference, ownerType, boundary)
 
-        fun droppingReferenceToObjectWithThrowingConstructor(reference: BoundAssignmentStatement.AssignmentTarget, boundary: SideEffectBoundary)
-            = DroppingReferenceToObjectWithThrowingDestructorReporting(reference, reference.span, boundary)
+        fun droppingReferenceToObjectWithThrowingConstructor(reference: BoundAssignmentStatement.AssignmentTarget, boundary: NothrowViolationReporting.SideEffectBoundary)
+            = NothrowViolationReporting.PotentialThrowingDestruction(reference, "the previous value", reference.span, boundary)
 
         fun purityViolations(readingViolations: Collection<BoundExpression<*>>, writingViolations: Collection<BoundStatement<*>>, context: BoundFunction): Collection<Reporting> {
-            val boundary = SideEffectBoundary.Function(context)
+            val boundary = PurityViolationReporting.SideEffectBoundary.Function(context)
             val readingReportings = readingViolations.map { readingPurityViolationToReporting(it, boundary) }
             val writingReportings = writingViolations.asSequence()
                 .filter { it !in readingViolations }
@@ -405,7 +405,7 @@ abstract class Reporting internal constructor(
         }
 
         fun purityViolations(readingViolations: Collection<BoundExpression<*>>, writingViolations: Collection<BoundStatement<*>>, context: BoundBaseTypeMemberVariable): Collection<Reporting> {
-            val boundary = SideEffectBoundary.ClassMemberInitializer(context)
+            val boundary = PurityViolationReporting.SideEffectBoundary.ClassMemberInitializer(context)
             val readingReportings = readingViolations.map { readingPurityViolationToReporting(it, boundary) }
             val writingReportings = writingViolations.asSequence()
                 .filter { it !in readingViolations }
@@ -476,7 +476,7 @@ abstract class Reporting internal constructor(
         fun hiddenTypeExposed(type: BoundBaseType, exposedBy: DefinitionWithVisibility, exposedAt: Span)
             = HiddenTypeExposedReporting(type, exposedBy, exposedAt)
 
-        private fun readingPurityViolationToReporting(violation: BoundExpression<*>, boundary: SideEffectBoundary): Reporting {
+        private fun readingPurityViolationToReporting(violation: BoundExpression<*>, boundary: PurityViolationReporting.SideEffectBoundary): Reporting {
             if (violation is BoundIdentifierExpression) {
                 return ReadInPureContextReporting(violation, boundary)
             }
@@ -484,7 +484,7 @@ abstract class Reporting internal constructor(
             return ImpureInvocationInPureContextReporting(violation, boundary)
         }
 
-        private fun modifyingPurityViolationToReporting(violation: BoundStatement<*>, boundary: SideEffectBoundary): Reporting {
+        private fun modifyingPurityViolationToReporting(violation: BoundStatement<*>, boundary: PurityViolationReporting.SideEffectBoundary): Reporting {
             if (violation is BoundAssignmentStatement) {
                 return StateModificationOutsideOfPurityBoundaryReporting(violation, boundary)
             }

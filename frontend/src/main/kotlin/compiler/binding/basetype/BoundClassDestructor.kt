@@ -13,6 +13,7 @@ import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.IrCodeChunkImpl
+import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -25,8 +26,8 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
+import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
-import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -105,29 +106,37 @@ class BoundClassDestructor(
         return userDefinedCode.throwBehavior
     }
 
+    private val seanHelper = SeanHelper()
+
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return userDefinedCode.semanticAnalysisPhase1()
+        return seanHelper.phase1 {
+            userDefinedCode.semanticAnalysisPhase1()
+        }
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = userDefinedCode.semanticAnalysisPhase2()
-        if (attributes.isDeclaredNothrow) {
-            userDefinedCode.setNothrow(SideEffectBoundary.Function(this))
+        return seanHelper.phase2 {
+            val reportings = userDefinedCode.semanticAnalysisPhase2()
+            if (attributes.isDeclaredNothrow) {
+                userDefinedCode.setNothrow(NothrowViolationReporting.SideEffectBoundary.Function(this))
+            }
+            return@phase2 reportings
         }
-        return reportings
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        reportings.addAll(userDefinedCode.semanticAnalysisPhase3())
-        if (attributes.isDeclaredNothrow) {
-            val boundary = SideEffectBoundary.Function(this)
-            classDef.memberVariables
-                .filter { it.type?.destructorThrowBehavior != SideEffectPrediction.NEVER }
-                .forEach { reportings.add(Reporting.droppingReferenceToObjectWithThrowingConstructor(it, classDef, boundary))}
-        }
+        return seanHelper.phase3 {
+            val reportings = mutableListOf<Reporting>()
+            reportings.addAll(userDefinedCode.semanticAnalysisPhase3())
+            if (attributes.isDeclaredNothrow) {
+                val boundary = NothrowViolationReporting.SideEffectBoundary.Function(this)
+                classDef.memberVariables
+                    .filter { it.type?.destructorThrowBehavior != SideEffectPrediction.NEVER }
+                    .forEach { reportings.add(Reporting.droppingReferenceToObjectWithThrowingConstructor(it, classDef, boundary))}
+            }
 
-        return reportings
+            return@phase3 reportings
+        }
     }
 
     override fun validateAccessFrom(location: Span): Collection<Reporting> {

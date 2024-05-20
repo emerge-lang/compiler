@@ -41,8 +41,8 @@ import compiler.binding.type.IrGenericTypeReferenceImpl
 import compiler.binding.type.IrParameterizedTypeImpl
 import compiler.binding.type.IrSimpleTypeImpl
 import compiler.lexer.Span
+import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
-import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -137,8 +137,11 @@ class BoundAssignmentStatement(
         }
     }
 
-    private var nothrowBoundary: SideEffectBoundary? = null
-    override fun setNothrow(boundary: SideEffectBoundary) {
+    private var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
+    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+        seanHelper.requirePhase3NotDone()
+        require(nothrowBoundary == null) { "setNothrow called more than once" }
+
         this.nothrowBoundary = boundary
         toAssignExpression.setNothrow(boundary)
         target?.setNothrow(boundary)
@@ -178,7 +181,7 @@ class BoundAssignmentStatement(
         fun semanticAnalysisPhase3(): Collection<Reporting>
         fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>>
         fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>>
-        fun setNothrow(boundary: SideEffectBoundary)
+        fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary)
         fun toBackendIrExecutable(): IrExecutable
     }
 
@@ -191,7 +194,7 @@ class BoundAssignmentStatement(
             return emptySet()
         }
 
-        override fun setNothrow(boundary: SideEffectBoundary) {
+        override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
             // nothing to forward to
         }
 
@@ -299,7 +302,7 @@ class BoundAssignmentStatement(
 
         private var memberIsPotentiallyUninitialized by Delegates.notNull<Boolean>()
 
-        override fun setNothrow(boundary: SideEffectBoundary) {
+        override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
             memberAccess.setNothrow(boundary)
         }
 

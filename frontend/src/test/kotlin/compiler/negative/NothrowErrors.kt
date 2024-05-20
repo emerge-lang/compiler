@@ -1,11 +1,8 @@
 package compiler.compiler.negative
 
 import compiler.ast.AstFunctionAttribute
-import compiler.reportings.DroppingReferenceToObjectWithThrowingDestructorReporting
 import compiler.reportings.FunctionMissingDeclaredModifierReporting
-import compiler.reportings.NotNullAssertionInNothrowContextReporting
-import compiler.reportings.ObjectMemberWithThrowingDestructorReporting
-import compiler.reportings.ThrowingInvocationInNothrowContextReporting
+import compiler.reportings.NothrowViolationReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
 import io.kotest.matchers.types.beInstanceOf
@@ -20,10 +17,6 @@ class NothrowErrors : FreeSpec({
             }
     }
 
-    "nothrow violations - function body" - {
-
-    }
-
     "invoke throwing function" - {
         "in function body" {
             validateModule("""
@@ -33,7 +26,7 @@ class NothrowErrors : FreeSpec({
                 }
             """.trimIndent()
             )
-                .shouldReport<ThrowingInvocationInNothrowContextReporting>()
+                .shouldReport<NothrowViolationReporting.ThrowingInvocation>()
         }
 
         "in constructor body" {
@@ -45,7 +38,7 @@ class NothrowErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<ThrowingInvocationInNothrowContextReporting>()
+                .shouldReport<NothrowViolationReporting.ThrowingInvocation>()
         }
 
         "in class member initializer" {
@@ -57,7 +50,7 @@ class NothrowErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<ThrowingInvocationInNothrowContextReporting>()
+                .shouldReport<NothrowViolationReporting.ThrowingInvocation>()
         }
 
         "in destructor body" {
@@ -69,7 +62,7 @@ class NothrowErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<ThrowingInvocationInNothrowContextReporting>()
+                .shouldReport<NothrowViolationReporting.ThrowingInvocation>()
         }
     }
 
@@ -78,7 +71,7 @@ class NothrowErrors : FreeSpec({
             validateModule("""
                 nothrow fn safe(p: Any?) -> Any = p!!
             """.trimIndent())
-                .shouldReport<NotNullAssertionInNothrowContextReporting>()
+                .shouldReport<NothrowViolationReporting.NotNullAssertion>()
         }
 
         "in constructor body" {
@@ -90,7 +83,7 @@ class NothrowErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<NotNullAssertionInNothrowContextReporting>()
+                .shouldReport<NothrowViolationReporting.NotNullAssertion>()
         }
 
         "in class member initializer" {
@@ -102,7 +95,7 @@ class NothrowErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<NotNullAssertionInNothrowContextReporting>()
+                .shouldReport<NothrowViolationReporting.NotNullAssertion>()
         }
 
         "in destructor body" {
@@ -114,7 +107,7 @@ class NothrowErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<NotNullAssertionInNothrowContextReporting>()
+                .shouldReport<NothrowViolationReporting.NotNullAssertion>()
         }
     }
 
@@ -131,7 +124,7 @@ class NothrowErrors : FreeSpec({
                     v = A()
                 }
             """.trimIndent())
-                .shouldReport<DroppingReferenceToObjectWithThrowingDestructorReporting>()
+                .shouldReport<NothrowViolationReporting.PotentialThrowingDestruction>()
         }
 
         "through class member" {
@@ -147,7 +140,7 @@ class NothrowErrors : FreeSpec({
                     nothrow destructor {}
                 }
             """.trimIndent())
-                .shouldReport<ObjectMemberWithThrowingDestructorReporting>()
+                .shouldReport<NothrowViolationReporting.ObjectMemberWithThrowingDestructor>()
         }
 
         "unused function return value" {
@@ -163,7 +156,7 @@ class NothrowErrors : FreeSpec({
                     createA()
                 }
             """.trimIndent())
-                .shouldReport<DroppingReferenceToObjectWithThrowingDestructorReporting>()
+                .shouldReport<NothrowViolationReporting.PotentialThrowingDestruction>()
         }
 
         // TODO: BoundInvocationFunction (and in turn even ArrayLiteral) drop the argument temporaries
@@ -184,7 +177,7 @@ class NothrowErrors : FreeSpec({
                 }
             """.trimIndent()
             )
-                .shouldReport<DroppingReferenceToObjectWithThrowingDestructorReporting>()
+                .shouldReport<NothrowViolationReporting.PotentialThrowingDestruction>()
         }
 
         "in constructor body" {
@@ -202,7 +195,7 @@ class NothrowErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<DroppingReferenceToObjectWithThrowingDestructorReporting>()
+                .shouldReport<NothrowViolationReporting.PotentialThrowingDestruction>()
         }
 
         "in destructor body" {
@@ -220,7 +213,7 @@ class NothrowErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<DroppingReferenceToObjectWithThrowingDestructorReporting>()
+                .shouldReport<NothrowViolationReporting.PotentialThrowingDestruction>()
         }
     }
 })

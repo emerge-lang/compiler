@@ -7,8 +7,8 @@ import compiler.ast.type.TypeMutability
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
+import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
-import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStringLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -35,7 +35,7 @@ class BoundStringLiteralExpression(
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
-    override fun setNothrow(boundary: SideEffectBoundary) {}
+    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {}
     override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {

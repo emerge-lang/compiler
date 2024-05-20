@@ -8,8 +8,8 @@ import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
-import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
 class DropLocalVariableStatement(
@@ -27,8 +27,10 @@ class DropLocalVariableStatement(
             throw InternalCompilerError("Cannot have a deferred statement be an implicit evaluation result")
         }
 
-        private var nothrowBoundary: SideEffectBoundary? = null
-        override fun setNothrow(boundary: SideEffectBoundary) {
+        private var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
+        override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+            require(nothrowBoundary == null) { "setNothrow called more than once" }
+
             this.nothrowBoundary = boundary
         }
 

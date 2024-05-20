@@ -41,8 +41,8 @@ import compiler.binding.type.*
 import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
+import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
-import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrDynamicDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -332,8 +332,8 @@ class BoundInvocationExpression(
             .toList()
     }
 
-    private var nothrowBoundary: SideEffectBoundary? = null
-    override fun setNothrow(boundary: SideEffectBoundary) {
+    private var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
+    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
         this.nothrowBoundary = boundary
     }
 

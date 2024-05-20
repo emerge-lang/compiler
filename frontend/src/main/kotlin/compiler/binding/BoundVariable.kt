@@ -36,8 +36,8 @@ import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
 import compiler.handleCyclicInvocation
 import compiler.lexer.Span
+import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
-import compiler.reportings.SideEffectBoundary
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -249,7 +249,7 @@ class BoundVariable(
         }
     }
 
-    override fun setNothrow(boundary: SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
         initializerExpression?.setNothrow(boundary)
     }
 
