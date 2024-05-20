@@ -71,6 +71,9 @@ class Linux_x68_64_Backend : EmergeBackend {
             ),
             executablePath,
             dynamicallyLinkAtRuntime = listOf("c"),
+            libraryPaths = listOf(
+                getClasspathResourceAsFileOnDisk(javaClass, "/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/libc.so.6")
+            ).map { it.parent }.distinct(),
         )
     }
 

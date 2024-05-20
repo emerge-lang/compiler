@@ -2,6 +2,7 @@ package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.llvm.ToolDiscoverer
+import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmCodeGenOptModel
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmCodeModel
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmRelocMode
@@ -14,7 +15,7 @@ import java.nio.file.Path
  */
 object LlvmCompiler {
     private val executable by lazy {
-        ToolDiscoverer.INSTANCE.discover("llc-17")
+        ToolDiscoverer.INSTANCE.discover(Llvm.LLVM_DIR.resolve("bin").resolve("llc").toString(), "llc-18")
     }
 
     fun compileBitcodeFile(

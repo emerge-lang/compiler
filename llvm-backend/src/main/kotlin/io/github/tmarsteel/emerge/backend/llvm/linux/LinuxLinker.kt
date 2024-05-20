@@ -2,12 +2,17 @@ package io.github.tmarsteel.emerge.backend.llvm.linux
 
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.llvm.ToolDiscoverer
+import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.runSyncCapturing
 import java.nio.file.Path
 
 object LinuxLinker {
     private val executable by lazy {
-        ToolDiscoverer.INSTANCE.discover("ld.lld-17", "ld")
+        ToolDiscoverer.INSTANCE.discover(
+            Llvm.LLVM_DIR.resolve("bin").resolve("ld.lld").toString(),
+            "ld.lld-18",
+            "ld",
+        )
     }
 
     fun linkObjectFilesToELF(
@@ -15,7 +20,7 @@ object LinuxLinker {
         outputFile: Path,
         dynamicallyLinkAtRuntime: List<String> = emptyList(),
         runtimeDynamicLinker: UnixPath = UnixPath("/usr/lib64/ld-linux-x86-64.so.2"),
-        runtimeLibraryPaths: List<UnixPath> = listOf(UnixPath("/usr/lib/x86_64-linux-gnu/")),
+        libraryPaths: List<Path> = emptyList(),
     ) {
         val command = mutableListOf(
             executable.toString(),
@@ -23,9 +28,9 @@ object LinuxLinker {
             "--dynamic-linker=${runtimeDynamicLinker.path}",
         )
 
-        runtimeLibraryPaths.forEach {
+        libraryPaths.forEach {
             command += "--library-path"
-            command += it.path
+            command += it.toString()
         }
         dynamicallyLinkAtRuntime.forEach {
             command += "--library"

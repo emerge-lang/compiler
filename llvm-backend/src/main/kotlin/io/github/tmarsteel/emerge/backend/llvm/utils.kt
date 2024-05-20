@@ -26,7 +26,7 @@ fun <T> Iterable<T>.indexed(): Iterable<Pair<Int, T>> = object : Iterable<Pair<I
 
 val RESOURCE_CACHE_DIR: Path get() = System.getProperty("emerge.backend.llvm.cache-dir", null)
     ?.let(Paths::get)
-    ?: Paths.get(System.getenv("HOME")).resolve(".emerge-compiler-cache").resolve("llvm-backend")
+    ?: Paths.get(System.getProperty("user.dir")).resolve(".emerge-compiler-cache").resolve("llvm-backend")
 
 fun getClasspathResourceAsFileOnDisk(
     clazz: Class<*>,
@@ -37,7 +37,7 @@ fun getClasspathResourceAsFileOnDisk(
         ?: throw CodeGenerationException("Classpath resource $resource not found in classloader ${clazz.classLoader.name}")
 
     if (resourceUrl.protocol == "file") {
-        return Paths.get(resourceUrl.path)
+        return Paths.get(resourceUrl.path.removePrefix("/"))
     }
 
     cacheDir.createDirectories()

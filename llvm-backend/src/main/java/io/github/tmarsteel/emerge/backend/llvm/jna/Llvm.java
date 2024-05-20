@@ -7,28 +7,30 @@ import com.sun.jna.ptr.PointerByReference;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Objects;
 
 /**
- * LLVM C interface functions mapped for LLVM-17 using JNA.
+ * LLVM C interface functions mapped for LLVM-18 using JNA.
  */
 public class Llvm {
-    static final String LLVM_BIN_DIR_SYSTEM_PROPERTY = "emerge.backend.llvm.llvm-17-bin-dir";
+    static final String LLVM_DIR_SYSTEM_PROPERTY = "emerge.backend.llvm.llvm-18-dir";
+    public static final Path LLVM_DIR = Paths.get(Objects.requireNonNull(
+            System.getProperty(LLVM_DIR_SYSTEM_PROPERTY),
+            "You must specify the Java system property " + LLVM_DIR_SYSTEM_PROPERTY
+    )).toAbsolutePath();
 
     static {
-        var llvmLibsDir = Objects.requireNonNull(
-                System.getProperty(LLVM_BIN_DIR_SYSTEM_PROPERTY),
-                "You must specify the Java system property " + LLVM_BIN_DIR_SYSTEM_PROPERTY
-        );
-        NativeLibrary.addSearchPath("LLVM-17", llvmLibsDir);
-        NativeLibrary.addSearchPath("LLVM-C", llvmLibsDir);
+        NativeLibrary.addSearchPath("LLVM-18", LLVM_DIR.resolve("lib").toString());
+        NativeLibrary.addSearchPath("LLVM-C", LLVM_DIR.resolve("bin").toString());
         Map<String, Object> options = Map.of(
                 Library.OPTION_TYPE_MAPPER, new LlvmTypeMapper()
         );
         NativeLibrary llvmLib;
         try {
-            llvmLib = NativeLibrary.getInstance("LLVM-17", options);
+            llvmLib = NativeLibrary.getInstance("LLVM-18", options);
         }
         catch (UnsatisfiedLinkError ex) {
             try {

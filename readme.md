@@ -9,7 +9,7 @@ You're invited to talk, exchange ideas, contribute, ... in case it entertains yo
 
 #### Linux host
 
-To run the compiler on linux, install `llvm-17` so that e.g. `llc-17` is available as a command.
+To run the compiler on linux, install `llvm-18` so that e.g. `llc-18` is available as a command.
 
 #### Windows host
 
@@ -17,7 +17,11 @@ The windows distributions of LLVM don't include some important tools, e.g. a lin
 contains [a GitHub action to compile a windows build of LLVM](.github/workflows/build-llvm-windows.yaml)
 that includes the `lld` linker as a Windows executable.  You need to copy the build outputs of that action
 to the Windows machine you want to run the compiler on and then point the emerge compiler to that LLVM
-distribution by (TODO!).
+distribution. Say you extract the files to `F:\LLVM\18.1.5` so that e.g. `llc` is located at
+`F:\LLVM\18.1.5\bin\llc.exe`. Then you need to set the Java system property `emerge.backend.llvm.llvm-18-dir`
+to `F:\LLVM\18.1.5`:
+
+    -Demerge.backend.llvm.llvm-18-dir=F:\LLVM\18.1.5
 
 ## Development
 
