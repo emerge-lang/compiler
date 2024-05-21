@@ -32,6 +32,7 @@ public class NativePointerArray<T extends PointerType> extends PointerType imple
         return length;
     }
 
+    @SuppressWarnings("unchecked")
     public @NotNull T[] copyToJava() {
         Function<Pointer, T> factory = getComponentTypeFactory();
         var rawPointers = this.getPointer().getPointerArray(0, length);
@@ -54,6 +55,7 @@ public class NativePointerArray<T extends PointerType> extends PointerType imple
     }
 
     @NotNull
+    @SuppressWarnings("unchecked")
     private Function<Pointer, T> getComponentTypeFactory() {
         Function<Pointer, T> factory;
         try {

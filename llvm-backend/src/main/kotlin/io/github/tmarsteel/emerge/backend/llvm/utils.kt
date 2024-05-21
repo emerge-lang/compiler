@@ -37,7 +37,13 @@ fun getClasspathResourceAsFileOnDisk(
         ?: throw CodeGenerationException("Classpath resource $resource not found in classloader ${clazz.classLoader.name}")
 
     if (resourceUrl.protocol == "file") {
-        return Paths.get(resourceUrl.path.removePrefix("/"))
+        if (System.getProperty("file.separator") == "/") {
+            // on linux: the URL will be file:/root/subdir, and the path field is the /root/subdir part, which is correct
+            return Paths.get(resourceUrl.path)
+        } else {
+            // on windows: the path will be /C:/root/subdir, which won't work
+            return Paths.get(resourceUrl.path.removePrefix("/"))
+        }
     }
 
     cacheDir.createDirectories()

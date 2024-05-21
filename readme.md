@@ -9,7 +9,7 @@ You're invited to talk, exchange ideas, contribute, ... in case it entertains yo
 
 #### Linux host
 
-To run the compiler on linux, install `llvm-18` so that e.g. `llc-18` is available as a command.
+To run the compiler on Ubuntu, install `llvm-18` and `lld-18` so that e.g. `llc-18` is available as a command.
 
 #### Windows host
 
