@@ -82,14 +82,6 @@
                         <compileSourceRoot>${project.basedir}/src/main/java</compileSourceRoot>
                     </compileSourceRoots>
                 </configuration>
-                <executions>
-                    <execution>
-                        <phase>compile</phase>
-                        <goals>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
             <plugin>
                 <artifactId>kotlin-maven-plugin</artifactId>
