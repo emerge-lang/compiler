@@ -13,7 +13,7 @@ import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.beInstanceOf
 
-class NothrowErrors : FreeSpec({
+class ExceptionErrors : FreeSpec({
     "nothrow" - {
         "external implies nothrow" {
             validateModule("""
