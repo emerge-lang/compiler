@@ -67,4 +67,5 @@ internal class IrGlobalVariableImpl(
     private val boundInitialValue: BoundExpression<*>,
 ) : IrGlobalVariable {
     override val initializer get() = boundInitialValue.toBackendIrExpression()
+    override val declaredAt = boundInitialValue.declaration.span
 }

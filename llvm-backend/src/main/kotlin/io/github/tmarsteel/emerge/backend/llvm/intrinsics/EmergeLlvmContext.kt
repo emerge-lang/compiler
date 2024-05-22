@@ -251,8 +251,9 @@ class EmergeLlvmContext(
         return fn.llvmRef!!
     }
 
-    fun registerGlobal(global: IrVariableDeclaration) {
-        val globalType = getReferenceSiteType(global.type)
+    private val globalVariables = ArrayList<IrGlobalVariable>()
+    fun registerGlobal(global: IrGlobalVariable) {
+        val globalType = getReferenceSiteType(global.declaration.type)
         val allocation = addGlobal(
             LlvmConstant(
                 Llvm.LLVMGetUndef(globalType.getRawInContext(this)),
@@ -260,12 +261,13 @@ class EmergeLlvmContext(
             ),
             LlvmThreadLocalMode.LOCAL_DYNAMIC,
         )
-        global.emitRead = {
+        global.declaration.emitRead = {
             allocation.dereference()
         }
-        global.emitWrite = { newValue ->
+        global.declaration.emitWrite = { newValue ->
             store(newValue, allocation)
         }
+        globalVariables.add(global)
     }
 
     private var structConstructorsRegistered: Boolean = false
@@ -321,13 +323,6 @@ class EmergeLlvmContext(
         }
     }
 
-    private val globalVariableInitializers = ArrayList<Pair<IrVariableDeclaration, IrExpression>>()
-    fun defineGlobalInitializer(global: IrVariableDeclaration, initializer: IrExpression) {
-        check(!completed)
-
-        globalVariableInitializers.add(Pair(global, initializer))
-    }
-
     lateinit var threadInitializerFn: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>
         private set
     private var completed = false
@@ -342,11 +337,11 @@ class EmergeLlvmContext(
             LlvmVoidType,
         ) {
             body {
-                for ((global, initializer) in globalVariableInitializers) {
+                for (global in globalVariables) {
                     (this as BasicBlockBuilder<EmergeLlvmContext, LlvmType>)
-                    val initResult = emitExpressionCode(initializer)
+                    val initResult = emitExpressionCode(global.initializer)
                     if (initResult is ExpressionResult.Value) {
-                        global.emitWrite!!(initResult.value)
+                        global.declaration.emitWrite!!(initResult.value)
                     } else {
                         check(initResult is ExpressionResult.Terminated)
                         return@body initResult.termination

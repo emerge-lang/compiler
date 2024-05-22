@@ -22,4 +22,5 @@ interface IrSoftwareContext {
 interface IrGlobalVariable {
     val declaration: IrVariableDeclaration
     val initializer: IrExpression
+    val declaredAt: IrSourceLocation
 }

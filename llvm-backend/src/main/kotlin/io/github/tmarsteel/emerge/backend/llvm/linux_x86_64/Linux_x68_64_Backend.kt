@@ -116,12 +116,7 @@ class Linux_x68_64_Backend : EmergeBackend {
             softwareContext.packagesSeq
                 .flatMap { it.variables }
                 .forEach {
-                    llvmContext.registerGlobal(it.declaration)
-                }
-            softwareContext.packagesSeq
-                .flatMap { it.variables }
-                .forEach {
-                    llvmContext.defineGlobalInitializer(it.declaration, it.initializer)
+                    llvmContext.registerGlobal(it)
                 }
             softwareContext.packagesSeq
                 .flatMap { it.functions }
@@ -181,10 +176,6 @@ class Linux_x68_64_Backend : EmergeBackend {
                 throw CodeGenerationException("Failed to write LLVM bitcode to $bitcodeFilePath")
             }
         }
-    }
-
-    private fun createExecutableFromObjectFile(objectFilePath: Path, executablePath: Path) {
-
     }
 
     private fun findMainFunction(softwareContext: IrSoftwareContext): LlvmFunction<*> {
