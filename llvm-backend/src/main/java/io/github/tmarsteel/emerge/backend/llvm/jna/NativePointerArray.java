@@ -111,6 +111,10 @@ public class NativePointerArray<T extends PointerType> extends PointerType imple
     }
 
     public static <T extends PointerType> @NotNull NativePointerArray<T> allocate(int size, Class<T> tClazz) {
+        if (size == 0) {
+            return new NativePointerArray<>(null, null, 0, tClazz);
+        }
+
         var block = new Memory(Native.POINTER_SIZE * (long) size);
         return new NativePointerArray<>(block, block, size, tClazz);
     }

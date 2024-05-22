@@ -207,9 +207,10 @@ private class IrDestructorImpl(
     override val parameters = dtor.parameters.parameters.map { it.backendIrDeclaration }
     override val returnType = dtor.returnType.toBackendIr()
     override val isExternalC = false
-    override val declaredOn get() = dtor.classDef.toBackendIr()
+    override val ownerBaseType get() = dtor.classDef.toBackendIr()
     override val overrides = emptySet<IrMemberFunction>()
     override val supportsDynamicDispatch = true
+    override val declaredAt = dtor.declaredAt
 }
 
 private class IrDeallocateObjectStatementImpl(

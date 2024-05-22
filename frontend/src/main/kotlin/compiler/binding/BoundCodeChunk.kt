@@ -30,11 +30,13 @@ import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.handleCyclicInvocation
+import compiler.lexer.Span
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
+import io.github.tmarsteel.emerge.backend.api.ir.IrUpdateSourceLocationStatement
 import java.math.BigInteger
 
 class BoundCodeChunk(
@@ -129,12 +131,12 @@ class BoundCodeChunk(
     }
 
     private fun getDeferredCodeAtEndOfChunk(): List<IrExecutable> {
-        return deferredCode.map { it.toBackendIrStatement() }
+        return deferredCode.mapToBackendIrWithDebugLocations()
     }
 
     override fun toBackendIrStatement(): IrCodeChunk {
         return IrCodeChunkImpl(
-            statements.map { it.toBackendIrStatement() } + getDeferredCodeAtEndOfChunk()
+            statements.mapToBackendIrWithDebugLocations() + getDeferredCodeAtEndOfChunk()
         )
     }
 
@@ -152,7 +154,7 @@ class BoundCodeChunk(
     fun toBackendIrAsImplicitEvaluationExpression(assureResultHasReferenceCountIncrement: Boolean): IrImplicitEvaluationExpressionImpl {
         val plainStatements = statements
             .take(statements.size - 1)
-            .map { it.toBackendIrStatement() }
+            .mapToBackendIrWithDebugLocations()
             .toMutableList()
 
         val lastStatement = statements.lastOrNull()
@@ -179,4 +181,35 @@ class BoundCodeChunk(
             IrTemporaryValueReferenceImpl(standInLiteralTemporary),
         )
     }
+}
+
+private fun Collection<BoundExecutable<*>>.mapToBackendIrWithDebugLocations(): List<IrExecutable> {
+    val iterator = iterator()
+    if (!iterator.hasNext()) {
+        return emptyList()
+    }
+
+    val firstStmt = iterator.next()
+    var locationState = firstStmt.declaration.span
+    val irList = ArrayList<IrExecutable>(size * 3 / 2)
+    irList.add(IrUpdateSourceLocationStatementImpl(locationState))
+    irList.add(firstStmt.toBackendIrStatement())
+
+    while (iterator.hasNext()) {
+        val stmt = iterator.next()
+        if (stmt.declaration.span.lineNumber != locationState.lineNumber || stmt.declaration.span.columnNumber != locationState.columnNumber) {
+            locationState = stmt.declaration.span
+            irList.add(IrUpdateSourceLocationStatementImpl(locationState))
+        }
+        irList.add(stmt.toBackendIrStatement())
+    }
+
+    return irList
+}
+
+private class IrUpdateSourceLocationStatementImpl(
+    span: Span
+) : IrUpdateSourceLocationStatement {
+    override val lineNumber = span.lineNumber
+    override val columnNumber = span.columnNumber
 }

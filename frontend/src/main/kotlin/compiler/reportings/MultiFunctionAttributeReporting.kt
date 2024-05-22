@@ -10,7 +10,7 @@ abstract class MultiFunctionAttributeReporting(
     private val sourceLocations = attributes.map { it.sourceLocation }.toSet()
 
     init {
-        require(sourceLocations.map { it.file }.toSet().size == 1)
+        require(sourceLocations.map { it.sourceFile }.toSet().size == 1)
     }
 
     override fun toString() = "$levelAndMessage\nin ${illustrateSourceLocations(sourceLocations)}"

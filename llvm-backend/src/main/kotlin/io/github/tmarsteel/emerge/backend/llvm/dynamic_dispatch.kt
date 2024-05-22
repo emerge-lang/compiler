@@ -23,7 +23,7 @@ internal val IrMemberFunction.signatureHashes: Set<ULong> by tackLazyVal {
 
 private fun calculateSignatureHash(fn: IrMemberFunction): ULong {
     // TODO: this is totally preliminary, needs to be redone to account for ultra low collision rate (and performance?)
-    var signatureString = fn.declaredOn.toStringForSignature()
+    var signatureString = fn.ownerBaseType.toStringForSignature()
     fn.parameters.forEach {
         signatureString += it.type.toStringForSignature()
     }

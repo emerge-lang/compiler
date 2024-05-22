@@ -1,16 +1,11 @@
 package io.github.tmarsteel.emerge.backend.llvm.jna;
 
 import com.sun.jna.*;
-import com.sun.jna.ptr.IntByReference;
-import com.sun.jna.ptr.NativeLongByReference;
-import com.sun.jna.ptr.PointerByReference;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import com.sun.jna.ptr.*;
+import org.jetbrains.annotations.*;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Map;
-import java.util.Objects;
+import java.nio.file.*;
+import java.util.*;
 
 /**
  * LLVM C interface functions mapped for LLVM-18 using JNA.
@@ -143,6 +138,8 @@ public class Llvm {
 
     /** see Core.h */
     public static native @NotNull LlvmModuleRef LLVMModuleCreateWithNameInContext(@NotNull String moduleId, @NotNull LlvmContextRef context);
+
+    public static native @NotNull LlvmContextRef LLVMGetModuleContext(@NotNull LlvmModuleRef module);
 
     /** see Core.h */
     public static native @LlvmBool int LLVMPrintModuleToFile(LlvmModuleRef module, String filename, @Out PointerByReference errorMessage);
@@ -344,6 +341,11 @@ public class Llvm {
     );
 
     /** see Core.h */
+    public static native void LLVMSetCurrentDebugLocation2(@NotNull LlvmBuilderRef builder, LlvmMetadataRef location);
+
+    public static native void LLVMSetInstDebugLocation(@NotNull LlvmBuilderRef builder, @NotNull LlvmValueRef instruction);
+
+    /** see Core.h */
     public static native @Nullable LlvmValueRef LLVMIsATerminatorInst(@NotNull LlvmValueRef inst);
 
     /** see Core.h */
@@ -450,4 +452,81 @@ public class Llvm {
      *              for adding to the parameters
      */
     public static native void LLVMAddAttributeAtIndex(@NotNull LlvmValueRef functionValue, int index, @NotNull LlvmAttributeRef attribute);
+
+    /** see DebugInfo.h */
+    public static native @NotNull LlvmDiBuilderRef LLVMCreateDIBuilder(@NotNull LlvmModuleRef module);
+
+    /** see DebugInfo.h */
+    public static native void LLVMDIBuilderFinalize(@NotNull LlvmDiBuilderRef diBuilder);
+
+    /** see DebugInfo.h */
+    public static native void LLVMDisposeDIBuilder(@NotNull LlvmDiBuilderRef diBuilder);
+
+    /** see DebugInfo.h */
+    public static native @NotNull LlvmMetadataRef LLVMDIBuilderCreateCompileUnit(
+            @NotNull LlvmDiBuilderRef builder,
+            @NotNull LlvmDwarfSourceLanguage lang,
+            @NotNull LlvmMetadataRef file,
+            byte[] producer,
+            @NotNull @ArraySizeOf("producer") NativeLong producerLen,
+            @LlvmBool int isOptimized,
+            byte[] flags,
+            @NotNull @ArraySizeOf("flags") NativeLong flagsLen,
+            @Unsigned int runtimeVer,
+            byte[] splitName,
+            @NotNull @ArraySizeOf("splitName") NativeLong splitNameLen,
+            @NotNull LlvmDwarfEmissionKind kind,
+            @Unsigned int DWOId,
+            @LlvmBool int splitDebugInlining,
+            @LlvmBool int DebugInfoForProfiling,
+            byte[] sysRoot,
+            @NotNull @ArraySizeOf("sysRoot") NativeLong sysRootLen,
+            byte[] sdk,
+            @NotNull @ArraySizeOf("sdkLen") NativeLong sdkLen
+    );
+
+    /** see DebugInfo.h */
+    public static native @NotNull LlvmMetadataRef LLVMDIBuilderCreateFile(
+            @NotNull LlvmDiBuilderRef builder,
+            @NotNull byte[] filename,
+            @NotNull @ArraySizeOf("filename") NativeLong filenameLen,
+            @NotNull byte[] directory,
+            @NotNull @ArraySizeOf("directory") NativeLong directoryLen
+    );
+
+    /** see DebugInfo.h */
+    public static native @NotNull LlvmMetadataRef LLVMDIBuilderCreateSubroutineType(
+            @NotNull LlvmDiBuilderRef builderRef,
+            @NotNull LlvmMetadataRef file,
+            @NotNull NativePointerArray<LlvmMetadataRef> parameterTypes,
+            @ArraySizeOf("parameterTypes") int numParameterTypes,
+            int flags
+    );
+
+    /** see DebugInfo.h */
+    public static native @NotNull LlvmMetadataRef LLVMDIBuilderCreateFunction(
+            @NotNull LlvmDiBuilderRef builder,
+            @NotNull LlvmMetadataRef scope,
+            @NotNull byte[] name,
+            @NotNull @ArraySizeOf("name") NativeLong nameLen,
+            byte[] linkageName,
+            @NotNull @ArraySizeOf("name") NativeLong linkageNameLen,
+            @NotNull LlvmMetadataRef file,
+            @Unsigned int lineNo,
+            @NotNull LlvmMetadataRef type,
+            @LlvmBool int isLocalToUnit,
+            @LlvmBool int isDefinition,
+            @Unsigned int scopeLine,
+            @Unsigned int flags,
+            @LlvmBool int isOptimized
+    );
+
+    /** see DebugInfo.h */
+    public static native @NotNull LlvmMetadataRef LLVMDIBuilderCreateDebugLocation(
+            @NotNull LlvmContextRef context,
+            @Unsigned int line,
+            @Unsigned int column,
+            @NotNull LlvmMetadataRef scope,
+            @Nullable LlvmMetadataRef inlinedAt
+    );
 }

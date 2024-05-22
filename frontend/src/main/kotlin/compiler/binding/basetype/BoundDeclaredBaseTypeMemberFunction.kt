@@ -183,5 +183,6 @@ private class IrMemberFunctionImpl(
     override val body: IrCodeChunk? by lazy { boundFn.body?.toBackendIr() }
     override val overrides: Set<IrMemberFunction> by lazy { (boundFn.overrides ?: emptyList()).map { it.toBackendIr() }.toSet() }
     override val supportsDynamicDispatch = boundFn.isVirtual
-    override val declaredOn by lazy { boundFn.declaredOnType.toBackendIr() }
+    override val ownerBaseType by lazy { boundFn.declaredOnType.toBackendIr() }
+    override val declaredAt = boundFn.declaredAt
 }

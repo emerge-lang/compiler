@@ -55,4 +55,5 @@ private class IrTopLevelFunctionImpl(
     override val returnType by lazy { boundFn.returnType!!.toBackendIr() }
     override val isExternalC = boundFn.attributes.externalAttribute?.ffiName?.value == "C"
     override val body: IrCodeChunk? by lazy { boundFn.body?.toBackendIr() }
+    override val declaredAt = boundFn.declaredAt
 }

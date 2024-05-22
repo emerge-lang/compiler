@@ -18,6 +18,8 @@ open class LlvmContext(val target: LlvmTarget) : AutoCloseable {
     val rawPointer = Llvm.LLVMPointerTypeInContext(ref, 0)
     val globalsScope = NameScope("global")
 
+    val diBuilder = DiBuilder(module)
+
     fun <T : LlvmType> nullValue(type: T): LlvmConstant<T> = LlvmConstant(
         Llvm.LLVMConstNull(type.getRawInContext(this)),
         type,

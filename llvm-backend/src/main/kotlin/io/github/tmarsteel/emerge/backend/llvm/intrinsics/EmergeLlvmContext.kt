@@ -12,6 +12,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrIntrinsicType
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
+import io.github.tmarsteel.emerge.backend.api.ir.IrSourceFile
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -27,6 +28,7 @@ import io.github.tmarsteel.emerge.backend.llvm.codegen.emitWrite
 import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
+import io.github.tmarsteel.emerge.backend.llvm.dsl.DebugInfoScope
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
@@ -261,6 +263,7 @@ class EmergeLlvmContext(
     }
 
     private var structConstructorsRegistered: Boolean = false
+    private var diCompileUnitCache = IdentityHashMap<IrSourceFile, DebugInfoScope.CompileUnit>()
     fun defineFunctionBody(fn: IrFunction) {
         if (getInstrinsic(fn) != null) {
             return
@@ -287,7 +290,12 @@ class EmergeLlvmContext(
             }
         }
 
-        BasicBlockBuilder.fillBody(this, llvmFunction) {
+        val diFile = diCompileUnitCache.computeIfAbsent(fn.declaredAt.file) { location ->
+            diBuilder.createCompileUnit(diBuilder.createFile(location.path))
+        }
+        val diFunction = diBuilder.createFunction(diFile, fn.canonicalName, fn.declaredAt.lineNumber)
+
+        BasicBlockBuilder.fillBody(this, llvmFunction, diFunction) {
             fn.parameters
                 .filterNot { it.isBorrowed }
                 .forEach { param ->
@@ -446,7 +454,7 @@ class EmergeLlvmContext(
     private fun getInstrinsic(fn: IrFunction): LlvmFunction<*>? {
         var intrinsic: LlvmFunction<*>? = null
         if (fn is IrBaseTypeFunction) {
-            val autoboxer = fn.declaredOn.autoboxer
+            val autoboxer = fn.ownerBaseType.autoboxer
             if (autoboxer is Autoboxer.UserFacingBoxed) {
                 if (fn.canonicalName.simpleName == "\$constructor") {
                     intrinsic = autoboxer.getConstructorIntrinsic(this, fn.canonicalName)
@@ -502,11 +510,11 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<in EmergeLlvmCont
 private val IrFunction.isDestructorOnValueOrBoxType: Boolean get() {
     return this is IrMemberFunction
         && this.canonicalName.simpleName == "\$destructor"
-        && this.declaredOn.autoboxer != null
+        && this.ownerBaseType.autoboxer != null
 }
 
 private val IrFunction.isUserFacingBoxDestructor: Boolean get() {
     return this is IrMemberFunction
         && this.canonicalName.simpleName == "\$destructor"
-        && this.declaredOn.autoboxer is Autoboxer.UserFacingBoxed
+        && this.ownerBaseType.autoboxer is Autoboxer.UserFacingBoxed
 }

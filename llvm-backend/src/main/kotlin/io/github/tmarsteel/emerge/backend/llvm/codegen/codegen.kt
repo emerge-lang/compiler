@@ -27,6 +27,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStringLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrUpdateSourceLocationStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
@@ -165,6 +166,10 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             // insert its own, which calls free on its own terms and types
             requireNotAutoboxed(code.value, "deallocating")
             call(context.freeFunction, listOf(code.value.declaration.llvmValue))
+            return ExecutableResult.ExecutionOngoing
+        }
+        is IrUpdateSourceLocationStatement -> {
+            markSourceLocation(code.lineNumber, code.columnNumber)
             return ExecutableResult.ExecutionOngoing
         }
     }

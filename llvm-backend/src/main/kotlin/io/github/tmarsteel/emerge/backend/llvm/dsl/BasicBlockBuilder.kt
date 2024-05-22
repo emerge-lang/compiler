@@ -8,6 +8,7 @@ import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmBuilderRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmValueRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
+import java.util.Stack
 
 interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     val context: C
@@ -37,6 +38,10 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun isNotNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
     fun isEq(pointerA: LlvmValue<LlvmPointerType<*>>, pointerB: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
     fun not(value: LlvmValue<LlvmBooleanType>): LlvmValue<LlvmBooleanType>
+
+    fun enterDebugScope(scope: DebugInfoScope)
+    fun leaveDebugScope()
+    fun markSourceLocation(line: UInt, column: UInt)
 
     /**
      * @param code will be executed when this scope is closed, either on a function-terminating instruction
@@ -103,7 +108,12 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     }
 
     companion object {
-        fun <C : LlvmContext, R : LlvmType> fillBody(context: C, function: LlvmFunction<R>, code: CodeGenerator<C, R>) {
+        fun <C : LlvmContext, R : LlvmType> fillBody(
+            context: C,
+            function: LlvmFunction<R>,
+            diFunction: DebugInfoScope.Function,
+            code: CodeGenerator<C, R>
+        ) {
             val rawFn = function.address.raw
             val entryBlock = Llvm.LLVMAppendBasicBlockInContext(context.ref, rawFn, "entry")
 
@@ -112,6 +122,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
             Llvm.LLVMPositionBuilderAtEnd(builder, entryBlock)
             try {
                 val dslBuilder = BasicBlockBuilderImpl<C, R>(context, rawFn, builder, NameScope("tmp"), scopeTracker)
+                dslBuilder.enterDebugScope(diFunction)
                 dslBuilder.code()
             }
             finally {
@@ -136,6 +147,8 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     val tmpVars: NameScope,
     val scopeTracker: ScopeTracker<C>,
 ) : BasicBlockBuilder<C, R> {
+
+    private val debugScopes = Stack<DebugInfoScope>()
 
     override fun <BasePointee : LlvmType> getelementptr(
         base: LlvmValue<LlvmPointerType<out BasePointee>>,
@@ -283,6 +296,23 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     override fun not(value: LlvmValue<LlvmBooleanType>): LlvmValue<LlvmBooleanType> {
         val inst = Llvm.LLVMBuildNot(builder, value.raw, tmpVars.next())
         return LlvmValue(inst, LlvmBooleanType)
+    }
+
+    override fun enterDebugScope(scope: DebugInfoScope) {
+        debugScopes.push(scope)
+    }
+
+    override fun leaveDebugScope() {
+        debugScopes.pop()
+    }
+
+    override fun markSourceLocation(line: UInt, column: UInt) {
+        val location = context.diBuilder.createDebugLocation(
+            debugScopes.peek().ref,
+            line,
+            column,
+        )
+        Llvm.LLVMSetCurrentDebugLocation2(builder, location)
     }
 
     override fun defer(code: NonTerminalCodeGenerator<C>) {

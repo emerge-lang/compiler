@@ -392,7 +392,8 @@ private class IrDefaultConstructorImpl(
     override val parameters = ctor.parameters.parameters.map { it.backendIrDeclaration }
     override val returnType = IrClassSimpleType(ctor.classDef)
     override val isExternalC = false
-    override val declaredOn get() = ctor.classDef.toBackendIr()
+    override val ownerBaseType get() = ctor.classDef.toBackendIr()
+    override val declaredAt = ctor.declaredAt
 }
 
 private class IrAllocateObjectExpressionImpl(val classDef: BoundBaseType) : IrAllocateObjectExpression {

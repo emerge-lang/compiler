@@ -7,6 +7,7 @@ import java.lang.annotation.*;
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.SOURCE)
+@Documented
 @Unsigned
 public @interface ArraySizeOf {
     /** name of the parameter that is the pointer to the first array element */

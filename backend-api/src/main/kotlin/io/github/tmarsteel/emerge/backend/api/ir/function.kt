@@ -15,10 +15,12 @@ interface IrFunction {
      * * is abstract (declared on interface without body)
      */
     val body: IrCodeChunk?
+
+    val declaredAt: IrSourceLocation
 }
 
 interface IrBaseTypeFunction : IrFunction {
-    val declaredOn: IrBaseType
+    val ownerBaseType: IrBaseType
 }
 
 interface IrConstructor : IrBaseTypeFunction {

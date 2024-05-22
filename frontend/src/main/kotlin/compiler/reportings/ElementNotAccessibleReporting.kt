@@ -11,7 +11,7 @@ class ElementNotAccessibleReporting(
 ) : Reporting(
     Level.ERROR,
     run {
-        "${element.toStringForErrorMessage()} is $visibility, cannot be accessed from ${accessAt.file.packageName}"
+        "${element.toStringForErrorMessage()} is $visibility, cannot be accessed from ${accessAt.sourceFile.packageName}"
     },
     accessAt,
 ) {

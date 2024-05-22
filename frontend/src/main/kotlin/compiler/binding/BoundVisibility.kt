@@ -44,7 +44,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
     class FileScope(override val context: CTContext, override val astNode: AstVisibility) : BoundVisibility() {
         val lexerFile: SourceFile get() = context.sourceFile.lexerFile
         override fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility): Collection<Reporting> {
-            if (lexerFile == accessAt.file) {
+            if (lexerFile == accessAt.sourceFile) {
                 return emptySet()
             }
 
@@ -77,7 +77,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
         }
 
         override fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility): Collection<Reporting> {
-            if (packageName.containsOrEquals(accessAt.file.packageName)) {
+            if (packageName.containsOrEquals(accessAt.sourceFile.packageName)) {
                 return emptySet()
             }
 

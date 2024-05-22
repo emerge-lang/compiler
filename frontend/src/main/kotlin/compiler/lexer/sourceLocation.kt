@@ -20,6 +20,8 @@ package compiler.lexer
 
 import compiler.reportings.illustrateSourceLocations
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
+import io.github.tmarsteel.emerge.backend.api.ir.IrSourceFile
+import io.github.tmarsteel.emerge.backend.api.ir.IrSourceLocation
 import org.apache.commons.io.input.BOMInputStream
 import java.nio.charset.Charset
 import java.nio.file.Files
@@ -80,6 +82,7 @@ interface SourceFile {
     val content: String
     val packageName: CanonicalElementName.Package
     val name: String
+    val asBackendIr: IrSourceFile
 
     companion object {
         const val EXTENSION = "em"
@@ -93,6 +96,9 @@ class ClasspathSourceFile(
 ) : SourceFile {
     override val name: String = pathOnClasspath.name
     override fun toString() = "classpath:/$pathOnClasspath"
+    override val asBackendIr = object : IrSourceFile {
+        override val path = pathOnClasspath
+    }
 }
 
 class DiskSourceFile(
@@ -108,6 +114,9 @@ class DiskSourceFile(
 
     override val name: String = sourceFilePath.name
     override val packageName = CanonicalElementName.Package(sourceSet.moduleName.components + (pathRelativeToSourceSet.parent?.segments() ?: emptyList()))
+    override val asBackendIr = object : IrSourceFile {
+        override val path = sourceFilePath
+    }
 
     override fun toString(): String = "${sourceSet.moduleName} $ ${pathRelativeToSourceSet}"
 }
@@ -121,19 +130,22 @@ class MemorySourceFile(
     override val content: String
 ) : SourceFile {
     override fun toString() = "memory:$name"
+    override val asBackendIr = object : IrSourceFile {
+        override val path = Path.of(toString())
+    }
 }
 
 /**
  * Describes a location within a source text (line + column)
  */
 data class Span(
-    val file: SourceFile,
+    val sourceFile: SourceFile,
     val fromLineNumber: UInt,
     val fromColumnNumber: UInt,
     val toLineNumber: UInt,
     val toColumnNumber: UInt,
     val generated: Boolean = false,
-) {
+) : IrSourceLocation {
     constructor(sourceFile: SourceFile, start: SourceSpot, end: SourceSpot) : this(
         sourceFile,
         start.lineNumber,
@@ -153,9 +165,9 @@ data class Span(
     }
 
     operator fun rangeTo(other: Span): Span {
-        check(file == other.file)
+        check(sourceFile == other.sourceFile)
         return Span(
-            file,
+            sourceFile,
             this.fromLineNumber.coerceAtMost(other.fromLineNumber),
             this.fromColumnNumber.coerceAtMost(other.fromColumnNumber),
             this.toLineNumber.coerceAtLeast(other.toLineNumber),
@@ -164,7 +176,12 @@ data class Span(
         )
     }
 
-    val fileLineColumnText: String get() = "$file on line $fromLineNumber at column $fromColumnNumber"
+    val fileLineColumnText: String get() = "$sourceFile on line $fromLineNumber at column $fromColumnNumber"
+
+    /* impl IrSourceFile */
+    override val file get()= sourceFile.asBackendIr
+    override val lineNumber = fromLineNumber
+    override val columnNumber = fromColumnNumber
 
     companion object {
         val UNKNOWN = Span(MemorySourceFile("UNKNOWN", CanonicalElementName.Package(listOf("unknown")), ""), 1u, 1u, 1u, 1u)

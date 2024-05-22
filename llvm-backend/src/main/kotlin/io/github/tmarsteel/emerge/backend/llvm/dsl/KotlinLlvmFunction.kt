@@ -1,12 +1,16 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmDwarfEmissionKind
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmValueRef
+import java.nio.file.Path
 import kotlin.reflect.KProperty
 
 class KotlinLlvmFunction<C : LlvmContext, R : LlvmType> private constructor(
     val name: String,
+    val declaredOn: StackTraceElement,
     val returnType: R,
     val definition: DefinitionReceiver<C, R>.() -> Unit
 ) {
@@ -23,6 +27,8 @@ class KotlinLlvmFunction<C : LlvmContext, R : LlvmType> private constructor(
         definitionReceiver.attributes.forEach(function::addAttributeToFunction)
         return DeclaredInContextImpl(
             context,
+            name,
+            declaredOn,
             definitionReceiver.parameters,
             function,
             definitionReceiver.bodyGenerator,
@@ -54,7 +60,10 @@ class KotlinLlvmFunction<C : LlvmContext, R : LlvmType> private constructor(
             name: String,
             returnType: R,
             definition: DefinitionReceiver<C, R>.() -> Unit
-        ): KotlinLlvmFunction<C, R> = KotlinLlvmFunction(name, returnType, definition)
+        ): KotlinLlvmFunction<C, R> {
+            val declaredOn = Thread.currentThread().stackTrace[2]
+            return KotlinLlvmFunction(name, declaredOn, returnType, definition)
+        }
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
         fun <R : LlvmType> callIntrinsic(fn: KotlinLlvmFunction<in EmergeLlvmContext, out R>, args: List<LlvmValue<*>>): LlvmValue<R> {
@@ -123,6 +132,8 @@ private class DefinitionReceiverImpl<C : LlvmContext, R : LlvmType> : KotlinLlvm
 
 private class DeclaredInContextImpl<C : LlvmContext, R : LlvmType>(
     val context: C,
+    val name: String,
+    val declaredOn: StackTraceElement,
     val parameterDelegates: List<ParameterDelegateImpl<*>>,
     override val function: LlvmFunction<R>,
     val bodyGenerator: CodeGenerator<C, R>,
@@ -131,6 +142,19 @@ private class DeclaredInContextImpl<C : LlvmContext, R : LlvmType>(
         parameterDelegates.forEach {
             it.setFunctionInstance(function.address.raw)
         }
-        BasicBlockBuilder.fillBody(context, function, bodyGenerator)
+
+        val canonicalPackageName = CanonicalElementName.Package(
+            name.split('.')
+                .drop(1)
+                .takeUnless { it.isEmpty() }
+                ?: listOf("emerge", "platform")
+        )
+        val canonicalName = CanonicalElementName.Function(canonicalPackageName, name.split('.').last())
+
+        val diFile = context.diBuilder.createFile(Path.of(declaredOn.fileName ?: "<unknown file>"))
+        val diCompileUnit = context.diBuilder.createCompileUnit(diFile, LlvmDwarfEmissionKind.None)
+        val diFunction = context.diBuilder.createFunction(diCompileUnit, canonicalName, declaredOn.lineNumber.toUInt())
+
+        BasicBlockBuilder.fillBody(context, function, diFunction, bodyGenerator)
     }
 }

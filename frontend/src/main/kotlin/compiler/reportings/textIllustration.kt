@@ -43,15 +43,15 @@ fun illustrateHints(hints: Collection<SourceHint>): String {
 
     val hintGroups = hints
         .filter { it.relativeOrderMatters }
-        .groupRunsBy { it.span.file }
+        .groupRunsBy { it.span.sourceFile }
         .map { (file, hints) -> Pair(file, hints.toMutableList()) }
         .toMutableList()
     hints
         .filterNot { it.relativeOrderMatters }
         .forEach { unorderedHint ->
-            var lastGroupOfFile = hintGroups.lastOrNull { it.first == unorderedHint.span.file }
+            var lastGroupOfFile = hintGroups.lastOrNull { it.first == unorderedHint.span.sourceFile }
             if (lastGroupOfFile == null) {
-               lastGroupOfFile = Pair(unorderedHint.span.file, ArrayList())
+               lastGroupOfFile = Pair(unorderedHint.span.sourceFile, ArrayList())
                hintGroups.add(lastGroupOfFile)
             }
             lastGroupOfFile.second.add(unorderedHint)
