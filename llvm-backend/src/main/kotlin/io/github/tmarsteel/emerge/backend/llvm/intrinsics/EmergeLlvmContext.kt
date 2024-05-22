@@ -4,9 +4,9 @@ import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseTypeFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
-import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrGlobalVariable
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntrinsicType
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
@@ -15,7 +15,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSourceFile
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
-import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.bodyDefined
@@ -28,7 +27,7 @@ import io.github.tmarsteel.emerge.backend.llvm.codegen.emitWrite
 import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
-import io.github.tmarsteel.emerge.backend.llvm.dsl.DebugInfoScope
+import io.github.tmarsteel.emerge.backend.llvm.dsl.DiBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
@@ -116,6 +115,13 @@ class EmergeLlvmContext(
 
     private val emergeStructs = ArrayList<EmergeClassType>()
     private val kotlinLlvmFunctions: MutableMap<KotlinLlvmFunction<in EmergeLlvmContext, *>, KotlinLlvmFunction.DeclaredInContext<in EmergeLlvmContext, *>> = IdentityHashMap()
+
+    private var diBuilderCache = IdentityHashMap<IrSourceFile, DiBuilder>()
+    private val IrSourceFile.diBuilder: DiBuilder get() {
+        return diBuilderCache.computeIfAbsent(this) { location ->
+            DiBuilder(module, location.path)
+        }
+    }
 
     fun registerClass(clazz: IrClass) {
         if (clazz.rawLlvmRef != null) {
@@ -263,7 +269,6 @@ class EmergeLlvmContext(
     }
 
     private var structConstructorsRegistered: Boolean = false
-    private var diCompileUnitCache = IdentityHashMap<IrSourceFile, DebugInfoScope.CompileUnit>()
     fun defineFunctionBody(fn: IrFunction) {
         if (getInstrinsic(fn) != null) {
             return
@@ -290,12 +295,11 @@ class EmergeLlvmContext(
             }
         }
 
-        val diFile = diCompileUnitCache.computeIfAbsent(fn.declaredAt.file) { location ->
-            diBuilder.createCompileUnit(diBuilder.createFile(location.path))
-        }
-        val diFunction = diBuilder.createFunction(diFile, fn.canonicalName, fn.declaredAt.lineNumber)
+        val diBuilder = fn.declaredAt.file.diBuilder
+        val diFunction = diBuilder.createFunction(fn.canonicalName, fn.declaredAt.lineNumber)
+        llvmFunction.setDiFunction(diFunction)
 
-        BasicBlockBuilder.fillBody(this, llvmFunction, diFunction) {
+        BasicBlockBuilder.fillBody(this, llvmFunction, diBuilder, diFunction) {
             fn.parameters
                 .filterNot { it.isBorrowed }
                 .forEach { param ->
@@ -371,6 +375,14 @@ class EmergeLlvmContext(
         }
 
         super.complete()
+
+        diBuilderCache.values.forEach { it.diFinalize() }
+    }
+
+    override fun close() {
+        diBuilderCache.values.forEach { it.close() }
+        diBuilderCache.clear()
+        super.close()
     }
 
     /**

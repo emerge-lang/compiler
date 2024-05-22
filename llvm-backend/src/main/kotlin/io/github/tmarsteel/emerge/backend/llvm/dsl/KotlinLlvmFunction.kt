@@ -151,10 +151,9 @@ private class DeclaredInContextImpl<C : LlvmContext, R : LlvmType>(
         )
         val canonicalName = CanonicalElementName.Function(canonicalPackageName, name.split('.').last())
 
-        val diFile = context.diBuilder.createFile(Path.of(declaredOn.fileName ?: "<unknown file>"))
-        val diCompileUnit = context.diBuilder.createCompileUnit(diFile, LlvmDwarfEmissionKind.None)
-        val diFunction = context.diBuilder.createFunction(diCompileUnit, canonicalName, declaredOn.lineNumber.toUInt())
+        val diBuilder = DiBuilder(context.module, Path.of(declaredOn.fileName ?: "<unknown file>"), LlvmDwarfEmissionKind.None)
+        val diFunction = diBuilder.createFunction(canonicalName, declaredOn.lineNumber.toUInt())
 
-        BasicBlockBuilder.fillBody(context, function, diFunction, bodyGenerator)
+        BasicBlockBuilder.fillBody(context, function, diBuilder, diFunction, bodyGenerator)
     }
 }

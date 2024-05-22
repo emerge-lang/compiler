@@ -11,34 +11,33 @@ import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
 import java.nio.file.Path
 
 class DiBuilder(
-    moduleRef: LlvmModuleRef
+    moduleRef: LlvmModuleRef,
+    filePath: Path,
+    emissionKind: LlvmDwarfEmissionKind = LlvmDwarfEmissionKind.Full,
+    forProfiling: Boolean = false,
 ) : AutoCloseable {
     private val ref = Llvm.LLVMCreateDIBuilder(moduleRef)
     private val contextRef = Llvm.LLVMGetModuleContext(moduleRef)
 
-    fun createFile(path: Path): DebugInfoScope.File {
-        val dirBytes = (path.parent?.toString() ?: "").toByteArray(Charsets.UTF_8)
-        val filenameBytes = path.fileName.toString().toByteArray(Charsets.UTF_8)
-        val ref = Llvm.LLVMDIBuilderCreateFile(
+    val file: DebugInfoScope.File
+    val compileUnit: DebugInfoScope.CompileUnit
+
+    init {
+        val dirBytes = (filePath.parent?.toString() ?: "").toByteArray(Charsets.UTF_8)
+        val filenameBytes = filePath.fileName.toString().toByteArray(Charsets.UTF_8)
+        val fileRef = Llvm.LLVMDIBuilderCreateFile(
             ref,
             filenameBytes,
             NativeLong(filenameBytes.size.toLong()),
             dirBytes,
             NativeLong(dirBytes.size.toLong()),
         )
+        file = DebugInfoScope.File(fileRef)
 
-        return DebugInfoScope.File(ref)
-    }
-
-    fun createCompileUnit(
-        file: DebugInfoScope.File,
-        emissionKind: LlvmDwarfEmissionKind = LlvmDwarfEmissionKind.LineTablesOnly,
-        forProfiling: Boolean = false,
-    ): DebugInfoScope.CompileUnit {
-        val ref = Llvm.LLVMDIBuilderCreateCompileUnit(
+        val compileUnitRef = Llvm.LLVMDIBuilderCreateCompileUnit(
             ref,
             LlvmDwarfSourceLanguage.C,
-            file.ref,
+            fileRef,
             PRODUCER, NativeLong(PRODUCER.size.toLong()),
             0,
             null, ZERO_WORD,
@@ -51,18 +50,19 @@ class DiBuilder(
             null, ZERO_WORD,
             null, ZERO_WORD,
         )
-        return DebugInfoScope.CompileUnit(ref, file)
+        compileUnit = DebugInfoScope.CompileUnit(compileUnitRef)
     }
 
     fun createFunction(
-        compileUnit: DebugInfoScope.CompileUnit,
         name: CanonicalElementName.Function,
         onLineNumber: UInt
     ): DebugInfoScope.Function {
+        check(!closed)
+
         val type = NativePointerArray.allocate(0, LlvmMetadataRef::class.java).use { parameterTypesArray ->
             Llvm.LLVMDIBuilderCreateSubroutineType(
                 ref,
-                compileUnit.file.ref,
+                file.ref,
                 parameterTypesArray,
                 parameterTypesArray.length,
                 0,
@@ -76,7 +76,7 @@ class DiBuilder(
             nameBytes,
             NativeLong(nameBytes.size.toLong()),
             null, ZERO_WORD,
-            compileUnit.file.ref,
+            file.ref,
             onLineNumber.toInt(),
             type,
             1, // TODO: defer from visibility
@@ -90,21 +90,38 @@ class DiBuilder(
     }
 
     fun createDebugLocation(
-        scope: LlvmMetadataRef,
+        scope: DebugInfoScope,
         line: UInt,
         column: UInt,
     ): LlvmMetadataRef {
+        check(!closed)
+
         return Llvm.LLVMDIBuilderCreateDebugLocation(
             contextRef,
             line.toInt(),
             column.toInt(),
-            scope,
+            scope.ref,
             null,
         )
     }
 
-    override fun close() {
+    private var finalized = false
+    fun diFinalize() {
+        if (finalized) {
+            return
+        }
+        finalized = true
         Llvm.LLVMDIBuilderFinalize(ref)
+    }
+
+    private var closed = false
+    override fun close() {
+        if (closed) {
+            return
+        }
+        closed = true
+
+        diFinalize()
         Llvm.LLVMDisposeDIBuilder(ref)
     }
 

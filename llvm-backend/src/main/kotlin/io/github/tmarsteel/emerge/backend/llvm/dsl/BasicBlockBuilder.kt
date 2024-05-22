@@ -111,6 +111,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
         fun <C : LlvmContext, R : LlvmType> fillBody(
             context: C,
             function: LlvmFunction<R>,
+            diBuilder: DiBuilder,
             diFunction: DebugInfoScope.Function,
             code: CodeGenerator<C, R>
         ) {
@@ -121,7 +122,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
             val builder = Llvm.LLVMCreateBuilderInContext(context.ref)
             Llvm.LLVMPositionBuilderAtEnd(builder, entryBlock)
             try {
-                val dslBuilder = BasicBlockBuilderImpl<C, R>(context, rawFn, builder, NameScope("tmp"), scopeTracker)
+                val dslBuilder = BasicBlockBuilderImpl<C, R>(context, diBuilder, rawFn, builder, NameScope("tmp"), scopeTracker)
                 dslBuilder.enterDebugScope(diFunction)
                 dslBuilder.code()
             }
@@ -142,6 +143,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
 
 private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     override val context: C,
+    val diBuilder: DiBuilder,
     val owningFunction: LlvmValueRef,
     override val builder: LlvmBuilderRef,
     val tmpVars: NameScope,
@@ -307,8 +309,8 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun markSourceLocation(line: UInt, column: UInt) {
-        val location = context.diBuilder.createDebugLocation(
-            debugScopes.peek().ref,
+        val location = diBuilder.createDebugLocation(
+            debugScopes.peek(),
             line,
             column,
         )
@@ -320,7 +322,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun <SubR> inSubScope(code: BasicBlockBuilder<C, R>.() -> SubR): SubR {
-        val subBuilder = BasicBlockBuilderImpl<C, R>(context, owningFunction, builder, tmpVars, scopeTracker.createSubScope())
+        val subBuilder = BasicBlockBuilderImpl<C, R>(context, diBuilder, owningFunction, builder, tmpVars, scopeTracker.createSubScope())
         val returnValue = subBuilder.code()
 
         val mostRecentInstruction = Llvm.LLVMGetLastInstruction(Llvm.LLVMGetInsertBlock(builder))
@@ -366,11 +368,11 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         }
 
         Llvm.LLVMPositionBuilderAtEnd(builder, thenBlock)
-        val thenBranchBuilder = BranchImpl<C, R>(context, owningFunction, builder, tmpVars, scopeTracker.createSubScope(), continueBlock)
+        val thenBranchBuilder = BranchImpl<C, R>(context, diBuilder, owningFunction, builder, tmpVars, scopeTracker.createSubScope(), continueBlock)
         thenBranchBuilder.ifTrue()
 
         if (ifFalse != null) {
-            val elseBranchBuilder = BranchImpl<C, R>(context, owningFunction, builder, tmpVars, scopeTracker.createSubScope(), continueBlock)
+            val elseBranchBuilder = BranchImpl<C, R>(context, diBuilder, owningFunction, builder, tmpVars, scopeTracker.createSubScope(), continueBlock)
             Llvm.LLVMPositionBuilderAtEnd(builder, elseBlock)
             elseBranchBuilder.ifFalse()
         }
@@ -391,11 +393,11 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         Llvm.LLVMBuildBr(builder, headerBlock)
 
         Llvm.LLVMPositionBuilderAtEnd(builder, headerBlock)
-        val headerDslBuilder = LoopImpl<C, R>(context, owningFunction, builder, tmpVars, scopeTracker.createSubScope(), headerBlock, bodyBlock, continueBlock)
+        val headerDslBuilder = LoopImpl<C, R>(context, diBuilder, owningFunction, builder, tmpVars, scopeTracker.createSubScope(), headerBlock, bodyBlock, continueBlock)
         headerDslBuilder.header()
 
         Llvm.LLVMPositionBuilderAtEnd(builder, bodyBlock)
-        val bodyDslBuilder = LoopImpl<C, R>(context, owningFunction, builder, tmpVars, scopeTracker.createSubScope(), headerBlock, bodyBlock, continueBlock)
+        val bodyDslBuilder = LoopImpl<C, R>(context, diBuilder, owningFunction, builder, tmpVars, scopeTracker.createSubScope(), headerBlock, bodyBlock, continueBlock)
         bodyDslBuilder.body()
 
         Llvm.LLVMPositionBuilderAtEnd(builder, continueBlock)
@@ -405,12 +407,13 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
 
 private class BranchImpl<C : LlvmContext, R : LlvmType>(
     context: C,
+    diBuilder: DiBuilder,
     owningFunction: LlvmValueRef,
     builder: LlvmBuilderRef,
     tmpVars: NameScope,
     scopeTracker: ScopeTracker<C>,
     val continueBlock: LlvmBasicBlockRef,
-) : BasicBlockBuilderImpl<C, R>(context, owningFunction, builder, tmpVars, scopeTracker), BasicBlockBuilder.Branch<C, R> {
+) : BasicBlockBuilderImpl<C, R>(context, diBuilder, owningFunction, builder, tmpVars, scopeTracker), BasicBlockBuilder.Branch<C, R> {
     override fun concludeBranch(): BasicBlockBuilder.Termination {
         scopeTracker.runLocalDeferredCode()
         Llvm.LLVMBuildBr(builder, continueBlock)
@@ -420,6 +423,7 @@ private class BranchImpl<C : LlvmContext, R : LlvmType>(
 
 private class LoopImpl<C : LlvmContext, R : LlvmType>(
     context: C,
+    diBuilder: DiBuilder,
     owningFunction: LlvmValueRef,
     builder: LlvmBuilderRef,
     tmpVars: NameScope,
@@ -427,7 +431,7 @@ private class LoopImpl<C : LlvmContext, R : LlvmType>(
     val headerBlockRef: LlvmBasicBlockRef,
     val bodyBlockRef: LlvmBasicBlockRef,
     val continueBlock: LlvmBasicBlockRef,
-) : BasicBlockBuilderImpl<C, R>(context, owningFunction, builder, tmpVars, scopeTracker), BasicBlockBuilder.LoopHeader<C, R>, BasicBlockBuilder.LoopBody<C, R> {
+) : BasicBlockBuilderImpl<C, R>(context, diBuilder, owningFunction, builder, tmpVars, scopeTracker), BasicBlockBuilder.LoopHeader<C, R>, BasicBlockBuilder.LoopBody<C, R> {
     override fun breakLoop(): BasicBlockBuilder.Termination {
         scopeTracker.runLocalDeferredCode()
         Llvm.LLVMBuildBr(builder, continueBlock)
