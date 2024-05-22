@@ -28,15 +28,14 @@ import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
+import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.handleCyclicInvocation
-import compiler.lexer.Span
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
-import io.github.tmarsteel.emerge.backend.api.ir.IrUpdateSourceLocationStatement
 import java.math.BigInteger
 
 class BoundCodeChunk(
@@ -205,11 +204,4 @@ private fun Collection<BoundExecutable<*>>.mapToBackendIrWithDebugLocations(): L
     }
 
     return irList
-}
-
-private class IrUpdateSourceLocationStatementImpl(
-    span: Span
-) : IrUpdateSourceLocationStatement {
-    override val lineNumber = span.lineNumber
-    override val columnNumber = span.columnNumber
 }

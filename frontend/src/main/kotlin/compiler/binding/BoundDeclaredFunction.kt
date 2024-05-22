@@ -9,6 +9,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
+import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
@@ -225,6 +226,7 @@ abstract class BoundDeclaredFunction(
             override fun toBackendIr(): IrCodeChunk {
                 val resultTemporary = IrCreateTemporaryValueImpl(expression.toBackendIrExpression())
                 return IrCodeChunkImpl(listOf(
+                    IrUpdateSourceLocationStatementImpl(expression.declaration.span),
                     resultTemporary,
                     object : IrReturnStatement {
                         override val value = IrTemporaryValueReferenceImpl(resultTemporary)
