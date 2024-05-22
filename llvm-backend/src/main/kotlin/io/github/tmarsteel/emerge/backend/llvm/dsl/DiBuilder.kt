@@ -72,7 +72,7 @@ class DiBuilder(
         val nameBytes = name.toString().toByteArray(Charsets.UTF_8)
         val ref = Llvm.LLVMDIBuilderCreateFunction(
             ref,
-            compileUnit.ref,
+            file.ref,
             nameBytes,
             NativeLong(nameBytes.size.toLong()),
             null, ZERO_WORD,

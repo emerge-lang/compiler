@@ -19,4 +19,8 @@ data class LlvmFunction<out R : LlvmType>(
         val attrRef = attribute.getRawInContext(contextRef)
         Llvm.LLVMAddAttributeAtIndex(address.raw, -1, attrRef)
     }
+
+    fun setDiFunction(diFn: DebugInfoScope.Function) {
+        Llvm.LLVMSetSubprogram(address.raw, diFn.ref)
+    }
 }
