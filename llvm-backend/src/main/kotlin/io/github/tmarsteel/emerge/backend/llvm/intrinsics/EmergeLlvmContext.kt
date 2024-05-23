@@ -41,8 +41,10 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmTarget
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmModuleFlagBehavior
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
@@ -368,6 +370,12 @@ class EmergeLlvmContext(
                 break
             }
         }
+
+        addModuleFlag(
+            LlvmModuleFlagBehavior.ERROR,
+            "Debug Info Version",
+            this.i32(Llvm.LLVMDebugMetadataVersion()).toMetadata(),
+        )
 
         super.complete()
 

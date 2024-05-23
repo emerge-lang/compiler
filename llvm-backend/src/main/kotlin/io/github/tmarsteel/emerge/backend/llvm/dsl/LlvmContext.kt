@@ -1,7 +1,10 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
+import com.sun.jna.NativeLong
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmLinkage
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmMetadataRef
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmModuleFlagBehavior
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmUnnamedAddr
 
@@ -42,6 +45,11 @@ open class LlvmContext(val target: LlvmTarget) : AutoCloseable {
         Llvm.LLVMSetUnnamedAddress(rawRef, LlvmUnnamedAddr.GLOBAL_UNNAMED_ADDR)
         Llvm.LLVMSetLinkage(rawRef, LlvmLinkage.PRIVATE)
         return allocation
+    }
+
+    fun addModuleFlag(behavior: LlvmModuleFlagBehavior, id: String, value: LlvmMetadataRef) {
+        val idBytes = id.toByteArray(Charsets.UTF_8)
+        Llvm.LLVMAddModuleFlag(module, behavior, idBytes, NativeLong(idBytes.size.toLong()), value)
     }
 
     open fun complete() {

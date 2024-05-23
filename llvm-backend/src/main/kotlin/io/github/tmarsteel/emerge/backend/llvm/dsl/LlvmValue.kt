@@ -2,6 +2,7 @@ package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmMetadataRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmValueKind
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmValueRef
@@ -14,6 +15,7 @@ open class LlvmValue<out Type : LlvmType>(
     val type: Type,
 ) {
     fun <NewT : LlvmType> reinterpretAs(type: NewT): LlvmValue<NewT> = LlvmValue(raw, type)
+    fun toMetadata(): LlvmMetadataRef = Llvm.LLVMValueAsMetadata(raw)
 }
 
 class LlvmConstant<out Type : LlvmType>(

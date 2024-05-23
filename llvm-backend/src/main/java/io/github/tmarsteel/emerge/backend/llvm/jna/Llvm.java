@@ -1,16 +1,11 @@
 package io.github.tmarsteel.emerge.backend.llvm.jna;
 
 import com.sun.jna.*;
-import com.sun.jna.ptr.IntByReference;
-import com.sun.jna.ptr.NativeLongByReference;
-import com.sun.jna.ptr.PointerByReference;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import com.sun.jna.ptr.*;
+import org.jetbrains.annotations.*;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Map;
-import java.util.Objects;
+import java.nio.file.*;
+import java.util.*;
 
 /**
  * LLVM C interface functions mapped for LLVM-18 using JNA.
@@ -144,7 +139,17 @@ public class Llvm {
     /** see Core.h */
     public static native @NotNull LlvmModuleRef LLVMModuleCreateWithNameInContext(@NotNull String moduleId, @NotNull LlvmContextRef context);
 
+    /** see Core.h */
     public static native @NotNull LlvmContextRef LLVMGetModuleContext(@NotNull LlvmModuleRef module);
+
+    /** see Core.h */
+    public static native void LLVMAddModuleFlag(
+            @NotNull LlvmModuleRef module,
+            @NotNull LlvmModuleFlagBehavior behavior,
+            @NotNull byte[] key,
+            @ArraySizeOf("key") NativeLong keyLen,
+            @NotNull LlvmMetadataRef value
+    );
 
     /** see Core.h */
     public static native @LlvmBool int LLVMPrintModuleToFile(LlvmModuleRef module, String filename, @Out PointerByReference errorMessage);
@@ -457,6 +462,32 @@ public class Llvm {
      *              for adding to the parameters
      */
     public static native void LLVMAddAttributeAtIndex(@NotNull LlvmValueRef functionValue, int index, @NotNull LlvmAttributeRef attribute);
+
+    /** see Core.h */
+    public static native @NotNull LlvmMetadataRef LLVMMDStringInContext2(
+            @NotNull LlvmContextRef context,
+            @NotNull byte[] string,
+            @ArraySizeOf("string") NativeLong stringLen
+    );
+
+    /** see Core.h */
+    public static native @NotNull LlvmMetadataRef LLVMMDNodeInContext2(
+            @NotNull LlvmContextRef context,
+            @NotNull NativePointerArray<LlvmMetadataRef> entries,
+            @ArraySizeOf("entries") NativeLong count
+    );
+
+    /** see Core.h */
+    public static native @NotNull LlvmValueRef LLVMMetadataAsValue(
+            @NotNull LlvmContextRef context,
+            @NotNull LlvmMetadataRef metadata
+    );
+
+    /** see Core.h */
+    public static native @NotNull LlvmMetadataRef LLVMValueAsMetadata(@NotNull LlvmValueRef value);
+
+    /** see DebugInfo.h */
+    public static native @Unsigned int LLVMDebugMetadataVersion();
 
     /** see DebugInfo.h */
     public static native @NotNull LlvmDiBuilderRef LLVMCreateDIBuilder(@NotNull LlvmModuleRef module);
