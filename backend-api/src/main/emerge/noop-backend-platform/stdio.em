@@ -1,3 +1,3 @@
 package emerge.platform
 
-export mut fn print(str: String) {}
+intrinsic export mut fn print(str: String)

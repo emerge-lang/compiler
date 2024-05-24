@@ -140,7 +140,6 @@ class SoftwareContext {
     val array: BoundBaseType by coreType()
     val throwable: BoundBaseType by coreType()
     val error: BoundBaseType by coreType()
-    val exception: BoundBaseType by coreType()
 
     /** the type to use when a type cannot be determined, see [UnresolvedType] */
     val unresolvableReplacementType: BoundTypeReference by lazy {
