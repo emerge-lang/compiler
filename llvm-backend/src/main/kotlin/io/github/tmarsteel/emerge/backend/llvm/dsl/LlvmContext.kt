@@ -52,6 +52,11 @@ open class LlvmContext(val target: LlvmTarget) : AutoCloseable {
         Llvm.LLVMAddModuleFlag(module, behavior, idBytes, NativeLong(idBytes.size.toLong()), value)
     }
 
+    fun getNamedFunctionAddress(name: String): LlvmValue<LlvmFunctionAddressType>? {
+        val raw = Llvm.LLVMGetNamedFunction(module, name) ?: return null
+        return LlvmValue(raw, LlvmFunctionAddressType)
+    }
+
     open fun complete() {
         val arrayType = LlvmArrayType(initializerFunctions.size.toLong(), LlvmGlobalCtorEntry)
         val ctorsGlobal = Llvm.LLVMAddGlobal(module, arrayType.getRawInContext(this), "llvm.global_ctors")

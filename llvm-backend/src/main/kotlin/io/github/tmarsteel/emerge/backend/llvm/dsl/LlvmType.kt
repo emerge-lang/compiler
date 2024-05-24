@@ -1,6 +1,8 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import com.google.common.collect.MapMaker
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeHeapAllocatedValueBaseType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
@@ -73,9 +75,16 @@ class LlvmPointerType<Pointed : LlvmType>(val pointed: Pointed) : LlvmType {
     override fun getRawInContext(context: LlvmContext): LlvmTypeRef = context.rawPointer
 
     override fun isAssignableTo(other: LlvmType): Boolean {
-        if (other is LlvmPointerType<*> && other.pointed == LlvmVoidType) {
-            // any pointer can be assigned to a void-ptr
-            return true
+        if (other is LlvmPointerType<*>) {
+            if (other.pointed == LlvmVoidType) {
+                // any pointer can be assigned to a void-ptr
+                return true
+            }
+
+            if (pointed is EmergeClassType && other.pointed == EmergeHeapAllocatedValueBaseType) {
+                // any emerge class can be assigned to any
+                return true
+            }
         }
 
         return super.isAssignableTo(other)

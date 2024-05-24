@@ -10,3 +10,7 @@ FD_STDERR: S32 = 2
 export mut nothrow fn print(str: String) {
     write(FD_STDOUT, str.utf8Data.addressOfFirst(), str.utf8Data.size)
 }
+
+export mut nothrow fn printError(str: String) {
+    write(FD_STDERR, str.utf8Data.addressOfFirst(), str.utf8Data.size)
+}

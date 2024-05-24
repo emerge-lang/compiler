@@ -110,6 +110,8 @@ class EmergeLlvmContext(
     internal lateinit var cPointerType: EmergeClassType
     /** `emerge.ffi.c.COpaquePointer` */
     internal lateinit var cOpaquePointerType: EmergeClassType
+    /** `emerge.std.String */
+    internal lateinit var stringType: EmergeClassType
 
     /** `emerge.core.Unit` */
     internal lateinit var unitType: EmergeClassType
@@ -154,6 +156,7 @@ class EmergeLlvmContext(
             "emerge.platform.BoolBox" -> boxTypeBool = emergeClassType
             "emerge.ffi.c.CPointer" -> cPointerType = emergeClassType
             "emerge.ffi.c.COpaquePointer" -> cOpaquePointerType = emergeClassType
+            "emerge.std.String" -> stringType = emergeClassType
             "emerge.core.Unit" -> {
                 unitType = emergeClassType
                 pointerToPointerToUnitInstance = addGlobal(undefValue(pointerTo(emergeClassType)), LlvmThreadLocalMode.NOT_THREAD_LOCAL)
@@ -481,7 +484,10 @@ class EmergeLlvmContext(
         }
 
         if (intrinsic == null) {
-            intrinsic = intrinsicFunctions[fn.canonicalName.toString()]?.let { this.registerIntrinsic(it) }
+            intrinsic = intrinsicFunctions[fn.canonicalName.toString()]
+                ?.let {
+                    this.registerIntrinsic(it as KotlinLlvmFunction<in EmergeLlvmContext, *>)
+                }
             // TODO: different intrinsic per overload
         }
 
@@ -512,12 +518,13 @@ fun <T : LlvmType> BasicBlockBuilder<EmergeLlvmContext, *>.heapAllocate(type: T)
     return heapAllocate(size).reinterpretAs(pointerTo(type))
 }
 
-private val intrinsicFunctions: Map<String, KotlinLlvmFunction<in EmergeLlvmContext, *>> by lazy {
+private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
     listOf(
         arrayAddressOfFirst,
         arraySize,
         arrayAbstractGet,
         arrayAbstractSet,
+        panic,
     )
         .associateBy { it.name }
 }

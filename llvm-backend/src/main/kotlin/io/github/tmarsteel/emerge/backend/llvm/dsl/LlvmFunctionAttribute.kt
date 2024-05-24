@@ -14,6 +14,7 @@ sealed class LlvmFunctionAttribute(val kindName: String, val value: ULong? = nul
     object WillReturn : LlvmFunctionAttribute("willreturn")
     object NoRecurse : LlvmFunctionAttribute("norecurse")
     object NoFree : LlvmFunctionAttribute("nofree")
+    object NoReturn : LlvmFunctionAttribute("noreturn")
     object Hot : LlvmFunctionAttribute("hot")
     object AlwaysInline : LlvmFunctionAttribute("alwaysinline")
 
