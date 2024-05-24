@@ -93,6 +93,7 @@ enum class Operator(val text: String, private val _humanReadableName: String? = 
     NOTNULL               ("!!"), // find a better name for this...
     EXCLAMATION_MARK      ("!", "exclamation mark"),
     STRING_DELIMITER      (Char(compiler.lexer.STRING_DELIMITER.value).toString()),
+    COMMENT               ("//", "comment marker")
     ;
 
     override fun toString() = this._humanReadableName ?: "operator $text"

@@ -33,6 +33,10 @@ fun lex(sourceFile: SourceFile): TokenSequence {
 
             val operatorToken = iterator.tryMatchOperator(sourceFile)
             if (operatorToken != null) {
+                if (operatorToken.operator == Operator.COMMENT) {
+                    iterator.skipRestOfLine()
+                    continue@tokenLoop
+                }
                 yield(operatorToken)
 
                 if (operatorToken.operator != Operator.STRING_DELIMITER) {
@@ -78,6 +82,15 @@ private fun PositionTrackingCodePointTransactionalSequence.skipWhitespace() {
     while (peek()?.isWhitespace == true)
     {
         nextOrThrow()
+    }
+}
+
+private fun PositionTrackingCodePointTransactionalSequence.skipRestOfLine() {
+    while (hasNext) {
+        val next = nextOrThrow()
+        if (next.isLinefeed) {
+            break
+        }
     }
 }
 
