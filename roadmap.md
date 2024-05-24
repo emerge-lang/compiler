@@ -87,19 +87,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 24. ~~move intrinsic types 100% into emerge source. Both frontend and backend should
     have the necessary toolset now to still hook in and handle them correctly~~
 25. ~~implement weak references~~
-26. error handling
-    1. this is going to touch the runtime significantly. Use this opportunity to
-       1. find out what all the gnu gcc runtime libs do, which and why they're needed
-       2. bundle the ones for x86_64 into the compiler, so they're available wherever the compiler can run
-       3. implement some method for using an LLVM installation on windows, so windows -> linux cross-compilation is possible
-    2. `throw` statement
-    3. `Throwable` for everything that can be thrown, `Exception : Throwable` for recoverable errors,
-       `Error : Throwable` for unrecoverable errors. `Error` cannot be `catch`ed
-    5. try+catch+finally
-27. add instance-of and cast operations
-28. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
+26. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
     1. index access can always throw IndexOutOfBounds; work out a nothrow alternative. Maybe `.safeGet(index)` returning `Either`?
-29. Stdlib _absolute_ Basics
+27. Stdlib _absolute_ Basics
     * arithmetic
         * overflow-safe implementations of the actual operators + - * ...
         * overflow-unsafe intrinsics, e.g. `emerge.std.math.addWithOverflow(a: i32, b: i32)`
@@ -110,7 +100,17 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       * reference equality operator: really === ??
       * it would be great to be able to do == on Any
     * hashCodes: again, Java-style is overkill, have an explicit Hashable interface 
-30. while + do-while loops
+28. while + do-while loops
+29. error handling
+    1. this is going to touch the runtime significantly. Use this opportunity to
+        1. find out what all the gnu gcc runtime libs do, which and why they're needed
+        2. bundle the ones for x86_64 into the compiler, so they're available wherever the compiler can run
+        3. implement some method for using an LLVM installation on windows, so windows -> linux cross-compilation is possible
+    2. `throw` statement
+    3. `Throwable` for everything that can be thrown, `Exception : Throwable` for recoverable errors,
+       `Error : Throwable` for unrecoverable errors. `Error` cannot be `catch`ed
+    5. try+catch+finally
+30. add instance-of and cast operations
 31. implement module dependencies and access checks
     1. upgrade the compilers CLI interface to a configuration via a proper config format. NOT YAML! Maybe TOML, maybe PKL. Should have schema
     2. implement dependencies between input modules/source sets
