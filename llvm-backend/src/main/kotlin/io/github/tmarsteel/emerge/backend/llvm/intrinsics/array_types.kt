@@ -453,6 +453,7 @@ private val referenceArrayFinalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmV
     val self by param(pointerTo(EmergeReferenceArrayType))
     body {
         val indexStackSlot = alloca(EmergeWordType)
+        store(context.word(0), indexStackSlot)
         val size = getelementptr(self)
             .member { base }
             .member { elementCount }
