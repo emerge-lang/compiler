@@ -27,6 +27,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStringLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrUpdateSourceLocationStatement
@@ -94,6 +95,7 @@ internal sealed interface ExpressionResult : ExecutableResult {
 
 internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
     code: IrExecutable,
+    functionReturnType: IrType,
 ): ExecutableResult {
     when (code) {
         is IrCreateStrongReferenceStatement -> {
@@ -121,7 +123,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             return ExecutableResult.ExecutionOngoing
         }
         is IrCreateTemporaryValue -> {
-            val valueResult = emitExpressionCode(code.value)
+            val valueResult = emitExpressionCode(code.value, functionReturnType)
             if (valueResult is ExpressionResult.Value) {
                 code.llvmValue = valueResult.value
             }
@@ -132,7 +134,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 .take((code.components.size - 1).coerceAtLeast(0))
                 .fold(ExecutableResult.ExecutionOngoing as ExecutableResult) { accResult, component ->
                     if (accResult !is ExpressionResult.Terminated) {
-                        emitCode(component)
+                        emitCode(component, functionReturnType)
                     } else {
                         accResult
                     }
@@ -142,7 +144,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 return resultAfterNonImplicitCode
             }
 
-            return code.components.lastOrNull()?.let(::emitCode)
+            return code.components.lastOrNull()?.let { emitCode(it, functionReturnType) }
                 ?: ExecutableResult.ExecutionOngoing
         }
         is IrVariableDeclaration -> {
@@ -173,7 +175,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         }
         is IrReturnStatement -> {
             // TODO: unit return to unit declaration
-            return ExpressionResult.Terminated(ret(code.value.declaration.llvmValue))
+
+            val returnValue = assureBoxed(code.value, functionReturnType)
+            return ExpressionResult.Terminated(ret(returnValue))
         }
         is IrDeallocateObjectStatement -> {
             // the reason boxes are not supported here because in the scope of IrDeallocateObjectStatement,
@@ -193,6 +197,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
 
 internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
     expression: IrExpression,
+    functionReturnType: IrType,
 ): ExpressionResult {
     when (expression) {
         is IrStringLiteralExpression -> {
@@ -349,7 +354,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 conditionalBranch(
                     condition = conditionValue,
                     ifTrue = thenBranch@{
-                        this@thenBranch.emitCode(expression.thenBranch.code)
+                        this@thenBranch.emitCode(expression.thenBranch.code, functionReturnType)
                         concludeBranch()
                     }
                 )
@@ -358,8 +363,8 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
 
             val valueHolder = alloca(context.getReferenceSiteType(expression.evaluatesTo))
 
-            val thenEmitter = BranchEmitter(expression.thenBranch, valueHolder)
-            val elseEmitter = BranchEmitter(expression.elseBranch!!, valueHolder)
+            val thenEmitter = BranchEmitter(expression.thenBranch, valueHolder, functionReturnType)
+            val elseEmitter = BranchEmitter(expression.elseBranch!!, valueHolder, functionReturnType)
 
             conditionalBranch(
                 condition = conditionValue,
@@ -374,7 +379,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             return ExpressionResult.Value(valueHolder.dereference())
         }
         is IrImplicitEvaluationExpression -> {
-            emitCode(expression.code)
+            emitCode(expression.code, functionReturnType)
             return ExpressionResult.Value(expression.implicitValue.declaration.llvmValue)
         }
         is IrNotReallyAnExpression -> throw CodeGenerationException("Cannot emit expression evaluation code for an ${expression::class.simpleName}")
@@ -384,12 +389,13 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
 private class BranchEmitter(
     val branchCode: IrImplicitEvaluationExpression,
     val valueStorage: LlvmValue<LlvmPointerType<LlvmType>>?,
+    val functionReturnType: IrType,
 ) {
     lateinit var branchResult: ExecutableResult
         private set
 
     val generatorFn: BasicBlockBuilder.Branch<EmergeLlvmContext, LlvmType>.() -> BasicBlockBuilder.Termination = {
-        val localBranchResult = emitExpressionCode(branchCode)
+        val localBranchResult = emitExpressionCode(branchCode, functionReturnType)
         branchResult = localBranchResult
         when (localBranchResult) {
             is ExpressionResult.Value -> {

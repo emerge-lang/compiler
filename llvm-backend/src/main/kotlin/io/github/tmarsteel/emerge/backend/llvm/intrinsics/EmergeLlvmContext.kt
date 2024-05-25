@@ -16,6 +16,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrSourceFile
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
+import io.github.tmarsteel.emerge.backend.llvm.IrSimpleTypeImpl
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.bodyDefined
 import io.github.tmarsteel.emerge.backend.llvm.codegen.ExecutableResult
@@ -357,7 +358,7 @@ class EmergeLlvmContext(
                     }
                 }
 
-            when (val codeResult = emitCode(body)) {
+            when (val codeResult = emitCode(body, fn.returnType)) {
                 is ExecutableResult.ExecutionOngoing,
                 is ExpressionResult.Value -> {
                     (this as BasicBlockBuilder<*, LlvmVoidType>).retVoid()
@@ -385,7 +386,7 @@ class EmergeLlvmContext(
             body {
                 for (global in globalVariables) {
                     (this as BasicBlockBuilder<EmergeLlvmContext, LlvmType>)
-                    val initResult = emitExpressionCode(global.initializer)
+                    val initResult = emitExpressionCode(global.initializer, IrSimpleTypeImpl(context.unitType.irClass, false))
                     if (initResult is ExpressionResult.Value) {
                         global.declaration.emitWrite!!(initResult.value)
                     } else {
