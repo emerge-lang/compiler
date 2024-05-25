@@ -7,10 +7,21 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArrayType
 
 internal var IrMemberFunction.llvmFunctionType: LlvmFunctionType<*> by tackLateInitState()
 internal val IrMemberFunction.rootSignatureHash: ULong by tackLazyVal {
     check(overrides.isEmpty())
+
+    if (ownerBaseType.canonicalName.toString() == "emerge.core.Array") {
+        if (canonicalName.simpleName == "get" && parameters.size == 2) {
+            return@tackLazyVal EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT
+        }
+        if (canonicalName.simpleName == "set" && parameters.size == 3) {
+            return@tackLazyVal EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT
+        }
+    }
+
     calculateSignatureHash(this)
 }
 internal val IrMemberFunction.signatureHashes: Set<ULong> by tackLazyVal {
