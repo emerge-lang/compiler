@@ -117,10 +117,21 @@ class BoundInvocationExpression(
             val reportings = mutableSetOf<Reporting>()
 
             receiverExpression?.semanticAnalysisPhase2()?.let(reportings::addAll)
+
+            val availableOverloads = collectOverloadCandidates()
+            availableOverloads.candidates.singleOrNull()?.overloads?.singleOrNull()?.let { singleOption ->
+                singleOption.parameters.parameters
+                    .dropWhile { it === singleOption.parameters.declaredReceiver }
+                    .zip(valueArguments)
+                    .forEach { (parameter, argument) ->
+                        parameter.typeAtDeclarationTime?.also(argument::setExpectedEvaluationResultType)
+                    }
+            }
+
             typeArguments?.forEach { reportings.addAll(it.validate(TypeUseSite.Irrelevant(it.span, null))) }
             valueArguments.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
 
-            val chosenOverload = selectOverload(reportings) ?: return@phase2 reportings
+            val chosenOverload = selectOverload(availableOverloads, reportings) ?: return@phase2 reportings
 
             functionToInvoke = chosenOverload.candidate
             if (chosenOverload.returnType == null) {
@@ -149,7 +160,6 @@ class BoundInvocationExpression(
     }
 
     private fun collectOverloadCandidates(): AvailableOverloads {
-        assert(valueArguments.all { it.type != null })
         assert((receiverExpression == null) xor (receiverExpression?.type != null))
 
         val candidateConstructors = if (receiverExpression != null) null else {
@@ -177,7 +187,7 @@ class BoundInvocationExpression(
      * * of the evaluated constructors or functions, none match
      * * if there is only one overload to pick from, forwards any reportings from evaluating that candidate
      */
-    private fun selectOverload(reportings: MutableCollection<in Reporting>): OverloadCandidateEvaluation? {
+    private fun selectOverload(overloadCandidates: AvailableOverloads, reportings: MutableCollection<in Reporting>): OverloadCandidateEvaluation? {
         if (valueArguments.any { it.type == null}) {
             // resolving the overload does not make sense if not all parameter types can be deducted
             // note that for erroneous type references, the parameter type will be a non-null UnresolvedType
@@ -190,7 +200,7 @@ class BoundInvocationExpression(
             return null
         }
 
-        val (allCandidates, constructorsConsidered, anyTopLevelFunctions) = collectOverloadCandidates()
+        val (allCandidates, constructorsConsidered, anyTopLevelFunctions) = overloadCandidates
 
         if (allCandidates.isEmpty()) {
             reportings.add(Reporting.noMatchingFunctionOverload(functionNameToken, receiverExpression?.type, valueArguments, false))
