@@ -55,7 +55,7 @@ internal object EmergeAnyValueVirtualsType : LlvmStructType("anyvalue_virtuals")
     val finalizeFunctionType = LlvmFunctionType(LlvmVoidType, listOf(PointerToAnyEmergeValue))
 }
 
-internal val PointerToAnyEmergeValue: LlvmPointerType<EmergeHeapAllocatedValueBaseType> = pointerTo(EmergeHeapAllocatedValueBaseType)
+internal val PointerToAnyEmergeValue: LlvmPointerType<EmergeHeapAllocatedValueBaseType> by lazy { pointerTo(EmergeHeapAllocatedValueBaseType) }
 
 internal object EmergeWeakReferenceCollectionType : LlvmStructType("weakrefcoll") {
     /**
