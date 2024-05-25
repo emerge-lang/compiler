@@ -113,6 +113,29 @@ class EmergeLlvmContext(
     /** `emerge.std.String */
     internal lateinit var stringType: EmergeClassType
 
+    /** `emerge.core.S8 */
+    internal lateinit var rawS8Clazz: IrClass
+    /** `emerge.core.U8 */
+    internal lateinit var rawU8Clazz: IrClass
+    /** `emerge.core.S16 */
+    internal lateinit var rawS16Clazz: IrClass
+    /** `emerge.core.U16 */
+    internal lateinit var rawU16Clazz: IrClass
+    /** `emerge.core.S32 */
+    internal lateinit var rawS32Clazz: IrClass
+    /** `emerge.core.U32 */
+    internal lateinit var rawU32Clazz: IrClass
+    /** `emerge.core.64 */
+    internal lateinit var rawS64Clazz: IrClass
+    /** `emerge.core.U64*/
+    internal lateinit var rawU64Clazz: IrClass
+    /** `emerge.core.SWord */
+    internal lateinit var rawSWordClazz: IrClass
+    /** `emerge.core.UWord */
+    internal lateinit var rawUWordClazz: IrClass
+    /** `emerge.core.Bool */
+    internal lateinit var rawBoolClazz: IrClass
+
     /** `emerge.core.Unit` */
     internal lateinit var unitType: EmergeClassType
     internal lateinit var pointerToPointerToUnitInstance: LlvmGlobal<LlvmPointerType<EmergeClassType>>
@@ -129,6 +152,24 @@ class EmergeLlvmContext(
 
     fun registerClass(clazz: IrClass) {
         if (clazz.rawLlvmRef != null) {
+            return
+        }
+
+        when (clazz.canonicalName.toString()) {
+            "emerge.core.S8" -> rawS8Clazz = clazz
+            "emerge.core.U8" -> rawU8Clazz = clazz
+            "emerge.core.S16" -> rawS16Clazz = clazz
+            "emerge.core.U16" -> rawU16Clazz = clazz
+            "emerge.core.S32" -> rawS32Clazz = clazz
+            "emerge.core.U32" -> rawU32Clazz = clazz
+            "emerge.core.S64" -> rawS64Clazz = clazz
+            "emerge.core.U64" -> rawU64Clazz = clazz
+            "emerge.core.SWord" -> rawSWordClazz = clazz
+            "emerge.core.UWord" -> rawUWordClazz = clazz
+            "emerge.core.Bool" -> rawBoolClazz = clazz
+        }
+
+        if (clazz.autoboxer is Autoboxer.PrimitiveType) {
             return
         }
 
@@ -473,7 +514,7 @@ class EmergeLlvmContext(
         var intrinsic: LlvmFunction<*>? = null
         if (fn is IrBaseTypeFunction) {
             val autoboxer = fn.ownerBaseType.autoboxer
-            if (autoboxer is Autoboxer.UserFacingBoxed) {
+            if (autoboxer is Autoboxer.CFfiPointerType) {
                 if (fn.canonicalName.simpleName == "\$constructor") {
                     intrinsic = autoboxer.getConstructorIntrinsic(this, fn.canonicalName)
                 }
@@ -538,5 +579,5 @@ private val IrFunction.isDestructorOnValueOrBoxType: Boolean get() {
 private val IrFunction.isUserFacingBoxDestructor: Boolean get() {
     return this is IrMemberFunction
         && this.canonicalName.simpleName == "\$destructor"
-        && this.ownerBaseType.autoboxer is Autoboxer.UserFacingBoxed
+        && this.ownerBaseType.autoboxer is Autoboxer.CFfiPointerType
 }

@@ -2,6 +2,7 @@ package io.github.tmarsteel.emerge.backend.llvm
 
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import java.math.BigInteger
+import java.nio.file.FileSystems
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.security.MessageDigest
@@ -37,7 +38,7 @@ fun getClasspathResourceAsFileOnDisk(
         ?: throw CodeGenerationException("Classpath resource $resource not found in classloader ${clazz.classLoader.name}")
 
     if (resourceUrl.protocol == "file") {
-        if (System.getProperty("file.separator") == "/") {
+        if (FileSystems.getDefault().separator == "/") {
             // on linux: the URL will be file:/root/subdir, and the path field is the /root/subdir part, which is correct
             return Paths.get(resourceUrl.path)
         } else {

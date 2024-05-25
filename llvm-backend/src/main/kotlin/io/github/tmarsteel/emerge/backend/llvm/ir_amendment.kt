@@ -29,19 +29,19 @@ Once the LLVM backend is somewhat stable all of this should move into a new set 
 
 internal val IrBaseType.autoboxer: Autoboxer? by tackLazyVal {
     when (this.canonicalName.toString()) {
-        "emerge.core.S8" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeS8, LlvmI8Type)
-        "emerge.core.U8" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeU8, LlvmI8Type)
-        "emerge.core.S16" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeS16, LlvmI16Type)
-        "emerge.core.U16" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeU16, LlvmI16Type)
-        "emerge.core.S32" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeU32, LlvmI32Type)
-        "emerge.core.U32" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeS32, LlvmI32Type)
-        "emerge.core.S64" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeS64, LlvmI64Type)
-        "emerge.core.U64" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeU64, LlvmI64Type)
-        "emerge.core.SWord" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeU64, EmergeWordType)
-        "emerge.core.UWord" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeU64, EmergeWordType)
-        "emerge.core.Bool" -> Autoboxer.UserFacingUnboxed(EmergeLlvmContext::boxTypeBool, LlvmBooleanType)
-        "emerge.ffi.c.CPointer" -> Autoboxer.UserFacingBoxed(EmergeLlvmContext::cPointerType, "pointed", LlvmPointerType(LlvmVoidType))
-        "emerge.ffi.c.COpaquePointer" -> Autoboxer.UserFacingBoxed(EmergeLlvmContext::cOpaquePointerType, "pointed", LlvmPointerType(LlvmVoidType))
+        "emerge.core.S8" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS8, EmergeLlvmContext::rawS8Clazz, LlvmI8Type)
+        "emerge.core.U8" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU8, EmergeLlvmContext::rawU8Clazz, LlvmI8Type)
+        "emerge.core.S16" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS16, EmergeLlvmContext::rawS16Clazz, LlvmI16Type)
+        "emerge.core.U16" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU16, EmergeLlvmContext::rawU16Clazz, LlvmI16Type)
+        "emerge.core.S32" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS32, EmergeLlvmContext::rawS32Clazz, LlvmI32Type)
+        "emerge.core.U32" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU32, EmergeLlvmContext::rawU32Clazz, LlvmI32Type)
+        "emerge.core.S64" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS64, EmergeLlvmContext::rawS64Clazz, LlvmI64Type)
+        "emerge.core.U64" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU64, EmergeLlvmContext::rawU64Clazz, LlvmI64Type)
+        "emerge.core.SWord" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeSWord, EmergeLlvmContext::rawSWordClazz, EmergeWordType)
+        "emerge.core.UWord" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeUWord, EmergeLlvmContext::rawUWordClazz, EmergeWordType)
+        "emerge.core.Bool" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeBool, EmergeLlvmContext::rawBoolClazz, LlvmBooleanType)
+        "emerge.ffi.c.CPointer" -> Autoboxer.CFfiPointerType(EmergeLlvmContext::cPointerType, "pointed", LlvmPointerType(LlvmVoidType))
+        "emerge.ffi.c.COpaquePointer" -> Autoboxer.CFfiPointerType(EmergeLlvmContext::cOpaquePointerType, "pointed", LlvmPointerType(LlvmVoidType))
         else -> null
     }
 }

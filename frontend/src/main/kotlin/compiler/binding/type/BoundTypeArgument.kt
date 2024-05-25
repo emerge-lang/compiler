@@ -199,4 +199,20 @@ private class IrTypeArgumentImpl(
     override val type: IrType
 ) : IrParameterizedType.Argument {
     override fun toString() = "${variance.name.lowercase()} $type"
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is IrTypeArgumentImpl) return false
+
+        if (variance != other.variance) return false
+        if (type != other.type) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = variance.hashCode()
+        result = 31 * result + type.hashCode()
+        return result
+    }
 }

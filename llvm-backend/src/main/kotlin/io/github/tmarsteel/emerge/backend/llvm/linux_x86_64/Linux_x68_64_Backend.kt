@@ -87,7 +87,6 @@ class Linux_x68_64_Backend : EmergeBackend {
         EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-gnu")) { llvmContext ->
             softwareContext.packagesSeq
                 .flatMap { it.classes }
-                .filter { it.autoboxer !is Autoboxer.UserFacingUnboxed }
                 .forEach(llvmContext::registerClass)
             softwareContext.packagesSeq
                 .flatMap { it.interfaces }
@@ -110,7 +109,7 @@ class Linux_x68_64_Backend : EmergeBackend {
 
             softwareContext.packagesSeq
                 .flatMap { it.classes }
-                .filter { it.autoboxer !is Autoboxer.UserFacingUnboxed }
+                .filter { it.autoboxer !is Autoboxer.PrimitiveType }
                 .forEach(llvmContext::defineClassStructure)
 
             softwareContext.packagesSeq
@@ -127,7 +126,7 @@ class Linux_x68_64_Backend : EmergeBackend {
             softwareContext.modules
                 .flatMap { it.packages }
                 .flatMap { it.classes }
-                .filterNot { it.autoboxer is Autoboxer.UserFacingUnboxed || it.canonicalName.toString() == "emerge.core.Array" }
+                .filterNot { it.autoboxer is Autoboxer.PrimitiveType || it.canonicalName.toString() == "emerge.core.Array" }
                 .forEach { clazz ->
                     llvmContext.defineFunctionBody(clazz.constructor)
                     clazz.memberFunctions

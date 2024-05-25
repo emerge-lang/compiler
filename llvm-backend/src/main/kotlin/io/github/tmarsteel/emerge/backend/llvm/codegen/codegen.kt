@@ -31,6 +31,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrUpdateSourceLocationStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
+import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.assureBoxed
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.requireNotAutoboxed
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
@@ -143,14 +144,16 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             return ExecutableResult.ExecutionOngoing
         }
         is IrAssignmentStatement -> {
+            val valueForAssignment: LlvmValue<*> = assureBoxed(code.value, code.target.type)
+
             when (val localTarget = code.target) {
                 is IrAssignmentStatement.Target.Variable -> {
-                    localTarget.declaration.emitWrite!!(this, code.value.declaration.llvmValue)
+                    localTarget.declaration.emitWrite!!(this, valueForAssignment)
                 }
                 is IrAssignmentStatement.Target.ClassMemberVariable -> {
                     // TODO: autoboxing
                     val memberPointer = getPointerToStructMember(localTarget.objectValue.declaration.llvmValue, localTarget.memberVariable)
-                    store(code.value.declaration.llvmValue, memberPointer)
+                    store(valueForAssignment, memberPointer)
                 }
             }
             return ExecutableResult.ExecutionOngoing
@@ -217,26 +220,32 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         }
         is IrAllocateObjectExpression -> {
             expression.clazz.autoboxer?.let { autoboxer ->
-                require(autoboxer !is Autoboxer.UserFacingUnboxed) { "Cannot allocate a valuetype on the heap (encountered ${expression.clazz})"}
+                require(autoboxer !is Autoboxer.PrimitiveType) { "Cannot allocate a valuetype on the heap (encountered ${expression.clazz})"}
             }
             return ExpressionResult.Value(
                 expression.clazz.llvmType.allocateUninitializedDynamicObject(this),
             )
         }
         is IrStaticDispatchFunctionInvocationExpression -> {
+            val argumentsForInvocation = expression.arguments.zip(expression.function.parameters)
+                .map { (argument, parameter) -> assureBoxed(argument, parameter.type) }
+
             return ExpressionResult.Value(
                 call(
                     expression.function.llvmRef!!,
-                    expression.arguments.map { it.declaration.llvmValue },
+                    argumentsForInvocation,
                 )
             )
         }
         is IrDynamicDispatchFunctionInvocationExpression -> {
+            val argumentsForInvocation = expression.arguments.zip(expression.function.parameters)
+                .map { (argument, parameter) -> assureBoxed(argument, parameter.type) }
+
             val targetAddr = callIntrinsic(getDynamicCallAddress, listOf(
                 expression.dispatchOn.declaration.llvmValue,
                 context.word(expression.function.signatureHashes.first()),
             ))
-            val callResult = call(targetAddr, expression.function.llvmFunctionType, expression.arguments.map { it.declaration.llvmValue })
+            val callResult = call(targetAddr, expression.function.llvmFunctionType, argumentsForInvocation)
             return ExpressionResult.Value(callResult)
         }
         is IrVariableAccessExpression -> return ExpressionResult.Value(expression.variable.emitRead!!())

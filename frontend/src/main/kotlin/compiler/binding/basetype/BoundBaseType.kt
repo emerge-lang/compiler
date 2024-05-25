@@ -464,6 +464,19 @@ private class IrInterfaceImpl(
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
     override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()
     override val memberFunctions by lazy { typeDef.memberFunctions.map { it.toBackendIr() as IrOverloadGroup<IrMemberFunction> } }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is IrInterfaceImpl) return false
+
+        if (canonicalName != other.canonicalName) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return canonicalName.hashCode()
+    }
 }
 
 private class IrClassImpl(
@@ -475,4 +488,17 @@ private class IrClassImpl(
     override val memberFunctions by lazy { typeDef.memberFunctions.map { it.toBackendIr() as IrOverloadGroup<IrMemberFunction> } }
     override val constructor by lazy { typeDef.constructor!!.toBackendIr() }
     override val destructor by lazy { typeDef.destructor!!.toBackendIr() }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is IrClassImpl) return false
+
+        if (canonicalName != other.canonicalName) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return canonicalName.hashCode()
+    }
 }

@@ -59,12 +59,16 @@ interface IrAssignmentStatement : IrExecutable {
     val value: IrTemporaryValueReference
 
     sealed interface Target {
+        val type: IrType
+
         interface Variable : Target {
             val declaration: IrVariableDeclaration
+            override val type: IrType get() = declaration.type
         }
         interface ClassMemberVariable : Target {
             val objectValue: IrTemporaryValueReference
             val memberVariable: IrClass.MemberVariable
+            override val type: IrType get() = memberVariable.type
         }
     }
 }

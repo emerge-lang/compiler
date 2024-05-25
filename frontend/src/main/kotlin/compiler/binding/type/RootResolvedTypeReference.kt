@@ -270,6 +270,23 @@ internal class IrSimpleTypeImpl(
 ) : IrSimpleType {
     override fun toString() = "IrSimpleType[${baseType.canonicalName}]"
     override fun asNullable(): IrSimpleType = IrSimpleTypeImpl(baseType, true)
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is IrSimpleTypeImpl) return false
+
+        if (baseType != other.baseType) return false
+        if (isNullable != other.isNullable) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = baseType.hashCode()
+        result = 31 * result + isNullable.hashCode()
+        return result
+    }
+
 }
 
 internal class IrParameterizedTypeImpl(
@@ -283,4 +300,20 @@ internal class IrParameterizedTypeImpl(
     )
 
     override fun asNullable(): IrParameterizedType = IrParameterizedTypeImpl(simpleType.asNullable(), arguments)
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is IrParameterizedTypeImpl) return false
+
+        if (simpleType != other.simpleType) return false
+        if (arguments != other.arguments) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = simpleType.hashCode()
+        result = 31 * result + arguments.hashCode()
+        return result
+    }
 }
