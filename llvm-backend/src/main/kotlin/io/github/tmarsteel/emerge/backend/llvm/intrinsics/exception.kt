@@ -1,9 +1,10 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
-import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
+import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
@@ -59,6 +60,25 @@ val panic = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>("emerge.p
         val exitFnAddr = context.getNamedFunctionAddress("exit")!!
         val exitFnType = LlvmFunctionType(LlvmVoidType, emptyList())
         call(exitFnAddr, exitFnType, emptyList())
-        retVoid()
+        unreachable()
     }
+}
+
+fun BasicBlockBuilder<out LlvmContext, *>.inlinePanic(message: String): BasicBlockBuilder.Termination {
+    val panicPrefixData = "PANIC! $message".toByteArray(Charsets.UTF_8).map { context.i8(it) }
+    val panicPrefixGlobal = context.addGlobal(LlvmArrayType(panicPrefixData.size.toLong(), LlvmI8Type).buildConstantIn(context, panicPrefixData), LlvmThreadLocalMode.NOT_THREAD_LOCAL)
+
+    val writeFnAddr = context.getNamedFunctionAddress("write")!!
+    // fd: S32, buf: COpaquePointer, count: UWord) -> SWord
+    val writeFnType = LlvmFunctionType(EmergeWordType, listOf(LlvmI32Type, pointerTo(LlvmI8Type), EmergeWordType))
+    call(writeFnAddr, writeFnType, listOf(
+        context.i32(2), // STDERR
+        panicPrefixGlobal,
+        context.word(panicPrefixGlobal.type.pointed.elementCount),
+    ))
+
+    val exitFnAddr = context.getNamedFunctionAddress("exit")!!
+    val exitFnType = LlvmFunctionType(LlvmVoidType, emptyList())
+    call(exitFnAddr, exitFnType, emptyList())
+    return unreachable()
 }

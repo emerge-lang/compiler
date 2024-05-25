@@ -473,8 +473,7 @@ internal val arrayAbstractGet = KotlinLlvmFunction.define<LlvmContext, _>(
     param(pointerTo(EmergeArrayBaseType))
     param(EmergeWordType)
     body {
-        // TODO: panic
-        ret(context.undefValue(PointerToAnyEmergeValue))
+        inlinePanic("abstract array getter invoked")
     }
 }
 
@@ -494,7 +493,6 @@ internal val arrayAbstractSet = KotlinLlvmFunction.define<LlvmContext, _>(
     param(EmergeWordType)
     param(PointerToAnyEmergeValue)
     body {
-        // TODO: panic
-        retVoid()
+        inlinePanic("abstract array setter invoked")
     }
 }
