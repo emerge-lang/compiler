@@ -18,14 +18,18 @@
 
 package compiler.ast
 
+import compiler.ast.expression.AstIndexAccessExpression
 import compiler.ast.expression.IdentifierExpression
+import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
-import compiler.binding.BoundAssignmentStatement
 import compiler.binding.BoundIllegalTargetAssignmentStatement
 import compiler.binding.BoundObjectMemberAssignmentStatement
+import compiler.binding.BoundStatement
 import compiler.binding.BoundVariableAssignmentStatement
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
+import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 
 class AssignmentStatement(
@@ -37,7 +41,7 @@ class AssignmentStatement(
 
     override val span = setKeyword.span
 
-    override fun bindTo(context: ExecutionScopedCTContext): BoundAssignmentStatement {
+    override fun bindTo(context: ExecutionScopedCTContext): BoundStatement<*> {
         when (targetExpression) {
             is IdentifierExpression -> {
                 val boundValue = valueExpression.bindTo(context)
@@ -57,6 +61,23 @@ class AssignmentStatement(
                     boundTarget,
                     boundValue,
                 )
+            }
+            is AstIndexAccessExpression -> {
+                val generatedSpan = span.deriveGenerated()
+                val hiddenInvocation = InvocationExpression(
+                    MemberAccessExpression(
+                        targetExpression.valueExpression,
+                        OperatorToken(Operator.DOT, generatedSpan),
+                        IdentifierToken("set", generatedSpan),
+                    ),
+                    null,
+                    listOf(
+                        targetExpression.indexExpression,
+                        valueExpression,
+                    ),
+                    generatedSpan,
+                )
+                return hiddenInvocation.bindTo(context)
             }
             else -> {
                 val boundTarget = targetExpression.bindTo(context)

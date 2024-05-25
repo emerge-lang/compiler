@@ -18,6 +18,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIfExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrNotReallyAnExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
@@ -26,6 +27,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStringLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrUpdateSourceLocationStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
@@ -37,6 +39,7 @@ import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
+import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction.Companion.callIntrinsic
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
@@ -51,10 +54,20 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i64
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
 import io.github.tmarsteel.emerge.backend.llvm.indexed
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeBooleanArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS16ArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS32ArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS64ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS8ArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeSWordArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU16ArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU32ArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU64ArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU8ArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceCreated
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceDropped
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arraySize
@@ -227,9 +240,57 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             )
         }
         is IrStaticDispatchFunctionInvocationExpression -> {
+            // array-of-primitive-type accessors
+            if ((expression.function as? IrMemberFunction)?.ownerBaseType?.canonicalName?.toString() == "emerge.core.Array") {
+                val elementTypeArg = (expression.arguments.first().type as IrParameterizedType).arguments.getValue("Element")
+                if (elementTypeArg.variance == IrTypeVariance.INVARIANT || elementTypeArg.variance == IrTypeVariance.OUT) {
+                    val intrinsic: KotlinLlvmFunction<EmergeLlvmContext, *>?
+                    if (expression.function.canonicalName.simpleName == "get" && expression.function.parameters.size == 2) {
+                        intrinsic = when ((elementTypeArg.type as? IrSimpleType)?.baseType) {
+                            context.rawS8Clazz -> EmergeS8ArrayType.getRawGetter(false)
+                            context.rawU8Clazz -> EmergeU8ArrayType.getRawGetter(false)
+                            context.rawS16Clazz -> EmergeS16ArrayType.getRawGetter(false)
+                            context.rawU16Clazz -> EmergeU16ArrayType.getRawGetter(false)
+                            context.rawS32Clazz -> EmergeS32ArrayType.getRawGetter(false)
+                            context.rawU32Clazz -> EmergeU32ArrayType.getRawGetter(false)
+                            context.rawS64Clazz -> EmergeS64ArrayType.getRawGetter(false)
+                            context.rawU64Clazz -> EmergeU64ArrayType.getRawGetter(false)
+                            context.rawSWordClazz -> EmergeSWordArrayType.getRawGetter(false)
+                            context.rawUWordClazz -> EmergeUWordArrayType.getRawGetter(false)
+                            context.rawBoolClazz -> EmergeBooleanArrayType.getRawGetter(false)
+                            else -> null
+                        }
+                    } else if (expression.function.canonicalName.simpleName == "set" && expression.function.parameters.size == 3) {
+                        intrinsic = when ((elementTypeArg.type as? IrSimpleType)?.baseType) {
+                            context.rawS8Clazz -> EmergeS8ArrayType.getRawSetter(false)
+                            context.rawU8Clazz -> EmergeU8ArrayType.getRawSetter(false)
+                            context.rawS16Clazz -> EmergeS16ArrayType.getRawSetter(false)
+                            context.rawU16Clazz -> EmergeU16ArrayType.getRawSetter(false)
+                            context.rawS32Clazz -> EmergeS32ArrayType.getRawSetter(false)
+                            context.rawU32Clazz -> EmergeU32ArrayType.getRawSetter(false)
+                            context.rawS64Clazz -> EmergeS64ArrayType.getRawSetter(false)
+                            context.rawU64Clazz -> EmergeU64ArrayType.getRawSetter(false)
+                            context.rawSWordClazz -> EmergeSWordArrayType.getRawSetter(false)
+                            context.rawUWordClazz -> EmergeUWordArrayType.getRawSetter(false)
+                            context.rawBoolClazz -> EmergeBooleanArrayType.getRawSetter(false)
+                            else -> null
+                        }
+                    } else {
+                        intrinsic = null
+                    }
+
+                    if (intrinsic != null) {
+                        return ExpressionResult.Value(
+                            call(context.registerIntrinsic(intrinsic), expression.arguments.map { it.declaration.llvmValue })
+                        )
+                    }
+                }
+            }
+
             val argumentsForInvocation = expression.arguments.zip(expression.function.parameters)
                 .map { (argument, parameter) -> assureBoxed(argument, parameter.type) }
 
+            // general dynamic dispatch
             return ExpressionResult.Value(
                 call(
                     expression.function.llvmRef!!,
