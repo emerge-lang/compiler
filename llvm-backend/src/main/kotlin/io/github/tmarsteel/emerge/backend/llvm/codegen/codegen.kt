@@ -335,11 +335,12 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             val arrayType = context.getAllocationSiteType(expression.evaluatesTo) as EmergeArrayType<*>
             val arrayPtr = callIntrinsic(arrayType.constructorOfUndefEntries, listOf(elementCount))
             for ((index, elementExpr) in expression.elements.indexed()) {
+                val valueToAssign = assureBoxed(elementExpr, expression.elementType)
                 val slotPtr = getelementptr(arrayPtr)
                     .member { elements }
                     .index(context.word(index))
                     .get()
-                store(elementExpr.declaration.llvmValue, slotPtr)
+                store(valueToAssign, slotPtr)
             }
 
             return ExpressionResult.Value(arrayPtr)
