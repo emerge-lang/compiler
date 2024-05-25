@@ -30,6 +30,7 @@ import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
@@ -431,9 +432,10 @@ class BoundInvocationExpression(
         }
 
     private fun buildBackendIrInvocation(arguments: List<IrTemporaryValueReference>): IrExpression {
+        val isCallOnInterfaceType = (receiverExpression?.type as? RootResolvedTypeReference)?.baseType?.kind == BoundBaseType.Kind.INTERFACE
         val fn = functionToInvoke!!
         val returnType = type!!.toBackendIr()
-        if (fn is BoundMemberFunction && fn.isVirtual) {
+        if (fn is BoundMemberFunction && fn.isVirtual && isCallOnInterfaceType) {
             check(receiverExceptReferringType != null)
             return IrDynamicDispatchFunctionInvocationImpl(
                 arguments.first(),
