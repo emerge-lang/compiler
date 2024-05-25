@@ -298,7 +298,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             )
 
             if (thenEmitter.branchResult is ExpressionResult.Terminated && elseEmitter.branchResult is ExpressionResult.Terminated) {
-                return ExpressionResult.Terminated(unreachable().first)
+                return ExpressionResult.Terminated(unreachable())
             }
 
             return ExpressionResult.Value(valueHolder.dereference())

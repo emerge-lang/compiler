@@ -56,7 +56,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun <SubR> inSubScope(code: BasicBlockBuilder<C, R>.() -> SubR): SubR
 
     fun ret(value: LlvmValue<R>): Termination
-    fun unreachable(): Pair<Termination, LlvmValue<LlvmVoidType>>
+    fun unreachable(): Termination
 
     fun conditionalBranch(
         condition: LlvmValue<LlvmBooleanType>,
@@ -341,10 +341,10 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         return TerminationImpl
     }
 
-    override fun unreachable(): Pair<BasicBlockBuilder.Termination, LlvmValue<LlvmVoidType>> {
-        val inst = Llvm.LLVMBuildUnreachable(builder)
+    override fun unreachable(): BasicBlockBuilder.Termination {
+        Llvm.LLVMBuildUnreachable(builder)
 
-        return Pair(TerminationImpl, LlvmValue(inst, LlvmVoidType))
+        return TerminationImpl
     }
 
     override fun conditionalBranch(

@@ -78,9 +78,9 @@ export class Array<Element> {
 
     private constructor {}
 
-    export intrinsic fn get(self: read _<out Element>, index: UWord) -> Element
+    export operator intrinsic fn get(self: read _<out Element>, index: UWord) -> Element
 
-    export intrinsic fn set(self: mut _<in Element>, index: UWord, value: Element) -> Unit
+    export operator intrinsic fn set(self: mut _<in Element>, index: UWord, value: Element) -> Unit
 
     export intrinsic fn size(self: read _) -> UWord
 }

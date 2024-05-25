@@ -2,6 +2,7 @@ package compiler.parser
 
 import compiler.InternalCompilerError
 import compiler.ast.Expression
+import compiler.ast.expression.AstIndexAccessExpression
 import compiler.ast.expression.BinaryExpression
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
@@ -48,6 +49,14 @@ class MemberAccessExpressionPostfix(
     val memberName: IdentifierToken
 ) : ExpressionPostfix<MemberAccessExpression> {
     override fun modify(expr: Expression) = MemberAccessExpression(expr, accessOperatorToken, memberName)
+}
+
+class IndexAccessExpressionPostfix(
+    val sBraceOpen: OperatorToken,
+    val indexExpr: Expression,
+    val sBraceClose: OperatorToken,
+) : ExpressionPostfix<AstIndexAccessExpression> {
+    override fun modify(expr: Expression) = AstIndexAccessExpression(expr, sBraceOpen, indexExpr, sBraceClose)
 }
 
 class BinaryExpressionPostfix(

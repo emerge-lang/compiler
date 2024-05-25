@@ -43,6 +43,7 @@ import compiler.lexer.OperatorToken
 import compiler.lexer.StringLiteralContentToken
 import compiler.parser.BinaryExpressionPostfix
 import compiler.parser.ExpressionPostfix
+import compiler.parser.IndexAccessExpressionPostfix
 import compiler.parser.InvocationExpressionPostfix
 import compiler.parser.MemberAccessExpressionPostfix
 import compiler.parser.NotNullExpressionPostfix
@@ -345,6 +346,18 @@ val ExpressionPostfixMemberAccess = sequence("member access") {
         MemberAccessExpressionPostfix(accessOperator, memberNameToken)
     }
 
+val ExpressionPostfixIndexAccess = sequence("index") {
+    operator(Operator.SBRACE_OPEN)
+    ref(Expression)
+    operator(Operator.SBRACE_CLOSE)
+}
+    .astTransformation { tokens ->
+        val sBraceOpen = tokens.next() as OperatorToken
+        val indexValue = tokens.next() as AstExpression
+        val sBraceClose = tokens.next() as OperatorToken
+        IndexAccessExpressionPostfix(sBraceOpen, indexValue, sBraceClose)
+    }
+
 val ExpressionPostfixBinaryOperation = sequence("binary expression") {
     repeatingAtLeastOnce {
         eitherOf(*binaryOperators)
@@ -359,6 +372,7 @@ val ExpressionPostfixExcludingBinary = eitherOf {
     ref(ExpressionPostfixNotNull)
     ref(ExpressionPostfixInvocation)
     ref(ExpressionPostfixMemberAccess)
+    ref(ExpressionPostfixIndexAccess)
 }
 
 val ExpressionPostfix = eitherOf {
