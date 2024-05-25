@@ -373,7 +373,7 @@ private fun <Element : LlvmType> buildValueArrayRawGetterWithBoundsCheck(
     getSelfType: () -> EmergeArrayType<Element>,
     rawGetterNoBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, Element>,
 ) : KotlinLlvmFunction<EmergeLlvmContext, Element> {
-    return KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+    return KotlinLlvmFunction.define<_, _>(
         "emerge.core.array_${elementTypeName}_rawGetWithBoundsCheck",
         elementType,
     ) {
@@ -395,8 +395,8 @@ private fun <Element : LlvmType> buildValueArrayRawSetterWithoutBoundsCheck(
     elementType: Element,
     getSelfType: () -> EmergeArrayType<Element>,
 ) : KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> {
-    return KotlinLlvmFunction.define<EmergeLlvmContext, _>(
-        "emerge.core.${elementTypeName}_rawSetNoBoundsCheck",
+    return KotlinLlvmFunction.define<_, _>(
+        "emerge.core.array_${elementTypeName}_rawSetNoBoundsCheck",
         LlvmVoidType,
     ) {
         functionAttribute(LlvmFunctionAttribute.WillReturn)
@@ -426,8 +426,8 @@ private fun <Element : LlvmType> buildValueArrayRawSetterWithBoundsCheck(
     getSelfType: () -> EmergeArrayType<Element>,
     rawSetterWithoutBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
 ) : KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> {
-    return KotlinLlvmFunction.define<EmergeLlvmContext, _>(
-        "emerge.core.${elementTypeName}_rawSetWithBoundsCheck",
+    return KotlinLlvmFunction.define<_, _>(
+        "emerge.core.array_${elementTypeName}_rawSetWithBoundsCheck",
         LlvmVoidType,
     ) {
         functionAttribute(LlvmFunctionAttribute.WillReturn)

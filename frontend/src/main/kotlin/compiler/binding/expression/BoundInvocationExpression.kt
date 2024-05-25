@@ -495,7 +495,7 @@ private fun Collection<OverloadCandidateEvaluation>.indicesOfDisjointlyTypedPara
         }
 }
 
-private class IrStaticDispatchFunctionInvocationImpl(
+internal class IrStaticDispatchFunctionInvocationImpl(
     override val function: IrFunction,
     override val arguments: List<IrTemporaryValueReference>,
     override val evaluatesTo: IrType,

@@ -76,14 +76,22 @@ interface IrStringLiteralExpression : IrExpression {
     val utf8Bytes: ByteArray
 }
 
-interface IrArrayLiteralExpression : IrExpression {
+/**
+ * Creates a new array for elements of type [elementType] and initializes it to 0/null.
+ *  It is the responsibility of the frontend to pair this instruction with others that will
+ *  initialize the array as required by the input program. The 0/null initialization is so
+ *  that the finalizer of the array, invoked in case of an exception, can still clean up
+ *  the partially initialized array.
+ *
+ *  The reference count of the newly allocated array has to be `1`.
+ */
+interface IrNullInitializedArrayExpression : IrExpression {
     /**
      * The type of the elements. The same information is also in [evaluatesTo], but
      * [elementType] doesn't contain variance information.
      */
     val elementType: IrType
-
-    val elements: List<IrTemporaryValueReference>
+    val size: ULong
 }
 
 interface IrBooleanLiteralExpression : IrExpression {

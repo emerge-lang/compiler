@@ -2,7 +2,6 @@ package io.github.tmarsteel.emerge.backend.llvm.codegen
 
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrArrayLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrBooleanLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
@@ -15,11 +14,13 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrDropStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrDynamicDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrIfExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrNotReallyAnExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrNullInitializedArrayExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrRegisterWeakReferenceStatement
@@ -38,11 +39,11 @@ import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.assureBoxed
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.requireNotAutoboxed
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
-import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction.Companion.callIntrinsic
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
@@ -53,12 +54,12 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i16
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i64
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
-import io.github.tmarsteel.emerge.backend.llvm.indexed
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeBooleanArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeReferenceArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS16ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS32ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS64ArrayType
@@ -71,6 +72,8 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU8ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceCreated
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceDropped
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractGet
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractSet
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arraySize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getDynamicCallAddress
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.registerWeakReference
@@ -245,61 +248,41 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             )
         }
         is IrStaticDispatchFunctionInvocationExpression -> {
-            // array-of-primitive-type accessors
+            // optimized array accessors
             if ((expression.function as? IrMemberFunction)?.ownerBaseType?.canonicalName?.toString() == "emerge.core.Array") {
-                val elementTypeArg = (expression.arguments.first().type as IrParameterizedType).arguments.getValue("Element")
-                if (elementTypeArg.variance == IrTypeVariance.INVARIANT || elementTypeArg.variance == IrTypeVariance.OUT) {
-                    val intrinsic: KotlinLlvmFunction<EmergeLlvmContext, *>?
-                    if (expression.function.canonicalName.simpleName == "get" && expression.function.parameters.size == 2) {
-                        intrinsic = when ((elementTypeArg.type as? IrSimpleType)?.baseType) {
-                            context.rawS8Clazz -> EmergeS8ArrayType.getRawGetter(false)
-                            context.rawU8Clazz -> EmergeU8ArrayType.getRawGetter(false)
-                            context.rawS16Clazz -> EmergeS16ArrayType.getRawGetter(false)
-                            context.rawU16Clazz -> EmergeU16ArrayType.getRawGetter(false)
-                            context.rawS32Clazz -> EmergeS32ArrayType.getRawGetter(false)
-                            context.rawU32Clazz -> EmergeU32ArrayType.getRawGetter(false)
-                            context.rawS64Clazz -> EmergeS64ArrayType.getRawGetter(false)
-                            context.rawU64Clazz -> EmergeU64ArrayType.getRawGetter(false)
-                            context.rawSWordClazz -> EmergeSWordArrayType.getRawGetter(false)
-                            context.rawUWordClazz -> EmergeUWordArrayType.getRawGetter(false)
-                            context.rawBoolClazz -> EmergeBooleanArrayType.getRawGetter(false)
-                            else -> null
-                        }
-                    } else if (expression.function.canonicalName.simpleName == "set" && expression.function.parameters.size == 3) {
-                        intrinsic = when ((elementTypeArg.type as? IrSimpleType)?.baseType) {
-                            context.rawS8Clazz -> EmergeS8ArrayType.getRawSetter(false)
-                            context.rawU8Clazz -> EmergeU8ArrayType.getRawSetter(false)
-                            context.rawS16Clazz -> EmergeS16ArrayType.getRawSetter(false)
-                            context.rawU16Clazz -> EmergeU16ArrayType.getRawSetter(false)
-                            context.rawS32Clazz -> EmergeS32ArrayType.getRawSetter(false)
-                            context.rawU32Clazz -> EmergeU32ArrayType.getRawSetter(false)
-                            context.rawS64Clazz -> EmergeS64ArrayType.getRawSetter(false)
-                            context.rawU64Clazz -> EmergeU64ArrayType.getRawSetter(false)
-                            context.rawSWordClazz -> EmergeSWordArrayType.getRawSetter(false)
-                            context.rawUWordClazz -> EmergeUWordArrayType.getRawSetter(false)
-                            context.rawBoolClazz -> EmergeBooleanArrayType.getRawSetter(false)
-                            else -> null
-                        }
-                    } else {
-                        intrinsic = null
-                    }
-
-                    if (intrinsic != null) {
+                val override = ArrayDispatchOverride.findFor(expression, context)
+                when (override) {
+                    is ArrayDispatchOverride.InvokeVirtual -> {
+                        val addr = callIntrinsic(getDynamicCallAddress, listOf(
+                            expression.arguments.first().declaration.llvmValue,
+                            context.word(override.hash),
+                        ))
                         return ExpressionResult.Value(
-                            call(context.registerIntrinsic(intrinsic), expression.arguments.map { it.declaration.llvmValue })
+                            call(
+                                addr,
+                                override.fnType,
+                                expression.arguments.zip(expression.function.parameters)
+                                    .map { (argument, parameter) -> assureBoxed(argument, parameter.type) }
+                            )
                         )
                     }
+                    is ArrayDispatchOverride.InvokeIntrinsic -> {
+                        // IMPORTANT! this deliberately doesn't box the arguments because that would box primitives
+                        // in exactly a situation where that shouldn't happen.
+                        return ExpressionResult.Value(
+                            call(context.registerIntrinsic(override.intrinsic), expression.arguments.map { it.declaration.llvmValue })
+                        )
+                    }
+                    else -> {}
                 }
             }
-
-            val argumentsForInvocation = expression.arguments.zip(expression.function.parameters)
-                .map { (argument, parameter) -> assureBoxed(argument, parameter.type) }
 
             // general dynamic dispatch
             return ExpressionResult.Value(
                 call(
                     expression.function.llvmRef!!,
-                    argumentsForInvocation,
+                    expression.arguments.zip(expression.function.parameters)
+                        .map { (argument, parameter) -> assureBoxed(argument, parameter.type) },
                 )
             )
         }
@@ -330,19 +313,10 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         })
         is IrBooleanLiteralExpression -> return ExpressionResult.Value(context.i1(expression.value))
         is IrNullLiteralExpression -> return ExpressionResult.Value(context.nullValue(context.getReferenceSiteType(expression.evaluatesTo)))
-        is IrArrayLiteralExpression -> {
-            val elementCount = context.word(expression.elements.size)
+        is IrNullInitializedArrayExpression -> {
+            val elementCount = context.word(expression.size)
             val arrayType = context.getAllocationSiteType(expression.evaluatesTo) as EmergeArrayType<*>
-            val arrayPtr = callIntrinsic(arrayType.constructorOfUndefEntries, listOf(elementCount))
-            for ((index, elementExpr) in expression.elements.indexed()) {
-                val valueToAssign = assureBoxed(elementExpr, expression.elementType)
-                val slotPtr = getelementptr(arrayPtr)
-                    .member { elements }
-                    .index(context.word(index))
-                    .get()
-                store(valueToAssign, slotPtr)
-            }
-
+            val arrayPtr = callIntrinsic(arrayType.constructorOfNullEntries, listOf(elementCount))
             return ExpressionResult.Value(arrayPtr)
         }
         is IrIfExpression -> {
@@ -455,4 +429,115 @@ private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.getPointerToStructMem
     return getelementptr(structPointer as LlvmValue<LlvmPointerType<EmergeClassType>>)
         .member(member)
         .get()
+}
+
+private fun IrType.findSimpleTypeBound(): IrSimpleType {
+    var carry: IrType = this
+    while (carry !is IrSimpleType) {
+        carry = when (carry) {
+            is IrParameterizedType -> carry.simpleType
+            is IrGenericTypeReference -> carry.effectiveBound
+            else -> error("how the hell did this happen??")
+        }
+    }
+
+    return carry
+}
+
+private sealed interface ArrayDispatchOverride {
+    /** there is no override, the regular approach works */
+    object None : ArrayDispatchOverride
+    /** invoke this intrinsic instead */
+    class InvokeIntrinsic(val intrinsic: KotlinLlvmFunction<EmergeLlvmContext, *>) : ArrayDispatchOverride
+    /** invoke a virtual function dispatched on the array object */
+    class InvokeVirtual(val hash: ULong, val fnType: LlvmFunctionType<*>) : ArrayDispatchOverride
+
+    companion object {
+        /**
+         * on a method invocation on an array, this method determines whether the invocation is an access that can be optimized
+         * and if so, how
+         */
+        fun findFor(invocation: IrStaticDispatchFunctionInvocationExpression, context: EmergeLlvmContext): ArrayDispatchOverride {
+            val elementTypeArg = (invocation.arguments.first().type as IrParameterizedType).arguments.getValue("Element")
+
+            val elementTypeBound = elementTypeArg.type.findSimpleTypeBound().baseType
+            val accessType = if (elementTypeBound.canonicalName.toString() == "emerge.core.Any") {
+                if (elementTypeArg.variance == IrTypeVariance.INVARIANT) {
+                    ArrayAccessType.REFERENCE_TYPE_DIRECT
+                } else {
+                    ArrayAccessType.VIRTUAL
+                }
+            } else if (elementTypeBound.autoboxer is Autoboxer.PrimitiveType) {
+                if (elementTypeArg.variance == IrTypeVariance.IN) {
+                    ArrayAccessType.VIRTUAL
+                } else {
+                    ArrayAccessType.VALUE_TYPE_DIRECT
+                }
+            } else {
+                ArrayAccessType.REFERENCE_TYPE_DIRECT
+            }
+
+            if (invocation.function.canonicalName.simpleName == "get" && invocation.function.parameters.size == 2) {
+                when (accessType) {
+                    ArrayAccessType.VIRTUAL -> return InvokeVirtual(
+                        EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT,
+                        context.registerIntrinsic(arrayAbstractGet).type,
+                    )
+                    ArrayAccessType.VALUE_TYPE_DIRECT -> return InvokeIntrinsic(when (elementTypeBound) {
+                        context.rawS8Clazz -> EmergeS8ArrayType.getRawGetter(false)
+                        context.rawU8Clazz -> EmergeU8ArrayType.getRawGetter(false)
+                        context.rawS16Clazz -> EmergeS16ArrayType.getRawGetter(false)
+                        context.rawU16Clazz -> EmergeU16ArrayType.getRawGetter(false)
+                        context.rawS32Clazz -> EmergeS32ArrayType.getRawGetter(false)
+                        context.rawU32Clazz -> EmergeU32ArrayType.getRawGetter(false)
+                        context.rawS64Clazz -> EmergeS64ArrayType.getRawGetter(false)
+                        context.rawU64Clazz -> EmergeU64ArrayType.getRawGetter(false)
+                        context.rawSWordClazz -> EmergeSWordArrayType.getRawGetter(false)
+                        context.rawUWordClazz -> EmergeUWordArrayType.getRawGetter(false)
+                        context.rawBoolClazz -> EmergeBooleanArrayType.getRawGetter(false)
+                        else -> throw CodeGenerationException("No value type direct access intrinsic available for ${elementTypeBound.canonicalName}")
+                    })
+                    ArrayAccessType.REFERENCE_TYPE_DIRECT -> return InvokeIntrinsic(
+                        EmergeReferenceArrayType.getRawGetter(false)
+                    )
+                }
+            } else if (invocation.function.canonicalName.simpleName == "set" && invocation.function.parameters.size == 3) {
+                when (accessType) {
+                    ArrayAccessType.VIRTUAL -> return InvokeVirtual(
+                        EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT,
+                        context.registerIntrinsic(arrayAbstractSet).type,
+                    )
+                    ArrayAccessType.VALUE_TYPE_DIRECT -> return InvokeIntrinsic(when (elementTypeBound) {
+                        context.rawS8Clazz -> EmergeS8ArrayType.getRawSetter(false)
+                        context.rawU8Clazz -> EmergeU8ArrayType.getRawSetter(false)
+                        context.rawS16Clazz -> EmergeS16ArrayType.getRawSetter(false)
+                        context.rawU16Clazz -> EmergeU16ArrayType.getRawSetter(false)
+                        context.rawS32Clazz -> EmergeS32ArrayType.getRawSetter(false)
+                        context.rawU32Clazz -> EmergeU32ArrayType.getRawSetter(false)
+                        context.rawS64Clazz -> EmergeS64ArrayType.getRawSetter(false)
+                        context.rawU64Clazz -> EmergeU64ArrayType.getRawSetter(false)
+                        context.rawSWordClazz -> EmergeSWordArrayType.getRawSetter(false)
+                        context.rawUWordClazz -> EmergeUWordArrayType.getRawSetter(false)
+                        context.rawBoolClazz -> EmergeBooleanArrayType.getRawSetter(false)
+                        else -> throw CodeGenerationException("No value type direct access intrinsic available for ${elementTypeBound.canonicalName}")
+                    })
+                    ArrayAccessType.REFERENCE_TYPE_DIRECT -> return InvokeIntrinsic(
+                        EmergeReferenceArrayType.getRawSetter(false)
+                    )
+                }
+            } else {
+                return None
+            }
+        }
+    }
+}
+
+private enum class ArrayAccessType {
+    /** invoke the get and set functions through the vtable */
+    VIRTUAL,
+    /** optimized code for direct array access, depending on the value type */
+    VALUE_TYPE_DIRECT,
+    /** optimized code for direct array access, normed ptr-size because its references */
+    REFERENCE_TYPE_DIRECT,
+    ;
 }

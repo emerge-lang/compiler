@@ -360,7 +360,10 @@ private val dropReferenceFunction = KotlinLlvmFunction.define<EmergeLlvmContext,
     "emerge.platform.dropReference",
     LlvmVoidType
 ) {
+    functionAttribute(LlvmFunctionAttribute.Hot)
+
     val objectPtr by param(PointerToAnyEmergeValue)
+
     body {
         val referenceCountPtr = getelementptr(objectPtr).member { strongReferenceCount }.get()
         val decremented = sub(referenceCountPtr.dereference(), context.word(1))

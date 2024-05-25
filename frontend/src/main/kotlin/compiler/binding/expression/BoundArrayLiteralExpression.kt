@@ -7,20 +7,27 @@ import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundStatement
+import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
+import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUnification
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.ir.IrArrayLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrNullInitializedArrayExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.llvm.indexed
+import java.math.BigInteger
 
 class BoundArrayLiteralExpression(
     override val context: ExecutionScopedCTContext,
@@ -128,18 +135,53 @@ class BoundArrayLiteralExpression(
         get() = elements.all { it.isCompileTimeConstant }
 
     override fun toBackendIrExpression(): IrExpression {
+        val arraySetFn = context.swCtx.array.resolveMemberFunction("set")
+            .single()
+            .overloads
+            .single()
+            .also {
+                check(it.parameters.parameters.size == 3)
+                check((it.returnType as RootResolvedTypeReference).baseType == context.swCtx.unit)
+            }
+            .toBackendIr()
+
         val irType = type!!.toBackendIr()
         val irElementType = (type as RootResolvedTypeReference).arguments!!.single().type.toBackendIr()
 
         return buildInvocationLikeIr(
             elements,
-            { args -> IrArrayLiteralExpressionImpl(irType, irElementType, args) },
+            { args ->
+                val arrayTemporary = IrCreateTemporaryValueImpl(
+                    IrNullInitializedArrayExpressionImpl(irType, irElementType, args.size.toULong())
+                )
+                val arrayTemporaryRef = IrTemporaryValueReferenceImpl(arrayTemporary)
+                val instrs = mutableListOf<IrExecutable>()
+                instrs.add(arrayTemporary)
+                for ((index, element) in args.indexed()) {
+                    val indexTemporary = IrCreateTemporaryValueImpl(
+                        IrIntegerLiteralExpressionImpl(BigInteger.valueOf(index.toLong()), IrSimpleTypeImpl(context.swCtx.uword.toBackendIr(), false))
+                    )
+                    instrs.add(indexTemporary)
+                    instrs.add(IrCreateTemporaryValueImpl(
+                        IrStaticDispatchFunctionInvocationImpl(
+                            arraySetFn,
+                            listOf(
+                                arrayTemporaryRef,
+                                IrTemporaryValueReferenceImpl(indexTemporary),
+                                element,
+                            ),
+                            IrSimpleTypeImpl(context.swCtx.unit.toBackendIr(), false),
+                        ),
+                    ))
+                }
+                IrImplicitEvaluationExpressionImpl(IrCodeChunkImpl(instrs), arrayTemporaryRef)
+            },
         )
     }
 }
 
-private class IrArrayLiteralExpressionImpl(
+private class IrNullInitializedArrayExpressionImpl(
     override val evaluatesTo: IrType,
     override val elementType: IrType,
-    override val elements: List<IrTemporaryValueReference>,
-) : IrArrayLiteralExpression
+    override val size: ULong
+) : IrNullInitializedArrayExpression
