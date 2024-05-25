@@ -79,7 +79,7 @@ class BoundIdentifierExpression(
             ).takeUnless { it is UnresolvedType }
 
             if (type == null) {
-                reportings.add(Reporting.undefinedIdentifier(declaration))
+                reportings.add(Reporting.undefinedIdentifier(declaration.identifier))
             } else {
                 referral = ReferringType(type)
             }

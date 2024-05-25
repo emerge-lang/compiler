@@ -27,9 +27,9 @@ class BorrowAndLifetimeErrors : FreeSpec({
         "use by writing member" {
             validateModule("""
                 class Test {
-                    m: S32 = 0
+                    var m: S32 = 0
                 }
-                fn test() -> S32 {
+                fn test() {
                     v: exclusive _ = Test()
                     v2 = v
                     set v.m = 1

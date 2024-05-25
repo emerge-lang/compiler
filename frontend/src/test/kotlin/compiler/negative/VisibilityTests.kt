@@ -86,7 +86,7 @@ class VisibilityTests : FreeSpec({
                 IntegrationTestModule.of("module_A", """
                     package module_A
                     
-                    class Foo {
+                    export class Foo {
                         module var x = 3
                     }
                 """.trimIndent()),
@@ -94,7 +94,7 @@ class VisibilityTests : FreeSpec({
                     package module_B
                     import module_A.Foo
                     fn test() {
-                        v = Foo()
+                        var v = Foo()
                         set v.x = 5
                     }
                 """.trimIndent()),

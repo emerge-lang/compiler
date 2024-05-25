@@ -126,7 +126,7 @@ class BoundBaseType(
                     ?.let { list -> reportings.add(Reporting.multipleClassDestructors(list.map { it.declaration })) }
 
                 if (declaredConstructors.none()) {
-                    val defaultCtorAst = BaseTypeConstructorDeclaration(emptyList(), IdentifierToken("constructor", declaration.declaredAt), CodeChunk(emptyList()))
+                    val defaultCtorAst = BaseTypeConstructorDeclaration(listOfNotNull(declaration.visibility), IdentifierToken("constructor", declaration.declaredAt), CodeChunk(emptyList()))
                     constructor = defaultCtorAst.bindTo(typeRootContext, typeParameters) { this }
                     reportings.addAll(constructor!!.semanticAnalysisPhase1())
                 } else {

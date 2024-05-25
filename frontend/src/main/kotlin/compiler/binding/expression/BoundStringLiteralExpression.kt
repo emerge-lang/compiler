@@ -16,7 +16,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 class BoundStringLiteralExpression(
     override val context: ExecutionScopedCTContext,
     override val declaration: StringLiteralExpression,
-) : BoundExpression<StringLiteralExpression> {
+) : BoundLiteralExpression<StringLiteralExpression> {
     override val throwBehavior = SideEffectPrediction.NEVER
     override val returnBehavior = SideEffectPrediction.NEVER
     override var type: BoundTypeReference? = null

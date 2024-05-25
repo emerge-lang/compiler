@@ -66,13 +66,55 @@ class VariableErrors : FreeSpec({
                     set S32 = 3
                 }
             """.trimIndent())
+                .shouldReport<UndefinedIdentifierReporting>()
+        }
+
+        "cannot assign to literal" {
+            validateModule("""
+                fn foo() {
+                    set false = 3
+                }
+            """.trimIndent())
+                .shouldReport<IllegalAssignmentReporting>()
+
+            validateModule("""
+                fn foo() {
+                    set [1, 2] = 3
+                }
+            """.trimIndent())
+                .shouldReport<IllegalAssignmentReporting>()
+
+            validateModule("""
+                fn foo() {
+                    set null = 3
+                }
+            """.trimIndent())
                 .shouldReport<IllegalAssignmentReporting>()
         }
 
-        "cannot assign to value" {
+        "cannot assign to not-null assertion" {
             validateModule("""
                 fn foo() {
-                    set false  = 3
+                    x: I32? = null
+                    set x!! = 3
+                }
+            """.trimIndent())
+                .shouldReport<IllegalAssignmentReporting>()
+        }
+
+        "cannot assign to unary operator invocation" {
+            validateModule("""
+                fn foo() {
+                    set -3 = 4
+                }
+            """.trimIndent())
+                .shouldReport<IllegalAssignmentReporting>()
+        }
+
+        "cannot assign to binary operator invocation" {
+            validateModule("""
+                fn foo() {
+                    set 3 + 4 = 4
                 }
             """.trimIndent())
                 .shouldReport<IllegalAssignmentReporting>()
@@ -106,7 +148,7 @@ class VariableErrors : FreeSpec({
                 x = y
             """.trimIndent())
                 .shouldReport<UndefinedIdentifierReporting> {
-                    it.expr.identifier.value shouldBe "y"
+                    it.expr.value shouldBe "y"
                 }
         }
 

@@ -32,7 +32,7 @@ class BoundBooleanLiteralExpression(
     override val context: ExecutionScopedCTContext,
     override val declaration: BooleanLiteralExpression,
     val value: Boolean
-) : BoundExpression<BooleanLiteralExpression> {
+) : BoundLiteralExpression<BooleanLiteralExpression> {
     override val type: BoundTypeReference = context.swCtx.bool.baseReference
 
     override val throwBehavior = SideEffectPrediction.NEVER

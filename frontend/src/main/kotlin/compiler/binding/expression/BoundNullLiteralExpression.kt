@@ -34,7 +34,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 class BoundNullLiteralExpression(
     override val context: ExecutionScopedCTContext,
     override val declaration: NullLiteralExpression
-) : BoundExpression<NullLiteralExpression>
+) : BoundLiteralExpression<NullLiteralExpression>
 {
     private var expectedType: BoundTypeReference? = null
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {

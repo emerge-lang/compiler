@@ -18,7 +18,12 @@
 
 package compiler.ast
 
+import compiler.ast.expression.IdentifierExpression
+import compiler.ast.expression.MemberAccessExpression
 import compiler.binding.BoundAssignmentStatement
+import compiler.binding.BoundIllegalTargetAssignmentStatement
+import compiler.binding.BoundObjectMemberAssignmentStatement
+import compiler.binding.BoundVariableAssignmentStatement
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.lexer.KeywordToken
 import compiler.lexer.OperatorToken
@@ -33,13 +38,36 @@ class AssignmentStatement(
     override val span = setKeyword.span
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundAssignmentStatement {
-        val boundTarget = targetExpression.bindTo(context)
-        val boundValue = valueExpression.bindTo(boundTarget.modifiedContext)
-        return BoundAssignmentStatement(
-            context,
-            this,
-            boundTarget,
-            boundValue,
-        )
+        when (targetExpression) {
+            is IdentifierExpression -> {
+                val boundValue = valueExpression.bindTo(context)
+                return BoundVariableAssignmentStatement(
+                    boundValue.modifiedContext,
+                    this,
+                    targetExpression.identifier,
+                    boundValue
+                )
+            }
+            is MemberAccessExpression -> {
+                val boundTarget = targetExpression.bindTo(context)
+                val boundValue = valueExpression.bindTo(boundTarget.modifiedContext)
+                return BoundObjectMemberAssignmentStatement(
+                    boundValue.modifiedContext,
+                    this,
+                    boundTarget,
+                    boundValue,
+                )
+            }
+            else -> {
+                val boundTarget = targetExpression.bindTo(context)
+                val boundValue = valueExpression.bindTo(boundTarget.modifiedContext)
+                return BoundIllegalTargetAssignmentStatement(
+                    boundValue.modifiedContext,
+                    this,
+                    boundTarget,
+                    boundValue,
+                )
+            }
+        }
     }
 }

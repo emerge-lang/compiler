@@ -44,7 +44,7 @@ open class BoundNumericLiteral(
     override val context: ExecutionScopedCTContext,
     override val declaration: NumericLiteralExpression,
     private val bindTimeReportings: Collection<Reporting>
-) : BoundExpression<NumericLiteralExpression> {
+) : BoundLiteralExpression<NumericLiteralExpression> {
     override val type: BoundTypeReference? = null // unknown
 
     override val throwBehavior = SideEffectPrediction.NEVER

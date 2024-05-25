@@ -26,7 +26,7 @@ class BoundArrayLiteralExpression(
     override val context: ExecutionScopedCTContext,
     override val declaration: ArrayLiteralExpression,
     val elements: List<BoundExpression<*>>,
-) : BoundExpression<ArrayLiteralExpression> {
+) : BoundLiteralExpression<ArrayLiteralExpression> {
     override val modifiedContext: ExecutionScopedCTContext = elements.lastOrNull()?.modifiedContext ?: context
 
     override val throwBehavior get() = elements.map { it.throwBehavior }.reduceSequentialExecution()

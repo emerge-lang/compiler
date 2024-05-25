@@ -18,14 +18,14 @@
 
 package compiler.reportings
 
-import compiler.ast.expression.IdentifierExpression
+import compiler.lexer.IdentifierToken
 
 /**
  * Reported when the identifier [expr] is used but it is not defined at that point.
  */
-class UndefinedIdentifierReporting(val expr: IdentifierExpression, messageOverride: String? = null) : Reporting(
+class UndefinedIdentifierReporting(val expr: IdentifierToken, messageOverride: String? = null) : Reporting(
     Level.ERROR,
-    messageOverride ?: "${expr.identifier.value} is not defined",
+    messageOverride ?: "${expr.value} is not defined",
     expr.span
 ) {
     override fun equals(other: Any?): Boolean {

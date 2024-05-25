@@ -25,7 +25,6 @@ import compiler.ast.BaseTypeDestructorDeclaration
 import compiler.ast.Expression
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
-import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundAssignmentStatement
@@ -131,7 +130,7 @@ abstract class Reporting internal constructor(
         fun valueNotAssignable(targetType: BoundTypeReference, sourceType: BoundTypeReference, reason: String, assignmentLocation: Span)
             = ValueNotAssignableReporting(targetType, sourceType, reason, assignmentLocation)
 
-        fun undefinedIdentifier(expr: IdentifierExpression, messageOverride: String? = null)
+        fun undefinedIdentifier(expr: IdentifierToken, messageOverride: String? = null)
             = UndefinedIdentifierReporting(expr, messageOverride)
 
         /**
@@ -392,8 +391,8 @@ abstract class Reporting internal constructor(
         fun droppingReferenceToObjectWithThrowingConstructor(reference: BoundBaseTypeMemberVariable, ownerType: BoundBaseType, boundary: NothrowViolationReporting.SideEffectBoundary)
             = NothrowViolationReporting.ObjectMemberWithThrowingDestructor(reference, ownerType, boundary)
 
-        fun droppingReferenceToObjectWithThrowingConstructor(reference: BoundAssignmentStatement.AssignmentTarget, boundary: NothrowViolationReporting.SideEffectBoundary)
-            = NothrowViolationReporting.PotentialThrowingDestruction(reference, "the previous value", reference.span, boundary)
+        fun droppingReferenceToObjectWithThrowingConstructor(reference: BoundAssignmentStatement, boundary: NothrowViolationReporting.SideEffectBoundary)
+            = NothrowViolationReporting.PotentialThrowingDestruction(reference, "the previous value", reference.declaration.span, boundary)
 
         fun droppingReferenceToObjectWithThrowingConstructor(returnValueOf: BoundInvocationExpression, boundary: NothrowViolationReporting.SideEffectBoundary)
             = NothrowViolationReporting.PotentialThrowingDestruction(
