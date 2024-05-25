@@ -16,6 +16,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmStructType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
@@ -165,7 +166,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
         override fun provide(context: EmergeLlvmContext): StaticAndDynamicTypeInfo {
             byContext[context]?.let { return it }
 
-            val vtableConstant = buildVTable(context, virtualFunctions(context))
+            val vtableConstant = buildVTable(context, virtualFunctions(context), context.registerIntrinsic(missingVirtualFunctionHandler).address)
             val typeinfoType = TypeinfoType(vtableConstant.type.nEntries)
 
             val dynamicGlobal = context.addGlobal(context.undefValue(typeinfoType), LlvmThreadLocalMode.NOT_THREAD_LOCAL)
@@ -220,7 +221,14 @@ internal class StaticAndDynamicTypeInfo private constructor(
     }
 }
 
-private fun buildVTable(context: EmergeLlvmContext, functions: Map<ULong, LlvmFunction<*>>): LlvmConstant<VTableType> {
+/**
+ * @param missingFunction the address to place in the spots in the vtable where none of the [functions] end up in.
+ */
+private fun buildVTable(
+    context: EmergeLlvmContext,
+    functions: Map<ULong, LlvmFunction<*>>,
+    missingFunction: LlvmValue<LlvmFunctionAddressType>,
+): LlvmConstant<VTableType> {
     fun getSection(hash: ULong, shiftLeftAmount: Int, shiftRightAmount: Int): ULong {
         return (hash shl shiftLeftAmount) shr shiftRightAmount
     }
@@ -260,7 +268,7 @@ private fun buildVTable(context: EmergeLlvmContext, functions: Map<ULong, LlvmFu
         setValue(vtableType.shiftLeftAmount, context.i32(shiftLeftAmount))
         setValue(vtableType.shiftRightAmount, context.i32(shiftRightAmount))
         setValue(vtableType.addresses, addressesArrayType.buildConstantIn(context, entries.map { fnPtr ->
-            fnPtr?.address ?: context.nullValue(LlvmFunctionAddressType)
+            fnPtr?.address ?: missingFunction
         }))
     }
 }
@@ -319,3 +327,12 @@ val getDynamicCallAddress: KotlinLlvmFunction<EmergeLlvmContext, LlvmFunctionAdd
 }
 
 class VirtualFunctionHashCollisionException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
+
+val missingVirtualFunctionHandler = KotlinLlvmFunction.define<LlvmContext, LlvmVoidType>(
+    "emerge.platform.missingVirtualFunction",
+    LlvmVoidType,
+) {
+    body {
+        inlinePanic("Missing virtual function")
+    }
+}
