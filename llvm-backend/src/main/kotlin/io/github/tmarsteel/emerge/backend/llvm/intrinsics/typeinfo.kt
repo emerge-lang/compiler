@@ -129,20 +129,42 @@ private val setter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<Emerg
 }
 
 internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
+    val virtualGetter = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+        "array_pointer_to_typeinfo_virtualGet",
+        PointerToAnyEmergeValue,
+    ) {
+        param(PointerToAnyEmergeValue)
+        param(EmergeWordType)
+
+        body {
+            inlinePanic("array_pointer_to_typeinfo_virtualGet is not implemented")
+        }
+    }
+
+    val virtualSetter = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+        "array_pointer_to_typeinfo_virtualSet",
+        LlvmVoidType,
+    ) {
+        param(PointerToAnyEmergeValue)
+        param(EmergeWordType)
+        param(pointerTo(TypeinfoType.GENERIC))
+
+        body {
+            inlinePanic("array_pointer_to_typeinfo_virtualSet is not implemented")
+        }
+    }
+
     pointerTo(
         EmergeArrayType(
-            pointerTo(TypeinfoType.GENERIC),
-            StaticAndDynamicTypeInfo.define(
-                "valuearray_pointers_to_typeinfo",
-                emptyList(),
-                { ctx -> ctx.registerIntrinsic(valueArrayFinalize) },
-            ) {
-                mapOf(
-                    EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT to registerIntrinsic(getter_EmergeArrayOfPointersToTypeInfoType),
-                    EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT to registerIntrinsic(setter_EmergeArrayOfPointersToTypeInfoType),
-                )
-            },
             "pointer_to_typeinfo",
+            pointerTo(TypeinfoType.GENERIC),
+            virtualGetter,
+            virtualSetter,
+            getter_EmergeArrayOfPointersToTypeInfoType,
+            getter_EmergeArrayOfPointersToTypeInfoType,
+            setter_EmergeArrayOfPointersToTypeInfoType,
+            setter_EmergeArrayOfPointersToTypeInfoType,
+            valueArrayFinalize,
         )
     )
 }
