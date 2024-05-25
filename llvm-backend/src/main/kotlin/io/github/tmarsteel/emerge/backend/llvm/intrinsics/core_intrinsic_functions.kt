@@ -249,9 +249,7 @@ internal val unregisterWeakReference = KotlinLlvmFunction.define<LlvmContext, _>
                 this@collIterBody.loopContinue()
             }
         )
-        // TODO: panic
-        debugPrint("[WOULD PANIC] weak reference is not registered, cannot unregister")
-        retVoid()
+        inlinePanic("weak reference is not registered, cannot unregister")
     }
 }
 
