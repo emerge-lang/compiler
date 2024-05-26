@@ -390,6 +390,7 @@ private class IrDefaultConstructorImpl(
 ) : IrConstructor {
     override val canonicalName = ctor.canonicalName
     override val parameters = ctor.parameters.parameters.map { it.backendIrDeclaration }
+    override val declaresReceiver = false
     override val returnType = IrClassSimpleType(ctor.classDef)
     override val isExternalC = false
     override val ownerBaseType get() = ctor.classDef.toBackendIr()

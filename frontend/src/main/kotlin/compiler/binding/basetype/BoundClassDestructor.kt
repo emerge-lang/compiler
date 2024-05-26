@@ -205,6 +205,7 @@ private class IrDestructorImpl(
 ) : IrMemberFunction {
     override val canonicalName = dtor.canonicalName
     override val parameters = dtor.parameters.parameters.map { it.backendIrDeclaration }
+    override val declaresReceiver = true
     override val returnType = dtor.returnType.toBackendIr()
     override val isExternalC = false
     override val ownerBaseType get() = dtor.classDef.toBackendIr()

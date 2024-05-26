@@ -83,6 +83,8 @@ export class Array<Element> {
     export operator intrinsic fn set(self: mut _<in Element>, index: UWord, value: Element) -> Unit
 
     export intrinsic fn size(self: read _) -> UWord
+
+    export intrinsic fn new<T>(size: UWord, initialValue: T) -> exclusive Array<T>
 }
 
 export interface Throwable {}

@@ -178,6 +178,7 @@ private class IrMemberFunctionImpl(
 ) : IrMemberFunction {
     override val canonicalName = boundFn.canonicalName
     override val parameters = boundFn.parameters.parameters.map { it.backendIrDeclaration }
+    override val declaresReceiver = boundFn.declaresReceiver
     override val returnType by lazy { boundFn.returnType!!.toBackendIr() }
     override val isExternalC = boundFn.attributes.externalAttribute?.ffiName?.value == "C"
     override val body: IrCodeChunk? by lazy { boundFn.body?.toBackendIr() }

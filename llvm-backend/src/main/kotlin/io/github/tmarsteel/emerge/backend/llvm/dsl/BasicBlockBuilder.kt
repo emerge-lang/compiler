@@ -27,6 +27,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun <T : LlvmIntegerType> icmp(lhs: LlvmValue<T>, type: LlvmIntPredicate, rhs: LlvmValue<T>): LlvmValue<LlvmBooleanType>
     fun <T : LlvmIntegerType> shl(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> lshr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T>
+    fun <T : LlvmIntegerType> and(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
     fun <Small : LlvmIntegerType, Large : LlvmIntegerType> enlargeUnsigned(value: LlvmValue<Small>, to: Large): LlvmValue<Large>
     fun <T: LlvmType> alloca(type: T): LlvmValue<LlvmPointerType<T>>
     fun <R : LlvmType> call(function: LlvmFunction<R>, args: List<LlvmValue<*>>): LlvmValue<R>
@@ -210,6 +211,11 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     override fun <T : LlvmIntegerType> lshr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T> {
         val shiftInstr = Llvm.LLVMBuildLShr(builder, value.raw, shiftAmount.raw, tmpVars.next())
         return LlvmValue(shiftInstr, value.type)
+    }
+
+    override fun <T : LlvmIntegerType> and(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        val andInstr = Llvm.LLVMBuildAnd(builder, lhs.raw, rhs.raw, tmpVars.next())
+        return LlvmValue(andInstr, lhs.type)
     }
 
     override fun <Small : LlvmIntegerType, Large : LlvmIntegerType> enlargeUnsigned(

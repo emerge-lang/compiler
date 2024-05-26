@@ -154,6 +154,18 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
         }
     }
 
+    val defaultValueCtor = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+        "array_pointer_to_typeinfo_defaultValueCtor",
+        PointerToAnyEmergeValue,
+    ) {
+        param(EmergeWordType)
+        param(pointerTo(TypeinfoType.GENERIC))
+
+        body {
+            inlinePanic("array_pointer_to_typeinfo_defaultValueCtor is not implemented")
+        }
+    }
+
     pointerTo(
         EmergeArrayType(
             "pointer_to_typeinfo",
@@ -165,6 +177,7 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
             setter_EmergeArrayOfPointersToTypeInfoType,
             setter_EmergeArrayOfPointersToTypeInfoType,
             valueArrayFinalize,
+            defaultValueCtor,
         )
     )
 }

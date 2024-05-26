@@ -454,10 +454,18 @@ private sealed interface ArrayDispatchOverride {
 
     companion object {
         /**
-         * on a method invocation on an array, this method determines whether the invocation is an access that can be optimized
-         * and if so, how
+         * on a method invocation on an array, this method determines whether the invocation is an access that can be
+         * optimized; and if so, how
          */
         fun findFor(invocation: IrStaticDispatchFunctionInvocationExpression, context: EmergeLlvmContext): ArrayDispatchOverride {
+            return if (invocation.function.declaresReceiver) {
+                findForInstanceFunction(invocation, context)
+            } else {
+                findForStaticFunction(invocation, context)
+            }
+        }
+
+        private fun findForInstanceFunction(invocation: IrStaticDispatchFunctionInvocationExpression, context: EmergeLlvmContext): ArrayDispatchOverride {
             val elementTypeArg = (invocation.arguments.first().type as IrParameterizedType).arguments.getValue("Element")
 
             val elementTypeBound = elementTypeArg.type.findSimpleTypeBound().baseType
@@ -525,6 +533,29 @@ private sealed interface ArrayDispatchOverride {
                         EmergeReferenceArrayType.getRawSetter(false)
                     )
                 }
+            } else {
+                return None
+            }
+        }
+
+        private fun findForStaticFunction(invocation: IrStaticDispatchFunctionInvocationExpression, context: EmergeLlvmContext): ArrayDispatchOverride {
+            if (invocation.function.canonicalName.simpleName == "new" && invocation.function.parameters.size == 2) {
+                val elementTypeArg = (invocation.evaluatesTo as IrParameterizedType).arguments.getValue("Element")
+                val elementTypeBound = elementTypeArg.type.findSimpleTypeBound().baseType
+                return InvokeIntrinsic(when (elementTypeBound) {
+                    context.rawS8Clazz -> EmergeS8ArrayType.defaultValueConstructor
+                    context.rawU8Clazz -> EmergeU8ArrayType.defaultValueConstructor
+                    context.rawS16Clazz -> EmergeS16ArrayType.defaultValueConstructor
+                    context.rawU16Clazz -> EmergeU16ArrayType.defaultValueConstructor
+                    context.rawS32Clazz -> EmergeS32ArrayType.defaultValueConstructor
+                    context.rawU32Clazz -> EmergeU32ArrayType.defaultValueConstructor
+                    context.rawS64Clazz -> EmergeS64ArrayType.defaultValueConstructor
+                    context.rawU64Clazz -> EmergeU64ArrayType.defaultValueConstructor
+                    context.rawSWordClazz -> EmergeSWordArrayType.defaultValueConstructor
+                    context.rawUWordClazz -> EmergeUWordArrayType.defaultValueConstructor
+                    context.rawBoolClazz -> EmergeBooleanArrayType.defaultValueConstructor
+                    else -> EmergeReferenceArrayType.defaultValueConstructor
+                })
             } else {
                 return None
             }

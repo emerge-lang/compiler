@@ -91,6 +91,12 @@ internal class EmergeArrayType<Element : LlvmType>(
      * the finalizer for this array type
      */
     private val finalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
+
+    /**
+     * A function of the signature (size: UWord, defaultValue: Element) -> Array<Element> that creates a new array
+     * of the given size and sets all the elements to the given value.
+     */
+    val defaultValueConstructor: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>>,
 ) : LlvmStructType("array_$elementTypeName"), EmergeHeapAllocated {
     val base by structMember(EmergeArrayBaseType)
     val elements by structMember(LlvmArrayType(0L, elementType))
@@ -344,7 +350,7 @@ private fun <Element : LlvmType> buildValueArrayRawGetterWithoutBoundsCheck(
     elementType: Element,
     getSelfType: () -> EmergeArrayType<Element>
 ) : KotlinLlvmFunction<EmergeLlvmContext, Element> {
-    return KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+    return KotlinLlvmFunction.define<_, _>(
         "emerge.core.array_${elementTypeName}_rawGetNoBoundsCheck",
         elementType,
     ) {
@@ -445,6 +451,43 @@ private fun <Element : LlvmType> buildValueArrayRawSetterWithBoundsCheck(
     }
 }
 
+private fun <Element : LlvmType> buildValueArrayDefaultValueConstructor(
+    elementTypeName: String,
+    elementType: Element,
+    getSelfType: () -> EmergeArrayType<Element>,
+) : KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>> {
+    return KotlinLlvmFunction.define<_, _>(
+        "emerge.core.array_${elementTypeName}_nullCtor",
+        PointerToAnyEmergeValue,
+    ) {
+        val size by param(EmergeWordType)
+        val defaultValue by param(elementType)
+
+        body {
+            val rawSetter = context.registerIntrinsic(getSelfType().getRawSetter(true))
+            val arrayPtr = call(context.registerIntrinsic(getSelfType().constructorOfNullEntries), listOf(size))
+            val indexStack = alloca(EmergeWordType)
+            store(context.word(0), indexStack)
+            loop(
+                header = {
+                    conditionalBranch(
+                        condition = icmp(indexStack.dereference(), LlvmIntPredicate.EQUAL, size),
+                        ifTrue = { breakLoop() }
+                    )
+                    doIteration()
+                },
+                body = {
+                    val index = indexStack.dereference()
+                    call(rawSetter, listOf(arrayPtr, index, defaultValue))
+                    store(add(index, context.word(1)), indexStack)
+                    loopContinue()
+                }
+            )
+            ret(arrayPtr.reinterpretAs(PointerToAnyEmergeValue))
+        }
+    }
+}
+
 private fun <Element : LlvmType> buildValueArrayType(
     elementTypeName: String,
     elementType: Element,
@@ -457,6 +500,7 @@ private fun <Element : LlvmType> buildValueArrayType(
     val rawGetterWithBoundsCheck = buildValueArrayRawGetterWithBoundsCheck(elementTypeName, elementType, { arrayTypeHolder }, rawGetterWithoutBoundsCheck)
     val rawSetterWithoutBoundsCheck = buildValueArrayRawSetterWithoutBoundsCheck(elementTypeName, elementType, { arrayTypeHolder })
     val rawSetterWithBoundsCheck = buildValueArrayRawSetterWithBoundsCheck(elementTypeName, elementType, { arrayTypeHolder }, rawSetterWithoutBoundsCheck)
+    val defaultValueCtor = buildValueArrayDefaultValueConstructor(elementTypeName, elementType, { arrayTypeHolder })
     arrayTypeHolder = EmergeArrayType(
         elementTypeName,
         elementType,
@@ -467,6 +511,7 @@ private fun <Element : LlvmType> buildValueArrayType(
         rawSetterWithBoundsCheck,
         rawSetterWithoutBoundsCheck,
         valueArrayFinalize,
+        defaultValueCtor,
     )
 
     return arrayTypeHolder
@@ -568,17 +613,69 @@ private val referenceArrayFinalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmV
     }
 }
 
-internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<EmergeHeapAllocatedValueBaseType>> = EmergeArrayType(
-    "ref",
-    PointerToAnyEmergeValue,
-    referenceArrayElementGetter,
-    referenceArrayElementSetter,
-    referenceArrayElementGetter,
-    referenceArrayElementGetter,
-    referenceArrayElementSetter,
-    referenceArrayElementSetter,
-    referenceArrayFinalizer,
-)
+internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<EmergeHeapAllocatedValueBaseType>> by lazy {
+    lateinit var arrayTypeHolder: EmergeArrayType<LlvmPointerType<EmergeHeapAllocatedValueBaseType>>
+    val defaultValueCtor = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+        "emerge.platform.ref_array_defaultValueCtor",
+        PointerToAnyEmergeValue,
+    ) {
+        val size by param(EmergeWordType)
+        val defaultValue by param(PointerToAnyEmergeValue)
+
+        body {
+            val indexStack = alloca(EmergeWordType)
+            store(context.word(0), indexStack)
+
+            // efficient refcounting
+            conditionalBranch(
+                condition = isNotNull(defaultValue),
+                ifTrue = {
+                    val refcountLocation = getelementptr(defaultValue)
+                        .member { strongReferenceCount }
+                        .get()
+                    store(add(refcountLocation.dereference(), size), refcountLocation)
+                    concludeBranch()
+                }
+            )
+            val arrayPtr = call(context.registerIntrinsic(arrayTypeHolder.constructorOfNullEntries), listOf(size))
+            loop(
+                header = {
+                    conditionalBranch(
+                        condition = icmp(indexStack.dereference(), LlvmIntPredicate.EQUAL, size),
+                        ifTrue = { breakLoop() },
+                    )
+                    doIteration()
+                },
+                body = {
+                    val index = indexStack.dereference()
+                    store(
+                        defaultValue,
+                        getelementptr(arrayPtr)
+                            .member { elements }
+                            .index(index)
+                            .get()
+                    )
+                    store(add(index, context.word(1)), indexStack)
+                    loopContinue()
+                }
+            )
+            ret(arrayPtr.reinterpretAs(PointerToAnyEmergeValue))
+        }
+    }
+    arrayTypeHolder = EmergeArrayType(
+        "ref",
+        PointerToAnyEmergeValue,
+        referenceArrayElementGetter,
+        referenceArrayElementSetter,
+        referenceArrayElementGetter,
+        referenceArrayElementGetter,
+        referenceArrayElementSetter,
+        referenceArrayElementSetter,
+        referenceArrayFinalizer,
+        defaultValueCtor,
+    )
+    arrayTypeHolder
+}
 
 /* TODO: refactor to addressOf(index: uword)
    that would be easy to do for concrete types; but there should be an overload for Array<out Any>

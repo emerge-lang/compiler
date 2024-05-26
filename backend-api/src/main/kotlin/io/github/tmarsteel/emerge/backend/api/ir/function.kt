@@ -5,6 +5,7 @@ import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 interface IrFunction {
     val canonicalName: CanonicalElementName.Function
     val parameters: List<IrVariableDeclaration>
+    val declaresReceiver: Boolean
     val returnType: IrType
     val isExternalC: Boolean
 

@@ -176,6 +176,12 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 40. some stdlib primitives for filesystem IO
 41. typealiases
 42. smart casts
+43. fix loophole in the typesystem: the `exclusive` modifier becomes incorrect in this code:
+    ```
+    class Foo {}
+    arr = Array.new::<exclusive Foo>(20, Foo()) // compiler doesn't complain, but should
+    v: exclusive Foo = arr[0] // compiler doesn't complain here, either
+    ```
 43. optional parameters
     * parameter with default value is optional
     * affects overload validation and resolution
