@@ -244,6 +244,14 @@ public class Llvm {
     );
 
     /** see Core.h */
+    public static native @NotNull LlvmValueRef LLVMBuildExtractValue(
+            @NotNull LlvmBuilderRef builder,
+            @NotNull LlvmValueRef aggregateValue,
+            @Unsigned int index,
+            @NotNull String name
+    );
+
+    /** see Core.h */
     public static native @NotNull LlvmValueRef LLVMBuildRet(@NotNull LlvmBuilderRef builder, @NotNull LlvmValueRef val);
 
     /** see Core.h */
@@ -263,6 +271,18 @@ public class Llvm {
 
     /** see Core.h */
     public static native @NotNull LlvmValueRef LLVMBuildMul(@NotNull LlvmBuilderRef builder, @NotNull LlvmValueRef lhs, @NotNull LlvmValueRef rhs, @NotNull String name);
+
+    /** see Core.h */
+    public static native @NotNull LlvmValueRef LLVMBuildUDiv(@NotNull LlvmBuilderRef builder, @NotNull LlvmValueRef lhs, @NotNull LlvmValueRef rhs, @NotNull String name);
+
+    /** see Core.h */
+    public static native @NotNull LlvmValueRef LLVMBuildExactUDiv(@NotNull LlvmBuilderRef builder, @NotNull LlvmValueRef lhs, @NotNull LlvmValueRef rhs, @NotNull String name);
+
+    /** see Core.h */
+    public static native @NotNull LlvmValueRef LLVMBuildSDiv(@NotNull LlvmBuilderRef builder, @NotNull LlvmValueRef lhs, @NotNull LlvmValueRef rhs, @NotNull String name);
+
+    /** see Core.h */
+    public static native @NotNull LlvmValueRef LLVMBuildExactSDiv(@NotNull LlvmBuilderRef builder, @NotNull LlvmValueRef lhs, @NotNull LlvmValueRef rhs, @NotNull String name);
 
     /** see Core.h */
     public static native @NotNull LlvmValueRef LLVMBuildShl(@NotNull LlvmBuilderRef builder, @NotNull LlvmValueRef lhs, @NotNull LlvmValueRef rhs, @NotNull String name);
@@ -362,6 +382,17 @@ public class Llvm {
             @NotNull LlvmValueRef condition,
             @NotNull LlvmBasicBlockRef thenBlock,
             @NotNull LlvmBasicBlockRef elseBlock
+    );
+
+    /** see Core.h */
+    public static native @Unsigned int LLVMLookupIntrinsicID(@NotNull byte[] name, @NotNull @ArraySizeOf("name") NativeLong nameLength);
+
+    /** see Core.h */
+    public static native @NotNull LlvmValueRef LLVMGetIntrinsicDeclaration(
+            @NotNull LlvmModuleRef module,
+            @Unsigned int id,
+            @NotNull NativePointerArray<LlvmTypeRef> paramTypes,
+            @NotNull @ArraySizeOf("paramTypes") NativeLong paramCount
     );
 
     /** see Core.h */

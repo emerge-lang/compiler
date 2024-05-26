@@ -18,91 +18,50 @@
 
 package compiler.binding.expression
 
+import compiler.ast.Expression
 import compiler.ast.expression.BinaryExpression
-import compiler.ast.expression.InvocationExpression
-import compiler.ast.expression.MemberAccessExpression
-import compiler.binding.BoundStatement
-import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
-import compiler.lexer.IdentifierToken
-import compiler.lexer.Operator
-import compiler.lexer.OperatorToken
-import compiler.reportings.NothrowViolationReporting
+import compiler.binding.type.RootResolvedTypeReference
+import compiler.reportings.FunctionMissingModifierReporting
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import compiler.reportings.UnresolvableFunctionOverloadReporting
 
 class BoundBinaryExpression(
     override val context: ExecutionScopedCTContext,
     override val declaration: BinaryExpression,
-    val leftHandSide: BoundExpression<*>,
-    val operator: Operator,
-    val rightHandSide: BoundExpression<*>
-) : BoundExpression<BinaryExpression> {
+    val hiddenInvocation: BoundInvocationExpression,
+) : BoundExpression<Expression> by hiddenInvocation {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+        if (type is RootResolvedTypeReference && type.baseType.isCoreScalar) {
+            hiddenInvocation.receiverExpression!!.setExpectedEvaluationResultType(type)
+            hiddenInvocation.valueArguments[0].setExpectedEvaluationResultType(type)
+        }
 
-    private val hiddenInvocation: BoundInvocationExpression = InvocationExpression(
-            MemberAccessExpression(
-                    leftHandSide.declaration,
-                    OperatorToken(Operator.DOT, declaration.op.span),
-                    IdentifierToken(operatorFunctionName(operator), declaration.op.span)
-            ),
-            null,
-            listOf(rightHandSide.declaration),
-            leftHandSide.declaration.span .. rightHandSide.declaration.span,
-        )
-            .bindTo(context)
-
-    override val type: BoundTypeReference?
-        get() = hiddenInvocation.type
-
-    override val throwBehavior get() = hiddenInvocation.throwBehavior
-    override val returnBehavior get() = hiddenInvocation.returnBehavior
-
-    override fun semanticAnalysisPhase1() = hiddenInvocation.semanticAnalysisPhase1()
+        hiddenInvocation.setExpectedEvaluationResultType(type)
+    }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
+        hiddenInvocation.semanticAnalysisPhase2()
+            .map { hiddenReporting ->
+                if (hiddenReporting !is UnresolvableFunctionOverloadReporting) {
+                    return@map hiddenReporting
+                }
 
-        reportings.addAll(hiddenInvocation.semanticAnalysisPhase2())
-
-        val opFn = hiddenInvocation.functionToInvoke
-        if (opFn != null) {
-            if (!opFn.attributes.isDeclaredOperator) {
-                reportings.add(Reporting.modifierError("Function ${opFn.canonicalName} cannot be used as an operator: the operator modifier is missing", declaration.span))
+                Reporting.operatorNotDeclared(
+                    "Binary operator ${declaration.operator.name} (function ${hiddenInvocation.functionNameToken.value}) not declared for type ${hiddenReporting.receiverType ?: "<unknown>"}",
+                    declaration,
+                )
             }
-        }
+            .let(reportings::addAll)
+
+        FunctionMissingModifierReporting.requireOperatorModifier(
+            hiddenInvocation,
+            this,
+            reportings,
+        )
 
         return reportings
     }
-
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
-        hiddenInvocation.setNothrow(boundary)
-    }
-
-    override fun semanticAnalysisPhase3() = hiddenInvocation.semanticAnalysisPhase3()
-
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return hiddenInvocation.findReadsBeyond(boundary)
-    }
-
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
-        return hiddenInvocation.findWritesBeyond(boundary)
-    }
-
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
-        // nothing to do, as one could only correlate this with the return value
-        // of the operator function. But overload resolution based on return type
-        // is not a thing in Emerge
-    }
-
-    override val isEvaluationResultReferenceCounted get() = hiddenInvocation.isEvaluationResultReferenceCounted
-    override val isCompileTimeConstant get() = hiddenInvocation.isCompileTimeConstant
-
-    override fun toBackendIrExpression(): IrExpression {
-        return hiddenInvocation.toBackendIrExpression()
-    }
-}
-
-private fun operatorFunctionName(op: Operator): String = when(op) {
-    else -> "op" + op.name[0].uppercase() + op.name.substring(1).lowercase()
 }

@@ -19,7 +19,8 @@ import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 
 internal object EmergeWordType : LlvmCachedType(), LlvmIntegerType {
-    override fun computeRaw(context: LlvmContext) = Llvm.LLVMIntTypeInContext(context.ref, context.targetData.pointerSizeInBytes * 8)
+    override fun getNBitsInContext(context: LlvmContext): Int = context.targetData.pointerSizeInBytes * 8
+    override fun computeRaw(context: LlvmContext) = Llvm.LLVMIntTypeInContext(context.ref, getNBitsInContext(context))
     override fun toString() = "%word"
 }
 

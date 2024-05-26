@@ -18,24 +18,55 @@
 
 package compiler.ast.expression
 
+import compiler.InternalCompilerError
+import compiler.ast.AstSemanticOperator
 import compiler.ast.Expression
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundBinaryExpression
+import compiler.lexer.IdentifierToken
+import compiler.lexer.Keyword
+import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
+
+private val OPERATOR_FUNCTION_NAME_MAPPING: Map<Any, String> = mapOf(
+    Keyword.AND to "and",
+    Keyword.OR to "or",
+    Keyword.XOR to "xor",
+    Operator.PLUS to "plus",
+    Operator.MINUS to "minus",
+    Operator.DIVIDE to "divideBy",
+    Operator.TIMES to "times",
+    Operator.EQUALS to "equals",
+)
 
 class BinaryExpression(
     val leftHandSide: Expression,
-    val op: OperatorToken,
+    val operator: AstSemanticOperator,
     val rightHandSide: Expression
 ) : Expression {
     override val span = leftHandSide.span
 
     // simply rewrite to an invocation
-    override fun bindTo(context: ExecutionScopedCTContext) = BoundBinaryExpression(
+    override fun bindTo(context: ExecutionScopedCTContext): BoundBinaryExpression {
+        val functionName = OPERATOR_FUNCTION_NAME_MAPPING[operator.operatorElement]
+            ?: throw InternalCompilerError("Unsupported binary operator ${operator.token}")
+
+        val opDerivedLocation = operator.token.span.deriveGenerated()
+        val hiddenInvocation = InvocationExpression(
+            MemberAccessExpression(
+                leftHandSide,
+                OperatorToken(Operator.DOT, opDerivedLocation),
+                IdentifierToken(functionName, opDerivedLocation)
+            ),
+            null,
+            listOf(rightHandSide),
+            leftHandSide.span..rightHandSide.span,
+        ).bindTo(context)
+
+        return BoundBinaryExpression(
             context,
             this,
-            leftHandSide.bindTo(context),
-            op.operator,
-            rightHandSide.bindTo(context)
-    )
+            hiddenInvocation,
+        )
+    }
 }

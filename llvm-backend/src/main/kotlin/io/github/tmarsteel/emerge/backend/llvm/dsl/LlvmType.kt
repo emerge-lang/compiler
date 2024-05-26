@@ -36,6 +36,7 @@ object LlvmVoidType : LlvmCachedType() {
 }
 
 interface LlvmIntegerType : LlvmType {
+    fun getNBitsInContext(context: LlvmContext): Int
     fun getMaxUnsignedValueInContext(context: LlvmContext): BigInteger {
         val rawInContext = EmergeWordType.getRawInContext(context)
         val nBits = Llvm.LLVMSizeOfTypeInBits(context.targetData.ref, rawInContext)
@@ -50,6 +51,8 @@ abstract class LlvmFixedIntegerType(
     init {
         check(nBits > 0)
     }
+
+    override fun getNBitsInContext(context: LlvmContext): Int = nBits
 
     override fun computeRaw(context: LlvmContext): LlvmTypeRef {
         return Llvm.LLVMIntTypeInContext(context.ref, nBits)

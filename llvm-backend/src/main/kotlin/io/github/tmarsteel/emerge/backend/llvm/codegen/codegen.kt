@@ -308,10 +308,12 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 }
             }
 
-            // general dynamic dispatch
+            // general handling
+            val llvmFunction = expression.function.llvmRef
+                ?: throw CodeGenerationException("Missing implementation for ${expression.function.canonicalName}")
             return ExpressionResult.Value(
                 call(
-                    expression.function.llvmRef!!,
+                    llvmFunction,
                     expression.arguments.zip(expression.function.parameters)
                         .map { (argument, parameter) -> assureBoxed(argument, parameter.type) },
                 )

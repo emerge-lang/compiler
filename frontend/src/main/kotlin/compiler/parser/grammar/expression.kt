@@ -196,16 +196,6 @@ val UnaryExpression = sequence("unary expression") {
         UnaryExpression(operator, expression)
     }
 
-val binaryOperators = arrayOf(
-    // Arithmetic
-    Operator.PLUS, Operator.MINUS, Operator.TIMES, Operator.DIVIDE,
-    // Comparison
-    Operator.EQUALS, Operator.GREATER_THAN, Operator.LESS_THAN, Operator.GREATER_THAN_OR_EQUALS, Operator.LESS_THAN_OR_EQUALS,
-    Operator.IDENTITY_EQ, Operator.IDENTITY_NEQ,
-    // MISC
-    Operator.ELVIS
-)
-
 val BracedCodeOrSingleStatement = eitherOf("curly braced code or single statement") {
     sequence {
         operator(Operator.CBRACE_OPEN)
@@ -366,9 +356,41 @@ val ExpressionPostfixIndexAccess = sequence("index") {
         IndexAccessExpressionPostfix(sBraceOpen, indexValue, sBraceClose)
     }
 
+val BinaryOperator = eitherOf {
+    // Arithmetic
+    operator(Operator.PLUS)
+    operator(Operator.MINUS)
+    operator(Operator.TIMES)
+    operator(Operator.DIVIDE)
+
+    // Comparison
+    operator(Operator.EQUALS)
+    operator(Operator.GREATER_THAN)
+    operator(Operator.LESS_THAN)
+    operator(Operator.GREATER_THAN_OR_EQUALS)
+    operator(Operator.LESS_THAN_OR_EQUALS)
+    operator(Operator.IDENTITY_EQ)
+    operator(Operator.IDENTITY_NEQ)
+
+    // Logic
+    keyword(Keyword.AND)
+    keyword(Keyword.OR)
+    keyword(Keyword.XOR)
+
+    // MISC
+    operator(Operator.ELVIS)
+}
+    .astTransformation { tokens ->
+        when (val element = tokens.next()!!) {
+            is OperatorToken -> AstSemanticOperator(element)
+            is KeywordToken -> AstSemanticOperator(element)
+            else -> throw InternalCompilerError("Unsupported binary operator token $element")
+        }
+    }
+
 val ExpressionPostfixBinaryOperation = sequence("binary expression") {
     repeatingAtLeastOnce {
-        eitherOf(*binaryOperators)
+        ref(BinaryOperator)
         ref(ExpressionExcludingBinaryPostfix)
     }
 }

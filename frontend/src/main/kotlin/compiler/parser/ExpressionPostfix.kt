@@ -1,6 +1,7 @@
 package compiler.parser
 
 import compiler.InternalCompilerError
+import compiler.ast.AstSemanticOperator
 import compiler.ast.Expression
 import compiler.ast.expression.AstIndexAccessExpression
 import compiler.ast.expression.BinaryExpression
@@ -67,10 +68,15 @@ class BinaryExpressionPostfix(
     }
 }
 
-private typealias OperatorOrExpression = Any // kotlin does not have a union type; if it had, this would be = OperatorToken | Expression
+private typealias OperatorOrExpression = Any // kotlin does not have a union type; if it had, this would be = AstSemanticOperator | Expression
 
-private val Operator.priority: Int
-    get() = when(this) {
+/**
+ * Operator priority/precedence. The higher the priority, the more aggressively the operator
+ * binds to terms around it. `*` and `/` have a higher priority than `+` or `-`, as per
+ * the rules of mathematics.
+ */
+private val AstSemanticOperator.priority: Int
+    get() = when(operatorElement) {
         Operator.ELVIS -> 10
 
         Operator.LESS_THAN,
@@ -133,11 +139,11 @@ private fun buildBinaryExpressionAst(rawExpression: List<OperatorOrExpression>):
     @Suppress("UNCHECKED_CAST") // the type check is in the filter {}
     val operatorsWithIndex = rawExpression
         .mapIndexed { index, item -> Pair(index, item) }
-        .filter { it.second is OperatorToken } as List<Pair<Int, OperatorToken>>
+        .filter { it.second is AstSemanticOperator } as List<Pair<Int, AstSemanticOperator>>
 
     val rightmostWithLeastPriority = operatorsWithIndex
         .reversed()
-        .minByOrNull { it.second.operator.priority }
+        .minByOrNull { it.second.priority }
         ?: throw InternalCompilerError("No operator in the list... how can this even be?")
 
     val leftOfOperator = rawExpression.subList(0, rightmostWithLeastPriority.first)
@@ -145,7 +151,7 @@ private fun buildBinaryExpressionAst(rawExpression: List<OperatorOrExpression>):
 
     return BinaryExpression(
         leftHandSide = buildBinaryExpressionAst(leftOfOperator),
-        op = rightmostWithLeastPriority.second,
+        operator = rightmostWithLeastPriority.second,
         rightHandSide = buildBinaryExpressionAst(rightOfOperator)
     )
 }

@@ -44,21 +44,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.negate_s16
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.negate_s32
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.negate_s64
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.negate_s8
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.negate_sWord
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.negate_u16
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.negate_u32
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.negate_u64
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.negate_u8
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.negate_uWord
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.unaryMinus_s16
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.unaryMinus_s32
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.unaryMinus_s64
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.unaryMinus_s8
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.unaryMinus_sWord
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.intrinsicNumberOperations
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmModuleFlagBehavior
@@ -577,27 +563,15 @@ fun <T : LlvmType> BasicBlockBuilder<EmergeLlvmContext, *>.heapAllocate(type: T)
 }
 
 private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
-    listOf(
-        arrayAddressOfFirst,
-        arraySize,
-        arrayAbstractGet,
-        arrayAbstractSet,
-        panic,
-        unaryMinus_s8,
-        unaryMinus_s16,
-        unaryMinus_s32,
-        unaryMinus_s64,
-        unaryMinus_sWord,
-        negate_s8,
-        negate_u8,
-        negate_s16,
-        negate_u16,
-        negate_s32,
-        negate_u32,
-        negate_s64,
-        negate_u64,
-        negate_sWord,
-        negate_uWord,
+    (
+        listOf(
+            arrayAddressOfFirst,
+            arraySize,
+            arrayAbstractGet,
+            arrayAbstractSet,
+            panic,
+        )
+            + intrinsicNumberOperations
     )
         .associateByErrorOnDuplicate { it.name }
 }

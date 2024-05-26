@@ -24,6 +24,8 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun <T : LlvmIntegerType> add(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> sub(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> mul(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
+    fun <T : LlvmIntegerType> sdiv(lhs: LlvmValue<T>, rhs: LlvmValue<T>, knownToBeExact: Boolean = false): LlvmValue<T>
+    fun <T : LlvmIntegerType> udiv(lhs: LlvmValue<T>, rhs: LlvmValue<T>, knownToBeExact: Boolean = false): LlvmValue<T>
     fun <T : LlvmIntegerType> icmp(lhs: LlvmValue<T>, type: LlvmIntPredicate, rhs: LlvmValue<T>): LlvmValue<LlvmBooleanType>
     fun <T : LlvmIntegerType> shl(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> lshr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T>
@@ -32,11 +34,16 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun <T: LlvmType> alloca(type: T): LlvmValue<LlvmPointerType<T>>
     fun <R : LlvmType> call(function: LlvmFunction<R>, args: List<LlvmValue<*>>): LlvmValue<R>
     fun <R : LlvmType> call(function: LlvmValue<LlvmFunctionAddressType>, functionType: LlvmFunctionType<R>, args: List<LlvmValue<*>>): LlvmValue<R>
+    fun <R : LlvmType> call(llvmIntrinsic: LlvmIntrinsic<R>, args: List<LlvmValue<*>>): LlvmValue<R> {
+        return call(llvmIntrinsic.getRawInContext(context), args)
+    }
     fun <T : LlvmIntegerType> ptrtoint(pointer: LlvmValue<LlvmPointerType<*>>, integerType: T): LlvmValue<T>
     fun memcpy(destination: LlvmValue<LlvmPointerType<*>>, source: LlvmValue<LlvmPointerType<*>>, nBytes: LlvmValue<LlvmIntegerType>)
     fun memset(destination: LlvmValue<LlvmPointerType<*>>, value: LlvmValue<LlvmI8Type>, nBytes: LlvmValue<LlvmIntegerType>)
     fun isNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
     fun isNotNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
+    fun isZero(int: LlvmValue<LlvmIntegerType>): LlvmValue<LlvmBooleanType>
+    fun isNotZero(int: LlvmValue<LlvmIntegerType>): LlvmValue<LlvmBooleanType>
     fun isEq(pointerA: LlvmValue<LlvmPointerType<*>>, pointerB: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
     fun <T : LlvmIntegerType> not(value: LlvmValue<T>): LlvmValue<T>
 
@@ -195,6 +202,34 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         return LlvmValue(mulInstr, lhs.type)
     }
 
+    override fun <T : LlvmIntegerType> sdiv(
+        lhs: LlvmValue<T>,
+        rhs: LlvmValue<T>,
+        knownToBeExact: Boolean
+    ): LlvmValue<T> {
+        val inst = if (knownToBeExact) {
+            Llvm.LLVMBuildExactSDiv(builder, lhs.raw, rhs.raw, tmpVars.next())
+        } else {
+            Llvm.LLVMBuildSDiv(builder, lhs.raw, rhs.raw, tmpVars.next())
+        }
+
+        return LlvmValue(inst, lhs.type)
+    }
+
+    override fun <T : LlvmIntegerType> udiv(
+        lhs: LlvmValue<T>,
+        rhs: LlvmValue<T>,
+        knownToBeExact: Boolean
+    ): LlvmValue<T> {
+        val inst = if (knownToBeExact) {
+            Llvm.LLVMBuildExactUDiv(builder, lhs.raw, rhs.raw, tmpVars.next())
+        } else {
+            Llvm.LLVMBuildUDiv(builder, lhs.raw, rhs.raw, tmpVars.next())
+        }
+
+        return LlvmValue(inst, lhs.type)
+    }
+
     override fun <T : LlvmIntegerType> icmp(lhs: LlvmValue<T>, type: LlvmIntPredicate, rhs: LlvmValue<T>): LlvmValue<LlvmBooleanType> {
         val cmpInstr = Llvm.LLVMBuildICmp(builder, type, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(cmpInstr, LlvmBooleanType)
@@ -289,6 +324,16 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
 
     override fun isNotNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType> {
         val instr = Llvm.LLVMBuildIsNotNull(builder, pointer.raw, tmpVars.next())
+        return LlvmValue(instr, LlvmBooleanType)
+    }
+
+    override fun isZero(int: LlvmValue<LlvmIntegerType>): LlvmValue<LlvmBooleanType> {
+        val instr = Llvm.LLVMBuildIsNull(builder, int.raw, tmpVars.next())
+        return LlvmValue(instr, LlvmBooleanType)
+    }
+
+    override fun isNotZero(int: LlvmValue<LlvmIntegerType>): LlvmValue<LlvmBooleanType> {
+        val instr = Llvm.LLVMBuildIsNotNull(builder, int.raw, tmpVars.next())
         return LlvmValue(instr, LlvmBooleanType)
     }
 
