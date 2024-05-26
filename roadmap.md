@@ -88,7 +88,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     have the necessary toolset now to still hook in and handle them correctly~~
 25. ~~implement weak references~~
 26. Index operator `obj[index]` to `operator fun get(index)` and `operator fun set(index)`
-    1. index access can always throw IndexOutOfBounds; work out a nothrow alternative. Maybe `.safeGet(index)` returning `Either`?
+    1. ~~index access can always throw IndexOutOfBounds; work out a nothrow alternative. Maybe `.safeGet(index)` returning `Either`?~~
 27. Stdlib _absolute_ Basics
     * arithmetic
         * overflow-safe implementations of the actual operators + - * ...

@@ -295,7 +295,8 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementGetter(
         val self by param(pointerTo(getValueArrayType()))
         val index by param(EmergeWordType)
         body {
-            // TODO: bounds check!
+            inlineBoundsCheck(self, index)
+
             val raw = getelementptr(self)
                 .member { elements }
                 .index(index)
@@ -328,7 +329,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementSetter(
 
             val valueBox = valueBoxAny.reinterpretAs(pointerTo(boxType))
 
-            // TODO: bounds check!
+            inlineBoundsCheck(self, index)
             val raw = getelementptr(valueBox)
                 .member(boxType.irClass.memberVariables.single())
                 .get()
@@ -390,7 +391,7 @@ private fun <Element : LlvmType> buildValueArrayRawGetterWithBoundsCheck(
         val index by param(EmergeWordType)
 
         body {
-            // TODO: bounds check
+            inlineBoundsCheck(arrayPtr, index)
             ret(call(context.registerIntrinsic(rawGetterNoBoundsCheck), listOf(arrayPtr, index)))
         }
     }
@@ -444,7 +445,7 @@ private fun <Element : LlvmType> buildValueArrayRawSetterWithBoundsCheck(
         val value by param(elementType)
 
         body {
-            // TODO: bounds check
+            inlineBoundsCheck(arrayPtr, index)
             call(context.registerIntrinsic(rawSetterWithoutBoundsCheck), listOf(arrayPtr, index, value))
             retVoid()
         }
@@ -536,7 +537,7 @@ private val referenceArrayElementGetter: KotlinLlvmFunction<EmergeLlvmContext, L
     val self by param(pointerTo(EmergeReferenceArrayType))
     val index by param(EmergeWordType)
     body {
-        // TODO: bounds check!
+        inlineBoundsCheck(self, index)
         val referenceEntry = getelementptr(self)
             .member { elements }
             .index(index)
@@ -556,7 +557,7 @@ private val referenceArrayElementSetter: KotlinLlvmFunction<EmergeLlvmContext, L
     val index by param(EmergeWordType)
     val value by param(PointerToAnyEmergeValue)
     body {
-        // TODO: bounds check!
+        inlineBoundsCheck(self, index)
         val pointerToSlotInArray = getelementptr(self)
             .member { elements }
             .index(index)
@@ -765,4 +766,19 @@ internal val arrayAbstractSet = KotlinLlvmFunction.define<LlvmContext, _>(
     body {
         inlinePanic("abstract array setter invoked")
     }
+}
+
+context(BasicBlockBuilder<*, *>)
+internal fun inlineBoundsCheck(arrayPtr: LlvmValue<LlvmPointerType<out EmergeArrayType<*>>>, index: LlvmValue<EmergeWordType>) {
+    val size = getelementptr(arrayPtr)
+        .member { base }
+        .member { EmergeArrayBaseType.elementCount }
+        .get()
+        .dereference()
+    conditionalBranch(
+        condition = icmp(index, LlvmIntPredicate.UNSIGNED_GREATER_THAN_OR_EQUAL, size),
+        ifTrue = {
+            inlinePanic("Array index out of bounds")
+        }
+    )
 }

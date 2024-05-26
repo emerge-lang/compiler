@@ -91,7 +91,7 @@ private val getter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<Emerg
         val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
         val index by param(EmergeWordType)
         body {
-            // TODO: bounds check!
+            inlineBoundsCheck(self, index)
             val raw = getelementptr(self)
                 .member { elements }
                 .index(index)
@@ -115,7 +115,7 @@ private val setter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<Emerg
         val index by param(EmergeWordType)
         val value by param(pointerTo(TypeinfoType.GENERIC))
         body {
-            // TODO: bounds check!
+            inlineBoundsCheck(self, index)
             val targetPointer = getelementptr(self)
                 .member { elements }
                 .index(index)
