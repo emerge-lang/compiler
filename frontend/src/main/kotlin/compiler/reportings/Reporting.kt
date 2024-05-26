@@ -22,6 +22,7 @@ import compiler.ast.AstFunctionAttribute
 import compiler.ast.AstPackageName
 import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
+import compiler.ast.Executable
 import compiler.ast.Expression
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
@@ -333,7 +334,7 @@ abstract class Reporting internal constructor(
         fun operatorNotDeclared(message: String, expression: Expression)
             = OperatorNotDeclaredReporting(message, expression)
 
-        fun functionIsMissingAttribute(function: BoundFunction, usageRequiringModifier: Expression, missingAttribute: String)
+        fun functionIsMissingAttribute(function: BoundFunction, usageRequiringModifier: Executable, missingAttribute: String)
             = FunctionMissingModifierReporting(function, usageRequiringModifier, missingAttribute)
 
         fun externalMemberFunction(function: BoundDeclaredFunction)

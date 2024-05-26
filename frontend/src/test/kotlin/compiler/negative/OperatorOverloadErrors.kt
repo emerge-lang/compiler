@@ -37,4 +37,40 @@ class OperatorOverloadErrors : FreeSpec({
                 it.missingAttribute shouldBe "operator"
             }
     }
+
+    "index access read requires operator modifier" {
+        validateModule("""
+            class Foo {
+                fn get(self, index: UWord) {
+                }
+            }
+            
+            fn test() {
+                v = Foo()
+                y = v[3]
+            }
+        """.trimIndent())
+            .shouldReport<FunctionMissingModifierReporting> {
+                it.function.name shouldBe "get"
+                it.missingAttribute shouldBe "operator"
+            }
+    }
+
+    "index access write requires operator modifier" {
+        validateModule("""
+            class Foo {
+                fn set(self, index: UWord, value: S32) {
+                }
+            }
+            
+            fn test() {
+                v = Foo()
+                set v[3] = 5 
+            }
+        """.trimIndent())
+            .shouldReport<FunctionMissingModifierReporting> {
+                it.function.name shouldBe "set"
+                it.missingAttribute shouldBe "operator"
+            }
+    }
 })

@@ -23,6 +23,7 @@ import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.binding.BoundIllegalTargetAssignmentStatement
+import compiler.binding.BoundIndexAssignmentStatement
 import compiler.binding.BoundObjectMemberAssignmentStatement
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariableAssignmentStatement
@@ -77,7 +78,10 @@ class AssignmentStatement(
                     ),
                     generatedSpan,
                 )
-                return hiddenInvocation.bindTo(context)
+                return BoundIndexAssignmentStatement(
+                    this,
+                    hiddenInvocation.bindTo(context),
+                )
             }
             else -> {
                 val boundTarget = targetExpression.bindTo(context)
