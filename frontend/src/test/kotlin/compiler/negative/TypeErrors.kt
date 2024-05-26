@@ -234,6 +234,16 @@ class TypeErrors : FreeSpec({
                 """.trimIndent())
                     .shouldHaveNoDiagnostics()
             }
+
+            "parameter typed as a type parameter without explicit nullability takes nullabilit of its use-site bound" {
+                validateModule("""
+                    intrinsic fn foo<T : Any?>(p: T) -> S32
+                    fn test() {
+                        foo::<String?>(null)
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
         }
     }
 

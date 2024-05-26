@@ -102,13 +102,17 @@ class TypeVariable private constructor(
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
             is NullableTypeReference -> {
-                val carry2 = carry.plusReporting(Reporting.valueNotAssignable(
-                    this,
-                    assigneeType,
-                    "Cannot assign a possibly null value to a non-nullable reference",
-                    assignmentLocation,
-                ))
-                unify(assigneeType.nested, assignmentLocation, carry2)
+                if (effectiveBound.isNullable) {
+                    return carry.plus(this, assigneeType, assignmentLocation)
+                } else {
+                    val carry2 = carry.plusReporting(Reporting.valueNotAssignable(
+                        this,
+                        assigneeType,
+                        "Cannot assign a possibly null value to a non-nullable reference",
+                        assignmentLocation,
+                    ))
+                    unify(assigneeType.nested, assignmentLocation, carry2)
+                }
             }
         }
     }
