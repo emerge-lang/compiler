@@ -60,6 +60,11 @@ enum class Keyword(val text: String)
     MODULE("module"),
     INTERNAL("package"),
     EXPORT("export"),
+
+    NOT("not"),
+    AND("and"),
+    OR("or"),
+    XOR("xor"),
     ;
 }
 
@@ -129,10 +134,10 @@ abstract class Token {
 }
 
 class KeywordToken(
-        val keyword: Keyword,
-        /** The actual CharSequence as it appears in the source code */
-        val sourceText: String = keyword.text,
-        override val span: Span = Span.UNKNOWN
+    val keyword: Keyword,
+    /** The actual CharSequence as it appears in the source code */
+    val sourceText: String = keyword.text,
+    override val span: Span = Span.UNKNOWN
 ): Token() {
     override fun toStringWithoutLocation() = "keyword " + keyword.text.lowercase()
 

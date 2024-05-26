@@ -18,30 +18,40 @@
 
 package compiler.ast.expression
 
+import compiler.InternalCompilerError
+import compiler.ast.AstSemanticOperator
 import compiler.ast.Expression
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundUnaryExpression
 import compiler.lexer.IdentifierToken
+import compiler.lexer.Keyword
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 
+private val OPERATOR_FUNCTION_NAME_MAPPING: Map<Any, String> = mapOf(
+    Operator.MINUS to "unaryMinus",
+    Keyword.NOT to "negate",
+)
+
 class UnaryExpression(
-    val operatorToken: OperatorToken,
+    val operator: AstSemanticOperator,
     val valueExpression: Expression,
 ):Expression {
     override val span = valueExpression.span
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundUnaryExpression {
-        val functionName = operatorFunctionName(operatorToken.operator)
+        val functionName = OPERATOR_FUNCTION_NAME_MAPPING[operator.operatorElement]
+            ?: throw InternalCompilerError("Unsupported unary operator ${operator.token}")
+
         val hiddenInvocation = InvocationExpression(
             MemberAccessExpression(
                 valueExpression,
-                OperatorToken(Operator.DOT, operatorToken.span),
-                IdentifierToken(functionName, operatorToken.span),
+                OperatorToken(Operator.DOT, operator.token.span),
+                IdentifierToken(functionName, operator.token.span),
             ),
             null,
             emptyList(),
-            operatorToken.span .. valueExpression.span,
+            operator.token.span .. valueExpression.span,
         )
 
         return BoundUnaryExpression(
@@ -50,8 +60,4 @@ class UnaryExpression(
             hiddenInvocation.bindTo(context),
         )
     }
-}
-
-private fun operatorFunctionName(op: Operator): String = when(op) {
-    else -> "unary" + op.name[0].uppercase() + op.name.substring(1).lowercase()
 }

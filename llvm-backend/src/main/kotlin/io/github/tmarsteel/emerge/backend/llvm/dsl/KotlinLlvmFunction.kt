@@ -35,6 +35,13 @@ class KotlinLlvmFunction<C : LlvmContext, R : LlvmType> private constructor(
         )
     }
 
+    fun createAlias(name: String): KotlinLlvmFunction<C, R> = KotlinLlvmFunction(
+        name,
+        declaredOn,
+        returnType,
+        definition,
+    )
+
     interface DeclaredInContext<C : LlvmContext, R : LlvmType> {
         val function: LlvmFunction<R>
 

@@ -19,6 +19,7 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
+import compiler.ast.AstSemanticOperator
 import compiler.ast.CodeChunk
 import compiler.ast.Executable
 import compiler.ast.IfExpression
@@ -173,17 +174,24 @@ val ParanthesisedExpression: Rule<AstExpression> = sequence("paranthesised expre
     }
 
 val UnaryExpression = sequence("unary expression") {
-    eitherOf(Operator.PLUS, Operator.MINUS, Operator.EXCLAMATION_MARK)
-    // TODO: tilde, ... what else?
+    eitherOf {
+        operator(Operator.MINUS)
+        keyword(Keyword.NOT)
+    }
+    // There is no unary plus because it is a noop on all builtin types. Allowing overloading wiht a non-noop behavior
+    // would just cause confusion
 
     eitherOf {
-        // TODO: reorder these to comply to the defined operator precedence (e.g. DOT before MINUS)
         ref(ValueExpression)
         ref(ParanthesisedExpression)
     }
 }
     .astTransformation { tokens ->
-        val operator = (tokens.next()!! as OperatorToken)
+        val operator = when(val operatorToken = tokens.next()!!) {
+            is OperatorToken -> AstSemanticOperator(operatorToken)
+            is KeywordToken -> AstSemanticOperator(operatorToken)
+            else -> throw InternalCompilerError("Unsupported unary operator token type $operatorToken")
+        }
         val expression = tokens.next()!! as AstExpression
         UnaryExpression(operator, expression)
     }

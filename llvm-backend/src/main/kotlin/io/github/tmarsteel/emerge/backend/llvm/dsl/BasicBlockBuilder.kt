@@ -38,7 +38,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun isNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
     fun isNotNull(pointer: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
     fun isEq(pointerA: LlvmValue<LlvmPointerType<*>>, pointerB: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
-    fun not(value: LlvmValue<LlvmBooleanType>): LlvmValue<LlvmBooleanType>
+    fun <T : LlvmIntegerType> not(value: LlvmValue<T>): LlvmValue<T>
 
     fun enterDebugScope(scope: DebugInfoScope)
     fun leaveDebugScope()
@@ -298,9 +298,9 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         return icmp(aAsInt, LlvmIntPredicate.EQUAL, bAsInt)
     }
 
-    override fun not(value: LlvmValue<LlvmBooleanType>): LlvmValue<LlvmBooleanType> {
+    override fun <T : LlvmIntegerType> not(value: LlvmValue<T>): LlvmValue<T> {
         val inst = Llvm.LLVMBuildNot(builder, value.raw, tmpVars.next())
-        return LlvmValue(inst, LlvmBooleanType)
+        return LlvmValue(inst, value.type)
     }
 
     override fun enterDebugScope(scope: DebugInfoScope) {

@@ -29,17 +29,17 @@ fun LlvmContext.i8(value: UByte): LlvmValue<LlvmI8Type> {
     )
 }
 
-fun LlvmContext.i16(value: Short): LlvmValue<LlvmI8Type> {
+fun LlvmContext.i16(value: Short): LlvmValue<LlvmI16Type> {
     return LlvmValue(
         Llvm.LLVMConstInt(LlvmI16Type.getRawInContext(this), value.toLong(), 0),
-        LlvmI8Type
+        LlvmI16Type
     )
 }
 
-fun LlvmContext.i16(value: UShort): LlvmValue<LlvmI8Type> {
+fun LlvmContext.i16(value: UShort): LlvmValue<LlvmI16Type> {
     return LlvmValue(
         Llvm.LLVMConstInt(LlvmI16Type.getRawInContext(this), value.toLong(), 0),
-        LlvmI8Type
+        LlvmI16Type
     )
 }
 
@@ -57,16 +57,16 @@ fun LlvmContext.i32(value: UInt): LlvmValue<LlvmI32Type> {
     )
 }
 
-fun LlvmContext.i64(value: Long): LlvmValue<LlvmI8Type> {
+fun LlvmContext.i64(value: Long): LlvmValue<LlvmI64Type> {
     return LlvmValue(
         Llvm.LLVMConstInt(LlvmI64Type.getRawInContext(this), value, 0),
-        LlvmI8Type
+        LlvmI64Type
     )
 }
 
-fun LlvmContext.i64(value: ULong): LlvmValue<LlvmI8Type> {
+fun LlvmContext.i64(value: ULong): LlvmValue<LlvmI64Type> {
     return LlvmValue(
         Llvm.LLVMConstInt(LlvmI64Type.getRawInContext(this), value.toLong(), 0),
-        LlvmI8Type
+        LlvmI64Type
     )
 }

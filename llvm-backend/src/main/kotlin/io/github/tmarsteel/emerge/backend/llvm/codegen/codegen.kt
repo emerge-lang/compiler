@@ -338,7 +338,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             "emerge.core.U32" -> context.i32(expression.value.longValueExact().toUInt())
             "emerge.core.S64" -> context.i64(expression.value.longValueExact())
             "emerge.core.U64" -> context.i64(expression.value.toLong())
-            "emerge.core.IWord" -> context.word(expression.value.longValueExact())
+            "emerge.core.SWord" -> context.word(expression.value.longValueExact())
             "emerge.core.UWord" -> context.word(expression.value.toLong())
             else -> throw CodeGenerationException("Unsupported integer literal type ${expression.evaluatesTo}")
         })
