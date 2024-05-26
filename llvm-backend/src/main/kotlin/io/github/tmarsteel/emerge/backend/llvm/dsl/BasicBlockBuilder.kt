@@ -150,9 +150,6 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     val tmpVars: NameScope,
     val scopeTracker: ScopeTracker<C>,
 ) : BasicBlockBuilder<C, R> {
-
-    private val debugScopes = Stack<DebugInfoScope>()
-
     override fun <BasePointee : LlvmType> getelementptr(
         base: LlvmValue<LlvmPointerType<out BasePointee>>,
         index: LlvmValue<LlvmIntegerType>
@@ -307,16 +304,16 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun enterDebugScope(scope: DebugInfoScope) {
-        debugScopes.push(scope)
+        scopeTracker.enterDebugScope(scope)
     }
 
     override fun leaveDebugScope() {
-        debugScopes.pop()
+        scopeTracker.leaveDebugScope()
     }
 
     override fun markSourceLocation(line: UInt, column: UInt) {
         val location = diBuilder.createDebugLocation(
-            debugScopes.peek(),
+            scopeTracker.currentDebugScope,
             line,
             column,
         )
@@ -489,5 +486,27 @@ private class ScopeTracker<C : LlvmContext> private constructor(private val pare
     fun runAllFunctionDeferredCode() {
         parent?.runAllFunctionDeferredCode()
         runLocalDeferredCode()
+    }
+
+    private val debugScopes = Stack<DebugInfoScope>()
+
+    fun enterDebugScope(scope: DebugInfoScope) {
+        debugScopes.push(scope)
+    }
+
+    fun leaveDebugScope() {
+        debugScopes.pop()
+    }
+
+    val currentDebugScope: DebugInfoScope get() {
+        if (debugScopes.isNotEmpty()) {
+            return debugScopes.peek()
+        }
+
+        if (parent == null) {
+            throw NoSuchElementException()
+        }
+
+        return parent.currentDebugScope
     }
 }

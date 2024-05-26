@@ -34,6 +34,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatem
 import io.github.tmarsteel.emerge.backend.api.ir.IrUpdateSourceLocationStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
+import io.github.tmarsteel.emerge.backend.api.ir.IrWhileLoop
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.assureBoxed
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.requireNotAutoboxed
@@ -181,6 +182,36 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
 
             val returnValue = assureBoxed(code.value, functionReturnType)
             return ExpressionResult.Terminated(ret(returnValue))
+        }
+        is IrWhileLoop -> {
+            var conditionTermination: ExpressionResult.Terminated? = null
+            loop(
+                header = {
+                    val conditionResult = emitExpressionCode(code.condition, functionReturnType)
+                    if (conditionResult is ExpressionResult.Terminated) {
+                        conditionTermination = conditionResult
+                        breakLoop()
+                    } else {
+                        conditionTermination = null
+                    }
+                    val conditionValue = (conditionResult as ExpressionResult.Value).value
+                    check(conditionValue.type == LlvmBooleanType)
+                    @Suppress("UNCHECKED_CAST")
+                    conditionValue as LlvmValue<LlvmBooleanType>
+
+                    conditionalBranch(
+                        condition = conditionValue,
+                        ifTrue = { doIteration() },
+                    )
+                    breakLoop()
+                },
+                body = {
+                    emitCode(code.body, functionReturnType)
+                    loopContinue()
+                }
+            )
+
+            return conditionTermination ?: ExecutableResult.ExecutionOngoing
         }
         is IrDeallocateObjectStatement -> {
             // the reason boxes are not supported here because in the scope of IrDeallocateObjectStatement,

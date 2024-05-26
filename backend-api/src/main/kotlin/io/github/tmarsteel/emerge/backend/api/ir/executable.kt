@@ -77,6 +77,11 @@ interface IrReturnStatement : IrExecutable {
     val value: IrTemporaryValueReference
 }
 
+interface IrWhileLoop : IrExecutable {
+    val condition: IrExpression
+    val body: IrCodeChunk
+}
+
 /**
  * The counterpart to [IrDeallocateObjectStatement]. It makes the memory occupied by the given reference.
  *
