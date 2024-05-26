@@ -18,9 +18,9 @@
 
 package compiler.binding.expression
 
-import compiler.ast.Expression
 import compiler.ast.IfExpression
 import compiler.binding.BoundCodeChunk
+import compiler.binding.BoundCondition
 import compiler.binding.BoundExecutable
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
@@ -33,7 +33,6 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.isAssignableTo
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -45,7 +44,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 class BoundIfExpression(
     override val context: ExecutionScopedCTContext,
     override val declaration: IfExpression,
-    val condition: BoundExpression<Expression>,
+    val condition: BoundCondition,
     val thenCode: BoundCodeChunk,
     val elseCode: BoundCodeChunk?
 ) : BoundExpression<IfExpression>, BoundExecutable<IfExpression> {
@@ -127,17 +126,6 @@ class BoundIfExpression(
         if (elseCode != null) {
             reportings.addAll(elseCode.semanticAnalysisPhase3())
         }
-
-        if (condition.type != null) {
-            val conditionType = condition.type!!
-            if (!conditionType.isAssignableTo(context.swCtx.bool.baseReference)) {
-                reportings.add(Reporting.conditionIsNotBoolean(condition, condition.declaration.span))
-            }
-        }
-
-        condition.findWritesBeyond(context)
-            .map(Reporting::mutationInCondition)
-            .forEach(reportings::add)
 
         return reportings
     }

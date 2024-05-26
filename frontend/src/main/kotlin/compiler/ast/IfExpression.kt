@@ -18,6 +18,7 @@
 
 package compiler.ast
 
+import compiler.binding.BoundCondition
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundIfExpression
@@ -31,7 +32,7 @@ class IfExpression (
 ) : Expression {
     override fun bindTo(context: ExecutionScopedCTContext): BoundIfExpression {
         val contextBeforeCondition: ExecutionScopedCTContext = MutableExecutionScopedCTContext.deriveFrom(context)
-        val boundCondition = condition.bindTo(contextBeforeCondition)
+        val boundCondition = BoundCondition(condition.bindTo(contextBeforeCondition))
 
         val thenCodeAsChunk: CodeChunk = if (thenCode is CodeChunk) thenCode else CodeChunk(listOf(thenCode as Statement))
         val elseCodeAsChunk: CodeChunk? = if (elseCode == null) null else if (elseCode is CodeChunk) elseCode else CodeChunk(listOf(elseCode as Statement))

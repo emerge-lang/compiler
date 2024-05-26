@@ -440,7 +440,8 @@ abstract class Reporting internal constructor(
         fun uncertainTermination(function: BoundDeclaredFunction) =
             UncertainTerminationReporting(function)
 
-        fun conditionIsNotBoolean(condition: BoundExpression<*>, location: Span): Reporting {
+        fun conditionIsNotBoolean(condition: BoundExpression<*>): Reporting {
+            val location = condition.declaration.span
             if (condition.type == null) {
                 return consecutive("The condition must evaluate to Bool, cannot determine type", location)
             }

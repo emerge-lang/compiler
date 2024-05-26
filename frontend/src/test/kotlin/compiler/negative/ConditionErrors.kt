@@ -18,14 +18,31 @@ class ConditionErrors : FreeSpec({
 
     "if containing mutation" {
         validateModule("""
-            var x = 0
-            mut fn modifyingFn() -> Bool {
-                set x = 1
-                return true
-            }
+            intrinsic mut fn modify() -> Bool 
             fn test() {
-                if modifyingFn() {
+                if modify() {
                     
+                }
+            }
+        """.trimIndent())
+            .shouldReport<MutationInConditionReporting>()
+    }
+
+    "while on non-bool" {
+        validateModule("""
+            fn test() {
+                while 3 {
+                }
+            }
+        """.trimIndent())
+            .shouldReport<ConditionNotBooleanReporting>()
+    }
+
+    "while containing mutation" {
+        validateModule("""
+            intrinsic mut fn modify() -> Bool 
+            fn test() {
+                while modify() {
                 }
             }
         """.trimIndent())

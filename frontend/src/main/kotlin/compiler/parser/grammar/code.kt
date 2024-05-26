@@ -21,6 +21,7 @@ package compiler.parser.grammar
 import compiler.InternalCompilerError
 import compiler.ast.AssignmentStatement
 import compiler.ast.AstThrowStatement
+import compiler.ast.AstWhileLoop
 import compiler.ast.CodeChunk
 import compiler.ast.ReturnStatement
 import compiler.ast.Statement
@@ -72,6 +73,25 @@ val AssignmentStatement = sequence("assignment statement") {
         AssignmentStatement(setKeyword, target, assignmentOperator, value)
     }
 
+val WhileLoop = sequence("while loop") {
+    keyword(Keyword.WHILE)
+    ref(Expression)
+    operator(Operator.CBRACE_OPEN)
+    ref(CodeChunk)
+    operator(Operator.CBRACE_CLOSE)
+}
+    .astTransformation {  tokens ->
+        val whileKeyword = tokens.next()!! as KeywordToken
+        val condition = tokens.next()!! as AstExpression
+        tokens.next()!! // skip cbrace open
+        val body = tokens.next()!! as CodeChunk
+        AstWhileLoop(
+            whileKeyword.span .. condition.span,
+            condition,
+            body,
+        )
+    }
+
 val LineOfCode = sequence {
     eitherOf {
         ref(AssignmentStatement)
@@ -79,6 +99,7 @@ val LineOfCode = sequence {
         ref(ThrowStatement)
         ref(VariableDeclaration)
         ref(Expression)
+        ref(WhileLoop)
     }
 
     operator(Operator.NEWLINE)

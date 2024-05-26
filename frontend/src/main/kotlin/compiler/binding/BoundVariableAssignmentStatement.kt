@@ -66,7 +66,7 @@ class BoundVariableAssignmentStatement(
             if (initializationState == VariableInitialization.State.NOT_INITIALIZED || initializationState == VariableInitialization.State.MAYBE_INITIALIZED) {
                 _modifiedContext.trackSideEffect(VariableInitialization.WriteToVariableEffect(targetVariable))
             }
-            if (initializationState == VariableInitialization.State.MAYBE_INITIALIZED) {
+            if (initializationState == VariableInitialization.State.MAYBE_INITIALIZED || context.repetition.mayRepeat) {
                 if (targetVariable.isReAssignable) {
                     _modifiedContext.trackSideEffect(VariableInitialization.WriteToVariableEffect(targetVariable))
                 } else {

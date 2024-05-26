@@ -31,6 +31,13 @@ interface ExecutionScopedCTContext : CTContext {
     val isFunctionRoot: Boolean
 
     /**
+     * How often code in a particular [ExecutionScopedCTContext] may get executed, used for loops.
+     * Also affects how ephemeral state is computed, similar to [SingleBranchJoinExecutionScopedCTContext]
+     * and [MultiBranchJoinExecutionScopedCTContext].
+     */
+    val repetition: Repetition
+
+    /**
      * @return Whether this context contains the given variable. Only parent contexts up to and including the
      *         given `boundary` will be searched.
      */
@@ -54,12 +61,29 @@ interface ExecutionScopedCTContext : CTContext {
      * [MutableExecutionScopedCTContext.addDeferredCode].
      */
     fun getFunctionDeferredCode(): Sequence<BoundExecutable<*>>
+
+    /**
+     * @see [ExecutionScopedCTContext.repetition]
+     */
+    enum class Repetition(
+        /** whether code in this context could execut more than once */
+        val mayRepeat: Boolean,
+    ) {
+        /** for simple, linear code inside a function */
+        EXACTLY_ONCE(false),
+        /** loop bodies that cannot be proven at compile time to execute at least once */
+        ZERO_OR_MORE(true),
+        /** loop bodies that **can** be proven at compile time to execute at least once, e.g. do-while loop bodies */
+        ONCE_OR_MORE(true),
+        ;
+    }
 }
 
 open class MutableExecutionScopedCTContext protected constructor(
     val parentContext: CTContext,
     final override val isScopeBoundary: Boolean,
     final override val isFunctionRoot: Boolean,
+    final override val repetition: ExecutionScopedCTContext.Repetition,
 ) : MutableCTContext(parentContext), ExecutionScopedCTContext {
     init {
         if (isFunctionRoot) {
@@ -211,15 +235,15 @@ open class MutableExecutionScopedCTContext protected constructor(
 
     companion object {
         fun functionRootIn(parentContext: CTContext): MutableExecutionScopedCTContext {
-            return MutableExecutionScopedCTContext(parentContext, isScopeBoundary = true, isFunctionRoot = true)
+            return MutableExecutionScopedCTContext(parentContext, isScopeBoundary = true, isFunctionRoot = true, repetition = ExecutionScopedCTContext.Repetition.EXACTLY_ONCE)
         }
 
-        fun deriveNewScopeFrom(parentContext: ExecutionScopedCTContext): MutableExecutionScopedCTContext {
-            return MutableExecutionScopedCTContext(parentContext, isScopeBoundary = true, isFunctionRoot = false)
+        fun deriveNewScopeFrom(parentContext: ExecutionScopedCTContext, repetition: ExecutionScopedCTContext.Repetition = ExecutionScopedCTContext.Repetition.EXACTLY_ONCE): MutableExecutionScopedCTContext {
+            return MutableExecutionScopedCTContext(parentContext, isScopeBoundary = true, isFunctionRoot = false, repetition)
         }
 
-        fun deriveFrom(parentContext: ExecutionScopedCTContext): MutableExecutionScopedCTContext {
-            return MutableExecutionScopedCTContext(parentContext, isScopeBoundary = false, isFunctionRoot = false)
+        fun deriveFrom(parentContext: ExecutionScopedCTContext, repetition: ExecutionScopedCTContext.Repetition = ExecutionScopedCTContext.Repetition.EXACTLY_ONCE): MutableExecutionScopedCTContext {
+            return MutableExecutionScopedCTContext(parentContext, isScopeBoundary = false, isFunctionRoot = false, repetition)
         }
     }
 }

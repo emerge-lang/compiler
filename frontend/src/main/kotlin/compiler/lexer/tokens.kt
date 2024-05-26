@@ -43,6 +43,9 @@ enum class Keyword(val text: String)
 
     IF("if"),
     ELSE("else"),
+    WHILE("while"),
+    BREAK("break"),
+    CONTINUE("continue"),
 
     RETURN("return"),
     THROW("throw"),

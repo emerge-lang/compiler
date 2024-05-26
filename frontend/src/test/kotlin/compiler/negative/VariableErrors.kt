@@ -233,55 +233,104 @@ class VariableErrors : FreeSpec({
                     }
             }
 
-            "cannot access variable that is only maybe initialized" {
-                validateModule("""
-                    read intrinsic fn random() -> Bool
-                    fn doStuff(p: S32) {}
-                    read fn test() {
-                        x: S32
-                        if (random()) {
-                            set x = 3
+            "interaction with if expressions" - {
+                "cannot access variable that is only maybe initialized" {
+                    validateModule("""
+                        read intrinsic fn random() -> Bool
+                        fn doStuff(p: S32) {}
+                        read fn test() {
+                            x: S32
+                            if (random()) {
+                                set x = 3
+                            }
+                            doStuff(x)
                         }
-                        doStuff(x)
-                    }
-                """.trimIndent())
-                    .shouldReport<VariableAccessedBeforeInitializationReporting> {
-                        it.maybeInitialized shouldBe true
-                    }
-            }
+                    """.trimIndent())
+                        .shouldReport<VariableAccessedBeforeInitializationReporting> {
+                            it.maybeInitialized shouldBe true
+                        }
+                }
 
-            "accessing a variable that is initialized in two branches of an if-expression is okay" {
-                validateModule("""
-                    read intrinsic fn random() -> Bool
-                    fn doStuff(p: S32) {}
-                    read fn test() {
-                        x: S32
-                        if (random()) {
-                            set x = 3
-                        } else {
+                "accessing a variable that is initialized in two branches of an if-expression is okay" {
+                    validateModule("""
+                        read intrinsic fn random() -> Bool
+                        fn doStuff(p: S32) {}
+                        read fn test() {
+                            x: S32
+                            if (random()) {
+                                set x = 3
+                            } else {
+                                set x = 4
+                            }
+                            doStuff(x)
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+
+                "assigning to a assign-once variable that maybe have already been initialized is not allowed" {
+                    validateModule("""
+                        read intrinsic fn random() -> Bool
+                        fn doStuff(p: S32) {}
+                        read fn test() {
+                            x: S32
+                            if (random()) {
+                                set x = 3
+                            }
                             set x = 4
                         }
-                        doStuff(x)
-                    }
-                """.trimIndent())
-                    .shouldHaveNoDiagnostics()
+                    """.trimIndent())
+                        .shouldReport<IllegalAssignmentReporting> {
+                            it.message shouldContain "may have already been initialized"
+                        }
+                }
             }
 
-            "assigning to a assign-once variable that maybe have already been initialized is not allowed" {
-                validateModule("""
-                    read intrinsic fn random() -> Bool
-                    fn doStuff(p: S32) {}
-                    read fn test() {
-                        x: S32
-                        if (random()) {
-                            set x = 3
+            "interaction with while loops" - {
+                "cannot access variable that is only maybe initialized" {
+                    validateModule("""
+                        read intrinsic fn random() -> Bool
+                        read fn test() {
+                            var x: S32
+                            while random() {
+                                set x = 5
+                            }
+                            y = x
                         }
-                        set x = 4
-                    }
-                """.trimIndent())
-                    .shouldReport<IllegalAssignmentReporting> {
-                        it.message shouldContain "may have already been initialized"
-                    }
+                    """.trimIndent())
+                        .shouldReport<VariableAccessedBeforeInitializationReporting> {
+                            it.maybeInitialized shouldBe true
+                            it.declaration.name.value shouldBe "x"
+                        }
+                }
+
+                "cannot initialize single-assignment variable in loop" {
+                    validateModule("""
+                        read intrinsic fn random() -> Bool
+                        read fn test() {
+                            x: S32
+                            while random() {
+                                set x = 5
+                            }
+                        }
+                    """.trimIndent())
+                        .shouldReport<IllegalAssignmentReporting>()
+                }
+
+                "execution uncertainty of loops doesn't persist to code after the loop" {
+                    validateModule("""
+                        read intrinsic fn random() -> Bool
+                        read fn test() {
+                            x: S32
+                            while random() {
+                                unrelated = 3
+                            }
+                            set x = 5
+                            y = x
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
             }
         }
     }

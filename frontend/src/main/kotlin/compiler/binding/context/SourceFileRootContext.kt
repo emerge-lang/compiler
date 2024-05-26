@@ -21,6 +21,7 @@ class SourceFileRootContext(
     SourceFileParentContext(packageContext),
     true,
     false,
+    ExecutionScopedCTContext.Repetition.EXACTLY_ONCE,
 ) {
     override lateinit var sourceFile: SourceFile
 
@@ -60,6 +61,7 @@ class SourceFileRootContext(
 
             override val isScopeBoundary = false
             override val isFunctionRoot = false
+            override val repetition = ExecutionScopedCTContext.Repetition.EXACTLY_ONCE
             override val imports = emptySet<BoundImportDeclaration>()
             override val allTypeParameters = emptySequence<BoundTypeParameter>()
 
