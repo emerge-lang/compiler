@@ -184,6 +184,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun <P : LlvmType> store(value: LlvmValue<P>, to: LlvmValue<LlvmPointerType<P>>) {
+        check(value.type !is LlvmVoidType) // LLVM segfaults if this doesn't hold
         Llvm.LLVMBuildStore(builder, value.raw, to.raw)
     }
 

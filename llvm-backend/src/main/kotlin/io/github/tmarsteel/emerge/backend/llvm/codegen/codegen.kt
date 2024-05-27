@@ -80,6 +80,8 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getDynamicCallAddress
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.registerWeakReference
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.unregisterWeakReference
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
+import io.github.tmarsteel.emerge.backend.llvm.isUnit
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
@@ -311,12 +313,17 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             // general handling
             val llvmFunction = expression.function.llvmRef
                 ?: throw CodeGenerationException("Missing implementation for ${expression.function.canonicalName}")
+            val callInstruction = call(
+                llvmFunction,
+                expression.arguments.zip(expression.function.parameters)
+                    .map { (argument, parameter) -> assureBoxed(argument, parameter.type) },
+            )
             return ExpressionResult.Value(
-                call(
-                    llvmFunction,
-                    expression.arguments.zip(expression.function.parameters)
-                        .map { (argument, parameter) -> assureBoxed(argument, parameter.type) },
-                )
+                if (expression.evaluatesTo.isUnit) {
+                    context.pointerToPointerToUnitInstance
+                } else {
+                    callInstruction
+                }
             )
         }
         is IrDynamicDispatchFunctionInvocationExpression -> {
@@ -327,8 +334,14 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 expression.dispatchOn.declaration.llvmValue,
                 context.word(expression.function.signatureHashes.first()),
             ))
-            val callResult = call(targetAddr, expression.function.llvmFunctionType, argumentsForInvocation)
-            return ExpressionResult.Value(callResult)
+            val callInstruction = call(targetAddr, expression.function.llvmFunctionType, argumentsForInvocation)
+            return ExpressionResult.Value(
+                if (expression.evaluatesTo.isUnit) {
+                    context.pointerToPointerToUnitInstance
+                } else {
+                    callInstruction
+                }
+            )
         }
         is IrVariableAccessExpression -> return ExpressionResult.Value(expression.variable.emitRead!!())
         is IrIntegerLiteralExpression -> return ExpressionResult.Value(when ((expression.evaluatesTo as IrSimpleType).baseType.canonicalName.toString()) {
