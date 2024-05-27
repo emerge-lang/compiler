@@ -20,6 +20,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.inlinePanic
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 
 internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContext, out LlvmIntegerType>> by lazy {
     listOf(
@@ -79,10 +80,15 @@ internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContex
         divideBy_sWord,
         divideBy_uWord,
         compareTo_s8,
+        compareTo_u8,
         compareTo_s16,
+        compareTo_u16,
         compareTo_s32,
+        compareTo_u32,
         compareTo_s64,
+        compareTo_u64,
         compareTo_sWord,
+        compareTo_uWord,
     )
 }
 
@@ -389,8 +395,45 @@ private fun <T : LlvmIntegerType> buildSignedCompareFn(
     }
 }
 
+private fun <T : LlvmIntegerType> buildUnsignedCompareFn(
+    emergeUnsignedTypeSimpleName: String,
+    llvmType: T,
+    constantFactory: EmergeLlvmContext.(Long) -> LlvmValue<T>,
+) : KotlinLlvmFunction<EmergeLlvmContext, T> {
+    return KotlinLlvmFunction.define(
+        "emerge.core.${emergeUnsignedTypeSimpleName}::compareTo",
+        llvmType,
+    ) {
+        instructionAliasAttributes()
+
+        val lhs by param(llvmType)
+        val rhs by param(llvmType)
+
+        body {
+            conditionalBranch(
+                condition = icmp(lhs, LlvmIntPredicate.EQUAL, rhs),
+                ifTrue = {
+                    ret(context.constantFactory(0))
+                }
+            )
+            conditionalBranch(
+                condition = icmp(rhs, LlvmIntPredicate.UNSIGNED_GREATER_THAN, lhs),
+                ifTrue = {
+                    ret(context.constantFactory(1))
+                }
+            )
+            ret(context.constantFactory(-1))
+        }
+    }
+}
+
 private val compareTo_s8 = buildSignedCompareFn("S8", LlvmI8Type)
+private val compareTo_u8 = buildUnsignedCompareFn("U8", LlvmI8Type) { i8(it.toByte()) }
 private val compareTo_s16 = buildSignedCompareFn("S16", LlvmI16Type)
+private val compareTo_u16 = buildUnsignedCompareFn("U16", LlvmI16Type) { i16(it.toShort()) }
 private val compareTo_s32 = buildSignedCompareFn("S32", LlvmI32Type)
+private val compareTo_u32 = buildUnsignedCompareFn("U32", LlvmI32Type) { i32(it.toInt()) }
 private val compareTo_s64 = buildSignedCompareFn("S64", LlvmI64Type)
+private val compareTo_u64 = buildUnsignedCompareFn("U64", LlvmI64Type) { i64(it) }
 private val compareTo_sWord = buildSignedCompareFn("SWord", EmergeWordType)
+private val compareTo_uWord = buildUnsignedCompareFn("UWord", EmergeWordType) { word(it) }
