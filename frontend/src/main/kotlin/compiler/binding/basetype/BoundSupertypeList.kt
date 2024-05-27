@@ -5,6 +5,7 @@ import compiler.binding.SeanHelper
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.handleCyclicInvocation
 import compiler.reportings.Reporting
 
 class BoundSupertypeList(
@@ -20,6 +21,11 @@ class BoundSupertypeList(
     lateinit var baseTypes: List<BoundBaseType>
         private set
 
+    /**
+     * becomes meaningful after [semanticAnalysisPhase1]
+     */
+    var hasCyclicInheritance: Boolean = false
+
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return seanHelper.phase1 {
             val reportings = mutableListOf<Reporting>()
@@ -30,6 +36,46 @@ class BoundSupertypeList(
             if (clauses.isEmpty() && typeDef !== context.swCtx.any) {
                 baseTypes = listOf(context.swCtx.any)
             }
+
+            val distinctSuperBaseTypes = mutableSetOf<BoundBaseType>()
+            val distinctSupertypes = ArrayList<RootResolvedTypeReference>(clauses.size)
+            for (clause in clauses) {
+                val resolvedReference = clause.resolvedReference ?: continue
+                val cyclicReportings = handleCyclicInvocation(
+                    context = this,
+                    action = {
+                        resolvedReference.baseType.semanticAnalysisPhase1()
+                        emptyList()
+                    },
+                    onCycle = {
+                        listOf(Reporting.cyclicInheritance(typeDef, clause))
+                    }
+                )
+                if (cyclicReportings.isNotEmpty()) {
+                    reportings.addAll(cyclicReportings)
+                    hasCyclicInheritance = true
+                    continue
+                }
+
+                if (!distinctSuperBaseTypes.add(resolvedReference.baseType)) {
+                    reportings.add(Reporting.duplicateSupertype(clause.astNode))
+                } else {
+                    distinctSupertypes.add(resolvedReference)
+                }
+            }
+
+            inheritedMemberFunctions = distinctSupertypes
+                .asSequence()
+                .flatMap { it.memberFunctions }
+                .filter { it.declaresReceiver }
+                .flatMap { it.overloads }
+                .map { InheritedBoundMemberFunction(it, typeDef) }
+                .toList()
+
+            inheritedMemberFunctions.forEach {
+                reportings.addAll(it.semanticAnalysisPhase1())
+            }
+
             return@phase1 reportings
         }
     }
@@ -50,27 +96,7 @@ class BoundSupertypeList(
                 reportings.addAll(it.semanticAnalysisPhase2())
             }
 
-            val distinctSuperBaseTypes = mutableSetOf<BoundBaseType>()
-            val distinctSupertypes = ArrayList<RootResolvedTypeReference>(clauses.size)
-            for (clause in clauses) {
-                val resolvedReference = clause.resolvedReference ?: continue
-                if (!distinctSuperBaseTypes.add(resolvedReference.baseType)) {
-                    reportings.add(Reporting.duplicateSupertype(clause.astNode))
-                }
-
-                distinctSupertypes.add(resolvedReference)
-            }
-
-            inheritedMemberFunctions = distinctSupertypes
-                .asSequence()
-                .flatMap { it.memberFunctions }
-                .filter { it.declaresReceiver }
-                .flatMap { it.overloads }
-                .map { InheritedBoundMemberFunction(it, typeDef) }
-                .toList()
-
             inheritedMemberFunctions.forEach {
-                reportings.addAll(it.semanticAnalysisPhase1())
                 reportings.addAll(it.semanticAnalysisPhase2())
             }
 

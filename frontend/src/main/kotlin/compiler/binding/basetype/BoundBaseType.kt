@@ -33,10 +33,8 @@ import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.RootResolvedTypeReference
-import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
-import compiler.reportings.CyclicInheritanceReporting
 import compiler.reportings.Reporting
 import compiler.reportings.UnconventionalTypeNameReporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
@@ -91,6 +89,28 @@ class BoundBaseType(
      */
     var destructor: BoundClassDestructor? = null
         private set
+
+    private lateinit var allMemberFunctionOverloadSetsByName: Map<String, Collection<BoundOverloadSet<BoundMemberFunction>>>
+    val memberFunctions: Collection<BoundOverloadSet<BoundMemberFunction>>
+        get() {
+            seanHelper.requirePhase1Done()
+            if (!this::allMemberFunctionOverloadSetsByName.isInitialized) {
+                return emptySet()
+            }
+
+            return allMemberFunctionOverloadSetsByName.values.flatten()
+        }
+
+    /** @return The member function overloads for the given name or an empty collection if no such member function is defined. */
+    fun resolveMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> {
+        semanticAnalysisPhase1()
+        if (!this::allMemberFunctionOverloadSetsByName.isInitialized) {
+            return emptySet()
+        }
+
+        return allMemberFunctionOverloadSetsByName.getOrDefault(name, emptySet())
+            .filter { it.canonicalName.simpleName == name }
+    }
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return seanHelper.phase1 {
@@ -150,87 +170,9 @@ class BoundBaseType(
 
             lintSean1(reportings)
 
-            return@phase1 reportings
-        }
-    }
-
-    private var cyclicInheritanceTested = false
-    private var cyclicInheritanceDetected = false
-    /**
-     * does _nothing_ except invoking this method on all the supertypes of this type,
-     * and by that in turn on all supertypes in the hierarchy. If there is a cycle in the subtype<->supertype
-     * graph, this will enter an endless loop/stack overflow. That is detected using [handleCyclicInvocation]
-     * to produce a reporting on an illegal inheritance cycle.
-     *
-     * To be invoked during [semanticAnalysisPhase2]
-     */
-    internal fun walkAllSupertypes(): Collection<CyclicInheritanceReporting> {
-        if (cyclicInheritanceTested) {
-            return emptySet()
-        }
-
-        val cyclicReportings = superTypes.clauses
-            .filter { it.resolvedReference != null }
-            .flatMap { supertypeDecl ->
-                val superBasetype = supertypeDecl.resolvedReference!!.baseType
-                superBasetype as BoundBaseType
-                handleCyclicInvocation(
-                    this,
-                    action = {
-                        superBasetype.walkAllSupertypes()
-                    },
-                    onCycle = {
-                        setOf(Reporting.cyclicInheritance(this, supertypeDecl))
-                    }
-                )
+            if (superTypes.hasCyclicInheritance) {
+                return@phase1 reportings
             }
-
-        cyclicInheritanceTested = true
-        cyclicInheritanceDetected = cyclicReportings.isNotEmpty()
-        return cyclicReportings
-    }
-
-
-    private lateinit var allMemberFunctionOverloadSetsByName: Map<String, Collection<BoundOverloadSet<BoundMemberFunction>>>
-    val memberFunctions: Collection<BoundOverloadSet<BoundMemberFunction>>
-        get() {
-            seanHelper.requirePhase2Done()
-            if (!this::allMemberFunctionOverloadSetsByName.isInitialized) {
-                return emptySet()
-            }
-
-            return allMemberFunctionOverloadSetsByName.values.flatten()
-        }
-    /** @return The member function overloads for the given name or an empty collection if no such member function is defined. */
-    fun resolveMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> {
-        semanticAnalysisPhase2()
-        if (!this::allMemberFunctionOverloadSetsByName.isInitialized) {
-            return emptySet()
-        }
-
-        return allMemberFunctionOverloadSetsByName.getOrDefault(name, emptySet())
-            .filter { it.canonicalName.simpleName == name }
-    }
-
-    fun resolveMemberVariable(name: String): BoundBaseTypeMemberVariable? = memberVariables.find { it.name == name }
-
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            val cyclicInheritanceErrors = walkAllSupertypes()
-            if (cyclicInheritanceErrors.isNotEmpty()) {
-                return@phase2 cyclicInheritanceErrors
-            }
-            if (cyclicInheritanceDetected) {
-                return@phase2 setOf(Reporting.consecutive("not validating further due to cyclic inheritance", declaration.declaredAt))
-            }
-
-            val reportings = entries.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
-
-            typeParameters?.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
-            reportings.addAll(superTypes.semanticAnalysisPhase2())
-            entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase2).forEach(reportings::addAll)
-            constructor?.semanticAnalysisPhase2()?.let(reportings::addAll)
-            destructor?.semanticAnalysisPhase2()?.let(reportings::addAll)
 
             val overriddenInheritedFunctions: MutableSet<BoundMemberFunction> = Collections.newSetFromMap(IdentityHashMap())
             val allMemberFunctions = mutableListOf<BoundMemberFunction>()
@@ -259,6 +201,31 @@ class BoundBaseType(
             allMemberFunctionOverloadSetsByName.values.forEach { overloadSets ->
                 overloadSets.forEach { overloadSet ->
                     reportings.addAll(overloadSet.semanticAnalysisPhase1())
+                }
+            }
+
+            return@phase1 reportings
+        }
+    }
+
+    fun resolveMemberVariable(name: String): BoundBaseTypeMemberVariable? = memberVariables.find { it.name == name }
+
+    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        return seanHelper.phase2 {
+            if (superTypes.hasCyclicInheritance) {
+                return@phase2 emptySet()
+            }
+
+            val reportings = entries.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
+
+            typeParameters?.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
+            reportings.addAll(superTypes.semanticAnalysisPhase2())
+            entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase2).forEach(reportings::addAll)
+            constructor?.semanticAnalysisPhase2()?.let(reportings::addAll)
+            destructor?.semanticAnalysisPhase2()?.let(reportings::addAll)
+
+            allMemberFunctionOverloadSetsByName.values.forEach { overloadSets ->
+                overloadSets.forEach { overloadSet ->
                     reportings.addAll(overloadSet.semanticAnalysisPhase2())
                 }
             }
@@ -269,6 +236,10 @@ class BoundBaseType(
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return seanHelper.phase3(runIfErrorsPreviously = false) {
+            if (superTypes.hasCyclicInheritance) {
+                return@phase3 emptySet()
+            }
+
             val reportings = entries.flatMap { it.semanticAnalysisPhase3() }.toMutableList()
 
             typeParameters?.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }

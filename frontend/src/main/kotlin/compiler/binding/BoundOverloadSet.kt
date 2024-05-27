@@ -17,17 +17,6 @@ class BoundOverloadSet<out Fn : BoundFunction>(
 ) : SemanticallyAnalyzable {
     init {
         require(overloads.isNotEmpty())
-        assert(overloads.all { it.canonicalName == canonicalName }) {
-            val violator = overloads.first { it.canonicalName != canonicalName }
-            """
-                This overload has a different canonical name than the overload set:
-               ${violator.declaredAt}
-               
-               overload set has name $canonicalName
-            """.trimIndent()
-
-        }
-        assert(overloads.all { it.parameters.parameters.size == parameterCount })
     }
 
     private val seanHelper = SeanHelper()
@@ -51,14 +40,6 @@ class BoundOverloadSet<out Fn : BoundFunction>(
             return@phase1 reportings
         }
     }
-
-    /**
-     * `true` iff [semanticAnalysisPhase1] nor [semanticAnalysisPhase2] produced any errors.
-     */
-    val isValidAfterSemanticPhase2: Boolean
-        get() {
-            return !seanHelper.phase1HadErrors && !seanHelper.phase2HadErrors
-        }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         // the individual overload implementations are validated through the regular/obvious tree structure (SourceFile)
@@ -85,6 +66,18 @@ class BoundOverloadSet<out Fn : BoundFunction>(
     }
 
     fun toBackendIr(): IrOverloadGroup<IrFunction> {
+        assert(overloads.all { it.canonicalName == canonicalName }) {
+            val violator = overloads.first { it.canonicalName != canonicalName }
+            """
+                This overload has a different canonical name than the overload set:
+                
+                ${violator.declaredAt}
+                
+                overload set has name $canonicalName
+            """.trimIndent()
+        }
+        assert(overloads.all { it.parameters.parameters.size == parameterCount })
+
         return IrOverloadGroupImpl(canonicalName, parameterCount, overloads)
     }
 

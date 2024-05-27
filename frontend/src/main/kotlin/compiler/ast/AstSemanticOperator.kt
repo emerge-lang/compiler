@@ -16,5 +16,5 @@ class AstSemanticOperator private constructor(
     val name: String,
 ) {
     constructor(token: KeywordToken) : this(token, token.keyword, token.keyword.name)
-    constructor(token: OperatorToken) : this(token, token.operator, token.operator.name)
+    constructor(token: OperatorToken) : this(token, token.operator, token.operator.text)
 }

@@ -47,19 +47,18 @@ class BoundDeclaredBaseTypeMemberFunction(
     override val isAbstract = !attributes.impliesNoBody && body == null
 
     override var overrides: Set<InheritedBoundMemberFunction>? = null
+        get() {
+            seanHelper.requirePhase1Done()
+            return field
+        }
         private set
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return seanHelper.phase1 {
-            super.semanticAnalysisPhase1()
-        }
-    }
-
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            val reportings = super.semanticAnalysisPhase2().toMutableList()
+            val reportings = mutableListOf<Reporting>()
+            reportings.addAll(super.semanticAnalysisPhase1())
             determineOverride(reportings)
-            return@phase2 reportings
+            reportings
         }
     }
 
@@ -120,6 +119,12 @@ class BoundDeclaredBaseTypeMemberFunction(
                     .all { (selfParamType, superParamType) -> superParamType == selfParamType }
             }
             .toCollection(Collections.newSetFromMap(IdentityHashMap()))
+    }
+
+    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        return seanHelper.phase2 {
+            super.semanticAnalysisPhase2()
+        }
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
