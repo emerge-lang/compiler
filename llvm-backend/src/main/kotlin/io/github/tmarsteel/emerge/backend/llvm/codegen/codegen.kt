@@ -255,7 +255,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             return ExpressionResult.Value(stringTemporary)
         }
         is IrClassMemberVariableAccessExpression -> {
-            if ((expression.base.type as? IrParameterizedType)?.simpleType?.baseType?.canonicalName?.toString() == "emerge.core.Array") {
+            if (expression.base.type.findSimpleTypeBound().baseType.canonicalName.toString() == "emerge.core.Array") {
                 if (expression.memberVariable.name == "size") {
                     return ExpressionResult.Value(
                         callIntrinsic(arraySize, listOf(expression.base.declaration.llvmValue))
@@ -557,7 +557,7 @@ private sealed interface ArrayDispatchOverride {
 
             val elementTypeBound = elementTypeArg.type.findSimpleTypeBound().baseType
             val accessType = if (elementTypeBound.canonicalName.toString() == "emerge.core.Any") {
-                if (elementTypeArg.variance == IrTypeVariance.INVARIANT) {
+                if (elementTypeArg.type !is IrGenericTypeReference && elementTypeArg.variance == IrTypeVariance.INVARIANT) {
                     ArrayAccessType.REFERENCE_TYPE_DIRECT
                 } else {
                     ArrayAccessType.VIRTUAL
