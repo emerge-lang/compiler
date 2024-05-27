@@ -31,6 +31,8 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun <T : LlvmIntegerType> lshr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> and(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
     fun <Small : LlvmIntegerType, Large : LlvmIntegerType> enlargeUnsigned(value: LlvmValue<Small>, to: Large): LlvmValue<Large>
+    fun <Small : LlvmIntegerType, Large : LlvmIntegerType> enlargeSigned(value: LlvmValue<Small>, to: Large): LlvmValue<Large>
+    fun <Small : LlvmIntegerType, Large: LlvmIntegerType> truncate(value: LlvmValue<Large>, to: Small): LlvmValue<Small>
     fun <T: LlvmType> alloca(type: T): LlvmValue<LlvmPointerType<T>>
     fun <R : LlvmType> call(function: LlvmFunction<R>, args: List<LlvmValue<*>>): LlvmValue<R>
     fun <R : LlvmType> call(function: LlvmValue<LlvmFunctionAddressType>, functionType: LlvmFunctionType<R>, args: List<LlvmValue<*>>): LlvmValue<R>
@@ -251,12 +253,28 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         return LlvmValue(andInstr, lhs.type)
     }
 
+    override fun <Small : LlvmIntegerType, Large : LlvmIntegerType> enlargeSigned(
+        value: LlvmValue<Small>,
+        to: Large,
+    ): LlvmValue<Large> {
+        val sextInstr = Llvm.LLVMBuildSExt(builder, value.raw, to.getRawInContext(context), tmpVars.next())
+        return LlvmValue(sextInstr, to)
+    }
+
     override fun <Small : LlvmIntegerType, Large : LlvmIntegerType> enlargeUnsigned(
         value: LlvmValue<Small>,
         to: Large,
     ): LlvmValue<Large> {
         val zextInstr = Llvm.LLVMBuildZExt(builder, value.raw, to.getRawInContext(context), tmpVars.next())
         return LlvmValue(zextInstr, to)
+    }
+
+    override fun <Small : LlvmIntegerType, Large : LlvmIntegerType> truncate(
+        value: LlvmValue<Large>,
+        to: Small,
+    ): LlvmValue<Small> {
+        val truncInstr = Llvm.LLVMBuildTrunc(builder, value.raw, to.getRawInContext(context), tmpVars.next())
+        return LlvmValue(truncInstr, to)
     }
 
     override fun <T: LlvmType> alloca(type: T): LlvmValue<LlvmPointerType<T>> {
