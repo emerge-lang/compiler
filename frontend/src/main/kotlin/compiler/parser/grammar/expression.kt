@@ -33,6 +33,7 @@ import compiler.ast.expression.ParenthesisedExpression
 import compiler.ast.expression.StringLiteralExpression
 import compiler.ast.expression.UnaryExpression
 import compiler.ast.type.TypeArgument
+import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.Keyword.ELSE
@@ -43,6 +44,7 @@ import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.StringLiteralContentToken
 import compiler.parser.BinaryExpressionPostfix
+import compiler.parser.CastExpressionPostfix
 import compiler.parser.ExpressionPostfix
 import compiler.parser.IndexAccessExpressionPostfix
 import compiler.parser.InvocationExpressionPostfix
@@ -356,6 +358,19 @@ val ExpressionPostfixIndexAccess = sequence("index") {
         IndexAccessExpressionPostfix(sBraceOpen, indexValue, sBraceClose)
     }
 
+val ExpressionPostfixCast = sequence("cast") {
+    eitherOf {
+        keyword(Keyword.AS)
+        keyword(Keyword.SAFE_AS)
+    }
+    ref(Type)
+}
+    .astTransformation { tokens ->
+        val operator = tokens.next()!! as KeywordToken
+        val toType = tokens.next()!! as TypeReference
+        CastExpressionPostfix(operator, toType)
+    }
+
 val BinaryOperator = eitherOf {
     // Arithmetic
     operator(Operator.PLUS)
@@ -403,6 +418,7 @@ val ExpressionPostfixExcludingBinary = eitherOf {
     ref(ExpressionPostfixInvocation)
     ref(ExpressionPostfixMemberAccess)
     ref(ExpressionPostfixIndexAccess)
+    ref(ExpressionPostfixCast)
 }
 
 val ExpressionPostfix = eitherOf {

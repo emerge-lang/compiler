@@ -3,13 +3,16 @@ package compiler.parser
 import compiler.InternalCompilerError
 import compiler.ast.AstSemanticOperator
 import compiler.ast.Expression
+import compiler.ast.expression.AstCastExpression
 import compiler.ast.expression.AstIndexAccessExpression
 import compiler.ast.expression.BinaryExpression
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.expression.NotNullExpression
 import compiler.ast.type.TypeArgument
+import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
+import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 
@@ -58,6 +61,13 @@ class IndexAccessExpressionPostfix(
     val sBraceClose: OperatorToken,
 ) : ExpressionPostfix<AstIndexAccessExpression> {
     override fun modify(expr: Expression) = AstIndexAccessExpression(expr, sBraceOpen, indexExpr, sBraceClose)
+}
+
+class CastExpressionPostfix(
+    val operator: KeywordToken,
+    val toType: TypeReference,
+) : ExpressionPostfix<AstCastExpression> {
+    override fun modify(expr: Expression) = AstCastExpression(expr, operator, toType)
 }
 
 class BinaryExpressionPostfix(

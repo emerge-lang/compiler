@@ -492,6 +492,9 @@ abstract class Reporting internal constructor(
         fun hiddenTypeExposed(type: BoundBaseType, exposedBy: DefinitionWithVisibility, exposedAt: Span)
             = HiddenTypeExposedReporting(type, exposedBy, exposedAt)
 
+        fun forbiddenCast(castOp: BoundCastExpression, reason: String, span: Span = castOp.declaration.span)
+            = ForbiddenCastReporting(castOp.declaration, reason, span)
+
         private fun readingPurityViolationToReporting(violation: BoundExpression<*>, boundary: PurityViolationReporting.SideEffectBoundary): Reporting {
             if (violation is BoundIdentifierExpression) {
                 return ReadInPureContextReporting(violation, boundary)

@@ -65,6 +65,9 @@ enum class Keyword(val text: String)
     AND("and"),
     OR("or"),
     XOR("xor"),
+
+    AS("as"),
+    SAFE_AS("as?"),
     ;
 }
 
