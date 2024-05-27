@@ -46,6 +46,23 @@ class BoundComparisonExpression(
     }
 
     override fun toBackendIrExpression(): IrExpression {
+        /*
+        For numeric comparisons, this entire "call compareTo, which does a subtraction, and then compare that to 0"
+        seems overkill - and it is! Luckily, this exact way of abstracting comparisons is prevalent in imperative languages
+        since multiple decades; because of that, LLVM is optimized to understand what is going on and simplify to a
+        single icmp/fcmp opcode: (even at optmization level 1 of 3!)
+
+        %tmp1 = call i32 @llvm.ssub.sat.i32(i32 %lhs, i32 %rhs)
+        %tmp2 = icmp sgt i32 %tmp1, 0
+
+        gets optimized to
+
+        %tmp2 = icmp sgt i32 %lhs, i32 %rhs
+
+        HOWEVER! This stops to work even at -O3 if we add a sext to the word type; hence, the compareTo functions
+        of the emerge number types always return their own signed variant (instead of a more homogenous SWord)
+         */
+
         val lhsTemporary = IrCreateTemporaryValueImpl(
             hiddenCompareInvocation.toBackendIrExpression()
         )
