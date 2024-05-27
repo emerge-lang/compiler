@@ -78,6 +78,11 @@ internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContex
         divideBy_u64,
         divideBy_sWord,
         divideBy_uWord,
+        compareTo_s8,
+        compareTo_s16,
+        compareTo_s32,
+        compareTo_s64,
+        compareTo_sWord,
     )
 }
 
@@ -355,3 +360,37 @@ private val divideBy_s64 = buildSignedDivisionWithZeroCheck("S64", LlvmI64Type)
 private val divideBy_u64 = buildUnsignedDivisionWithZeroCheck("U64", LlvmI64Type)
 private val divideBy_sWord = buildSignedDivisionWithZeroCheck("SWord", EmergeWordType)
 private val divideBy_uWord = buildUnsignedDivisionWithZeroCheck("UWord", EmergeWordType)
+
+private fun <T : LlvmIntegerType> buildSignedCompareFn(
+    emergeSignedTypeSimpleName: String,
+    llvmType: T,
+) : KotlinLlvmFunction<EmergeLlvmContext, T> {
+    val llvmSaturateSubIntrinsic = LlvmIntrinsic<T>(
+        "llvm.ssub.sat.*",
+        listOf(llvmType),
+        listOf(llvmType, llvmType),
+        llvmType,
+    )
+
+    return KotlinLlvmFunction.define(
+        "emerge.core.${emergeSignedTypeSimpleName}::compareTo",
+        llvmType,
+    ) {
+        instructionAliasAttributes()
+
+        val lhs by param(llvmType)
+        val rhs by param(llvmType)
+
+        body {
+            ret(
+                call(llvmSaturateSubIntrinsic, listOf(lhs, rhs))
+            )
+        }
+    }
+}
+
+private val compareTo_s8 = buildSignedCompareFn("S8", LlvmI8Type)
+private val compareTo_s16 = buildSignedCompareFn("S16", LlvmI16Type)
+private val compareTo_s32 = buildSignedCompareFn("S32", LlvmI32Type)
+private val compareTo_s64 = buildSignedCompareFn("S64", LlvmI64Type)
+private val compareTo_sWord = buildSignedCompareFn("SWord", EmergeWordType)

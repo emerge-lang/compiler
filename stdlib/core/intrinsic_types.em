@@ -28,6 +28,8 @@ export class S8 {
     export intrinsic operator fn minus(self, operand: S8) -> S8
     export intrinsic operator fn times(self, factor: S8) -> S8
     export intrinsic operator fn divideBy(self, dividend: S8) -> S8
+
+    export intrinsic operator fn compareTo(self, other: S8) -> S8
 }
 
 export class U8 {
@@ -39,6 +41,8 @@ export class U8 {
     export intrinsic operator fn minus(self, operand: U8) -> U8
     export intrinsic operator fn times(self, factor: U8) -> U8
     export intrinsic operator fn divideBy(self, dividend: U8) -> U8
+
+    export intrinsic operator fn compareTo(self, other: U8) -> S8
 }
 
 export class S16 {
@@ -51,6 +55,8 @@ export class S16 {
     export intrinsic operator fn minus(self, operand: S16) -> S16
     export intrinsic operator fn times(self, factor: S16) -> S16
     export intrinsic operator fn divideBy(self, dividend: S16) -> S16
+
+    export intrinsic operator fn compareTo(self, other: S16) -> S16
 }
 
 export class U16 {
@@ -62,6 +68,8 @@ export class U16 {
     export intrinsic operator fn minus(self, operand: U16) -> U16
     export intrinsic operator fn times(self, factor: U16) -> U16
     export intrinsic operator fn divideBy(self, dividend: U16) -> U16
+
+    export intrinsic operator fn compareTo(self, other: U16) -> S16
 }
 
 export class S32 {
@@ -74,6 +82,8 @@ export class S32 {
     export intrinsic operator fn minus(self, operand: S32) -> S32
     export intrinsic operator fn times(self, factor: S32) -> S32
     export intrinsic operator fn divideBy(self, dividend: S32) -> S32
+
+    export intrinsic operator fn compareTo(self, other: S32) -> S32
 }
 
 export class U32 {
@@ -85,6 +95,8 @@ export class U32 {
     export intrinsic operator fn minus(self, operand: U32) -> U32
     export intrinsic operator fn times(self, factor: U32) -> U32
     export intrinsic operator fn divideBy(self, dividend: U32) -> U32
+
+    export intrinsic operator fn compareTo(self, other: U32) -> S32
 }
 
 export class S64 {
@@ -97,6 +109,8 @@ export class S64 {
     export intrinsic operator fn minus(self, operand: S64) -> S64
     export intrinsic operator fn times(self, factor: S64) -> S64
     export intrinsic operator fn divideBy(self, dividend: S64) -> S64
+
+    export intrinsic operator fn compareTo(self, other: S64) -> S64
 }
 
 export class U64 {
@@ -108,6 +122,8 @@ export class U64 {
     export intrinsic operator fn minus(self, operand: U64) -> U64
     export intrinsic operator fn times(self, factor: U64) -> U64
     export intrinsic operator fn divideBy(self, dividend: U64) -> U64
+
+    export intrinsic operator fn compareTo(self, other: U64) -> S64
 }
 
 export class SWord {
@@ -120,6 +136,8 @@ export class SWord {
     export intrinsic operator fn minus(self, operand: SWord) -> SWord
     export intrinsic operator fn times(self, factor: SWord) -> SWord
     export intrinsic operator fn divideBy(self, dividend: SWord) -> SWord
+
+    export intrinsic operator fn compareTo(self, other: SWord) -> SWord
 }
 
 export class UWord {
@@ -131,6 +149,8 @@ export class UWord {
     export intrinsic operator fn minus(self, operand: UWord) -> UWord
     export intrinsic operator fn times(self, factor: UWord) -> UWord
     export intrinsic operator fn divideBy(self, dividend: UWord) -> UWord
+
+    export intrinsic operator fn compareTo(self, other: UWord) -> SWord
 }
 
 export class Bool {

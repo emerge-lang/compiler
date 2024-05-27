@@ -22,6 +22,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrNotReallyAnExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullInitializedArrayExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrNumericComparisonExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrRegisterWeakReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
@@ -47,6 +48,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
@@ -398,6 +400,45 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             }
 
             return ExpressionResult.Value(valueHolder.dereference())
+        }
+        is IrNumericComparisonExpression -> {
+            val operandType = expression.lhs.type.findSimpleTypeBound().baseType
+            if (operandType.canonicalName.simpleName in setOf("F32", "F64")) {
+                TODO("floating point comparison not implemented yet")
+            }
+
+            val isSigned = operandType.canonicalName.simpleName.startsWith('S')
+            val llvmPredicate = when (expression.predicate) {
+                IrNumericComparisonExpression.Predicate.GREATER_THAN -> if (isSigned) {
+                    LlvmIntPredicate.SIGNED_GREATER_THAN
+                } else {
+                    LlvmIntPredicate.UNSIGNED_GREATER_THAN
+                }
+                IrNumericComparisonExpression.Predicate.GREATER_THAN_OR_EQUAL -> if (isSigned) {
+                    LlvmIntPredicate.SIGNED_GREATER_THAN_OR_EQUAL
+                } else {
+                    LlvmIntPredicate.UNSIGNED_GREATER_THAN_OR_EQUAL
+                }
+                IrNumericComparisonExpression.Predicate.LESS_THAN -> if (isSigned) {
+                    LlvmIntPredicate.SIGNED_LESS_THAN
+                } else {
+                    LlvmIntPredicate.UNSIGNED_LESS_THAN
+                }
+                IrNumericComparisonExpression.Predicate.LESS_THAN_OR_EQUAL -> if (isSigned) {
+                    LlvmIntPredicate.SIGNED_LESS_THAN
+                } else {
+                    LlvmIntPredicate.UNSIGNED_LESS_THAN_OR_EQUAL
+                }
+                IrNumericComparisonExpression.Predicate.EQUAL -> LlvmIntPredicate.EQUAL
+            }
+
+            @Suppress("UNCHECKED_CAST")
+            val lhsValue = expression.lhs.declaration.llvmValue as LlvmValue<LlvmIntegerType>
+            @Suppress("UNCHECKED_CAST")
+            val rhsValue = expression.rhs.declaration.llvmValue as LlvmValue<LlvmIntegerType>
+            
+            val result = icmp(lhsValue, llvmPredicate, rhsValue)
+            return ExpressionResult.Value(result)
         }
         is IrImplicitEvaluationExpression -> {
             emitCode(expression.code, functionReturnType)

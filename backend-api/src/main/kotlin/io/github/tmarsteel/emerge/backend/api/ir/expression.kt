@@ -128,6 +128,28 @@ interface IrIntegerLiteralExpression : IrExpression {
 }
 
 /**
+ * Compares two numeric values according to [predicate]. The frontend must guarantee
+ * that both [lhs] and [rhs] have an identical, not-nullable type and that this type
+ * is one of the core numeric types.
+ * This expression must evaluate to a boolean, and hence [evaluatesTo] must always
+ * point to `emerge.core.Bool`.
+ */
+interface IrNumericComparisonExpression : IrExpression {
+    val lhs: IrTemporaryValueReference
+    val rhs: IrTemporaryValueReference
+    val predicate: Predicate
+
+    enum class Predicate {
+        EQUAL,
+        GREATER_THAN,
+        GREATER_THAN_OR_EQUAL,
+        LESS_THAN,
+        LESS_THAN_OR_EQUAL,
+        ;
+    }
+}
+
+/**
  * A code chunk needs to be executed to obtain the value of this expression. [implicitValue] should be used as the
  * value of this expression. The [IrCreateTemporaryValue] referenced by [implicitValue] is guaranteed to be an
  * element of [IrCodeChunk]:
