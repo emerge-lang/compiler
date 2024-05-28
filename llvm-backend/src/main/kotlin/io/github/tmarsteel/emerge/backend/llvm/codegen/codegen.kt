@@ -599,7 +599,7 @@ private sealed interface ArrayDispatchOverride {
             } else if (invocation.function.canonicalName.simpleName == "set" && invocation.function.parameters.size == 3) {
                 when (accessType) {
                     ArrayAccessType.VIRTUAL -> return InvokeVirtual(
-                        EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT,
+                        EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT,
                         context.registerIntrinsic(arrayAbstractSet).type,
                     )
                     ArrayAccessType.VALUE_TYPE_DIRECT -> return InvokeIntrinsic(when (elementTypeBound) {
