@@ -179,7 +179,7 @@ abstract class LlvmStructType(
     }
 }
 
-class LlvmInlineStructType(
+open class LlvmInlineStructType(
     val memberTypes: List<LlvmType>,
     val packed: Boolean = false,
 ) : LlvmCachedType() {
@@ -212,7 +212,7 @@ class LlvmInlineStructType(
 
     companion object {
         /**
-         * Builds a constant struct (see [LLVM.LLVMConstStructInContext]) with an inline type
+         * Builds a constant struct (see [Llvm.LLVMConstStructInContext]) with an inline type
          * (as opposed to a named type) inferred from the members.
          */
         fun buildInlineTypedConstantIn(context: LlvmContext, vararg members: LlvmValue<*>, packed: Boolean = false): LlvmConstant<LlvmInlineStructType> {

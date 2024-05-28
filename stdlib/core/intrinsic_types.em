@@ -175,6 +175,26 @@ export class Array<Element> {
     export intrinsic fn size(self: read _) -> UWord
 
     export intrinsic fn new<T>(size: UWord, initialValue: T) -> exclusive Array<T>
+
+    export fn copy<T>(borrow source: read Array<T>, sourceOffset: UWord, borrow dest: mut Array<T>, destOffset: UWord, length: UWord) {
+        if sourceOffset + length > source.size {
+            panic("length overflows source")
+        }
+
+        if destOffset + length > dest.size {
+            panic("length overflows dest")
+        }
+
+        var sourceIndex = sourceOffset
+        var destIndex = destOffset
+        var nCopied: UWord = 0
+        while nCopied < length {
+            set dest[destIndex] = source[sourceIndex]
+            set sourceIndex = sourceIndex + 1
+            set destIndex = destIndex + 1
+            set nCopied = nCopied + 1
+        }
+    }
 }
 
 export interface Throwable {}

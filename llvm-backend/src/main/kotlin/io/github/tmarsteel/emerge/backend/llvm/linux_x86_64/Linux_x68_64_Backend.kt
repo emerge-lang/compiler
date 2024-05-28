@@ -126,9 +126,12 @@ class Linux_x68_64_Backend : EmergeBackend {
             softwareContext.modules
                 .flatMap { it.packages }
                 .flatMap { it.classes }
-                .filterNot { it.autoboxer is Autoboxer.PrimitiveType || it.canonicalName.toString() == "emerge.core.Array" }
+                .filterNot { it.autoboxer is Autoboxer.PrimitiveType }
                 .forEach { clazz ->
-                    llvmContext.defineFunctionBody(clazz.constructor)
+                    if (clazz.canonicalName.toString() != "emerge.core.Array") {
+                        llvmContext.defineFunctionBody(clazz.constructor)
+                    }
+
                     clazz.memberFunctions
                         .flatMap { it.overloads }
                         .filter { it.body != null }

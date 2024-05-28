@@ -430,7 +430,7 @@ internal fun LlvmValue<LlvmType>.afterReferenceDropped(
 /**
  * for print-debugging intrinsics, is not supposed to be used in productive code
  */
-private fun BasicBlockBuilder<*, *>.debugPrint(msg: String) {
+internal fun BasicBlockBuilder<*, *>.debugPrint(msg: String) {
     val writeFnValue = Llvm.LLVMGetNamedFunction(context.module, "write") ?: throw CodeGenerationException("Function write not defined in module")
     val writeFn = LlvmFunction(LlvmConstant(writeFnValue, LlvmFunctionAddressType), LlvmFunctionType(LlvmVoidType, listOf(
         LlvmI32Type,
@@ -452,7 +452,7 @@ private fun BasicBlockBuilder<*, *>.debugPrint(msg: String) {
 /**
  * for print-debugging intrinsics, is not supposed to be used in productive code
  */
-private fun BasicBlockBuilder<*, *>.debugIsNull(prefix: String, ptr: LlvmValue<LlvmPointerType<*>>) {
+internal fun BasicBlockBuilder<*, *>.debugIsNull(prefix: String, ptr: LlvmValue<LlvmPointerType<*>>) {
     conditionalBranch(
         condition = isNull(ptr),
         ifTrue = { debugPrint("$prefix is null"); concludeBranch() },
