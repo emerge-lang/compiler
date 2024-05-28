@@ -162,7 +162,24 @@ class BoundDeclaredBaseTypeMemberFunction(
     override fun toStringForErrorMessage() = "member function $name"
 
     override fun toString(): String {
-        return "$canonicalName(${parameters.parameters.joinToString(separator = ", ", transform= { it.typeAtDeclarationTime.toString() })}) -> $returnType"
+        var str = canonicalName.toString()
+        if (declaredTypeParameters.isNotEmpty()) {
+            str += declaredTypeParameters.joinToString(
+                prefix = "<",
+                separator = ", ",
+                transform = { "${it.name} : ${it.bound.toString()}" },
+                postfix = ">"
+            )
+        }
+        str += parameters.parameters.joinToString(
+            prefix = "(",
+            separator = ", ",
+            transform= { it.typeAtDeclarationTime.toString() },
+            postfix = ") -> ",
+        )
+        str += returnType
+
+        return str
     }
 
     private val backendIr by lazy { IrMemberFunctionImpl(this) }
