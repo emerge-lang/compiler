@@ -61,6 +61,9 @@ class BoundComparisonExpression(
 
         HOWEVER! This stops to work even at -O3 if we add a sext to the word type; hence, the compareTo functions
         of the emerge number types always return their own signed variant (instead of a more homogenous SWord)
+
+        SECOND CATCH: this trick doesn't work for unsigned types. An optimization would obviously have to be implemented
+        here, whenever i feel like it.
          */
 
         val lhsTemporary = IrCreateTemporaryValueImpl(
