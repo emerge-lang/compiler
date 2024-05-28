@@ -13,9 +13,9 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmNamedStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
@@ -38,7 +38,7 @@ internal val staticObjectFinalizer: KotlinLlvmFunction<LlvmContext, LlvmVoidType
     }
 }
 
-internal class VTableType private constructor(val nEntries: Long) : LlvmStructType("vtable_vectors$nEntries") {
+internal class VTableType private constructor(val nEntries: Long) : LlvmNamedStructType("vtable_vectors$nEntries") {
     val shiftLeftAmount by structMember(LlvmI32Type)
     val shiftRightAmount by structMember(LlvmI32Type)
     val addresses by structMember(LlvmArrayType(nEntries, LlvmFunctionAddressType))
@@ -51,7 +51,7 @@ internal class VTableType private constructor(val nEntries: Long) : LlvmStructTy
     }
 }
 
-internal class TypeinfoType private constructor(val nVTableEntries: Long) : LlvmStructType("typeinfo$nVTableEntries") {
+internal class TypeinfoType private constructor(val nVTableEntries: Long) : LlvmNamedStructType("typeinfo$nVTableEntries") {
     /**
      * actually always is a [PointerToEmergeArrayOfPointersToTypeInfoType]. Declaring that type here would create a cyclic
      * reference on JVM classload time. This is cast back in the [getSupertypePointers] intrinsic.

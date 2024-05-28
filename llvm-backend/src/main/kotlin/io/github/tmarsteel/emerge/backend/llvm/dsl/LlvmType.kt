@@ -120,21 +120,11 @@ class LlvmPointerType<Pointed : LlvmType>(val pointed: Pointed) : LlvmType {
  * is mostly the code around handling references.
  */
 abstract class LlvmStructType(
-    val name: String,
+    val packed: Boolean,
 ) : LlvmCachedType() {
-    private var observed = false
+    protected var observed = false
 
-    override fun computeRaw(context: LlvmContext): LlvmTypeRef {
-        observed = true
-        val structType = Llvm.LLVMStructCreateNamed(context.ref, name)
-        NativePointerArray.fromJavaPointers(membersInOrder.map { it.type.getRawInContext(context) }).use { elements ->
-            Llvm.LLVMStructSetBody(structType, elements, membersInOrder.size, 0)
-        }
-
-        return structType
-    }
-
-    private val membersInOrder = ArrayList<Member<*, *>>()
+    protected val membersInOrder = ArrayList<Member<*, *>>()
 
     inner class Member<S : LlvmStructType, T : LlvmType>(
         val indexInStruct: Int,
@@ -151,21 +141,6 @@ abstract class LlvmStructType(
             return membersInOrder.size
         }
 
-    override fun toString(): String = "%$name"
-
-    final override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is LlvmStructType) return false
-
-        if (name != other.name) return false
-
-        return true
-    }
-
-    final override fun hashCode(): Int {
-        return name.hashCode()
-    }
-
     companion object {
         @JvmStatic
         protected fun <S : LlvmStructType, T : LlvmType> S.structMember(type: T): ImmediateDelegate<LlvmStructType, Member<S, T>> {
@@ -179,16 +154,46 @@ abstract class LlvmStructType(
     }
 }
 
-open class LlvmInlineStructType(
-    val memberTypes: List<LlvmType>,
-    val packed: Boolean = false,
-) : LlvmCachedType() {
+abstract class LlvmNamedStructType(
+    val name: String,
+    packed: Boolean = false,
+) : LlvmStructType(packed) {
     override fun computeRaw(context: LlvmContext): LlvmTypeRef {
-        val memberTypesRaw = NativePointerArray.fromJavaPointers(memberTypes.map { it.getRawInContext(context) })
-        return Llvm.LLVMStructTypeInContext(context.ref, memberTypesRaw, memberTypesRaw.length, if (packed) 1 else 0)
+        observed = true
+        val structType = Llvm.LLVMStructCreateNamed(context.ref, name)
+        NativePointerArray.fromJavaPointers(membersInOrder.map { it.type.getRawInContext(context) }).use { elements ->
+            Llvm.LLVMStructSetBody(structType, elements, membersInOrder.size, if (packed) 1 else 0)
+        }
+
+        return structType
     }
 
-    override fun toString() = memberTypes.joinToString(
+    override fun toString(): String = "%$name"
+
+    final override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is LlvmNamedStructType) return false
+
+        if (name != other.name) return false
+
+        return true
+    }
+
+    final override fun hashCode(): Int {
+        return name.hashCode()
+    }
+}
+
+open class LlvmInlineStructType(
+    packed: Boolean = false,
+) : LlvmStructType(packed) {
+    override fun computeRaw(context: LlvmContext): LlvmTypeRef {
+        NativePointerArray.fromJavaPointers(membersInOrder.map { it.type.getRawInContext(context) }).use { memberTypesRaw ->
+            return Llvm.LLVMStructTypeInContext(context.ref, memberTypesRaw, memberTypesRaw.length, if (packed) 1 else 0)
+        }
+    }
+
+    override fun toString() = membersInOrder.joinToString(
         prefix = if (packed) "<{ " else "{ ",
         separator = ", ",
         postfix = if (packed) " }>" else " }",
@@ -198,14 +203,14 @@ open class LlvmInlineStructType(
         if (this === other) return true
         if (other !is LlvmInlineStructType) return false
 
-        if (memberTypes != other.memberTypes) return false
+        if (membersInOrder != other.membersInOrder) return false
         if (packed != other.packed) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        var result = memberTypes.hashCode()
+        var result = membersInOrder.hashCode()
         result = 31 * result + packed.hashCode()
         return result
     }
@@ -216,7 +221,11 @@ open class LlvmInlineStructType(
          * (as opposed to a named type) inferred from the members.
          */
         fun buildInlineTypedConstantIn(context: LlvmContext, vararg members: LlvmValue<*>, packed: Boolean = false): LlvmConstant<LlvmInlineStructType> {
-            val type = LlvmInlineStructType(members.map { it.type }, packed)
+            val type = object : LlvmInlineStructType(packed) {
+                init {
+                    members.forEach { structMember(it.type) }
+                }
+            }
 
             val constant = NativePointerArray.fromJavaPointers(members.map { it.raw }).use { rawMembers ->
                 Llvm.LLVMConstStructInContext(context.ref, rawMembers, rawMembers.length, if (packed) 1 else 0)

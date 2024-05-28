@@ -19,7 +19,6 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.inlinePanic
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
-import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 
 internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContext, out LlvmIntegerType>> by lazy {
@@ -169,7 +168,10 @@ private fun <T : LlvmIntegerType> buildBinaryOpWithOverflow(
         llvmIntrinsicName,
         listOf(llvmType),
         listOf(llvmType, llvmType),
-        LlvmInlineStructType(listOf(llvmType, LlvmBooleanType))
+        object : LlvmInlineStructType() {
+            val result by structMember(llvmType)
+            val hadOverflow by structMember(LlvmBooleanType)
+        },
     )
 
     return KotlinLlvmFunction.define(
@@ -185,16 +187,14 @@ private fun <T : LlvmIntegerType> buildBinaryOpWithOverflow(
         val operand2 by param(llvmType)
 
         body {
-            val resultWithOverflow = call(llvmIntrinsic, listOf(operand1, operand2))
-            val hadOverflow = Llvm.LLVMBuildExtractValue(builder, resultWithOverflow.raw, 1, "hadOverflow")
+            val intrinsicResult = call(llvmIntrinsic, listOf(operand1, operand2))
             conditionalBranch(
-                condition = LlvmValue(hadOverflow, LlvmBooleanType),
+                condition = extractValue(intrinsicResult) { hadOverflow },
                 ifTrue = {
                     inlinePanic(panicMessage)
                 }
             )
-            val sum = Llvm.LLVMBuildExtractValue(builder, resultWithOverflow.raw, 0, "result")
-            ret(LlvmValue(sum, llvmType))
+            ret(extractValue(intrinsicResult) { result })
         }
     }
 }

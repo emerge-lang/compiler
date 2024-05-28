@@ -9,9 +9,9 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmIntegerType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmNamedStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
@@ -50,7 +50,7 @@ internal fun LlvmContext.word(value: Long): LlvmConstant<EmergeWordType> {
 
 internal fun LlvmContext.word(value: ULong): LlvmConstant<EmergeWordType> = word(value.toLong())
 
-internal object EmergeAnyValueVirtualsType : LlvmStructType("anyvalue_virtuals") {
+internal object EmergeAnyValueVirtualsType : LlvmNamedStructType("anyvalue_virtuals") {
     val finalizeFunction by structMember(LlvmFunctionAddressType)
 
     val finalizeFunctionType = LlvmFunctionType(LlvmVoidType, listOf(PointerToAnyEmergeValue))
@@ -58,7 +58,7 @@ internal object EmergeAnyValueVirtualsType : LlvmStructType("anyvalue_virtuals")
 
 internal val PointerToAnyEmergeValue: LlvmPointerType<EmergeHeapAllocatedValueBaseType> by lazy { pointerTo(EmergeHeapAllocatedValueBaseType) }
 
-internal object EmergeWeakReferenceCollectionType : LlvmStructType("weakrefcoll") {
+internal object EmergeWeakReferenceCollectionType : LlvmNamedStructType("weakrefcoll") {
     /**
      * pointers to the actual memory locations where a pointer to another object is kept. In practice this
      * will exclusively be the addresses of the `value` member in the `emerge.core.Weak` class.
@@ -72,7 +72,7 @@ internal object EmergeWeakReferenceCollectionType : LlvmStructType("weakrefcoll"
 /**
  * The data common to all heap-allocated objects in emerge
  */
-internal object EmergeHeapAllocatedValueBaseType : LlvmStructType("anyvalue"), EmergeHeapAllocated {
+internal object EmergeHeapAllocatedValueBaseType : LlvmNamedStructType("anyvalue"), EmergeHeapAllocated {
     val strongReferenceCount by structMember(EmergeWordType)
     val typeinfo by structMember(pointerTo(TypeinfoType.GENERIC))
     val weakReferenceCollection by structMember(pointerTo(EmergeWeakReferenceCollectionType))
