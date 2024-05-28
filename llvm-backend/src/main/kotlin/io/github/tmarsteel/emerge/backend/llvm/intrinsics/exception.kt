@@ -17,7 +17,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 
-val panic = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>("emerge.platform.panic", LlvmVoidType) {
+val panic = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>("emerge.core.panic", LlvmVoidType) {
     functionAttribute(LlvmFunctionAttribute.NoFree)
     functionAttribute(LlvmFunctionAttribute.NoUnwind)
     functionAttribute(LlvmFunctionAttribute.NoReturn)
