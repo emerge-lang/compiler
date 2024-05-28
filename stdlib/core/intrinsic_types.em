@@ -31,6 +31,8 @@ export class S8 {
 
     export intrinsic operator fn compareTo(self, other: S8) -> S8
 
+    export intrinsic fn abs(self) -> S8
+
     export intrinsic fn toS64(self) -> S64
 }
 
@@ -61,6 +63,8 @@ export class S16 {
     export intrinsic operator fn divideBy(self, dividend: S16) -> S16
 
     export intrinsic operator fn compareTo(self, other: S16) -> S16
+
+    export intrinsic fn abs(self) -> S16
 
     export intrinsic fn toS64(self) -> S64
 }
@@ -93,6 +97,8 @@ export class S32 {
 
     export intrinsic operator fn compareTo(self, other: S32) -> S32
 
+    export intrinsic fn abs(self) -> S32
+
     export intrinsic fn toS64(self) -> S64
 }
 
@@ -123,6 +129,8 @@ export class S64 {
     export intrinsic operator fn divideBy(self, dividend: S64) -> S64
 
     export intrinsic operator fn compareTo(self, other: S64) -> S64
+
+    export intrinsic fn abs(self) -> S64
 }
 
 export class U64 {
@@ -150,6 +158,8 @@ export class SWord {
     export intrinsic operator fn divideBy(self, dividend: SWord) -> SWord
 
     export intrinsic operator fn compareTo(self, other: SWord) -> SWord
+
+    export intrinsic fn abs(self) -> SWord
 }
 
 export class UWord {
@@ -209,7 +219,3 @@ export class Array<Element> {
         }
     }
 }
-
-export interface Throwable {}
-export interface Error : Throwable {}
-export interface Exception : Throwable {}

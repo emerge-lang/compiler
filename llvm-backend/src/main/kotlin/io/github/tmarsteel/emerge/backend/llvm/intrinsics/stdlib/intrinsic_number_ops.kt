@@ -95,6 +95,11 @@ internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContex
         convert_u8_to_u64,
         convert_u16_to_u64,
         convert_u32_to_u64,
+        s8_abs,
+        s16_abs,
+        s32_abs,
+        s64_abs,
+        sWord_abs,
     )
 }
 
@@ -478,3 +483,29 @@ private fun buildUnsignedEnlargeTo64Fn(fromType: LlvmFixedIntegerType) = KotlinL
 private val convert_u8_to_u64 = buildUnsignedEnlargeTo64Fn(LlvmI8Type)
 private val convert_u16_to_u64 = buildUnsignedEnlargeTo64Fn(LlvmI16Type)
 private val convert_u32_to_u64 = buildUnsignedEnlargeTo64Fn(LlvmI32Type)
+
+private fun <T : LlvmIntegerType> buildAbsoluteValueFn(
+    emergeSignedTypeSimpleName: String,
+    llvmType: T,
+    constantFactory: EmergeLlvmContext.(Long) -> LlvmValue<T>,
+) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(
+    "emerge.core.${emergeSignedTypeSimpleName}::abs",
+    llvmType,
+) {
+    instructionAliasAttributes()
+
+    val self by param(llvmType)
+
+    body {
+        val zero = context.constantFactory(0)
+        val negated = sub(zero, self)
+        val isNegative = icmp(self, LlvmIntPredicate.SIGNED_LESS_THAN, zero)
+        ret(select(isNegative, negated, self))
+    }
+}
+
+private val s8_abs = buildAbsoluteValueFn("S8", LlvmI8Type) { i8(it.toByte()) }
+private val s16_abs = buildAbsoluteValueFn("S16", LlvmI16Type) { i16(it.toShort()) }
+private val s32_abs = buildAbsoluteValueFn("S32", LlvmI32Type) { i32(it.toInt()) }
+private val s64_abs = buildAbsoluteValueFn("S64", LlvmI64Type) { i64(it) }
+private val sWord_abs = buildAbsoluteValueFn("SWord", EmergeWordType) { word(it) }

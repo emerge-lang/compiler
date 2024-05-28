@@ -52,6 +52,8 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun isEq(pointerA: LlvmValue<LlvmPointerType<*>>, pointerB: LlvmValue<LlvmPointerType<*>>): LlvmValue<LlvmBooleanType>
     fun <T : LlvmIntegerType> not(value: LlvmValue<T>): LlvmValue<T>
 
+    fun <R : LlvmType> select(condition: LlvmValue<LlvmBooleanType>, ifTrue: LlvmValue<R>, ifFalse: LlvmValue<R>): LlvmValue<R>
+
     fun enterDebugScope(scope: DebugInfoScope)
     fun leaveDebugScope()
     fun markSourceLocation(line: UInt, column: UInt)
@@ -382,6 +384,19 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     override fun <T : LlvmIntegerType> not(value: LlvmValue<T>): LlvmValue<T> {
         val inst = Llvm.LLVMBuildNot(builder, value.raw, tmpVars.next())
         return LlvmValue(inst, value.type)
+    }
+
+    override fun <R : LlvmType> select(condition: LlvmValue<LlvmBooleanType>, ifTrue: LlvmValue<R>, ifFalse: LlvmValue<R>): LlvmValue<R> {
+        check(ifTrue.type == ifFalse.type)
+
+        val inst = Llvm.LLVMBuildSelect(
+            builder,
+            condition.raw,
+            ifTrue.raw,
+            ifFalse.raw,
+            tmpVars.next(),
+        )
+        return LlvmValue(inst, ifTrue.type)
     }
 
     override fun enterDebugScope(scope: DebugInfoScope) {

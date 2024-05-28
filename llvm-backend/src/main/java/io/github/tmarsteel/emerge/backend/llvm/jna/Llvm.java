@@ -326,6 +326,15 @@ public class Llvm {
     );
 
     /** see Core.h */
+    public static native @NotNull LlvmValueRef LLVMBuildSelect(
+            @NotNull LlvmBuilderRef builder,
+            @NotNull LlvmValueRef If,
+            @NotNull LlvmValueRef Then,
+            @NotNull LlvmValueRef Else,
+            @NotNull String name
+    );
+
+    /** see Core.h */
     public static native @NotNull LlvmValueRef LLVMSizeOf(@NotNull LlvmTypeRef type);
 
     /** see Core.h */
