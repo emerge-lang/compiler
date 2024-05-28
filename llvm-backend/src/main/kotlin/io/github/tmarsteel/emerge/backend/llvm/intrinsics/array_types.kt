@@ -11,18 +11,21 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFixedIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI16Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI64Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmInlineStructType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmIntegerType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmNamedStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.UnsignedWordAddWithOverflow
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
@@ -31,7 +34,7 @@ import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 
-internal object EmergeArrayBaseType : LlvmStructType("anyarray"), EmergeHeapAllocated {
+internal object EmergeArrayBaseType : LlvmNamedStructType("anyarray"), EmergeHeapAllocated {
     val anyBase by structMember(EmergeHeapAllocatedValueBaseType)
     val elementCount by structMember(EmergeWordType)
 
@@ -97,7 +100,7 @@ internal class EmergeArrayType<Element : LlvmType>(
      * of the given size and sets all the elements to the given value.
      */
     val defaultValueConstructor: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>>,
-) : LlvmStructType("array_$elementTypeName"), EmergeHeapAllocated {
+) : LlvmNamedStructType("array_$elementTypeName"), EmergeHeapAllocated {
     val base by structMember(EmergeArrayBaseType)
     val elements by structMember(LlvmArrayType(0L, elementType))
 
@@ -530,6 +533,96 @@ internal val EmergeSWordArrayType = buildValueArrayType("sword", EmergeWordType,
 internal val EmergeUWordArrayType = buildValueArrayType("uword", EmergeWordType, EmergeLlvmContext::boxTypeUWord)
 internal val EmergeBooleanArrayType = buildValueArrayType("bool", LlvmBooleanType, EmergeLlvmContext::boxTypeBool)
 
+
+/** intrinsic for emerge.std.Array::copy */
+private fun <Element : LlvmIntegerType> buildValueArrayCopy(
+    elementType: Element,
+    getSelfType: () -> EmergeArrayType<Element>,
+) : KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> {
+    val typename = when (elementType) {
+        is EmergeWordType -> "word"
+        is LlvmFixedIntegerType -> "i" + elementType.nBits.toString()
+        else -> error("Should never happen")
+    }
+    return KotlinLlvmFunction.define<_, _>(
+        "emerge.core.array_${typename}_copy",
+        LlvmVoidType,
+    ) {
+        val sourceArrUntypedPtr by param(PointerToAnyEmergeValue)
+        val sourceOffset by param(EmergeWordType)
+        val destArrayUntypedPtr by param(PointerToAnyEmergeValue)
+        val destOffset by param(EmergeWordType)
+        val length by param(EmergeWordType)
+
+        body {
+            conditionalBranch(
+                condition = isZero(length),
+                ifTrue = {
+                    retVoid()
+                }
+            )
+
+            val sourceArrPtr = sourceArrUntypedPtr.reinterpretAs(pointerTo(getSelfType()))
+            val destArrPtr = destArrayUntypedPtr.reinterpretAs(pointerTo(getSelfType()))
+
+            val sourceSize = getelementptr(sourceArrPtr)
+                .member { base }
+                .member { elementCount }
+                .get()
+                .dereference()
+
+            val sourceMinSizeResult = call(UnsignedWordAddWithOverflow, listOf(sourceOffset, length))
+            conditionalBranch(
+                condition = or(
+                    extractValue(sourceMinSizeResult) { hadOverflow },
+                    icmp(extractValue(sourceMinSizeResult) { result }, LlvmIntPredicate.UNSIGNED_GREATER_THAN, sourceSize),
+                ),
+                ifTrue = {
+                    inlinePanic("length overflows bounds of source")
+                }
+            )
+
+            val destSize = getelementptr(destArrPtr)
+                .member { base }
+                .member { elementCount }
+                .get()
+                .dereference()
+
+            val destMinSizeResult = call(UnsignedWordAddWithOverflow, listOf(destOffset, length))
+            conditionalBranch(
+                condition = or(
+                    extractValue(destMinSizeResult) { hadOverflow },
+                    icmp(extractValue(destMinSizeResult) { result }, LlvmIntPredicate.UNSIGNED_GREATER_THAN, destSize),
+                ),
+                ifTrue = {
+                    inlinePanic("length overflows bounds of dest")
+                }
+            )
+
+            memcpy(
+                destination = getelementptr(destArrPtr)
+                    .member { elements }
+                    .index(destOffset)
+                    .get(),
+                source = getelementptr(sourceArrPtr)
+                    .member { elements }
+                    .index(sourceOffset)
+                    .get(),
+                mul(elementType.sizeof(), length)
+            )
+
+            retVoid()
+        }
+    }
+}
+
+val EmergeBoolArrayCopyFn = buildValueArrayCopy(LlvmBooleanType) { EmergeBooleanArrayType }
+val EmergeI8ArrayCopyFn = buildValueArrayCopy(LlvmI8Type) { EmergeU8ArrayType }
+val EmergeI16ArrayCopyFn = buildValueArrayCopy(LlvmI16Type) { EmergeU16ArrayType }
+val EmergeI32ArrayCopyFn = buildValueArrayCopy(LlvmI32Type) { EmergeU32ArrayType }
+val EmergeI64ArrayCopyFn = buildValueArrayCopy(LlvmI64Type) { EmergeU64ArrayType }
+val EmergeWordArrayCopyFn = buildValueArrayCopy(EmergeWordType) { EmergeUWordArrayType }
+
 private val referenceArrayElementGetter: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>> = KotlinLlvmFunction.define(
     "emerge.platform.referenceArrayGet",
     PointerToAnyEmergeValue,
@@ -665,15 +758,15 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<EmergeHea
     }
     arrayTypeHolder = EmergeArrayType(
         "ref",
-        PointerToAnyEmergeValue,
-        referenceArrayElementGetter,
-        referenceArrayElementSetter,
-        referenceArrayElementGetter,
-        referenceArrayElementGetter,
-        referenceArrayElementSetter,
-        referenceArrayElementSetter,
-        referenceArrayFinalizer,
-        defaultValueCtor,
+        elementType = PointerToAnyEmergeValue,
+        virtualGetter = referenceArrayElementGetter,
+        virtualSetter = referenceArrayElementSetter,
+        rawGetterWithBoundsCheck = referenceArrayElementGetter,
+        rawGetterWithoutBoundsCheck = referenceArrayElementGetter,
+        rawSetterWithBoundsCheck = referenceArrayElementSetter,
+        rawSetterWithoutBoundsCheck = referenceArrayElementSetter,
+        finalizer = referenceArrayFinalizer,
+        defaultValueConstructor = defaultValueCtor,
     )
     arrayTypeHolder
 }

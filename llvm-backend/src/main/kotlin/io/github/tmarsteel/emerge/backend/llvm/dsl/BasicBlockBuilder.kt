@@ -20,6 +20,8 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
 
     fun <P : LlvmType> GetElementPointerStep<P>.get(): LlvmValue<LlvmPointerType<P>>
     fun <P : LlvmType> LlvmValue<LlvmPointerType<P>>.dereference(): LlvmValue<P>
+    fun <S : LlvmStructType, T : LlvmType> extractValue(struct: LlvmValue<S>, memberSelector: S.() -> LlvmStructType.Member<S, T>): LlvmValue<T>
+
     fun <P : LlvmType> store(value: LlvmValue<P>, to: LlvmValue<LlvmPointerType<P>>)
     fun <T : LlvmIntegerType> add(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> sub(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
@@ -30,6 +32,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun <T : LlvmIntegerType> shl(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> lshr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> and(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
+    fun <T : LlvmIntegerType> or(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
     fun <Small : LlvmIntegerType, Large : LlvmIntegerType> enlargeUnsigned(value: LlvmValue<Small>, to: Large): LlvmValue<Large>
     fun <Small : LlvmIntegerType, Large : LlvmIntegerType> enlargeSigned(value: LlvmValue<Small>, to: Large): LlvmValue<Large>
     fun <Small : LlvmIntegerType, Large: LlvmIntegerType> truncate(value: LlvmValue<Large>, to: Small): LlvmValue<Small>
@@ -185,6 +188,15 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         return LlvmValue(loadResult, type.pointed)
     }
 
+    override fun <S : LlvmStructType, T : LlvmType> extractValue(
+        struct: LlvmValue<S>,
+        memberSelector: S.() -> LlvmStructType.Member<S, T>,
+    ): LlvmValue<T> {
+        val member = struct.type.memberSelector()
+        val extractInst = Llvm.LLVMBuildExtractValue(builder, struct.raw, member.indexInStruct, tmpVars.next())
+        return LlvmValue(extractInst, member.type)
+    }
+
     override fun <P : LlvmType> store(value: LlvmValue<P>, to: LlvmValue<LlvmPointerType<P>>) {
         check(value.type !is LlvmVoidType) // LLVM segfaults if this doesn't hold
         Llvm.LLVMBuildStore(builder, value.raw, to.raw)
@@ -251,6 +263,11 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     override fun <T : LlvmIntegerType> and(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
         val andInstr = Llvm.LLVMBuildAnd(builder, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(andInstr, lhs.type)
+    }
+
+    override fun <T : LlvmIntegerType> or(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        val orInstr = Llvm.LLVMBuildOr(builder, lhs.raw, rhs.raw, tmpVars.next())
+        return LlvmValue(orInstr, lhs.type)
     }
 
     override fun <Small : LlvmIntegerType, Large : LlvmIntegerType> enlargeSigned(
@@ -375,7 +392,9 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         scopeTracker.leaveDebugScope()
     }
 
+    private var lastKnownLine: UInt = 0u
     override fun markSourceLocation(line: UInt, column: UInt) {
+        lastKnownLine = line
         val location = diBuilder.createDebugLocation(
             scopeTracker.currentDebugScope,
             line,

@@ -100,15 +100,38 @@ interface IrBooleanLiteralExpression : IrExpression {
 
 interface IrNullLiteralExpression : IrExpression
 
-interface IrStaticDispatchFunctionInvocationExpression : IrExpression {
+sealed interface IrInvocationExpression : IrExpression {
     val function: IrFunction
     val arguments: List<IrTemporaryValueReference>
+
+    /**
+     * For each type argument of the function contains the compile-time resolved type at the call-site. E.g.
+     * if you have:
+     *
+     *     fn bla<T : mut Any, E : read Any>(a: T, b: T) -> Int
+     *
+     * and this invocation
+     *
+     *     bla([1, 2], "foo")
+     *
+     * then this map will be
+     *
+     * | key | value                            |
+     * |-----|----------------------------------|
+     * | T   | `exclusive Array<const Int>`     |
+     * | E   | `const String`                   |
+     *
+     * Contains type parameters declared on the function itself, **and** ones inherited from
+     * parent lexical scopes.
+     */
+    val typeArgumentsAtCallSite: Map<String, IrType>
 }
 
-interface IrDynamicDispatchFunctionInvocationExpression : IrExpression {
+interface IrStaticDispatchFunctionInvocationExpression : IrInvocationExpression
+
+interface IrDynamicDispatchFunctionInvocationExpression : IrInvocationExpression {
     val dispatchOn: IrTemporaryValueReference
-    val function: IrMemberFunction
-    val arguments: List<IrTemporaryValueReference>
+    override val function: IrMemberFunction
 }
 
 interface IrClassMemberVariableAccessExpression : IrExpression {

@@ -176,7 +176,7 @@ export class Array<Element> {
 
     export intrinsic fn new<T>(size: UWord, initialValue: T) -> exclusive Array<T>
 
-    export fn copy<T>(borrow source: read Array<T>, sourceOffset: UWord, borrow dest: mut Array<T>, destOffset: UWord, length: UWord) {
+    export fn copy<T>(borrow source: read Array<out T>, sourceOffset: UWord, borrow dest: mut Array<in T>, destOffset: UWord, length: UWord) {
         if sourceOffset + length > source.size {
             panic("length overflows source")
         }
@@ -189,7 +189,8 @@ export class Array<Element> {
         var destIndex = destOffset
         var nCopied: UWord = 0
         while nCopied < length {
-            set dest[destIndex] = source[sourceIndex]
+            element: T = source[sourceIndex]
+            set dest[destIndex] = element
             set sourceIndex = sourceIndex + 1
             set destIndex = destIndex + 1
             set nCopied = nCopied + 1

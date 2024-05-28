@@ -170,6 +170,9 @@ class BoundArrayLiteralExpression(
                                 IrTemporaryValueReferenceImpl(indexTemporary),
                                 element,
                             ),
+                            mapOf(
+                                (type as RootResolvedTypeReference).baseType.typeParameters!!.single().name to irElementType,
+                            ),
                             IrSimpleTypeImpl(context.swCtx.unit.toBackendIr(), false),
                         ),
                     ))

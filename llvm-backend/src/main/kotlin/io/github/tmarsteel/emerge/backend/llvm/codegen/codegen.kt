@@ -18,6 +18,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrIfExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrNotReallyAnExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullInitializedArrayExpression
@@ -58,9 +59,14 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i64
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeBoolArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeBooleanArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeI16ArrayCopyFn
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeI32ArrayCopyFn
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeI64ArrayCopyFn
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeI8ArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeReferenceArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeS16ArrayType
@@ -73,6 +79,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU32ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU64ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU8ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordArrayType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceCreated
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceDropped
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractGet
@@ -282,68 +289,79 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 expression.clazz.llvmType.allocateUninitializedDynamicObject(this),
             )
         }
-        is IrStaticDispatchFunctionInvocationExpression -> {
-            // optimized array accessors
-            if ((expression.function as? IrMemberFunction)?.ownerBaseType?.canonicalName?.toString() == "emerge.core.Array") {
-                val override = ArrayDispatchOverride.findFor(expression, context)
-                when (override) {
-                    is ArrayDispatchOverride.InvokeVirtual -> {
-                        val addr = callIntrinsic(getDynamicCallAddress, listOf(
-                            expression.arguments.first().declaration.llvmValue,
-                            context.word(override.hash),
-                        ))
-                        return ExpressionResult.Value(
-                            call(
-                                addr,
-                                override.fnType,
-                                expression.arguments.zip(expression.function.parameters)
-                                    .map { (argument, parameter) -> assureBoxed(argument, parameter.type) }
+        is IrInvocationExpression -> when (expression) {
+            is IrStaticDispatchFunctionInvocationExpression -> {
+                // optimized array accessors
+                if ((expression.function as? IrMemberFunction)?.ownerBaseType?.canonicalName?.toString() == "emerge.core.Array") {
+                    val override = ArrayDispatchOverride.findFor(expression, context)
+                    when (override) {
+                        is ArrayDispatchOverride.InvokeVirtual -> {
+                            val addr = callIntrinsic(
+                                getDynamicCallAddress, listOf(
+                                    expression.arguments.first().declaration.llvmValue,
+                                    context.word(override.hash),
+                                )
                             )
-                        )
+                            return ExpressionResult.Value(
+                                call(
+                                    addr,
+                                    override.fnType,
+                                    expression.arguments.zip(expression.function.parameters)
+                                        .map { (argument, parameter) -> assureBoxed(argument, parameter.type) }
+                                )
+                            )
+                        }
+
+                        is ArrayDispatchOverride.InvokeIntrinsic -> {
+                            // IMPORTANT! this deliberately doesn't box the arguments because that would box primitives
+                            // in exactly a situation where that shouldn't happen.
+                            return ExpressionResult.Value(
+                                call(
+                                    context.registerIntrinsic(override.intrinsic),
+                                    expression.arguments.map { it.declaration.llvmValue })
+                            )
+                        }
+
+                        else -> {}
                     }
-                    is ArrayDispatchOverride.InvokeIntrinsic -> {
-                        // IMPORTANT! this deliberately doesn't box the arguments because that would box primitives
-                        // in exactly a situation where that shouldn't happen.
-                        return ExpressionResult.Value(
-                            call(context.registerIntrinsic(override.intrinsic), expression.arguments.map { it.declaration.llvmValue })
-                        )
-                    }
-                    else -> {}
                 }
+
+                // general handling
+                val llvmFunction = expression.function.llvmRef
+                    ?: throw CodeGenerationException("Missing implementation for ${expression.function.canonicalName}")
+                val callInstruction = call(
+                    llvmFunction,
+                    expression.arguments.zip(expression.function.parameters)
+                        .map { (argument, parameter) -> assureBoxed(argument, parameter.type) },
+                )
+                return ExpressionResult.Value(
+                    if (expression.evaluatesTo.isUnit) {
+                        context.pointerToPointerToUnitInstance
+                    } else {
+                        callInstruction
+                    }
+                )
             }
 
-            // general handling
-            val llvmFunction = expression.function.llvmRef
-                ?: throw CodeGenerationException("Missing implementation for ${expression.function.canonicalName}")
-            val callInstruction = call(
-                llvmFunction,
-                expression.arguments.zip(expression.function.parameters)
-                    .map { (argument, parameter) -> assureBoxed(argument, parameter.type) },
-            )
-            return ExpressionResult.Value(
-                if (expression.evaluatesTo.isUnit) {
-                    context.pointerToPointerToUnitInstance
-                } else {
-                    callInstruction
-                }
-            )
-        }
-        is IrDynamicDispatchFunctionInvocationExpression -> {
-            val argumentsForInvocation = expression.arguments.zip(expression.function.parameters)
-                .map { (argument, parameter) -> assureBoxed(argument, parameter.type) }
+            is IrDynamicDispatchFunctionInvocationExpression -> {
+                val argumentsForInvocation = expression.arguments.zip(expression.function.parameters)
+                    .map { (argument, parameter) -> assureBoxed(argument, parameter.type) }
 
-            val targetAddr = callIntrinsic(getDynamicCallAddress, listOf(
-                expression.dispatchOn.declaration.llvmValue,
-                context.word(expression.function.signatureHashes.first()),
-            ))
-            val callInstruction = call(targetAddr, expression.function.llvmFunctionType, argumentsForInvocation)
-            return ExpressionResult.Value(
-                if (expression.evaluatesTo.isUnit) {
-                    context.pointerToPointerToUnitInstance
-                } else {
-                    callInstruction
-                }
-            )
+                val targetAddr = callIntrinsic(
+                    getDynamicCallAddress, listOf(
+                        expression.dispatchOn.declaration.llvmValue,
+                        context.word(expression.function.signatureHashes.first()),
+                    )
+                )
+                val callInstruction = call(targetAddr, expression.function.llvmFunctionType, argumentsForInvocation)
+                return ExpressionResult.Value(
+                    if (expression.evaluatesTo.isUnit) {
+                        context.pointerToPointerToUnitInstance
+                    } else {
+                        callInstruction
+                    }
+                )
+            }
         }
         is IrVariableAccessExpression -> return ExpressionResult.Value(expression.variable.emitRead!!())
         is IrIntegerLiteralExpression -> return ExpressionResult.Value(when ((expression.evaluatesTo as IrSimpleType).baseType.canonicalName.toString()) {
@@ -643,9 +661,27 @@ private sealed interface ArrayDispatchOverride {
                     context.rawBoolClazz -> EmergeBooleanArrayType.defaultValueConstructor
                     else -> EmergeReferenceArrayType.defaultValueConstructor
                 })
-            } else {
-                return None
             }
+
+            if (invocation.function.canonicalName.simpleName == "copy" && invocation.function.parameters.size == 5) {
+                val elementType = (invocation.typeArgumentsAtCallSite.getValue("T")).findSimpleTypeBound().baseType
+                return when (elementType) {
+                    context.rawS8Clazz,
+                    context.rawU8Clazz -> InvokeIntrinsic(EmergeI8ArrayCopyFn)
+                    context.rawS16Clazz,
+                    context.rawU16Clazz -> InvokeIntrinsic(EmergeI16ArrayCopyFn)
+                    context.rawS32Clazz,
+                    context.rawU32Clazz -> InvokeIntrinsic(EmergeI32ArrayCopyFn)
+                    context.rawS64Clazz,
+                    context.rawU64Clazz -> InvokeIntrinsic(EmergeI64ArrayCopyFn)
+                    context.rawSWordClazz,
+                    context.rawUWordClazz -> InvokeIntrinsic(EmergeWordArrayCopyFn)
+                    context.rawBoolClazz -> InvokeIntrinsic(EmergeBoolArrayCopyFn)
+                    else -> None
+                }
+            }
+
+            return None
         }
     }
 }

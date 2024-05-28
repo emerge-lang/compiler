@@ -69,11 +69,10 @@ class BoundInvocationExpression(
     /**
      * The result of the function dispatching. Is set (non null) after semantic analysis phase 2
      */
-    var functionToInvoke: BoundFunction? = null
-        private set
+    val functionToInvoke: BoundFunction? get() = chosenOverload?.candidate
+    private var chosenOverload: OverloadCandidateEvaluation? = null
 
-    override var type: BoundTypeReference? = null
-        private set
+    override val type: BoundTypeReference? get() = chosenOverload?.returnType
 
     var typeArguments: List<BoundTypeArgument>? = null
         private set
@@ -132,13 +131,12 @@ class BoundInvocationExpression(
             typeArguments?.forEach { reportings.addAll(it.validate(TypeUseSite.Irrelevant(it.span, null))) }
             valueArguments.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
 
-            val chosenOverload = selectOverload(availableOverloads, reportings) ?: return@phase2 reportings
+            chosenOverload = selectOverload(availableOverloads, reportings) ?: return@phase2 reportings
 
-            functionToInvoke = chosenOverload.candidate
-            if (chosenOverload.returnType == null) {
+            if (chosenOverload!!.returnType == null) {
                 handleCyclicInvocation(
                     context = this,
-                    action = { chosenOverload.candidate.semanticAnalysisPhase2() },
+                    action = { chosenOverload!!.candidate.semanticAnalysisPhase2() },
                     onCycle = {
                         reportings.add(
                             Reporting.typeDeductionError(
@@ -150,9 +148,7 @@ class BoundInvocationExpression(
                 )
             }
 
-            type = chosenOverload.returnType
-
-            chosenOverload.candidate.parameters.parameters.zip(valueArguments)
+            chosenOverload!!.candidate.parameters.parameters.zip(valueArguments)
                 .filter { (parameter, _) -> parameter.ownershipAtDeclarationTime == VariableOwnership.CAPTURED }
                 .forEach { (parameter, argument) -> argument.markEvaluationResultCaptured(parameter.typeAtDeclarationTime?.mutability ?: TypeMutability.READONLY) }
 
@@ -435,21 +431,26 @@ class BoundInvocationExpression(
         val isCallOnInterfaceType = (receiverExpression?.type as? RootResolvedTypeReference)?.baseType?.kind == BoundBaseType.Kind.INTERFACE
         val fn = functionToInvoke!!
         val returnType = type!!.toBackendIr()
+        val irResolvedTypeArgs = chosenOverload!!.unification.bindings.entries
+            .associate { (typeVar, binding) -> typeVar.parameter.name to binding.toBackendIr() }
+
         if (fn is BoundMemberFunction && fn.isVirtual && isCallOnInterfaceType) {
             check(receiverExceptReferringType != null)
             return IrDynamicDispatchFunctionInvocationImpl(
                 arguments.first(),
                 fn.toBackendIr(),
                 arguments,
+                irResolvedTypeArgs,
                 returnType
             )
-        } else {
-            return IrStaticDispatchFunctionInvocationImpl(
-                functionToInvoke!!.toBackendIr(),
-                arguments,
-                type!!.toBackendIr(),
-            )
         }
+
+        return IrStaticDispatchFunctionInvocationImpl(
+            functionToInvoke!!.toBackendIr(),
+            arguments,
+            irResolvedTypeArgs,
+            type!!.toBackendIr(),
+        )
     }
 
     override fun toBackendIrExpression(): IrExpression {
@@ -498,6 +499,7 @@ private fun Collection<OverloadCandidateEvaluation>.indicesOfDisjointlyTypedPara
 internal class IrStaticDispatchFunctionInvocationImpl(
     override val function: IrFunction,
     override val arguments: List<IrTemporaryValueReference>,
+    override val typeArgumentsAtCallSite: Map<String, IrType>,
     override val evaluatesTo: IrType,
 ) : IrStaticDispatchFunctionInvocationExpression
 
@@ -505,6 +507,7 @@ private class IrDynamicDispatchFunctionInvocationImpl(
     override val dispatchOn: IrTemporaryValueReference,
     override val function: IrMemberFunction,
     override val arguments: List<IrTemporaryValueReference>,
+    override val typeArgumentsAtCallSite: Map<String, IrType>,
     override val evaluatesTo: IrType
 ) : IrDynamicDispatchFunctionInvocationExpression
 
