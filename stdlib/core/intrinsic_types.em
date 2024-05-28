@@ -30,6 +30,8 @@ export class S8 {
     export intrinsic operator fn divideBy(self, dividend: S8) -> S8
 
     export intrinsic operator fn compareTo(self, other: S8) -> S8
+
+    export intrinsic fn toS64(self) -> S64
 }
 
 export class U8 {
@@ -43,6 +45,8 @@ export class U8 {
     export intrinsic operator fn divideBy(self, dividend: U8) -> U8
 
     export intrinsic operator fn compareTo(self, other: U8) -> S8
+
+    export intrinsic fn toU64(self) -> U64
 }
 
 export class S16 {
@@ -57,6 +61,8 @@ export class S16 {
     export intrinsic operator fn divideBy(self, dividend: S16) -> S16
 
     export intrinsic operator fn compareTo(self, other: S16) -> S16
+
+    export intrinsic fn toS64(self) -> S64
 }
 
 export class U16 {
@@ -70,6 +76,8 @@ export class U16 {
     export intrinsic operator fn divideBy(self, dividend: U16) -> U16
 
     export intrinsic operator fn compareTo(self, other: U16) -> S16
+
+    export intrinsic fn toU64(self) -> U64
 }
 
 export class S32 {
@@ -84,6 +92,8 @@ export class S32 {
     export intrinsic operator fn divideBy(self, dividend: S32) -> S32
 
     export intrinsic operator fn compareTo(self, other: S32) -> S32
+
+    export intrinsic fn toS64(self) -> S64
 }
 
 export class U32 {
@@ -97,6 +107,8 @@ export class U32 {
     export intrinsic operator fn divideBy(self, dividend: U32) -> U32
 
     export intrinsic operator fn compareTo(self, other: U32) -> S32
+
+    export intrinsic fn toU64(self) -> U64
 }
 
 export class S64 {

@@ -2,6 +2,7 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib
 
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFixedIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI16Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
@@ -88,6 +89,12 @@ internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContex
         compareTo_u64,
         compareTo_sWord,
         compareTo_uWord,
+        convert_s8_to_s64,
+        convert_s16_to_s64,
+        convert_s32_to_s64,
+        convert_u8_to_u64,
+        convert_u16_to_u64,
+        convert_u32_to_u64,
     )
 }
 
@@ -437,3 +444,37 @@ private val compareTo_s64 = buildSignedCompareFn("S64", LlvmI64Type)
 private val compareTo_u64 = buildUnsignedCompareFn("U64", LlvmI64Type) { i64(it) }
 private val compareTo_sWord = buildSignedCompareFn("SWord", EmergeWordType)
 private val compareTo_uWord = buildUnsignedCompareFn("UWord", EmergeWordType) { word(it) }
+
+private fun buildSignedEnlargeTo64Fn(fromType: LlvmFixedIntegerType) = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmI64Type>(
+    "emerge.core.S${fromType.nBits}::toS64",
+    LlvmI64Type,
+) {
+    instructionAliasAttributes()
+
+    val self by param(fromType)
+
+    body {
+        ret(enlargeSigned(self, LlvmI64Type))
+    }
+}
+
+private val convert_s8_to_s64 = buildSignedEnlargeTo64Fn(LlvmI8Type)
+private val convert_s16_to_s64 = buildSignedEnlargeTo64Fn(LlvmI16Type)
+private val convert_s32_to_s64 = buildSignedEnlargeTo64Fn(LlvmI32Type)
+
+private fun buildUnsignedEnlargeTo64Fn(fromType: LlvmFixedIntegerType) = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmI64Type>(
+    "emerge.core.U${fromType.nBits}::toU64",
+    LlvmI64Type,
+) {
+    instructionAliasAttributes()
+
+    val self by param(fromType)
+
+    body {
+        ret(enlargeUnsigned(self, LlvmI64Type))
+    }
+}
+
+private val convert_u8_to_u64 = buildUnsignedEnlargeTo64Fn(LlvmI8Type)
+private val convert_u16_to_u64 = buildUnsignedEnlargeTo64Fn(LlvmI16Type)
+private val convert_u32_to_u64 = buildUnsignedEnlargeTo64Fn(LlvmI32Type)
