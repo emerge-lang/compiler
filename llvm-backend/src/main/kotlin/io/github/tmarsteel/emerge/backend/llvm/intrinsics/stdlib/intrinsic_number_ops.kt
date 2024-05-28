@@ -417,7 +417,7 @@ private fun <T : LlvmIntegerType> buildUnsignedCompareFn(
                 }
             )
             conditionalBranch(
-                condition = icmp(rhs, LlvmIntPredicate.UNSIGNED_GREATER_THAN, lhs),
+                condition = icmp(lhs, LlvmIntPredicate.UNSIGNED_GREATER_THAN, rhs),
                 ifTrue = {
                     ret(context.constantFactory(1))
                 }
