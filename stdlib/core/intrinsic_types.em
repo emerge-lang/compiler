@@ -32,7 +32,7 @@ export class S8 {
     export intrinsic operator fn compareTo(self, other: S8) -> S8
     export intrinsic operator fn equals(self, other: S8) -> Bool
 
-    export intrinsic fn abs(self) -> S8
+    export fn abs(self) = if self < 0 -self else self
 
     export intrinsic fn toS64(self) -> S64
 }
@@ -67,7 +67,7 @@ export class S16 {
     export intrinsic operator fn compareTo(self, other: S16) -> S16
     export intrinsic operator fn equals(self, other: S16) -> Bool
 
-    export intrinsic fn abs(self) -> S16
+    export fn abs(self) = if self < 0 -self else self
 
     export intrinsic fn toS64(self) -> S64
 }
@@ -102,7 +102,7 @@ export class S32 {
     export intrinsic operator fn compareTo(self, other: S32) -> S32
     export intrinsic operator fn equals(self, other: S32) -> Bool
 
-    export intrinsic fn abs(self) -> S32
+    export fn abs(self) = if self < 0 -self else self
 
     export intrinsic fn toS64(self) -> S64
 }
@@ -137,7 +137,7 @@ export class S64 {
     export intrinsic operator fn compareTo(self, other: S64) -> S64
     export intrinsic operator fn equals(self, other: S64) -> Bool
 
-    export intrinsic fn abs(self) -> S64
+    export fn abs(self) = if self < 0 -self else self
 }
 
 export class U64 {
@@ -168,7 +168,7 @@ export class SWord {
     export intrinsic operator fn compareTo(self, other: SWord) -> SWord
     export intrinsic operator fn equals(self, other: SWord) -> Bool
 
-    export intrinsic fn abs(self) -> SWord
+    export fn abs(self) = if self < 0 -self else self
 }
 
 export class UWord {
