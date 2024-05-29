@@ -39,6 +39,7 @@ internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContex
         negate_u64,
         negate_sWord,
         negate_uWord,
+        negate_bool,
         plus_s8,
         plus_u8,
         plus_s16,
@@ -196,6 +197,8 @@ private val negate_u64 = negate_s64.createAlias("emerge.core.U64::negate")
 
 private val negate_sWord = buildNegateFn("SWord", EmergeWordType)
 private val negate_uWord = negate_sWord.createAlias("emerge.core.UWord::negate")
+
+private val negate_bool = buildNegateFn("Bool", LlvmBooleanType)
 
 private fun <T : LlvmIntegerType> buildBinaryOpWithOverflow(
     emergeFunctionCanonicalName: String,
@@ -562,7 +565,7 @@ private fun <From : LlvmIntegerType, To : LlvmIntegerType> buildLossyConversionF
 }
 
 private val convert_s64_to_sWord_lossy = buildLossyConversionFn("emerge.core.S64::asSWord", true, LlvmI64Type, EmergeWordType)
-private val convert_u64_to_uWord_lossy = buildLossyConversionFn("emerge.core.S64::asUWord", false, LlvmI64Type, EmergeWordType)
+private val convert_u64_to_uWord_lossy = buildLossyConversionFn("emerge.core.U64::asUWord", false, LlvmI64Type, EmergeWordType)
 
 private fun <T : LlvmIntegerType> buildReinterpretFn(
     fullSymbol: String,

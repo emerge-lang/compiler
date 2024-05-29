@@ -162,6 +162,35 @@ export class S64 {
 
     // converts this number to an SWord, loosing information if SWord is smaller than S64 on the target platform
     export intrinsic nothrow fn asSWord(self) -> SWord
+
+    export fn toString(self: S64) -> const String {
+        if self == 0 {
+            return "0"
+        }
+
+        // 2^63-1 plus sign is at MOST 20 chars
+        var buf = Array.new::<S8>(20, SPACE_CODEPOINT)
+        var insertionIndex: UWord = 19
+        var remainingNumber = self.abs().asU64()
+        while remainingNumber != 0 {
+            digitAsNumber = remainingNumber.rem(10)
+            digitCodepoint = DIGIT_CODEPOINTS_FOR_TO_STRING[digitAsNumber.asUWord()]
+            set buf[insertionIndex] = digitCodepoint
+
+            set remainingNumber = remainingNumber / (10 as U64)
+            set insertionIndex = insertionIndex - 1
+        }
+
+        if self < 0 {
+            set buf[insertionIndex] = MINUS_SIGN_CODEPOINT
+            set insertionIndex = insertionIndex - 1
+        }
+
+        // trim array
+        var finalBuf: exclusive _ = Array.new::<S8>(buf.size - insertionIndex - 1, SPACE_CODEPOINT)
+        Array.copy(buf, insertionIndex + 1, finalBuf, 0, finalBuf.size)
+        return String(finalBuf)
+    }
 }
 
 export class U64 {
@@ -263,3 +292,7 @@ export class Array<Element> {
         }
     }
 }
+
+private SPACE_CODEPOINT: S8 = 32
+private MINUS_SIGN_CODEPOINT: S8 = 45
+private DIGIT_CODEPOINTS_FOR_TO_STRING: Array<S8> = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102]
