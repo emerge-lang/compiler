@@ -395,8 +395,8 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 conditionalBranch(
                     condition = conditionValue,
                     ifTrue = thenBranch@{
-                        this@thenBranch.emitCode(expression.thenBranch.code, functionReturnType)
-                        concludeBranch()
+                        val branchCodeResult = this@thenBranch.emitCode(expression.thenBranch.code, functionReturnType)
+                        (branchCodeResult as? ExpressionResult.Terminated)?.termination ?: concludeBranch()
                     }
                 )
                 return ExpressionResult.Value(context.pointerToPointerToUnitInstance.dereference())
@@ -459,8 +459,12 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             return ExpressionResult.Value(result)
         }
         is IrImplicitEvaluationExpression -> {
-            emitCode(expression.code, functionReturnType)
-            return ExpressionResult.Value(expression.implicitValue.declaration.llvmValue)
+            val result = emitCode(expression.code, functionReturnType)
+            return when (result) {
+                is ExecutableResult.ExecutionOngoing,
+                is ExpressionResult.Value -> ExpressionResult.Value(expression.implicitValue.declaration.llvmValue)
+                is ExpressionResult.Terminated -> result
+            }
         }
         is IrNotReallyAnExpression -> throw CodeGenerationException("Cannot emit expression evaluation code for an ${expression::class.simpleName}")
     }
