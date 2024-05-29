@@ -85,6 +85,10 @@ class BoundIfExpression(
         requireImplicitEvaluationTo(type)
     }
 
+    override fun markEvaluationResultUsed() {
+        isInExpressionContext = true
+    }
+
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         var reportings = condition.semanticAnalysisPhase2() + thenCode.semanticAnalysisPhase2()
 
