@@ -58,7 +58,6 @@ class BinaryExpression(
 
     private val opDerivedLocation = operator.token.span.deriveGenerated()
 
-    // simply rewrite to an invocation
     override fun bindTo(context: ExecutionScopedCTContext): BoundExpression<*> {
         val comparisonPredicate = COMPARISON_OPRATOR_MAPPING[operator.operatorElement]
         if (comparisonPredicate != null) {

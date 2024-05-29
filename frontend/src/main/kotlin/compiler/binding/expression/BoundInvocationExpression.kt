@@ -97,6 +97,7 @@ class BoundInvocationExpression(
         seanHelper.phase1 {
             val reportings = mutableSetOf<Reporting>()
             receiverExpression?.semanticAnalysisPhase1()?.let(reportings::addAll)
+            receiverExpression?.markEvaluationResultUsed()
             valueArguments.map(BoundExpression<*>::semanticAnalysisPhase1).forEach(reportings::addAll)
             typeArguments = declaration.typeArguments?.map(context::resolveType)
             reportings
@@ -111,7 +112,6 @@ class BoundInvocationExpression(
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return seanHelper.phase2 {
-            receiverExpression?.markEvaluationResultUsed()
             valueArguments.forEach { it.markEvaluationResultUsed() }
 
             val reportings = mutableSetOf<Reporting>()

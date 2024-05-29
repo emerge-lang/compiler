@@ -89,6 +89,16 @@ internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContex
         compareTo_u64,
         compareTo_sWord,
         compareTo_uWord,
+        equals_s8,
+        equals_u8,
+        equals_s16,
+        equals_u16,
+        equals_s32,
+        equals_u32,
+        equals_s64,
+        equals_u64,
+        equals_sWord,
+        equals_uWord,
         convert_s8_to_s64,
         convert_s16_to_s64,
         convert_s32_to_s64,
@@ -449,6 +459,31 @@ private val compareTo_s64 = buildSignedCompareFn("S64", LlvmI64Type)
 private val compareTo_u64 = buildUnsignedCompareFn("U64", LlvmI64Type) { i64(it) }
 private val compareTo_sWord = buildSignedCompareFn("SWord", EmergeWordType)
 private val compareTo_uWord = buildUnsignedCompareFn("UWord", EmergeWordType) { word(it) }
+
+private fun buildEqualsFn(emergeTypeSimpleName: String, llvmType: LlvmIntegerType) = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmBooleanType>(
+    "emerge.core.${emergeTypeSimpleName}::equals",
+    LlvmBooleanType,
+) {
+    instructionAliasAttributes()
+
+    val self by param(llvmType)
+    val other by param(llvmType)
+
+    body {
+        ret(icmp(self, LlvmIntPredicate.EQUAL, other))
+    }
+}
+
+private val equals_s8 = buildEqualsFn("S8", LlvmI8Type)
+private val equals_u8 = buildEqualsFn("U8", LlvmI8Type)
+private val equals_s16 = buildEqualsFn("S16", LlvmI16Type)
+private val equals_u16 = buildEqualsFn("U16", LlvmI16Type)
+private val equals_s32 = buildEqualsFn("S32", LlvmI32Type)
+private val equals_u32 = buildEqualsFn("U32", LlvmI32Type)
+private val equals_s64 = buildEqualsFn("S64", LlvmI64Type)
+private val equals_u64 = buildEqualsFn("U64", LlvmI64Type)
+private val equals_sWord = buildEqualsFn("SWord", EmergeWordType)
+private val equals_uWord = buildEqualsFn("UWord", EmergeWordType)
 
 private fun buildSignedEnlargeTo64Fn(fromType: LlvmFixedIntegerType) = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmI64Type>(
     "emerge.core.S${fromType.nBits}::toS64",
