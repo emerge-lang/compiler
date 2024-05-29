@@ -118,8 +118,14 @@ class BoundInvocationExpression(
 
             receiverExpression?.semanticAnalysisPhase2()?.let(reportings::addAll)
 
-            val availableOverloads = collectOverloadCandidates()
-            availableOverloads.candidates.singleOrNull()?.overloads?.singleOrNull()?.let { singleOption ->
+            val availableOverloads: AvailableOverloads? = if (receiverExpression == null || (receiverExpression.type != null && receiverExpression.type !is UnresolvedType)) {
+                collectOverloadCandidates()
+            } else {
+                // receiver is present but type is not known -> cannot determine overload
+                null
+            }
+
+            availableOverloads?.candidates?.singleOrNull()?.overloads?.singleOrNull()?.let { singleOption ->
                 singleOption.parameters.parameters
                     .dropWhile { it === singleOption.parameters.declaredReceiver }
                     .zip(valueArguments)
@@ -130,6 +136,10 @@ class BoundInvocationExpression(
 
             typeArguments?.forEach { reportings.addAll(it.validate(TypeUseSite.Irrelevant(it.span, null))) }
             valueArguments.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
+
+            if (availableOverloads == null) {
+                return@phase2 reportings
+            }
 
             chosenOverload = selectOverload(availableOverloads, reportings) ?: return@phase2 reportings
 

@@ -28,6 +28,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.CoreTypes
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.handleCyclicInvocation
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -72,7 +73,11 @@ open class BoundNumericLiteral(
         }
 
         // assure completed
-        type.baseType.semanticAnalysisPhase1()
+        handleCyclicInvocation(
+            context = this,
+            action = { type.baseType.semanticAnalysisPhase1() },
+            onCycle = { }
+        )
 
         expectedNumericType = type.baseType
     }
