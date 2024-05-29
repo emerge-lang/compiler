@@ -152,7 +152,7 @@ class BoundCodeChunk(
      */
     fun toBackendIrAsImplicitEvaluationExpression(assureResultHasReferenceCountIncrement: Boolean): IrImplicitEvaluationExpressionImpl {
         val plainStatements = statements
-            .take(statements.size - 1)
+            .take((statements.size - 1).coerceAtLeast(0))
             .mapToBackendIrWithDebugLocations()
             .toMutableList()
 
@@ -174,7 +174,7 @@ class BoundCodeChunk(
             )
         }
 
-        val standInLiteralTemporary = IrCreateTemporaryValueImpl(IrIntegerLiteralExpressionImpl(BigInteger.ZERO, context.swCtx.unit.baseReference.toBackendIr()))
+        val standInLiteralTemporary = IrCreateTemporaryValueImpl(IrIntegerLiteralExpressionImpl(BigInteger.ZERO, context.swCtx.uword.baseReference.toBackendIr()))
         return IrImplicitEvaluationExpressionImpl(
             IrCodeChunkImpl(plainStatements + listOfNotNull(lastStatement?.toBackendIrStatement()) + getDeferredCodeAtEndOfChunk() + listOf(standInLiteralTemporary)),
             IrTemporaryValueReferenceImpl(standInLiteralTemporary),
