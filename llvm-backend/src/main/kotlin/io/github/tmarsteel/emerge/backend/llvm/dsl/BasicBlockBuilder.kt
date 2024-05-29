@@ -28,6 +28,8 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun <T : LlvmIntegerType> mul(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> sdiv(lhs: LlvmValue<T>, rhs: LlvmValue<T>, knownToBeExact: Boolean = false): LlvmValue<T>
     fun <T : LlvmIntegerType> udiv(lhs: LlvmValue<T>, rhs: LlvmValue<T>, knownToBeExact: Boolean = false): LlvmValue<T>
+    fun <T : LlvmIntegerType> srem(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
+    fun <T : LlvmIntegerType> urem(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> icmp(lhs: LlvmValue<T>, type: LlvmIntPredicate, rhs: LlvmValue<T>): LlvmValue<LlvmBooleanType>
     fun <T : LlvmIntegerType> shl(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> lshr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T>
@@ -244,6 +246,16 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
             Llvm.LLVMBuildUDiv(builder, lhs.raw, rhs.raw, tmpVars.next())
         }
 
+        return LlvmValue(inst, lhs.type)
+    }
+
+    override fun <T : LlvmIntegerType> srem(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        val inst = Llvm.LLVMBuildSRem(builder, lhs.raw, rhs.raw, tmpVars.next())
+        return LlvmValue(inst, lhs.type)
+    }
+
+    override fun <T : LlvmIntegerType> urem(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        val inst = Llvm.LLVMBuildURem(builder, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(inst, lhs.type)
     }
 

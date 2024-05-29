@@ -79,6 +79,16 @@ internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContex
         divideBy_u64,
         divideBy_sWord,
         divideBy_uWord,
+        remainder_s8,
+        remainder_u8,
+        remainder_s16,
+        remainder_u16,
+        remainder_s32,
+        remainder_u32,
+        remainder_s64,
+        remainder_u64,
+        remainder_sWord,
+        remainder_uWord,
         compareTo_s8,
         compareTo_u8,
         compareTo_s16,
@@ -514,3 +524,47 @@ private val convert_u8_to_u64 = buildUnsignedEnlargeTo64Fn(LlvmI8Type)
 private val convert_u16_to_u64 = buildUnsignedEnlargeTo64Fn(LlvmI16Type)
 private val convert_u32_to_u64 = buildUnsignedEnlargeTo64Fn(LlvmI32Type)
 
+private fun <T : LlvmIntegerType> buildSignedRemainderFn(
+    llvmSignedTypeSimpleName: String,
+    llvmType: T
+) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(
+    "emerge.core.${llvmSignedTypeSimpleName}::rem",
+    llvmType
+) {
+    instructionAliasAttributes()
+
+    val dividend by param(llvmType)
+    val divisor by param(llvmType)
+
+    body {
+        ret(srem(dividend, divisor))
+    }
+}
+
+private fun <T : LlvmIntegerType> buildUnsignedRemainderFn(
+    llvmUnsignedTypeSimpleName: String,
+    llvmType: T
+) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(
+    "emerge.core.${llvmUnsignedTypeSimpleName}::rem",
+    llvmType
+) {
+    instructionAliasAttributes()
+
+    val dividend by param(llvmType)
+    val divisor by param(llvmType)
+
+    body {
+        ret(urem(dividend, divisor))
+    }
+}
+
+private val remainder_s8 = buildSignedRemainderFn("S8", LlvmI8Type)
+private val remainder_u8 = buildUnsignedRemainderFn("S8", LlvmI8Type)
+private val remainder_s16 = buildSignedRemainderFn("S16", LlvmI16Type)
+private val remainder_u16 = buildUnsignedRemainderFn("S16", LlvmI16Type)
+private val remainder_s32 = buildSignedRemainderFn("S32", LlvmI32Type)
+private val remainder_u32 = buildUnsignedRemainderFn("S32", LlvmI32Type)
+private val remainder_s64 = buildSignedRemainderFn("S16", LlvmI64Type)
+private val remainder_u64 = buildUnsignedRemainderFn("S64", LlvmI64Type)
+private val remainder_sWord = buildSignedRemainderFn("SWord", EmergeWordType)
+private val remainder_uWord = buildUnsignedRemainderFn("UWord", EmergeWordType)

@@ -301,6 +301,22 @@ public class Llvm {
     public static native @NotNull LlvmValueRef LLVMBuildSExt(@NotNull LlvmBuilderRef builder, @NotNull LlvmValueRef val, @NotNull LlvmTypeRef destType, @NotNull String name);
 
     /** see Core.h */
+    public static native @NotNull LlvmValueRef LLVMBuildURem(
+            @NotNull LlvmBuilderRef builder,
+            @NotNull LlvmValueRef LHS,
+            @NotNull LlvmValueRef RHS,
+            @NotNull String name
+    );
+
+    /** see Core.h */
+    public static native @NotNull LlvmValueRef LLVMBuildSRem(
+            @NotNull LlvmBuilderRef builder,
+            @NotNull LlvmValueRef LHS,
+            @NotNull LlvmValueRef RHS,
+            @NotNull String name
+    );
+
+    /** see Core.h */
     public static native @NotNull LlvmValueRef LLVMBuildTrunc(@NotNull LlvmBuilderRef builder, @NotNull LlvmValueRef val, @NotNull LlvmTypeRef destType, @NotNull String name);
 
     /** see Core.h */
