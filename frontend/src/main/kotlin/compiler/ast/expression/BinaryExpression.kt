@@ -27,6 +27,7 @@ import compiler.binding.expression.BoundComparisonExpression
 import compiler.binding.expression.BoundExpression
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
+import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import io.github.tmarsteel.emerge.backend.api.ir.IrNumericComparisonExpression
@@ -47,6 +48,7 @@ private val OPERATOR_FUNCTION_NAME_MAPPING: Map<Any, String> = mapOf(
     Operator.DIVIDE to "divideBy",
     Operator.TIMES to "times",
     Operator.EQUALS to "equals",
+    Operator.NOT_EQUALS to "equals",
 )
 
 class BinaryExpression(
@@ -68,22 +70,29 @@ class BinaryExpression(
         return bindToAsOperator(context, functionName)
     }
 
-    private fun bindToAsOperator(context: ExecutionScopedCTContext, functionName: String): BoundBinaryExpression {
-        val hiddenInvocation = InvocationExpression(
+    private fun bindToAsOperator(context: ExecutionScopedCTContext, functionName: String): BoundExpression<*> {
+        val hiddenInvocationAst = InvocationExpression(
             MemberAccessExpression(
                 leftHandSide,
                 OperatorToken(Operator.DOT, opDerivedLocation),
-                IdentifierToken(functionName, opDerivedLocation)
+                IdentifierToken(functionName, opDerivedLocation),
             ),
             null,
             listOf(rightHandSide),
             leftHandSide.span..rightHandSide.span,
-        ).bindTo(context)
+        )
+
+        if (operator.operatorElement == Operator.NOT_EQUALS) {
+            return UnaryExpression(
+                AstSemanticOperator(KeywordToken(Keyword.NOT, span = opDerivedLocation)),
+                hiddenInvocationAst,
+            ).bindTo(context)
+        }
 
         return BoundBinaryExpression(
             context,
             this,
-            hiddenInvocation,
+            hiddenInvocationAst.bindTo(context),
         )
     }
 

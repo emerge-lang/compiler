@@ -380,6 +380,7 @@ val BinaryOperator = eitherOf {
 
     // Comparison
     operator(Operator.EQUALS)
+    operator(Operator.NOT_EQUALS)
     operator(Operator.GREATER_THAN)
     operator(Operator.LESS_THAN)
     operator(Operator.GREATER_THAN_OR_EQUALS)
