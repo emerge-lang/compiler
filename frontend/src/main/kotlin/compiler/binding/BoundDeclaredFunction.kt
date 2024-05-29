@@ -75,13 +75,13 @@ abstract class BoundDeclaredFunction(
                 if (body !is Body.SingleExpression) {
                     returnType = returnType?.defaultMutabilityTo(TypeMutability.IMMUTABLE)
                 }
-
-                returnType?.let {
-                    body?.setExpectedReturnType(it)
-                }
             }
 
             this.body?.semanticAnalysisPhase1()?.let(reportings::addAll)
+
+            returnType?.let {
+                body?.setExpectedReturnType(it)
+            }
 
             return@phase1 reportings
         }
@@ -196,6 +196,8 @@ abstract class BoundDeclaredFunction(
         fun toBackendIr(): IrCodeChunk
 
         class SingleExpression(val expression: BoundExpression<*>) : Body, BoundExecutable<Executable> by expression {
+            override val returnBehavior = SideEffectPrediction.GUARANTEED
+
             private var expectedReturnType: BoundTypeReference? = null
 
             override fun setExpectedReturnType(type: BoundTypeReference) {

@@ -38,6 +38,8 @@ export class S8 {
     export intrinsic nothrow fn asU8(self) -> U8
 
     export intrinsic nothrow fn toS64(self) -> S64
+
+    export fn toString(self) = self.toS64().toString()
 }
 
 export class U8 {
@@ -57,6 +59,8 @@ export class U8 {
     export intrinsic nothrow fn asS8(self) -> S8
 
     export intrinsic nothrow fn toU64(self) -> U64
+
+    export fn toString(self) = self.toU64().toString()
 }
 
 export class S16 {
@@ -79,6 +83,8 @@ export class S16 {
     export intrinsic nothrow fn asU16(self) -> U16
 
     export intrinsic nothrow fn toS64(self) -> S64
+
+    export fn toString(self) = self.toS64().toString()
 }
 
 export class U16 {
@@ -98,6 +104,8 @@ export class U16 {
     export intrinsic nothrow fn asS16(self) -> S16
 
     export intrinsic nothrow fn toU64(self) -> U64
+
+    export fn toString(self) = self.toU64().toString()
 }
 
 export class S32 {
@@ -120,6 +128,8 @@ export class S32 {
     export intrinsic nothrow fn asU32(self) -> U32
 
     export intrinsic nothrow fn toS64(self) -> S64
+
+    export fn toString(self) = self.toS64().toString()
 }
 
 export class U32 {
@@ -139,6 +149,8 @@ export class U32 {
     export intrinsic nothrow fn asS32(self) -> S32
 
     export intrinsic nothrow fn toU64(self) -> U64
+
+    export fn toString(self) = self.toU64().toString()
 }
 
 export class S64 {
@@ -164,32 +176,11 @@ export class S64 {
     export intrinsic nothrow fn asSWord(self) -> SWord
 
     export fn toString(self: S64) -> const String {
-        if self == 0 {
-            return "0"
+        return if self < 0 {
+            self.abs().asU64().toString(true)
+        } else {
+            self.asU64().toString(false)
         }
-
-        // 2^63-1 plus sign is at MOST 20 chars
-        var buf = Array.new::<S8>(20, SPACE_CODEPOINT)
-        var insertionIndex: UWord = 19
-        var remainingNumber = self.abs().asU64()
-        while remainingNumber != 0 {
-            digitAsNumber = remainingNumber.rem(10)
-            digitCodepoint = DIGIT_CODEPOINTS_FOR_TO_STRING[digitAsNumber.asUWord()]
-            set buf[insertionIndex] = digitCodepoint
-
-            set remainingNumber = remainingNumber / (10 as U64)
-            set insertionIndex = insertionIndex - 1
-        }
-
-        if self < 0 {
-            set buf[insertionIndex] = MINUS_SIGN_CODEPOINT
-            set insertionIndex = insertionIndex - 1
-        }
-
-        // trim array
-        var finalBuf: exclusive _ = Array.new::<S8>(buf.size - insertionIndex - 1, SPACE_CODEPOINT)
-        Array.copy(buf, insertionIndex + 1, finalBuf, 0, finalBuf.size)
-        return String(finalBuf)
     }
 }
 
@@ -211,6 +202,36 @@ export class U64 {
 
     // converts this number to a UWord, loosing information if UWord is smaller than U64 on the target platform
     export intrinsic nothrow fn asUWord(self) -> UWord
+
+    export fn toString(self: U64) = self.toString(false)
+    private fn toString(self: U64, addMinusSign: Bool) -> const String {
+        if self == 0 {
+            return "0"
+        }
+
+        // 2^64-1 plus sign is at MOST 21 chars
+        var buf = Array.new::<S8>(21, SPACE_CODEPOINT)
+        var insertionIndex: UWord = buf.size - 1
+        var remainingNumber = self + 0
+        while remainingNumber != 0 {
+            digitAsNumber = remainingNumber.rem(10)
+            digitCodepoint = DIGIT_CODEPOINTS_FOR_TO_STRING[digitAsNumber.asUWord()]
+            set buf[insertionIndex] = digitCodepoint
+
+            set remainingNumber = remainingNumber / (10 as U64)
+            set insertionIndex = insertionIndex - 1
+        }
+
+        if addMinusSign {
+            set buf[insertionIndex] = MINUS_SIGN_CODEPOINT
+            set insertionIndex = insertionIndex - 1
+        }
+
+        // trim utf8 data
+        var finalBuf: exclusive _ = Array.new::<S8>(buf.size - insertionIndex - 1, SPACE_CODEPOINT)
+        Array.copy(buf, insertionIndex + 1, finalBuf, 0, finalBuf.size)
+        return String(finalBuf)
+    }
 }
 
 export class SWord {
