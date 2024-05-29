@@ -115,6 +115,18 @@ internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContex
         convert_u8_to_u64,
         convert_u16_to_u64,
         convert_u32_to_u64,
+        convert_s64_to_sWord_lossy,
+        convert_u64_to_uWord_lossy,
+        reinterpret_s8_as_u8,
+        reinterpret_u8_as_s8,
+        reinterpret_s16_as_u16,
+        reinterpret_u16_as_s16,
+        reinterpret_s32_as_u32,
+        reinterpret_u32_as_s32,
+        reinterpret_s64_as_u64,
+        reinterpret_u64_as_s64,
+        reinterpret_sWord_as_uWord,
+        reinterpret_uWord_as_sWord,
     )
 }
 
@@ -524,6 +536,58 @@ private val convert_u8_to_u64 = buildUnsignedEnlargeTo64Fn(LlvmI8Type)
 private val convert_u16_to_u64 = buildUnsignedEnlargeTo64Fn(LlvmI16Type)
 private val convert_u32_to_u64 = buildUnsignedEnlargeTo64Fn(LlvmI32Type)
 
+private fun <From : LlvmIntegerType, To : LlvmIntegerType> buildLossyConversionFn(
+    fullSymbol: String,
+    isSigned: Boolean,
+    fromType: From,
+    toType: To,
+) = KotlinLlvmFunction.define<EmergeLlvmContext, To>(fullSymbol, toType) {
+    instructionAliasAttributes()
+
+    val fromValue by param(fromType)
+
+    body {
+        val fromNBits = fromType.getNBitsInContext(context)
+        val toNBits = toType.getNBitsInContext(context)
+        when {
+            fromNBits == toNBits -> ret(fromValue.reinterpretAs(toType))
+            toNBits > fromNBits -> if (isSigned) {
+                ret(enlargeSigned(fromValue, toType))
+            } else {
+                ret(enlargeUnsigned(fromValue, toType))
+            }
+            else -> ret(truncate(fromValue, toType))
+        }
+    }
+}
+
+private val convert_s64_to_sWord_lossy = buildLossyConversionFn("emerge.core.S64::asSWord", true, LlvmI64Type, EmergeWordType)
+private val convert_u64_to_uWord_lossy = buildLossyConversionFn("emerge.core.S64::asUWord", false, LlvmI64Type, EmergeWordType)
+
+private fun <T : LlvmIntegerType> buildReinterpretFn(
+    fullSymbol: String,
+    llvmType: T
+) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(fullSymbol, llvmType) {
+    instructionAliasAttributes()
+
+    val self by param(llvmType)
+
+    body {
+        ret(self)
+    }
+}
+
+private val reinterpret_s8_as_u8 = buildReinterpretFn("emerge.core.S8::asU8", LlvmI8Type)
+private val reinterpret_u8_as_s8 = buildReinterpretFn("emerge.core.U8::asS8", LlvmI8Type)
+private val reinterpret_s16_as_u16 = buildReinterpretFn("emerge.core.S16::asU16", LlvmI16Type)
+private val reinterpret_u16_as_s16 = buildReinterpretFn("emerge.core.U16::asS16", LlvmI16Type)
+private val reinterpret_s32_as_u32 = buildReinterpretFn("emerge.core.S32::asU32", LlvmI32Type)
+private val reinterpret_u32_as_s32 = buildReinterpretFn("emerge.core.U32::asS32", LlvmI32Type)
+private val reinterpret_s64_as_u64 = buildReinterpretFn("emerge.core.S64::asU64", LlvmI64Type)
+private val reinterpret_u64_as_s64 = buildReinterpretFn("emerge.core.U64::asS64", LlvmI64Type)
+private val reinterpret_sWord_as_uWord = buildReinterpretFn("emerge.core.SWord::asUWord", EmergeWordType)
+private val reinterpret_uWord_as_sWord = buildReinterpretFn("emerge.core.UWord::asSWord", EmergeWordType)
+
 private fun <T : LlvmIntegerType> buildSignedRemainderFn(
     llvmSignedTypeSimpleName: String,
     llvmType: T
@@ -559,12 +623,12 @@ private fun <T : LlvmIntegerType> buildUnsignedRemainderFn(
 }
 
 private val remainder_s8 = buildSignedRemainderFn("S8", LlvmI8Type)
-private val remainder_u8 = buildUnsignedRemainderFn("S8", LlvmI8Type)
+private val remainder_u8 = buildUnsignedRemainderFn("U8", LlvmI8Type)
 private val remainder_s16 = buildSignedRemainderFn("S16", LlvmI16Type)
-private val remainder_u16 = buildUnsignedRemainderFn("S16", LlvmI16Type)
+private val remainder_u16 = buildUnsignedRemainderFn("U16", LlvmI16Type)
 private val remainder_s32 = buildSignedRemainderFn("S32", LlvmI32Type)
-private val remainder_u32 = buildUnsignedRemainderFn("S32", LlvmI32Type)
-private val remainder_s64 = buildSignedRemainderFn("S16", LlvmI64Type)
-private val remainder_u64 = buildUnsignedRemainderFn("S64", LlvmI64Type)
+private val remainder_u32 = buildUnsignedRemainderFn("U32", LlvmI32Type)
+private val remainder_s64 = buildSignedRemainderFn("S64", LlvmI64Type)
+private val remainder_u64 = buildUnsignedRemainderFn("U64", LlvmI64Type)
 private val remainder_sWord = buildSignedRemainderFn("SWord", EmergeWordType)
 private val remainder_uWord = buildUnsignedRemainderFn("UWord", EmergeWordType)

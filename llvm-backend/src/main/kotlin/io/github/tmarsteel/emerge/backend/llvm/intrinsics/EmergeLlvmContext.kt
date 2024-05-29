@@ -243,10 +243,10 @@ class EmergeLlvmContext(
         val parameterTypes = fn.parameters.map { getReferenceSiteType(it.type) }
 
         getInstrinsic(fn)?.let { intrinsic ->
-            check(parameterTypes.size == intrinsic.type.parameterTypes.size)
+            assert(parameterTypes.size == intrinsic.type.parameterTypes.size)
             intrinsic.type.parameterTypes.forEachIndexed { paramIndex, intrinsicType ->
                 val declaredType = parameterTypes[paramIndex]
-                check(declaredType.isAssignableTo(intrinsicType)) { "${fn.canonicalName} param #$paramIndex; intrinsic $intrinsicType, declared $declaredType" }
+                assert(declaredType.isAssignableTo(intrinsicType)) { "${fn.canonicalName} param #$paramIndex; intrinsic $intrinsicType, declared $declaredType" }
             }
             fn.llvmRef = intrinsic
             if (fn is IrMemberFunction) {
