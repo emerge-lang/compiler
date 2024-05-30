@@ -17,4 +17,6 @@ class AstSemanticOperator private constructor(
 ) {
     constructor(token: KeywordToken) : this(token, token.keyword, token.keyword.name)
     constructor(token: OperatorToken) : this(token, token.operator, token.operator.text)
+
+    override fun toString() = token.toStringWithoutLocation()
 }

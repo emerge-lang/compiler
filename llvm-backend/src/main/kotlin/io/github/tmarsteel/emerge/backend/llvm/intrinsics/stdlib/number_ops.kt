@@ -128,6 +128,8 @@ internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContex
         reinterpret_u64_as_s64,
         reinterpret_sWord_as_uWord,
         reinterpret_uWord_as_sWord,
+        binary_and_bool,
+        binary_or_bool,
     )
 }
 
@@ -635,3 +637,31 @@ private val remainder_s64 = buildSignedRemainderFn("S64", LlvmI64Type)
 private val remainder_u64 = buildUnsignedRemainderFn("U64", LlvmI64Type)
 private val remainder_sWord = buildSignedRemainderFn("SWord", EmergeWordType)
 private val remainder_uWord = buildUnsignedRemainderFn("UWord", EmergeWordType)
+
+private val binary_and_bool = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmBooleanType>(
+    "emerge.core.Bool::and",
+    LlvmBooleanType,
+) {
+    instructionAliasAttributes()
+
+    val lhs by param(LlvmBooleanType)
+    val rhs by param(LlvmBooleanType)
+
+    body {
+        ret(and(lhs, rhs))
+    }
+}
+
+private val binary_or_bool = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmBooleanType>(
+    "emerge.core.Bool::or",
+    LlvmBooleanType,
+) {
+    instructionAliasAttributes()
+
+    val lhs by param(LlvmBooleanType)
+    val rhs by param(LlvmBooleanType)
+
+    body {
+        ret(or(lhs, rhs))
+    }
+}

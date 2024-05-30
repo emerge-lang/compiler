@@ -12,6 +12,7 @@ import compiler.ast.expression.NotNullExpression
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
+import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
@@ -89,6 +90,9 @@ private val AstSemanticOperator.priority: Int
     get() = when(operatorElement) {
         Operator.ELVIS -> 10
 
+        Keyword.AND -> 20
+        Keyword.OR -> 21
+
         Operator.LESS_THAN,
         Operator.LESS_THAN_OR_EQUALS,
         Operator.GREATER_THAN,
@@ -96,13 +100,13 @@ private val AstSemanticOperator.priority: Int
         Operator.EQUALS,
         Operator.NOT_EQUALS,
         Operator.IDENTITY_EQ,
-        Operator.IDENTITY_NEQ -> 20
+        Operator.IDENTITY_NEQ -> 30
 
         Operator.PLUS,
-        Operator.MINUS -> 30
+        Operator.MINUS -> 40
 
         Operator.TIMES,
-        Operator.DIVIDE -> 40
+        Operator.DIVIDE -> 50
         else -> throw InternalCompilerError("$this is not a binary operator")
     }
 
