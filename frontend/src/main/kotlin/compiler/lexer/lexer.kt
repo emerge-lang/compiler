@@ -18,64 +18,61 @@
 
 package compiler.lexer
 
-import compiler.parser.TokenSequence
-
-fun lex(sourceFile: SourceFile): TokenSequence {
+fun lex(sourceFile: SourceFile): List<Token> {
     val iterator = PositionTrackingCodePointTransactionalSequence(sourceFile.content.codePoints().toArray())
-    val initialSpan = Span(sourceFile, iterator.currentPosition, iterator.currentPosition)
+    val tokens = ArrayList<Token>()
 
-    val generator = sequence {
-        tokenLoop@ while (iterator.hasNext) {
-            iterator.skipWhitespace()
-            if (!iterator.hasNext) {
-                return@sequence
-            }
-
-            val operatorToken = iterator.tryMatchOperator(sourceFile)
-            if (operatorToken != null) {
-                if (operatorToken.operator == Operator.COMMENT) {
-                    iterator.skipRestOfLine()
-                    continue@tokenLoop
-                }
-                yield(operatorToken)
-
-                if (operatorToken.operator != Operator.STRING_DELIMITER) {
-                    continue@tokenLoop
-                }
-
-                val (content, contentLocation) = iterator.collectStringContent(sourceFile)
-                yield(StringLiteralContentToken(contentLocation, content))
-                if (!iterator.hasNext) {
-                    return@sequence
-                }
-                val endDelimiter = iterator.tryMatchOperator(sourceFile)
-                check(endDelimiter != null && endDelimiter.operator == Operator.STRING_DELIMITER)
-                yield(endDelimiter)
-                continue@tokenLoop
-            }
-
-            val numericLiteralToken = iterator.tryMatchNumericLiteral(sourceFile)
-            if (numericLiteralToken != null) {
-                yield(numericLiteralToken)
-                continue@tokenLoop
-            }
-
-            // IDENTIFIER or KEYWORD
-            val text = iterator.collectUntilOperatorOrWhitespace(sourceFile)
-
-            // check against keywords
-            val keyword = Keyword.values().firstOrNull { it.text.equals(text.first, true) }
-
-            if (keyword != null) {
-                yield(KeywordToken(keyword, text.first, text.second))
-                continue@tokenLoop
-            }
-
-            yield(IdentifierToken(text.first, text.second))
+    tokenLoop@ while (iterator.hasNext) {
+        iterator.skipWhitespace()
+        if (!iterator.hasNext) {
+            break@tokenLoop
         }
+
+        val operatorToken = iterator.tryMatchOperator(sourceFile)
+        if (operatorToken != null) {
+            if (operatorToken.operator == Operator.COMMENT) {
+                iterator.skipRestOfLine()
+                continue@tokenLoop
+            }
+
+            tokens.add(operatorToken)
+
+            if (operatorToken.operator != Operator.STRING_DELIMITER) {
+                continue@tokenLoop
+            }
+
+            val (content, contentLocation) = iterator.collectStringContent(sourceFile)
+            tokens.add(StringLiteralContentToken(contentLocation, content))
+            if (!iterator.hasNext) {
+                break@tokenLoop
+            }
+            val endDelimiter = iterator.tryMatchOperator(sourceFile)
+            check(endDelimiter != null && endDelimiter.operator == Operator.STRING_DELIMITER)
+            tokens.add(endDelimiter)
+            continue@tokenLoop
+        }
+
+        val numericLiteralToken = iterator.tryMatchNumericLiteral(sourceFile)
+        if (numericLiteralToken != null) {
+            tokens.add(numericLiteralToken)
+            continue@tokenLoop
+        }
+
+        // IDENTIFIER or KEYWORD
+        val text = iterator.collectUntilOperatorOrWhitespace(sourceFile)
+
+        // check against keywords
+        val keyword = Keyword.entries.firstOrNull { it.text.equals(text.first, true) }
+
+        if (keyword != null) {
+            tokens.add(KeywordToken(keyword, text.first, text.second))
+            continue@tokenLoop
+        }
+
+        tokens.add(IdentifierToken(text.first, text.second))
     }
 
-    return TokenSequence(generator.toList(), initialSpan)
+    return tokens
 }
 
 private fun PositionTrackingCodePointTransactionalSequence.skipWhitespace() {

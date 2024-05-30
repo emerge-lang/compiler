@@ -20,22 +20,24 @@ package compiler.parser.grammar.rule
 
 import compiler.lexer.EndOfInputToken
 import compiler.lexer.Token
-import compiler.parser.TokenSequence
 
 interface Rule<out Item : Any> {
     val explicitName: String?
 
     fun startMatching(continueWith: MatchingContinuation<Item>): OngoingMatch
 
-    fun match(tokens: TokenSequence): MatchingResult<Item> {
-        require(tokens.hasNext()) { "Cannot match an empty token sequence" }
+    fun match(tokens: List<Token>): MatchingResult<Item> {
+        require(tokens.isNotEmpty()) { "Cannot match an empty token sequence" }
         val completion = FirstMatchCompletion<Item>()
         val ongoing = startMatching(completion)
         var previousAccepted = true
         lateinit var previous: Token
-        while (previousAccepted && tokens.hasNext()) {
-            previous = tokens.next()!!
-            previousAccepted = ongoing.step(previous)
+        for (token in tokens) {
+            previous = token
+            previousAccepted = ongoing.step(token)
+            if (!previousAccepted) {
+                break
+            }
         }
 
         if (previousAccepted) {

@@ -8,13 +8,14 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.ImportDeclaration
 import compiler.ast.VariableDeclaration
 import compiler.lexer.Span
+import compiler.lexer.Token
 import compiler.parser.grammar.SourceFileGrammar
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.reportings.Reporting
 import compiler.lexer.SourceFile as LexerSourceFile
 
 object SourceFileRule {
-    fun match(tokens: TokenSequence, lexerFile: LexerSourceFile): MatchingResult<ASTSourceFile> {
+    fun match(tokens: List<Token>, lexerFile: LexerSourceFile): MatchingResult<ASTSourceFile> {
         val inResult = SourceFileGrammar.match(tokens)
         @Suppress("UNCHECKED_CAST")
         val input = inResult.item ?: return inResult as MatchingResult<ASTSourceFile> // null can haz any type that i want :)
