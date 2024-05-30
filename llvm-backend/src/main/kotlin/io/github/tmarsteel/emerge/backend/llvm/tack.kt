@@ -2,6 +2,9 @@ package io.github.tmarsteel.emerge.backend.llvm
 
 import com.google.common.collect.MapMaker
 import kotlin.reflect.KProperty
+import kotlin.reflect.KProperty1
+import kotlin.reflect.full.getExtensionDelegate
+import kotlin.reflect.jvm.isAccessible
 
 /*
 Defining a whole new AST for another pass is considerable work, and for each
@@ -38,6 +41,17 @@ class StateTackDelegate<in R : Any, T>(private val computeInitial: R.() -> T) {
 
     operator fun setValue(thisRef: R, prop: KProperty<*>, value: T) {
         data[thisRef] = value
+    }
+
+    private fun reset(thisRef: R) {
+        data.remove(thisRef)
+    }
+
+    companion object {
+        fun <R : Any> reset(thisRef: R, prop: KProperty1<*, *>) {
+            prop.isAccessible = true
+            (prop.getExtensionDelegate() as StateTackDelegate<R, *>).reset(thisRef)
+        }
     }
 }
 

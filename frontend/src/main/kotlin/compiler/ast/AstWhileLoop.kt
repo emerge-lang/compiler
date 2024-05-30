@@ -13,15 +13,18 @@ class AstWhileLoop(
     val body: CodeChunk,
 ) : Statement {
     override fun bindTo(context: ExecutionScopedCTContext): BoundStatement<*> {
-        val conditionContext = MutableExecutionScopedCTContext.deriveNewLoopScopeFrom(context, true)
+        lateinit var boundWhileHolder: BoundWhileLoop
+        val conditionContext = MutableExecutionScopedCTContext.deriveNewLoopScopeFrom(context, true, { boundWhileHolder })
         val boundCondition = BoundCondition(condition.bindTo(conditionContext))
         val bodyContext = MutableExecutionScopedCTContext.deriveNewScopeFrom(boundCondition.modifiedContext, ExecutionScopedCTContext.Repetition.ZERO_OR_MORE)
         val boundBody = body.bindTo(bodyContext)
-        return BoundWhileLoop(
+        boundWhileHolder = BoundWhileLoop(
             context,
             this,
             boundCondition,
             boundBody,
         )
+
+        return boundWhileHolder
     }
 }

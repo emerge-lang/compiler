@@ -4,6 +4,7 @@ import compiler.InternalCompilerError
 import compiler.ast.Statement
 import compiler.ast.Statement.Companion.chain
 import compiler.binding.BoundExecutable
+import compiler.binding.BoundLoop
 import compiler.binding.BoundVariable
 import compiler.binding.context.effect.EphemeralStateClass
 import compiler.binding.context.effect.SideEffect
@@ -47,6 +48,12 @@ interface ExecutionScopedCTContext : CTContext {
      * @param indirectParent must be the direct or an indirect parent of `this`
      */
     fun getRepetitionBehaviorRelativeTo(indirectParent: CTContext): Repetition
+
+    /**
+     * @return [LoopExecutionScopedCTContext.loopNode] from the [LoopExecutionScopedCTContext] that is the closest
+     * parent to `this` loop, or `null` if there is no enclosing loop context.
+     */
+    fun getParentLoop(): BoundLoop<*>?
 
     /**
      * @return code that has been deferred in _this very_ [ExecutionScopedCTContext], in the **reverse** order
@@ -241,6 +248,13 @@ open class MutableExecutionScopedCTContext protected constructor(
             }
     }
 
+    override fun getParentLoop(): BoundLoop<*>? {
+        return hierarchy
+            .filterIsInstance<LoopExecutionScopedCTContext<*>>()
+            .firstOrNull()
+            ?.loopNode
+    }
+
     override fun toString(): String {
         var str = "MutExecCT["
         if (parentContext is ExecutionScopedCTContext) {
@@ -272,11 +286,12 @@ open class MutableExecutionScopedCTContext protected constructor(
             return MutableExecutionScopedCTContext(parentContext, isScopeBoundary = true, isFunctionRoot = false, repetitionRelativeToParent)
         }
 
-        fun deriveNewLoopScopeFrom(
+        fun <LoopNode : BoundLoop<*>> deriveNewLoopScopeFrom(
             parentContext: ExecutionScopedCTContext,
-            isGuaranteedToExecuteAtLeastOnce: Boolean
-        ): LoopExecutionScopedCTContext {
-            return LoopExecutionScopedCTContext(parentContext, isGuaranteedToExecuteAtLeastOnce)
+            isGuaranteedToExecuteAtLeastOnce: Boolean,
+            getBoundLoopNode: () -> LoopNode,
+        ): LoopExecutionScopedCTContext<LoopNode> {
+            return LoopExecutionScopedCTContext(parentContext, isGuaranteedToExecuteAtLeastOnce, getBoundLoopNode)
         }
 
         fun deriveFrom(parentContext: ExecutionScopedCTContext): MutableExecutionScopedCTContext {
@@ -323,9 +338,10 @@ class MultiBranchJoinExecutionScopedCTContext(
     }
 }
 
-class LoopExecutionScopedCTContext(
+class LoopExecutionScopedCTContext<LoopNode : BoundLoop<*>>(
     parent: CTContext,
     isGuaranteedToExecuteAtLeastOnce: Boolean,
+    private val getBoundLoopNode: () -> LoopNode,
 ) : MutableExecutionScopedCTContext(
     parent,
     true,
@@ -336,5 +352,5 @@ class LoopExecutionScopedCTContext(
         ExecutionScopedCTContext.Repetition.ZERO_OR_MORE
     }
 ) {
-
+    val loopNode: LoopNode by lazy(getBoundLoopNode)
 }

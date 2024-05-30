@@ -4,6 +4,7 @@ import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrBooleanLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrBreakStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassMemberVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -40,6 +41,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrWhileLoop
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.assureBoxed
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.requireNotAutoboxed
+import io.github.tmarsteel.emerge.backend.llvm.StateTackDelegate
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
@@ -58,6 +60,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i16
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i64
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
+import io.github.tmarsteel.emerge.backend.llvm.emitBreak
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeBoolArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeBooleanArrayType
@@ -198,6 +201,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             var conditionTermination: ExpressionResult.Terminated? = null
             loop(
                 header = {
+                    code.emitBreak = { breakLoop() }
                     val conditionResult = emitExpressionCode(code.condition, functionReturnType)
                     if (conditionResult is ExpressionResult.Terminated) {
                         conditionTermination = conditionResult
@@ -217,12 +221,18 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                     breakLoop()
                 },
                 body = {
+                    code.emitBreak = { breakLoop() }
                     emitCode(code.body, functionReturnType)
                     loopContinue()
                 }
             )
 
+            StateTackDelegate.reset(code, IrWhileLoop::emitBreak)
+
             return conditionTermination ?: ExecutableResult.ExecutionOngoing
+        }
+        is IrBreakStatement -> {
+            return ExpressionResult.Terminated(code.fromLoop.emitBreak!!())
         }
         is IrDeallocateObjectStatement -> {
             // the reason boxes are not supported here because in the scope of IrDeallocateObjectStatement,

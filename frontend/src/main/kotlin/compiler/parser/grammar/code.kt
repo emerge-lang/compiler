@@ -20,6 +20,7 @@ package compiler.parser.grammar
 
 import compiler.InternalCompilerError
 import compiler.ast.AssignmentStatement
+import compiler.ast.AstBreakStatement
 import compiler.ast.AstThrowStatement
 import compiler.ast.AstWhileLoop
 import compiler.ast.CodeChunk
@@ -92,6 +93,13 @@ val WhileLoop = sequence("while loop") {
         )
     }
 
+val BreakStatement = sequence("break statement") {
+    keyword(Keyword.BREAK)
+}
+    .astTransformation { tokens ->
+        AstBreakStatement(tokens.next()!! as KeywordToken)
+    }
+
 val LineOfCode = sequence {
     eitherOf {
         ref(AssignmentStatement)
@@ -100,6 +108,7 @@ val LineOfCode = sequence {
         ref(VariableDeclaration)
         ref(Expression)
         ref(WhileLoop)
+        ref(BreakStatement)
     }
 
     operator(Operator.NEWLINE)

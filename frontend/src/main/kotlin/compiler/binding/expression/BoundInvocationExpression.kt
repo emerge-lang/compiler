@@ -72,7 +72,7 @@ class BoundInvocationExpression(
     val functionToInvoke: BoundFunction? get() = chosenOverload?.candidate
     private var chosenOverload: OverloadCandidateEvaluation? = null
 
-    override val type: BoundTypeReference? get() = chosenOverload?.returnType
+    override val type: BoundTypeReference? get() = chosenOverload?.returnType ?: chosenOverload?.candidate?.returnType
 
     var typeArguments: List<BoundTypeArgument>? = null
         private set

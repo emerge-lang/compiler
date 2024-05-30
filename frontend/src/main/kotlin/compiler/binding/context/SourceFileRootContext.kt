@@ -86,9 +86,9 @@ class SourceFileRootContext(
                 throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
             }
 
-            override fun getRepetitionBehaviorRelativeTo(indirectParent: CTContext): ExecutionScopedCTContext.Repetition {
-                return ExecutionScopedCTContext.Repetition.EXACTLY_ONCE
-            }
+            override fun getRepetitionBehaviorRelativeTo(indirectParent: CTContext) = ExecutionScopedCTContext.Repetition.EXACTLY_ONCE
+
+            override fun getParentLoop() = null
         }
     }
 

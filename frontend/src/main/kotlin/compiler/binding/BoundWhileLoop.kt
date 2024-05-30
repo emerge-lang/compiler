@@ -10,7 +10,6 @@ import compiler.binding.type.BoundTypeReference
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
-import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrWhileLoop
 
@@ -19,7 +18,7 @@ class BoundWhileLoop(
     override val declaration: AstWhileLoop,
     val condition: BoundCondition,
     val body: BoundCodeChunk,
-) : BoundStatement<AstWhileLoop> {
+) : BoundLoop<AstWhileLoop> {
     override val throwBehavior get() = condition.throwBehavior.combineSequentialExecution(body.throwBehavior)
     override val returnBehavior get() = condition.returnBehavior.combineSequentialExecution(body.returnBehavior)
 
@@ -87,7 +86,7 @@ class BoundWhileLoop(
     private val backendIr by lazy {
         IrWhileLoopImpl(condition.toBackendIrExpression(), body.toBackendIrStatement())
     }
-    override fun toBackendIrStatement(): IrExecutable {
+    override fun toBackendIrStatement(): IrWhileLoop {
         return backendIr
     }
 }

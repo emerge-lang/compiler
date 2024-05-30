@@ -8,6 +8,8 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.api.ir.IrWhileLoop
+import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI16Type
@@ -67,6 +69,8 @@ internal var IrClass.MemberVariable.isCPointerPointed: Boolean by tackState { fa
 internal var IrFunction.llvmRef: LlvmFunction<LlvmType>? by tackState { null }
 internal var IrFunction.bodyDefined: Boolean by tackState { false }
 internal val IrFunction.llvmName: String get() = if (isExternalC) canonicalName.simpleName else canonicalName.toString()
+
+internal var IrWhileLoop.emitBreak: (() -> BasicBlockBuilder.Termination)? by tackState { null }
 
 internal val IrSoftwareContext.packagesSeq: Sequence<IrPackage> get() = modules.asSequence()
     .flatMap { it.packages }
