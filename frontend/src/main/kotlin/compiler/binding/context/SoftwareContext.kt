@@ -68,7 +68,7 @@ class SoftwareContext {
         // there is no source file in the package, but the requested package may still be in the responsibility
         // of one of the known modules, so we should return an empty package context
         val emptyPackage = modules
-            .find { name.containsOrEquals(it.moduleName) }
+            .find { it.moduleName.containsOrEquals(name) }
             ?.let { PackageContext(it, name) }
             ?: return null
 
