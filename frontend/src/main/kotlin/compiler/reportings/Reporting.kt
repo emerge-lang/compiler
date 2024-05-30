@@ -30,6 +30,7 @@ import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundAssignmentStatement
 import compiler.binding.BoundBreakStatement
+import compiler.binding.BoundContinueStatement
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
@@ -412,6 +413,9 @@ abstract class Reporting internal constructor(
 
         fun breakOutsideOfLoop(breakStatement: BoundBreakStatement)
             = BreakOutsideOfLoopReporting(breakStatement.declaration)
+
+        fun continueOutsideOfLoop(continueStatement: BoundContinueStatement)
+            = ContinueOutsideOfLoopReporting(continueStatement.declaration)
 
         fun purityViolations(readingViolations: Collection<BoundExpression<*>>, writingViolations: Collection<BoundStatement<*>>, context: BoundFunction): Collection<Reporting> {
             val boundary = PurityViolationReporting.SideEffectBoundary.Function(context)

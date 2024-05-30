@@ -8,6 +8,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrBreakStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassMemberVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
+import io.github.tmarsteel.emerge.backend.api.ir.IrContinueStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrDeallocateObjectStatement
@@ -61,6 +62,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i64
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
 import io.github.tmarsteel.emerge.backend.llvm.emitBreak
+import io.github.tmarsteel.emerge.backend.llvm.emitContinue
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeBoolArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeBooleanArrayType
@@ -202,6 +204,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             loop(
                 header = {
                     code.emitBreak = { breakLoop() }
+                    code.emitContinue = {
+                        throw CodeGenerationException("Cannot continue in a while loop header")
+                    }
                     val conditionResult = emitExpressionCode(code.condition, functionReturnType)
                     if (conditionResult is ExpressionResult.Terminated) {
                         conditionTermination = conditionResult
@@ -222,17 +227,22 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 },
                 body = {
                     code.emitBreak = { breakLoop() }
+                    code.emitContinue = { loopContinue() }
                     emitCode(code.body, functionReturnType)
                     loopContinue()
                 }
             )
 
             StateTackDelegate.reset(code, IrWhileLoop::emitBreak)
+            StateTackDelegate.reset(code, IrWhileLoop::emitContinue)
 
             return conditionTermination ?: ExecutableResult.ExecutionOngoing
         }
         is IrBreakStatement -> {
             return ExpressionResult.Terminated(code.fromLoop.emitBreak!!())
+        }
+        is IrContinueStatement -> {
+            return ExpressionResult.Terminated(code.loop.emitContinue!!())
         }
         is IrDeallocateObjectStatement -> {
             // the reason boxes are not supported here because in the scope of IrDeallocateObjectStatement,

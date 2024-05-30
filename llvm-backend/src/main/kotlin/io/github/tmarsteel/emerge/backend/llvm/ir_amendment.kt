@@ -71,6 +71,7 @@ internal var IrFunction.bodyDefined: Boolean by tackState { false }
 internal val IrFunction.llvmName: String get() = if (isExternalC) canonicalName.simpleName else canonicalName.toString()
 
 internal var IrWhileLoop.emitBreak: (() -> BasicBlockBuilder.Termination)? by tackState { null }
+internal var IrWhileLoop.emitContinue: (() -> BasicBlockBuilder.Termination)? by tackState { null }
 
 internal val IrSoftwareContext.packagesSeq: Sequence<IrPackage> get() = modules.asSequence()
     .flatMap { it.packages }

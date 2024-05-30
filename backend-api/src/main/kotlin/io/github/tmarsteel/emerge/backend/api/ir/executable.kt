@@ -94,6 +94,18 @@ interface IrBreakStatement : IrExecutable {
 }
 
 /**
+ * Stop executing the loop body and jump back to the loop condition, starting the body again should the condition
+ * still hold
+ */
+interface IrContinueStatement : IrExecutable {
+    /**
+     * the loop to continue; is guaranteed to be a parent of this statement. Or in
+     * other words, `this` statement is guaranteed to be located in the body of the loop it is breaking out from
+     */
+    val loop: IrWhileLoop
+}
+
+/**
  * The counterpart to [IrDeallocateObjectStatement]. It makes the memory occupied by the given reference.
  *
  * The frontend must emit code prior to this statement that ensures that
