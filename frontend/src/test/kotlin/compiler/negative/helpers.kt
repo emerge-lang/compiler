@@ -6,9 +6,9 @@ import compiler.ast.ASTSourceFile
 import compiler.binding.context.SoftwareContext
 import compiler.lexer.MemorySourceFile
 import compiler.lexer.SourceSet
+import compiler.lexer.Token
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
-import compiler.parser.TokenSequence
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
@@ -25,7 +25,7 @@ fun lexCode(
     code: String,
     addPackageDeclaration: Boolean = true,
     invokedFrom: StackTraceElement = Thread.currentThread().stackTrace[2],
-): TokenSequence {
+): List<Token> {
     val moduleCode = if (addPackageDeclaration) {
         require(invokedFrom.lineNumber > 1) {
             "Test code is declared at line 1, cannot both add a module declaration AND keep the source line numbers in sync"
@@ -48,7 +48,7 @@ private val defaultModulesParsed: List<Pair<CanonicalElementName.Package, List<A
             val sourceFiles = SourceSet.load(module.path, module.moduleName)
                 .map {
                     val tokens = lex(it)
-                    SourceFileRule.match(tokens, tokens.peek()!!.span.sourceFile)
+                    SourceFileRule.match(tokens, tokens.first().span.sourceFile)
                 }
                 .partition { it.hasErrors }
                 .let { (withErrors, withoutErrors) ->
@@ -64,7 +64,7 @@ private val defaultModulesParsed: List<Pair<CanonicalElementName.Package, List<A
 
 class IntegrationTestModule(
     val moduleName: CanonicalElementName.Package,
-    val tokens: TokenSequence,
+    val tokens: List<Token>,
 ) {
     companion object {
         /**
@@ -109,7 +109,7 @@ fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext
 
     val lexicalReportings = mutableListOf<Reporting>()
     modules.forEach { module ->
-        val lexerSourceFile = module.tokens.peek()!!.span.sourceFile
+        val lexerSourceFile = module.tokens.first().span.sourceFile
         val result = SourceFileRule.match(module.tokens, lexerSourceFile)
         if (result.item == null) {
             val error = result.reportings.maxBy { it.level }

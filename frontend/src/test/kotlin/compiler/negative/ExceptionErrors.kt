@@ -172,7 +172,7 @@ class ExceptionErrors : FreeSpec({
         "throw statement" - {
             "in function body" {
                 validateModule("""
-                    class SomeError : Exception {}
+                    class SomeError : Throwable {}
                     nothrow fn safe() {
                         throw SomeError()
                     }
@@ -182,7 +182,7 @@ class ExceptionErrors : FreeSpec({
 
             "in destructor body" {
                 validateModule("""
-                    class SomeError : Exception {}
+                    class SomeError : Throwable {}
                     class A {
                         nothrow destructor {
                             throw SomeError()
@@ -216,14 +216,14 @@ class ExceptionErrors : FreeSpec({
                 }
 
             validateModule("""
-                class SomeError : Exception {}
-                fn maybeException() -> Exception? = SomeError() 
+                class SomeError : Throwable {}
+                fn maybeException() -> Throwable? = SomeError() 
                 fn test() {
                     throw maybeException()
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.sourceType.toString() shouldBe "read Exception?"
+                    it.sourceType.toString() shouldBe "read Throwable?"
                     it.targetType.toString() shouldBe "read Throwable"
                 }
         }

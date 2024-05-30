@@ -19,6 +19,8 @@
 package compiler.parser.grammar.rule
 
 import compiler.lexer.EndOfInputToken
+import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
 import compiler.lexer.Token
 
 interface Rule<out Item : Any> {
@@ -47,6 +49,11 @@ interface Rule<out Item : Any> {
                 toLineNumber = previous.span.toLineNumber,
                 toColumnNumber = previous.span.toColumnNumber + 1u,
             )
+            // the parsing algorithm always wants a newline at the end of the file, otherwise it complains about
+            // unexpected EOI
+            if (previous !is OperatorToken || previous.operator != Operator.NEWLINE) {
+                ongoing.step(OperatorToken(Operator.NEWLINE, eoiLocation))
+            }
             ongoing.step(EndOfInputToken(eoiLocation))
         }
 
