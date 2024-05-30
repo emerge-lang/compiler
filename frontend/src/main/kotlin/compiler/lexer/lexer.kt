@@ -87,10 +87,11 @@ private fun PositionTrackingCodePointTransactionalSequence.skipWhitespace() {
 
 private fun PositionTrackingCodePointTransactionalSequence.skipRestOfLine() {
     while (hasNext) {
-        val next = nextOrThrow()
+        val next = peek()!!
         if (next.isLinefeed) {
             break
         }
+        nextOrThrow()
     }
 }
 
