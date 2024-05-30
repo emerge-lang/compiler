@@ -1,6 +1,6 @@
 package compiler.compiler
 
-import compiler.TakeWhileAndNextIterator.Companion.takeWhileAndNext
+import compiler.util.TakeWhileAndNextIterator.Companion.takeWhileAndNext
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 

@@ -1,14 +1,14 @@
 package compiler.binding.context
 
 import compiler.InternalCompilerError
-import compiler.TakeWhileAndNextIterator.Companion.takeWhileAndNext
 import compiler.ast.Statement
 import compiler.ast.Statement.Companion.chain
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundVariable
 import compiler.binding.context.effect.EphemeralStateClass
 import compiler.binding.context.effect.SideEffect
-import compiler.takeWhileIsInstance
+import compiler.util.TakeWhileAndNextIterator.Companion.takeWhileAndNext
+import compiler.util.takeWhileIsInstance
 import java.util.IdentityHashMap
 
 /**

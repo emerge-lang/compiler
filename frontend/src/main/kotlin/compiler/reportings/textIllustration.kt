@@ -18,9 +18,9 @@
 
 package compiler.reportings
 
-import compiler.groupRunsBy
 import compiler.lexer.SourceFile
 import compiler.lexer.Span
+import compiler.util.groupRunsBy
 import kotlin.math.min
 
 data class SourceHint(

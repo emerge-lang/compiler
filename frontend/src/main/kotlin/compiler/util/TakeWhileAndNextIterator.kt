@@ -1,4 +1,4 @@
-package compiler
+package compiler.util
 
 /**
  * Like [TakeWhileSequence], but also yields the first element for which the predicate returns false.

@@ -1,4 +1,4 @@
-package compiler
+package compiler.util
 
 inline fun <reified Sub> Sequence<Any?>.takeWhileIsInstance(): Sequence<Sub> {
     @Suppress("UNCHECKED_CAST")

@@ -1,7 +1,7 @@
 package compiler.compiler
 
-import compiler.groupRunsBy
-import compiler.pivot
+import compiler.util.groupRunsBy
+import compiler.util.pivot
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe

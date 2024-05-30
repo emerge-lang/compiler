@@ -1,70 +1,6 @@
-/*
- * Copyright 2018 Tobias Marstaller
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public License
- * as published by the Free Software Foundation; either version 3
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- */
+package compiler.util
 
-package compiler
-
-import compiler.ast.ASTSourceFile
-import compiler.lexer.ClasspathSourceFile
-import compiler.lexer.lex
-import compiler.parser.SourceFileRule
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
-import java.nio.file.Path
-import java.nio.file.Paths
 import java.util.IdentityHashMap
-
-fun parseFromClasspath(path: String, packageName: CanonicalElementName.Package): ASTSourceFile = parseFromClasspath(Paths.get(path), packageName)
-
-fun parseFromClasspath(path: Path, packageName: CanonicalElementName.Package): ASTSourceFile {
-    val sourceFile = ClasspathSourceFile(
-        path,
-        packageName,
-        ClassLoader.getSystemResource(path.toString())!!.readText(),
-    )
-
-    val matchResult = SourceFileRule.match(lex(sourceFile), sourceFile)
-
-    if (matchResult.hasErrors) {
-        System.err.println()
-        System.err.println()
-        System.err.println("----------------------------------")
-        System.err.println("Errors while parsing from classpath:")
-        matchResult.reportings.forEach(System.err::println)
-    }
-
-    return matchResult.item ?: throw InternalCompilerError("Failed to parse from classpath $path")
-}
-
-/**
-infix fun Boolean?.nullableOr(other: Boolean?): Boolean? {
-    if (this == null && other == null) {
-        return null
-    }
-    return this == true || other == true
-}
-
-infix fun Boolean?.nullableAnd(other: Boolean?): Boolean? {
-    if (this == null || other == null) {
-        return null
-    }
-
-    return this && other
-}
-**/
 
 /**
  * If any of the elements maps to `true`, this short-circuits to `true`. If all elements return `null`,
@@ -223,5 +159,3 @@ fun <T, K> Iterable<T>.groupRunsBy(runKeyEquals: (K, K) -> Boolean = { a, b -> a
         }
     }
 }
-
-infix fun <Input, Intermediate, Result> ((Input) -> Intermediate).andThen(other: (Intermediate) -> Result): (Input) -> Result = { other(this(it)) }

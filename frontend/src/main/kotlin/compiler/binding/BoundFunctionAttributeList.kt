@@ -6,7 +6,7 @@ import compiler.binding.context.CTContext
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.reportings.Reporting
-import compiler.twoElementPermutationsUnordered
+import compiler.util.twoElementPermutationsUnordered
 
 class BoundFunctionAttributeList(
     context: CTContext,

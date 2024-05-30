@@ -1,7 +1,6 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
-import compiler.andThen
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
@@ -9,6 +8,7 @@ import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.lexer.Span
 import compiler.reportings.Reporting
+import compiler.util.andThen
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType

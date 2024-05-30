@@ -18,7 +18,7 @@
 
 package compiler.lexer
 
-import compiler.sortedTopologically
+import compiler.util.sortedTopologically
 
 enum class Keyword(val text: String)
 {

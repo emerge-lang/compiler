@@ -29,7 +29,7 @@ import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.lexer.Span
 import compiler.reportings.Reporting
 import compiler.reportings.ValueNotAssignableReporting
-import compiler.twoElementPermutationsUnordered
+import compiler.util.twoElementPermutationsUnordered
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import java.util.IdentityHashMap
 
