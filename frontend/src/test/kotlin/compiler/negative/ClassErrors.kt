@@ -7,6 +7,7 @@ import compiler.reportings.DuplicateBaseTypeMemberReporting
 import compiler.reportings.DuplicateSupertypeReporting
 import compiler.reportings.ExplicitOwnershipNotAllowedReporting
 import compiler.reportings.ExternalMemberFunctionReporting
+import compiler.reportings.IllegalAssignmentReporting
 import compiler.reportings.IllegalFunctionBodyReporting
 import compiler.reportings.IllegalSupertypeReporting
 import compiler.reportings.ImpureInvocationInPureContextReporting
@@ -225,7 +226,7 @@ class ClassErrors : FreeSpec({
         }
 
         "member variable uninitialized" - {
-            "constructor cannot use that member variables" {
+            "constructor cannot use that member variable" {
                 validateModule("""
                     class Foo {
                         x: S32
@@ -311,6 +312,54 @@ class ClassErrors : FreeSpec({
                         it.uninitializedMembers.single().name.value shouldBe "x"
                     }
             }
+
+            "interaction with while loops" - {
+                "cannot initialize single-assignment variable in loop" {
+                    validateModule("""
+                        class Foo {
+                            x: S32
+                            read constructor {
+                                while random() {
+                                    set self.x = 5
+                                }
+                            }
+                        }
+                        read intrinsic fn random() -> Bool
+                    """.trimIndent())
+                        .shouldReport<IllegalAssignmentReporting>()
+
+                    validateModule("""
+                        class Foo {
+                            x: S32
+                            read constructor {
+                                while random() {
+                                    y = 3
+                                    set self.x = 5
+                                }
+                            }
+                        }
+                        read intrinsic fn random() -> Bool
+                    """.trimIndent())
+                        .shouldReport<IllegalAssignmentReporting>()
+                }
+
+                "execution uncertainty of loops doesn't persist to code after the loop" {
+                    validateModule("""
+                        class Foo {
+                            x: S32
+                            read constructor {
+                                while random() {
+                                    unrelated = 3
+                                }
+                                set self.x = 5
+                                y = self.x
+                            }
+                        }
+                        read intrinsic fn random() -> Bool
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+            }
         }
 
         "member variable has been initialized in two different ways" - {
@@ -354,6 +403,36 @@ class ClassErrors : FreeSpec({
                     fn doSomething(borrow p: Foo) {}
                 """.trimIndent())
                     .shouldHaveNoDiagnostics()
+            }
+        }
+
+        "single-assignment member variable" - {
+            "assigned twice linearly" {
+                validateModule("""
+                    class Foo {
+                        x: S32
+                        constructor {
+                            set self.x = 1
+                            set self.x = 2
+                        }
+                    }
+                """.trimIndent())
+                    .shouldReport<IllegalAssignmentReporting>()
+            }
+
+            "assigned in a loop" {
+                validateModule("""
+                    class Foo {
+                        x: S32
+                        read constructor {
+                            while random() {
+                                set self.x = 3
+                            }
+                        }
+                    }
+                    read intrinsic fn random() -> Bool
+                """.trimIndent())
+                    .shouldReport<IllegalAssignmentReporting>()
             }
         }
 

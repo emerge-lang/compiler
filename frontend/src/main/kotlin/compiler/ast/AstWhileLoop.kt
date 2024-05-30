@@ -13,9 +13,9 @@ class AstWhileLoop(
     val body: CodeChunk,
 ) : Statement {
     override fun bindTo(context: ExecutionScopedCTContext): BoundStatement<*> {
-        val conditionContext = MutableExecutionScopedCTContext.deriveFrom(context, ExecutionScopedCTContext.Repetition.ONCE_OR_MORE)
+        val conditionContext = MutableExecutionScopedCTContext.deriveNewLoopScopeFrom(context, true)
         val boundCondition = BoundCondition(condition.bindTo(conditionContext))
-        val bodyContext = MutableExecutionScopedCTContext.deriveFrom(boundCondition.modifiedContext, ExecutionScopedCTContext.Repetition.ZERO_OR_MORE)
+        val bodyContext = MutableExecutionScopedCTContext.deriveNewScopeFrom(boundCondition.modifiedContext, ExecutionScopedCTContext.Repetition.ZERO_OR_MORE)
         val boundBody = body.bindTo(bodyContext)
         return BoundWhileLoop(
             context,

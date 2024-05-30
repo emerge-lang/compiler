@@ -56,24 +56,26 @@ class BoundVariableAssignmentStatement(
         // variable write cannot throw
     }
 
-    private lateinit var initializationState: VariableInitialization.State
+    private lateinit var initializationStateBefore: VariableInitialization.State
     override fun additionalSemanticAnalysisPhase3(): Collection<Reporting> {
         val reportings = mutableListOf<Reporting>()
 
         targetVariable?.let { targetVariable ->
-            initializationState = targetVariable.getInitializationStateInContext(context)
-            val thisAssignmentIsFirstInitialization: Boolean = initializationState == VariableInitialization.State.NOT_INITIALIZED
-            if (initializationState == VariableInitialization.State.NOT_INITIALIZED || initializationState == VariableInitialization.State.MAYBE_INITIALIZED) {
+            val repetitionRelativeToVariable = context.getRepetitionBehaviorRelativeTo(targetVariable.modifiedContext)
+
+            initializationStateBefore = targetVariable.getInitializationStateInContext(context)
+            val thisAssignmentIsFirstInitialization: Boolean = initializationStateBefore == VariableInitialization.State.NOT_INITIALIZED
+            if (initializationStateBefore == VariableInitialization.State.NOT_INITIALIZED || initializationStateBefore == VariableInitialization.State.MAYBE_INITIALIZED) {
                 _modifiedContext.trackSideEffect(VariableInitialization.WriteToVariableEffect(targetVariable))
             }
-            if (initializationState == VariableInitialization.State.MAYBE_INITIALIZED || context.repetition.mayRepeat) {
+            if (initializationStateBefore == VariableInitialization.State.MAYBE_INITIALIZED || repetitionRelativeToVariable.mayRepeat) {
                 if (targetVariable.isReAssignable) {
                     _modifiedContext.trackSideEffect(VariableInitialization.WriteToVariableEffect(targetVariable))
                 } else {
                     reportings.add(Reporting.illegalAssignment("Variable ${targetVariable.name} may have already been initialized, cannot assign a value again", this))
                 }
             }
-            if (initializationState == VariableInitialization.State.INITIALIZED) {
+            if (initializationStateBefore == VariableInitialization.State.INITIALIZED) {
                 if (!targetVariable.isReAssignable) {
                     reportings.add(Reporting.illegalAssignment("Variable ${targetVariable.name} is already initialized, cannot re-assign", this))
                 }
@@ -100,11 +102,11 @@ class BoundVariableAssignmentStatement(
     }
 
     override fun toBackendIrStatement(): IrExecutable {
-        val dropPreviousCode: List<IrExecutable> = when (initializationState) {
+        val dropPreviousCode: List<IrExecutable> = when (initializationStateBefore) {
             VariableInitialization.State.NOT_INITIALIZED -> emptyList()
             else -> {
                 var previousType = targetVariable!!.getTypeInContext(context)!!.toBackendIr()
-                if (initializationState == VariableInitialization.State.MAYBE_INITIALIZED) {
+                if (initializationStateBefore == VariableInitialization.State.MAYBE_INITIALIZED) {
                     // forces a null-check on the reference drop, preventing a null-pointer dereference when a maybe-initialized
                     // variable of a non-null type is being assigned to
                     previousType = previousType.nullable()

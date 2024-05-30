@@ -19,7 +19,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
-import kotlin.properties.Delegates
 
 class BoundObjectMemberAssignmentStatement(
     context: ExecutionScopedCTContext,
@@ -44,39 +43,47 @@ class BoundObjectMemberAssignmentStatement(
 
     override val assignmentTargetType get() = targetExpression.type
 
-    private var accessBaseVariable: BoundVariable? = null
-
-    override fun additionalSemanticAnalysisPhase2(): Collection<Reporting> {
-        accessBaseVariable = targetExpression.valueExpression.tryAsVariable()
-
-        accessBaseVariable?.let { baseVar ->
-            targetExpression.member?.let { member ->
-                _modifiedContext.trackSideEffect(
-                    PartialObjectInitialization.Effect.WriteToMemberVariableEffect(baseVar, member)
-                )
-            }
-        }
-
-        return emptySet()
-    }
-
     override fun setTargetNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
         targetExpression.setNothrow(boundary)
     }
 
-    private var memberIsPotentiallyUninitialized by Delegates.notNull<Boolean>()
+    override fun additionalSemanticAnalysisPhase2(): Collection<Reporting> {
+        val reportings = mutableSetOf<Reporting>()
+
+        targetExpression.valueExpression.tryAsVariable()?.let { memberOwnerVariable ->
+            targetExpression.member?.let { member ->
+                val repetitionRelativeToMemberHolder = context.getRepetitionBehaviorRelativeTo(memberOwnerVariable.modifiedContext)
+
+                initializationStateBefore = context.getEphemeralState(PartialObjectInitialization, memberOwnerVariable).getMemberInitializationState(member)
+                if (initializationStateBefore == VariableInitialization.State.NOT_INITIALIZED || initializationStateBefore == VariableInitialization.State.MAYBE_INITIALIZED) {
+                    _modifiedContext.trackSideEffect(
+                        PartialObjectInitialization.Effect.WriteToMemberVariableEffect(memberOwnerVariable, member)
+                    )
+                }
+                if (initializationStateBefore == VariableInitialization.State.MAYBE_INITIALIZED || repetitionRelativeToMemberHolder.mayRepeat) {
+                    if (member.isReAssignable) {
+                        _modifiedContext.trackSideEffect(PartialObjectInitialization.Effect.WriteToMemberVariableEffect(memberOwnerVariable, member))
+                    } else {
+                        reportings.add(Reporting.illegalAssignment("Member variable ${member.name} may already have been initialized, cannot assign a value again", this))
+                    }
+                }
+                if (initializationStateBefore == VariableInitialization.State.INITIALIZED) {
+                    if (!member.isReAssignable) {
+                        reportings.add(Reporting.illegalAssignment("Member variable ${member.name} is already initialized, cannot re-assign", this))
+                    }
+                }
+            }
+        }
+
+        return reportings
+    }
+
+    private var initializationStateBefore: VariableInitialization.State? = null
 
     override fun additionalSemanticAnalysisPhase3(): Collection<Reporting> {
         val reportings = mutableListOf<Reporting>()
 
         reportings.addAll(targetExpression.semanticAnalysisPhase3())
-
-        val memberInitializationStateBeforeAssignment = accessBaseVariable?.let { baseVar ->
-            targetExpression.member?.let { member ->
-                context.getEphemeralState(PartialObjectInitialization, baseVar).getMemberInitializationState(member)
-            }
-        } ?: VariableInitialization.State.MAYBE_INITIALIZED
-        memberIsPotentiallyUninitialized = memberInitializationStateBeforeAssignment != VariableInitialization.State.INITIALIZED
 
         targetExpression.valueExpression.type?.let { memberOwnerType ->
             if (!memberOwnerType.mutability.isMutable) {
@@ -93,12 +100,8 @@ class BoundObjectMemberAssignmentStatement(
                 ?.let(reportings::add)
         }
 
-        if (!memberIsPotentiallyUninitialized && targetExpression.member?.isReAssignable == false) {
-            reportings.add(Reporting.illegalAssignment("Member variable ${targetExpression.member!!.name} cannot be re-assigned", this))
-        }
-
         nothrowBoundary?.let { nothrowBoundary ->
-            if (memberInitializationStateBeforeAssignment != VariableInitialization.State.NOT_INITIALIZED) {
+            if (initializationStateBefore != null && initializationStateBefore != VariableInitialization.State.NOT_INITIALIZED) {
                 if (targetExpression.type?.destructorThrowBehavior != SideEffectPrediction.NEVER) {
                     reportings.add(Reporting.droppingReferenceToObjectWithThrowingConstructor(this, nothrowBoundary))
                 }
@@ -112,7 +115,7 @@ class BoundObjectMemberAssignmentStatement(
         val dropPreviousReferenceCode: IrCodeChunk
         if (targetExpression.member!!.isReAssignable) {
             var previousType = targetExpression.type!!.toBackendIr()
-            if (memberIsPotentiallyUninitialized) {
+            if (initializationStateBefore != VariableInitialization.State.INITIALIZED) {
                 // forces a null-check on the reference drop, which prevents a nullpointer deref for an empty object
                 previousType = previousType.nullable()
             }
@@ -122,7 +125,7 @@ class BoundObjectMemberAssignmentStatement(
                 IrDropStrongReferenceStatementImpl(previousTemporary),
             ))
         } else {
-            check(memberIsPotentiallyUninitialized) { "multiple assignments to a non-reassignable target" }
+            check(initializationStateBefore == VariableInitialization.State.NOT_INITIALIZED) { "multiple assignments to a non-reassignable target" }
             // this is the first and only assignment, no need to drop a previous reference
             dropPreviousReferenceCode = IrCodeChunkImpl(emptyList())
         }

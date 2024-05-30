@@ -230,7 +230,7 @@ class BoundClassConstructor(
             declaredTypeParameters.map { it.semanticAnalysisPhase2() }.forEach(reportings::addAll)
 
             reportings.addAll(selfVariableForInitCode.semanticAnalysisPhase2())
-            contextWithSelfVar.trackSideEffect(PartialObjectInitialization.Effect.MarkObjectAsEntireUninitializedEffect(selfVariableForInitCode, classDef))
+            contextWithSelfVar.trackSideEffect(PartialObjectInitialization.Effect.MarkObjectAsEntirelyUninitializedEffect(selfVariableForInitCode, classDef))
 
             /**
              * normally, we could rely on the assignments in boundMemberVariableInitCodeFromCtorParams to do their

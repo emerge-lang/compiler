@@ -14,7 +14,7 @@ object PartialObjectInitialization : EphemeralStateClass<BoundVariable, PartialO
         private val knownMemberStates: Map<String, VariableInitialization.State>
     ) {
         fun fold(effect: Effect): State = when (effect) {
-            is Effect.MarkObjectAsEntireUninitializedEffect -> {
+            is Effect.MarkObjectAsEntirelyUninitializedEffect -> {
                 check(knownMemberStates.isEmpty()) {
                     "Marking object as completely uninitialized after state of some member has already been tracked - somethings off!"
                 }
@@ -58,7 +58,7 @@ object PartialObjectInitialization : EphemeralStateClass<BoundVariable, PartialO
     sealed interface Effect : SideEffect<BoundVariable> {
         override val stateClass get() = PartialObjectInitialization
 
-        class MarkObjectAsEntireUninitializedEffect(
+        class MarkObjectAsEntirelyUninitializedEffect(
             override val subject: BoundVariable,
             val classDef: BoundBaseType,
         ) : Effect

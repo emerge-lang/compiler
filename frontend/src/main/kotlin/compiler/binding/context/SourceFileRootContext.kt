@@ -61,7 +61,7 @@ class SourceFileRootContext(
 
             override val isScopeBoundary = false
             override val isFunctionRoot = false
-            override val repetition = ExecutionScopedCTContext.Repetition.EXACTLY_ONCE
+            override val repetitionRelativeToParent = ExecutionScopedCTContext.Repetition.EXACTLY_ONCE
             override val imports = emptySet<BoundImportDeclaration>()
             override val allTypeParameters = emptySequence<BoundTypeParameter>()
 
@@ -84,6 +84,10 @@ class SourceFileRootContext(
             }
             override fun getFunctionDeferredCode(): Sequence<BoundExecutable<*>> {
                 throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
+            }
+
+            override fun getRepetitionBehaviorRelativeTo(indirectParent: CTContext): ExecutionScopedCTContext.Repetition {
+                return ExecutionScopedCTContext.Repetition.EXACTLY_ONCE
             }
         }
     }

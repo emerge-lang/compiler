@@ -315,6 +315,18 @@ class VariableErrors : FreeSpec({
                         }
                     """.trimIndent())
                         .shouldReport<IllegalAssignmentReporting>()
+
+                    validateModule("""
+                        read intrinsic fn random() -> Bool
+                        read fn test() {
+                            x: S32
+                            while random() {
+                                y = 3
+                                set x = 5
+                            }
+                        }
+                    """.trimIndent())
+                        .shouldReport<IllegalAssignmentReporting>()
                 }
 
                 "execution uncertainty of loops doesn't persist to code after the loop" {
@@ -327,6 +339,23 @@ class VariableErrors : FreeSpec({
                             }
                             set x = 5
                             y = x
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
+
+                "execution uncertainty of loops doesn't affect nested loops" {
+                    validateModule("""
+                        read intrinsic fn random() -> Bool
+                        read fn test() {
+                            while random() {
+                                x: S32
+                                set x = 5
+                                while random() {
+                                    y = x
+                                }
+                                z = x
+                            }
                         }
                     """.trimIndent())
                         .shouldHaveNoDiagnostics()
