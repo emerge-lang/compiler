@@ -96,7 +96,7 @@ private val ReAssignableVariableDeclaration = sequence("re-assignable variable d
         ref(VariableOwnership)
     }
     keyword(VAR)
-    identifier()
+    ref(Identifier)
     optional {
         operator(COLON)
         ref(Type)
@@ -113,7 +113,7 @@ val FinalVariableDeclaration = sequence("final variable declaration") {
     optional {
         ref(VariableOwnership)
     }
-    identifier()
+    ref(Identifier)
     eitherOf {
         ref(VariableDeclarationInitializingAssignment)
         sequence {

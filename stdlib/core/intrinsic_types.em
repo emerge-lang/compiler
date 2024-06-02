@@ -276,9 +276,9 @@ export class Bool {
 
     export intrinsic nothrow operator fn negate(self) -> Bool
 
-    export intrinsic nothrow operator fn and(self, other: Bool) -> Bool
-    export intrinsic nothrow operator fn or(self, other: Bool) -> Bool
-    export intrinsic nothrow operator fn xor(self, other: Bool) -> Bool
+    export intrinsic nothrow operator fn `and`(self, other: Bool) -> Bool
+    export intrinsic nothrow operator fn `or`(self, other: Bool) -> Bool
+    export intrinsic nothrow operator fn `xor`(self, other: Bool) -> Bool
 }
 
 export class Array<Element> {
@@ -286,9 +286,8 @@ export class Array<Element> {
 
     private constructor {}
 
-    export operator intrinsic fn get(self: read _<out Element>, index: UWord) -> Element
-
-    export operator intrinsic fn set(self: mut _<in Element>, index: UWord, value: Element) -> Unit
+    export operator intrinsic fn `get`(self: read _<out Element>, index: UWord) -> Element
+    export operator intrinsic fn `set`(self: mut _<in Element>, index: UWord, value: Element) -> Unit
 
     export intrinsic fn new<T>(size: UWord, initialValue: T) -> exclusive Array<T>
 

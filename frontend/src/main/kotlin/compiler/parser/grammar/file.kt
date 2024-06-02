@@ -26,19 +26,22 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.flatten
+import compiler.parser.grammar.dsl.mapResult
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.grammar.rule.Rule
+import compiler.parser.grammar.rule.TokenEqualToRule
 import compiler.transact.Position
 import compiler.transact.TransactionalSequence
 
 val ModuleOrPackageName = sequence("module or package name") {
-    identifier()
+    ref(Identifier)
 
     repeating {
         operator(Operator.DOT)
-        identifier()
+        ref(Identifier)
     }
 }
     .astTransformation { tokens ->
@@ -74,10 +77,13 @@ val ImportDeclaration = sequence("import declaration") {
     keyword(Keyword.IMPORT)
 
     repeatingAtLeastOnce {
-        identifier()
+        ref(Identifier)
         operator(Operator.DOT)
     }
-    identifier(acceptedOperators = listOf(Operator.TIMES))
+    eitherOf {
+        ref(Identifier)
+        ref(TokenEqualToRule(OperatorToken(Operator.TIMES)).mapResult { IdentifierToken((it as OperatorToken).operator.text, it.span) })
+    }
     operator(Operator.NEWLINE)
 }
     .astTransformation { tokens ->
@@ -96,7 +102,7 @@ val ImportDeclaration = sequence("import declaration") {
         ImportDeclaration(keyword.span, identifiers)
     }
 
-val TopLevelVariableDeclaration = sequence("variable declaration") {
+val TopLevelVariableDeclaration = sequence("toplevel variable declaration") {
     ref(VariableDeclaration)
     operator(Operator.NEWLINE)
 }

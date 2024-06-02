@@ -48,7 +48,7 @@ val Parameter = sequence("parameter declaration") {
     optional {
         keyword(Keyword.VAR)
     }
-    identifier()
+    ref(Identifier)
     optional {
         operator(Operator.COLON)
         ref(Type)
@@ -167,7 +167,7 @@ val FunctionAttribute = eitherOf {
     sequence {
         keyword(Keyword.EXTERNAL)
         operator(Operator.PARANT_OPEN)
-        identifier()
+        ref(Identifier)
         operator(Operator.PARANT_CLOSE)
     }
     ref(Visibility)
@@ -208,7 +208,7 @@ val FunctionAttributes = sequence("function attributes") {
 val StandaloneFunctionDeclaration = sequence("function declaration") {
     ref(FunctionAttributes)
     keyword(Keyword.FUNCTION)
-    identifier(acceptedKeywords = Keyword.entries)
+    ref(Identifier)
     optional {
         ref(BracedTypeParameters)
     }

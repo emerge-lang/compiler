@@ -109,7 +109,7 @@ val Variance: Rule<TypeVariance> = sequence("variance") {
 
 val TypeParameter = sequence("type parameter") {
     ref(Variance)
-    identifier()
+    ref(Identifier)
     optional {
         operator(Operator.COLON)
         ref(Type)
@@ -156,7 +156,7 @@ val Type: Rule<TypeReference> = sequence("type") {
         ref(TypeMutability)
     }
 
-    identifier()
+    ref(Identifier)
 
     optional {
         ref(BracedTypeArguments)

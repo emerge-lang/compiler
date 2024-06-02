@@ -1,6 +1,5 @@
-package compiler.parser.grammar.dsl
+package compiler.parser.grammar.rule
 
 import compiler.lexer.EndOfInputToken
-import compiler.parser.grammar.rule.SingleTokenRule
 
 object EndOfInputRule : SingleTokenRule<EndOfInputToken>("end of input", { token -> token as? EndOfInputToken })

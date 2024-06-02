@@ -4,11 +4,11 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Token
-import compiler.parser.grammar.dsl.IdentifierTokenRule
 import compiler.parser.grammar.dsl.flatten
 import compiler.parser.grammar.dsl.mapResult
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.grammar.rule.FirstMatchCompletion
+import compiler.parser.grammar.rule.IdentifierTokenRule
 import compiler.parser.grammar.rule.MatchingContinuation
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.parser.grammar.rule.OngoingMatch
@@ -74,7 +74,7 @@ class SequenceRuleTest : FreeSpec({
 
     "continuation is reentrant" {
         val rule = SequenceRule(arrayOf(
-            IdentifierTokenRule(emptySet(), emptySet()),
+            IdentifierTokenRule,
             object : Rule<Any> {
                 override val explicitName = "branch"
                 override fun startMatching(continueWith: MatchingContinuation<Any>): OngoingMatch {
@@ -92,7 +92,7 @@ class SequenceRuleTest : FreeSpec({
 
                 }
             },
-            IdentifierTokenRule(emptySet(), emptySet()),
+            IdentifierTokenRule,
         ), null)
             .flatten()
             .mapResult { it.remainingToList() }

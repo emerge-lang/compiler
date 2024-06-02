@@ -104,6 +104,7 @@ enum class Operator(val text: String, private val _humanReadableName: String? = 
     NOTNULL               ("!!"), // find a better name for this...
     EXCLAMATION_MARK      ("!", "exclamation mark"),
     STRING_DELIMITER      (Char(compiler.lexer.STRING_DELIMITER.value).toString()),
+    IDENTIFIER_DELIMITER  (Char(compiler.lexer.IDENTIFIER_DELIMITER.value).toString()),
     COMMENT               ("//", "comment marker")
     ;
 
@@ -121,6 +122,7 @@ enum class Operator(val text: String, private val _humanReadableName: String? = 
 val DECIMAL_SEPARATOR = CodePoint('.'.code)
 val STRING_ESCAPE_CHAR = CodePoint('\\'.code)
 val STRING_DELIMITER = CodePoint('"'.code)
+val IDENTIFIER_DELIMITER = CodePoint('`'.code)
 
 abstract class Token {
     abstract val span: Span
@@ -214,6 +216,13 @@ class StringLiteralContentToken(
     val content: String,
 ) : Token() {
     override fun toStringWithoutLocation() = "string literal"
+}
+
+class DelimitedIdentifierContentToken(
+    override val span: Span,
+    val content: String,
+) : Token() {
+    override fun toStringWithoutLocation() = "delimited identifier"
 }
 
 class EndOfInputToken(lastLocationInFile: Span) : Token() {

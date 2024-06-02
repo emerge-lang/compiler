@@ -141,7 +141,7 @@ val BaseTypeDefinition = sequence("base type definition") {
         keyword(CLASS_DEFINITION)
         keyword(INTERFACE_DEFINITION)
     }
-    identifier()
+    ref(Identifier)
     optional {
         ref(BracedTypeParameters)
     }

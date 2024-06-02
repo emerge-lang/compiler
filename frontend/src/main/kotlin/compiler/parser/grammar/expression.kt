@@ -146,7 +146,7 @@ val LiteralExpression = sequence("literal") {
     }
 
 val IdentifierExpression = sequence("identifier") {
-    identifier()
+    ref(Identifier)
 }
     .astTransformation { tokens ->
         val identifier = tokens.next() as IdentifierToken
@@ -265,7 +265,7 @@ val IfExpression = sequence("if-expression") {
         )
     }
 
-val ExpressionPostfixNotNull = sequence(OperatorToken(Operator.NOTNULL).toStringWithoutLocation()) {
+val ExpressionPostfixNotNull = sequence("not null assertion") {
     operator(Operator.NOTNULL)
 }
     .astTransformation { NotNullExpressionPostfix(it.next()!! as OperatorToken) }
@@ -338,7 +338,7 @@ val ExpressionPostfixInvocation = sequence("function invocation") {
 
 val ExpressionPostfixMemberAccess = sequence("member access") {
     eitherOf(Operator.DOT, Operator.SAFEDOT)
-    identifier(acceptedKeywords = Keyword.entries)
+    ref(Identifier)
 }
     .astTransformation { tokens ->
         val accessOperator = tokens.next() as OperatorToken

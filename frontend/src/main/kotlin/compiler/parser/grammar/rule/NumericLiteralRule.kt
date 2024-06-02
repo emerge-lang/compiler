@@ -1,6 +1,5 @@
-package compiler.parser.grammar.dsl
+package compiler.parser.grammar.rule
 
 import compiler.lexer.NumericLiteralToken
-import compiler.parser.grammar.rule.SingleTokenRule
 
 object NumericLiteralRule : SingleTokenRule<NumericLiteralToken>("numeric literal", { token -> token as? NumericLiteralToken })

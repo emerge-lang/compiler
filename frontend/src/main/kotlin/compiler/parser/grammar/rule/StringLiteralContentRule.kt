@@ -1,6 +1,5 @@
-package compiler.parser.grammar.dsl
+package compiler.parser.grammar.rule
 
 import compiler.lexer.StringLiteralContentToken
-import compiler.parser.grammar.rule.SingleTokenRule
 
 object StringLiteralContentRule : SingleTokenRule<StringLiteralContentToken>("string content", { token -> token as? StringLiteralContentToken })

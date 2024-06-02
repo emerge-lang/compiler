@@ -1,7 +1,6 @@
-package compiler.parser.grammar.dsl
+package compiler.parser.grammar.rule
 
 import compiler.lexer.Token
-import compiler.parser.grammar.rule.SingleTokenRule
 
 class TokenEqualToRule(val expectedToken: Token) : SingleTokenRule<Token>(
     expectedToken.toStringWithoutLocation(),

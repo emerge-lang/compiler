@@ -37,18 +37,30 @@ fun lex(sourceFile: SourceFile): List<Token> {
 
             tokens.add(operatorToken)
 
-            if (operatorToken.operator != Operator.STRING_DELIMITER) {
-                continue@tokenLoop
+            when (operatorToken.operator) {
+                Operator.STRING_DELIMITER -> {
+                    val (content, contentLocation) = iterator.collectStringContent(sourceFile)
+                    tokens.add(StringLiteralContentToken(contentLocation, content))
+                    if (!iterator.hasNext) {
+                        break@tokenLoop
+                    }
+                    val endDelimiter = iterator.tryMatchOperator(sourceFile)
+                    check(endDelimiter != null && endDelimiter.operator == Operator.STRING_DELIMITER)
+                    tokens.add(endDelimiter)
+                }
+                Operator.IDENTIFIER_DELIMITER -> {
+                    val (content, contentLocation) = iterator.collectDelimitedIdentifierContent(sourceFile)
+                    tokens.add(DelimitedIdentifierContentToken(contentLocation, content))
+                    if (!iterator.hasNext) {
+                        break@tokenLoop
+                    }
+                    val endDelimiter = iterator.tryMatchOperator(sourceFile)
+                    check(endDelimiter != null && endDelimiter.operator == Operator.IDENTIFIER_DELIMITER)
+                    tokens.add(endDelimiter)
+                }
+                else -> {}
             }
 
-            val (content, contentLocation) = iterator.collectStringContent(sourceFile)
-            tokens.add(StringLiteralContentToken(contentLocation, content))
-            if (!iterator.hasNext) {
-                break@tokenLoop
-            }
-            val endDelimiter = iterator.tryMatchOperator(sourceFile)
-            check(endDelimiter != null && endDelimiter.operator == Operator.STRING_DELIMITER)
-            tokens.add(endDelimiter)
             continue@tokenLoop
         }
 
@@ -209,6 +221,25 @@ private fun PositionTrackingCodePointTransactionalSequence.collectStringContent(
         }
 
         nextOrThrow() // consume
+        start = start ?: currentPosition
+        data.appendCodePoint(peeked.value)
+    }
+
+    return Pair(data.toString(), Span(sourceFile, start ?: currentPosition, currentPosition))
+}
+
+private fun PositionTrackingCodePointTransactionalSequence.collectDelimitedIdentifierContent(sourceFile: SourceFile): Pair<String, Span> {
+    val data = StringBuilder()
+    var start: SourceSpot? = null
+    while (true) {
+        val peeked = peek() ?: break
+
+        if (peeked == IDENTIFIER_DELIMITER) {
+            // ending delimiter will be processed by the caller
+            break
+        }
+
+        nextOrThrow()
         start = start ?: currentPosition
         data.appendCodePoint(peeked.value)
     }

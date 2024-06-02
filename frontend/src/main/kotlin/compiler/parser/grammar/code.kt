@@ -27,14 +27,38 @@ import compiler.ast.AstWhileLoop
 import compiler.ast.CodeChunk
 import compiler.ast.ReturnStatement
 import compiler.ast.Statement
+import compiler.lexer.DelimitedIdentifierContentToken
+import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.parser.grammar.dsl.astTransformation
+import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
+import compiler.parser.grammar.rule.IdentifierTokenRule
 import compiler.parser.grammar.rule.Rule
 import compiler.ast.Expression as AstExpression
+
+val Identifier = eitherOf("identifier") {
+    ref(IdentifierTokenRule)
+    sequence {
+        operator(Operator.IDENTIFIER_DELIMITER)
+        delimitedIdentifierContent()
+        operator(Operator.IDENTIFIER_DELIMITER)
+    }
+}
+    .astTransformation { tokens ->
+        val first = tokens.next()!!
+        if (first is IdentifierToken) {
+            return@astTransformation first
+        }
+        first as OperatorToken
+
+        val content = tokens.next()!! as DelimitedIdentifierContentToken
+        val endDelimiter = tokens.next()!! as OperatorToken
+        IdentifierToken(content.content, first.span .. endDelimiter.span)
+    }
 
 val ReturnStatement = sequence("return statement") {
     keyword(Keyword.RETURN)

@@ -24,9 +24,14 @@ import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.Token
+import compiler.parser.grammar.rule.DelimitedIdentifierContentRule
+import compiler.parser.grammar.rule.EndOfInputRule
+import compiler.parser.grammar.rule.NumericLiteralRule
 import compiler.parser.grammar.rule.RepeatingRule
 import compiler.parser.grammar.rule.Rule
 import compiler.parser.grammar.rule.SequenceRule
+import compiler.parser.grammar.rule.StringLiteralContentRule
+import compiler.parser.grammar.rule.TokenEqualToRule
 
 typealias Grammar = GrammarReceiver.() -> Unit
 
@@ -67,8 +72,8 @@ abstract class GrammarReceiver {
         repeating(grammar)
     }
 
-    fun identifier(acceptedOperators: Collection<Operator> = emptyList(), acceptedKeywords: Collection<Keyword> = emptyList()) {
-        ref(IdentifierTokenRule(acceptedOperators.toSet(), acceptedKeywords.toSet()))
+    fun delimitedIdentifierContent() {
+        ref(DelimitedIdentifierContentRule)
     }
 
     fun numericLiteral() {

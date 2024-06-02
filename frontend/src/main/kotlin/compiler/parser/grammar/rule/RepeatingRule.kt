@@ -8,12 +8,15 @@ class RepeatingRule<Item : Any>(
         require(upperBound >= 0)
     }
 
-    override val explicitName: String get() {
+    override val explicitName: String? get() {
+        if (subRule.explicitName == null) {
+            return null
+        }
         val upperBoundStr = if (upperBound == Int.MAX_VALUE) "*" else upperBound.toString()
-        return "0..$upperBoundStr $subRule"
+        return "0..$upperBoundStr ${subRule.explicitName}"
     }
 
-    override fun toString() = explicitName
+    override fun toString() = explicitName ?: "Repeating($subRule)"
 
     override fun startMatching(continueWith: MatchingContinuation<RepeatedMatch<Item>>): OngoingMatch {
         return BranchingOngoingMatch(

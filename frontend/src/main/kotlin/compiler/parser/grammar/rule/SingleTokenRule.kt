@@ -5,7 +5,7 @@ import compiler.lexer.OperatorToken
 import compiler.lexer.Token
 import compiler.reportings.Reporting
 
-open class SingleTokenRule<Item : Token>(
+abstract class SingleTokenRule<Item : Token>(
     override val explicitName: String,
 
     /**

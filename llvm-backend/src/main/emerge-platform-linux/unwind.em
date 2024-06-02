@@ -1,5 +1,8 @@
 package emerge.platform
 
+import emerge.ffi.c.COpaquePointer
+import emerge.core.StackTraceElement
+
 // these structures are from LLVM-18s libunwind (libunwindh.h)
 // this works because right now, emerge classes have a layout identical to that of C structs
 // by the virtue of using LLVM and not re-ordering class variables to save space
@@ -30,19 +33,15 @@ private intrinsic nothrow fn unwind_cursor_size() -> UWord
 // initializes the context
 // @param context must point to a region of at least [unwind_context_size] size
 // @returns an error code
-private external(C) read nothrow unw_getcontext(context: COpaquePointer) -> S32
+private external(C) read nothrow fn unw_getcontext(context: COpaquePointer) -> S32
 
 // initializes an unwind cursor
 // @param cursor the cursor to initialize; must point to a region of at least [unwind_cursor_size] size
 // @param context a cursor that was initialized with [unw_getcontext]
 // @returns an error code
-private external(C) read nothrow unw_init_local(cursor: COpaquePointer, context: COpaquePointer) -> S32
+private external(C) read nothrow fn unw_init_local(cursor: COpaquePointer, context: COpaquePointer) -> S32
 
 // advances the cursor to the previous, less deeply nested stack frame / walks up the stack
 // @param cursor a cursor previously initialized with [unw_init_local]
 // @return a positive value on success, 0 if there are no more stack frames, or a negative value for an error code
-private external(C) read nothrow unw_step(cursor: COpaquePointer) -> S32
-
-export read fn collectStackTrace() -> Array<StackTraceFrame> {
-
-}
+private external(C) read nothrow fn unw_step(cursor: COpaquePointer) -> S32
