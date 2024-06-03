@@ -5,8 +5,6 @@ import compiler.compiler.negative.lexCode
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
-import compiler.lexer.Operator
-import compiler.parser.grammar.CodeChunk
 import compiler.parser.grammar.dsl.GrammarReceiver
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.flatten
@@ -223,19 +221,6 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
 
         result.shouldBeInstanceOf<MatchingResult.Success<List<Any>>>()
         result.item shouldBe listOf(IdentifierToken("identifier"))
-    }
-
-    "foo" {
-        val grammar = sequence {
-            operator(Operator.CBRACE_OPEN)
-            ref(CodeChunk)
-            operator(Operator.CBRACE_CLOSE)
-        }
-        val tokens = lexCode("""
-            { }
-        """.trimIndent(), addPackageDeclaration = false)
-        val result = matchAgainst(tokens, grammar)
-        result.shouldBeInstanceOf<MatchingResult.Success<Any>>()
     }
 })
 

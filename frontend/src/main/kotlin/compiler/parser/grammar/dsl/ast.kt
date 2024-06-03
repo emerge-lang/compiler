@@ -76,6 +76,7 @@ fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
                 is RepeatingRule.RepeatedMatch<*> -> result.matches.forEach(::collectFrom)
                 is EndOfInputToken -> {}
                 Unit -> {}
+                is MatchingResult.Success<*> -> collectFrom(result.item)
                 else -> itemBucket.add(result)
             }
         }

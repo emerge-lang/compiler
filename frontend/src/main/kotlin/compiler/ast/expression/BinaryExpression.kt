@@ -56,7 +56,7 @@ class BinaryExpression(
     val operator: AstSemanticOperator,
     val rightHandSide: Expression
 ) : Expression {
-    override val span = leftHandSide.span
+    override val span = leftHandSide.span .. rightHandSide.span
 
     private val opDerivedLocation = operator.token.span.deriveGenerated()
 

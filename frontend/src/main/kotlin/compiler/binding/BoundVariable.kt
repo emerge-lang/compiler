@@ -219,9 +219,9 @@ class BoundVariable(
                         typeAtDeclarationTime = resolvedDeclaredType
                     }
 
-                    typeAtDeclarationTime = typeAtDeclarationTime!!
-                        .withMutability(finalMutability)
-                        .withCombinedNullability(finalNullability)
+                    typeAtDeclarationTime = typeAtDeclarationTime
+                        ?.withMutability(finalMutability)
+                        ?.withCombinedNullability(finalNullability)
 
                     initializerExpression.type?.let { initializerType ->
                         // discrepancy between assign expression and declared type

@@ -58,7 +58,7 @@ class OperatorOverloadErrors : FreeSpec({
     "index access write requires operator modifier" {
         validateModule("""
             class Foo {
-                fn set(self, index: UWord, value: S32) {
+                fn `set`(self, index: UWord, value: S32) {
                 }
             }
             

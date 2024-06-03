@@ -19,6 +19,7 @@
 package compiler.compiler.lexer
 
 import compiler.compiler.negative.lexCode
+import compiler.lexer.EndOfInputToken
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
@@ -27,7 +28,6 @@ import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.StringLiteralContentToken
 import io.kotest.core.spec.style.FreeSpec
-import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.comparables.beGreaterThan
 import io.kotest.matchers.comparables.beGreaterThanOrEqualTo
 import io.kotest.matchers.should
@@ -41,12 +41,13 @@ class LexerTest : FreeSpec() {init {
         "default" {
             val result = lexCode("   package   ", false)
 
-            result.size shouldBe 1
+            result.size shouldBe 2
             result[0] should beInstanceOf(KeywordToken::class)
             (result[0] as KeywordToken).keyword shouldBe Keyword.PACKAGE
             (result[0] as KeywordToken).sourceText shouldBe "package"
             (result[0] as KeywordToken).span.fromLineNumber shouldBe 1u
             (result[0] as KeywordToken).span.fromColumnNumber shouldBe 4u
+            result[1] should beInstanceOf<EndOfInputToken>()
         }
 
         "should be case insensitive" {
@@ -61,7 +62,7 @@ class LexerTest : FreeSpec() {init {
     "newlines are semantic" {
         val result = lexCode("  \n  \n  \n", false)
 
-        result.size shouldBe 3
+        result.size shouldBe 4
         result[0] should beInstanceOf(OperatorToken::class)
         (result[0] as OperatorToken).operator shouldBe Operator.NEWLINE
 
@@ -73,7 +74,7 @@ class LexerTest : FreeSpec() {init {
         "single digit" {
             val result = lexCode("7", false)
 
-            result.size shouldBe 1
+            result.size shouldBe 2
             result[0] should beInstanceOf(NumericLiteralToken::class)
             (result[0] as NumericLiteralToken).stringContent shouldBe "7"
         }
@@ -81,7 +82,7 @@ class LexerTest : FreeSpec() {init {
         "multiple digit" {
             val result = lexCode("21498743", false)
 
-            result.size shouldBe 1
+            result.size shouldBe 2
             result[0] should beInstanceOf(NumericLiteralToken::class)
             (result[0] as NumericLiteralToken).stringContent shouldBe "21498743"
         }
@@ -91,7 +92,7 @@ class LexerTest : FreeSpec() {init {
         "simple decimal" {
             val result = lexCode("312.1232", false)
 
-            result.size shouldBe 1
+            result.size shouldBe 2
             result[0] should beInstanceOf(NumericLiteralToken::class)
             (result[0] as NumericLiteralToken).stringContent shouldBe "312.1232"
         }
@@ -122,7 +123,7 @@ class LexerTest : FreeSpec() {init {
         "identifier stops at space" {
             val result = lexCode("foo bar", false)
 
-            result.size shouldBe 2
+            result.size shouldBe 3
 
             result[0] should beInstanceOf(IdentifierToken::class)
             (result[0] as IdentifierToken).value shouldBe "foo"
@@ -134,7 +135,7 @@ class LexerTest : FreeSpec() {init {
         "identifier stops at operator" {
             val result = lexCode("baz*", false)
 
-            result.size shouldBe 2
+            result.size shouldBe 3
 
             result[0] should beInstanceOf(IdentifierToken::class)
             (result[0] as IdentifierToken).value shouldBe "baz"
@@ -146,7 +147,7 @@ class LexerTest : FreeSpec() {init {
         "identifier stops at newline" {
             val result = lexCode("cat\n", false)
 
-            result.size shouldBe 2
+            result.size shouldBe 3
 
             result[0] should beInstanceOf(IdentifierToken::class)
             (result[0] as IdentifierToken).value shouldBe "cat"
@@ -158,19 +159,23 @@ class LexerTest : FreeSpec() {init {
         "identifiers can include keywords" - {
             "beginning" {
                 val result = lexCode("asddd", addPackageDeclaration = false)
-                result.shouldBeSingleton().single().shouldBeInstanceOf<IdentifierToken>().value shouldBe "asddd"
+
+                result.size shouldBe 2
+                result[0].shouldBeInstanceOf<IdentifierToken>().value shouldBe "asddd"
             }
 
             "middle" {
                 val result = lexCode("basd", addPackageDeclaration = false)
 
-                result.shouldBeSingleton().single().shouldBeInstanceOf<IdentifierToken>().value shouldBe "basd"
+                result.size shouldBe 2
+                result[0].shouldBeInstanceOf<IdentifierToken>().value shouldBe "basd"
             }
 
             "ending" {
                 val result = lexCode("das", addPackageDeclaration = false)
 
-                result.shouldBeSingleton().single().shouldBeInstanceOf<IdentifierToken>().value shouldBe "das"
+                result.size shouldBe 2
+                result[0].shouldBeInstanceOf<IdentifierToken>().value shouldBe "das"
             }
         }
     }
@@ -181,7 +186,7 @@ class LexerTest : FreeSpec() {init {
         """.trimIndent()
         val tokens = lexCode(code, false)
 
-        tokens.size shouldBe 13
+        tokens.size shouldBe 14
         tokens[0].shouldBeInstanceOf<KeywordToken>().keyword shouldBe Keyword.FUNCTION
 
         tokens[1].shouldBeInstanceOf<OperatorToken>().let {
@@ -211,6 +216,8 @@ class LexerTest : FreeSpec() {init {
         tokens[10].shouldBeInstanceOf<OperatorToken>().operator shouldBe Operator.STRING_DELIMITER
         tokens[11].shouldBeInstanceOf<StringLiteralContentToken>().content shouldBe "\n \t"
         tokens[12].shouldBeInstanceOf<OperatorToken>().operator shouldBe Operator.STRING_DELIMITER
+
+        tokens[13] should beInstanceOf<EndOfInputToken>()
     }
 
     "combo test with code" {
@@ -218,7 +225,7 @@ class LexerTest : FreeSpec() {init {
             fn foobar(var x: S32 = 24) = return (142.12)?.toLong() == x
         """, false)
 
-        result.size shouldBe 25
+        result.size shouldBe 26
 
         result[0] should beInstanceOf(KeywordToken::class)
         (result[0] as KeywordToken).keyword shouldBe Keyword.PACKAGE
@@ -294,5 +301,7 @@ class LexerTest : FreeSpec() {init {
 
         result[24] should beInstanceOf(OperatorToken::class)
         (result[24] as OperatorToken).operator shouldBe Operator.NEWLINE
+
+        result[25] should beInstanceOf<EndOfInputToken>()
     }
 }}

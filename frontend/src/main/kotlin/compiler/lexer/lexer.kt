@@ -18,7 +18,11 @@
 
 package compiler.lexer
 
-fun lex(sourceFile: SourceFile): Array<Token> {
+/**
+ * @param addTrailingNewline if true, this function will make sure there is a trailing newline token in
+ * the result and that the very last token is an [EndOfInputToken].
+ */
+fun lex(sourceFile: SourceFile, addTrailingNewline: Boolean = true): Array<Token> {
     val iterator = PositionTrackingCodePointTransactionalSequence(sourceFile.content.codePoints().toArray())
     val tokens = ArrayList<Token>()
 
@@ -84,25 +88,28 @@ fun lex(sourceFile: SourceFile): Array<Token> {
         tokens.add(IdentifierToken(text.first, text.second))
     }
 
-    // this is not needed for lexing or parsing in general; but the grammar for the emerge language wants
-    // a newline at the end of the file, always
-    var lastToken = tokens.lastOrNull()
-    if (lastToken !is OperatorToken || lastToken.operator != Operator.NEWLINE) {
-        tokens.add(
-            OperatorToken(
-                Operator.NEWLINE,
-                lastToken!!.span.copy(
-                    fromLineNumber = lastToken.span.toLineNumber,
-                    fromColumnNumber = lastToken.span.toColumnNumber + 1u,
-                    toColumnNumber = lastToken.span.toColumnNumber + 1u,
+    if (addTrailingNewline) {
+        // this is not needed for lexing or parsing in general; but the grammar for the emerge language wants
+        // a newline at the end of the file, always
+        var lastToken = tokens.lastOrNull()
+        if (lastToken !is OperatorToken || lastToken.operator != Operator.NEWLINE) {
+            tokens.add(
+                OperatorToken(
+                    Operator.NEWLINE,
+                    lastToken!!.span.copy(
+                        fromLineNumber = lastToken.span.toLineNumber,
+                        fromColumnNumber = lastToken.span.toColumnNumber + 1u,
+                        toColumnNumber = lastToken.span.toColumnNumber + 1u,
+                    )
                 )
             )
-        )
+        }
+
+        lastToken = tokens.last()
     }
-    lastToken = tokens.last()
 
     // this is also not strictly needed for lexing, but enables parsing
-    tokens.add(EndOfInputToken(lastToken.span))
+    tokens.add(EndOfInputToken(tokens.last().span))
 
     return tokens.toTypedArray()
 }

@@ -37,7 +37,7 @@ fun lexCode(
     }
 
     val sourceFile = MemorySourceFile(invokedFrom.fileName!!, CanonicalElementName.Package(listOf("testmodule")), moduleCode)
-    return lex(sourceFile)
+    return lex(sourceFile, addTrailingNewline = addPackageDeclaration)
 }
 
 private val defaultModulesParsed: List<Pair<CanonicalElementName.Package, List<ASTSourceFile>>> by lazy {
