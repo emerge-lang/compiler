@@ -199,9 +199,7 @@ val UnaryExpression = sequence("unary expression") {
 val BracedCodeOrSingleStatement = eitherOf("curly braced code or single statement") {
     sequence {
         operator(Operator.CBRACE_OPEN)
-        optional {
-            ref(CodeChunk)
-        }
+        ref(CodeChunk)
         operator(Operator.CBRACE_CLOSE)
     }
     ref(Expression)
