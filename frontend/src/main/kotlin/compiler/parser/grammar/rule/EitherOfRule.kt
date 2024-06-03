@@ -1,5 +1,7 @@
 package compiler.parser.grammar.rule
 
+import compiler.lexer.Token
+
 class EitherOfRule(
     val options: List<Rule<Any>>,
     override val explicitName: String?
@@ -8,8 +10,9 @@ class EitherOfRule(
         require(options.isNotEmpty())
     }
 
-    override fun startMatching(continueWith: MatchingContinuation<Any>): OngoingMatch {
-        return BranchingOngoingMatch(options, continueWith, explicitName)
+    override fun match(tokens: Array<Token>, atIndex: Int): Sequence<MatchingResult<Any>> {
+        return options.asSequence()
+            .flatMap { choice -> choice.match(tokens, atIndex) }
     }
 
     override fun toString() = explicitName ?: super.toString()

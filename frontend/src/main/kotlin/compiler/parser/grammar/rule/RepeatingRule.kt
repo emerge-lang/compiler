@@ -1,60 +1,50 @@
 package compiler.parser.grammar.rule
 
+import compiler.lexer.Token
+
 class RepeatingRule<Item : Any>(
     val subRule: Rule<Item>,
-    val upperBound: Int,
+    val atLeastOnce: Boolean,
+    val upperBound: UInt,
 ) : Rule<RepeatingRule.RepeatedMatch<Item>> {
-    init {
-        require(upperBound >= 0)
-    }
-
     override val explicitName: String? get() {
         if (subRule.explicitName == null) {
             return null
         }
-        val upperBoundStr = if (upperBound == Int.MAX_VALUE) "*" else upperBound.toString()
-        return "0..$upperBoundStr ${subRule.explicitName}"
+        val lowerBoundStr = if (atLeastOnce) "1" else "0"
+        val upperBoundStr = if (upperBound == UInt.MAX_VALUE) "*" else upperBound.toString()
+        return "$lowerBoundStr..$upperBoundStr ${subRule.explicitName}"
     }
 
     override fun toString() = explicitName ?: "Repeating($subRule)"
 
-    override fun startMatching(continueWith: MatchingContinuation<RepeatedMatch<Item>>): OngoingMatch {
-        return BranchingOngoingMatch(
-            listOf(
-                RepeaterRule(emptyList()),
-                NoopRule(MatchingResult(RepeatedMatch.empty(), emptySet())),
-            ),
-            continueWith
-        )
-    }
-
-    private inner class RepeaterRule(
-        val resultsThusFar: List<MatchingResult<Item>>,
-    ) : Rule<RepeatedMatch<Item>> {
-        override val explicitName get() = this@RepeatingRule.explicitName
-
-        override fun startMatching(continueWith: MatchingContinuation<RepeatedMatch<Item>>): OngoingMatch {
-            return subRule.startMatching(object : MatchingContinuation<Item> {
-                override fun resume(result: MatchingResult<Item>): OngoingMatch {
-                    val partialResultList = resultsThusFar + result
-                    val partialResult = MatchingResult(RepeatedMatch(partialResultList), partialResultList.flatMap { it.reportings })
-                    if (result.hasErrors || partialResultList.size >= this@RepeatingRule.upperBound) {
-                        return continueWith.resume(partialResult)
-                    }
-
-                    return BranchingOngoingMatch(
-                        listOf(
-                            RepeaterRule(partialResultList),
-                            NoopRule(partialResult),
-                        ),
-                        continueWith
-                    )
-                }
-            })
+    override fun match(tokens: Array<Token>, atIndex: Int): Sequence<MatchingResult<RepeatedMatch<Item>>> {
+        return sequence {
+            if (!atLeastOnce) {
+                yield(MatchingResult.Success(RepeatedMatch(emptyList()), atIndex))
+            }
+            yieldAll(match(tokens, atIndex, emptyList()))
         }
     }
 
-    class RepeatedMatch<Item : Any>(val matches: List<MatchingResult<Item>>) {
+    private fun match(tokens: Array<Token>, atIndex: Int, resultsThusFar: List<Item>): Sequence<MatchingResult<RepeatedMatch<Item>>> {
+        return subRule.match(tokens, atIndex)
+            .flatMap { subOption ->
+                if (subOption is MatchingResult.Error) {
+                    sequenceOf(subOption)
+                } else {
+                    subOption as MatchingResult.Success<Item>
+                    val newResults = resultsThusFar + subOption.item
+                    val thisResultSequence = sequenceOf(MatchingResult.Success(RepeatedMatch(newResults), subOption.continueAtIndex))
+                    val furtherResults = if (newResults.size.toUInt() >= upperBound) emptySequence() else {
+                        match(tokens, subOption.continueAtIndex, resultsThusFar + listOf(subOption.item))
+                    }
+                    thisResultSequence + furtherResults
+                }
+            }
+    }
+
+    class RepeatedMatch<Item : Any>(val matches: List<Item>) {
         companion object {
             private val empty: RepeatedMatch<Any> = RepeatedMatch(emptyList())
 

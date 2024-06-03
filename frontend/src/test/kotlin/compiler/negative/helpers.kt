@@ -9,6 +9,7 @@ import compiler.lexer.SourceSet
 import compiler.lexer.Token
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
+import compiler.parser.grammar.rule.MatchingResult
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
@@ -25,7 +26,7 @@ fun lexCode(
     code: String,
     addPackageDeclaration: Boolean = true,
     invokedFrom: StackTraceElement = Thread.currentThread().stackTrace[2],
-): List<Token> {
+): Array<Token> {
     val moduleCode = if (addPackageDeclaration) {
         require(invokedFrom.lineNumber > 1) {
             "Test code is declared at line 1, cannot both add a module declaration AND keep the source line numbers in sync"
@@ -50,12 +51,12 @@ private val defaultModulesParsed: List<Pair<CanonicalElementName.Package, List<A
                     val tokens = lex(it)
                     SourceFileRule.match(tokens, tokens.first().span.sourceFile)
                 }
-                .partition { it.hasErrors }
-                .let { (withErrors, withoutErrors) ->
-                    require(withErrors.isEmpty()) { "default module ${module.moduleName} has errors: ${withErrors.flatMap { it.reportings }.first { it.level >= Reporting.Level.ERROR}}" }
-                    withoutErrors
+                .partition { it is MatchingResult.Error }
+                .let { (errors, successes) ->
+                    require(errors.isEmpty()) { "default module ${module.moduleName} has errors: ${errors.map { (it as MatchingResult.Error).reporting }}" }
+                    successes as List<MatchingResult.Success<ASTSourceFile>>
                 }
-                .mapNotNull { it.item }
+                .map { it.item }
 
             module.moduleName to sourceFiles
         }
@@ -64,7 +65,7 @@ private val defaultModulesParsed: List<Pair<CanonicalElementName.Package, List<A
 
 class IntegrationTestModule(
     val moduleName: CanonicalElementName.Package,
-    val tokens: List<Token>,
+    val tokens: Array<Token>,
 ) {
     companion object {
         /**
@@ -107,16 +108,14 @@ fun emptySoftwareContext(validate: Boolean = true): SoftwareContext {
 fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext, Collection<Reporting>> {
     val swCtxt = emptySoftwareContext(false)
 
-    val lexicalReportings = mutableListOf<Reporting>()
     modules.forEach { module ->
         val lexerSourceFile = module.tokens.first().span.sourceFile
         val result = SourceFileRule.match(module.tokens, lexerSourceFile)
-        if (result.item == null) {
-            val error = result.reportings.maxBy { it.level }
-            throw AssertionError("Failed to parse code: ${error.message} in ${error.span}")
+        if (result is MatchingResult.Error) {
+            throw AssertionError("Failed to parse code: ${result.reporting}")
         }
-        lexicalReportings.addAll(result.reportings)
-        val sourceFile = result.item!!
+        result as MatchingResult.Success<ASTSourceFile>
+        val sourceFile = result.item
         val nTopLevelDeclarations = sourceFile.functions.size + sourceFile.baseTypes.size + sourceFile.variables.size
         check(nTopLevelDeclarations > 0) { "Found no top-level declarations in the test source of module ${module.moduleName}. Very likely a parsing bug." }
 
@@ -126,7 +125,7 @@ fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext
     val semanticReportings = swCtxt.doSemanticAnalysis()
     return Pair(
         swCtxt,
-        (lexicalReportings + semanticReportings).toSet(),
+        semanticReportings.toSet(),
     )
 }
 

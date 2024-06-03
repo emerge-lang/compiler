@@ -20,14 +20,11 @@
 package compiler.parser.grammar.dsl
 
 import compiler.lexer.EndOfInputToken
-import compiler.parser.grammar.rule.MatchingContinuation
+import compiler.lexer.Token
 import compiler.parser.grammar.rule.MatchingResult
-import compiler.parser.grammar.rule.OngoingMatch
 import compiler.parser.grammar.rule.RepeatingRule
 import compiler.parser.grammar.rule.Rule
 import compiler.parser.grammar.rule.SequenceRule
-import compiler.reportings.ParsingMismatchReporting
-import compiler.reportings.Reporting
 import compiler.transact.Position
 import compiler.transact.SimpleTransactionalSequence
 import compiler.transact.TransactionalSequence
@@ -49,27 +46,19 @@ fun <AstNode : Any> Rule<*>.astTransformation(trimWhitespace: Boolean = false, t
 fun <Base : Any, Mapped : Any> Rule<Base>.map(mapper: (MatchingResult<Base>) -> MatchingResult<Mapped>): Rule<Mapped> {
     return object: Rule<Mapped> {
         override val explicitName get() = this@map.explicitName
-        override fun startMatching(continueWith: MatchingContinuation<Mapped>): OngoingMatch = this@map.startMatching(MappingContinuation(continueWith, mapper))
+        override fun match(tokens: Array<Token>, atIndex: Int): Sequence<MatchingResult<Mapped>> {
+            return this@map.match(tokens, atIndex).map(mapper)
+        }
     }
 }
-
-private class MappingContinuation<Base : Any, Mapped : Any>(
-    val mappedContinuation: MatchingContinuation<Mapped>,
-    val mapper: (MatchingResult<Base>) -> MatchingResult<Mapped>,
-) : MatchingContinuation<Base> {
-    override fun resume(result: MatchingResult<Base>): OngoingMatch {
-        return mappedContinuation.resume(mapper(result))
-    }
-}
-
 /**
  * Like map, but requires the mapper to act on the results only
  */
-fun <B : Any, A : Any> Rule<B>.mapResult(mapper: (B) -> A): Rule<A> = map { it ->
-    MatchingResult(
-        item = it.item?.let(mapper),
-        reportings = it.reportings,
-    )
+fun <B : Any, A : Any> Rule<B>.mapResult(mapper: (B) -> A): Rule<A> = map {
+    when (it) {
+        is MatchingResult.Success -> MatchingResult.Success(mapper(it.item), it.continueAtIndex)
+        is MatchingResult.Error -> it
+    }
 }
 
 /**
@@ -77,33 +66,23 @@ fun <B : Any, A : Any> Rule<B>.mapResult(mapper: (B) -> A): Rule<A> = map { it -
  * Also, collects all the reportings into one flat structure
  */
 fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
-    return map { base ->
-        if (base.item == null) {
-            @Suppress("UNCHECKED_CAST")
-            return@map base as MatchingResult<TransactionalSequence<Any, Position>>
-        }
-
+    return mapResult { base ->
         val itemBucket: MutableList<Any> = LinkedList()
-        val reportingsBucket: MutableSet<ParsingMismatchReporting> = HashSet()
 
-        fun collectFrom(result: MatchingResult<*>) {
-            reportingsBucket.addAll(result.reportings)
-            when (result.item) {
-                is TransactionalSequence<*, *> -> itemBucket.addAll(result.item.remainingToList().filterNotNull())
-                is SequenceRule.MatchedSequence -> result.item.subResults.forEach(::collectFrom)
-                is RepeatingRule.RepeatedMatch<*> -> result.item.matches.forEach(::collectFrom)
+        fun collectFrom(result: Any) {
+            when (result) {
+                is TransactionalSequence<*, *> -> itemBucket.addAll(result.remainingToList().filterNotNull())
+                is SequenceRule.MatchedSequence -> result.subResults.forEach(::collectFrom)
+                is RepeatingRule.RepeatedMatch<*> -> result.matches.forEach(::collectFrom)
                 is EndOfInputToken -> {}
                 Unit -> {}
-                else -> result.item?.let(itemBucket::add)
+                else -> itemBucket.add(result)
             }
         }
 
         collectFrom(base)
 
-        return@map MatchingResult(
-            item = SimpleTransactionalSequence(itemBucket),
-            reportings = reportingsBucket,
-        )
+        SimpleTransactionalSequence(itemBucket)
     }
 }
 
@@ -118,30 +97,5 @@ fun <T> Rule<TransactionalSequence<T, Position>>.trimWhitespaceTokens(front: Boo
         if (back) tokenList.dropLastWhile(isWhitespace)
 
         return@mapResult SimpleTransactionalSequence(tokenList)
-    }
-}
-
-/**
- * Operates on all [MatchingResult]s emitted by the receiver rule.
- * Runs all [Reporting]s of the receiver that have a level of [Reporting.Level.ERROR] or higher and are matched by the
- * given `predicate` through the `enhance` function; the [Reporting]s passed into `enhance` are not returned.
- */
-fun <T : Any> Rule<T>.enhanceErrors(predicate: (ParsingMismatchReporting) -> Boolean, enhance: (ParsingMismatchReporting) -> ParsingMismatchReporting): Rule<T> {
-
-    val enhancerMapper: (ParsingMismatchReporting) -> ParsingMismatchReporting = { reporting ->
-        if (reporting.level >= Reporting.Level.ERROR && predicate(reporting))
-            enhance(reporting)
-        else reporting
-    }
-
-    return map { baseResult ->
-        if (baseResult.reportings.isEmpty()) {
-            return@map baseResult
-        }
-
-        return@map MatchingResult(
-            item = baseResult.item,
-            reportings = baseResult.reportings.map(enhancerMapper).toSet()
-        )
     }
 }

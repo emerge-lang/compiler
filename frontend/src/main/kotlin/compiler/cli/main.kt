@@ -14,6 +14,7 @@ import compiler.binding.context.SoftwareContext
 import compiler.lexer.SourceSet
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
+import compiler.parser.grammar.rule.MatchingResult
 import compiler.reportings.ModuleWithoutSourcesReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
@@ -70,12 +71,14 @@ object CompileCommand : CliktCommand() {
                     }
                 }
                 .map { SourceFileRule.match(lex(it), it) }
-                .forEach {
-                    it.reportings
-                        .filter { it.level > Reporting.Level.CONSECUTIVE }
-                        .forEach(this::echo)
-                    anyParseErrors = anyParseErrors || it.reportings.containsErrors
-                    it.item?.let(moduleContext::addSourceFile)
+                .forEach { fileResult ->
+                    when (fileResult) {
+                        is MatchingResult.Success -> moduleContext.addSourceFile(fileResult.item)
+                        is MatchingResult.Error -> {
+                            this.echo(fileResult.reporting)
+                            anyParseErrors = true
+                        }
+                    }
                 }
         }
 

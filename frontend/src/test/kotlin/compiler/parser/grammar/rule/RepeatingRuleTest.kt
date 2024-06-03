@@ -1,17 +1,14 @@
 package compiler.compiler.parser.grammar.rule
 
+import compiler.compiler.MockEOIToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.parser.grammar.dsl.flatten
 import compiler.parser.grammar.dsl.mapResult
 import compiler.parser.grammar.dsl.sequence
-import compiler.parser.grammar.rule.FirstMatchCompletion
-import compiler.reportings.ParsingMismatchReporting
+import compiler.parser.grammar.rule.MatchingResult
+import compiler.parser.grammar.rule.matchAgainst
 import io.kotest.core.spec.style.FreeSpec
-import io.kotest.inspectors.forOne
-import io.kotest.matchers.collections.beEmpty
-import io.kotest.matchers.collections.haveSize
-import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
@@ -25,39 +22,35 @@ class RepeatingRuleTest : FreeSpec({
         }.flatten().mapResult { it.remainingToList() }
 
         "accepts zero matches" {
-            val completion = FirstMatchCompletion<Any>()
-            val matcher = grammar.startMatching(completion)
-            matcher.step(KeywordToken(Keyword.EXPORT)) shouldBe true
+            val result = matchAgainst(arrayOf(KeywordToken(Keyword.EXPORT)), grammar)
 
-            completion.result.reportings should beEmpty()
-            completion.result.item shouldBe listOf(KeywordToken(Keyword.EXPORT))
+            result.shouldBeInstanceOf<MatchingResult.Success<List<Any>>>()
+            result.item shouldBe listOf(KeywordToken(Keyword.EXPORT))
         }
 
         "accepts one match" {
-            val completion = FirstMatchCompletion<Any>()
-            val matcher = grammar.startMatching(completion)
-            matcher.step(KeywordToken(Keyword.IF)) shouldBe true
-            matcher.step(KeywordToken(Keyword.EXPORT)) shouldBe true
+            val result = matchAgainst(arrayOf(
+                KeywordToken(Keyword.IF),
+                KeywordToken(Keyword.EXPORT),
+            ), grammar)
 
-            completion.result.reportings should beEmpty()
-            completion.result.item shouldBe listOf(
+            result.shouldBeInstanceOf<MatchingResult.Success<List<Any>>>()
+            result.item shouldBe listOf(
                 KeywordToken(Keyword.IF),
                 KeywordToken(Keyword.EXPORT),
             )
         }
 
         "accepts four matches" {
-            val completion = FirstMatchCompletion<Any>()
-            val matcher = grammar.startMatching(completion)
-            matcher.step(KeywordToken(Keyword.IF)) shouldBe true
-            matcher.step(KeywordToken(Keyword.IF)) shouldBe true
-            matcher.step(KeywordToken(Keyword.IF)) shouldBe true
-            matcher.step(KeywordToken(Keyword.IF)) shouldBe true
-            matcher.step(KeywordToken(Keyword.EXPORT)) shouldBe true
-
-            completion.result.reportings should beEmpty()
-            completion.result.item shouldBe listOf(
+            val result = matchAgainst(arrayOf(
                 KeywordToken(Keyword.IF),
+                KeywordToken(Keyword.IF),
+                KeywordToken(Keyword.IF),
+                KeywordToken(Keyword.EXPORT),
+            ), grammar)
+
+            result.shouldBeInstanceOf<MatchingResult.Success<List<Any>>>()
+            result.item shouldBe listOf(
                 KeywordToken(Keyword.IF),
                 KeywordToken(Keyword.IF),
                 KeywordToken(Keyword.IF),
@@ -75,22 +68,20 @@ class RepeatingRuleTest : FreeSpec({
         }.flatten().mapResult { it.remainingToList() }
 
         "accepts zero matches" {
-            val completion = FirstMatchCompletion<Any>()
-            val matcher = grammar.startMatching(completion)
-            matcher.step(KeywordToken(Keyword.EXPORT)) shouldBe true
+            val result = matchAgainst(arrayOf(KeywordToken(Keyword.EXPORT)), grammar)
 
-            completion.result.reportings should beEmpty()
-            completion.result.item shouldBe listOf(KeywordToken(Keyword.EXPORT))
+            result.shouldBeInstanceOf<MatchingResult.Success<List<Any>>>()
+            result.item shouldBe listOf(KeywordToken(Keyword.EXPORT))
         }
 
         "accepts one match" {
-            val completion = FirstMatchCompletion<Any>()
-            val matcher = grammar.startMatching(completion)
-            matcher.step(KeywordToken(Keyword.IF)) shouldBe true
-            matcher.step(KeywordToken(Keyword.EXPORT)) shouldBe true
+            val result = matchAgainst(arrayOf(
+                KeywordToken(Keyword.IF),
+                KeywordToken(Keyword.EXPORT),
+            ), grammar)
 
-            completion.result.reportings should beEmpty()
-            completion.result.item shouldBe listOf(
+            result.shouldBeInstanceOf<MatchingResult.Success<List<Any>>>()
+            result.item shouldBe listOf(
                 KeywordToken(Keyword.IF),
                 KeywordToken(Keyword.EXPORT),
             )
@@ -103,19 +94,15 @@ class RepeatingRuleTest : FreeSpec({
                 }
                 keyword(Keyword.EXPORT)
             }.flatten().mapResult { it.remainingToList() }
-            val completion = FirstMatchCompletion<Any>()
-            val matcher = grammar.startMatching(completion)
-            matcher.step(KeywordToken(Keyword.IF)) shouldBe true
-            matcher.step(KeywordToken(Keyword.IF)) shouldBe false
 
-            completion.result.item shouldBe null
-            completion.result.reportings should haveSize(1)
-            completion.result.reportings.forOne {
-                it.shouldBeInstanceOf<ParsingMismatchReporting>().also {
-                    it.expectedAlternatives shouldBe listOf("keyword export")
-                    it.actual shouldBe KeywordToken(Keyword.IF)
-                }
-            }
+            val result = matchAgainst(arrayOf(
+                KeywordToken(Keyword.IF),
+                KeywordToken(Keyword.IF),
+                MockEOIToken,
+            ), grammar)
+            result.shouldBeInstanceOf<MatchingResult.Error>()
+            result.reporting.expectedAlternatives shouldBe listOf("keyword export")
+            result.reporting.actual shouldBe KeywordToken(Keyword.IF)
         }
     }
 })

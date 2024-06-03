@@ -33,7 +33,6 @@ import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
-import compiler.parser.grammar.dsl.isolateCyclicGrammar
 import compiler.parser.grammar.dsl.mapResult
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.grammar.rule.Rule
@@ -168,7 +167,6 @@ val Type: Rule<TypeReference> = sequence("type") {
 
     // TODO: function types
 }
-    .isolateCyclicGrammar
     .astTransformation { tokens ->
         val nameOrModifier = tokens.next()!!
 

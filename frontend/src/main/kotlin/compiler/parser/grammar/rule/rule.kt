@@ -18,61 +18,60 @@
 
 package compiler.parser.grammar.rule
 
-import compiler.lexer.EndOfInputToken
-import compiler.lexer.Operator
-import compiler.lexer.OperatorToken
+import compiler.InternalCompilerError
 import compiler.lexer.Token
+import compiler.reportings.ParsingMismatchReporting
+
+sealed interface MatchingResult<out Item : Any> {
+    class Success<out Item : Any>(val item: Item, val continueAtIndex: Int) : MatchingResult<Item>
+    class Error(val reporting: ParsingMismatchReporting) : MatchingResult<Nothing>
+}
 
 interface Rule<out Item : Any> {
     val explicitName: String?
 
-    fun startMatching(continueWith: MatchingContinuation<Item>): OngoingMatch
-
-    fun match(tokens: List<Token>): MatchingResult<Item> {
-        require(tokens.isNotEmpty()) { "Cannot match an empty token sequence" }
-        val completion = FirstMatchCompletion<Item>()
-        val ongoing = startMatching(completion)
-        var previousAccepted = true
-        lateinit var previous: Token
-        for (token in tokens) {
-            previous = token
-            previousAccepted = ongoing.step(token)
-            if (!previousAccepted) {
-                break
-            }
-        }
-
-        if (previousAccepted) {
-            val eoiLocation = previous.span.copy(
-                fromLineNumber = previous.span.toLineNumber,
-                fromColumnNumber = previous.span.toColumnNumber + 1u,
-                toLineNumber = previous.span.toLineNumber,
-                toColumnNumber = previous.span.toColumnNumber + 1u,
-            )
-            // the parsing algorithm always wants a newline at the end of the file, otherwise it complains about
-            // unexpected EOI
-            if (previous !is OperatorToken || previous.operator != Operator.NEWLINE) {
-                ongoing.step(OperatorToken(Operator.NEWLINE, eoiLocation))
-            }
-            ongoing.step(EndOfInputToken(eoiLocation))
-        }
-
-        return completion.result
-    }
+    /*
+    optimization potential: whenever there is a branch, a flatMap on the Sequence is required. This involves a bunch
+    of heap allocations and uses stack frames. Instead, have this matching function suspend and have a receiver
+    of type SequenceScope<MatchingResult>. The matching function would then just yield() to the SequenceScope, making
+    that flatMap more efficient.
+     */
+    fun match(tokens: Array<Token>, atIndex: Int): Sequence<MatchingResult<Item>>
 }
 
-interface MatchingContinuation<in Item : Any> {
-    fun resume(result: MatchingResult<Item>): OngoingMatch
+fun <Item : Any> matchAgainst(tokens: Array<Token>, rule: Rule<Item>): MatchingResult<Item> {
+    require(tokens.isNotEmpty()) { "Cannot match an empty token sequence" }
+    var reporting: ParsingMismatchReporting? = null
+    for (resultOption in rule.match(tokens, 0)) {
+        when (resultOption) {
+            is MatchingResult.Success -> return resultOption
+            is MatchingResult.Error -> reporting = if (reporting == null) {
+                resultOption.reporting
+            } else {
+                reduceCombineParseError(
+                    reporting,
+                    resultOption.reporting
+                )
+            }
+        }
+    }
 
+    reporting ?: throw InternalCompilerError("No options from rule")
+    return MatchingResult.Error(reporting)
 }
 
-/**
- * The state machine of matching a rule against a stream of tokens. Consumes one token at a time.
- */
-interface OngoingMatch {
-    fun step(token: Token): Boolean
+private val parseErrorComparator: Comparator<ParsingMismatchReporting> =
+    compareBy<ParsingMismatchReporting> { it.level }
+        .thenBy { it.span.fromLineNumber }
+        .thenBy { it.span.fromColumnNumber }
 
-    object Completed : OngoingMatch {
-        override fun step(token: Token) = false
+internal fun reduceCombineParseError(a: ParsingMismatchReporting, b: ParsingMismatchReporting): ParsingMismatchReporting {
+    val comparison = parseErrorComparator.compare(a, b)
+    when {
+        comparison > 0 -> return a
+        comparison < 0 -> return b
     }
+
+    // same location and severity
+    return ParsingMismatchReporting((a.expectedAlternatives + b.expectedAlternatives).toSet(), a.actual)
 }

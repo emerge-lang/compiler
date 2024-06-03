@@ -18,7 +18,7 @@
 
 package compiler.lexer
 
-fun lex(sourceFile: SourceFile): List<Token> {
+fun lex(sourceFile: SourceFile): Array<Token> {
     val iterator = PositionTrackingCodePointTransactionalSequence(sourceFile.content.codePoints().toArray())
     val tokens = ArrayList<Token>()
 
@@ -84,7 +84,27 @@ fun lex(sourceFile: SourceFile): List<Token> {
         tokens.add(IdentifierToken(text.first, text.second))
     }
 
-    return tokens
+    // this is not needed for lexing or parsing in general; but the grammar for the emerge language wants
+    // a newline at the end of the file, always
+    var lastToken = tokens.lastOrNull()
+    if (lastToken !is OperatorToken || lastToken.operator != Operator.NEWLINE) {
+        tokens.add(
+            OperatorToken(
+                Operator.NEWLINE,
+                lastToken!!.span.copy(
+                    fromLineNumber = lastToken.span.toLineNumber,
+                    fromColumnNumber = lastToken.span.toColumnNumber + 1u,
+                    toColumnNumber = lastToken.span.toColumnNumber + 1u,
+                )
+            )
+        )
+    }
+    lastToken = tokens.last()
+
+    // this is also not strictly needed for lexing, but enables parsing
+    tokens.add(EndOfInputToken(lastToken.span))
+
+    return tokens.toTypedArray()
 }
 
 private fun PositionTrackingCodePointTransactionalSequence.skipWhitespace() {

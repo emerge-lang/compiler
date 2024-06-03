@@ -52,7 +52,6 @@ import compiler.parser.MemberAccessExpressionPostfix
 import compiler.parser.NotNullExpressionPostfix
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
-import compiler.parser.grammar.dsl.isolateCyclicGrammar
 import compiler.parser.grammar.dsl.mapResult
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.grammar.rule.Rule
@@ -73,7 +72,6 @@ val Expression: Rule<AstExpression> = sequence("expression") {
         ref(ExpressionPostfix)
     }
 }
-    .isolateCyclicGrammar
     .astTransformation(false, ::astTransformOneExpressionWithOptionalPostfixes)
 
 val ExpressionExcludingBinaryPostfix = sequence("expression (excluding binary expressions)") {

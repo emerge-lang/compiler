@@ -1,5 +1,6 @@
 package compiler.parser.grammar.rule
 
+import compiler.InternalCompilerError
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.Token
@@ -16,34 +17,23 @@ abstract class SingleTokenRule<Item : Token>(
 ) : Rule<Item> {
     override fun toString() = explicitName
 
-    override fun startMatching(continueWith: MatchingContinuation<Item>): OngoingMatch = MatchImpl(continueWith)
-
-    private inner class MatchImpl(
-        val continueWith: MatchingContinuation<Item>
-    ) : OngoingMatch {
-        override fun toString() = "SingleTokenRule\$MatchImpl[${this@SingleTokenRule.explicitName}]"
-
-        private lateinit var nextMatch: OngoingMatch
-
-        override fun step(token: Token): Boolean {
-            if (this::nextMatch.isInitialized) {
-                return nextMatch.step(token)
+    override fun match(tokens: Array<Token>, atIndex: Int): Sequence<MatchingResult<Item>> {
+        return sequence {
+            for (index in atIndex..tokens.lastIndex) {
+                val token = tokens[index]
+                val filteredToken = filterAndCast(token)
+                if (filteredToken != null) {
+                    yield(MatchingResult.Success(filteredToken, index + 1))
+                    return@sequence
+                }
+                if (canIgnore(token)) {
+                    continue
+                }
+                yield(MatchingResult.Error(Reporting.parsingMismatch(explicitName, token)))
+                return@sequence
             }
 
-            val filteredToken = filterAndCast(token)
-            val result: MatchingResult<Item>
-            val consumed: Boolean
-            if (filteredToken != null) {
-                result = MatchingResult(filteredToken, emptySet())
-                consumed = true
-            } else if (canIgnore(token)) {
-                return true
-            } else {
-                result = MatchingResult(null, setOf(Reporting.parsingMismatch(this@SingleTokenRule.explicitName, token)))
-                consumed = false
-            }
-            nextMatch = continueWith.resume(result)
-            return consumed
+            throw InternalCompilerError("This should never happen as there is always an EOI token at the end of the token stream.")
         }
     }
 

@@ -11,18 +11,21 @@ import compiler.lexer.Span
 import compiler.lexer.Token
 import compiler.parser.grammar.SourceFileGrammar
 import compiler.parser.grammar.rule.MatchingResult
+import compiler.parser.grammar.rule.matchAgainst
 import compiler.reportings.Reporting
 import compiler.lexer.SourceFile as LexerSourceFile
 
 object SourceFileRule {
-    fun match(tokens: List<Token>, lexerFile: LexerSourceFile): MatchingResult<ASTSourceFile> {
-        val inResult = SourceFileGrammar.match(tokens)
-        @Suppress("UNCHECKED_CAST")
-        val input = inResult.item ?: return inResult as MatchingResult<ASTSourceFile> // null can haz any type that i want :)
+    fun match(tokens: Array<Token>, lexerFile: LexerSourceFile): MatchingResult<ASTSourceFile> {
+        val inResult = matchAgainst(tokens, SourceFileGrammar)
+        if (inResult is MatchingResult.Error) {
+            return inResult
+        }
+        inResult as MatchingResult.Success
 
         val astSourceFile = ASTSourceFile(lexerFile)
 
-        input.forEachRemainingIndexed { index, declaration ->
+        inResult.item.forEachRemainingIndexed { index, declaration ->
             check(declaration is AstFileLevelDeclaration)
 
             if (declaration is ASTPackageDeclaration) {
@@ -69,13 +72,10 @@ object SourceFileRule {
         if (astSourceFile.selfDeclaration == null) {
             astSourceFile.addParseTimeReporting(Reporting.parsingError(
                 "No package declaration found.",
-                (input.items.getOrNull(0) as AstFileLevelDeclaration?)?.declaredAt ?: Span.UNKNOWN
+                (inResult.item.items.getOrNull(0) as AstFileLevelDeclaration?)?.declaredAt ?: Span.UNKNOWN
             ))
         }
 
-        return MatchingResult(
-            item = astSourceFile,
-            reportings = inResult.reportings,
-        )
+        return MatchingResult.Success(astSourceFile, inResult.continueAtIndex)
     }
 }

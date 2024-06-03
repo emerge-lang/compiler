@@ -1,20 +1,18 @@
 package compiler.compiler.parser.grammar.rule
 
-import compiler.lexer.EndOfInputToken
+import compiler.compiler.MockEOIToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.flatten
 import compiler.parser.grammar.dsl.sequence
-import compiler.parser.grammar.rule.FirstMatchCompletion
+import compiler.parser.grammar.rule.MatchingResult
+import compiler.parser.grammar.rule.matchAgainst
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forAll
-import io.kotest.matchers.collections.beEmpty
-import io.kotest.matchers.collections.haveSize
-import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
-import io.mockk.mockk
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class EitherOfRuleTest : FreeSpec({
     "minimal" - {
@@ -23,12 +21,11 @@ class EitherOfRuleTest : FreeSpec({
                 keyword(Keyword.INTRINSIC)
                 keyword(Keyword.OPERATOR)
             }
-            val completion = FirstMatchCompletion<Any>()
-            val matcher = grammar.startMatching(completion)
-            matcher.step(KeywordToken(Keyword.INTRINSIC)) shouldBe true
 
-            completion.result.reportings should beEmpty()
-            completion.result.item shouldBe KeywordToken(Keyword.INTRINSIC)
+            val result = matchAgainst(arrayOf(KeywordToken(Keyword.INTRINSIC)), grammar)
+
+            result.shouldBeInstanceOf<MatchingResult.Success<Any>>()
+            result.item shouldBe KeywordToken(Keyword.INTRINSIC)
         }
 
         "second" {
@@ -36,12 +33,11 @@ class EitherOfRuleTest : FreeSpec({
                 keyword(Keyword.INTRINSIC)
                 keyword(Keyword.OPERATOR)
             }
-            val completion = FirstMatchCompletion<Any>()
-            val matcher = grammar.startMatching(completion)
-            matcher.step(KeywordToken(Keyword.OPERATOR)) shouldBe true
 
-            completion.result.reportings should beEmpty()
-            completion.result.item shouldBe KeywordToken(Keyword.OPERATOR)
+            val result = matchAgainst(arrayOf(KeywordToken(Keyword.OPERATOR)), grammar)
+
+            result.shouldBeInstanceOf<MatchingResult.Success<Any>>()
+            result.item shouldBe KeywordToken(Keyword.OPERATOR)
         }
     }
 
@@ -57,12 +53,10 @@ class EitherOfRuleTest : FreeSpec({
             }
         }.flatten().astTransformation { it.remainingToList() }
 
-        val completion = FirstMatchCompletion<Any>()
-        val match = grammar.startMatching(completion)
-        match.step(KeywordToken(Keyword.IF)) shouldBe true
-        match.step(KeywordToken(Keyword.ELSE)) shouldBe true
+        val result = matchAgainst(arrayOf(KeywordToken(Keyword.IF), KeywordToken(Keyword.ELSE)), grammar)
 
-        completion.result.item shouldBe listOf(
+        result.shouldBeInstanceOf<MatchingResult.Success<List<Any>>>()
+        result.item shouldBe listOf(
             KeywordToken(Keyword.IF),
             KeywordToken(Keyword.ELSE),
         )
@@ -81,12 +75,10 @@ class EitherOfRuleTest : FreeSpec({
             }
         }.flatten().astTransformation { it.remainingToList() }
 
-        val completion = FirstMatchCompletion<Any>()
-        val match = grammar.startMatching(completion)
-        match.step(KeywordToken(Keyword.IF)) shouldBe true
-        match.step(KeywordToken(Keyword.ELSE)) shouldBe true
+        val result = matchAgainst(arrayOf(KeywordToken(Keyword.IF), KeywordToken(Keyword.ELSE), MockEOIToken), grammar)
 
-        completion.result.item shouldBe listOf(
+        result.shouldBeInstanceOf<MatchingResult.Success<List<Any>>>()
+        result.item shouldBe listOf(
             KeywordToken(Keyword.IF),
             KeywordToken(Keyword.ELSE),
         )
@@ -105,13 +97,14 @@ class EitherOfRuleTest : FreeSpec({
             }
         }.flatten().astTransformation { it.remainingToList() }
 
-        val completion = FirstMatchCompletion<Any>()
-        val match = grammar.startMatching(completion)
-        match.step(KeywordToken(Keyword.IF))
-        match.step(KeywordToken(Keyword.EXPORT))
-        match.step(KeywordToken(Keyword.CLASS_DEFINITION))
+        val result = matchAgainst(arrayOf(
+            KeywordToken(Keyword.IF),
+            KeywordToken(Keyword.EXPORT),
+            KeywordToken(Keyword.CLASS_DEFINITION),
+        ), grammar)
 
-        completion.result.item shouldBe listOf(
+        result.shouldBeInstanceOf<MatchingResult.Success<List<Any>>>()
+        result.item shouldBe listOf(
             KeywordToken(Keyword.IF),
             KeywordToken(Keyword.EXPORT),
             KeywordToken(Keyword.CLASS_DEFINITION),
@@ -134,14 +127,15 @@ class EitherOfRuleTest : FreeSpec({
             endOfInput()
         }.flatten().astTransformation { it.remainingToList() }
 
-        val completion = FirstMatchCompletion<Any>()
-        val match = grammar.startMatching(completion)
-        match.step(KeywordToken(Keyword.IF)) shouldBe true
-        match.step(KeywordToken(Keyword.ELSE)) shouldBe true
-        match.step(KeywordToken(Keyword.CLASS_DEFINITION)) shouldBe true
-        match.step(EndOfInputToken(mockk())) shouldBe true
+        val result = matchAgainst(arrayOf(
+            KeywordToken(Keyword.IF),
+            KeywordToken(Keyword.ELSE),
+            KeywordToken(Keyword.CLASS_DEFINITION),
+            MockEOIToken,
+        ), grammar)
 
-        completion.result.item shouldBe listOf(
+        result.shouldBeInstanceOf<MatchingResult.Success<List<Any>>>()
+        result.item shouldBe listOf(
             KeywordToken(Keyword.IF),
             KeywordToken(Keyword.ELSE),
             KeywordToken(Keyword.CLASS_DEFINITION),
@@ -154,14 +148,9 @@ class EitherOfRuleTest : FreeSpec({
             keyword(Keyword.IF)
         }
 
-        val completion = MultiCompletion()
-        val matcher = grammar.startMatching(completion)
-        matcher.step(KeywordToken(Keyword.IF)) shouldBe true
-
-        completion.results should haveSize(2)
-        completion.results.forAll {
+        grammar.match(arrayOf(KeywordToken(Keyword.IF)), 0).forAll {
+            it.shouldBeInstanceOf<MatchingResult.Success<Any>>()
             it.item shouldBe KeywordToken(Keyword.IF)
-            it.reportings should beEmpty()
         }
     }
 })

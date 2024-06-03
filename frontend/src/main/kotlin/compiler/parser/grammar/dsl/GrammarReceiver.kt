@@ -64,12 +64,11 @@ abstract class GrammarReceiver {
     }
 
     fun repeating(grammar: Grammar) {
-        ref(RepeatingRule(sequence(null, grammar), Int.MAX_VALUE))
+        ref(RepeatingRule(sequence(null, grammar), false, UInt.MAX_VALUE))
     }
 
     fun repeatingAtLeastOnce(grammar: Grammar) {
-        sequence(grammar)
-        repeating(grammar)
+        ref(RepeatingRule(sequence(null, grammar), true, UInt.MAX_VALUE))
     }
 
     fun delimitedIdentifierContent() {
@@ -85,7 +84,7 @@ abstract class GrammarReceiver {
     }
 
     fun optional(grammar: Grammar) {
-        ref(RepeatingRule(sequence(null, grammar), 1))
+        ref(RepeatingRule(sequence(null, grammar), false, 1u))
     }
 
     fun keyword(keyword: Keyword) {

@@ -5,12 +5,14 @@ import compiler.ast.ASTSourceFile
 import compiler.lexer.ClasspathSourceFile
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
+import compiler.parser.grammar.rule.MatchingResult
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import java.nio.file.Path
 import java.nio.file.Paths
 
 fun parseFromClasspath(path: String, packageName: CanonicalElementName.Package): ASTSourceFile =
     parseFromClasspath(Paths.get(path), packageName)
+
 fun parseFromClasspath(path: Path, packageName: CanonicalElementName.Package): ASTSourceFile {
     val sourceFile = ClasspathSourceFile(
         path,
@@ -19,14 +21,15 @@ fun parseFromClasspath(path: Path, packageName: CanonicalElementName.Package): A
     )
 
     val matchResult = SourceFileRule.match(lex(sourceFile), sourceFile)
-
-    if (matchResult.hasErrors) {
-        System.err.println()
-        System.err.println()
-        System.err.println("----------------------------------")
-        System.err.println("Errors while parsing from classpath:")
-        matchResult.reportings.forEach(System.err::println)
+    when (matchResult) {
+        is MatchingResult.Success -> return matchResult.item
+        is MatchingResult.Error -> {
+            System.err.println()
+            System.err.println()
+            System.err.println("----------------------------------")
+            System.err.println("Errors while parsing from classpath:")
+            System.err.println(matchResult.reporting)
+            throw InternalCompilerError("Failed to parse from classpath $path")
+        }
     }
-
-    return matchResult.item ?: throw InternalCompilerError("Failed to parse from classpath $path")
 }

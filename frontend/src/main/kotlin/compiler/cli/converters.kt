@@ -11,17 +11,18 @@ import com.github.ajalt.clikt.parameters.options.convert
 import compiler.lexer.MemorySourceFile
 import compiler.lexer.lex
 import compiler.parser.grammar.ModuleOrPackageName
-import compiler.reportings.Reporting
+import compiler.parser.grammar.rule.MatchingResult
+import compiler.parser.grammar.rule.matchAgainst
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 
 fun RawArgument.packageName(): ProcessedArgument<CanonicalElementName.Package, CanonicalElementName.Package> {
     return convert { rawName ->
-        val parseResult = ModuleOrPackageName.match(lex(MemorySourceFile("CLI argument ${this.name}", CanonicalElementName.Package(listOf("cli")), rawName)))
-        parseResult.reportings.find { it.level > Reporting.Level.ERROR }?.let {
-            fail(it.message)
+        val sourceFile = MemorySourceFile("CLI argument ${this.name}", CanonicalElementName.Package(listOf("cli")), rawName)
+        val parseResult = matchAgainst(lex(sourceFile), ModuleOrPackageName)
+        when (parseResult) {
+            is MatchingResult.Error -> fail(parseResult.reporting.message)
+            is MatchingResult.Success -> CanonicalElementName.Package(parseResult.item.names.map { it.value })
         }
-
-        CanonicalElementName.Package(parseResult.item!!.names.map { it.value })
     }
 }
 
