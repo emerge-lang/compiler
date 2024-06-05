@@ -62,7 +62,7 @@ class BoundTypeArgument(
                 return type.unify(assigneeType, assignmentLocation, carry)
             }
             is BoundTypeArgument -> {
-                if (assigneeType.type is TypeVariable) {
+                if (type is TypeVariable || assigneeType.type is TypeVariable) {
                     return type.unify(assigneeType.type, assignmentLocation, carry)
                 }
 
@@ -129,9 +129,20 @@ class BoundTypeArgument(
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeArgument {
         var nestedInstantiated = type.instantiateAllParameters(context)
+        val isNullable: Boolean
+        if (nestedInstantiated is NullableTypeReference) {
+            isNullable = true
+            nestedInstantiated = nestedInstantiated.nested
+        } else {
+            isNullable = false
+        }
         if (nestedInstantiated is BoundTypeArgument) {
             nestedInstantiated = nestedInstantiated.type
         }
+        if (isNullable) {
+            nestedInstantiated = NullableTypeReference(nestedInstantiated)
+        }
+
         return BoundTypeArgument(this.context, astNode, variance, nestedInstantiated)
     }
 
