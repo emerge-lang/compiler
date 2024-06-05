@@ -158,6 +158,9 @@ abstract class Reporting internal constructor(
         fun varianceOnFunctionTypeParameter(parameter: BoundTypeParameter)
             = VarianceOnFunctionTypeParameterReporting(parameter.astNode)
 
+        fun varianceOnInvocationTypeArgument(argument: BoundTypeArgument)
+            = VarianceOnInvocationTypeArgumentReporting(argument.astNode)
+
         fun missingTypeArgument(parameter: BoundTypeParameter, span: Span)
             = MissingTypeArgumentReporting(parameter.astNode, span)
 
