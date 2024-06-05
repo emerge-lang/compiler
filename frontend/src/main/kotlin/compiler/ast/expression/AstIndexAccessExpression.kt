@@ -18,16 +18,15 @@ class AstIndexAccessExpression(
     override val span: Span = (sBraceOpen.span .. indexExpression.span) .. sBraceClose.span
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundExpression<*> {
-        val generatedSpan = span.deriveGenerated()
         val boundInvocation = InvocationExpression(
             MemberAccessExpression(
                 valueExpression,
-                OperatorToken(Operator.DOT, generatedSpan),
-                IdentifierToken("get", generatedSpan),
+                OperatorToken(Operator.DOT, span),
+                IdentifierToken("get", span),
             ),
             null,
             listOf(indexExpression),
-            generatedSpan,
+            span,
         ).bindTo(context)
 
         return BoundIndexAccessExpression(
