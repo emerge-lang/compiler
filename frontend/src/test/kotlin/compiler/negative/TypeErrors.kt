@@ -243,6 +243,14 @@ class TypeErrors : FreeSpec({
                     .shouldHaveNoDiagnostics()
             }
         }
+
+        "type arguments for a type that doesn't define parameters" {
+            validateModule("""
+                class C {}
+                fn test(p: C<S32, S32>) {}
+            """.trimIndent())
+                .shouldReport<SuperfluousTypeArgumentsReporting>()
+        }
     }
 
     "array literal" - {

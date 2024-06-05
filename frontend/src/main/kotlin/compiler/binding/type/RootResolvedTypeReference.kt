@@ -26,12 +26,6 @@ class RootResolvedTypeReference private constructor(
     val baseType: BoundBaseType,
     val arguments: List<BoundTypeArgument>?,
 ) : BoundTypeReference {
-    init {
-        if (baseType.declaration.typeParameters == null && arguments != null) {
-            throw InternalCompilerError("Type arguments for a type that doesn't declare parameters!")
-        }
-    }
-
     override val isNullable = false
     override val mutability = if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else (explicitMutability ?: original?.mutability ?: TypeMutability.READONLY)
     override val simpleName = original?.simpleName ?: baseType.simpleName
