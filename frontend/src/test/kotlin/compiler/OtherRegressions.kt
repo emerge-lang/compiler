@@ -3,6 +3,7 @@ package compiler.compiler
 import compiler.compiler.negative.shouldHaveNoDiagnostics
 import compiler.compiler.negative.validateModule
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.collections.shouldBeEmpty
 
 class OtherRegressions : FreeSpec({
     "generics" - {
@@ -36,6 +37,20 @@ class OtherRegressions : FreeSpec({
                 }
             """.trimIndent())
                 .shouldHaveNoDiagnostics()
+        }
+
+        "inference chain with nullability" {
+            validateModule("""
+                class Container<T> {
+                    f: T? = init
+                }
+                fn triggerStep1<Y>(p: Container<Y>) {
+                    triggerStep2(p.f)
+                }
+                fn triggerStep2<X>(p: X) {}
+            """.trimIndent())
+                .second
+                .shouldBeEmpty()
         }
     }
 })

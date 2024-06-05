@@ -111,7 +111,7 @@ class NullableTypeReference private constructor(
             return newNested
         }
 
-        return NullableTypeReference(newNested)
+        return NullableTypeReference(newNested.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE))
     }
 
     companion object {

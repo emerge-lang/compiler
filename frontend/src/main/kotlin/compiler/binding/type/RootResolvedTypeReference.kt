@@ -108,7 +108,11 @@ class RootResolvedTypeReference private constructor(
     }
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
-        return other is RootResolvedTypeReference && this.baseType == other.baseType
+        return when (other) {
+            is RootResolvedTypeReference -> this.baseType == other.baseType
+            is NullableTypeReference -> hasSameBaseTypeAs(other.nested)
+            else -> false
+        }
     }
 
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
