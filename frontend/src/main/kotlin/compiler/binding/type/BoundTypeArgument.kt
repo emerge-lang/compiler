@@ -21,6 +21,9 @@ class BoundTypeArgument(
     val variance: TypeVariance,
     val type: BoundTypeReference,
 ) : BoundTypeReference {
+    init {
+        check(type !is BoundTypeArgument)
+    }
     override val isNullable get()= type.isNullable
     override val mutability get() = type.mutability
     override val simpleName get() = toString()
@@ -125,7 +128,11 @@ class BoundTypeArgument(
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeArgument {
-        return BoundTypeArgument(this.context, astNode, variance, type.instantiateAllParameters(context))
+        var nestedInstantiated = type.instantiateAllParameters(context)
+        if (nestedInstantiated is BoundTypeArgument) {
+            nestedInstantiated = nestedInstantiated.type
+        }
+        return BoundTypeArgument(this.context, astNode, variance, nestedInstantiated)
     }
 
     override fun withMutability(modifier: TypeMutability?): BoundTypeReference {
