@@ -47,7 +47,11 @@ sealed class GenericTypeReference : BoundTypeReference {
     }
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
-        return other is GenericTypeReference && this.parameter === other.parameter
+        return when (other) {
+            is GenericTypeReference -> this.parameter === other.parameter
+            is NullableTypeReference -> hasSameBaseTypeAs(other.nested)
+            else -> false
+        }
     }
 
     override fun unify(assigneeType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification {

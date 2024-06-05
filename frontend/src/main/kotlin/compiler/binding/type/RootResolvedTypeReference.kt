@@ -165,6 +165,10 @@ class RootResolvedTypeReference private constructor(
                     )
                 }
 
+                check(this.baseType.typeParameters.isNullOrEmpty() || this.baseType == assigneeType.baseType) {
+                    "generic inheritance not implemented yet"
+                }
+
                 val selfArgs = this.arguments ?: emptyList()
                 val assigneeArgs = assigneeType.arguments ?: emptyList()
                 return selfArgs

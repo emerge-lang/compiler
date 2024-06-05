@@ -1,7 +1,5 @@
 package compiler.compiler.negative
 
-import compiler.ast.type.TypeMutability
-import compiler.ast.type.TypeReference
 import compiler.binding.type.GenericTypeReference
 import compiler.reportings.MissingTypeArgumentReporting
 import compiler.reportings.SuperfluousTypeArgumentsReporting
@@ -21,7 +19,7 @@ class TypeErrors : FreeSpec({
                 interface A {}
                 class B : A {}
                 class X<T> {
-                    prop: T
+                    var prop: T = init
                 }
                 
                 fn foo() {
@@ -110,16 +108,16 @@ class TypeErrors : FreeSpec({
                     interface I {}
                     class X<in T : I> {}
                     
-                    x: X<Any>
+                    fn test(p: X<Any>) {}
                 """.trimIndent())
-                        .shouldReport<TypeArgumentOutOfBoundsReporting>()
+                    .shouldReport<TypeArgumentOutOfBoundsReporting>()
             }
         }
 
         "reference to generic type with no type arguments when they are required" {
             validateModule("""
                 class X<T> {}
-                x: X
+                fn test(p: X) {}
             """.trimIndent())
                 .shouldReport<MissingTypeArgumentReporting> {
                     it.parameter.name.value shouldBe "T"
@@ -129,24 +127,24 @@ class TypeErrors : FreeSpec({
         "reference to generic type with too many type arguments when they are required" {
             validateModule("""
                 class X<T> {}
-                x: X<S32, S32, Bool>
+                fn test(p: X<S32, S32, Bool>) {}
             """.trimIndent())
                 .shouldReport<SuperfluousTypeArgumentsReporting> {
                     it.nExpected shouldBe 1
-                    it.firstSuperfluousArgument.type.simpleName shouldBe "S32"
+                    it.firstSuperfluousArgument.toString() shouldBe "S32"
                 }
         }
 
         "reference to generic type with mismatching parameter variance" {
             validateModule("""
                 class X<in T> {}
-                x: X<out Any>
+                fn test(p: X<out Any>) {}
             """.trimIndent())
                 .shouldReport<TypeArgumentVarianceMismatchReporting>()
 
             validateModule("""
                 class X<out T> {}
-                x: X<in Any>
+                fn test(p: X<in Any>) {}
             """.trimIndent())
                 .shouldReport<TypeArgumentVarianceMismatchReporting>()
         }
@@ -154,7 +152,7 @@ class TypeErrors : FreeSpec({
         "reference to generic type with superfluous parameter variance" {
             validateModule("""
                 class X<in T> {}
-                x: X<in Any>
+                fn test(p: X<in Any>) {}
             """.trimIndent())
                 .shouldReport<TypeArgumentVarianceSuperfluousReporting>()
         }
@@ -168,7 +166,7 @@ class TypeErrors : FreeSpec({
                     fn foo(p: A<const S32>) {}
                 """.trimIndent())
                     .shouldReport<TypeArgumentOutOfBoundsReporting> {
-                        it.argument.astNode.type shouldBe TypeReference("S32", TypeReference.Nullability.UNSPECIFIED, TypeMutability.IMMUTABLE)
+                        it.argument.toString() shouldBe "const S32"
                     }
             }
 
@@ -302,6 +300,18 @@ class TypeErrors : FreeSpec({
                     it.sourceType.toString() shouldBe "const String"
                     it.targetType.toString() shouldBe "const S32"
                 }
+        }
+    }
+
+    "regressions" - {
+        "type argument unification with nullability" {
+            validateModule("""
+                class C<T> {}
+                fn test<X>() {
+                    v: C<X?> = C::<X?>()
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
         }
     }
 })

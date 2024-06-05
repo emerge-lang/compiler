@@ -73,13 +73,13 @@ sealed interface BoundTypeReference {
 
     /**
      * Determines whether a value of type `this` can be assigned to a variable
-     * of type [other].
+     * of type [targetType].
      * @param assignmentLocation Will be used in the returned [Reporting]
      * @return `null` if the assignment is allowed, a reporting of level [Reporting.Level.ERROR] describing the
      * problem with the assignment in case it is not possible
      */
-    fun evaluateAssignabilityTo(other: BoundTypeReference, assignmentLocation: Span): ValueNotAssignableReporting? {
-        val unification = other.unify(this, assignmentLocation, TypeUnification.EMPTY)
+    fun evaluateAssignabilityTo(targetType: BoundTypeReference, assignmentLocation: Span): ValueNotAssignableReporting? {
+        val unification = targetType.unify(this, assignmentLocation, TypeUnification.EMPTY)
         return unification.reportings.firstOrNull { it.level >= Reporting.Level.ERROR } as ValueNotAssignableReporting?
     }
 

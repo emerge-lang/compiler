@@ -64,17 +64,21 @@ class BoundTypeArgument(
                 }
 
                 if (this.variance == TypeVariance.UNSPECIFIED) {
+                    val carry2 = type.unify(assigneeType.type, assignmentLocation, carry)
+
+                    val assigneeActualTypeNotNullable = assigneeType.type.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
+
                     // target needs to use the type in both IN and OUT fashion -> source must match exactly
-                    if (assigneeType.type !is GenericTypeReference && !assigneeType.type.hasSameBaseTypeAs(this.type)) {
-                        return carry.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "the exact type ${this.type} is required", assignmentLocation))
+                    if (assigneeActualTypeNotNullable !is GenericTypeReference && !assigneeActualTypeNotNullable.hasSameBaseTypeAs(this.type)) {
+                        return carry2.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "the exact type ${this.type} is required", assignmentLocation))
                     }
 
                     if (assigneeType.variance != TypeVariance.UNSPECIFIED) {
-                        return carry.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "cannot assign an in-variant value to an exact-variant reference", assignmentLocation))
+                        return carry2.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "cannot assign an in-variant value to an exact-variant reference", assignmentLocation))
                     }
 
                     // checks for mutability and nullability
-                    return this.type.unify(assigneeType.type, assignmentLocation, carry)
+                    return this.type.unify(assigneeType.type, assignmentLocation, carry2)
                 }
 
                 if (this.variance == TypeVariance.OUT) {
