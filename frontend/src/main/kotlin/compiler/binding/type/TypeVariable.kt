@@ -71,7 +71,11 @@ class TypeVariable private constructor(
     }
 
     override fun withCombinedNullability(nullability: TypeReference.Nullability): BoundTypeReference {
-        throw InternalCompilerError("not implemented as it was assumed that this can never happen")
+        return when (nullability) {
+            TypeReference.Nullability.NULLABLE -> NullableTypeReference(this)
+            TypeReference.Nullability.NOT_NULLABLE,
+            TypeReference.Nullability.UNSPECIFIED -> this
+        }
     }
 
     override fun validate(forUsage: TypeUseSite): Collection<Reporting> {

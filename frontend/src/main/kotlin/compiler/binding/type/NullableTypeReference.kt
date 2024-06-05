@@ -65,7 +65,7 @@ class NullableTypeReference private constructor(
         return when(assigneeType) {
             is NullableTypeReference -> nested.unify(assigneeType.nested, assignmentLocation, carry)
             is BoundTypeArgument -> unify(assigneeType.type, assignmentLocation, carry)
-            is GenericTypeReference -> if (nested is GenericTypeReference) {
+            is GenericTypeReference -> if (nested is GenericTypeReference || nested is BoundTypeArgument) {
                 nested.unify(assigneeType, assignmentLocation, carry)
             } else {
                 unify(assigneeType.effectiveBound, assignmentLocation, carry)
