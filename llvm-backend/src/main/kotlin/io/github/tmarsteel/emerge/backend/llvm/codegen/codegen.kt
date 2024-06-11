@@ -365,7 +365,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 )
                 return ExpressionResult.Value(
                     if (expression.evaluatesTo.isUnit) {
-                        context.pointerToPointerToUnitInstance
+                        context.pointerToPointerToUnitInstance.dereference()
                     } else {
                         callInstruction
                     }
