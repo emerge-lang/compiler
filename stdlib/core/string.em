@@ -1,4 +1,4 @@
-package emerge.std
+package emerge.core
 
 export class String {
     export utf8Data: Array<S8> = init

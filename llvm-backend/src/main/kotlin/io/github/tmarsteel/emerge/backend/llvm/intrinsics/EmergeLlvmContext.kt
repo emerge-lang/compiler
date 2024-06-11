@@ -113,7 +113,7 @@ class EmergeLlvmContext(
     internal lateinit var cPointerType: EmergeClassType
     /** `emerge.ffi.c.COpaquePointer` */
     internal lateinit var cOpaquePointerType: EmergeClassType
-    /** `emerge.std.String */
+    /** `emerge.core.String */
     internal lateinit var stringType: EmergeClassType
 
     /** `emerge.core.S8 */
@@ -200,7 +200,7 @@ class EmergeLlvmContext(
             "emerge.platform.BoolBox" -> boxTypeBool = emergeClassType
             "emerge.ffi.c.CPointer" -> cPointerType = emergeClassType
             "emerge.ffi.c.COpaquePointer" -> cOpaquePointerType = emergeClassType
-            "emerge.std.String" -> stringType = emergeClassType
+            "emerge.core.String" -> stringType = emergeClassType
             "emerge.core.Unit" -> {
                 unitType = emergeClassType
                 pointerToPointerToUnitInstance = addGlobal(undefValue(pointerTo(emergeClassType)), LlvmThreadLocalMode.NOT_THREAD_LOCAL)

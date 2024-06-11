@@ -1,7 +1,5 @@
 package compiler.binding.expression
 
-import compiler.InternalCompilerError
-import compiler.StandardLibraryModule
 import compiler.ast.expression.StringLiteralExpression
 import compiler.ast.type.TypeMutability
 import compiler.binding.SideEffectPrediction
@@ -21,20 +19,13 @@ class BoundStringLiteralExpression(
     override val returnBehavior = SideEffectPrediction.NEVER
     override var type: BoundTypeReference? = null
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val defaultPackage = context.swCtx.getPackage(StandardLibraryModule.NAME)
-            ?: throw InternalCompilerError("Standard Library module ${StandardLibraryModule.NAME} not present in software context")
-        val stringType = defaultPackage.moduleContext.sourceFiles.asSequence()
-            .map { it.context.resolveBaseType("String") }
-            .filterNotNull()
-            .firstOrNull()
-            ?: throw InternalCompilerError("This software context doesn't define ${StandardLibraryModule.NAME}.String")
+    override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
 
-        type = stringType.baseReference.withMutability(TypeMutability.IMMUTABLE)
+    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        type = context.swCtx.string.baseReference.withMutability(TypeMutability.IMMUTABLE)
         return emptySet()
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
     override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {}
     override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
 
@@ -51,7 +42,9 @@ class BoundStringLiteralExpression(
     )
 }
 
-private class IrStringLiteralExpressionImpl(
+internal class IrStringLiteralExpressionImpl(
     override val utf8Bytes: ByteArray,
     override val evaluatesTo: IrType
-) : IrStringLiteralExpression
+) : IrStringLiteralExpression {
+
+}
