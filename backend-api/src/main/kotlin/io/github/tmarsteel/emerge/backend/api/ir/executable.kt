@@ -139,3 +139,12 @@ interface IrUnregisterWeakReferenceStatement : IrExecutable {
     val referenceStoredIn: IrAssignmentStatement.Target.ClassMemberVariable
     val referredObject: IrTemporaryValueReference
 }
+
+/**
+ * Evaluate an expression solely for its side effects, the result value is unused. Reference counting is not
+ * part of the semantics of [IrExpressionSideEffectsStatement]. E.g. unused return values from invocations must not
+ * be implemented using this statement because those require reference counting.
+ */
+interface IrExpressionSideEffectsStatement : IrExecutable {
+    val expression: IrExpression
+}

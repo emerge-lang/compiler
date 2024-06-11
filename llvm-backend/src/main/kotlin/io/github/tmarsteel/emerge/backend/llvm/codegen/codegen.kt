@@ -16,6 +16,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrDropStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrDynamicDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrExpressionSideEffectsStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrIfExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
@@ -148,6 +149,14 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 code.llvmValue = valueResult.value
             }
             return ExecutableResult.ExecutionOngoing
+        }
+        is IrExpressionSideEffectsStatement -> {
+            val expr = code.expression
+            if (expr is IrImplicitEvaluationExpression) {
+                return emitCode(expr.code, functionReturnType)
+            } else {
+                return emitExpressionCode(expr, functionReturnType)
+            }
         }
         is IrCodeChunk -> {
             val resultAfterNonImplicitCode = code.components.asSequence()
