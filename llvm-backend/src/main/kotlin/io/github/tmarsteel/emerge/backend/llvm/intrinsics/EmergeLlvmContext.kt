@@ -204,16 +204,6 @@ class EmergeLlvmContext(
             "emerge.core.Unit" -> {
                 unitType = emergeClassType
                 pointerToPointerToUnitInstance = addGlobal(undefValue(pointerTo(emergeClassType)), LlvmThreadLocalMode.NOT_THREAD_LOCAL)
-                addModuleInitFunction(registerIntrinsic(KotlinLlvmFunction.define(
-                    "emerge.platform.initUnit",
-                    LlvmVoidType,
-                ) {
-                    body {
-                        val p = call(emergeClassType.constructor, emptyList())
-                        store(p, pointerToPointerToUnitInstance)
-                        retVoid()
-                    }
-                }))
             }
         }
 
@@ -372,14 +362,28 @@ class EmergeLlvmContext(
         }
     }
 
+    lateinit var globalInitializerFn: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>
     lateinit var threadInitializerFn: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>
         private set
     private var completed = false
-    override fun complete() {
+    fun complete() {
         if (completed) {
             return
         }
         completed = true
+
+        // todo: move to llvm global_ctors
+        // this doesn't work as of now because for some reason, llc doesn't emit them into the .init_array.X sections of the object file
+        globalInitializerFn = KotlinLlvmFunction.define(
+            "_emerge_static_init",
+            LlvmVoidType,
+        ) {
+            body {
+                val unitInstance = call(unitType.constructor, emptyList())
+                store(unitInstance, pointerToPointerToUnitInstance)
+                retVoid()
+            }
+        }
 
         threadInitializerFn = KotlinLlvmFunction.define(
             "_emerge_thread_init",
@@ -423,8 +427,6 @@ class EmergeLlvmContext(
             "Debug Info Version",
             this.i32(Llvm.LLVMDebugMetadataVersion()).toMetadata(),
         )
-
-        super.complete()
 
         diBuilderCache.values.forEach { it.diFinalize() }
     }

@@ -31,11 +31,6 @@ open class LlvmContext(val target: LlvmTarget) : AutoCloseable {
         type,
     )
 
-    private val initializerFunctions = ArrayList<LlvmFunction<LlvmVoidType>>()
-    fun addModuleInitFunction(initializer: LlvmFunction<LlvmVoidType>) {
-        initializerFunctions.add(initializer)
-    }
-
     fun <T : LlvmType> addGlobal(initialValue: LlvmConstant<T>, mode: LlvmThreadLocalMode): LlvmGlobal<T> {
         val name = globalsScope.next()
         val rawRef = Llvm.LLVMAddGlobal(module, initialValue.type.getRawInContext(this), name)
@@ -55,20 +50,6 @@ open class LlvmContext(val target: LlvmTarget) : AutoCloseable {
     fun getNamedFunctionAddress(name: String): LlvmValue<LlvmFunctionAddressType>? {
         val raw = Llvm.LLVMGetNamedFunction(module, name) ?: return null
         return LlvmValue(raw, LlvmFunctionAddressType)
-    }
-
-    open fun complete() {
-        val arrayType = LlvmArrayType(initializerFunctions.size.toLong(), LlvmGlobalCtorEntry)
-        val ctorsGlobal = Llvm.LLVMAddGlobal(module, arrayType.getRawInContext(this), "llvm.global_ctors")
-        val ctorsData = arrayType.buildConstantIn(this, initializerFunctions.mapIndexed { initializerIndex, initializer ->
-            LlvmGlobalCtorEntry.buildConstantIn(this) {
-                setValue(LlvmGlobalCtorEntry.priority, i32(initializerIndex))
-                setValue(LlvmGlobalCtorEntry.function, initializer.address)
-                setNull(LlvmGlobalCtorEntry.data)
-            }
-        })
-        Llvm.LLVMSetInitializer(ctorsGlobal, ctorsData.raw)
-        Llvm.LLVMSetLinkage(ctorsGlobal, LlvmLinkage.APPENDING)
     }
 
     override fun close() {
