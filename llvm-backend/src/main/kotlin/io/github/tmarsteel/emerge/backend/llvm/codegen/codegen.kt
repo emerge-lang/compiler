@@ -34,6 +34,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStringLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatement
@@ -89,6 +90,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU64ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU8ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordArrayCopyFn
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.PointerToAnyEmergeValue
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceCreated
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceDropped
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractGet
@@ -513,6 +515,13 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             but runtime type information is currently not up to that
              */
             if (lhsBound.isAny || rhsBound.isAny) {
+                if (expression.lhs.declaration.value is IrNullLiteralExpression) {
+                    return ExpressionResult.Value(emitIsNull(expression.rhs))
+                }
+                if (expression.rhs.declaration.value is IrNullLiteralExpression) {
+                    return ExpressionResult.Value(emitIsNull(expression.lhs))
+                }
+
                 TODO("identity comparison with any of the operands being of type Any is not supported yet")
             }
 
@@ -642,6 +651,19 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         }
         is IrNotReallyAnExpression -> throw CodeGenerationException("Cannot emit expression evaluation code for an ${expression::class.simpleName}")
     }
+}
+
+internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitIsNull(
+    value: IrTemporaryValueReference,
+): LlvmValue<LlvmBooleanType> {
+    if (!value.type.isNullable) {
+        return context.i1(false)
+    }
+
+    return isNull(
+        value.declaration.llvmValue
+            .reinterpretAs(PointerToAnyEmergeValue)
+    )
 }
 
 private class BranchEmitter(
