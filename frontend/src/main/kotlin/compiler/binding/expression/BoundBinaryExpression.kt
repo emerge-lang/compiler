@@ -45,7 +45,7 @@ class BoundBinaryExpression(
         val reportings = mutableSetOf<Reporting>()
         hiddenInvocation.semanticAnalysisPhase2()
             .map { hiddenReporting ->
-                if (hiddenReporting !is UnresolvableFunctionOverloadReporting) {
+                if (hiddenReporting !is UnresolvableFunctionOverloadReporting || hiddenReporting.functionNameReference != hiddenInvocation.functionNameToken) {
                     return@map hiddenReporting
                 }
 
