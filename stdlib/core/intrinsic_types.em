@@ -252,6 +252,11 @@ export class SWord {
     export intrinsic nothrow fn asUWord(self) -> UWord
 
     export nothrow fn abs(self) = if self < 0 -self else self
+
+    export intrinsic nothrow fn asS64(self) -> S64
+    export intrinsic nothrow fn asU64(self) -> U64
+
+    export fn toString(self) = self.asS64().toString()
 }
 
 export class UWord {
@@ -269,6 +274,11 @@ export class UWord {
     export intrinsic nothrow operator fn equals(self, other: UWord) -> Bool
 
     export intrinsic nothrow fn asSWord(self) -> SWord
+
+    export intrinsic nothrow fn asS64(self) -> S64
+    export intrinsic nothrow fn asU64(self) -> U64
+
+    export fn toString(self) = self.asU64().toString()
 }
 
 export class Bool {

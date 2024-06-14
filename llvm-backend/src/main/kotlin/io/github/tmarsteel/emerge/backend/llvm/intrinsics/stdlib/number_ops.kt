@@ -118,6 +118,10 @@ internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContex
         convert_u32_to_u64,
         convert_s64_to_sWord_lossy,
         convert_u64_to_uWord_lossy,
+        convert_uWord_to_u64_lossy,
+        convert_uWord_to_s64_lossy,
+        convert_sWord_to_u64_lossy,
+        convert_sWord_to_s64_lossy,
         reinterpret_s8_as_u8,
         reinterpret_u8_as_s8,
         reinterpret_s16_as_u16,
@@ -568,6 +572,10 @@ private fun <From : LlvmIntegerType, To : LlvmIntegerType> buildLossyConversionF
 
 private val convert_s64_to_sWord_lossy = buildLossyConversionFn("emerge.core.S64::asSWord", true, LlvmI64Type, EmergeWordType)
 private val convert_u64_to_uWord_lossy = buildLossyConversionFn("emerge.core.U64::asUWord", false, LlvmI64Type, EmergeWordType)
+private val convert_uWord_to_u64_lossy = buildLossyConversionFn("emerge.core.UWord::asU64", false, EmergeWordType, LlvmI64Type)
+private val convert_uWord_to_s64_lossy = buildLossyConversionFn("emerge.core.UWord::asS64", false, EmergeWordType, LlvmI64Type)
+private val convert_sWord_to_u64_lossy = buildLossyConversionFn("emerge.core.SWord::asU64", false, EmergeWordType, LlvmI64Type)
+private val convert_sWord_to_s64_lossy = buildLossyConversionFn("emerge.core.SWord::asS64", false, EmergeWordType, LlvmI64Type)
 
 private fun <T : LlvmIntegerType> buildReinterpretFn(
     fullSymbol: String,
