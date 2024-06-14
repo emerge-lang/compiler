@@ -246,6 +246,8 @@ class BoundInvocationExpression(
                     )
                 )
             }
+
+            return null
         }
 
         val legalMatches = evaluations.filter { !it.hasErrors }
