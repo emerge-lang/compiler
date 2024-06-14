@@ -18,6 +18,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpressionSideEffectsStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrIdentityComparisonExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIfExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
@@ -42,6 +43,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.backend.api.ir.IrWhileLoop
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.assureBoxed
+import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.assureUnboxed
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.requireNotAutoboxed
 import io.github.tmarsteel.emerge.backend.llvm.StateTackDelegate
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
@@ -57,6 +59,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
+import io.github.tmarsteel.emerge.backend.llvm.dsl.PhiBucket
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i1
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i16
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
@@ -95,6 +98,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getDynamicCallAddress
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.registerWeakReference
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.unregisterWeakReference
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
+import io.github.tmarsteel.emerge.backend.llvm.isAny
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
@@ -487,6 +491,147 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             val result = icmp(lhsValue, llvmPredicate, rhsValue)
             return ExpressionResult.Value(result)
         }
+        is IrIdentityComparisonExpression -> {
+            val lhsBound = expression.lhs.type.findSimpleTypeBound().baseType
+            val rhsBound = expression.rhs.type.findSimpleTypeBound().baseType
+
+            /*
+            there is a complication with boxing here; consider:
+
+            x: Any = 3 as S32 // gets boxed
+            y: Any = 3 as S32 // also gets boxed, but into a different heap allocation
+            assert(sameIdentity(x, y)) // this must be true
+
+            this also happens with just one box:
+
+            x: Any = 3 as S32
+            y: S32 = 3
+            assert(sameIdentity(x, y))
+            assert(sameIdentity(y, x))
+
+            supporting this requires inspecting the runtime type of LHS and RHS when they're typed as Any,
+            but runtime type information is currently not up to that
+             */
+            if (lhsBound.isAny || rhsBound.isAny) {
+                TODO("identity comparison with any of the operands being of type Any is not supported yet")
+            }
+
+            val lhsAutoboxer = lhsBound.autoboxer
+            val rhsAutoboxer = rhsBound.autoboxer
+            if (lhsAutoboxer == null && rhsAutoboxer == null) {
+                // true reference types, compare directly
+                check(expression.lhs.declaration.llvmValue.type is LlvmPointerType<*>)
+                check(expression.rhs.declaration.llvmValue.type is LlvmPointerType<*>)
+                @Suppress("UNCHECKED_CAST") // are checked right above
+                return ExpressionResult.Value(
+                    isEq(
+                        expression.lhs.declaration.llvmValue as LlvmValue<LlvmPointerType<*>>,
+                        expression.rhs.declaration.llvmValue as LlvmValue<LlvmPointerType<*>>,
+                    )
+                )
+            }
+
+            if ((lhsAutoboxer == null) xor (rhsAutoboxer == null)) {
+                // comparing a value and a reference type, can never be the same object
+                return ExpressionResult.Value(context.i1(false))
+            }
+
+            check(lhsAutoboxer != null)
+            check(rhsAutoboxer != null)
+
+            // comparing two value types; if the types are different,
+            // identity is different, too, regardless of the value: (1 as U8) !== (1 as S8)
+            if (lhsBound != rhsBound) {
+                return ExpressionResult.Value(context.i1(false))
+            }
+
+            if (!expression.lhs.type.isNullable && !expression.rhs.type.isNullable) {
+                // the only value types available are integers, so the casts are safe
+                @Suppress("UNCHECKED_CAST")
+                val lhsUnboxed = assureUnboxed(expression.lhs) as LlvmValue<LlvmIntegerType>
+                @Suppress("UNCHECKED_CAST")
+                val rhsUnboxed = assureUnboxed(expression.rhs) as LlvmValue<LlvmIntegerType>
+
+                return ExpressionResult.Value(icmp(lhsUnboxed, LlvmIntPredicate.EQUAL, rhsUnboxed))
+            }
+
+            val lhsUnboxedType = lhsAutoboxer.unboxedType as LlvmIntegerType
+            val lhsUnboxed: LlvmValue<LlvmIntegerType>
+            val lhsIsNull: LlvmValue<LlvmBooleanType>
+            if (expression.lhs.type.isNullable) {
+                lhsIsNull = isNull(expression.lhs.declaration.llvmValue as LlvmValue<LlvmPointerType<*>>)
+                val lhsUnboxedBucket = PhiBucket(lhsUnboxedType)
+                conditionalBranch(
+                    condition = lhsIsNull,
+                    ifTrue = {
+                        lhsUnboxedBucket.setBranchResult(context.poisonValue(lhsUnboxedType))
+                        concludeBranch()
+                    },
+                    ifFalse = {
+                        lhsUnboxedBucket.setBranchResult(assureUnboxed(expression.lhs) as LlvmValue<LlvmIntegerType>)
+                        concludeBranch()
+                    }
+                )
+                lhsUnboxed = lhsUnboxedBucket.buildPhi()
+            } else {
+                lhsIsNull = context.i1(false)
+                lhsUnboxed = assureUnboxed(expression.lhs) as LlvmValue<LlvmIntegerType>
+            }
+
+            val rhsUnboxedType = rhsAutoboxer.unboxedType as LlvmIntegerType
+            val rhsUnboxed: LlvmValue<LlvmIntegerType>
+            val rhsIsNull: LlvmValue<LlvmBooleanType>
+            if (expression.rhs.type.isNullable) {
+                rhsIsNull = isNull(expression.rhs.declaration.llvmValue as LlvmValue<LlvmPointerType<*>>)
+                val rhsUnboxedBucket = PhiBucket(rhsUnboxedType)
+                conditionalBranch(
+                    condition = rhsIsNull,
+                    ifTrue = {
+                        rhsUnboxedBucket.setBranchResult(context.poisonValue(rhsUnboxedType))
+                        concludeBranch()
+                    },
+                    ifFalse = {
+                        if (rhsAutoboxer.isBox(context, expression.rhs)) {
+                            rhsUnboxedBucket.setBranchResult(rhsAutoboxer.unbox(expression.rhs) as LlvmValue<LlvmIntegerType>)
+                        } else {
+                            rhsUnboxedBucket.setBranchResult(expression.rhs.declaration.llvmValue as LlvmValue<LlvmIntegerType>)
+                        }
+                        concludeBranch()
+                    }
+                )
+                rhsUnboxed = rhsUnboxedBucket.buildPhi()
+            } else {
+                rhsIsNull = context.i1(false)
+                rhsUnboxed = assureUnboxed(expression.rhs) as LlvmValue<LlvmIntegerType>
+            }
+
+            val identityComparisonResult = PhiBucket(LlvmBooleanType)
+            conditionalBranch(
+                condition = and(lhsIsNull, rhsIsNull),
+                ifTrue = {
+                    identityComparisonResult.setBranchResult(context.i1(true))
+                    concludeBranch()
+                },
+                ifFalse = {
+                    conditionalBranch(
+                        condition = xor(lhsIsNull, rhsIsNull),
+                        ifTrue = {
+                            identityComparisonResult.setBranchResult(context.i1(false))
+                            concludeBranch()
+                        },
+                        ifFalse = {
+                            identityComparisonResult.setBranchResult(
+                                icmp(lhsUnboxed, LlvmIntPredicate.EQUAL, rhsUnboxed)
+                            )
+                            concludeBranch()
+                        }
+                    )
+                    concludeBranch()
+                }
+            )
+
+            return ExpressionResult.Value(identityComparisonResult.buildPhi())
+        }
         is IrImplicitEvaluationExpression -> {
             val result = emitCode(expression.code, functionReturnType)
             return when (result) {
@@ -569,7 +714,8 @@ private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.getPointerToStructMem
         .get()
 }
 
-private fun IrType.findSimpleTypeBound(): IrSimpleType {
+// todo: move to utils package
+internal fun IrType.findSimpleTypeBound(): IrSimpleType {
     var carry: IrType = this
     while (carry !is IrSimpleType) {
         carry = when (carry) {

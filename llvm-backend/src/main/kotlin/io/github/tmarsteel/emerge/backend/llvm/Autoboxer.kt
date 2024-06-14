@@ -7,6 +7,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrClassMemberVariableAccessExpr
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
 import io.github.tmarsteel.emerge.backend.llvm.codegen.llvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
@@ -58,6 +59,18 @@ internal sealed interface Autoboxer {
     context(BasicBlockBuilder<EmergeLlvmContext, *>)
     fun transformForAssignmentTo(value: IrTemporaryValueReference, toType: IrType): LlvmValue<*>
 
+    /**
+     * @return whether [value] holds a box of this autoboxing type
+     */
+    fun isBox(context: EmergeLlvmContext, value: IrTemporaryValueReference): Boolean
+
+    /**
+     * Assumes [value] is a box according to [isBox] and that [value] does not hold a
+     * null value at runtime, even if its type is nullable.
+     */
+    context(BasicBlockBuilder<EmergeLlvmContext, *>)
+    fun unbox(value: IrTemporaryValueReference): LlvmValue<*>
+
     fun getReferenceSiteType(context: EmergeLlvmContext, forceBoxed: Boolean): LlvmType {
         return if (forceBoxed) LlvmPointerType.pointerTo(getBoxedType(context)) else unboxedType
     }
@@ -67,6 +80,8 @@ internal sealed interface Autoboxer {
      */
     class PrimitiveType(
         val boxedTypeGetter: (EmergeLlvmContext) -> EmergeClassType,
+        /** the name of the emerge member variable in the boxed type that holds the raw value */
+        val boxValueHoldingMemberVariableName: String,
         val primitiveTypeGetter: (EmergeLlvmContext) -> IrClass,
         override val unboxedType: LlvmType,
     ) : Autoboxer {
@@ -92,13 +107,38 @@ internal sealed interface Autoboxer {
             return true
         }
 
-        context(BasicBlockBuilder<EmergeLlvmContext, *>) override fun transformForAssignmentTo(
+        context(BasicBlockBuilder<EmergeLlvmContext, *>)
+        override fun transformForAssignmentTo(
             value: IrTemporaryValueReference,
             toType: IrType
         ): LlvmValue<*> {
             val llvmValue = value.declaration.llvmValue
             check(llvmValue.type == unboxedType)
             return call(getBoxedType(context).constructor, listOf(llvmValue))
+        }
+
+        override fun isBox(context: EmergeLlvmContext, value: IrTemporaryValueReference): Boolean {
+            if (value.type.isNullable) {
+                return true
+            }
+
+            val valueTypeBound = value.type.findSimpleTypeBound()
+            if (valueTypeBound.baseType != primitiveTypeGetter(context)) {
+                return true
+            }
+
+            return false
+        }
+
+        context(BasicBlockBuilder<EmergeLlvmContext, *>)
+        override fun unbox(value: IrTemporaryValueReference): LlvmValue<*> {
+            val boxedType = getBoxedType(context)
+            val valueHolderMember = boxedType.irClass.memberVariables.single { it.name == boxValueHoldingMemberVariableName }
+            val valueAsBoxPtr = value.declaration.llvmValue.reinterpretAs(pointerTo(boxedType))
+            return getelementptr(valueAsBoxPtr)
+                .member(valueHolderMember)
+                .get()
+                .dereference()
         }
     }
 
@@ -183,6 +223,15 @@ internal sealed interface Autoboxer {
             check(llvmValue.type == unboxedType)
             return call(getBoxedType(context).constructor, listOf(llvmValue))
         }
+
+        override fun isBox(context: EmergeLlvmContext, value: IrTemporaryValueReference): Boolean {
+            return false
+        }
+
+        context(BasicBlockBuilder<EmergeLlvmContext, *>)
+        override fun unbox(value: IrTemporaryValueReference): LlvmValue<*> {
+            throw UnsupportedOperationException("Cannot unbox a C FFI pointer")
+        }
     }
 
     companion object {
@@ -213,6 +262,16 @@ internal sealed interface Autoboxer {
                 return value.declaration.llvmValue
             }
             return autoboxer.transformForAssignmentTo(value, targetType)
+        }
+
+        context(BasicBlockBuilder<EmergeLlvmContext, *>)
+        fun assureUnboxed(value: IrTemporaryValueReference): LlvmValue<*> {
+            val autoboxer = value.declaration.type.autoboxer!!
+            if (!autoboxer.isBox(context, value)) {
+                return value.declaration.llvmValue
+            }
+
+            return autoboxer.unbox(value)
         }
     }
 }

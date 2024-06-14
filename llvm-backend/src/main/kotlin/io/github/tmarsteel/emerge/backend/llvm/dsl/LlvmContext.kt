@@ -31,6 +31,11 @@ open class LlvmContext(val target: LlvmTarget) : AutoCloseable {
         type,
     )
 
+    fun <T : LlvmType> poisonValue(type: T): LlvmConstant<T> = LlvmConstant(
+        Llvm.LLVMGetPoison(type.getRawInContext(this)),
+        type,
+    )
+
     fun <T : LlvmType> addGlobal(initialValue: LlvmConstant<T>, mode: LlvmThreadLocalMode): LlvmGlobal<T> {
         val name = globalsScope.next()
         val rawRef = Llvm.LLVMAddGlobal(module, initialValue.type.getRawInContext(this), name)

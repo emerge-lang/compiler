@@ -35,6 +35,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun <T : LlvmIntegerType> lshr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> and(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> or(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
+    fun <T : LlvmIntegerType> xor(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
     fun <Small : LlvmIntegerType, Large : LlvmIntegerType> enlargeUnsigned(value: LlvmValue<Small>, to: Large): LlvmValue<Large>
     fun <Small : LlvmIntegerType, Large : LlvmIntegerType> enlargeSigned(value: LlvmValue<Small>, to: Large): LlvmValue<Large>
     fun <Small : LlvmIntegerType, Large: LlvmIntegerType> truncate(value: LlvmValue<Large>, to: Small): LlvmValue<Small>
@@ -282,6 +283,11 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     override fun <T : LlvmIntegerType> or(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
         val orInstr = Llvm.LLVMBuildOr(builder, lhs.raw, rhs.raw, tmpVars.next())
         return LlvmValue(orInstr, lhs.type)
+    }
+
+    override fun <T : LlvmIntegerType> xor(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T> {
+        val xorInst = Llvm.LLVMBuildXor(builder, lhs.raw, rhs.raw, tmpVars.next())
+        return LlvmValue(xorInst, lhs.type)
     }
 
     override fun <Small : LlvmIntegerType, Large : LlvmIntegerType> enlargeSigned(

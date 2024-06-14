@@ -1,11 +1,16 @@
 package io.github.tmarsteel.emerge.backend.llvm.jna;
 
 import com.sun.jna.*;
-import com.sun.jna.ptr.*;
-import org.jetbrains.annotations.*;
+import com.sun.jna.ptr.IntByReference;
+import com.sun.jna.ptr.NativeLongByReference;
+import com.sun.jna.ptr.PointerByReference;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-import java.nio.file.*;
-import java.util.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * LLVM C interface functions mapped for LLVM-18 using JNA.
@@ -87,6 +92,9 @@ public class Llvm {
 
     /** see Core.h */
     public static native @NotNull LlvmValueRef LLVMGetUndef(@NotNull LlvmTypeRef type);
+
+    /** see Core.h */
+    public static native @NotNull LlvmValueRef LLVMGetPoison(@NotNull LlvmTypeRef type);
 
     public static native @NotNull LlvmValueRef LLVMConstInt(@NotNull LlvmTypeRef type, long value, @LlvmBool int signExtend);
 
@@ -348,6 +356,20 @@ public class Llvm {
             @NotNull LlvmValueRef Then,
             @NotNull LlvmValueRef Else,
             @NotNull String name
+    );
+
+    /** see Core.h */
+    public static native LlvmValueRef LLVMBuildPhi(
+            @NotNull LlvmBuilderRef builder,
+            @NotNull LlvmTypeRef Ty,
+            @NotNull String name
+    );
+
+    public static native void LLVMAddIncoming(
+            @NotNull LlvmValueRef PhiNode,
+            @NotNull NativePointerArray<LlvmValueRef> incomingValues,
+            @NotNull NativePointerArray<LlvmBasicBlockRef> incomingBlocks,
+            @Unsigned int count
     );
 
     /** see Core.h */

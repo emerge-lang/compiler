@@ -31,17 +31,17 @@ Once the LLVM backend is somewhat stable all of this should move into a new set 
 
 internal val IrBaseType.autoboxer: Autoboxer? by tackLazyVal {
     when (this.canonicalName.toString()) {
-        "emerge.core.S8" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS8, EmergeLlvmContext::rawS8Clazz, LlvmI8Type)
-        "emerge.core.U8" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU8, EmergeLlvmContext::rawU8Clazz, LlvmI8Type)
-        "emerge.core.S16" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS16, EmergeLlvmContext::rawS16Clazz, LlvmI16Type)
-        "emerge.core.U16" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU16, EmergeLlvmContext::rawU16Clazz, LlvmI16Type)
-        "emerge.core.S32" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS32, EmergeLlvmContext::rawS32Clazz, LlvmI32Type)
-        "emerge.core.U32" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU32, EmergeLlvmContext::rawU32Clazz, LlvmI32Type)
-        "emerge.core.S64" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS64, EmergeLlvmContext::rawS64Clazz, LlvmI64Type)
-        "emerge.core.U64" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU64, EmergeLlvmContext::rawU64Clazz, LlvmI64Type)
-        "emerge.core.SWord" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeSWord, EmergeLlvmContext::rawSWordClazz, EmergeWordType)
-        "emerge.core.UWord" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeUWord, EmergeLlvmContext::rawUWordClazz, EmergeWordType)
-        "emerge.core.Bool" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeBool, EmergeLlvmContext::rawBoolClazz, LlvmBooleanType)
+        "emerge.core.S8" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS8, "value", EmergeLlvmContext::rawS8Clazz, LlvmI8Type)
+        "emerge.core.U8" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU8, "value", EmergeLlvmContext::rawU8Clazz, LlvmI8Type)
+        "emerge.core.S16" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS16, "value", EmergeLlvmContext::rawS16Clazz, LlvmI16Type)
+        "emerge.core.U16" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU16, "value", EmergeLlvmContext::rawU16Clazz, LlvmI16Type)
+        "emerge.core.S32" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS32, "value", EmergeLlvmContext::rawS32Clazz, LlvmI32Type)
+        "emerge.core.U32" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU32, "value", EmergeLlvmContext::rawU32Clazz, LlvmI32Type)
+        "emerge.core.S64" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS64, "value", EmergeLlvmContext::rawS64Clazz, LlvmI64Type)
+        "emerge.core.U64" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU64, "value", EmergeLlvmContext::rawU64Clazz, LlvmI64Type)
+        "emerge.core.SWord" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeSWord, "value", EmergeLlvmContext::rawSWordClazz, EmergeWordType)
+        "emerge.core.UWord" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeUWord, "value", EmergeLlvmContext::rawUWordClazz, EmergeWordType)
+        "emerge.core.Bool" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeBool, "value", EmergeLlvmContext::rawBoolClazz, LlvmBooleanType)
         "emerge.ffi.c.CPointer" -> Autoboxer.CFfiPointerType(EmergeLlvmContext::cPointerType, "pointed", LlvmPointerType(LlvmVoidType))
         "emerge.ffi.c.COpaquePointer" -> Autoboxer.CFfiPointerType(EmergeLlvmContext::cOpaquePointerType, "pointed", LlvmPointerType(LlvmVoidType))
         else -> null
@@ -55,6 +55,7 @@ internal val IrType.autoboxer: Autoboxer? get() = when(this) {
 }
 
 internal val IrType.isUnit by tackLazyVal { this is IrSimpleType && this.baseType.canonicalName.toString() == "emerge.core.Unit" }
+internal val IrBaseType.isAny get() = canonicalName.toString() == "emerge.core.Any"
 
 internal var IrClass.rawLlvmRef: LlvmTypeRef? by tackState { null }
 internal val IrClass.llvmName: String get() = this.canonicalName.toString()
