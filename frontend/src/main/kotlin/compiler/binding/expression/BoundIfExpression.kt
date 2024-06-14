@@ -176,7 +176,7 @@ class BoundIfExpression(
     }
 }
 
-private class IrIfExpressionImpl(
+internal class IrIfExpressionImpl(
     override val condition: IrTemporaryValueReference,
     override val thenBranch: IrImplicitEvaluationExpression,
     override val elseBranch: IrImplicitEvaluationExpression?,

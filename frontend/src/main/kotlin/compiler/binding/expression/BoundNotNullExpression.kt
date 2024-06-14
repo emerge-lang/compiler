@@ -18,14 +18,30 @@
 
 package compiler.binding.expression
 
+import compiler.CoreIntrinsicsModule
+import compiler.InternalCompilerError
 import compiler.ast.expression.NotNullExpression
+import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeReference
 import compiler.binding.BoundExecutable
+import compiler.binding.BoundFunction
 import compiler.binding.BoundStatement
+import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.SoftwareContext
+import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrExpressionSideEffectsStatementImpl
+import compiler.binding.misc_ir.IrIdentityComparisonExpressionImpl
+import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
+import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.RootResolvedTypeReference
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
+import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
+import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
 class BoundNotNullExpression(
@@ -46,9 +62,19 @@ class BoundNotNullExpression(
         return nullableExpression.semanticAnalysisPhase1()
     }
 
+    private var expectedEvaluationResultType: BoundTypeReference? = null
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+        expectedEvaluationResultType = type
+
+        nullableExpression.setExpectedEvaluationResultType(type.withCombinedNullability(TypeReference.Nullability.NULLABLE))
+    }
+
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         nullableExpression.markEvaluationResultUsed()
-        return nullableExpression.semanticAnalysisPhase2()
+        val reportings = nullableExpression.semanticAnalysisPhase2()
+        type = nullableExpression.type?.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
+            ?: expectedEvaluationResultType
+        return reportings
     }
 
     private var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
@@ -56,7 +82,18 @@ class BoundNotNullExpression(
         this.nothrowBoundary = boundary
     }
 
+    private var nonNullResultUsed = false
+    override fun markEvaluationResultUsed() {
+        nonNullResultUsed = true
+    }
+
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
+        // this expression duplicates the reference. That doesn't prove a capture, but it would easily allow for one,
+        // so it has to be treated as such.
+        // defaulting to readonly is okay because: that only happens if the nullableExpression couldn't determine its
+        // result type. That in and of itself must produce an ERROR-level diagnostic, stopping compilation in any case.
+        nullableExpression.markEvaluationResultCaptured(type?.mutability ?: TypeMutability.READONLY)
+
         val reportings = nullableExpression.semanticAnalysisPhase3().toMutableList()
         nothrowBoundary?.let { nothrowBoundary ->
             reportings.add(Reporting.nothrowViolatingNotNullAssertion(this, nothrowBoundary))
@@ -72,28 +109,85 @@ class BoundNotNullExpression(
         return nullableExpression.findWritesBeyond(boundary)
     }
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
-        // TODO: do we need to change nullability here before passing it on?
-        nullableExpression.setExpectedEvaluationResultType(type)
-    }
-
-    override val isEvaluationResultReferenceCounted get() = TODO("not implemented yet")
+    override val isEvaluationResultReferenceCounted get() = nullableExpression.isEvaluationResultReferenceCounted
     override val isCompileTimeConstant get() = nullableExpression.isCompileTimeConstant
 
-    override fun toBackendIrExpression(): IrExpression {
-        /*
-        should be fairly simply once a cast operator and exceptions are available. Declare in emerge.std:
+    /**
+     * @return the `emerge.core.panic(emerge.core.String)` function
+     */
+    private val panicFunction: BoundFunction by lazy {
+        val corePackage = context.swCtx.getPackage(CoreIntrinsicsModule.NAME)
+            ?: throw InternalCompilerError("Package ${CoreIntrinsicsModule.NAME} not known to the ${SoftwareContext::class.simpleName}!")
 
-        fun errorIfNull<T : Any>(value: T?): T {
-            if (value != null) {
-                return value as T
+        corePackage
+            .getTopLevelFunctionOverloadSetsBySimpleName("panic")
+            .asSequence()
+            .filter { it.parameterCount == 1 }
+            .flatMap { it.overloads.asSequence() }
+            .filter {
+                val paramType = it.parameterTypes[0] ?: return@filter false
+                if (paramType !is RootResolvedTypeReference) return@filter false
+                paramType.baseType == context.swCtx.string
             }
-            throw NullPointerError()
-        }
+            .singleOrNull() ?: throw InternalCompilerError("Could not find the panic(String) function")
+    }
 
-        then just call this function here
-         */
+    /**
+     * first: the code that does the null check and error raising, second: the value that was checked
+     */
+    private val backendIr: Pair<IrCodeChunk, IrCreateTemporaryValue> by lazy {
+        val valueToCheck = IrCreateTemporaryValueImpl(nullableExpression.toBackendIrExpression())
+        val nullLiteral = IrCreateTemporaryValueImpl(IrNullLiteralExpressionImpl(
+            context.swCtx.nothing.baseReference.withCombinedNullability(TypeReference.Nullability.NULLABLE).toBackendIr()
+        ))
+        val nullCmpResult = IrCreateTemporaryValueImpl(
+            IrIdentityComparisonExpressionImpl(
+                IrTemporaryValueReferenceImpl(valueToCheck),
+                IrTemporaryValueReferenceImpl(nullLiteral),
+                context.swCtx,
+            )
+        )
 
-        TODO("Not yet implemented")
+        // TODO: improve the error message by quoting from the source? e.g. "myVar.foo().someField evaluated to null"
+        val errorMessage = IrCreateTemporaryValueImpl(
+            IrStringLiteralExpressionImpl(
+                "failed not-null assertion in ${declaration.span.fileLineColumnText}".toByteArray(Charsets.UTF_8),
+                context.swCtx.string.baseReference.toBackendIr(),
+            )
+        )
+        val panicInvocation = IrCreateTemporaryValueImpl(IrStaticDispatchFunctionInvocationImpl(
+            panicFunction.toBackendIr(),
+            listOf(IrTemporaryValueReferenceImpl(errorMessage)),
+            emptyMap(),
+            panicFunction.returnType!!.toBackendIr(),
+        ))
+
+        val code = IrCodeChunkImpl(listOf(
+            valueToCheck,
+            nullLiteral,
+            nullCmpResult,
+            IrExpressionSideEffectsStatementImpl(IrIfExpressionImpl(
+                IrTemporaryValueReferenceImpl(nullCmpResult),
+                IrImplicitEvaluationExpressionImpl(
+                    IrCodeChunkImpl(listOf(
+                        errorMessage,
+                        panicInvocation,
+                    )),
+                    IrTemporaryValueReferenceImpl(panicInvocation),
+                ),
+                null,
+                context.swCtx.unit.baseReference.toBackendIr(),
+            ))
+        ))
+
+        Pair(code, valueToCheck)
+    }
+
+    override fun toBackendIrExpression(): IrExpression {
+        return IrImplicitEvaluationExpressionImpl(backendIr.first, IrTemporaryValueReferenceImpl(backendIr.second))
+    }
+
+    override fun toBackendIrStatement(): IrExecutable {
+        return backendIr.first
     }
 }

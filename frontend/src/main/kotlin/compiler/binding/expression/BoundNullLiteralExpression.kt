@@ -41,8 +41,9 @@ class BoundNullLiteralExpression(
         expectedType = type
     }
 
-    override val type: BoundTypeReference?
+    override val type: BoundTypeReference
         get() = expectedType?.withCombinedNullability(TypeReference.Nullability.NULLABLE)
+            ?: context.swCtx.nothing.baseReference.withCombinedNullability(TypeReference.Nullability.NULLABLE)
 
     override val throwBehavior = SideEffectPrediction.NEVER
     override val returnBehavior = SideEffectPrediction.NEVER
@@ -63,6 +64,6 @@ class BoundNullLiteralExpression(
     }
 }
 
-private class IrNullLiteralExpressionImpl(
+internal class IrNullLiteralExpressionImpl(
     override val evaluatesTo: IrType,
 ) : IrNullLiteralExpression
