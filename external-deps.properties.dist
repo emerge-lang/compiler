@@ -12,3 +12,5 @@ emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.scrt1=/lib/x86_64-linux-gnu/Sc
 emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.crtbeginS=/usr/lib/gcc/x86_64-linux-gnu/14/crtbeginS.o
 emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.crtendS=/usr/lib/gcc/x86_64-linux-gnu/14/crtendS.o
 emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.libcSO-6=/usr/lib/x86_64-linux-gnu/libc.so.6
+# you need to build libunwind yourself, see the github actions
+emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.libunwindA=

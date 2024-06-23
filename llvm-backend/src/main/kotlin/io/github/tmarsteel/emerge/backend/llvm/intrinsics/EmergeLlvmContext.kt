@@ -35,6 +35,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
@@ -44,6 +45,8 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindContextSize
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindCursorSize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.intrinsicNumberOperations
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
@@ -227,7 +230,11 @@ class EmergeLlvmContext(
      * @param returnTypeOverride the return type on LLVM level. **DANGER!** there is only one intended use case for this:
      * making the constructor of core.emerge.Unit return ptr instead of void.
      */
-    fun registerFunction(fn: IrFunction, returnTypeOverride: LlvmType? = null): LlvmFunction<*>? {
+    fun registerFunction(
+        fn: IrFunction,
+        returnTypeOverride: LlvmType? = null,
+        symbolNameOverride: String? = null
+    ): LlvmFunction<*>? {
         fn.llvmRef?.let { return it }
 
         val parameterTypes = fn.parameters.map { getReferenceSiteType(it.type) }
@@ -256,6 +263,9 @@ class EmergeLlvmContext(
                 // abstract member fn is not relevant to LLVM
                 return null
             }
+        }
+        if (symbolNameOverride != null) {
+            fn.llvmName = symbolNameOverride
         }
         val rawRef = Llvm.LLVMAddFunction(module, fn.llvmName, functionType.getRawInContext(this))
         fn.llvmRef = LlvmFunction(
@@ -574,6 +584,8 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             arrayAbstractGet,
             arrayAbstractSet,
             panic,
+            unwindContextSize,
+            unwindCursorSize,
         )
             + intrinsicNumberOperations
     )

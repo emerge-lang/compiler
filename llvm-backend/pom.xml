@@ -64,6 +64,10 @@
                                     <sourceFile>${emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.libcSO-6}</sourceFile>
                                     <destinationFile>${project.build.outputDirectory}/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/libc.so</destinationFile>
                                 </fileSet>
+                                <fileSet>
+                                    <sourceFile>${emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.libunwindA}</sourceFile>
+                                    <destinationFile>${project.build.outputDirectory}/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/libunwind.a</destinationFile>
+                                </fileSet>
                             </fileSets>
                             <sourceFile>src/someDirectory/test.environment.properties</sourceFile>
                             <destinationFile>target/someDir/environment.properties</destinationFile>

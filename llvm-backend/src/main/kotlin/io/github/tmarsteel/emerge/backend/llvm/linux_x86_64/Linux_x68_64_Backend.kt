@@ -9,9 +9,13 @@ import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
+import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmCompiler
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmTarget
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.PassBuilderOptions
@@ -68,6 +72,7 @@ class Linux_x68_64_Backend : EmergeBackend {
                 getClasspathResourceAsFileOnDisk(javaClass, "/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/crtbeginS.o"),
                 objectFilePath,
                 getClasspathResourceAsFileOnDisk(javaClass, "/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/crtendS.o"),
+                getClasspathResourceAsFileOnDisk(javaClass, "/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/libunwind.a"),
             ),
             executablePath,
             dynamicallyLinkAtRuntime = listOf("c"),
@@ -97,13 +102,23 @@ class Linux_x68_64_Backend : EmergeBackend {
                 .flatMap { it.classes }
                 .flatMap { it.memberFunctions }
                 .flatMap { it.overloads }
-                .forEach(llvmContext::registerFunction)
+                .forEach {
+                    llvmContext.registerFunction(
+                        it,
+                        symbolNameOverride = FUNCTION_SYMBOL_NAME_OVERRIDES[it.canonicalName],
+                    )
+                }
 
             softwareContext.packagesSeq
                 .flatMap { it.functions }
                 .flatMap { it.overloads }
                 .forEach {
-                    val fn = llvmContext.registerFunction(it) ?: throw CodeGenerationException("toplevel fn not defined/declared in llvm - what?")
+                    val fn = llvmContext.registerFunction(
+                        it,
+                        symbolNameOverride = FUNCTION_SYMBOL_NAME_OVERRIDES[it.canonicalName]
+                    )
+                        ?: throw CodeGenerationException("toplevel fn not defined/declared in llvm - what?")
+
                     storeCoreFunctionReference(llvmContext, it.canonicalName, fn)
                 }
 
@@ -136,6 +151,15 @@ class Linux_x68_64_Backend : EmergeBackend {
                         .filter { it.body != null }
                         .forEach(llvmContext::defineFunctionBody)
                 }
+
+            llvmContext.registerIntrinsic(KotlinLlvmFunction.define("_Ux86_64_setcontext", LlvmI32Type) {
+                val contextPtr by param(pointerTo(LlvmVoidType))
+                body {
+                    val setctxfnaddr = context.getNamedFunctionAddress("setcontext")!!
+                    val setctffntype = LlvmFunctionType<LlvmI32Type>(LlvmI32Type, listOf(LlvmPointerType(LlvmVoidType)))
+                    ret(call(setctxfnaddr, setctffntype, listOf(contextPtr)))
+                }
+            })
 
             // assure the entrypoint is in the object file
             llvmContext.registerIntrinsic(EmergeEntrypoint)
@@ -214,6 +238,30 @@ class Linux_x68_64_Backend : EmergeBackend {
         private val ALLOCATOR_FUNCTION_NAME = CanonicalElementName.Function(LIBC_PACKAGE, "malloc")
         private val FREE_FUNCTION_NAME = CanonicalElementName.Function(LIBC_PACKAGE, "free")
         private val EXIT_FUNCTION_NAME = CanonicalElementName.Function(LIBC_PACKAGE, "exit")
+
+        private val FUNCTION_SYMBOL_NAME_OVERRIDES: Map<CanonicalElementName.Function, String> = mapOf(
+            // find those by calling the c-pre-processor on libunwind.h
+            CanonicalElementName.Function(
+                CanonicalElementName.Package(listOf("emerge", "platform")),
+                "unw_getcontext",
+            ) to "getcontext",
+            CanonicalElementName.Function(
+                CanonicalElementName.Package(listOf("emerge", "platform")),
+                "unw_init_local",
+            ) to "_Ux86_64_init_local",
+            CanonicalElementName.Function(
+                CanonicalElementName.Package(listOf("emerge", "platform")),
+                "unw_step",
+            ) to "_Ux86_64_step",
+            CanonicalElementName.Function(
+                CanonicalElementName.Package(listOf("emerge", "platform")),
+                "unw_get_proc_name",
+            ) to "_Ux86_64_get_proc_name",
+            CanonicalElementName.Function(
+                CanonicalElementName.Package(listOf("emerge", "platform")),
+                "unw_get_proc_info",
+            ) to "_Ux86_64_get_proc_info"
+        )
     }
 }
 
