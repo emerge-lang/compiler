@@ -262,6 +262,8 @@ class EmergeLlvmContext(
             LlvmConstant(rawRef, LlvmFunctionAddressType),
             functionType,
         )
+        fn.llvmRef!!.addAttributeToFunction(LlvmFunctionAttribute.FramePointerAll)
+        fn.llvmRef!!.addAttributeToFunction(LlvmFunctionAttribute.UnwindTableAsync)
 
         fn.parameters.forEachIndexed { index, param ->
             param.emitRead = {
