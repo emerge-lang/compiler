@@ -549,6 +549,15 @@ public class Llvm {
     /** see Core.h */
     public static native @NotNull LlvmAttributeRef LLVMCreateEnumAttribute(@NotNull LlvmContextRef context, @Unsigned int kindId, @Unsigned long val);
 
+    /** see Core.h */
+    public static native @NotNull LlvmAttributeRef LLVMCreateStringAttribute(
+            @NotNull LlvmContextRef context,
+            @NotNull byte[] key,
+            @ArraySizeOf("key") @Unsigned int keyLength,
+            @NotNull byte[] value,
+            @ArraySizeOf("value") @Unsigned int valueLength
+    );
+
     /**
      * see Core.h
      * @param index -1 for adding the attribute to the function itself, 0 for adding it to the return value, and 1, 2, 3, ...

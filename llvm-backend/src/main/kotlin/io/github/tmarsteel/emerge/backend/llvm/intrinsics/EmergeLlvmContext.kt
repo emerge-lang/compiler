@@ -35,6 +35,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
@@ -262,6 +263,8 @@ class EmergeLlvmContext(
             LlvmConstant(rawRef, LlvmFunctionAddressType),
             functionType,
         )
+        fn.llvmRef!!.addAttributeToFunction(LlvmFunctionAttribute.FramePointerAll)
+        fn.llvmRef!!.addAttributeToFunction(LlvmFunctionAttribute.UnwindTableAsync)
 
         fn.parameters.forEachIndexed { index, param ->
             param.emitRead = {
