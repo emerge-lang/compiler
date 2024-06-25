@@ -13,9 +13,10 @@ export mut fn collectStackTrace() -> ArrayList<StackTraceElement> {
     var hasNext = true
     while hasNext {
         procName = cursor.getProcedureName()
+        ip = cursor.getInstructionPointer()
 
         procInfo = UnwindProcedureInfo.fromCursor(cursor)
-        stackList.add(StackTraceElement(procInfo.globalPointer, procName))
+        stackList.add(StackTraceElement(ip, procName))
         set hasNext = cursor.tryStepUp()
     }
 
@@ -41,6 +42,8 @@ UNWIND_ERROR_BAD_FRAME: S32                   = -7
 UNWIND_ERROR_INVALID: S32                     = -8  // unsupported operation or bad value
 UNWIND_ERROR_UNSUPPORTED_VERSION: S32         = -9
 UNWIND_ERROR_NO_INFO: S32                     = -10 // no unwind info found
+
+UNWIND_REGISTER_IP: S32 = 16
 
 private fn unwindErrorToString(code: S32) -> String {
     // TODO: when/switch
@@ -113,6 +116,8 @@ private external(C) read nothrow fn unw_init_local(cursor: COpaquePointer, conte
 // @return a positive value on success, 0 if there are no more stack frames, or a negative value for an error code
 private external(C) read nothrow fn unw_step(cursor: COpaquePointer) -> S32
 
+private external(C) nothrow fn unw_get_reg(cursor: COpaquePointer, register: S32, buf: COpaquePointer) -> S32
+
 private external(C) nothrow fn unw_get_proc_name(cursor: COpaquePointer, buf: COpaquePointer, len: UWord, offp: COpaquePointer) -> S32
 
 private external(C) nothrow fn unw_get_proc_info(cursor: COpaquePointer, buf: COpaquePointer) -> S32
@@ -160,6 +165,12 @@ private class UnwindCursor {
         }
 
         return true
+    }
+
+    private fn getInstructionPointer(self) -> UWord {
+        buf = Array.new::<UWord>(1, 0 as UWord)
+        errorCode = unw_get_reg(self.ref(), UNWIND_REGISTER_IP, buf.addressOfFirst())
+        return buf[0]
     }
 
     // returns the name of the function belonging to the stack frame this cursor is currently pointing at

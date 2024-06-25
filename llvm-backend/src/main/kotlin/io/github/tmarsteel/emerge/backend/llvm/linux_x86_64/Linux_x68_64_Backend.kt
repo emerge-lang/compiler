@@ -260,7 +260,11 @@ class Linux_x68_64_Backend : EmergeBackend {
             CanonicalElementName.Function(
                 CanonicalElementName.Package(listOf("emerge", "platform")),
                 "unw_get_proc_info",
-            ) to "_Ux86_64_get_proc_info"
+            ) to "_Ux86_64_get_proc_info",
+            CanonicalElementName.Function(
+                CanonicalElementName.Package(listOf("emerge", "platform")),
+                "unw_get_reg",
+            ) to "_Ux86_64_get_reg",
         )
     }
 }
