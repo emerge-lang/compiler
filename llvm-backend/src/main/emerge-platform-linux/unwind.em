@@ -151,11 +151,11 @@ private class UnwindCursor {
     // @return true if the cursor was successfully moved, false if there are no more stack frames left
     private read fn tryStepUp(self: mut _) -> Bool {
         errorCode = unw_step(self.ref())
-        if errorCode == UNWIND_ERROR_STOP {
+        if errorCode == UNWIND_ERROR_STOP or errorCode == 0 {
             return false
         }
 
-        if errorCode != UNWIND_ERROR_SUCCESS {
+        if errorCode < 0 {
             panic("unw_step errored: " + unwindErrorToString(errorCode))
         }
 
