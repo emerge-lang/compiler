@@ -46,6 +46,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
+import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.intrinsicNumberOperations
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
@@ -567,9 +568,11 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, *>.heapAllocate(nBytes: LlvmVa
 /**
  * Allocates [T].[sizeof] bytes on the heap, triggering an OOM exception if needed
  */
-fun <T : LlvmType> BasicBlockBuilder<EmergeLlvmContext, *>.heapAllocate(type: T): LlvmValue<LlvmPointerType<T>> {
+fun <T : LlvmType> BasicBlockBuilder<EmergeLlvmContext, *>.heapAllocate(type: T, memset: Byte? = 0): LlvmValue<LlvmPointerType<T>> {
     val size = type.sizeof()
-    return heapAllocate(size).reinterpretAs(pointerTo(type))
+    val allocation = heapAllocate(size)
+    memset(allocation, context.i8(0), size)
+    return allocation.reinterpretAs(pointerTo(type))
 }
 
 private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
