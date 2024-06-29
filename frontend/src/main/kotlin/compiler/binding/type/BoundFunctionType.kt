@@ -61,8 +61,34 @@ class BoundFunctionType(
     }
 
     override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
+        val reportings = mutableListOf<Reporting>()
+
+        reportings.addAll(attributes.semanticAnalysisPhase1())
+        assert(attributes.semanticAnalysisPhase2().isEmpty())
+        assert(attributes.semanticAnalysisPhase3().isEmpty())
+
+        attributes.externalAttribute?.let { externalAttribute ->
+            reportings.add(Reporting.illegalAttribute(
+                "calling-convention adaptation for function types is not implemented yet",
+                externalAttribute,
+            ))
+        }
+
+        listOfNotNull(
+            attributes.firstOperatorAttribute,
+            attributes.firstOverrideAttribute,
+            attributes.firstIntrinsicAttribute,
+        )
+            .map { illegalAttr -> Reporting.illegalAttribute("function-types cannot be declared ${illegalAttr.attributeName.keyword.text}", illegalAttr) }
+            .forEach(reportings::add)
+
         val useSiteWithVariance = forUsage.deriveIrrelevant() // function types impose variance upon all the constituent types
-        return returnType.validate(useSiteWithVariance) + parameterTypes.flatMap { it.validate(useSiteWithVariance) }
+        reportings.addAll(returnType.validate(useSiteWithVariance))
+        parameterTypes.forEach {
+            reportings.addAll(it.validate(useSiteWithVariance))
+        }
+
+        return reportings
     }
 
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {

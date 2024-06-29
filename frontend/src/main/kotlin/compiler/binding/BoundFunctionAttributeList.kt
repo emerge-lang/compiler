@@ -25,16 +25,18 @@ class BoundFunctionAttributeList(
 
     val firstOverrideAttribute: AstFunctionAttribute.Override?
     val firstNothrowAttribute: AstFunctionAttribute?
+    val firstOperatorAttribute: AstFunctionAttribute?
+    val firstIntrinsicAttribute: AstFunctionAttribute?
 
     val impliesNoBody: Boolean
-    var isDeclaredOperator: Boolean
-        private set
+    val isDeclaredOperator: Boolean get() = firstOperatorAttribute != null
     val isDeclaredNothrow: Boolean get() = firstNothrowAttribute != null
 
     init {
         val attrSequence = attributes.asSequence()
         impliesNoBody = attributes.any { it.impliesNoBody }
-        isDeclaredOperator = attributes.any { it is AstFunctionAttribute.Operator }
+        firstIntrinsicAttribute = attributes.firstOrNull { it is AstFunctionAttribute.Intrinsic }
+        firstOperatorAttribute = attributes.firstOrNull { it is AstFunctionAttribute.Operator }
         firstModifyingAttribute = attributes.firstOrNull {
             it is AstFunctionAttribute.EffectCategory && it.value == AstFunctionAttribute.EffectCategory.Category.MODIFYING
         }

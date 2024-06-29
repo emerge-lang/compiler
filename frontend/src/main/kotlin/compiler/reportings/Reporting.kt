@@ -193,6 +193,9 @@ abstract class Reporting internal constructor(
         fun missingFunctionBody(function: FunctionDeclaration)
             = MissingFunctionBodyReporting(function)
 
+        fun illegalAttribute(reason: String, attribute: AstFunctionAttribute)
+            = IllegalFunctionAttributeReporting(attribute, reason)
+
         fun inefficientAttributes(message: String, attributes: Collection<AstFunctionAttribute>)
             = ModifierInefficiencyReporting(message, attributes)
 
