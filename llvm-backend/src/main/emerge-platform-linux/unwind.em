@@ -6,18 +6,32 @@ import emerge.ffi.c.addressOfFirst
 import emerge.ffi.c.COpaquePointer
 
 export mut fn collectStackTrace() -> ArrayList<StackTraceElement> {
+    // the logic around the context and cursor buffors cannot be moved into emerge classes
+    // the reason is that it matters very much on which stack frame unw_create_context and unw_init_local
+    // are being called. They need to be called from the same stack frame. Additionally, when a function
+    // returns, any unwind cursor has to have been unwound past that stackframe, otherwise unwinding will be UB
+
     stackList: exclusive _ = ArrayList::<const StackTraceElement>()
-    ctx = UnwindContext()
-    cursor: mut _ = UnwindCursor(ctx)
+    contextBuffer = Array.new::<S8>(unwind_context_size(), 0 as S8)
+    var errorCode = unw_getcontext(contextBuffer.addressOfFirst())
+    if errorCode != UNWIND_ERROR_SUCCESS {
+        panic("unw_getcontext errored: " + unwindErrorToString(errorCode))
+    }
+
+    cursorBuffer = Array.new::<S8>(unwind_cursor_size(), 0 as S8)
+    set errorCode = unw_init_local(cursorBuffer.addressOfFirst(), contextBuffer.addressOfFirst())
+    if errorCode != UNWIND_ERROR_SUCCESS {
+        panic("unw_init_local errored: " + unwindErrorToString(errorCode))
+    }
+
     // TODO: do-while
     var hasNext = true
     while hasNext {
-        procName = cursor.getProcedureName()
-        ip = cursor.getInstructionPointer()
+        procName = unwindCursorGetProcedureName(cursorBuffer.addressOfFirst())
+        ip = unwindCursorGetInstructionPointer(cursorBuffer.addressOfFirst())
 
-        procInfo = UnwindProcedureInfo.fromCursor(cursor)
         stackList.add(StackTraceElement(ip, procName))
-        set hasNext = cursor.tryStepUp()
+        set hasNext = unwindCursorTryStepUp(cursorBuffer.addressOfFirst())
     }
 
     return stackList
@@ -122,76 +136,45 @@ private external(C) nothrow fn unw_get_proc_name(cursor: COpaquePointer, buf: CO
 
 private external(C) nothrow fn unw_get_proc_info(cursor: COpaquePointer, buf: COpaquePointer) -> S32
 
-private class UnwindContext {
-    private buffer = Array.new::<S8>(unwind_context_size(), 0 as S8)
-
-    read constructor {
-        errorCode = unw_getcontext(self.buffer.addressOfFirst())
-        if errorCode != UNWIND_ERROR_SUCCESS {
-            panic("unw_getcontext errored: " + unwindErrorToString(errorCode))
-        }
+// attempts to move the cursor to the next, less deeply nested tack frame
+// @return true if the cursor was successfully moved, false if there are no more stack frames left
+private mut fn unwindCursorTryStepUp(cursorPtr: COpaquePointer) -> Bool {
+    errorCode = unw_step(cursorPtr)
+    if errorCode == UNWIND_ERROR_STOP or errorCode == 0 {
+        return false
     }
 
-    private fn ref(self: read _) -> COpaquePointer {
-        return self.buffer.addressOfFirst()
+    if errorCode < 0 {
+        panic("unw_step errored: " + unwindErrorToString(errorCode))
     }
+
+    return true
 }
 
-private class UnwindCursor {
-    private context: UnwindContext = init
-    private buffer = Array.new::<S8>(unwind_cursor_size(), 0 as S8)
+private read fn unwindCursorGetInstructionPointer(cursorPtr: COpaquePointer) -> UWord {
+    buf = Array.new::<UWord>(1, 0 as UWord)
+    errorCode = unw_get_reg(cursorPtr, UNWIND_REGISTER_IP, buf.addressOfFirst())
+    return buf[0]
+}
 
-    read constructor {
-        errorCode = unw_init_local(self.buffer.addressOfFirst(), self.context.ref())
-        if errorCode != UNWIND_ERROR_SUCCESS {
-            panic("unw_init_local errored: " + unwindErrorToString(errorCode))
-        }
+// returns the name of the function belonging to the stack frame this cursor is currently pointing at
+private mut fn unwindCursorGetProcedureName(cursorPtr: COpaquePointer) -> String {
+    var nameBuf = Array.new::<S8>(256, 0 as S8)
+    offpBuf = Array.new::<UWord>(1, 0 as UWord)
+
+    errorCode = unw_get_proc_name(cursorPtr, nameBuf.addressOfFirst(), nameBuf.size, offpBuf.addressOfFirst())
+    if errorCode != UNWIND_ERROR_SUCCESS {
+        panic("unw_get_proc_name errored: " + unwindErrorToString(errorCode))
     }
 
-    private fn ref(self: read _) -> COpaquePointer {
-        return self.buffer.addressOfFirst()
+    var actualNameLength = 0 as UWord
+    while nameBuf[actualNameLength] != 0 and actualNameLength < nameBuf.size {
+        set actualNameLength = actualNameLength + 1
     }
 
-    // attempts to move the cursor to the next, less deeply nested tack frame
-    // @return true if the cursor was successfully moved, false if there are no more stack frames left
-    private read fn tryStepUp(self: mut _) -> Bool {
-        errorCode = unw_step(self.ref())
-        if errorCode == UNWIND_ERROR_STOP or errorCode == 0 {
-            return false
-        }
-
-        if errorCode < 0 {
-            panic("unw_step errored: " + unwindErrorToString(errorCode))
-        }
-
-        return true
-    }
-
-    private fn getInstructionPointer(self) -> UWord {
-        buf = Array.new::<UWord>(1, 0 as UWord)
-        errorCode = unw_get_reg(self.ref(), UNWIND_REGISTER_IP, buf.addressOfFirst())
-        return buf[0]
-    }
-
-    // returns the name of the function belonging to the stack frame this cursor is currently pointing at
-    private fn getProcedureName(self) -> String {
-        var nameBuf = Array.new::<S8>(256, 0 as S8)
-        offpBuf = Array.new::<UWord>(1, 0 as UWord)
-
-        errorCode = unw_get_proc_name(self.ref(), nameBuf.addressOfFirst(), nameBuf.size, offpBuf.addressOfFirst())
-        if errorCode != UNWIND_ERROR_SUCCESS {
-            panic("unw_get_proc_name errored: " + unwindErrorToString(errorCode))
-        }
-
-        var actualNameLength = 0 as UWord
-        while nameBuf[actualNameLength] == 0 and actualNameLength < nameBuf.size {
-            set actualNameLength = actualNameLength + 1
-        }
-
-        trimmedName: exclusive _ = Array.new::<S8>(actualNameLength, 0 as S8)
-        Array.copy(nameBuf, 0, trimmedName, 0, actualNameLength)
-        return String(trimmedName)
-    }
+    trimmedName: exclusive _ = Array.new::<S8>(actualNameLength, 0 as S8)
+    Array.copy(nameBuf, 0, trimmedName, 0, actualNameLength)
+    return String(trimmedName)
 }
 
 private class UnwindProcedureInfo {
@@ -201,11 +184,11 @@ private class UnwindProcedureInfo {
     private addressOfPersonalityFunction: UWord = init
     private globalPointer: UWord = init
 
-    private fn fromCursor(cursor: UnwindCursor) -> exclusive UnwindProcedureInfo {
+    private fn fromCursor(cursorPtr: read COpaquePointer) -> exclusive UnwindProcedureInfo {
         // there are additional members in the struct that are not mapped here
         buf = Array.new::<UWord>(8, 0 as UWord)
 
-        errorCode = unw_get_proc_info(cursor.ref(), buf.addressOfFirst())
+        errorCode = unw_get_proc_info(cursorPtr, buf.addressOfFirst())
         if errorCode != UNWIND_ERROR_SUCCESS {
             panic("unw_get_proc_info errored: " + unwindErrorToString(errorCode))
         }
