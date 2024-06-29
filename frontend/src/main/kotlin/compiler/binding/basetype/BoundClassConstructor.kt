@@ -167,6 +167,7 @@ class BoundClassConstructor(
         classDef.memberVariables
             .filter { it.isConstructorParameterInitialized }
             .map { memberVariable ->
+                val generatedSourceLocation = memberVariable.declaredAt.deriveGenerated()
                 val parameter = parameters.parameters.single { it.name == memberVariable.name }
                 AssignmentStatement(
                     KeywordToken(Keyword.SET, span = generatedSourceLocation),
@@ -189,6 +190,7 @@ class BoundClassConstructor(
             .filterNot { it.isConstructorParameterInitialized }
             .filter { it.initializer != null  /* if null, there should be another error diagnosed for it */ }
             .map { memberVariable ->
+                val generatedSourceLocation = memberVariable.initializer!!.declaration.span.deriveGenerated()
                 AssignmentStatement(
                     KeywordToken(Keyword.SET, span = generatedSourceLocation),
                     MemberAccessExpression(
