@@ -1,6 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm
 
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
+import io.github.tmarsteel.emerge.backend.api.ir.IrFunctionType
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
@@ -59,6 +60,12 @@ private fun IrType.toStringForSignature(): String = when(this) {
             separator = ",",
             postfix = ">"
         )
+    is IrFunctionType -> parameterTypes.joinToString(
+        prefix = "(",
+        transform = { it.toStringForSignature() },
+        separator = ",",
+        postfix = ")->${returnType.toStringForSignature()}"
+    )
     is IrSimpleType -> baseType.toStringForSignature()
 }
 

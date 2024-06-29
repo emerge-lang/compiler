@@ -21,6 +21,7 @@ package compiler.binding
 import compiler.InternalCompilerError
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
@@ -58,7 +59,7 @@ class BoundVariable(
 
     val isReAssignable: Boolean = declaration.isReAssignable
     private val implicitMutability: TypeMutability = if (isReAssignable) TypeMutability.MUTABLE else kind.implicitMutabilityWhenNotReAssignable
-    private val shouldInferBaseType: Boolean = declaration.type == null || declaration.type.simpleName == DECLARATION_TYPE_NAME_INFER
+    private val shouldInferBaseType: Boolean = declaration.type == null || (declaration.type is NamedTypeReference && declaration.type.simpleName == DECLARATION_TYPE_NAME_INFER)
 
     /**
      * The type as _declared_ or inferred _from the declaration only_; there is some level of dependent typing
@@ -153,8 +154,8 @@ class BoundVariable(
                 initializerExpression.markEvaluationResultUsed()
             }
 
-            if (shouldInferBaseType && declaration.type?.arguments?.isNotEmpty() == true) {
-                reportings.add(Reporting.explicitInferTypeWithArguments(declaration.type))
+            if (shouldInferBaseType && (declaration.type as NamedTypeReference?)?.arguments?.isNotEmpty() == true) {
+                reportings.add(Reporting.explicitInferTypeWithArguments(declaration.type!!))
             }
 
             if (declaration.type != null && shouldInferBaseType && !kind.allowsExplicitBaseTypeInfer) {

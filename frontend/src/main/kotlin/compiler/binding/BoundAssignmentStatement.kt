@@ -8,18 +8,11 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.IrGenericTypeReferenceImpl
-import compiler.binding.type.IrParameterizedTypeImpl
-import compiler.binding.type.IrSimpleTypeImpl
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
-import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
-import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
-import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 abstract class BoundAssignmentStatement(
     override val context: ExecutionScopedCTContext,
@@ -128,12 +121,6 @@ abstract class BoundAssignmentStatement(
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
         return toAssignExpression.findWritesBeyond(boundary)
-    }
-
-    protected fun IrType.nullable(): IrType = if (isNullable) this else when (this) {
-        is IrSimpleType -> IrSimpleTypeImpl(this.baseType, true)
-        is IrGenericTypeReference -> IrGenericTypeReferenceImpl(this.parameter, effectiveBound.nullable())
-        is IrParameterizedType -> IrParameterizedTypeImpl(this.simpleType.nullable() as IrSimpleType, arguments)
     }
 }
 

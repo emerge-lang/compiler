@@ -43,3 +43,7 @@ class UWordBox {
 class BoolBox {
     value: Bool = init
 }
+
+class FunctionBox {
+    value: Any = init
+}

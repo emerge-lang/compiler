@@ -40,3 +40,8 @@ interface IrGenericTypeReference : IrType {
     override val isNullable get() = effectiveBound.isNullable
     override fun asNullable(): IrGenericTypeReference
 }
+
+interface IrFunctionType : IrType {
+    val parameterTypes: List<IrType>
+    val returnType: IrType
+}

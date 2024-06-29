@@ -8,7 +8,7 @@ data class MissingReturnValueReporting(
     val expectedType: BoundTypeReference,
 ) : Reporting(
     Level.ERROR,
-    "Expecting a return value of type ${expectedType.simpleName}",
+    "Expecting a return value of type $expectedType",
     valueLessReturn.span,
 ) {
     override fun toString() = super.toString()

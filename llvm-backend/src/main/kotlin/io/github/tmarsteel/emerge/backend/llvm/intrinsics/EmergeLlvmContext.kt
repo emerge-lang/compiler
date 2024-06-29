@@ -5,6 +5,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseTypeFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrFunctionType
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrGlobalVariable
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
@@ -110,6 +111,8 @@ class EmergeLlvmContext(
     internal lateinit var boxTypeUWord: EmergeClassType
     /** `emerge.platform.BoolBox` */
     internal lateinit var boxTypeBool: EmergeClassType
+    /** `emerge.platform.FunctionBox` */
+    internal lateinit var boxTypeFunction: EmergeClassType
     /** `emerge.ffi.c.CPointer */
     internal lateinit var cPointerType: EmergeClassType
     /** `emerge.ffi.c.COpaquePointer` */
@@ -453,6 +456,7 @@ class EmergeLlvmContext(
             is IrSimpleType -> type.baseType
             is IrParameterizedType -> type.simpleType.baseType
             is IrGenericTypeReference -> return getReferenceSiteType(type.effectiveBound)
+            is IrFunctionType -> return type.autoboxer!!.getReferenceSiteType(this, forceBoxed)
         }
 
         baseType.autoboxer?.let { return it.getReferenceSiteType(this, forceBoxed) }
@@ -515,6 +519,7 @@ class EmergeLlvmContext(
 
                 // there are no other possibilities AFAICT right now
             }
+            is IrFunctionType -> error("this should handled through the autoboxer!")
         }
     }
 

@@ -19,8 +19,11 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
+import compiler.ast.AstFunctionAttribute
 import compiler.ast.TypeArgumentBundle
 import compiler.ast.TypeParameterBundle
+import compiler.ast.type.AstFunctionType
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
@@ -150,7 +153,7 @@ val BracedTypeParameters = sequence("braced type parameters") {
         TypeParameterBundle(parameters)
     }
 
-val Type: Rule<TypeReference> = sequence("type") {
+val NamedType: Rule<TypeReference> = sequence("type") {
     optional {
         ref(TypeMutability)
     }
@@ -201,7 +204,7 @@ val Type: Rule<TypeReference> = sequence("type") {
             else -> throw InternalCompilerError("Unknown type nullability marker: $next")
         }
 
-        TypeReference(
+        NamedTypeReference(
             nameToken.value,
             nullability,
             typeMutability,
@@ -210,3 +213,81 @@ val Type: Rule<TypeReference> = sequence("type") {
         )
     }
 
+val FunctionType = sequence("function type") {
+    ref(FunctionAttributes)
+    operator(Operator.PARANT_OPEN)
+    optional {
+        ref(Type)
+        repeating {
+            operator(Operator.COMMA)
+            ref(Type)
+        }
+    }
+    operator(Operator.PARANT_CLOSE)
+    operator(Operator.RETURNS)
+    ref(Type)
+}
+    .astTransformation { tokens ->
+        @Suppress("UNCHECKED_CAST")
+        val attributes = tokens.next() as List<AstFunctionAttribute>
+        val parantOpenToken = tokens.next() as OperatorToken
+        val parameterTypes = ArrayList<TypeReference>()
+        var next = tokens.next()
+        while (true) {
+            if (next is OperatorToken) {
+                if (next.operator == Operator.PARANT_CLOSE) {
+                    break
+                }
+                assert(next.operator == Operator.COMMA)
+                next = tokens.next()
+            }
+            parameterTypes.add(next as TypeReference)
+            next = tokens.next()
+        }
+
+        assert(next is OperatorToken && next.operator == Operator.PARANT_CLOSE)
+        tokens.next() // skip RETURNS
+        val returnType = tokens.next() as TypeReference
+
+        val spanStart = attributes.firstOrNull()?.sourceLocation
+            ?: parantOpenToken.span
+
+        AstFunctionType(
+            spanStart .. returnType.span!!,
+            attributes,
+            parameterTypes,
+            returnType,
+            TypeReference.Nullability.NOT_NULLABLE,
+        )
+    }
+
+val BracedFunctionType = sequence("braced function type") {
+    operator(Operator.PARANT_OPEN)
+    ref(FunctionType)
+    operator(Operator.PARANT_CLOSE)
+    optional {
+        operator(Operator.QUESTION_MARK)
+    }
+}
+    .astTransformation { tokens ->
+        val parantOpenToken = tokens.next() as OperatorToken
+        val unbracedType = tokens.next() as AstFunctionType
+        tokens.next() as OperatorToken // skip parant_close
+        val nullableToken = if (tokens.hasNext()) tokens.next() as OperatorToken else null
+
+        if (nullableToken == null) {
+            return@astTransformation unbracedType
+        }
+
+        unbracedType.copy(
+            span = parantOpenToken.span .. nullableToken.span,
+            nullability = TypeReference.Nullability.NULLABLE,
+        )
+    }
+
+val Type: Rule<TypeReference> = eitherOf("type") {
+    ref(NamedType)
+    ref(BracedFunctionType)
+    ref(FunctionType)
+}
+    .astTransformation { tokens -> tokens.next() as TypeReference }

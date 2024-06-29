@@ -35,7 +35,7 @@ import java.util.IdentityHashMap
 
 sealed interface BoundTypeReference {
     val isNullable: Boolean
-    val simpleName: String?
+    //val simpleName: String?
 
     val mutability: TypeMutability
     val span: Span?

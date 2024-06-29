@@ -17,7 +17,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 
 class BoundTypeArgument(
     val context: CTContext,
-    val astNode: TypeArgument,
+    val argumentAstNode: TypeArgument,
     val variance: TypeVariance,
     val type: BoundTypeReference,
 ) : BoundTypeReference {
@@ -26,15 +26,14 @@ class BoundTypeArgument(
     }
     override val isNullable get()= type.isNullable
     override val mutability get() = type.mutability
-    override val simpleName get() = toString()
-    override val span get() = astNode.span
+    override val span get() = argumentAstNode.span
 
     override val inherentTypeBindings: TypeUnification
         get() = TypeUnification.EMPTY
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeArgument = BoundTypeArgument(
         context,
-        astNode,
+        argumentAstNode,
         variance,
         type.defaultMutabilityTo(mutability),
     )
@@ -44,7 +43,7 @@ class BoundTypeArgument(
     }
 
     override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeArgument {
-        return BoundTypeArgument(context, astNode, variance, type.withTypeVariables(variables))
+        return BoundTypeArgument(context, argumentAstNode, variance, type.withTypeVariables(variables))
     }
 
     override fun unify(assigneeType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification {
@@ -58,52 +57,12 @@ class BoundTypeArgument(
 
         when (assigneeType) {
             is RootResolvedTypeReference,
+            is BoundFunctionType,
             is NullableTypeReference -> {
                 return type.unify(assigneeType, assignmentLocation, carry)
             }
             is BoundTypeArgument -> {
-                if (type is TypeVariable || assigneeType.type is TypeVariable) {
-                    return type.unify(assigneeType.type, assignmentLocation, carry)
-                }
-
-                if (this.variance == TypeVariance.UNSPECIFIED) {
-                    val carry2 = type.unify(assigneeType.type, assignmentLocation, carry)
-
-                    val assigneeActualTypeNotNullable = assigneeType.type.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
-
-                    // target needs to use the type in both IN and OUT fashion -> source must match exactly
-                    if (assigneeActualTypeNotNullable !is GenericTypeReference && !assigneeActualTypeNotNullable.hasSameBaseTypeAs(this.type)) {
-                        return carry2.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "the exact type ${this.type} is required", assignmentLocation))
-                    }
-
-                    if (assigneeType.variance != TypeVariance.UNSPECIFIED) {
-                        return carry2.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "cannot assign an in-variant value to an exact-variant reference", assignmentLocation))
-                    }
-
-                    // checks for mutability and nullability
-                    return this.type.unify(assigneeType.type, assignmentLocation, carry2)
-                }
-
-                if (this.variance == TypeVariance.OUT) {
-                    if (assigneeType.variance == TypeVariance.OUT || assigneeType.variance == TypeVariance.UNSPECIFIED) {
-                        return this.type.unify(assigneeType.type, assignmentLocation, carry)
-                    }
-
-                    check(assigneeType.variance == TypeVariance.IN)
-                    return carry.plusReporting(
-                        Reporting.valueNotAssignable(this, assigneeType, "cannot assign in-variant value to out-variant reference", assignmentLocation)
-                    )
-                }
-
-                check(this.variance == TypeVariance.IN)
-                if (assigneeType.variance == TypeVariance.IN || assigneeType.variance == TypeVariance.UNSPECIFIED) {
-                    // IN variance reverses the hierarchy direction
-                    return assigneeType.type.unify(this.type, assignmentLocation, carry)
-                }
-
-                return carry.plusReporting(
-                    Reporting.valueNotAssignable(this, assigneeType, "cannot assign out-variant value to in-variant reference", assignmentLocation)
-                )
+                return unifyTypeArguments(this.type, this.variance, assigneeType.type, assigneeType.variance, assignmentLocation, carry)
             }
             is GenericTypeReference -> {
                 return type.unify(assigneeType, assignmentLocation, carry)
@@ -124,7 +83,7 @@ class BoundTypeArgument(
             return binding
         }
 
-        return BoundTypeArgument(this.context, astNode, variance, binding)
+        return BoundTypeArgument(this.context, argumentAstNode, variance, binding)
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeArgument {
@@ -143,7 +102,7 @@ class BoundTypeArgument(
             nestedInstantiated = NullableTypeReference(nestedInstantiated)
         }
 
-        return BoundTypeArgument(this.context, astNode, variance, nestedInstantiated)
+        return BoundTypeArgument(this.context, argumentAstNode, variance, nestedInstantiated)
     }
 
     override fun withMutability(modifier: TypeMutability?): BoundTypeReference {
@@ -153,7 +112,7 @@ class BoundTypeArgument(
 
         return BoundTypeArgument(
             context,
-            astNode,
+            argumentAstNode,
             variance,
             type.withMutability(modifier),
         )
@@ -166,7 +125,7 @@ class BoundTypeArgument(
 
         return BoundTypeArgument(
             context,
-            astNode,
+            argumentAstNode,
             variance,
             type.withCombinedMutability(mutability),
         )
@@ -175,7 +134,7 @@ class BoundTypeArgument(
     override fun withCombinedNullability(nullability: TypeReference.Nullability): BoundTypeReference {
         return BoundTypeArgument(
             context,
-            astNode,
+            argumentAstNode,
             variance,
             type.withCombinedNullability(nullability),
         )
@@ -213,6 +172,60 @@ class BoundTypeArgument(
         }
 
         return "$variance $type"
+    }
+
+    companion object {
+        fun unifyTypeArguments(
+            targetArgType: BoundTypeReference,
+            targetArgVariance: TypeVariance,
+            assigneeArgType: BoundTypeReference,
+            assigneeArgVariance: TypeVariance,
+            assignmentLocation: Span,
+            carry: TypeUnification,
+        ): TypeUnification {
+            if (targetArgType is TypeVariable || assigneeArgType is TypeVariable) {
+                return targetArgType.unify(assigneeArgType, assignmentLocation, carry)
+            }
+
+            if (targetArgVariance == TypeVariance.UNSPECIFIED) {
+                val carry2 = targetArgType.unify(assigneeArgType, assignmentLocation, carry)
+
+                val assigneeActualTypeNotNullable = assigneeArgType.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
+
+                // target needs to use the type in both IN and OUT fashion -> source must match exactly
+                if (assigneeActualTypeNotNullable !is GenericTypeReference && !assigneeActualTypeNotNullable.hasSameBaseTypeAs(targetArgType)) {
+                    return carry2.plusReporting(Reporting.valueNotAssignable(targetArgType, assigneeArgType, "the exact type $targetArgType is required", assignmentLocation))
+                }
+
+                if (assigneeArgVariance != TypeVariance.UNSPECIFIED) {
+                    return carry2.plusReporting(Reporting.valueNotAssignable(targetArgType, assigneeArgType, "cannot assign an in-variant value to an exact-variant reference", assignmentLocation))
+                }
+
+                // checks for mutability and nullability
+                return targetArgType.unify(assigneeArgType, assignmentLocation, carry2)
+            }
+
+            if (targetArgVariance == TypeVariance.OUT) {
+                if (assigneeArgVariance == TypeVariance.OUT || assigneeArgVariance == TypeVariance.UNSPECIFIED) {
+                    return targetArgType.unify(assigneeArgType, assignmentLocation, carry)
+                }
+
+                check(assigneeArgVariance == TypeVariance.IN)
+                return carry.plusReporting(
+                    Reporting.valueNotAssignable(targetArgType, assigneeArgType, "cannot assign in-variant value to out-variant reference", assignmentLocation)
+                )
+            }
+
+            check(targetArgVariance == TypeVariance.IN)
+            if (assigneeArgVariance == TypeVariance.IN || assigneeArgVariance == TypeVariance.UNSPECIFIED) {
+                // IN variance reverses the hierarchy direction
+                return assigneeArgType.unify(targetArgType, assignmentLocation, carry)
+            }
+
+            return carry.plusReporting(
+                Reporting.valueNotAssignable(targetArgType, assigneeArgType, "cannot assign out-variant value to in-variant reference", assignmentLocation)
+            )
+        }
     }
 }
 

@@ -19,9 +19,9 @@
 package compiler.compiler.ast.type
 
 import compiler.CoreIntrinsicsModule
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
-import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.compiler.negative.emptySoftwareContext
@@ -154,11 +154,11 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
         "mutability projection" - {
             for (outerMutability in TypeMutability.entries) {
                 val type = context.resolveType(
-                    TypeReference(
-                    simpleName = "Array",
-                    mutability = outerMutability,
-                    arguments = listOf(TypeArgument(TypeVariance.UNSPECIFIED, TypeReference("Any")))
-                )
+                    NamedTypeReference(
+                        simpleName = "Array",
+                        mutability = outerMutability,
+                        arguments = listOf(TypeArgument(TypeVariance.UNSPECIFIED, NamedTypeReference("Any")))
+                    )
                 ) as RootResolvedTypeReference
 
                 "projects onto type parameters with $outerMutability" {

@@ -18,8 +18,10 @@
 
 package compiler.ast
 
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
+import compiler.binding.BoundCallableRef
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundTopLevelFunction
@@ -45,9 +47,10 @@ data class FunctionDeclaration(
 
     fun bindToAsTopLevel(context: CTContext): BoundTopLevelFunction {
         lateinit var boundFn: BoundTopLevelFunction
+        val boundFnForwardRef = BoundCallableRef.DeclaredFn { boundFn }
         val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(context)
         val functionContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)
-        val attributes = BoundFunctionAttributeList(functionContext, { boundFn }, attributes)
+        val attributes = BoundFunctionAttributeList(functionContext, boundFnForwardRef, attributes)
         val boundParameterList = parameters.bindTo(functionContext)
 
         boundFn = BoundTopLevelFunction(
@@ -63,13 +66,14 @@ data class FunctionDeclaration(
 
     fun bindToAsMember(
         context: CTContext,
-        impliedReceiverType: TypeReference,
+        impliedReceiverType: NamedTypeReference,
         getTypeDef: () -> BoundBaseType
     ): BoundDeclaredBaseTypeMemberFunction {
         lateinit var boundFn: BoundDeclaredBaseTypeMemberFunction
+        val boundFnForwardRef = BoundCallableRef.DeclaredFn { boundFn }
         val (boundTypeParams, contextWithTypeParams) = typeParameters.chain(context)
         val functionContext = MutableExecutionScopedCTContext.functionRootIn(contextWithTypeParams)
-        val attributes = BoundFunctionAttributeList(functionContext, { boundFn }, attributes)
+        val attributes = BoundFunctionAttributeList(functionContext, boundFnForwardRef, attributes)
         val boundParameterList = parameters.bindTo(functionContext, impliedReceiverType)
 
         boundFn = BoundDeclaredBaseTypeMemberFunction(

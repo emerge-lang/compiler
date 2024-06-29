@@ -3,6 +3,7 @@ package compiler.binding.type
 import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
 import compiler.StandardLibraryModule
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundMemberFunction
@@ -18,18 +19,17 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 /**
- * A [TypeReference] where the root type is resolved
+ * A [NamedTypeReference] where the root type is resolved
  */
 class RootResolvedTypeReference private constructor(
-    val original: TypeReference?,
+    val original: NamedTypeReference?,
     private val explicitMutability: TypeMutability?,
     val baseType: BoundBaseType,
     val arguments: List<BoundTypeArgument>?,
 ) : BoundTypeReference {
     override val isNullable = false
     override val mutability = if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else (explicitMutability ?: original?.mutability ?: TypeMutability.READONLY)
-    override val simpleName = original?.simpleName ?: baseType.simpleName
-    override val span = original?.declaringNameToken?.span
+    override val span = original?.span
 
     override val inherentTypeBindings by lazy {
         TypeUnification.fromExplicit(baseType.typeParameters ?: emptyList(), arguments, span ?: Span.UNKNOWN)
@@ -40,7 +40,7 @@ class RootResolvedTypeReference private constructor(
         else -> SideEffectPrediction.POSSIBLY
     }
 
-    constructor(original: TypeReference, baseType: BoundBaseType, parameters: List<BoundTypeArgument>?) : this(
+    constructor(original: NamedTypeReference, baseType: BoundBaseType, parameters: List<BoundTypeArgument>?) : this(
         original,
         original.mutability,
         baseType,
@@ -112,7 +112,7 @@ class RootResolvedTypeReference private constructor(
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
         return when (other) {
             is UnresolvedType -> other.closestCommonSupertypeWith(this)
-            is NullableTypeReference -> NullableTypeReference(closestCommonSupertypeWith(other.nested))
+            is NullableTypeReference -> NullableTypeReference(closestCommonSupertypeWith(other.nested)) // TODO: this is incorrect, remove the nullable wrapper!!
             is RootResolvedTypeReference -> {
                 val commonSupertype = BoundBaseType.closestCommonSupertypeOf(this.baseType, other.baseType)
                 check(commonSupertype.typeParameters.isNullOrEmpty()) { "Generic supertypes are not implemented, yet." }
@@ -125,6 +125,7 @@ class RootResolvedTypeReference private constructor(
             }
             is GenericTypeReference -> other.closestCommonSupertypeWith(this)
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
+            is BoundFunctionType -> baseType.context.swCtx.any.baseReference
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
         }
     }
@@ -184,6 +185,9 @@ class RootResolvedTypeReference private constructor(
                 return unify(assigneeType.type, assignmentLocation, carry)
             }
             is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
+            is BoundFunctionType -> return carry.plusReporting(
+                Reporting.valueNotAssignable(this, assigneeType, "cannot assign a function to a named-type reference", assignmentLocation)
+            )
             is NullableTypeReference -> return carry.plusReporting(
                 Reporting.valueNotAssignable(this, assigneeType, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
             )

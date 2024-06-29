@@ -12,7 +12,6 @@ import compiler.reportings.Reporting
 class NullableTypeReference private constructor(
     internal val nested: BoundTypeReference
 ): BoundTypeReference {
-    override val simpleName get() = nested.simpleName
     override val mutability get() = nested.mutability
     override val span get() = nested.span
     override val isNullable = true
@@ -100,7 +99,10 @@ class NullableTypeReference private constructor(
 
     override fun toBackendIr() = nested.toBackendIr().asNullable()
 
-    override fun toString(): String = "$nested?"
+    override fun toString(): String = when (nested) {
+        is BoundFunctionType -> "($nested)?"
+        else -> "$nested?"
+    }
 
     private fun rewrap(newNested: BoundTypeReference): BoundTypeReference {
         if (newNested === nested) {

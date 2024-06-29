@@ -18,14 +18,19 @@
 
 package compiler.binding.context
 
+import compiler.ast.type.AstFunctionType
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
+import compiler.binding.BoundCallableRef
+import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.effect.EphemeralStateClass
+import compiler.binding.type.BoundFunctionType
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
@@ -86,7 +91,27 @@ interface CTContext {
         return BoundTypeArgument(this, ref, ref.variance, resolveType(ref.type))
     }
 
-    fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean = false): BoundTypeReference
+    fun resolveNamedType(ref: NamedTypeReference, fromOwnFileOnly: Boolean = false): BoundTypeReference
+
+    fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean = false): BoundTypeReference {
+        return when (ref) {
+            is NamedTypeReference -> resolveNamedType(ref, fromOwnFileOnly)
+            is AstFunctionType -> {
+                lateinit var boundType: BoundFunctionType
+                val boundTypeForwardRef = BoundCallableRef.FunctionType { boundType }
+                boundType = BoundFunctionType(
+                    this,
+                    ref,
+                    BoundFunctionAttributeList(this, boundTypeForwardRef, ref.attributes),
+                    ref.parameterTypes.map { this.resolveType(it, false) },
+                    this.resolveType(ref.returnType, false),
+                    ref.mutability
+                )
+
+                boundType.withCombinedNullability(ref.nullability)
+            }
+        }
+    }
 
     /**
      * @return first: the variable accessible under the given name

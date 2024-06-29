@@ -1,8 +1,8 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeParameter
-import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
@@ -36,7 +36,7 @@ data class BoundTypeParameter(
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         val reportings = mutableListOf<Reporting>()
-        context.resolveType(TypeReference(name))
+        context.resolveType(NamedTypeReference(name))
             .takeUnless { it is UnresolvedType }
             ?.let { preExistingType ->
                 reportings.add(Reporting.typeParameterNameConflict(preExistingType, this))

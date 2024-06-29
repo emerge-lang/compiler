@@ -3,8 +3,8 @@ package compiler.binding.expression
 import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
 import compiler.ast.expression.ArrayLiteralExpression
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
-import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundStatement
 import compiler.binding.IrCodeChunkImpl
@@ -81,11 +81,11 @@ class BoundArrayLiteralExpression(
         }
 
         type = RootResolvedTypeReference(
-            TypeReference(arrayType.simpleName),
+            NamedTypeReference(arrayType.simpleName),
             arrayType,
             listOf(BoundTypeArgument(
                 context,
-                TypeArgument(TypeVariance.UNSPECIFIED, TypeReference("_")),
+                TypeArgument(TypeVariance.UNSPECIFIED, NamedTypeReference("_")),
                 TypeVariance.UNSPECIFIED,
                 elementType,
             ))

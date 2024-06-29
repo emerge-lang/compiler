@@ -48,7 +48,6 @@ class TypeVariable private constructor(
         parameter.astNode.name.span,
     )
 
-    override val simpleName get() = parameter.name
     override val isNullable get() = parameter.bound.isNullable
     override val inherentTypeBindings = TypeUnification.EMPTY
     override val destructorThrowBehavior = SideEffectPrediction.POSSIBLY
@@ -98,6 +97,7 @@ class TypeVariable private constructor(
         return when (assigneeType) {
             is RootResolvedTypeReference,
             is GenericTypeReference,
+            is BoundFunctionType,
             is BoundTypeArgument -> {
                 val newCarry = carry.plus(this, assigneeType, assignmentLocation)
                 val selfBinding = newCarry.bindings[this] ?: return newCarry
@@ -148,7 +148,7 @@ class TypeVariable private constructor(
         if (mutability != parameter.bound.mutability) {
             str += mutability.keyword.text + " "
         }
-        str += simpleName
+        str += parameter.name
         return str
     }
 

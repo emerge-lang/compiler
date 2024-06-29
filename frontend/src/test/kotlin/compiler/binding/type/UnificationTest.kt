@@ -87,8 +87,8 @@ class UnificationTest : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.sourceType.simpleName shouldBe "B"
-                    it.targetType.simpleName shouldBe "A"
+                    it.sourceType.toString() shouldBe "B"
+                    it.targetType.toString() shouldBe "A"
                 }
         }
 
@@ -100,8 +100,8 @@ class UnificationTest : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.sourceType.simpleName shouldBe "B"
-                    it.targetType.simpleName shouldBe "A"
+                    it.sourceType.toString() shouldBe "B"
+                    it.targetType.toString() shouldBe "A"
                 }
         }
     }

@@ -26,10 +26,12 @@ import compiler.ast.Executable
 import compiler.ast.Expression
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundAssignmentStatement
 import compiler.binding.BoundBreakStatement
+import compiler.binding.BoundCallableRef
 import compiler.binding.BoundContinueStatement
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundExecutable
@@ -118,7 +120,7 @@ abstract class Reporting internal constructor(
         fun unexpectedEOI(expected: String, erroneousLocation: Span)
             = UnexpectedEndOfInputReporting(erroneousLocation, expected)
 
-        fun unknownType(erroneousRef: TypeReference)
+        fun unknownType(erroneousRef: NamedTypeReference)
             = UnknownTypeReporting(erroneousRef)
 
         fun parsingMismatch(expected: String, actual: Token)
@@ -159,13 +161,13 @@ abstract class Reporting internal constructor(
             = VarianceOnFunctionTypeParameterReporting(parameter.astNode)
 
         fun varianceOnInvocationTypeArgument(argument: BoundTypeArgument)
-            = VarianceOnInvocationTypeArgumentReporting(argument.astNode)
+            = VarianceOnInvocationTypeArgumentReporting(argument.argumentAstNode)
 
         fun missingTypeArgument(parameter: BoundTypeParameter, span: Span)
             = MissingTypeArgumentReporting(parameter.astNode, span)
 
         fun superfluousTypeArguments(nExpectedArguments: Int, firstSuperfluousArgument: BoundTypeArgument)
-            = SuperfluousTypeArgumentsReporting(nExpectedArguments, firstSuperfluousArgument.astNode)
+            = SuperfluousTypeArgumentsReporting(nExpectedArguments, firstSuperfluousArgument.argumentAstNode)
 
         fun typeArgumentVarianceMismatch(parameter: BoundTypeParameter, argument: BoundTypeArgument)
             = TypeArgumentVarianceMismatchReporting(parameter.astNode, argument)
@@ -197,8 +199,8 @@ abstract class Reporting internal constructor(
         fun conflictingModifiers(attributes: Collection<AstFunctionAttribute>)
             = ConflictingFunctionModifiersReporting(attributes)
 
-        fun functionIsMissingDeclaredAttribute(fn: BoundDeclaredFunction, missingAttribute: AstFunctionAttribute, reason: String)
-            = FunctionMissingDeclaredModifierReporting(fn.declaration, missingAttribute, reason)
+        fun callableIsMissingDeclaredAttribute(callable: BoundCallableRef, missingAttribute: AstFunctionAttribute, reason: String)
+            = CallableMissingDeclaredModifierReporting(callable, missingAttribute, reason)
 
         fun toplevelFunctionWithOverrideAttribute(attr: AstFunctionAttribute.Override)
             = ToplevelFunctionWithOverrideAttributeReporting(attr.attributeName)
@@ -212,7 +214,7 @@ abstract class Reporting internal constructor(
         fun illegalSupertype(ref: TypeReference, reason: String)
             = IllegalSupertypeReporting(ref, reason)
 
-        fun duplicateSupertype(ref: TypeReference)
+        fun duplicateSupertype(ref: NamedTypeReference)
             = DuplicateSupertypeReporting(ref)
 
         fun cyclicInheritance(type: BoundBaseType, involvingSupertype: BoundSupertypeDeclaration)

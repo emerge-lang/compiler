@@ -1,6 +1,7 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
@@ -16,11 +17,10 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 sealed class GenericTypeReference : BoundTypeReference {
     abstract val context: CTContext
 
-    abstract val original: TypeReference
+    abstract val original: NamedTypeReference
     abstract val parameter: BoundTypeParameter
     abstract val effectiveBound: BoundTypeReference
 
-    override val simpleName get() = parameter.name
     override val isNullable get() = effectiveBound.isNullable
     override val mutability get() = effectiveBound.mutability
     override val span get() = original.declaringNameToken?.span
@@ -63,10 +63,11 @@ sealed class GenericTypeReference : BoundTypeReference {
                 carry.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "Cannot assign a possibly null value to a non-nullable reference", assignmentLocation))
             }
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
-            is RootResolvedTypeReference -> carry.plusReporting(Reporting.valueNotAssignable(
+            is RootResolvedTypeReference,
+            is BoundFunctionType -> carry.plusReporting(Reporting.valueNotAssignable(
                 this,
                 assigneeType,
-                "$assigneeType cannot be proven to be a subtype of $simpleName",
+                "$assigneeType cannot be proven to be a subtype of ${parameter.name}",
                 assignmentLocation,
             ))
             is TypeVariable -> assigneeType.flippedUnify(this, assignmentLocation, carry)
@@ -84,7 +85,7 @@ sealed class GenericTypeReference : BoundTypeReference {
                     return carry.plusReporting(Reporting.valueNotAssignable(
                         this,
                         assigneeType,
-                        "${assigneeType.simpleName} cannot be proven to be a subtype of $simpleName",
+                        "${assigneeType.parameter.name} cannot be proven to be a subtype of ${this.parameter.name}",
                         assignmentLocation,
                     ))
                 }
@@ -158,7 +159,7 @@ sealed class GenericTypeReference : BoundTypeReference {
     override fun toString() = parameter.name
 
     companion object {
-        operator fun invoke(original: TypeReference, parameter: BoundTypeParameter): BoundTypeReference {
+        operator fun invoke(original: NamedTypeReference, parameter: BoundTypeParameter): BoundTypeReference {
             return NakedGenericTypeReference(original, parameter)
                 .withMutability(original.mutability)
                 .withCombinedNullability(original.nullability)
@@ -167,7 +168,7 @@ sealed class GenericTypeReference : BoundTypeReference {
 }
 
 private class NakedGenericTypeReference(
-    override val original: TypeReference,
+    override val original: NamedTypeReference,
     override val parameter: BoundTypeParameter,
 ) : GenericTypeReference() {
     override val context = parameter.context

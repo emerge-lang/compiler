@@ -8,6 +8,7 @@ import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.basetype.BoundClassDestructor
 import compiler.binding.expression.BoundInvocationExpression
+import compiler.binding.type.UnresolvedType
 import compiler.lexer.Span
 
 open class NothrowViolationReporting(
@@ -52,7 +53,7 @@ open class NothrowViolationReporting(
     ) {
         override fun toString() = "$levelAndMessage\n${illustrateHints(
             SourceHint(boundary.nothrowDeclaredAt, "destructor declared nothrow here", relativeOrderMatters = true),
-            SourceHint(memberVariable.declaration.span, "when destructing ${ownedBy.simpleName}, this value of type ${memberVariable.type?.simpleName ?: "<UNKNOWN>"} may get destructed, too, and that may throw an exception", relativeOrderMatters = true),
+            SourceHint(memberVariable.declaration.span, "when destructing ${ownedBy.simpleName}, this value of type ${memberVariable.type ?: UnresolvedType.DESCRIPTION} may get destructed, too, and that may throw an exception", relativeOrderMatters = true),
         )}"
     }
 

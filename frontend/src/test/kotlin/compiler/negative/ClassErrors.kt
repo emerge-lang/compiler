@@ -562,7 +562,7 @@ class ClassErrors : FreeSpec({
                 class B : A {}
             """.trimIndent())
                 .shouldReport<IllegalSupertypeReporting> {
-                    it.supertype.simpleName shouldBe "A"
+                    it.supertype.toString() shouldBe "A"
                 }
         }
 
@@ -571,7 +571,7 @@ class ClassErrors : FreeSpec({
                 class A<T> : T {}
             """.trimIndent())
                 .shouldReport<IllegalSupertypeReporting> {
-                    it.supertype.simpleName shouldBe "T"
+                    it.supertype.toString() shouldBe "T"
                 }
         }
 
@@ -602,7 +602,7 @@ class ClassErrors : FreeSpec({
                 class Test : Foo<String> {}
             """.trimIndent())
                 .shouldReport<TypeArgumentOutOfBoundsReporting> {
-                    it.argument.simpleName shouldBe "String"
+                    it.argument.toString() shouldBe "String"
                 }
         }
     }

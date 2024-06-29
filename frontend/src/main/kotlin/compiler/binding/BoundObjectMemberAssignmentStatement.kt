@@ -117,7 +117,7 @@ class BoundObjectMemberAssignmentStatement(
             var previousType = targetExpression.type!!.toBackendIr()
             if (initializationStateBefore != VariableInitialization.State.INITIALIZED) {
                 // forces a null-check on the reference drop, which prevents a nullpointer deref for an empty object
-                previousType = previousType.nullable()
+                previousType = previousType.asNullable()
             }
             val previousTemporary = IrCreateTemporaryValueImpl(targetExpression.toBackendIrExpression(), previousType)
             dropPreviousReferenceCode = IrCodeChunkImpl(listOf(

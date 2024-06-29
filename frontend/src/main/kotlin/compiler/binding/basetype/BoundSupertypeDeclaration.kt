@@ -1,5 +1,6 @@
 package compiler.binding.basetype
 
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeReference
 import compiler.binding.SeanHelper
 import compiler.binding.SemanticallyAnalyzable
@@ -37,6 +38,11 @@ class BoundSupertypeDeclaration(
         return seanHelper.phase1 {
             val reportings = mutableListOf<Reporting>()
 
+            if (astNode !is NamedTypeReference) {
+                reportings.add(Reporting.illegalSupertype(astNode, "can only inherit from named types"))
+                return@phase1 reportings
+            }
+
             unfilteredResolved = subtypeContext.resolveType(astNode)
             if (unfilteredResolved is RootResolvedTypeReference) {
                 resolvedReference = unfilteredResolved as RootResolvedTypeReference
@@ -58,6 +64,8 @@ class BoundSupertypeDeclaration(
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return seanHelper.phase3 {
             val reportings = mutableListOf<Reporting>()
+
+            astNode as NamedTypeReference // assured by sean1
 
             if (!astNode.arguments.isNullOrEmpty()) {
                 reportings.add(

@@ -20,11 +20,13 @@ package compiler.ast
 
 import compiler.InternalCompilerError
 import compiler.ast.AstSupertypeList.Companion.bindTo
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
+import compiler.binding.BoundCallableRef
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundBaseType
@@ -71,13 +73,13 @@ class BaseTypeDeclaration(
         val typeRootContext = MutableCTContext(fileContextWithTypeParams, typeVisibility)
         val boundSupertypes = supertypes.bindTo(typeRootContext, typeDefAccessor)
         val memberVariableInitializationContext = MutableExecutionScopedCTContext.functionRootIn(typeRootContext)
-        val selfTypeReference = TypeReference(
+        val selfTypeReference = NamedTypeReference(
             simpleName = this.name.value,
             nullability = TypeReference.Nullability.NOT_NULLABLE,
             mutability = TypeMutability.READONLY,
             declaringNameToken = this.name,
             typeParameters?.map {
-                TypeArgument(TypeVariance.UNSPECIFIED, TypeReference(it.name))
+                TypeArgument(TypeVariance.UNSPECIFIED, NamedTypeReference(it.name))
             },
         )
 
@@ -170,11 +172,12 @@ class BaseTypeDestructorDeclaration(
 
     fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>?, getClassDef: () -> BoundBaseType): BoundClassDestructor {
         lateinit var dtor: BoundClassDestructor
+        val dtorForwardRef = BoundCallableRef.DeclaredFn { dtor }
         dtor = BoundClassDestructor(
             fileContextWithTypeParameters,
             typeParameters ?: emptyList(),
             getClassDef,
-            BoundFunctionAttributeList(fileContextWithTypeParameters, { dtor }, attributes),
+            BoundFunctionAttributeList(fileContextWithTypeParameters, dtorForwardRef, attributes),
             this
         )
         return dtor
@@ -189,7 +192,7 @@ class BaseTypeMemberFunctionDeclaration(
 
     fun bindTo(
         typeRootContext: CTContext,
-        selfType: TypeReference,
+        selfType: NamedTypeReference,
         getTypeDef: () -> BoundBaseType,
     ): BoundDeclaredBaseTypeMemberFunction {
         return functionDeclaration.bindToAsMember(

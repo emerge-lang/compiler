@@ -1,5 +1,6 @@
 package compiler.binding.basetype
 
+import compiler.ast.type.NamedTypeReference
 import compiler.binding.BoundMemberFunction
 import compiler.binding.SeanHelper
 import compiler.binding.SemanticallyAnalyzable
@@ -58,7 +59,7 @@ class BoundSupertypeList(
                 }
 
                 if (!distinctSuperBaseTypes.add(resolvedReference.baseType)) {
-                    reportings.add(Reporting.duplicateSupertype(clause.astNode))
+                    reportings.add(Reporting.duplicateSupertype(clause.astNode as NamedTypeReference))
                 } else {
                     distinctSupertypes.add(resolvedReference)
                 }

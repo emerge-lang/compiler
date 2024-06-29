@@ -1,7 +1,7 @@
 package compiler.compiler.negative
 
 import compiler.CoreIntrinsicsModule
-import compiler.ast.type.TypeReference
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeVariance.IN
 import compiler.ast.type.TypeVariance.OUT
 import compiler.ast.type.TypeVariance.UNSPECIFIED
@@ -35,7 +35,7 @@ class VarianceErrors : FreeSpec({
     fun varExact(t: BoundBaseType) = BoundTypeArgument(ctCtx, mockk(), UNSPECIFIED, t.baseReference)
 
     fun arrayOf(element: BoundTypeArgument): BoundTypeReference = RootResolvedTypeReference(
-        TypeReference("Array"),
+        NamedTypeReference("Array"),
         swCtx.getPackage(CoreIntrinsicsModule.NAME)!!.resolveBaseType("Array")!!,
         listOf(element),
     )

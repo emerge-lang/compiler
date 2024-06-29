@@ -8,10 +8,12 @@ import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.MemberAccessExpression
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
+import compiler.binding.BoundCallableRef
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
@@ -90,12 +92,12 @@ class BoundClassConstructor(
     override val receiverType = null
     override val declaresReceiver = false
     override val name get() = classDef.simpleName
-    override val attributes = BoundFunctionAttributeList(fileContextWithTypeParameters, { this }, declaration.attributes)
+    override val attributes = BoundFunctionAttributeList(fileContextWithTypeParameters, BoundCallableRef.DeclaredFn { this }, declaration.attributes)
     override val allTypeParameters = declaredTypeParameters
 
     override val returnType by lazy {
         constructorFunctionRootContext.resolveType(
-            TypeReference(
+            NamedTypeReference(
                 classDef.simpleName,
                 TypeReference.Nullability.NOT_NULLABLE,
                 TypeMutability.EXCLUSIVE,
@@ -103,7 +105,7 @@ class BoundClassConstructor(
                 classDef.typeParameters?.map {
                     TypeArgument(
                         TypeVariance.UNSPECIFIED,
-                        TypeReference(it.astNode.name),
+                        NamedTypeReference(it.astNode.name),
                     )
                 },
             ),
@@ -152,7 +154,7 @@ class BoundClassConstructor(
                     ),
                     member.declaration.name,
                     member.declaration.variableDeclaration.type?.withMutability(member.type?.mutability ?: TypeMutability.IMMUTABLE)
-                        ?: TypeReference("Any"),
+                        ?: NamedTypeReference("Any"),
                     null,
                 )
             })

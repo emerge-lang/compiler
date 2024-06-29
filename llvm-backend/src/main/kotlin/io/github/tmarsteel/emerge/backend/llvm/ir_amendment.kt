@@ -3,6 +3,7 @@ package io.github.tmarsteel.emerge.backend.llvm
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrFunctionType
 import io.github.tmarsteel.emerge.backend.api.ir.IrPackage
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
@@ -12,6 +13,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrWhileLoop
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI16Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI64Type
@@ -48,9 +50,17 @@ internal val IrBaseType.autoboxer: Autoboxer? by tackLazyVal {
     }
 }
 
+internal val FunctionTypeAutoboxer = Autoboxer.PrimitiveType(
+    EmergeLlvmContext::boxTypeFunction,
+    "value",
+    { error("there is no primitive type for functions") },
+    LlvmFunctionAddressType,
+)
+
 internal val IrType.autoboxer: Autoboxer? get() = when(this) {
     is IrParameterizedType -> simpleType.baseType.autoboxer
     is IrSimpleType -> baseType.autoboxer
+    is IrFunctionType -> FunctionTypeAutoboxer
     else -> null
 }
 

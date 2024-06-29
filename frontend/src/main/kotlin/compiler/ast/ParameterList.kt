@@ -18,6 +18,7 @@
 
 package compiler.ast
 
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundParameterList
 import compiler.binding.BoundVariable
@@ -29,14 +30,14 @@ data class ParameterList (
     /** The types; null values indicate non-specified parameters */
     val types: List<TypeReference?> = parameters.map { it.type }
 
-    fun bindTo(context: ExecutionScopedCTContext, impliedReceiverType: TypeReference? = null) = BoundParameterList(
+    fun bindTo(context: ExecutionScopedCTContext, impliedReceiverType: NamedTypeReference? = null) = BoundParameterList(
         context,
         this,
         parameters.mapIndexed { index, parameter ->
             if (index == 0 && parameter.name.value == BoundParameterList.RECEIVER_PARAMETER_NAME ) {
                 val actualType = when {
                     parameter.type == null -> impliedReceiverType
-                    impliedReceiverType != null && parameter.type.simpleName == BoundVariable.DECLARATION_TYPE_NAME_INFER -> {
+                    impliedReceiverType != null && parameter.type is NamedTypeReference && parameter.type.simpleName == BoundVariable.DECLARATION_TYPE_NAME_INFER -> {
                         parameter.type.copy(
                             simpleName = impliedReceiverType.simpleName,
                             arguments = parameter.type.arguments ?: impliedReceiverType.arguments

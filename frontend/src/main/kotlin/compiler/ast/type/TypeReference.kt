@@ -18,87 +18,14 @@
 
 package compiler.ast.type
 
-import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
 
-data class TypeReference(
-    val simpleName: String,
-    val nullability: Nullability = Nullability.UNSPECIFIED,
-    val mutability: TypeMutability? = null,
-    val declaringNameToken: IdentifierToken? = null,
-    val arguments: List<TypeArgument>? = null,
-) {
-    constructor(simpleName: IdentifierToken) : this(simpleName.value, declaringNameToken = simpleName)
+sealed interface TypeReference {
+    val span: Span?
+    val nullability: TypeReference.Nullability
+    val mutability: TypeMutability?
 
-    val span: Span? = declaringNameToken?.span
-
-    fun withMutability(mutability: TypeMutability): TypeReference {
-        return TypeReference(
-            simpleName,
-            nullability,
-            mutability,
-            declaringNameToken,
-            arguments,
-        )
-    }
-
-    private lateinit var _string: String
-    override fun toString(): String {
-        if (!this::_string.isInitialized) {
-            val buffer = StringBuilder()
-
-            mutability?.let {
-                buffer.append(it.name.lowercase())
-                buffer.append(' ')
-            }
-
-            if (declaringNameToken != null) {
-                buffer.append(declaringNameToken.value)
-            } else {
-                buffer.append(simpleName)
-            }
-
-            if (arguments != null) {
-                buffer.append(arguments.joinToString(
-                    prefix = "<",
-                    separator = ", ",
-                    postfix = ">"
-                ))
-            }
-
-            when (nullability) {
-                Nullability.NOT_NULLABLE -> buffer.append('!')
-                Nullability.NULLABLE -> buffer.append('?')
-                Nullability.UNSPECIFIED -> {}
-            }
-
-            _string = buffer.toString()
-        }
-
-        return this._string
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as TypeReference
-
-        if (simpleName != other.simpleName) return false
-        if (nullability != other.nullability) return false
-        if (mutability != other.mutability) return false
-        if (arguments != other.arguments) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = simpleName.hashCode()
-        result = 31 * result + nullability.hashCode()
-        result = 31 * result + (mutability?.hashCode() ?: 0)
-        result = 31 * result + arguments.hashCode()
-        return result
-    }
+    fun withMutability(mutability: TypeMutability): TypeReference
 
     enum class Nullability {
         UNSPECIFIED,
@@ -107,3 +34,4 @@ data class TypeReference(
         ;
     }
 }
+

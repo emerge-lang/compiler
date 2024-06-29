@@ -140,7 +140,7 @@ class BoundInvocationExpression(
                     }
             }
 
-            typeArguments?.forEach { reportings.addAll(it.validate(TypeUseSite.Irrelevant(it.astNode.span, null))) }
+            typeArguments?.forEach { reportings.addAll(it.validate(TypeUseSite.Irrelevant(it.argumentAstNode.span, null))) }
             valueArguments.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
 
             if (availableOverloads == null) {
@@ -325,7 +325,7 @@ class BoundInvocationExpression(
 
                 // TODO: source location
                 val returnTypeArgsLocation = typeArguments
-                    ?.mapNotNull { it.astNode.span }
+                    ?.mapNotNull { it.argumentAstNode.span }
                     ?.reduce(Span::rangeTo)
                     ?: declaration.span
                 val returnTypeWithVariables = candidateFn.returnType?.withTypeVariables(candidateFn.allTypeParameters)

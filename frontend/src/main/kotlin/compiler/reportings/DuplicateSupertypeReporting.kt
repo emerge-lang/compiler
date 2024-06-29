@@ -1,10 +1,10 @@
 package compiler.reportings
 
-import compiler.ast.type.TypeReference
+import compiler.ast.type.NamedTypeReference
 import compiler.lexer.Span
 
 class DuplicateSupertypeReporting(
-    val supertype: TypeReference,
+    val supertype: NamedTypeReference,
 ) : Reporting(
     Level.ERROR,
     "Can inherit from ${supertype.simpleName} only once",

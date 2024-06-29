@@ -4,8 +4,8 @@ import compiler.ast.AstFunctionAttribute
 import compiler.binding.BoundAssignmentStatement
 import compiler.binding.DropLocalVariableStatement
 import compiler.binding.expression.BoundInvocationExpression
+import compiler.reportings.CallableMissingDeclaredModifierReporting
 import compiler.reportings.ConstructorDeclaredNothrowReporting
-import compiler.reportings.FunctionMissingDeclaredModifierReporting
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.ValueNotAssignableReporting
 import io.kotest.core.spec.style.FreeSpec
@@ -19,7 +19,7 @@ class ExceptionErrors : FreeSpec({
             validateModule("""
                 external(C) fn test()
             """.trimIndent())
-                .shouldReport<FunctionMissingDeclaredModifierReporting> {
+                .shouldReport<CallableMissingDeclaredModifierReporting> {
                     it.attribute should beInstanceOf<AstFunctionAttribute.Nothrow>()
                 }
         }

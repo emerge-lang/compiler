@@ -18,10 +18,10 @@
 
 package compiler.reportings
 
-import compiler.ast.type.TypeReference
+import compiler.ast.type.NamedTypeReference
 import compiler.lexer.Span
 
-class UnknownTypeReporting(val erroneousReference: TypeReference) : Reporting(
+class UnknownTypeReporting(val erroneousReference: NamedTypeReference) : Reporting(
     Level.ERROR,
     "Cannot resolve type ${erroneousReference.simpleName}",
     if (erroneousReference.declaringNameToken == null) Span.UNKNOWN else erroneousReference.declaringNameToken.span

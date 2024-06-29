@@ -46,8 +46,8 @@ class TypeErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<ValueNotAssignableReporting> {
-                    it.sourceType.simpleName shouldBe "Bool"
-                    it.targetType.shouldBeInstanceOf<GenericTypeReference>().simpleName shouldBe "T"
+                    it.sourceType.toString() shouldBe "const Bool"
+                    it.targetType.shouldBeInstanceOf<GenericTypeReference>().toString() shouldBe "T"
                 }
         }
 

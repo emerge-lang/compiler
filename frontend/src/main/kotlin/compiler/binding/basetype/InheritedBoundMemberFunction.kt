@@ -1,7 +1,7 @@
 package compiler.binding.basetype
 
 import compiler.ast.VariableDeclaration
-import compiler.ast.type.TypeReference
+import compiler.ast.type.NamedTypeReference
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundParameter
 import compiler.binding.BoundParameterList
@@ -41,7 +41,7 @@ class InheritedBoundMemberFunction(
             null,
             inheritedReceiverParameter.declaration.ownership,
             inheritedReceiverParameter.declaration.name,
-            TypeReference(subtype.simpleName, declaringNameToken = IdentifierToken(subtype.simpleName, sourceLocation)),
+            NamedTypeReference(subtype.simpleName, declaringNameToken = IdentifierToken(subtype.simpleName, sourceLocation)),
             null,
         )
         narrowedReceiverParameter.bindTo(inheritedReceiverParameter.context, BoundVariable.Kind.PARAMETER)

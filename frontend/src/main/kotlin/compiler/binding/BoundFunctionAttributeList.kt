@@ -10,8 +10,7 @@ import compiler.util.twoElementPermutationsUnordered
 
 class BoundFunctionAttributeList(
     context: CTContext,
-    /** forward reference to the function this list is located on, for diagnostics */
-    private val getFunction: () -> BoundFunction,
+    val callableRef: BoundCallableRef,
     val attributes: List<AstFunctionAttribute>
 ) : SemanticallyAnalyzable {
     val firstModifyingAttribute: AstFunctionAttribute?
@@ -86,10 +85,8 @@ class BoundFunctionAttributeList(
                 }
 
             if (attributes.any { it is AstFunctionAttribute.External } && attributes.none { it is AstFunctionAttribute.Nothrow }) {
-                // this should never occur on ctors or dtors
-                val fn = getFunction() as BoundDeclaredFunction
-                reportings.add(Reporting.functionIsMissingDeclaredAttribute(
-                    fn,
+                reportings.add(Reporting.callableIsMissingDeclaredAttribute(
+                    callableRef,
                     AstFunctionAttribute.Nothrow(KeywordToken(Keyword.NOTHROW)),
                     "is declared external; external functions cannot throw exceptions."
                 ))

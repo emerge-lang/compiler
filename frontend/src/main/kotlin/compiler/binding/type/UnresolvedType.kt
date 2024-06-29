@@ -1,6 +1,7 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.SideEffectPrediction
@@ -11,16 +12,15 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class UnresolvedType private constructor(
     val standInType: BoundTypeReference,
-    private val reference: TypeReference,
+    private val reference: NamedTypeReference,
     val parameters: List<BoundTypeArgument>?,
 ) : BoundTypeReference {
-    constructor(context: CTContext, reference: TypeReference, parameters: List<BoundTypeArgument>?) : this(
+    constructor(context: CTContext, reference: NamedTypeReference, parameters: List<BoundTypeArgument>?) : this(
         context.swCtx.unresolvableReplacementType,
         reference,
         parameters,
     )
 
-    override val simpleName = "<ERROR>"
     override val isNullable get() = standInType.isNullable
     override val mutability get() = standInType.mutability
     override val span = reference.declaringNameToken?.span
@@ -67,6 +67,7 @@ class UnresolvedType private constructor(
         return when(assigneeType) {
             is RootResolvedTypeReference,
             is GenericTypeReference,
+            is BoundFunctionType,
             is BoundTypeArgument -> standInType.unify(assigneeType, assignmentLocation, carry)
             is UnresolvedType -> standInType.unify(assigneeType.standInType, assignmentLocation, carry)
             is TypeVariable -> assigneeType.flippedUnify(this.standInType, assignmentLocation, carry)
@@ -110,9 +111,13 @@ class UnresolvedType private constructor(
         return standInType.hasSameBaseTypeAs(other)
     }
 
-    override fun toString() = simpleName
+    override fun toString() = DESCRIPTION
 
     override fun toBackendIr(): IrType {
         throw InternalCompilerError("Attempting to create backend IR from unresolved type at $span")
+    }
+
+    companion object {
+        const val DESCRIPTION = "<UNRESOLVED>"
     }
 }
