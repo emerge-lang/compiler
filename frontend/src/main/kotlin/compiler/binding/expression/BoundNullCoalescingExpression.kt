@@ -17,6 +17,7 @@ import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrIdentityComparisonExpressionImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
+import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
@@ -142,6 +143,7 @@ class BoundNullCoalescingExpression(
             ),
             IrImplicitEvaluationExpressionImpl(
                 IrCodeChunkImpl(listOfNotNull(
+                    IrUpdateSourceLocationStatementImpl(alternativeExpression.declaration.span),
                     // nullableTemporary is null, no need to drop a reference count
                     alternateValueTemporary,
                     IrCreateStrongReferenceStatementImpl(alternateValueTemporary)
@@ -154,6 +156,7 @@ class BoundNullCoalescingExpression(
 
         return IrImplicitEvaluationExpressionImpl(
             IrCodeChunkImpl(listOfNotNull(
+                IrUpdateSourceLocationStatementImpl(nullableExpression.declaration.span),
                 nullLiteralTemporary,
                 nullableValueTemporary,
                 isNullTemporary,
