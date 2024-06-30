@@ -16,6 +16,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmNamedStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
@@ -69,6 +70,10 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
         val selfRaw = super.computeRaw(context)
         requireStructuralSupertypeOf(supertypeRaw, supertypeRaw, context.targetData.ref)
         return selfRaw
+    }
+
+    override fun isAssignableTo(other: LlvmType): Boolean {
+        return other is TypeinfoType && other.nVTableEntries <= this.nVTableEntries
     }
 
     companion object {
@@ -194,7 +199,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
     private class ProviderImpl(
         val typeName: String,
         val supertypes: List<LlvmConstant<LlvmPointerType<TypeinfoType>>>,
-        val finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<LlvmVoidType>,
+        val finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
         val virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
     ) : Provider {
         private val byContext: MutableMap<LlvmContext, StaticAndDynamicTypeInfo> = MapMaker().weakKeys().makeMap()
@@ -250,7 +255,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
         fun define(
             typeName: String,
             supertypes: List<LlvmConstant<LlvmPointerType<TypeinfoType>>>,
-            finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<LlvmVoidType>,
+            finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
             virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
         ): Provider = ProviderImpl(typeName, supertypes, finalizerFunction, virtualFunctions)
     }
