@@ -181,10 +181,7 @@ val UnaryExpression = sequence("unary expression") {
     // There is no unary plus because it is a noop on all builtin types. Allowing overloading wiht a non-noop behavior
     // would just cause confusion
 
-    eitherOf {
-        ref(ValueExpression)
-        ref(ParanthesisedExpression)
-    }
+    ref(Expression)
 }
     .astTransformation { tokens ->
         val operator = when(val operatorToken = tokens.next()!!) {
