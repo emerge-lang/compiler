@@ -35,6 +35,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStringLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrTopLevelFunctionReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatement
@@ -648,6 +649,27 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 is ExpressionResult.Value -> ExpressionResult.Value(expression.implicitValue.declaration.llvmValue)
                 is ExpressionResult.Terminated -> result
             }
+        }
+        is IrTopLevelFunctionReference -> {
+            /*
+            TODO: some function references may need a wrapper due to primitive types
+            E.g.: if the function is declared to take a primitive but on the use-site its matched against a generic type,
+            then a boxed value will be passed to the function instead of the primitive. That's very bad and must not happen.
+            fn foo<T>(p: (T) -> Unit) {}
+            fn bar(p: S32) {}
+            fn triggerMiscompilation() {
+                // this checks out type-system wise, but runs into an ABI problem when executed
+                foo::<S32>(::bar)
+            }
+            */
+
+            /*
+            TODO: some function references may need a wrapper due to ABI mismatch
+            E.g. if the expected function-type is external(C), but a reference to a non-external funciton is passed,
+            a wrapper may be needed to translate between ABIs, especially re. exceptions
+             */
+
+            return ExpressionResult.Value(expression.referredFunction.llvmRef!!.address)
         }
         is IrNotReallyAnExpression -> throw CodeGenerationException("Cannot emit expression evaluation code for an ${expression::class.simpleName}")
     }

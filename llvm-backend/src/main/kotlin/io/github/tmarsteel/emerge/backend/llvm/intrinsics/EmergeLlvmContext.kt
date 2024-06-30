@@ -48,6 +48,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.intrinsicNumberOperations
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.isNullBuiltin
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmModuleFlagBehavior
@@ -203,6 +204,7 @@ class EmergeLlvmContext(
             "emerge.platform.SWordBox" -> boxTypeSWord = emergeClassType
             "emerge.platform.UWordBox" -> boxTypeUWord = emergeClassType
             "emerge.platform.BoolBox" -> boxTypeBool = emergeClassType
+            "emerge.platform.FunctionBox" -> boxTypeFunction = emergeClassType
             "emerge.ffi.c.CPointer" -> cPointerType = emergeClassType
             "emerge.ffi.c.COpaquePointer" -> cOpaquePointerType = emergeClassType
             "emerge.core.String" -> stringType = emergeClassType
@@ -583,6 +585,7 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             arrayAbstractGet,
             arrayAbstractSet,
             panic,
+            isNullBuiltin,
         )
             + intrinsicNumberOperations
     )

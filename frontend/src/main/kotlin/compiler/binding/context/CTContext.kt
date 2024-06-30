@@ -105,7 +105,6 @@ interface CTContext {
                     BoundFunctionAttributeList(this, boundTypeForwardRef, ref.attributes),
                     ref.parameterTypes.map { this.resolveType(it, false) },
                     this.resolveType(ref.returnType, false),
-                    ref.mutability
                 )
 
                 boundType.withCombinedNullability(ref.nullability)

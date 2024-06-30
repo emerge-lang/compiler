@@ -25,6 +25,7 @@ import compiler.ast.Executable
 import compiler.ast.IfExpression
 import compiler.ast.TypeArgumentBundle
 import compiler.ast.expression.ArrayLiteralExpression
+import compiler.ast.expression.AstTopLevelFunctionReference
 import compiler.ast.expression.BooleanLiteralExpression
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.NullLiteralExpression
@@ -155,10 +156,22 @@ val IdentifierExpression = sequence("identifier") {
         }
     }
 
+val ToplevelFunctionReference = sequence("toplevel function reference") {
+    operator(Operator.DOUBLE_COLON)
+    ref(Identifier)
+}
+    .astTransformation { tokens ->
+        val colons = tokens.next() as OperatorToken
+        val identifier = tokens.next() as IdentifierToken
+
+        AstTopLevelFunctionReference(colons.span .. identifier.span, identifier)
+    }
+
 val ValueExpression = eitherOf("value expression") {
     ref(LiteralExpression)
     ref(IdentifierExpression)
     ref(ArrayLiteralExpression)
+    ref(ToplevelFunctionReference)
 }
 
 val ParanthesisedExpression: Rule<AstExpression> = sequence("paranthesised expression") {
@@ -181,10 +194,7 @@ val UnaryExpression = sequence("unary expression") {
     // There is no unary plus because it is a noop on all builtin types. Allowing overloading wiht a non-noop behavior
     // would just cause confusion
 
-    eitherOf {
-        ref(ValueExpression)
-        ref(ParanthesisedExpression)
-    }
+    ref(Expression)
 }
     .astTransformation { tokens ->
         val operator = when(val operatorToken = tokens.next()!!) {
@@ -276,12 +286,10 @@ val InvocationTypeArguments = sequence {
     Option 2:
     Invocation(name=A, typeArgs=[Int], args=[false])
     */
-    operator(Operator.COLON)
-    operator(Operator.COLON)
+    operator(Operator.DOUBLE_COLON)
     ref(BracedTypeArguments)
 }
     .astTransformation { tokens ->
-        tokens.next()
         tokens.next()
         tokens.next() as TypeArgumentBundle
     }

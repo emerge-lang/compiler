@@ -241,6 +241,12 @@ abstract class Reporting internal constructor(
         fun noMatchingFunctionOverload(functionNameReference: IdentifierToken, receiverType: BoundTypeReference?, valueArguments: List<BoundExpression<*>>, functionDeclaredAtAll: Boolean)
             = UnresolvableFunctionOverloadReporting(functionNameReference, receiverType, valueArguments.map { it.type }, functionDeclaredAtAll)
 
+        fun referencingUnknownFunction(reference: BoundTopLevelFunctionReference)
+            = ReferencingUnknownTopLevelFunctionReporting(reference.declaration)
+
+        fun ambiguousFunctionReference(reference: BoundTopLevelFunctionReference, candidates: List<BoundFunction>)
+            = AmbiguousFunctionReferenceReporting(reference.declaration, candidates)
+
         fun overloadSetHasNoDisjointParameter(overloadSet: BoundOverloadSet<*>): Reporting {
             val baseReporting = OverloadSetHasNoDisjointParameterReporting(overloadSet)
 

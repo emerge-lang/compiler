@@ -3,7 +3,6 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
-import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
@@ -169,7 +168,6 @@ internal val registerWeakReference = KotlinLlvmFunction.define<EmergeLlvmContext
         )
         // all collections are filled, allocate a new one
         val newCollPtr = heapAllocate(EmergeWeakReferenceCollectionType)
-        memset(newCollPtr, context.i8(0), EmergeWeakReferenceCollectionType.sizeof())
         store(
             pointerToWeakReference,
             to = getelementptr(newCollPtr)

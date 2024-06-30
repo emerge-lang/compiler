@@ -42,11 +42,21 @@ class SeanHelper {
         return results
     }
 
-    fun phase2(impl: () -> Collection<Reporting>): Collection<Reporting> {
+    /**
+     * @param runIfErrorsPreviously if `false` and [phase1] returned errors, this function
+     * will return an empty collection without invoking [impl]. [phase2] will also be marked completed anyways.
+     */
+    fun phase2(runIfErrorsPreviously: Boolean = true, impl: () -> Collection<Reporting>): Collection<Reporting> {
         requirePhase1Done()
 
         if (this::phase2Results.isInitialized) {
             return this.phase2Results
+        }
+
+        if (!runIfErrorsPreviously && phase1HadErrors) {
+            phase2Results = emptySet()
+            phase2HadErrors = false
+            return emptySet()
         }
 
         val results = impl()

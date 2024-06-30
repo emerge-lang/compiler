@@ -6,9 +6,11 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundCallableRef
+import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
+import compiler.binding.expression.BoundTopLevelFunctionReference
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Span
@@ -16,16 +18,32 @@ import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunctionType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
-class BoundFunctionType(
+class BoundFunctionType private constructor(
     val context: CTContext,
-    val astNode: AstFunctionType,
+    val astNode: AstFunctionType?,
     val attributes: BoundFunctionAttributeList,
     val parameterTypes: List<BoundTypeReference>,
     val returnType: BoundTypeReference,
     override val mutability: TypeMutability,
+    override val span: Span,
 ) : BoundTypeReference {
+    constructor(
+        context: CTContext,
+        astNode: AstFunctionType,
+        attributes: BoundFunctionAttributeList,
+        parameterTypes: List<BoundTypeReference>,
+        returnType: BoundTypeReference,
+    ) : this(
+        context,
+        astNode,
+        attributes,
+        parameterTypes,
+        returnType,
+        astNode.mutability,
+        astNode.span,
+    )
+
     override val isNullable = false
-    override val span = astNode.span
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundFunctionType {
         // function types are always const because code cannot be changed
@@ -43,6 +61,7 @@ class BoundFunctionType(
                 parameterTypes,
                 returnType,
                 modifier,
+                span,
             )
             else -> this
         }
@@ -67,20 +86,11 @@ class BoundFunctionType(
         assert(attributes.semanticAnalysisPhase2().isEmpty())
         assert(attributes.semanticAnalysisPhase3().isEmpty())
 
-        attributes.externalAttribute?.let { externalAttribute ->
-            reportings.add(Reporting.illegalAttribute(
-                "calling-convention adaptation for function types is not implemented yet",
-                externalAttribute,
-            ))
+        attributes.attributes.distinct().forEach { uniqueAttr ->
+            if (ignoresAttribute(uniqueAttr)) {
+                reportings.add(Reporting.illegalAttribute("function-types cannot be declared ${uniqueAttr.attributeName.keyword.text}", uniqueAttr))
+            }
         }
-
-        listOfNotNull(
-            attributes.firstOperatorAttribute,
-            attributes.firstOverrideAttribute,
-            attributes.firstIntrinsicAttribute,
-        )
-            .map { illegalAttr -> Reporting.illegalAttribute("function-types cannot be declared ${illegalAttr.attributeName.keyword.text}", illegalAttr) }
-            .forEach(reportings::add)
 
         val useSiteWithVariance = forUsage.deriveIrrelevant() // function types impose variance upon all the constituent types
         reportings.addAll(returnType.validate(useSiteWithVariance))
@@ -123,6 +133,7 @@ class BoundFunctionType(
             TODO("params, have in variance, this logic isn't determined yet"),
             this.returnType.closestCommonSupertypeWith(other.returnType),
             TypeMutability.IMMUTABLE,
+            span,
         )
         return superFnType
     }
@@ -135,6 +146,7 @@ class BoundFunctionType(
             parameterTypes.map { it.withTypeVariables(variables) },
             returnType.withTypeVariables(variables),
             mutability,
+            span,
         )
     }
 
@@ -208,6 +220,7 @@ class BoundFunctionType(
             parameterTypes.map { it.instantiateAllParameters(context) },
             returnType.instantiateAllParameters(context),
             mutability,
+            span,
         )
     }
 
@@ -258,20 +271,44 @@ class BoundFunctionType(
         IrFunctionTypeImpl(
             parameterTypes.map { it.toBackendIr() },
             returnType.toBackendIr(),
+            attributes.isExternalC,
             false,
         )
     }
     override fun toBackendIr(): IrFunctionType {
         return backendIr
     }
+
+    companion object {
+        private fun ignoresAttribute(attribute: AstFunctionAttribute): Boolean {
+            return attribute is AstFunctionAttribute.Operator || attribute is AstFunctionAttribute.Override || attribute is AstFunctionAttribute.Intrinsic
+        }
+
+        fun fromReference(reference: BoundTopLevelFunctionReference, referredFunction: BoundFunction): BoundFunctionType {
+            lateinit var fnType: BoundFunctionType
+            val fnTypeForwardRef = BoundCallableRef.FunctionType { fnType }
+            fnType = BoundFunctionType(
+                reference.context,
+                null,
+                BoundFunctionAttributeList(reference.context, fnTypeForwardRef, referredFunction.attributes.attributes.filterNot(::ignoresAttribute)),
+                referredFunction.parameters.parameters.map { it.typeAtDeclarationTime!! },
+                referredFunction.returnType!!,
+                TypeMutability.IMMUTABLE,
+                reference.declaration.span,
+            )
+
+            return fnType
+        }
+    }
 }
 
 internal class IrFunctionTypeImpl(
     override val parameterTypes: List<IrType>,
     override val returnType: IrType,
+    override val isExternalC: Boolean,
     override val isNullable: Boolean,
 ) : IrFunctionType {
     override fun asNullable(): IrFunctionType {
-        return IrFunctionTypeImpl(parameterTypes, returnType, true)
+        return IrFunctionTypeImpl(parameterTypes, returnType, isExternalC, true)
     }
 }

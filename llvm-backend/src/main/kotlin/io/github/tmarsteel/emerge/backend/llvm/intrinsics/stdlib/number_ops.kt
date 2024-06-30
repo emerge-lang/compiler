@@ -137,15 +137,6 @@ internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContex
     )
 }
 
-context(KotlinLlvmFunction.DefinitionReceiver<*, *>)
-private fun instructionAliasAttributes() {
-    functionAttribute(LlvmFunctionAttribute.AlwaysInline)
-    functionAttribute(LlvmFunctionAttribute.NoFree)
-    functionAttribute(LlvmFunctionAttribute.WillReturn)
-    functionAttribute(LlvmFunctionAttribute.NoRecurse)
-    functionAttribute(LlvmFunctionAttribute.NoUnwind)
-}
-
 private fun <T : LlvmIntegerType> buildUnaryMinusFn(
     emergeTypeSimpleName: String,
     llvmType: T,

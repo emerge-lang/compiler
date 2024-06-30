@@ -44,4 +44,5 @@ interface IrGenericTypeReference : IrType {
 interface IrFunctionType : IrType {
     val parameterTypes: List<IrType>
     val returnType: IrType
+    val isExternalC: Boolean
 }

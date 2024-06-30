@@ -28,6 +28,8 @@ sealed interface BoundCallableRef {
         override fun hashCode(): Int {
             return boundElement.hashCode()
         }
+
+        override fun toString() = "function ${boundElement.canonicalName.simpleName}"
     }
 
     class FunctionType(
@@ -49,5 +51,7 @@ sealed interface BoundCallableRef {
         override fun hashCode(): Int {
             return boundElement.hashCode()
         }
+
+        override fun toString() = "the function type $boundElement"
     }
 }

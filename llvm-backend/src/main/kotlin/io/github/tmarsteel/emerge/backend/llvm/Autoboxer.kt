@@ -2,8 +2,12 @@ package io.github.tmarsteel.emerge.backend.llvm
 
 import com.google.common.collect.MapMaker
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
+import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassMemberVariableAccessExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrFunctionType
+import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -13,6 +17,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
@@ -212,6 +217,14 @@ internal sealed interface Autoboxer {
                 return false
             }
 
+            if (toType is IrParameterizedType && !assignmentRequiresTransformation(context, toType.simpleType)) {
+                return false
+            }
+
+            if (toType is IrGenericTypeReference && !assignmentRequiresTransformation(context, toType.effectiveBound)) {
+                return false
+            }
+
             return true
         }
 
@@ -231,6 +244,59 @@ internal sealed interface Autoboxer {
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
         override fun unbox(value: IrTemporaryValueReference): LlvmValue<*> {
             throw UnsupportedOperationException("Cannot unbox a C FFI pointer")
+        }
+    }
+
+    object FunctionType : Autoboxer {
+        override fun getBoxedType(context: EmergeLlvmContext): EmergeClassType {
+            return context.boxTypeFunction
+        }
+
+        override val unboxedType: LlvmType = LlvmFunctionAddressType
+
+        override fun isAccessingIntoTheBox(
+            context: EmergeLlvmContext,
+            readAccess: IrClassMemberVariableAccessExpression
+        ): Boolean = false
+
+        context(BasicBlockBuilder<EmergeLlvmContext, *>)
+        override fun rewriteAccessIntoTheBox(readAccess: IrClassMemberVariableAccessExpression): LlvmValue<*> {
+            throw CodeGenerationException("not supported, ${this::isAccessingIntoTheBox.name} should have returned false")
+        }
+
+        override fun assignmentRequiresTransformation(context: EmergeLlvmContext, toType: IrType): Boolean {
+            if (toType is IrFunctionType) {
+                return false
+            }
+            if (toType is IrGenericTypeReference && !assignmentRequiresTransformation(context, toType.effectiveBound)) {
+                return false
+            }
+
+            return true
+        }
+
+        context(BasicBlockBuilder<EmergeLlvmContext, *>) override fun transformForAssignmentTo(
+            value: IrTemporaryValueReference,
+            toType: IrType
+        ): LlvmValue<*> {
+            val llvmValue = value.declaration.llvmValue
+            check(llvmValue.type == unboxedType)
+            return call(getBoxedType(context).constructor, listOf(llvmValue))
+        }
+
+        override fun isBox(context: EmergeLlvmContext, value: IrTemporaryValueReference): Boolean {
+            return assignmentRequiresTransformation(context, value.type)
+        }
+
+        context(BasicBlockBuilder<EmergeLlvmContext, *>)
+        override fun unbox(value: IrTemporaryValueReference): LlvmValue<*> {
+            val boxedType = getBoxedType(context)
+            val valueHolderMember = boxedType.irClass.memberVariables.single { it.name == "value" }
+            val valueAsBoxPtr = value.declaration.llvmValue.reinterpretAs(pointerTo(boxedType))
+            return getelementptr(valueAsBoxPtr)
+                .member(valueHolderMember)
+                .get()
+                .dereference()
         }
     }
 

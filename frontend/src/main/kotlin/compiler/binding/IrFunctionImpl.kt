@@ -10,9 +10,7 @@ internal abstract class IrFunctionImpl private constructor(
 ) {
     protected val _parameters: List<IrVariableDeclaration> by lazy { boundFunction.parameters.parameters.map { it.backendIrDeclaration } }
     protected val _returnType = boundFunction.returnType!!.toBackendIr()
-    protected val _isExternalC = boundFunction.attributes.externalAttribute?.ffiName?.value == "C"
-
-
+    protected val _isExternalC = boundFunction.attributes.isExternalC
 
     override fun toString(): String {
         return "IrFunction[$canonicalName] declared in ${boundFunction.declaredAt.fileLineColumnText}"

@@ -84,6 +84,7 @@ enum class Operator(val text: String, private val _humanReadableName: String? = 
     TIMES                 ("*"),
     COMMA                 (",", "comma"),
     SEMICOLON             (";"),
+    DOUBLE_COLON          ("::"),
     COLON                 (":", "colon"),
     NEWLINE               ("\n", "newline"),
     RETURNS               ("->"),

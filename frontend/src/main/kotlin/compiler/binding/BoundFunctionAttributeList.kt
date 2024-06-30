@@ -17,6 +17,7 @@ class BoundFunctionAttributeList(
     private val firstReadonlyAttribute: AstFunctionAttribute?
     private val firstPureAttribute: AstFunctionAttribute?
     val externalAttribute: AstFunctionAttribute.External?
+    val isExternalC: Boolean
     val visibility: BoundVisibility = attributes
         .filterIsInstance<AstVisibility>()
         .firstOrNull()
@@ -48,6 +49,7 @@ class BoundFunctionAttributeList(
         }
 
         externalAttribute = attrSequence.filterIsInstance<AstFunctionAttribute.External>().firstOrNull()
+        isExternalC = externalAttribute?.ffiName?.value == "C"
         firstOverrideAttribute = attrSequence.filterIsInstance<AstFunctionAttribute.Override>().firstOrNull()
         firstNothrowAttribute = attributes.find { it is AstFunctionAttribute.Nothrow }
             ?: attributes.find { it is AstFunctionAttribute.External }

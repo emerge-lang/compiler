@@ -446,7 +446,7 @@ class BoundInvocationExpression(
         }
 
     private fun buildBackendIrInvocation(arguments: List<IrTemporaryValueReference>): IrExpression {
-        val isCallOnInterfaceType = (receiverExpression?.type as? RootResolvedTypeReference)?.baseType?.kind == BoundBaseType.Kind.INTERFACE
+        val isCallOnInterfaceType = receiverExpression?.type?.concretelyKnownBaseType()?.kind == BoundBaseType.Kind.INTERFACE
         val fn = functionToInvoke!!
         val returnType = type!!.toBackendIr()
         val irResolvedTypeArgs = chosenOverload!!.unification.bindings.entries
@@ -512,6 +512,12 @@ private fun Collection<OverloadCandidateEvaluation>.indicesOfDisjointlyTypedPara
             val parameterTypesAtIndex = this.map { it.candidate.parameters.parameters[parameterIndex] }
             parameterTypesAtIndex.nonDisjointPairs().none()
         }
+}
+
+private fun BoundTypeReference.concretelyKnownBaseType(): BoundBaseType? = when (this) {
+    is RootResolvedTypeReference -> baseType
+    is BoundTypeArgument -> type.concretelyKnownBaseType()
+    else -> null
 }
 
 internal class IrStaticDispatchFunctionInvocationImpl(

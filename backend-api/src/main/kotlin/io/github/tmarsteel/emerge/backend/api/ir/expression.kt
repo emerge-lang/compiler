@@ -217,3 +217,7 @@ interface IrIfExpression : IrExpression {
 interface IrNotReallyAnExpression : IrExpression {
     override val evaluatesTo: IrType get() = throw CodeGenerationException("${this::class.simpleName} is not actually an expression.")
 }
+
+interface IrTopLevelFunctionReference : IrExpression {
+    val referredFunction: IrFunction
+}

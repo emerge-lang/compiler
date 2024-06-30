@@ -6,16 +6,6 @@ import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 class FunctionTypeErrors : FreeSpec({
-    "cannot be declared external(C)" {
-        // there's no good reason not to support this - but it takes effort which hasn't been spent yet
-        validateModule("""
-            fn foo(p: external(C) () -> Unit) {}
-        """.trimIndent())
-            .shouldReport<IllegalFunctionAttributeReporting> {
-                it.attribute.shouldBeInstanceOf<AstFunctionAttribute.External>()
-            }
-    }
-
     "cannot be declared operator" {
         // there's no good reason not to support this - but it takes effort which hasn't been spent yet
         validateModule("""
