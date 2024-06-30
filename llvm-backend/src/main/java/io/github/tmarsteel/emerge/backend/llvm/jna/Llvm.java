@@ -255,6 +255,15 @@ public class Llvm {
     );
 
     /** see Core.h */
+    public static native @NotNull LlvmValueRef LLVMBuildInsertValue(
+            @NotNull LlvmBuilderRef builder,
+            @NotNull LlvmValueRef aggregateVal,
+            @NotNull LlvmValueRef valueToInsert,
+            @Unsigned int index,
+            @NotNull String name
+    );
+
+    /** see Core.h */
     public static native @NotNull LlvmValueRef LLVMBuildRet(@NotNull LlvmBuilderRef builder, @NotNull LlvmValueRef val);
 
     /** see Core.h */

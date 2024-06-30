@@ -20,6 +20,10 @@ class ConstantStructBuilder<S : LlvmStructType, C : LlvmContext>(
     private val valuesByIndex = HashMap<Int, LlvmValue<*>>()
 
     fun <M : LlvmType> setValue(member: LlvmStructType.Member<S, M>, value: LlvmValue<M>) {
+        assert(value.type.isAssignableTo(member.type))
+        assert(Llvm.LLVMIsConstant(value.raw) == 1) {
+            "all struct elements must be constants. If you need dynamic values, set these later with insertvalue"
+        }
         valuesByIndex[member.indexInStruct] = value
     }
 
@@ -44,6 +48,9 @@ fun <E : LlvmType> LlvmArrayType<E>.buildConstantIn(
     context: LlvmContext,
     data: Iterable<LlvmValue<E>>,
 ): LlvmConstant<LlvmArrayType<E>> {
+    assert(data.all { Llvm.LLVMIsConstant(it.raw) == 1 }) {
+        "all array elements must be constants. If you need dynamics, set these later on with insertvalue"
+    }
     val constArray = NativePointerArray.fromJavaPointers(data.map { it.raw }).use { rawConstants ->
         Llvm.LLVMConstArray2(
             elementType.getRawInContext(context),

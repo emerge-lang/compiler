@@ -21,6 +21,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun <P : LlvmType> GetElementPointerStep<P>.get(): LlvmValue<LlvmPointerType<P>>
     fun <P : LlvmType> LlvmValue<LlvmPointerType<P>>.dereference(): LlvmValue<P>
     fun <S : LlvmStructType, T : LlvmType> extractValue(struct: LlvmValue<S>, memberSelector: S.() -> LlvmStructType.Member<S, T>): LlvmValue<T>
+    fun <S : LlvmStructType, T : LlvmType> insertValue(struct: LlvmValue<S>, value: LlvmValue<T>, memberSelector: S.() -> LlvmStructType.Member<S, T>): LlvmValue<S>
 
     fun <P : LlvmType> store(value: LlvmValue<P>, to: LlvmValue<LlvmPointerType<P>>)
     fun <T : LlvmIntegerType> add(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
@@ -200,6 +201,16 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         val member = struct.type.memberSelector()
         val extractInst = Llvm.LLVMBuildExtractValue(builder, struct.raw, member.indexInStruct, tmpVars.next())
         return LlvmValue(extractInst, member.type)
+    }
+
+    override fun <S : LlvmStructType, T : LlvmType> insertValue(
+        struct: LlvmValue<S>,
+        value: LlvmValue<T>,
+        memberSelector: S.() -> LlvmStructType.Member<S, T>,
+    ): LlvmValue<S> {
+        val member = struct.type.memberSelector()
+        val insertInst = Llvm.LLVMBuildInsertValue(builder, struct.raw, value.raw, member.indexInStruct, tmpVars.next())
+        return LlvmValue(insertInst, struct.type)
     }
 
     override fun <P : LlvmType> store(value: LlvmValue<P>, to: LlvmValue<LlvmPointerType<P>>) {
