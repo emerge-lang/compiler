@@ -310,6 +310,7 @@ class BoundBaseType(
             context.swCtx.sword,
             context.swCtx.uword,
             context.swCtx.f32,
+            context.swCtx.f64,
         )
 
     /**

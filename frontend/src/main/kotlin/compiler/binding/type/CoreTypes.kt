@@ -5,6 +5,7 @@ import java.math.BigInteger
 
 object CoreTypes {
     val F32_RANGE: ClosedRange<BigDecimal> = BigDecimal.valueOf(Float.MIN_VALUE.toDouble()) .. BigDecimal.valueOf(Float.MAX_VALUE.toDouble())
+    val F64_RANGE: ClosedRange<BigDecimal> = BigDecimal.valueOf(Double.MIN_VALUE) .. BigDecimal.valueOf(Double.MAX_VALUE)
     val S8_RANGE: ClosedRange<BigInteger> = BigInteger.valueOf(Byte.MIN_VALUE.toLong()) .. BigInteger.valueOf(Byte.MAX_VALUE.toLong())
     val U8_RANGE: ClosedRange<BigInteger> = BigInteger.valueOf(UByte.MIN_VALUE.toLong()) .. BigInteger.valueOf(UByte.MAX_VALUE.toLong())
     val S16_RANGE: ClosedRange<BigInteger> = BigInteger.valueOf(Short.MIN_VALUE.toLong()) .. BigInteger.valueOf(Short.MAX_VALUE.toLong())

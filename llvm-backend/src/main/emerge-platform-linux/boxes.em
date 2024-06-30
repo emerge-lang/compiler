@@ -32,6 +32,14 @@ class U64Box {
     value: U64 = init
 }
 
+class F32Box {
+    value: F32 = init
+}
+
+class F64Box {
+    value: F64 = init
+}
+
 class SWordBox {
     value: SWord = init
 }

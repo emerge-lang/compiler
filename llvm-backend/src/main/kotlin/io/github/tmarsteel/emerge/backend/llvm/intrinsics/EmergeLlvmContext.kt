@@ -108,6 +108,10 @@ class EmergeLlvmContext(
     internal lateinit var boxTypeS64: EmergeClassType
     /** `emerge.platform.U64Box` */
     internal lateinit var boxTypeU64: EmergeClassType
+    /** `emerge.platform.F32Box` */
+    internal lateinit var boxTypeF32: EmergeClassType
+    /** `emerge.platform.F64Box` */
+    internal lateinit var boxTypeF64: EmergeClassType
     /** `emerge.platform.SWordBox` */
     internal lateinit var boxTypeSWord: EmergeClassType
     /** `emerge.platform.UWordBox` */
@@ -137,6 +141,10 @@ class EmergeLlvmContext(
     internal lateinit var rawS64Clazz: IrClass
     /** `emerge.core.U64*/
     internal lateinit var rawU64Clazz: IrClass
+    /** `emerge.core.F32*/
+    internal lateinit var rawF32Clazz: IrClass
+    /** `emerge.core.F64*/
+    internal lateinit var rawF64Clazz: IrClass
     /** `emerge.core.SWord */
     internal lateinit var rawSWordClazz: IrClass
     /** `emerge.core.UWord */
@@ -172,6 +180,8 @@ class EmergeLlvmContext(
             "emerge.core.U32" -> rawU32Clazz = clazz
             "emerge.core.S64" -> rawS64Clazz = clazz
             "emerge.core.U64" -> rawU64Clazz = clazz
+            "emerge.core.F32" -> rawF32Clazz = clazz
+            "emerge.core.F64" -> rawF64Clazz = clazz
             "emerge.core.SWord" -> rawSWordClazz = clazz
             "emerge.core.UWord" -> rawUWordClazz = clazz
             "emerge.core.Bool" -> rawBoolClazz = clazz
@@ -200,6 +210,8 @@ class EmergeLlvmContext(
             "emerge.platform.U32Box" -> boxTypeU32 = emergeClassType
             "emerge.platform.S64Box" -> boxTypeS64 = emergeClassType
             "emerge.platform.U64Box" -> boxTypeU64 = emergeClassType
+            "emerge.platform.F32Box" -> boxTypeF32 = emergeClassType
+            "emerge.platform.F64Box" -> boxTypeF64 = emergeClassType
             "emerge.platform.SWordBox" -> boxTypeSWord = emergeClassType
             "emerge.platform.UWordBox" -> boxTypeUWord = emergeClassType
             "emerge.platform.BoolBox" -> boxTypeBool = emergeClassType
@@ -337,13 +349,19 @@ class EmergeLlvmContext(
 
         if (!structConstructorsRegistered) {
             structConstructorsRegistered = true
-            emergeStructs.forEach {
-                // TODO: this handling is wonky, needs more conceptual work
-                // the code will convert a return value of Unit to LLvmVoidType. That is correct except for this one
-                // function -> adapt
-                val returnTypeOverride = if (it == unitType) PointerToAnyEmergeValue else null
-                val ref = registerFunction(it.irClass.constructor, returnTypeOverride)
-                it.irClass.constructor.llvmRef = ref
+            emergeStructs
+                .asSequence()
+                .filter { it.irClass.autoboxer !is Autoboxer.PrimitiveType && it.irClass.canonicalName.toString() !in setOf(
+                    "emerge.core.Array",
+                    "emerge.core.Nothing",
+                ) }
+                .forEach {
+                    // TODO: this handling is wonky, needs more conceptual work
+                    // the code will convert a return value of Unit to LLvmVoidType. That is correct except for this one
+                    // function -> adapt
+                    val returnTypeOverride = if (it == unitType) PointerToAnyEmergeValue else null
+                    val ref = registerFunction(it.irClass.constructor, returnTypeOverride)
+                    it.irClass.constructor.llvmRef = ref
 
                 registerFunction(it.irClass.destructor)
                 defineFunctionBody(it.irClass.destructor)

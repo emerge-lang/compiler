@@ -136,6 +136,7 @@ class SoftwareContext {
     val uword: BoundBaseType by coreType("UWord")
     val string: BoundBaseType by coreType()
     val f32: BoundBaseType by coreType()
+    val f64: BoundBaseType by coreType()
     val weak: BoundBaseType by coreType()
     val array: BoundBaseType by coreType()
     val throwable: BoundBaseType by coreType()

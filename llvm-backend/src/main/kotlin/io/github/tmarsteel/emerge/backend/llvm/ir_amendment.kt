@@ -39,6 +39,8 @@ internal val IrBaseType.autoboxer: Autoboxer? by tackLazyVal {
         "emerge.core.U32" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU32, "value", EmergeLlvmContext::rawU32Clazz, LlvmI32Type)
         "emerge.core.S64" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeS64, "value", EmergeLlvmContext::rawS64Clazz, LlvmI64Type)
         "emerge.core.U64" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeU64, "value", EmergeLlvmContext::rawU64Clazz, LlvmI64Type)
+        "emerge.core.F32" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeF32, "value", EmergeLlvmContext::rawF32Clazz, LlvmI64Type)
+        "emerge.core.F64" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeF64, "value", EmergeLlvmContext::rawF64Clazz, LlvmI64Type)
         "emerge.core.SWord" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeSWord, "value", EmergeLlvmContext::rawSWordClazz, EmergeWordType)
         "emerge.core.UWord" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeUWord, "value", EmergeLlvmContext::rawUWordClazz, EmergeWordType)
         "emerge.core.Bool" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeBool, "value", EmergeLlvmContext::rawBoolClazz, LlvmBooleanType)
@@ -55,7 +57,8 @@ internal val IrType.autoboxer: Autoboxer? get() = when(this) {
 }
 
 internal val IrType.isUnit by tackLazyVal { this is IrSimpleType && this.baseType.canonicalName.toString() == "emerge.core.Unit" }
-internal val IrBaseType.isAny get() = canonicalName.toString() == "emerge.core.Any"
+internal val IrBaseType.isAny by tackLazyVal { canonicalName.toString() == "emerge.core.Any" }
+internal val IrBaseType.isNothing by tackLazyVal { canonicalName.toString() == "emerge.core.Nothing" }
 
 internal var IrClass.rawLlvmRef: LlvmTypeRef? by tackState { null }
 internal val IrClass.llvmName: String get() = this.canonicalName.toString()

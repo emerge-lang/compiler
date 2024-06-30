@@ -132,6 +132,7 @@ class Linux_x68_64_Backend : EmergeBackend {
                 .forEach {
                     llvmContext.registerGlobal(it)
                 }
+
             softwareContext.packagesSeq
                 .flatMap { it.functions }
                 .flatMap { it.overloads }
