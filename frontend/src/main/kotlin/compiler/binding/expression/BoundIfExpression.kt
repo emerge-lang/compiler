@@ -35,6 +35,8 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrConditionalBranch
+import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIfExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
@@ -152,6 +154,18 @@ class BoundIfExpression(
 
     override val isCompileTimeConstant = false
 
+    override fun toBackendIrStatement(): IrExecutable {
+        val conditionTemporary = IrCreateTemporaryValueImpl(condition.toBackendIrExpression())
+        return IrCodeChunkImpl(listOf(
+            conditionTemporary,
+            IrConditionalBranchImpl(
+                IrTemporaryValueReferenceImpl(conditionTemporary),
+                thenCode.toBackendIrStatement(),
+                elseCode?.toBackendIrStatement(),
+            )
+        ))
+    }
+
     override fun toBackendIrExpression(): IrExpression {
         val thenResultNeedsToIncludeRefCount = isEvaluationResultReferenceCounted && !thenCode.isImplicitEvaluationResultReferenceCounted
         val elseResultNeedsToIncludeRefCount = isEvaluationResultReferenceCounted && !(elseCode?.isImplicitEvaluationResultReferenceCounted ?: true)
@@ -182,3 +196,9 @@ internal class IrIfExpressionImpl(
     override val elseBranch: IrImplicitEvaluationExpression?,
     override val evaluatesTo: IrType,
 ) : IrIfExpression
+
+private class IrConditionalBranchImpl(
+    override val condition: IrTemporaryValueReference,
+    override val thenBranch: IrExecutable,
+    override val elseBranch: IrExecutable?
+) : IrConditionalBranch

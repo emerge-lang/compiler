@@ -1,5 +1,7 @@
 package emerge.std.collections
 
+import emerge.platform.panic
+
 export class ArrayList<X> {
     private var storage: Array<X?> = Array.new::<X?>(20, null)
     private var _size: UWord = 0

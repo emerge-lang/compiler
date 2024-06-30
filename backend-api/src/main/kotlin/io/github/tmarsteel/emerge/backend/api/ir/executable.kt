@@ -77,6 +77,16 @@ interface IrReturnStatement : IrExecutable {
     val value: IrTemporaryValueReference
 }
 
+/**
+ * The semantics are identical to [IrIfExpression] wrapped in an [IrImplicitEvaluationExpression] where both
+ * branches evaluate to `emerge.core.Unit`. This optimizes(=reduces) complexity of code generation and reference counting.
+ */
+interface IrConditionalBranch : IrExecutable {
+    val condition: IrTemporaryValueReference
+    val thenBranch: IrExecutable
+    val elseBranch: IrExecutable?
+}
+
 interface IrWhileLoop : IrExecutable {
     val condition: IrExpression
     val body: IrCodeChunk

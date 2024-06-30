@@ -8,6 +8,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrBreakStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassMemberVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
+import io.github.tmarsteel.emerge.backend.api.ir.IrConditionalBranch
 import io.github.tmarsteel.emerge.backend.api.ir.IrContinueStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
@@ -214,6 +215,45 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
 
             val returnValue = assureBoxed(code.value, functionReturnType)
             return ExpressionResult.Terminated(ret(returnValue))
+        }
+        is IrConditionalBranch -> {
+            val conditionValue = code.condition.declaration.llvmValue
+            check(conditionValue.type == LlvmBooleanType)
+            @Suppress("UNCHECKED_CAST")
+            conditionValue as LlvmValue<LlvmBooleanType>
+
+            if (code.elseBranch == null) {
+                conditionalBranch(
+                    condition = conditionValue,
+                    ifTrue = {
+                        val thenBranchResult = emitCode(code.thenBranch, functionReturnType, false)
+                        (thenBranchResult as? ExpressionResult.Terminated)?.termination ?: concludeBranch()
+                    }
+                )
+                return ExecutableResult.ExecutionOngoing
+            }
+
+            var thenTerminates = false
+            var elseTerminates = false
+            conditionalBranch(
+                condition = conditionValue,
+                ifTrue = {
+                    val thenBranchResult = emitCode(code.thenBranch, functionReturnType, false)
+                    thenTerminates = thenBranchResult is ExpressionResult.Terminated
+                    (thenBranchResult as? ExpressionResult.Terminated)?.termination ?: concludeBranch()
+                },
+                ifFalse = {
+                    val elseBranchResult = emitCode(code.elseBranch!!, functionReturnType, false)
+                    elseTerminates = elseBranchResult is ExpressionResult.Terminated
+                    (elseBranchResult as? ExpressionResult.Terminated)?.termination ?: concludeBranch()
+                },
+            )
+
+            return if (thenTerminates && elseTerminates) {
+                ExpressionResult.Terminated(unreachable())
+            } else {
+                ExecutableResult.ExecutionOngoing
+            }
         }
         is IrWhileLoop -> {
             var conditionTermination: ExpressionResult.Terminated? = null

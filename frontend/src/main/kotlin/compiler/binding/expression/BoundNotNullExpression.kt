@@ -18,8 +18,8 @@
 
 package compiler.binding.expression
 
-import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
+import compiler.PlatformModule
 import compiler.ast.expression.NotNullExpression
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
@@ -116,8 +116,8 @@ class BoundNotNullExpression(
      * @return the `emerge.core.panic(emerge.core.String)` function
      */
     private val panicFunction: BoundFunction by lazy {
-        val corePackage = context.swCtx.getPackage(CoreIntrinsicsModule.NAME)
-            ?: throw InternalCompilerError("Package ${CoreIntrinsicsModule.NAME} not known to the ${SoftwareContext::class.simpleName}!")
+        val corePackage = context.swCtx.getPackage(PlatformModule.NAME)
+            ?: throw InternalCompilerError("Package ${PlatformModule.NAME} not known to the ${SoftwareContext::class.simpleName}!")
 
         corePackage
             .getTopLevelFunctionOverloadSetsBySimpleName("panic")

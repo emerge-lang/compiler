@@ -4,21 +4,22 @@ import emerge.core.StackTraceElement
 import emerge.std.collections.ArrayList
 import emerge.ffi.c.addressOfFirst
 import emerge.ffi.c.COpaquePointer
+import emerge.linux.libc.write
 
 export mut fn collectStackTrace() -> ArrayList<StackTraceElement> {
-    // the logic around the context and cursor buffors cannot be moved into emerge classes
+    // the logic around the context and cursor buffers cannot be moved into emerge classes
     // the reason is that it matters very much on which stack frame unw_create_context and unw_init_local
     // are being called. They need to be called from the same stack frame. Additionally, when a function
     // returns, any unwind cursor has to have been unwound past that stackframe, otherwise unwinding will be UB
 
     stackList: exclusive _ = ArrayList::<const StackTraceElement>()
-    contextBuffer = Array.new::<S8>(unwind_context_size(), 0 as S8)
+    var contextBuffer = Array.new::<S8>(unwind_context_size(), 0 as S8)
     var errorCode = unw_getcontext(contextBuffer.addressOfFirst())
     if errorCode != UNWIND_ERROR_SUCCESS {
         panic("unw_getcontext errored: " + unwindErrorToString(errorCode))
     }
 
-    cursorBuffer = Array.new::<S8>(unwind_cursor_size(), 0 as S8)
+    var cursorBuffer = Array.new::<S8>(unwind_cursor_size(), 0 as S8)
     set errorCode = unw_init_local(cursorBuffer.addressOfFirst(), contextBuffer.addressOfFirst())
     if errorCode != UNWIND_ERROR_SUCCESS {
         panic("unw_init_local errored: " + unwindErrorToString(errorCode))
@@ -28,6 +29,7 @@ export mut fn collectStackTrace() -> ArrayList<StackTraceElement> {
     var hasNext = true
     while hasNext {
         procName = unwindCursorGetProcedureName(cursorBuffer.addressOfFirst())
+        // TODO: stop when encountering "main"; currently String::equals is missing for that
         ip = unwindCursorGetInstructionPointer(cursorBuffer.addressOfFirst())
 
         stackList.add(StackTraceElement(ip, procName))
@@ -59,7 +61,7 @@ UNWIND_ERROR_NO_INFO: S32                     = -10 // no unwind info found
 
 UNWIND_REGISTER_IP: S32 = 16
 
-private fn unwindErrorToString(code: S32) -> String {
+private nothrow fn knownUnwindErrorToStringSafe(code: S32) -> String? {
     // TODO: when/switch
     if code == UNWIND_ERROR_SUCCESS {
         return "no error"
@@ -105,7 +107,26 @@ private fn unwindErrorToString(code: S32) -> String {
         return "no unwind info found"
     }
 
-    return "unknown error (code " + code.toString() + ")"
+    return null
+}
+
+private fn unwindErrorToStringSafe(code: S32) -> String {
+    // TODO: use null-coalescing or smart-casts to avoid !! and thus enable nothrow
+    knownError = knownUnwindErrorToStringSafe(code)
+    if isNull(knownError) {
+        return "unknown error"
+    } else {
+        return knownError!!
+    }
+}
+
+private fn unwindErrorToString(code: S32) -> String {
+    knownError = knownUnwindErrorToStringSafe(code)
+    if isNull(knownError) {
+        return "unknown error (code " + code.toString() + ")"
+    } else {
+        return knownError!!
+    }
 }
 
 // constants from __libunwind_config.h
@@ -151,10 +172,11 @@ private mut fn unwindCursorTryStepUp(cursorPtr: COpaquePointer) -> Bool {
     return true
 }
 
+private prealloc_getRegisterBuffer: mut _ = Array.new::<UWord>(1, 0 as UWord)
 private read fn unwindCursorGetInstructionPointer(cursorPtr: COpaquePointer) -> UWord {
-    buf = Array.new::<UWord>(1, 0 as UWord)
-    errorCode = unw_get_reg(cursorPtr, UNWIND_REGISTER_IP, buf.addressOfFirst())
-    return buf[0]
+    errorCode = unw_get_reg(cursorPtr, UNWIND_REGISTER_IP, prealloc_getRegisterBuffer.addressOfFirst())
+    // TODO: use safe get to enable nothrow
+    return prealloc_getRegisterBuffer[0]
 }
 
 // returns the name of the function belonging to the stack frame this cursor is currently pointing at
@@ -176,6 +198,81 @@ private mut fn unwindCursorGetProcedureName(cursorPtr: COpaquePointer) -> String
     Array.copy(nameBuf, 0, trimmedName, 0, actualNameLength)
     return String(trimmedName)
 }
+
+// BEGIN code to print the stack trace during a panic. Is supposed to not do heap
+// allocations, avoiding OOM problems during a panic
+// this code does, by all my reasoning, not throw. However, the compiler cannot be convinced
+// of that right now because some features are lacking. Hence, the functions are not all nothrow
+private prealloc_backtraceContextBuffer: mut _ = Array.new::<S8>(unwind_context_size(), 0 as S8)
+private prealloc_backtraceCursorBuffer: mut _ = Array.new::<S8>(unwind_cursor_size(), 0 as S8)
+private prealloc_procedureNameBuffer: mut _ = Array.new::<S8>(256, 0 as S8)
+private prealloc_relativeIpBuffer: mut _ = Array.new::<UWord>(1, 0 as UWord)
+
+private nothrow fn writeMemoryAddress(address: UWord, fd: S32) {
+    // TODO
+}
+
+private mut fn writeProcedureName(cursorPtr: COpaquePointer, fd: S32) {
+    errorCode = unw_get_proc_name(cursorPtr, prealloc_procedureNameBuffer.addressOfFirst(), prealloc_procedureNameBuffer.size, prealloc_relativeIpBuffer.addressOfFirst())
+    if errorCode == UNWIND_ERROR_SUCCESS {
+        // TODO: use safe array access to enable nothrow
+        var actualNameLength = 0 as UWord
+        while prealloc_procedureNameBuffer[actualNameLength] != 0 and actualNameLength < prealloc_procedureNameBuffer.size {
+            // TODO: use safe/modular math to enable nothrow
+            set actualNameLength = actualNameLength + 1
+        }
+        write(fd, prealloc_procedureNameBuffer.addressOfFirst(), actualNameLength)
+    } else {
+        // TODO: use early return; currently not possible because just "return;" requires a reference to Unit
+        replacement = "<unknown function>"
+        write(fd, replacement.utf8Data.addressOfFirst(), replacement.utf8Data.size)
+    }
+}
+
+// prints the stack to FD_STDERR. Is effectively nothrow.
+// @return whether the stack could be traced. If false, an error message will be written to FD_STDERR
+mut fn printStackTraceToStandardError() -> Bool {
+    var errorCode = unw_getcontext(prealloc_backtraceContextBuffer.addressOfFirst())
+    if errorCode != UNWIND_ERROR_SUCCESS {
+        printError("  !! failed to backtrace; unw_getcontext errored: ")
+        printError(unwindErrorToStringSafe(errorCode))
+        printError("\n")
+        return false
+    }
+
+    set errorCode = unw_init_local(prealloc_backtraceCursorBuffer.addressOfFirst(), prealloc_backtraceContextBuffer.addressOfFirst())
+    if errorCode != UNWIND_ERROR_SUCCESS {
+        printError("  !! failed to backtrace; unw_init_local errored: ")
+        printError(unwindErrorToStringSafe(errorCode))
+        printError("\n")
+        return false
+    }
+    
+    couldSkipSelf = unwindCursorTryStepUp(prealloc_backtraceCursorBuffer.addressOfFirst())
+    if not couldSkipSelf {
+        printError("  !! failed to backtrace; could not unw_step past the printing infrastructure frames\n")
+        return false
+    }
+
+    while true {
+        ip = unwindCursorGetInstructionPointer(prealloc_backtraceCursorBuffer.addressOfFirst())
+        
+        printError("  at ")
+        writeProcedureName(prealloc_backtraceCursorBuffer.addressOfFirst(), FD_STDERR)
+        printError(" (")
+        writeMemoryAddress(ip, FD_STDERR)
+        printError(")\n")
+        
+        hasNext = unwindCursorTryStepUp(prealloc_backtraceCursorBuffer.addressOfFirst())
+        if not hasNext {
+            break
+        }
+    }
+    
+    return true
+}
+
+// not used right now, but might come in handy when implementing actual unwinding/resume
 
 private class UnwindProcedureInfo {
     private addressOfFirstInstruction: UWord = init

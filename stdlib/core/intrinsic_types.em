@@ -1,5 +1,7 @@
 package emerge.core
 
+import emerge.platform.panic
+
 export class Unit {
     private constructor {}
 }
