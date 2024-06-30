@@ -88,7 +88,7 @@ private typealias OperatorOrExpression = Any // kotlin does not have a union typ
  */
 private val AstSemanticOperator.priority: Int
     get() = when(operatorElement) {
-        Operator.ELVIS -> 10
+        Operator.NULL_COALESCE -> 10
 
         Keyword.AND -> 20
         Keyword.OR -> 21

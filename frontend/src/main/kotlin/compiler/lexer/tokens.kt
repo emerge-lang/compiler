@@ -99,7 +99,7 @@ enum class Operator(val text: String, private val _humanReadableName: String? = 
     LESS_THAN_OR_EQUALS   ("<="),
     GREATER_THAN          (">"),
     LESS_THAN             ("<"),
-    ELVIS                 ("?:", "elvis operator"),
+    NULL_COALESCE         ("?:", "null-coalescing operator"),
     QUESTION_MARK         ("?"),
     NOTNULL               ("!!"), // find a better name for this...
     EXCLAMATION_MARK      ("!", "exclamation mark"),

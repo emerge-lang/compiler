@@ -387,7 +387,7 @@ val BinaryOperator = eitherOf {
     keyword(Keyword.XOR)
 
     // MISC
-    operator(Operator.ELVIS)
+    operator(Operator.NULL_COALESCE)
 }
     .astTransformation { tokens ->
         when (val element = tokens.next()!!) {

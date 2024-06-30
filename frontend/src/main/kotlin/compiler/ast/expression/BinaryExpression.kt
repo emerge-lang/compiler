@@ -25,6 +25,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundBinaryExpression
 import compiler.binding.expression.BoundComparisonExpression
 import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.BoundNullCoalescingExpression
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
@@ -61,6 +62,10 @@ class BinaryExpression(
     private val opDerivedLocation = operator.token.span.deriveGenerated()
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundExpression<*> {
+        if (operator.operatorElement == Operator.NULL_COALESCE) {
+            return bindToAsNullCoalescing(context)
+        }
+
         val comparisonPredicate = COMPARISON_OPRATOR_MAPPING[operator.operatorElement]
         if (comparisonPredicate != null) {
             return bindToAsComparison(context, comparisonPredicate)
@@ -114,5 +119,11 @@ class BinaryExpression(
             compareToInvocation,
             predicate,
         )
+    }
+
+    private fun bindToAsNullCoalescing(context: ExecutionScopedCTContext): BoundNullCoalescingExpression {
+        val nullableExpression = leftHandSide.bindTo(context)
+        val alternativeExpression = rightHandSide.bindTo(nullableExpression.modifiedContext)
+        return BoundNullCoalescingExpression(context, this, nullableExpression, alternativeExpression)
     }
 }

@@ -110,23 +110,12 @@ private nothrow fn knownUnwindErrorToStringSafe(code: S32) -> String? {
     return null
 }
 
-private fn unwindErrorToStringSafe(code: S32) -> String {
-    // TODO: use null-coalescing or smart-casts to avoid !! and thus enable nothrow
-    knownError = knownUnwindErrorToStringSafe(code)
-    if isNull(knownError) {
-        return "unknown error"
-    } else {
-        return knownError!!
-    }
+private nothrow fn unwindErrorToStringSafe(code: S32) -> String {
+    return knownUnwindErrorToStringSafe(code) ?: "unknown error"
 }
 
 private fn unwindErrorToString(code: S32) -> String {
-    knownError = knownUnwindErrorToStringSafe(code)
-    if isNull(knownError) {
-        return "unknown error (code " + code.toString() + ")"
-    } else {
-        return knownError!!
-    }
+    return knownUnwindErrorToStringSafe(code) ?: "unknown error (code " + code.toString() + ")"
 }
 
 // constants from __libunwind_config.h

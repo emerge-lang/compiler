@@ -7,8 +7,4 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 class IrImplicitEvaluationExpressionImpl(
     override val code: IrCodeChunk,
     override val implicitValue: IrTemporaryValueReference,
-) : IrImplicitEvaluationExpression {
-    init {
-        require(code.components.count { it === implicitValue.declaration } == 1)
-    }
-}
+) : IrImplicitEvaluationExpression

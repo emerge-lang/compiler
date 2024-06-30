@@ -90,8 +90,10 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
     val isEvaluationResultReferenceCounted: Boolean
 
     /**
-     * Whether the result of this expression could be determined at compile time. Need not be meaningful until
-     * [semanticAnalysisPhase3] starts.
+     * Whether the result of this expression could be determined at compile time. This does not imply that anything
+     * will be computed at compile time; this barely states whether the result value is runtime-dependent or not.
+     *
+     * **Need not be meaningful until [semanticAnalysisPhase3] starts.**
      */
     val isCompileTimeConstant: Boolean
 
