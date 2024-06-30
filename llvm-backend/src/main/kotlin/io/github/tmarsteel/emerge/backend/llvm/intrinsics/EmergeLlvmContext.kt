@@ -364,7 +364,7 @@ class EmergeLlvmContext(
                     }
                 }
 
-            when (val codeResult = emitCode(body, fn.returnType)) {
+            when (val codeResult = emitCode(body, fn.returnType, false)) {
                 is ExecutableResult.ExecutionOngoing,
                 is ExpressionResult.Value -> {
                     (this as BasicBlockBuilder<*, LlvmVoidType>).retVoid()
@@ -406,7 +406,7 @@ class EmergeLlvmContext(
             body {
                 for (global in globalVariables) {
                     (this as BasicBlockBuilder<EmergeLlvmContext, LlvmType>)
-                    val initResult = emitExpressionCode(global.initializer, IrSimpleTypeImpl(context.unitType.irClass, false))
+                    val initResult = emitExpressionCode(global.initializer, IrSimpleTypeImpl(context.unitType.irClass, false), true)
                     if (initResult is ExpressionResult.Value) {
                         global.declaration.emitWrite!!(initResult.value)
                     } else {
