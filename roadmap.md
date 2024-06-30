@@ -91,15 +91,14 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     1. ~~index access can always throw IndexOutOfBounds; work out a nothrow alternative. Maybe `.safeGet(index)` returning `Either`?~~
 27. Stdlib _absolute_ Basics
     * arithmetic
-        * overflow-safe implementations of the actual operators + - * ...
+        * ~~overflow-safe implementations of the actual operators + - * ...~~
         * overflow-unsafe intrinsics, e.g. `emerge.std.math.addWithOverflow(a: i32, b: i32)`
-        * conversions between the integral types, especially handy for word
-    * array bounds checks, null deref
+        * ~~conversions between the integral types, especially handy for word~~
+    * ~~array bounds checks, null deref~~
     * a to-string abstraction: Java-style toString on all objects is probably overkill, more like rusts Display trait
     * equality
       * reference equality operator: really === ??
       * it would be great to be able to do == on Any
-    * hashCodes: again, Java-style is overkill, have an explicit Hashable interface 
 28. while + do-while loops
 29. error handling
     1. this is going to touch the runtime significantly. Use this opportunity to
@@ -154,6 +153,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 35. Stdlib basics
     * some good standard collections
     * ArrayList, LinkedList, (De)Queue, Stack, ...
+      * hashCodes: Java-style is overkill, have an explicit Hashable interface
     * Map
 36. Function types
     1. `operator fun invoke`: `obj(param)` to `obj.invoke(param)`
