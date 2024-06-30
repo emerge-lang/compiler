@@ -49,6 +49,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindContextSize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindCursorSize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.intrinsicNumberOperations
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.isNullBuiltin
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmModuleFlagBehavior
@@ -589,6 +590,7 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             panic,
             unwindContextSize,
             unwindCursorSize,
+            isNullBuiltin,
         )
             + intrinsicNumberOperations
     )
