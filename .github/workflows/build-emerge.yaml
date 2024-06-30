@@ -3,7 +3,7 @@ run-name: Build & Test the Emerge compiler
 on:
   - push
 env:
-  GLIBC_SOURCE_BALL_URL: "https://de.freedif.org/gnu/glibc/glibc-2.38.tar.bz2"
+  GLIBC_SOURCE_BALL_URL: "http://mirror.dogado.de/gnu/libc/glibc-2.38.tar.bz2"
   GCC_GIT_REF: "releases/gcc-14.1.0"
   LIBUNWIND_GIT_REF: "v1.8.1"
 
