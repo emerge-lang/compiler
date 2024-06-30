@@ -5,6 +5,7 @@ on:
 env:
   GLIBC_SOURCE_BALL_URL: "https://de.freedif.org/gnu/glibc/glibc-2.38.tar.bz2"
   GCC_GIT_REF: "releases/gcc-14.1.0"
+  LIBUNWIND_GIT_REF: "v1.8.1"
 
 jobs:
   build-glibc-x86_64:
@@ -58,6 +59,31 @@ jobs:
           $GITHUB_WORKSPACE/gcc-source/configure --host=x86_64-pc-linux-gnu --target=x86_64-pc-linux-gnu --disable-multilib --enable-languages=c
           N_PHYSICAL_CORES=$(cat /proc/cpuinfo | grep -E 'cpu cores\s*:' | head -1 | sed -E 's/^.*([0-9]+)$/\1/')
           make -j $N_PHYSICAL_CORES
+  build-libunwind-x86_64:
+    name: "build nongnu libunwind for x86_64-pc-linux-gnu"
+    runs-on: ubuntu-latest
+    steps:
+      - id: cache-libunwind
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/libunwind-install/lib
+          key: libunwind-x86_64-pc-linux-gnu-${{ env.LIBUNWIND_GIT_REF }}
+      - name: checkout libunwind source
+        if: steps.cache-libunwind.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: libunwind/libunwind
+          ref: ${{ env.LIBUNWIND_GIT_REF }}
+          path: ${{ github.workspace }}/libunwind-source
+      - name: build libunwind
+        if: steps.cache-libunwind.outputs.cache-hit != 'true'
+        run: |
+          cd ${{ github.workspace }}/libunwind-source
+          autoreconf -i
+          ./configure "--prefix=${{ github.workspace }}/libunwind-install"
+          make
+          make install
   emerge-compiler-maven:
     runs-on: ubuntu-22.04
     name: emerge compiler maven verify
