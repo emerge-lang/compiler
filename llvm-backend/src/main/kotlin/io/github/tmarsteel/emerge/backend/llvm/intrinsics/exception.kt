@@ -48,10 +48,10 @@ private fun BasicBlockBuilder<*, *>.printStackTraceToStdErr() {
     call(printStackFnAddr, printStackFnType, emptyList())
 }
 
-private fun BasicBlockBuilder<*, *>.exit(): BasicBlockBuilder.Termination {
+private fun BasicBlockBuilder<*, *>.exit(status: UByte): BasicBlockBuilder.Termination {
     val exitFnAddr = context.getNamedFunctionAddress("exit")!!
-    val exitFnType = LlvmFunctionType(LlvmVoidType, emptyList())
-    call(exitFnAddr, exitFnType, emptyList())
+    val exitFnType = LlvmFunctionType(LlvmVoidType, listOf(LlvmI32Type))
+    call(exitFnAddr, exitFnType, listOf(context.i32(status.toUInt())))
     return unreachable()
 }
 
@@ -86,7 +86,7 @@ val panic = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>("emerge.p
         printLinefeed(writeToStdErr)
         printStackTraceToStdErr()
 
-        exit()
+        exit(1u)
     }
 }
 
@@ -99,5 +99,5 @@ fun BasicBlockBuilder<out LlvmContext, *>.inlinePanic(message: String): BasicBlo
     printLinefeed(writeToStdErr)
     printStackTraceToStdErr()
 
-    return exit()
+    return exit(1u)
 }
