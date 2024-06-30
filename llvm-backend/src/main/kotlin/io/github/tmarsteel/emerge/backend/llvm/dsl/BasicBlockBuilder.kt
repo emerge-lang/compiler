@@ -323,6 +323,9 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         require(function.type.parameterTypes.size == args.size) {
             "The function ${function.name} takes ${function.type.parameterTypes.size} parameters, ${args.size} arguments given."
         }
+        args.zip(function.type.parameterTypes).forEach { (arg, paramType) ->
+            require(arg.isLlvmAssignableTo(paramType.getRawInContext(context)))
+        }
 
         val name = if (function.type.returnType == LlvmVoidType) "" else tmpVars.next()
 
