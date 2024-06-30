@@ -88,6 +88,8 @@ class LlvmPointerType<Pointed : LlvmType>(val pointed: Pointed) : LlvmType {
                 // any emerge class can be assigned to any
                 return true
             }
+
+            return this.pointed.isAssignableTo(other.pointed)
         }
 
         return super.isAssignableTo(other)
