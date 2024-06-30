@@ -103,9 +103,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 28. while + do-while loops
 29. error handling
     1. this is going to touch the runtime significantly. Use this opportunity to
-        1. find out what all the gnu gcc runtime libs do, which and why they're needed
-        2. bundle the ones for x86_64 into the compiler, so they're available wherever the compiler can run
-        3. implement some method for using an LLVM installation on windows, so windows -> linux cross-compilation is possible
+        1. ~~find out what all the gnu gcc runtime libs do, which and why they're needed~~
+        2. ~~bundle the ones for x86_64 into the compiler, so they're available wherever the compiler can run~~
+        3. ~~implement some method for using an LLVM installation on windows, so windows -> linux cross-compilation is possible~~
     2. `throw` statement
     3. `Throwable` for everything that can be thrown, `Exception : Throwable` for recoverable errors,
        `Error : Throwable` for unrecoverable errors. `Error` cannot be `catch`ed
