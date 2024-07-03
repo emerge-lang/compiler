@@ -21,7 +21,10 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleSuccess
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.retFallibleVoid
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 import io.github.tmarsteel.emerge.backend.llvm.requireStructuralSupertypeOf
@@ -88,15 +91,48 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
 /**
  * Getter function for [EmergeArrayOfPointersToTypeInfoType]
  */
-private val getter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<TypeinfoType>> by lazy {
+private val getter_EmergeArrayOfPointersToTypeInfoType_exceptionBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<LlvmPointerType<TypeinfoType>>> by lazy {
     KotlinLlvmFunction.define(
-        "emerge.platform.valueArrayOfPointersToTypeinfo_Get",
-        pointerTo(TypeinfoType.GENERIC)
+        "emerge.platform.valueArrayOfPointersToTypeinfo_Get_ExceptionOnOutOfBounds",
+        EmergeFallibleCallResult.WithValue(pointerTo(TypeinfoType.GENERIC)),
     ) {
         val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
         val index by param(EmergeWordType)
         body {
-            inlineBoundsCheck(self, index)
+            inlineFallibleBoundsCheck(self, index)
+            val raw = getelementptr(self)
+                .member { elements }
+                .index(index)
+                .get()
+                .dereference()
+
+            ret(fallibleSuccess(raw))
+        }
+    }
+}
+
+/**
+ * Getter function for [EmergeArrayOfPointersToTypeInfoType]
+ */
+private val getter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<TypeinfoType>> by lazy {
+    KotlinLlvmFunction.define(
+        "emerge.platform.valueArrayOfPointersToTypeinfo_Get_PanicOnOutOfBounds",
+        pointerTo(TypeinfoType.GENERIC),
+    ) {
+        val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
+        val index by param(EmergeWordType)
+        body {
+            val selfSize = getelementptr(self)
+                .member { base }
+                .member { elementCount }
+                .get()
+                .dereference()
+            conditionalBranch(
+                condition = icmp(index, LlvmIntPredicate.UNSIGNED_GREATER_THAN_OR_EQUAL, selfSize),
+                ifTrue = {
+                    inlinePanic("index into array of typeinfo pointers is out of bounds")
+                }
+            )
             val raw = getelementptr(self)
                 .member { elements }
                 .index(index)
@@ -111,7 +147,7 @@ private val getter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<Emerg
 /**
  * Setter function for [EmergeArrayOfPointersToTypeInfoType]
  */
-private val setter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> by lazy {
+private val setter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> by lazy {
     KotlinLlvmFunction.define(
         "emerge.platform.valueArrayOfPointersToTypeinfo_Set",
         LlvmVoidType
@@ -120,7 +156,7 @@ private val setter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<Emerg
         val index by param(EmergeWordType)
         val value by param(pointerTo(TypeinfoType.GENERIC))
         body {
-            inlineBoundsCheck(self, index)
+            inlinePanicBoundsCheck(self, index)
             val targetPointer = getelementptr(self)
                 .member { elements }
                 .index(index)
@@ -133,10 +169,35 @@ private val setter_EmergeArrayOfPointersToTypeInfoType: KotlinLlvmFunction<Emerg
     }
 }
 
+/**
+ * Setter function for [EmergeArrayOfPointersToTypeInfoType]
+ */
+private val setter_EmergeArrayOfPointersToTypeInfoType_exceptionBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.OfVoid> by lazy {
+    KotlinLlvmFunction.define(
+        "emerge.platform.valueArrayOfPointersToTypeinfo_Set",
+        EmergeFallibleCallResult.OfVoid,
+    ) {
+        val self by param(PointerToEmergeArrayOfPointersToTypeInfoType)
+        val index by param(EmergeWordType)
+        val value by param(pointerTo(TypeinfoType.GENERIC))
+        body {
+            inlinePanicBoundsCheck(self, index)
+            val targetPointer = getelementptr(self)
+                .member { elements }
+                .index(index)
+                .get()
+
+            store(value, targetPointer)
+
+            retFallibleVoid()
+        }
+    }
+}
+
 internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
     val virtualGetter = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
         "array_pointer_to_typeinfo_virtualGet",
-        PointerToAnyEmergeValue,
+        EmergeFallibleCallResult.ofEmergeReference,
     ) {
         param(PointerToAnyEmergeValue)
         param(EmergeWordType)
@@ -148,7 +209,7 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
 
     val virtualSetter = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
         "array_pointer_to_typeinfo_virtualSet",
-        LlvmVoidType,
+        EmergeFallibleCallResult.OfVoid,
     ) {
         param(PointerToAnyEmergeValue)
         param(EmergeWordType)
@@ -177,10 +238,10 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
             pointerTo(TypeinfoType.GENERIC),
             virtualGetter,
             virtualSetter,
-            getter_EmergeArrayOfPointersToTypeInfoType,
-            getter_EmergeArrayOfPointersToTypeInfoType,
-            setter_EmergeArrayOfPointersToTypeInfoType,
-            setter_EmergeArrayOfPointersToTypeInfoType,
+            getter_EmergeArrayOfPointersToTypeInfoType_exceptionBoundsCheck,
+            getter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck,
+            setter_EmergeArrayOfPointersToTypeInfoType_exceptionBoundsCheck,
+            setter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck,
             valueArrayFinalize,
             defaultValueCtor,
         )

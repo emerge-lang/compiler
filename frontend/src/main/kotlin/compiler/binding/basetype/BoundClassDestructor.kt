@@ -208,6 +208,7 @@ private class IrDestructorImpl(
     override val declaresReceiver = true
     override val returnType = dtor.returnType.toBackendIr()
     override val isExternalC = false
+    override val isNothrow = dtor.attributes.isDeclaredNothrow
     override val ownerBaseType get() = dtor.classDef.toBackendIr()
     override val overrides = emptySet<IrMemberFunction>()
     override val supportsDynamicDispatch = true

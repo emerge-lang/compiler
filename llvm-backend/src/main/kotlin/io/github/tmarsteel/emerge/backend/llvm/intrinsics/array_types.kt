@@ -30,6 +30,11 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleFailure
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleSuccess
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.retFallibleVoid
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.instructionAliasAttributes
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
@@ -62,33 +67,33 @@ internal class EmergeArrayType<Element : LlvmType>(
      * A function of the signature (self: Array<Element>, index: UWord) -> Any, to be placed in the vtable.
      * This is important for arrays of primitives, as this function will do the automatic boxing (e.g. S8 -> S8Box)
      */
-    private val virtualGetter: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>>,
+    private val virtualGetter: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<LlvmPointerType<EmergeHeapAllocatedValueBaseType>>>,
 
     /**
      * A function of the signature (self: Array<Element>, index: UWord, value: Any) -> Unit, to be placed in the vtable.
      * This is important for arrays of primitives, as this function will do the automatic unboxing (e.g. S8Box -> S8)
      */
-    private val virtualSetter: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
+    private val virtualSetter: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.OfVoid>,
 
     /**
      * like [virtualGetter], but doesn't do any boxing; assumes the caller knows the binary types.
      */
-    private val rawGetterWithBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, Element>,
+    val rawGetterWithBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<Element>>,
 
     /**
-     * like [rawGetterWithBoundsCheck], but doesn't check the bounds.
+     * like [rawGetterWithBoundsCheck], but doesn't check the bounds; hence also nothrow.
      */
-    private val rawGetterWithoutBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, Element>,
+    val rawGetterWithoutBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, Element>,
 
     /**
      * like [virtualSetter], but doesn't do any unboxing; assumes the caller knows the binary types.
      */
-    private val rawSetterWithBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
+    val rawSetterWithBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.OfVoid>,
 
     /**
-     * like [rawSetterWithBoundsCheck], but doesn't check the bounds
+     * like [rawSetterWithBoundsCheck], but doesn't check the bounds, hence also nothrow
      */
-    private val rawSetterWithoutBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
+    val rawSetterWithoutBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
 
     /**
      * the finalizer for this array type
@@ -161,14 +166,6 @@ internal class EmergeArrayType<Element : LlvmType>(
                 ret(allocation)
             }
         }
-    }
-
-    fun getRawGetter(trustsIndexInBounds: Boolean): KotlinLlvmFunction<EmergeLlvmContext, Element> {
-        return if (trustsIndexInBounds) rawGetterWithoutBoundsCheck else rawGetterWithBoundsCheck
-    }
-
-    fun getRawSetter(trustsIndexInBounds: Boolean): KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> {
-        return if (trustsIndexInBounds) rawSetterWithoutBoundsCheck else rawSetterWithBoundsCheck
     }
 
     override fun computeRaw(context: LlvmContext): LlvmTypeRef {
@@ -290,15 +287,15 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementGetter(
     typeName: String,
     getValueArrayType: () -> EmergeArrayType<Element>,
     getBoxType: EmergeLlvmContext.() -> EmergeClassType,
-): KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>> {
+): KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<LlvmPointerType<EmergeHeapAllocatedValueBaseType>>> {
     return KotlinLlvmFunction.define(
         "emerge.platform.valueArrayGetBoxed_${typeName}",
-        PointerToAnyEmergeValue,
+        EmergeFallibleCallResult.ofEmergeReference,
     ) {
         val self by param(pointerTo(getValueArrayType()))
         val index by param(EmergeWordType)
         body {
-            inlineBoundsCheck(self, index)
+            inlineFallibleBoundsCheck(self, index)
 
             val raw = getelementptr(self)
                 .member { elements }
@@ -306,7 +303,10 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementGetter(
                 .get()
                 .dereference()
 
-            ret(call(getBoxType(context).constructor, listOf(raw)).reinterpretAs(PointerToAnyEmergeValue))
+            ret(
+                call(getBoxType(context).constructor, listOf(raw))
+                    .reinterpretAs(EmergeFallibleCallResult.ofEmergeReference)
+            )
         }
     }
 }
@@ -315,10 +315,10 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementSetter(
     typeName: String,
     getValueArrayType: () -> EmergeArrayType<Element>,
     getBoxType: EmergeLlvmContext.() -> EmergeClassType,
-): KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> {
+): KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.OfVoid> {
     return KotlinLlvmFunction.define(
         "emerge.platform.valueArraySetBoxed_${typeName}",
-        LlvmVoidType,
+        EmergeFallibleCallResult.OfVoid,
     ) {
         val arrayType = getValueArrayType()
         val self by param(pointerTo(arrayType))
@@ -332,7 +332,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementSetter(
 
             val valueBox = valueBoxAny.reinterpretAs(pointerTo(boxType))
 
-            inlineBoundsCheck(self, index)
+            inlineFallibleBoundsCheck(self, index)
             val raw = getelementptr(valueBox)
                 .member(boxType.irClass.memberVariables.single())
                 .get()
@@ -344,7 +344,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementSetter(
                 .get()
 
             store(raw, targetPointer)
-            retVoid()
+            retFallibleVoid()
         }
     }
 }
@@ -382,10 +382,10 @@ private fun <Element : LlvmType> buildValueArrayRawGetterWithBoundsCheck(
     elementType: Element,
     getSelfType: () -> EmergeArrayType<Element>,
     rawGetterNoBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, Element>,
-) : KotlinLlvmFunction<EmergeLlvmContext, Element> {
+) : KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<Element>> {
     return KotlinLlvmFunction.define<_, _>(
         "emerge.core.array_${elementTypeName}_rawGetWithBoundsCheck",
-        elementType,
+        EmergeFallibleCallResult.WithValue(elementType),
     ) {
         functionAttribute(LlvmFunctionAttribute.WillReturn)
         functionAttribute(LlvmFunctionAttribute.NoFree)
@@ -394,8 +394,9 @@ private fun <Element : LlvmType> buildValueArrayRawGetterWithBoundsCheck(
         val index by param(EmergeWordType)
 
         body {
-            inlineBoundsCheck(arrayPtr, index)
-            ret(call(context.registerIntrinsic(rawGetterNoBoundsCheck), listOf(arrayPtr, index)))
+            inlineFallibleBoundsCheck(arrayPtr, index)
+            val raw = call(context.registerIntrinsic(rawGetterNoBoundsCheck), listOf(arrayPtr, index))
+            ret(fallibleSuccess(raw))
         }
     }
 }
@@ -435,10 +436,10 @@ private fun <Element : LlvmType> buildValueArrayRawSetterWithBoundsCheck(
     elementType: Element,
     getSelfType: () -> EmergeArrayType<Element>,
     rawSetterWithoutBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>,
-) : KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> {
+) : KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.OfVoid> {
     return KotlinLlvmFunction.define<_, _>(
         "emerge.core.array_${elementTypeName}_rawSetWithBoundsCheck",
-        LlvmVoidType,
+        EmergeFallibleCallResult.OfVoid,
     ) {
         functionAttribute(LlvmFunctionAttribute.WillReturn)
         functionAttribute(LlvmFunctionAttribute.NoFree)
@@ -448,9 +449,9 @@ private fun <Element : LlvmType> buildValueArrayRawSetterWithBoundsCheck(
         val value by param(elementType)
 
         body {
-            inlineBoundsCheck(arrayPtr, index)
+            inlineFallibleBoundsCheck(arrayPtr, index)
             call(context.registerIntrinsic(rawSetterWithoutBoundsCheck), listOf(arrayPtr, index, value))
-            retVoid()
+            retFallibleVoid()
         }
     }
 }
@@ -468,7 +469,7 @@ private fun <Element : LlvmType> buildValueArrayDefaultValueConstructor(
         val defaultValue by param(elementType)
 
         body {
-            val rawSetter = context.registerIntrinsic(getSelfType().getRawSetter(true))
+            val rawSetterNoBoundsCheck = context.registerIntrinsic(getSelfType().rawSetterWithoutBoundsCheck)
             val arrayPtr = call(context.registerIntrinsic(getSelfType().constructorOfNullEntries), listOf(size))
             val indexStack = alloca(EmergeWordType)
             store(context.word(0), indexStack)
@@ -482,7 +483,7 @@ private fun <Element : LlvmType> buildValueArrayDefaultValueConstructor(
                 },
                 body = {
                     val index = indexStack.dereference()
-                    call(rawSetter, listOf(arrayPtr, index, defaultValue))
+                    call(rawSetterNoBoundsCheck, listOf(arrayPtr, index, defaultValue))
                     store(add(index, context.word(1)), indexStack)
                     loopContinue()
                 }
@@ -623,34 +624,48 @@ val EmergeI32ArrayCopyFn = buildValueArrayCopy(LlvmI32Type) { EmergeU32ArrayType
 val EmergeI64ArrayCopyFn = buildValueArrayCopy(LlvmI64Type) { EmergeU64ArrayType }
 val EmergeWordArrayCopyFn = buildValueArrayCopy(EmergeWordType) { EmergeUWordArrayType }
 
-private val referenceArrayElementGetter: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>> = KotlinLlvmFunction.define(
-    "emerge.platform.referenceArrayGet",
+private val referenceArrayElementGetterNoBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>> = KotlinLlvmFunction.define(
+    "emerge.platform.referenceArrayGetNoBoundsCheck",
     PointerToAnyEmergeValue,
 ) {
     val self by param(pointerTo(EmergeReferenceArrayType))
     val index by param(EmergeWordType)
+
+    instructionAliasAttributes()
+
     body {
-        inlineBoundsCheck(self, index)
         val referenceEntry = getelementptr(self)
             .member { elements }
             .index(index)
             .get()
             .dereference()
-
         referenceEntry.afterReferenceCreated(isNullable = true)
         ret(referenceEntry)
     }
 }
 
-private val referenceArrayElementSetter: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
-    "emerge.platform.referenceArraySet",
+private val referenceArrayElementGetter: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<LlvmPointerType<EmergeHeapAllocatedValueBaseType>>> = KotlinLlvmFunction.define(
+    "emerge.platform.referenceArrayGet",
+    EmergeFallibleCallResult.ofEmergeReference,
+) {
+    val self by param(pointerTo(EmergeReferenceArrayType))
+    val index by param(EmergeWordType)
+    body {
+        inlineFallibleBoundsCheck(self, index)
+        ret(fallibleSuccess(
+            call(context.registerIntrinsic(referenceArrayElementGetterNoBoundsCheck), listOf(self, index))
+        ))
+    }
+}
+
+private val referenceArrayElementSetterNoBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
+    "emerge.platform.referenceArraySetNoBoundsCheck",
     LlvmVoidType,
 ) {
     val self by param(pointerTo(EmergeReferenceArrayType))
     val index by param(EmergeWordType)
     val value by param(PointerToAnyEmergeValue)
     body {
-        inlineBoundsCheck(self, index)
         val pointerToSlotInArray = getelementptr(self)
             .member { elements }
             .index(index)
@@ -661,6 +676,20 @@ private val referenceArrayElementSetter: KotlinLlvmFunction<EmergeLlvmContext, L
         store(value, pointerToSlotInArray)
         value.afterReferenceCreated(isNullable = true)
         retVoid()
+    }
+}
+
+private val referenceArrayElementSetter: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.OfVoid> = KotlinLlvmFunction.define(
+    "emerge.platform.referenceArraySet",
+    EmergeFallibleCallResult.OfVoid,
+) {
+    val self by param(pointerTo(EmergeReferenceArrayType))
+    val index by param(EmergeWordType)
+    val value by param(PointerToAnyEmergeValue)
+    body {
+        inlineFallibleBoundsCheck(self, index)
+        call(context.registerIntrinsic(referenceArrayElementSetterNoBoundsCheck), listOf(self, index, value))
+        retFallibleVoid()
     }
 }
 
@@ -762,9 +791,9 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<EmergeHea
         virtualGetter = referenceArrayElementGetter,
         virtualSetter = referenceArrayElementSetter,
         rawGetterWithBoundsCheck = referenceArrayElementGetter,
-        rawGetterWithoutBoundsCheck = referenceArrayElementGetter,
+        rawGetterWithoutBoundsCheck = referenceArrayElementGetterNoBoundsCheck,
         rawSetterWithBoundsCheck = referenceArrayElementSetter,
-        rawSetterWithoutBoundsCheck = referenceArrayElementSetter,
+        rawSetterWithoutBoundsCheck = referenceArrayElementSetterNoBoundsCheck,
         finalizer = referenceArrayFinalizer,
         defaultValueConstructor = defaultValueCtor,
     )
@@ -832,7 +861,7 @@ internal val arraySize = KotlinLlvmFunction.define<LlvmContext, _>(
  */
 internal val arrayAbstractGet = KotlinLlvmFunction.define<LlvmContext, _>(
     "emerge.core.Array::get",
-    PointerToAnyEmergeValue,
+    EmergeFallibleCallResult.ofEmergeReference,
 ) {
     param(pointerTo(EmergeArrayBaseType))
     param(EmergeWordType)
@@ -851,7 +880,7 @@ internal val arrayAbstractGet = KotlinLlvmFunction.define<LlvmContext, _>(
  */
 internal val arrayAbstractSet = KotlinLlvmFunction.define<LlvmContext, _>(
     "emerge.core.Array::set",
-    LlvmVoidType,
+    EmergeFallibleCallResult.OfVoid,
 ) {
     param(pointerTo(EmergeArrayBaseType))
     param(EmergeWordType)
@@ -862,16 +891,44 @@ internal val arrayAbstractSet = KotlinLlvmFunction.define<LlvmContext, _>(
 }
 
 context(BasicBlockBuilder<*, *>)
-internal fun inlineBoundsCheck(arrayPtr: LlvmValue<LlvmPointerType<out EmergeArrayType<*>>>, index: LlvmValue<EmergeWordType>) {
+internal fun indexIsOutOfBounds(arrayPtr: LlvmValue<LlvmPointerType<out EmergeArrayType<*>>>, index: LlvmValue<EmergeWordType>): LlvmValue<LlvmBooleanType> {
     val size = getelementptr(arrayPtr)
         .member { base }
-        .member { EmergeArrayBaseType.elementCount }
+        .member { elementCount }
         .get()
         .dereference()
+
+    return icmp(index, LlvmIntPredicate.UNSIGNED_GREATER_THAN_OR_EQUAL, size)
+}
+
+context(BasicBlockBuilder<EmergeLlvmContext, out EmergeFallibleCallResult<*>>)
+internal fun inlineFallibleBoundsCheck(
+    arrayPtr: LlvmValue<LlvmPointerType<out EmergeArrayType<*>>>,
+    index: LlvmValue<EmergeWordType>,
+) {
     conditionalBranch(
-        condition = icmp(index, LlvmIntPredicate.UNSIGNED_GREATER_THAN_OR_EQUAL, size),
+        condition = indexIsOutOfBounds(arrayPtr, index),
         ifTrue = {
-            inlinePanic("Array index out of bounds")
+            val exceptionCtor = context.arrayIndexOutOfBoundsErrorType.constructor
+            val exceptionCreateResult = call(exceptionCtor, listOf(index)) as LlvmValue<EmergeFallibleCallResult<LlvmPointerType<EmergeHeapAllocatedValueBaseType>>>
+            val exceptionPtr = exceptionCreateResult.abortOnException { exceptionPtr ->
+                inlinePanic("Array index out of bounds, ${exceptionCtor.name} raised an exception")
+            }
+
+            fallibleFailure(exceptionPtr)
+        }
+    )
+}
+
+context(BasicBlockBuilder<*, *>)
+internal fun inlinePanicBoundsCheck(
+    arrayPtr: LlvmValue<LlvmPointerType<out EmergeArrayType<*>>>,
+    index: LlvmValue<EmergeWordType>,
+) {
+    conditionalBranch(
+        condition = indexIsOutOfBounds(arrayPtr, index),
+        ifTrue = {
+           inlinePanic("Array index is out of bounds")
         }
     )
 }

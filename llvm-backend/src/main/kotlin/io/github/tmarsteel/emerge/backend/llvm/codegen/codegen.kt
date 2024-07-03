@@ -62,6 +62,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.PhiBucket
+import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i1
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i16
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
@@ -69,11 +70,14 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i64
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
 import io.github.tmarsteel.emerge.backend.llvm.emitBreak
 import io.github.tmarsteel.emerge.backend.llvm.emitContinue
+import io.github.tmarsteel.emerge.backend.llvm.hasNothrowAbi
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeBoolArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeBooleanArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeI16ArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeI32ArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeI64ArrayCopyFn
@@ -121,9 +125,13 @@ internal sealed interface ExpressionResult : ExecutableResult {
     class Value(val value: LlvmValue<*>) : ExpressionResult
 }
 
+/**
+ * @param functionHasNothrowAbi see [hasNothrowAbi]
+ */
 internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
     code: IrExecutable,
     functionReturnType: IrType,
+    functionHasNothrowAbi: Boolean,
     expressionResultUsed: Boolean,
 ): ExecutableResult {
     when (code) {
@@ -152,18 +160,21 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             return ExecutableResult.ExecutionOngoing
         }
         is IrCreateTemporaryValue -> {
-            val valueResult = emitExpressionCode(code.value, functionReturnType, true)
-            if (valueResult is ExpressionResult.Value) {
-                code.llvmValue = valueResult.value
+            val valueResult = emitExpressionCode(code.value, functionReturnType, functionHasNothrowAbi, expressionResultUsed = true)
+            return when (valueResult) {
+                is ExpressionResult.Terminated -> valueResult
+                is ExpressionResult.Value -> {
+                    code.llvmValue = valueResult.value
+                    ExecutableResult.ExecutionOngoing
+                }
             }
-            return ExecutableResult.ExecutionOngoing
         }
         is IrExpressionSideEffectsStatement -> {
             val expr = code.expression
             if (expr is IrImplicitEvaluationExpression) {
-                return emitCode(expr.code, functionReturnType, false)
+                return emitCode(expr.code, functionReturnType, functionHasNothrowAbi, expressionResultUsed = false)
             } else {
-                return emitExpressionCode(expr, functionReturnType, false)
+                return emitExpressionCode(expr, functionReturnType, functionHasNothrowAbi, expressionResultUsed = false)
             }
         }
         is IrCodeChunk -> {
@@ -171,7 +182,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 .take((code.components.size - 1).coerceAtLeast(0))
                 .fold(ExecutableResult.ExecutionOngoing as ExecutableResult) { accResult, component ->
                     if (accResult !is ExpressionResult.Terminated) {
-                        emitCode(component, functionReturnType, false)
+                        emitCode(component, functionReturnType, functionHasNothrowAbi, expressionResultUsed = false)
                     } else {
                         accResult
                     }
@@ -181,7 +192,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 return resultAfterNonImplicitCode
             }
 
-            return code.components.lastOrNull()?.let { emitCode(it, functionReturnType, expressionResultUsed) }
+            return code.components.lastOrNull()?.let { emitCode(it, functionReturnType, functionHasNothrowAbi, expressionResultUsed) }
                 ?: ExecutableResult.ExecutionOngoing
         }
         is IrVariableDeclaration -> {
@@ -213,8 +224,27 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         is IrReturnStatement -> {
             // TODO: unit return to unit declaration
 
-            val returnValue = assureBoxed(code.value, functionReturnType)
-            return ExpressionResult.Terminated(ret(returnValue))
+            val rawReturnValue = assureBoxed(code.value, functionReturnType)
+            val llvmValueToReturn = if (functionHasNothrowAbi) {
+                rawReturnValue
+            } else {
+                val compoundReturnType = this@emitCode.llvmFunctionReturnType as EmergeFallibleCallResult<*>
+                // if it's not a EmergeFallibleCallResult, something is seriously wrong; functionHasNothrowAbi shouldn't be true then
+                if (compoundReturnType is EmergeFallibleCallResult.OfVoid) {
+                    // returning from a Unit-returning function; no value, no exception
+                    context.nullValue(PointerToAnyEmergeValue)
+                } else {
+                    compoundReturnType as EmergeFallibleCallResult.WithValue<LlvmType>
+                    var compoundReturnValue = compoundReturnType.buildConstantIn(context) {
+                        setNull(compoundReturnType.returnValue)
+                        setNull(compoundReturnType.exceptionPtr)
+                    } as LlvmValue<EmergeFallibleCallResult.WithValue<LlvmType>>
+                    compoundReturnValue = insertValue(compoundReturnValue, rawReturnValue) { returnValue }
+                    compoundReturnValue
+                }
+            }
+
+            return ExpressionResult.Terminated(ret(llvmValueToReturn))
         }
         is IrConditionalBranch -> {
             val conditionValue = code.condition.declaration.llvmValue
@@ -226,7 +256,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 conditionalBranch(
                     condition = conditionValue,
                     ifTrue = {
-                        val thenBranchResult = emitCode(code.thenBranch, functionReturnType, false)
+                        val thenBranchResult = emitCode(code.thenBranch, functionReturnType, functionHasNothrowAbi, expressionResultUsed = false)
                         (thenBranchResult as? ExpressionResult.Terminated)?.termination ?: concludeBranch()
                     }
                 )
@@ -238,12 +268,12 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             conditionalBranch(
                 condition = conditionValue,
                 ifTrue = {
-                    val thenBranchResult = emitCode(code.thenBranch, functionReturnType, false)
+                    val thenBranchResult = emitCode(code.thenBranch, functionReturnType, functionHasNothrowAbi, expressionResultUsed = false)
                     thenTerminates = thenBranchResult is ExpressionResult.Terminated
                     (thenBranchResult as? ExpressionResult.Terminated)?.termination ?: concludeBranch()
                 },
                 ifFalse = {
-                    val elseBranchResult = emitCode(code.elseBranch!!, functionReturnType, false)
+                    val elseBranchResult = emitCode(code.elseBranch!!, functionReturnType, functionHasNothrowAbi, expressionResultUsed = false)
                     elseTerminates = elseBranchResult is ExpressionResult.Terminated
                     (elseBranchResult as? ExpressionResult.Terminated)?.termination ?: concludeBranch()
                 },
@@ -263,7 +293,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                     code.emitContinue = {
                         throw CodeGenerationException("Cannot continue in a while loop header")
                     }
-                    val conditionResult = emitExpressionCode(code.condition, functionReturnType, true)
+                    val conditionResult = emitExpressionCode(code.condition, functionReturnType, functionHasNothrowAbi, expressionResultUsed = true)
                     if (conditionResult is ExpressionResult.Terminated) {
                         conditionTermination = conditionResult
                         breakLoop()
@@ -284,7 +314,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 body = {
                     code.emitBreak = { breakLoop() }
                     code.emitContinue = { loopContinue() }
-                    val bodyResult = emitCode(code.body, functionReturnType, false)
+                    val bodyResult = emitCode(code.body, functionReturnType, functionHasNothrowAbi, expressionResultUsed = false)
                     if (bodyResult is ExpressionResult.Terminated) {
                         bodyResult.termination
                     } else {
@@ -320,16 +350,22 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
     }
 }
 
+/**
+ * @param functionHasNothrowAbi see [hasNothrowAbi]
+ */
 internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
     expression: IrExpression,
     functionReturnType: IrType,
+    functionHasNothrowAbi: Boolean,
     expressionResultUsed: Boolean,
 ): ExpressionResult {
     when (expression) {
         is IrStringLiteralExpression -> {
             val llvmStructWrapper = context.getAllocationSiteType(expression.evaluatesTo) as EmergeClassType
             val byteArrayPtr = expression.assureByteArrayConstantIn(context)
-            val stringTemporary = call(llvmStructWrapper.constructor, listOf(byteArrayPtr))
+            val stringTemporary = call(llvmStructWrapper.constructor, listOf(byteArrayPtr)).abortOnException { exceptionPtr ->
+                propagateOrPanic(exceptionPtr, "allocating a string literal in nothrow context failed (most likely OOM)")
+            }
 
             // super dirty hack: the frontend assumes string literals are constants/statics, but they aren't
             // the frontend also assumes it has to do refcounting here, because it's not aware we're invoking
@@ -370,79 +406,89 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 expression.clazz.llvmType.allocateUninitializedDynamicObject(this),
             )
         }
-        is IrInvocationExpression -> when (expression) {
-            is IrStaticDispatchFunctionInvocationExpression -> {
-                // optimized array accessors
-                if ((expression.function as? IrMemberFunction)?.ownerBaseType?.canonicalName?.toString() == "emerge.core.Array") {
-                    val override = ArrayDispatchOverride.findFor(expression, context)
-                    when (override) {
-                        is ArrayDispatchOverride.InvokeVirtual -> {
-                            val addr = callIntrinsic(
-                                getDynamicCallAddress, listOf(
-                                    expression.arguments.first().declaration.llvmValue,
-                                    context.word(override.hash),
+        is IrInvocationExpression -> {
+            val callInstruction = when (expression) {
+                is IrStaticDispatchFunctionInvocationExpression -> {
+                    var overridenCallInstruction: LlvmValue<*>? = null
+                    // optimized array accessors
+                    if ((expression.function as? IrMemberFunction)?.ownerBaseType?.canonicalName?.toString() == "emerge.core.Array") {
+                        val override = ArrayDispatchOverride.findFor(expression, context)
+                        when (override) {
+                            is ArrayDispatchOverride.InvokeVirtual -> {
+                                val addr = callIntrinsic(
+                                    getDynamicCallAddress, listOf(
+                                        expression.arguments.first().declaration.llvmValue,
+                                        context.word(override.hash),
+                                    )
                                 )
-                            )
-                            return ExpressionResult.Value(
-                                call(
+                                overridenCallInstruction = call(
                                     addr,
                                     override.fnType,
                                     expression.arguments.zip(expression.function.parameters)
                                         .map { (argument, parameter) -> assureBoxed(argument, parameter.type) }
                                 )
-                            )
-                        }
+                            }
 
-                        is ArrayDispatchOverride.InvokeIntrinsic -> {
-                            // IMPORTANT! this deliberately doesn't box the arguments because that would box primitives
-                            // in exactly a situation where that shouldn't happen.
-                            return ExpressionResult.Value(
-                                call(
+                            is ArrayDispatchOverride.InvokeIntrinsic -> {
+                                // IMPORTANT! this deliberately doesn't box the arguments because that would box primitives
+                                // in exactly a situation where that shouldn't happen.
+                                overridenCallInstruction = call(
                                     context.registerIntrinsic(override.intrinsic),
-                                    expression.arguments.map { it.declaration.llvmValue })
-                            )
+                                    expression.arguments.map { it.declaration.llvmValue }
+                                )
+                            }
+                            else -> {}
                         }
+                    }
 
-                        else -> {}
+                    if (overridenCallInstruction != null) {
+                        overridenCallInstruction
+                    } else {
+                        // general handling
+                        val llvmFunction = expression.function.llvmRef
+                            ?: throw CodeGenerationException("Missing implementation for ${expression.function.canonicalName}")
+                        call(
+                            llvmFunction,
+                            expression.arguments.zip(expression.function.parameters)
+                                .map { (argument, parameter) -> assureBoxed(argument, parameter.type) },
+                        )
                     }
                 }
 
-                // general handling
-                val llvmFunction = expression.function.llvmRef
-                    ?: throw CodeGenerationException("Missing implementation for ${expression.function.canonicalName}")
-                val callInstruction = call(
-                    llvmFunction,
-                    expression.arguments.zip(expression.function.parameters)
-                        .map { (argument, parameter) -> assureBoxed(argument, parameter.type) },
-                )
-                return ExpressionResult.Value(
-                    if (expression.evaluatesTo.isUnit) {
-                        context.pointerToPointerToUnitInstance.dereference()
-                    } else {
-                        callInstruction
-                    }
-                )
-            }
+                is IrDynamicDispatchFunctionInvocationExpression -> {
+                    val argumentsForInvocation = expression.arguments.zip(expression.function.parameters)
+                        .map { (argument, parameter) -> assureBoxed(argument, parameter.type) }
 
-            is IrDynamicDispatchFunctionInvocationExpression -> {
-                val argumentsForInvocation = expression.arguments.zip(expression.function.parameters)
-                    .map { (argument, parameter) -> assureBoxed(argument, parameter.type) }
-
-                val targetAddr = callIntrinsic(
-                    getDynamicCallAddress, listOf(
-                        expression.dispatchOn.declaration.llvmValue,
-                        context.word(expression.function.signatureHashes.first()),
+                    val targetAddr = callIntrinsic(
+                        getDynamicCallAddress, listOf(
+                            expression.dispatchOn.declaration.llvmValue,
+                            context.word(expression.function.signatureHashes.first()),
+                        )
                     )
-                )
-                val callInstruction = call(targetAddr, expression.function.llvmFunctionType, argumentsForInvocation)
-                return ExpressionResult.Value(
-                    if (expression.evaluatesTo.isUnit) {
-                        context.pointerToPointerToUnitInstance
-                    } else {
-                        callInstruction
-                    }
-                )
+                    call(targetAddr, expression.function.llvmFunctionType, argumentsForInvocation)
+                }
             }
+
+            if (callInstruction.type !is EmergeFallibleCallResult<*>) {
+                if (expression.evaluatesTo.isUnit) {
+                    return ExpressionResult.Value(context.pointerToPointerToUnitInstance.dereference())
+                }
+
+                return ExpressionResult.Value(callInstruction)
+            }
+
+            // not checking functionHasNothrowAbi here, because it will turn into a panic at runtime if it's a nothrow context
+
+            @Suppress("UNCHECKED_CAST") // implied by !hasNothrowAbi
+            val unwrappedReturnValue = (callInstruction as LlvmValue<EmergeFallibleCallResult<LlvmType>>).abortOnException { exceptionPtr ->
+                propagateOrPanic(exceptionPtr)
+            }
+
+            if (expression.evaluatesTo.isUnit) {
+                return ExpressionResult.Value(context.pointerToPointerToUnitInstance.dereference())
+            }
+
+            return ExpressionResult.Value(unwrappedReturnValue)
         }
         is IrVariableAccessExpression -> return ExpressionResult.Value(expression.variable.emitRead!!())
         is IrIntegerLiteralExpression -> return ExpressionResult.Value(when ((expression.evaluatesTo as IrSimpleType).baseType.canonicalName.toString()) {
@@ -476,7 +522,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 conditionalBranch(
                     condition = conditionValue,
                     ifTrue = thenBranch@{
-                        val branchCodeResult = this@thenBranch.emitCode(expression.thenBranch.code, functionReturnType, false)
+                        val branchCodeResult = this@thenBranch.emitCode(expression.thenBranch.code, functionReturnType, functionHasNothrowAbi, expressionResultUsed = false)
                         (branchCodeResult as? ExpressionResult.Terminated)?.termination ?: concludeBranch()
                     }
                 )
@@ -486,8 +532,8 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             val expressionResultLlvmType = context.getReferenceSiteType(expression.evaluatesTo)
             val valueBucket = if (expressionResultUsed) PhiBucket(expressionResultLlvmType) else null
 
-            val thenEmitter = BranchEmitter(expression.thenBranch, valueBucket, functionReturnType)
-            val elseEmitter = BranchEmitter(expression.elseBranch!!, valueBucket, functionReturnType)
+            val thenEmitter = BranchEmitter(expression.thenBranch, valueBucket, functionHasNothrowAbi, functionReturnType)
+            val elseEmitter = BranchEmitter(expression.elseBranch!!, valueBucket, functionHasNothrowAbi, functionReturnType)
 
             conditionalBranch(
                 condition = conditionValue,
@@ -693,7 +739,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             return ExpressionResult.Value(identityComparisonResult.buildPhi())
         }
         is IrImplicitEvaluationExpression -> {
-            val result = emitCode(expression.code, functionReturnType, expressionResultUsed)
+            val result = emitCode(expression.code, functionReturnType, functionHasNothrowAbi, expressionResultUsed)
             return when (result) {
                 is ExecutableResult.ExecutionOngoing,
                 is ExpressionResult.Value -> ExpressionResult.Value(expression.implicitValue.declaration.llvmValue)
@@ -720,13 +766,14 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitIsNull(
 private class BranchEmitter(
     val branchCode: IrImplicitEvaluationExpression,
     val valueStorage: PhiBucket<in LlvmType>?,
+    val functionHasNothrowAbi: Boolean,
     val functionReturnType: IrType,
 ) {
     lateinit var branchResult: ExecutableResult
         private set
 
     val generatorFn: BasicBlockBuilder.Branch<EmergeLlvmContext, LlvmType>.() -> BasicBlockBuilder.Termination = {
-        val localBranchResult = emitExpressionCode(branchCode, functionReturnType, valueStorage != null)
+        val localBranchResult = emitExpressionCode(branchCode, this@BranchEmitter.functionReturnType, functionHasNothrowAbi, expressionResultUsed = valueStorage != null)
         branchResult = localBranchResult
         when (localBranchResult) {
             is ExpressionResult.Value -> {
@@ -847,21 +894,21 @@ private sealed interface ArrayDispatchOverride {
                         context.registerIntrinsic(arrayAbstractGet).type,
                     )
                     ArrayAccessType.VALUE_TYPE_DIRECT -> return InvokeIntrinsic(when (elementTypeBound) {
-                        context.rawS8Clazz -> EmergeS8ArrayType.getRawGetter(false)
-                        context.rawU8Clazz -> EmergeU8ArrayType.getRawGetter(false)
-                        context.rawS16Clazz -> EmergeS16ArrayType.getRawGetter(false)
-                        context.rawU16Clazz -> EmergeU16ArrayType.getRawGetter(false)
-                        context.rawS32Clazz -> EmergeS32ArrayType.getRawGetter(false)
-                        context.rawU32Clazz -> EmergeU32ArrayType.getRawGetter(false)
-                        context.rawS64Clazz -> EmergeS64ArrayType.getRawGetter(false)
-                        context.rawU64Clazz -> EmergeU64ArrayType.getRawGetter(false)
-                        context.rawSWordClazz -> EmergeSWordArrayType.getRawGetter(false)
-                        context.rawUWordClazz -> EmergeUWordArrayType.getRawGetter(false)
-                        context.rawBoolClazz -> EmergeBooleanArrayType.getRawGetter(false)
+                        context.rawS8Clazz -> EmergeS8ArrayType.rawGetterWithBoundsCheck
+                        context.rawU8Clazz -> EmergeU8ArrayType.rawGetterWithBoundsCheck
+                        context.rawS16Clazz -> EmergeS16ArrayType.rawGetterWithBoundsCheck
+                        context.rawU16Clazz -> EmergeU16ArrayType.rawGetterWithBoundsCheck
+                        context.rawS32Clazz -> EmergeS32ArrayType.rawGetterWithBoundsCheck
+                        context.rawU32Clazz -> EmergeU32ArrayType.rawGetterWithBoundsCheck
+                        context.rawS64Clazz -> EmergeS64ArrayType.rawGetterWithBoundsCheck
+                        context.rawU64Clazz -> EmergeU64ArrayType.rawGetterWithBoundsCheck
+                        context.rawSWordClazz -> EmergeSWordArrayType.rawGetterWithBoundsCheck
+                        context.rawUWordClazz -> EmergeUWordArrayType.rawGetterWithBoundsCheck
+                        context.rawBoolClazz -> EmergeBooleanArrayType.rawGetterWithBoundsCheck
                         else -> throw CodeGenerationException("No value type direct access intrinsic available for ${elementTypeBound.canonicalName}")
                     })
                     ArrayAccessType.REFERENCE_TYPE_DIRECT -> return InvokeIntrinsic(
-                        EmergeReferenceArrayType.getRawGetter(false)
+                        EmergeReferenceArrayType.rawGetterWithBoundsCheck
                     )
                 }
             } else if (invocation.function.canonicalName.simpleName == "set" && invocation.function.parameters.size == 3) {
@@ -871,21 +918,21 @@ private sealed interface ArrayDispatchOverride {
                         context.registerIntrinsic(arrayAbstractSet).type,
                     )
                     ArrayAccessType.VALUE_TYPE_DIRECT -> return InvokeIntrinsic(when (elementTypeBound) {
-                        context.rawS8Clazz -> EmergeS8ArrayType.getRawSetter(false)
-                        context.rawU8Clazz -> EmergeU8ArrayType.getRawSetter(false)
-                        context.rawS16Clazz -> EmergeS16ArrayType.getRawSetter(false)
-                        context.rawU16Clazz -> EmergeU16ArrayType.getRawSetter(false)
-                        context.rawS32Clazz -> EmergeS32ArrayType.getRawSetter(false)
-                        context.rawU32Clazz -> EmergeU32ArrayType.getRawSetter(false)
-                        context.rawS64Clazz -> EmergeS64ArrayType.getRawSetter(false)
-                        context.rawU64Clazz -> EmergeU64ArrayType.getRawSetter(false)
-                        context.rawSWordClazz -> EmergeSWordArrayType.getRawSetter(false)
-                        context.rawUWordClazz -> EmergeUWordArrayType.getRawSetter(false)
-                        context.rawBoolClazz -> EmergeBooleanArrayType.getRawSetter(false)
+                        context.rawS8Clazz -> EmergeS8ArrayType.rawSetterWithBoundsCheck
+                        context.rawU8Clazz -> EmergeU8ArrayType.rawSetterWithBoundsCheck
+                        context.rawS16Clazz -> EmergeS16ArrayType.rawSetterWithBoundsCheck
+                        context.rawU16Clazz -> EmergeU16ArrayType.rawSetterWithBoundsCheck
+                        context.rawS32Clazz -> EmergeS32ArrayType.rawSetterWithBoundsCheck
+                        context.rawU32Clazz -> EmergeU32ArrayType.rawSetterWithBoundsCheck
+                        context.rawS64Clazz -> EmergeS64ArrayType.rawSetterWithBoundsCheck
+                        context.rawU64Clazz -> EmergeU64ArrayType.rawSetterWithBoundsCheck
+                        context.rawSWordClazz -> EmergeSWordArrayType.rawSetterWithBoundsCheck
+                        context.rawUWordClazz -> EmergeUWordArrayType.rawSetterWithBoundsCheck
+                        context.rawBoolClazz -> EmergeBooleanArrayType.rawSetterWithBoundsCheck
                         else -> throw CodeGenerationException("No value type direct access intrinsic available for ${elementTypeBound.canonicalName}")
                     })
                     ArrayAccessType.REFERENCE_TYPE_DIRECT -> return InvokeIntrinsic(
-                        EmergeReferenceArrayType.getRawSetter(false)
+                        EmergeReferenceArrayType.rawSetterWithBoundsCheck
                     )
                 }
             } else {

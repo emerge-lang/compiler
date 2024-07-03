@@ -393,6 +393,7 @@ private class IrDefaultConstructorImpl(
     override val declaresReceiver = false
     override val returnType = IrClassSimpleType(ctor.classDef)
     override val isExternalC = false
+    override val isNothrow = ctor.attributes.isDeclaredNothrow
     override val ownerBaseType get() = ctor.classDef.toBackendIr()
     override val declaredAt = ctor.declaredAt
 }

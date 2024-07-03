@@ -11,18 +11,21 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmInlineStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmIntrinsic
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i16
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i64
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleSuccess
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.inlinePanic
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 
-internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContext, out LlvmIntegerType>> by lazy {
+internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContext, out LlvmType>> by lazy {
     listOf(
         unaryMinus_s8,
         unaryMinus_s16,
@@ -202,7 +205,7 @@ private fun <T : LlvmIntegerType> buildBinaryOpWithOverflow(
     llvmIntrinsicName: String,
     llvmType: T,
     panicMessage: String,
-): KotlinLlvmFunction<EmergeLlvmContext, T> {
+): KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<T>> {
     val llvmIntrinsic = LlvmIntrinsic(
         llvmIntrinsicName,
         listOf(llvmType),
@@ -215,7 +218,7 @@ private fun <T : LlvmIntegerType> buildBinaryOpWithOverflow(
 
     return KotlinLlvmFunction.define(
         emergeFunctionCanonicalName,
-        llvmType,
+        EmergeFallibleCallResult.WithValue(llvmType),
     ) {
         functionAttribute(LlvmFunctionAttribute.NoFree)
         functionAttribute(LlvmFunctionAttribute.NoRecurse)
@@ -230,10 +233,11 @@ private fun <T : LlvmIntegerType> buildBinaryOpWithOverflow(
             conditionalBranch(
                 condition = extractValue(intrinsicResult) { hadOverflow },
                 ifTrue = {
+                    // TODO: replace with a proper throw
                     inlinePanic(panicMessage)
                 }
             )
-            ret(extractValue(intrinsicResult) { result })
+            ret(fallibleSuccess(extractValue(intrinsicResult) { result }))
         }
     }
 }
@@ -241,7 +245,7 @@ private fun <T : LlvmIntegerType> buildBinaryOpWithOverflow(
 private fun <T : LlvmIntegerType> buildSignedAdditionWithOverflow(
     emergeSignedTypeSimpleName: String,
     llvmType: T,
-) : KotlinLlvmFunction<EmergeLlvmContext, T> {
+) : KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<T>> {
     return buildBinaryOpWithOverflow(
         "emerge.core.${emergeSignedTypeSimpleName}::plus",
         "llvm.sadd.with.overflow.*",
@@ -253,7 +257,7 @@ private fun <T : LlvmIntegerType> buildSignedAdditionWithOverflow(
 private fun <T : LlvmIntegerType> buildUnsignedAdditionWithOverflow(
     emergeSignedTypeSimpleName: String,
     llvmType: T,
-) : KotlinLlvmFunction<EmergeLlvmContext, T> {
+) : KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<T>> {
     return buildBinaryOpWithOverflow(
         "emerge.core.${emergeSignedTypeSimpleName}::plus",
         "llvm.uadd.with.overflow.*",
@@ -276,7 +280,7 @@ private val plus_uWord = buildUnsignedAdditionWithOverflow("UWord", EmergeWordTy
 private fun <T : LlvmIntegerType> buildSignedSubtractionWithOverflow(
     emergeSignedTypeSimpleName: String,
     llvmType: T,
-) : KotlinLlvmFunction<EmergeLlvmContext, T> {
+) : KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<T>> {
     return buildBinaryOpWithOverflow(
         "emerge.core.${emergeSignedTypeSimpleName}::minus",
         "llvm.ssub.with.overflow.*",
@@ -288,7 +292,7 @@ private fun <T : LlvmIntegerType> buildSignedSubtractionWithOverflow(
 private fun <T : LlvmIntegerType> buildUnsignedSubtractionWithOverflow(
     emergeSignedTypeSimpleName: String,
     llvmType: T,
-) : KotlinLlvmFunction<EmergeLlvmContext, T> {
+) : KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<T>> {
     return buildBinaryOpWithOverflow(
         "emerge.core.${emergeSignedTypeSimpleName}::minus",
         "llvm.usub.with.overflow.*",
@@ -311,7 +315,7 @@ private val minus_uWord = buildUnsignedSubtractionWithOverflow("UWord", EmergeWo
 private fun <T : LlvmIntegerType> buildSignedMultiplicationWithOverflow(
     emergeSignedTypeSimpleName: String,
     llvmType: T,
-) : KotlinLlvmFunction<EmergeLlvmContext, T> {
+) : KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<T>> {
     return buildBinaryOpWithOverflow(
         "emerge.core.${emergeSignedTypeSimpleName}::times",
         "llvm.smul.with.overflow.*",
@@ -323,7 +327,7 @@ private fun <T : LlvmIntegerType> buildSignedMultiplicationWithOverflow(
 private fun <T : LlvmIntegerType> buildUnsignedMultiplicationWithOverflow(
     emergeSignedTypeSimpleName: String,
     llvmType: T,
-) : KotlinLlvmFunction<EmergeLlvmContext, T> {
+) : KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<T>> {
     return buildBinaryOpWithOverflow(
         "emerge.core.${emergeSignedTypeSimpleName}::times",
         "llvm.umul.with.overflow.*",
@@ -346,10 +350,10 @@ private val times_uWord = buildUnsignedMultiplicationWithOverflow("UWord", Emerg
 private fun <T : LlvmIntegerType> buildSignedDivisionWithZeroCheck(
     emergeSignedTypeSimpleName: String,
     llvmType: T,
-) : KotlinLlvmFunction<EmergeLlvmContext, T> {
+) : KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<T>> {
     return KotlinLlvmFunction.define(
         "emerge.core.${emergeSignedTypeSimpleName}::divideBy",
-        llvmType,
+        EmergeFallibleCallResult.WithValue(llvmType),
     ) {
         instructionAliasAttributes()
 
@@ -360,11 +364,12 @@ private fun <T : LlvmIntegerType> buildSignedDivisionWithZeroCheck(
             conditionalBranch(
                 condition = isZero(operand2),
                 ifTrue = {
+                    // TODO: replace with a proper throw
                     inlinePanic("division by zero")
                 }
             )
 
-            ret(sdiv(operand1, operand2))
+            ret(fallibleSuccess(sdiv(operand1, operand2)))
         }
     }
 }
@@ -372,10 +377,10 @@ private fun <T : LlvmIntegerType> buildSignedDivisionWithZeroCheck(
 private fun <T : LlvmIntegerType> buildUnsignedDivisionWithZeroCheck(
     emergeSignedTypeSimpleName: String,
     llvmType: T,
-) : KotlinLlvmFunction<EmergeLlvmContext, T> {
+) : KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<T>> {
     return KotlinLlvmFunction.define(
         "emerge.core.${emergeSignedTypeSimpleName}::divideBy",
-        llvmType,
+        EmergeFallibleCallResult.WithValue(llvmType),
     ) {
         instructionAliasAttributes()
 
@@ -386,11 +391,12 @@ private fun <T : LlvmIntegerType> buildUnsignedDivisionWithZeroCheck(
             conditionalBranch(
                 condition = isZero(operand2),
                 ifTrue = {
+                    // TODO: replace with a proper throw
                     inlinePanic("division by zero")
                 }
             )
 
-            ret(udiv(operand1, operand2))
+            ret(fallibleSuccess(udiv(operand1, operand2)))
         }
     }
 }

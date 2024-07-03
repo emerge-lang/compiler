@@ -46,10 +46,14 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
+import io.github.tmarsteel.emerge.backend.llvm.hasNothrowAbi
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.retFallibleVoid
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindContextSize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindCursorSize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.intrinsicNumberOperations
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.isNullBuiltin
+import io.github.tmarsteel.emerge.backend.llvm.isNothing
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmModuleFlagBehavior
@@ -90,7 +94,7 @@ class EmergeLlvmContext(
      * The main function of the program. `fun main() -> Unit`
      * Set by [registerIntrinsic].
      */
-    lateinit var mainFunction: LlvmFunction<LlvmVoidType>
+    internal lateinit var mainFunction: LlvmFunction<*>
 
     /** `emerge.platform.S8Box` */
     internal lateinit var boxTypeS8: EmergeClassType
@@ -124,6 +128,8 @@ class EmergeLlvmContext(
     internal lateinit var cOpaquePointerType: EmergeClassType
     /** `emerge.core.String */
     internal lateinit var stringType: EmergeClassType
+    /** `emerge.core.ArrayIndexOutOfBoundsError` */
+    internal lateinit var arrayIndexOutOfBoundsErrorType: EmergeClassType
 
     /** `emerge.core.S8 */
     internal lateinit var rawS8Clazz: IrClass
@@ -218,6 +224,7 @@ class EmergeLlvmContext(
             "emerge.ffi.c.CPointer" -> cPointerType = emergeClassType
             "emerge.ffi.c.COpaquePointer" -> cOpaquePointerType = emergeClassType
             "emerge.core.String" -> stringType = emergeClassType
+            "emerge.core.ArrayIndexOutOfBoundsError" -> arrayIndexOutOfBoundsErrorType = emergeClassType
             "emerge.core.Unit" -> {
                 unitType = emergeClassType
                 pointerToPointerToUnitInstance = addGlobal(undefValue(pointerTo(emergeClassType)), LlvmThreadLocalMode.NOT_THREAD_LOCAL)
@@ -251,14 +258,22 @@ class EmergeLlvmContext(
     ): LlvmFunction<*>? {
         fn.llvmRef?.let { return it }
 
-        val parameterTypes = fn.parameters.map { getReferenceSiteType(it.type) }
+        val llvmParameterTypes = fn.parameters.map { getReferenceSiteType(it.type) }
+        val coreReturnValueLlvmType = returnTypeOverride ?: when {
+            fn.returnType.isUnit -> LlvmVoidType
+            !fn.returnType.isNullable && (fn.returnType as? IrSimpleType)?.baseType?.isNothing == true -> LlvmVoidType
+            else  -> getReferenceSiteType(fn.returnType)
+        }
+        val returnLlvmType = if (fn.hasNothrowAbi) coreReturnValueLlvmType else EmergeFallibleCallResult(coreReturnValueLlvmType)
 
         getInstrinsic(fn)?.let { intrinsic ->
-            assert(parameterTypes.size == intrinsic.type.parameterTypes.size)
+            assert(llvmParameterTypes.size == intrinsic.type.parameterTypes.size)
             intrinsic.type.parameterTypes.forEachIndexed { paramIndex, intrinsicType ->
-                val declaredType = parameterTypes[paramIndex]
+                val declaredType = llvmParameterTypes[paramIndex]
                 assert(declaredType.isAssignableTo(intrinsicType)) { "${fn.canonicalName} param #$paramIndex; intrinsic $intrinsicType, declared $declaredType" }
             }
+            assert(intrinsic.type.returnType.isAssignableTo(returnLlvmType))
+
             fn.llvmRef = intrinsic
             if (fn is IrMemberFunction) {
                 fn.llvmFunctionType = intrinsic.type
@@ -266,10 +281,9 @@ class EmergeLlvmContext(
             return intrinsic
         }
 
-        val returnLlvmType = returnTypeOverride ?: if (fn.returnType.isUnit) LlvmVoidType else getReferenceSiteType(fn.returnType)
         val functionType = LlvmFunctionType(
             returnLlvmType,
-            parameterTypes,
+            llvmParameterTypes,
         )
         if (fn is IrMemberFunction) {
             fn.llvmFunctionType = functionType
@@ -288,10 +302,11 @@ class EmergeLlvmContext(
         )
         fn.llvmRef!!.addAttributeToFunction(LlvmFunctionAttribute.FramePointerAll)
         fn.llvmRef!!.addAttributeToFunction(LlvmFunctionAttribute.UnwindTableAsync)
+        fn.llvmRef!!.addAttributeToFunction(LlvmFunctionAttribute.NoUnwind) // emerge doesn't use unwinding as of now
 
-        fn.parameters.forEachIndexed { index, param ->
+        fn.parameters.zip(llvmParameterTypes).forEachIndexed { index, (param, llvmParamType) ->
             param.emitRead = {
-                LlvmValue(Llvm.LLVMGetParam(rawRef, index), getReferenceSiteType(param.type))
+                LlvmValue(Llvm.LLVMGetParam(rawRef, index), llvmParamType)
             }
             param.emitWrite = {
                 throw CodeGenerationException("Writing to function parameters is forbidden.")
@@ -310,7 +325,7 @@ class EmergeLlvmContext(
             }
 
             @Suppress("UNCHECKED_CAST")
-            this.mainFunction = fn.llvmRef as LlvmFunction<LlvmVoidType>
+            this.mainFunction = fn.llvmRef as LlvmFunction<*>
         }
 
         return fn.llvmRef!!
@@ -351,10 +366,7 @@ class EmergeLlvmContext(
             structConstructorsRegistered = true
             emergeStructs
                 .asSequence()
-                .filter { it.irClass.autoboxer !is Autoboxer.PrimitiveType && it.irClass.canonicalName.toString() !in setOf(
-                    "emerge.core.Array",
-                    "emerge.core.Nothing",
-                ) }
+                .filter { it.irClass.autoboxer !is Autoboxer.PrimitiveType && it.irClass.canonicalName.toString() !in setOf("emerge.core.Array") }
                 .forEach {
                     // TODO: this handling is wonky, needs more conceptual work
                     // the code will convert a return value of Unit to LLvmVoidType. That is correct except for this one
@@ -363,9 +375,9 @@ class EmergeLlvmContext(
                     val ref = registerFunction(it.irClass.constructor, returnTypeOverride)
                     it.irClass.constructor.llvmRef = ref
 
-                registerFunction(it.irClass.destructor)
-                defineFunctionBody(it.irClass.destructor)
-            }
+                    registerFunction(it.irClass.destructor)
+                    defineFunctionBody(it.irClass.destructor)
+                }
         }
 
         val diBuilder = fn.declaredAt.file.diBuilder
@@ -382,10 +394,14 @@ class EmergeLlvmContext(
                     }
                 }
 
-            when (val codeResult = emitCode(body, fn.returnType, false)) {
+            when (val codeResult = emitCode(body, fn.returnType, fn.hasNothrowAbi, false)) {
                 is ExecutableResult.ExecutionOngoing,
                 is ExpressionResult.Value -> {
-                    (this as BasicBlockBuilder<*, LlvmVoidType>).retVoid()
+                    if (fn.hasNothrowAbi) {
+                        (this as BasicBlockBuilder<*, LlvmVoidType>).retVoid()
+                    } else {
+                        (this as BasicBlockBuilder<*, EmergeFallibleCallResult.OfVoid>).retFallibleVoid()
+                    }
                 }
                 is ExpressionResult.Terminated -> {
                     codeResult.termination
@@ -411,7 +427,9 @@ class EmergeLlvmContext(
             LlvmVoidType,
         ) {
             body {
-                val unitInstance = call(unitType.constructor, emptyList())
+                val unitInstance = call(unitType.constructor, emptyList()).abortOnException {
+                    inlinePanic("failed to allocate unit instance")
+                }
                 store(unitInstance, pointerToPointerToUnitInstance)
                 retVoid()
             }
@@ -424,7 +442,12 @@ class EmergeLlvmContext(
             body {
                 for (global in globalVariables) {
                     (this as BasicBlockBuilder<EmergeLlvmContext, LlvmType>)
-                    val initResult = emitExpressionCode(global.initializer, IrSimpleTypeImpl(context.unitType.irClass, false), true)
+                    val initResult = emitExpressionCode(
+                        global.initializer,
+                        IrSimpleTypeImpl(context.unitType.irClass, false),
+                        functionHasNothrowAbi = true, // this will cause a panic if the initializer throws an exception
+                        expressionResultUsed = true,
+                    )
                     if (initResult is ExpressionResult.Value) {
                         global.declaration.emitWrite!!(initResult.value)
                     } else {
@@ -485,6 +508,9 @@ class EmergeLlvmContext(
         }
 
         baseType.autoboxer?.let { return it.getReferenceSiteType(this, forceBoxed) }
+        /*if (baseType.isNothing && !type.isNullable) {
+            return LlvmVoidType
+        }*/
 
         return pointerTo(getAllocationSiteType(type))
     }
@@ -609,6 +635,7 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             unwindContextSize,
             unwindCursorSize,
             isNullBuiltin,
+            panicOnThrowable,
         )
             + intrinsicNumberOperations
     )

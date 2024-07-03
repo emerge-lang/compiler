@@ -176,7 +176,7 @@ data class Span(
         )
     }
 
-    val fileLineColumnText: String get() = "$sourceFile on line $fromLineNumber at column $fromColumnNumber"
+    val fileLineColumnText: String get() = "$sourceFile on line $fromLineNumber, column $fromColumnNumber"
 
     /* impl IrSourceFile */
     override val file get()= sourceFile.asBackendIr

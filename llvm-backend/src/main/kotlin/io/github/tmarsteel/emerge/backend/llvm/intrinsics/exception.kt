@@ -21,6 +21,8 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 
+// TODO: rename file to panic.kt
+
 private fun BasicBlockBuilder<*, *>.buildStdErrPrinter(): (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeWordType>) -> Unit {
     val writeFnAddr = context.getNamedFunctionAddress("write")!!
     // fd: S32, buf: COpaquePointer, count: UWord) -> SWord
@@ -100,4 +102,15 @@ fun BasicBlockBuilder<out LlvmContext, *>.inlinePanic(message: String): BasicBlo
     printStackTraceToStdErr()
 
     return exit(1u)
+}
+
+internal val panicOnThrowable = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>("emerge.platform.panicOnThrowable", LlvmVoidType) {
+    val exceptionPtr by param(PointerToAnyEmergeValue)
+
+    functionAttribute(LlvmFunctionAttribute.NoRecurse)
+    functionAttribute(LlvmFunctionAttribute.NoReturn)
+
+    body {
+        inlinePanic("unhandled exception")
+    }
 }

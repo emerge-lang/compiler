@@ -7,6 +7,7 @@ interface IrFunction {
     val parameters: List<IrVariableDeclaration>
     val declaresReceiver: Boolean
     val returnType: IrType
+    val isNothrow: Boolean
     val isExternalC: Boolean
 
     /**

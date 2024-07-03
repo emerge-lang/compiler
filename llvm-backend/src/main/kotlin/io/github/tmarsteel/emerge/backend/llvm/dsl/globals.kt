@@ -31,6 +31,10 @@ class ConstantStructBuilder<S : LlvmStructType, C : LlvmContext>(
         valuesByIndex[member.indexInStruct] = context.nullValue(member.type)
     }
 
+    fun setPoison(member: LlvmStructType.Member<S, *>) {
+        valuesByIndex[member.indexInStruct] = context.poisonValue(member.type)
+    }
+
     internal fun build(): LlvmValueRef {
         (0  until structType.nMembers)
             .find { index -> index !in valuesByIndex }

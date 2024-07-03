@@ -203,6 +203,7 @@ private class IrMemberFunctionImpl(
     override val declaresReceiver = boundFn.declaresReceiver
     override val returnType by lazy { boundFn.returnType!!.toBackendIr() }
     override val isExternalC = boundFn.attributes.externalAttribute?.ffiName?.value == "C"
+    override val isNothrow = boundFn.attributes.isDeclaredNothrow
     override val body: IrCodeChunk? by lazy { boundFn.body?.toBackendIr() }
     override val overrides: Set<IrMemberFunction> by lazy { (boundFn.overrides ?: emptyList()).map { it.toBackendIr() }.toSet() }
     override val supportsDynamicDispatch = boundFn.isVirtual

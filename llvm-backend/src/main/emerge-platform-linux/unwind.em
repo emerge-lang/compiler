@@ -111,11 +111,14 @@ private nothrow fn knownUnwindErrorToStringSafe(code: S32) -> String? {
 }
 
 private nothrow fn unwindErrorToStringSafe(code: S32) -> String {
-    return knownUnwindErrorToStringSafe(code) ?: "unknown error"
+    return knownUnwindErrorToStringSafe(code)
+        ?: "unknown error"
 }
 
 private fn unwindErrorToString(code: S32) -> String {
-    return knownUnwindErrorToStringSafe(code) ?: "unknown error (code " + code.toString() + ")"
+    return knownUnwindErrorToStringSafe(code)
+        ?: "unknown error"
+        //?: "unknown error (code " + code.toString() + ")"
 }
 
 // constants from __libunwind_config.h

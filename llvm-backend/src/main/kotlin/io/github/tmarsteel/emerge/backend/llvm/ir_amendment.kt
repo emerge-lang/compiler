@@ -3,6 +3,7 @@ package io.github.tmarsteel.emerge.backend.llvm
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrPackage
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
@@ -20,6 +21,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
@@ -73,6 +75,31 @@ internal var IrClass.MemberVariable.isCPointerPointed: Boolean by tackState { fa
 internal var IrFunction.llvmRef: LlvmFunction<LlvmType>? by tackState { null }
 internal var IrFunction.bodyDefined: Boolean by tackState { false }
 internal var IrFunction.llvmName: String by tackState { if (isExternalC) canonicalName.simpleName else canonicalName.toString() }
+
+/**
+ * if `true`, the function returns its result value plain. If `false`, the function returns a [EmergeFallibleCallResult] wrapper.
+ */
+internal val IrFunction.hasNothrowAbi: Boolean by tackLazyVal {
+    if (canonicalName.toString() in setOf(
+        "emerge.ffi.c.CPointer::\$constructor",
+        "emerge.ffi.c.CPointer::\$destructor",
+        "emerge.ffi.c.COpaquePointer::\$constructor",
+        "emerge.ffi.c.COpaquePointer::\$destructor",
+    )) {
+        // the CPointer types are really just used to turn off emerges reference counting; they never actually manifest
+        // in memory, so the constructor and destructor are noops
+        return@tackLazyVal true
+    }
+
+    if (this is IrMemberFunction) {
+        if (overrides.any { !it.hasNothrowAbi }) {
+            // a super function is not nothrow, so overriding functions need to adhere to that ABI
+            return@tackLazyVal false
+        }
+    }
+
+    isNothrow
+}
 
 internal var IrWhileLoop.emitBreak: (() -> BasicBlockBuilder.Termination)? by tackState { null }
 internal var IrWhileLoop.emitContinue: (() -> BasicBlockBuilder.Termination)? by tackState { null }

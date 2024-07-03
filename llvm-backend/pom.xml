@@ -66,7 +66,7 @@
                                 </fileSet>
                                 <fileSet>
                                     <sourceFile>${emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.libunwindA}</sourceFile>
-                                    <destinationFile>${project.build.outputDirectory}/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/libunwind.a</destinationFile>
+                                    <destinationFile>${project.build.outputDirectory}/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/libunwind-x86_64.a</destinationFile>
                                 </fileSet>
                             </fileSets>
                             <sourceFile>src/someDirectory/test.environment.properties</sourceFile>

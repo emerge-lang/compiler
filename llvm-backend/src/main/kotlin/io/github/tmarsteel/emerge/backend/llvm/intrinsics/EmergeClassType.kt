@@ -11,7 +11,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.indexInLlvmStruct
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
@@ -40,8 +39,8 @@ internal class EmergeClassType private constructor(
         // done in [fromLlvmStructWithoutBody]
     }
 
-    val constructor get() = irClass.constructor.llvmRef!! as LlvmFunction<LlvmPointerType<EmergeClassType>>
-    val destructor get() = irClass.destructor.llvmRef!! as LlvmFunction<LlvmVoidType>
+    val constructor get() = irClass.constructor.llvmRef!! as LlvmFunction<EmergeFallibleCallResult.WithValue<LlvmPointerType<EmergeClassType>>>
+    val destructor: LlvmFunction<*> get() = irClass.destructor.llvmRef!! as LlvmFunction<*>
 
     private val typeinfoProvider by lazy {
         StaticAndDynamicTypeInfo.define(
