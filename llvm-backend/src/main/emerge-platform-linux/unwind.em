@@ -200,9 +200,7 @@ private prealloc_backtraceCursorBuffer: mut _ = Array.new::<S8>(unwind_cursor_si
 private prealloc_procedureNameBuffer: mut _ = Array.new::<S8>(256, 0 as S8)
 private prealloc_relativeIpBuffer: mut _ = Array.new::<UWord>(1, 0 as UWord)
 
-private nothrow fn writeMemoryAddress(address: UWord, fd: S32) {
-    // TODO
-}
+private intrinsic nothrow fn writeMemoryAddress(address: UWord, fd: S32)
 
 private mut fn writeProcedureName(cursorPtr: COpaquePointer, fd: S32) {
     errorCode = unw_get_proc_name(cursorPtr, prealloc_procedureNameBuffer.addressOfFirst(), prealloc_procedureNameBuffer.size, prealloc_relativeIpBuffer.addressOfFirst())

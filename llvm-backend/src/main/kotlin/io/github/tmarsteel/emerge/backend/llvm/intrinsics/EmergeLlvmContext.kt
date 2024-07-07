@@ -636,6 +636,7 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             unwindCursorSize,
             isNullBuiltin,
             panicOnThrowable,
+            writeMemoryAddress,
         )
             + intrinsicNumberOperations
     )

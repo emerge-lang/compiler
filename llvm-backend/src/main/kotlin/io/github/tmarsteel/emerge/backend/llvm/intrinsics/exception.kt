@@ -2,6 +2,8 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
+import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
+import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
@@ -9,6 +11,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI32Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
@@ -23,18 +26,30 @@ import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 
 // TODO: rename file to panic.kt
 
-private fun BasicBlockBuilder<*, *>.buildStdErrPrinter(): (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeWordType>) -> Unit {
+private fun BasicBlockBuilder<*, *>.buildPrinter(fd: LlvmValue<LlvmI32Type>): (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeWordType>) -> Unit {
     val writeFnAddr = context.getNamedFunctionAddress("write")!!
     // fd: S32, buf: COpaquePointer, count: UWord) -> SWord
     val writeFnType = LlvmFunctionType(EmergeWordType, listOf(LlvmI32Type, pointerTo(LlvmVoidType), EmergeWordType))
 
     return { dataPtr: LlvmValue<LlvmPointerType<*>>, dataLen: LlvmValue<EmergeWordType> ->
         call(writeFnAddr, writeFnType, listOf(
-            context.i32(2), // FD_STDERR
+            fd,
             dataPtr,
             dataLen
         ))
     }
+}
+
+private fun BasicBlockBuilder<*, *>.buildStdErrPrinter(): (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeWordType>) -> Unit {
+    return buildPrinter(context.i32(2) /* FD_STDERR */)
+}
+
+private fun LlvmContext.constantString(data: String): LlvmGlobal<LlvmArrayType<LlvmI8Type>> {
+    val bytes = data.toByteArray(Charsets.UTF_8).map { i8(it) }
+    return addGlobal(
+        LlvmArrayType(bytes.size.toLong(), LlvmI8Type).buildConstantIn(this, bytes),
+        LlvmThreadLocalMode.NOT_THREAD_LOCAL
+    )
 }
 
 private fun BasicBlockBuilder<*, *>.printLinefeed(printer: (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeWordType>) -> Unit) {
@@ -66,8 +81,7 @@ val panic = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>("emerge.p
     val message by param(PointerToAnyEmergeValue)
 
     body {
-        val panicPrefixData = "PANIC! ".toByteArray(Charsets.UTF_8).map { context.i8(it) }
-        val panicPrefixGlobal = context.addGlobal(LlvmArrayType(panicPrefixData.size.toLong(), LlvmI8Type).buildConstantIn(context, panicPrefixData), LlvmThreadLocalMode.NOT_THREAD_LOCAL)
+        val panicPrefixGlobal = context.constantString("PANIC! ")
 
         val writeToStdErr = buildStdErrPrinter()
         writeToStdErr(panicPrefixGlobal, context.word(panicPrefixGlobal.type.pointed.elementCount))
@@ -93,8 +107,7 @@ val panic = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>("emerge.p
 }
 
 fun BasicBlockBuilder<out LlvmContext, *>.inlinePanic(message: String): BasicBlockBuilder.Termination {
-    val panicMessageData = "PANIC! $message".toByteArray(Charsets.UTF_8).map { context.i8(it) }
-    val panicMessageGlobal = context.addGlobal(LlvmArrayType(panicMessageData.size.toLong(), LlvmI8Type).buildConstantIn(context, panicMessageData), LlvmThreadLocalMode.NOT_THREAD_LOCAL)
+    val panicMessageGlobal = context.constantString("PANIC! $message")
 
     val writeToStdErr = buildStdErrPrinter()
     writeToStdErr(panicMessageGlobal, context.word(panicMessageGlobal.type.pointed.elementCount))
@@ -112,5 +125,33 @@ internal val panicOnThrowable = KotlinLlvmFunction.define<EmergeLlvmContext, Llv
 
     body {
         inlinePanic("unhandled exception")
+    }
+}
+
+internal val writeMemoryAddress = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>("emerge.platform.writeMemoryAddress", LlvmVoidType) {
+    val address by param(EmergeWordType)
+    val fd by param(LlvmI32Type)
+
+    body {
+        val prefixGlobal = context.constantString("0x")
+
+        val writer = buildPrinter(fd)
+        writer(prefixGlobal, context.word(prefixGlobal.type.pointed.elementCount))
+
+        val nibbleCharsGlobal = context.constantString("0123456789abcdef")
+
+        IntProgression.fromClosedRange(
+            rangeStart = EmergeWordType.getNBitsInContext(context) - 4,
+            rangeEnd = 0,
+            step = -4
+        ).forEach { shrAmount ->
+            val nibble = and(lshr(address, context.word(shrAmount)), context.word(0b1111))
+            writer(
+                getelementptr(nibbleCharsGlobal).index(nibble).get(),
+                context.word(1),
+            )
+        }
+
+        retVoid()
     }
 }
