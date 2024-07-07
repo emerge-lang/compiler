@@ -109,6 +109,13 @@ sealed class GenericTypeReference : BoundTypeReference {
             }
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
+            is RootResolvedTypeReference -> {
+                if (other.baseType == context.swCtx.nothing) {
+                    return this
+                }
+
+                return effectiveBound.closestCommonSupertypeWith(other)
+            }
             else -> effectiveBound.closestCommonSupertypeWith(other)
         }
     }
