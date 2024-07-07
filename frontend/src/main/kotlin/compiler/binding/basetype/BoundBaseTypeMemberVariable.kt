@@ -84,7 +84,7 @@ class BoundBaseTypeMemberVariable(
         } else {
             TypeUseSite.OutUsage(declaration.variableDeclaration.type?.span ?: declaration.span, this)
         }
-        reportings.addAll(type!!.validate(typeUseSite))
+        type?.validate(typeUseSite)?.let(reportings::addAll)
         return reportings
     }
 

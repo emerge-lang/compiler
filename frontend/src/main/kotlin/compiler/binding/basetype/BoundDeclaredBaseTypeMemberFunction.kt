@@ -104,7 +104,7 @@ class BoundDeclaredBaseTypeMemberFunction(
             .asElementNotNullable()
             ?: return emptySet()
 
-        declaredOnType.superTypes.semanticAnalysisPhase2()
+        declaredOnType.superTypes.semanticAnalysisPhase1()
         return declaredOnType.superTypes.inheritedMemberFunctions
             .asSequence()
             .filter { it.canonicalName.simpleName == this.name }
