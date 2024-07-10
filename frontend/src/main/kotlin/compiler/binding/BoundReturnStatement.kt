@@ -18,6 +18,7 @@
 
 package compiler.binding
 
+import compiler.InternalCompilerError
 import compiler.ast.ReturnStatement
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.TypeMutability
@@ -27,8 +28,13 @@ import compiler.binding.expression.BoundExpression
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
+import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.GenericTypeReference
+import compiler.binding.type.NullableTypeReference
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.binding.type.TypeVariable
+import compiler.binding.type.UnresolvedType
 import compiler.lexer.IdentifierToken
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
@@ -121,6 +127,10 @@ class BoundReturnStatement(
             bound
         }
 
+        if (actualExpression.type!!.isNothing) {
+            return actualExpression.toBackendIrStatement()
+        }
+
         val valueTemporary = IrCreateTemporaryValueImpl(actualExpression.toBackendIrExpression())
         val valueTemporaryRefIncrement = IrCreateStrongReferenceStatementImpl(valueTemporary).takeUnless { actualExpression.isEvaluationResultReferenceCounted }
         return IrCodeChunkImpl(
@@ -132,3 +142,12 @@ class BoundReturnStatement(
 }
 
 internal class IrReturnStatementImpl(override val value: IrTemporaryValueReference) : IrReturnStatement
+
+private val BoundTypeReference.isNothing: Boolean get() = !isNullable && when (this) {
+    is RootResolvedTypeReference -> this.baseType == this.baseType.context.swCtx.nothing
+    is BoundTypeArgument -> this.type.isNothing
+    is GenericTypeReference -> this.effectiveBound.isNothing
+    is NullableTypeReference -> false
+    is UnresolvedType -> false
+    is TypeVariable -> throw InternalCompilerError("type inference not completed")
+}

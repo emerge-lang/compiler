@@ -114,6 +114,13 @@ class RootResolvedTypeReference private constructor(
             is UnresolvedType -> other.closestCommonSupertypeWith(this)
             is NullableTypeReference -> NullableTypeReference(closestCommonSupertypeWith(other.nested))
             is RootResolvedTypeReference -> {
+                // TODO: these two special cases can be removed once generic supertypes are implemented
+                if (this.baseType == this.baseType.context.swCtx.nothing) {
+                    return other
+                }
+                if (other.baseType == other.baseType.context.swCtx.nothing) {
+                    return this
+                }
                 val commonSupertype = BoundBaseType.closestCommonSupertypeOf(this.baseType, other.baseType)
                 check(commonSupertype.typeParameters.isNullOrEmpty()) { "Generic supertypes are not implemented, yet." }
                 RootResolvedTypeReference(
@@ -161,6 +168,11 @@ class RootResolvedTypeReference private constructor(
                     return carry.plusReporting(
                         Reporting.valueNotAssignable(this, assigneeType, "cannot assign a ${assigneeType.mutability} value to a ${this.mutability} reference", assignmentLocation)
                     )
+                }
+
+                // TODO: this special case can be removed once generic supertypes are implemented
+                if (assigneeType.baseType == assigneeType.baseType.context.swCtx.nothing) {
+                    return carry
                 }
 
                 check(this.baseType.typeParameters.isNullOrEmpty() || this.baseType == assigneeType.baseType) {
