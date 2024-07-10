@@ -149,8 +149,6 @@ class BoundDeclaredBaseTypeMemberFunction(
                 }
             }
 
-
-
             overrides?.forEach { superFn ->
                 if (!superFn.purity.contains(this.purity)) {
                     reportings.add(Reporting.overrideAddsSideEffects(this, superFn))
@@ -158,6 +156,12 @@ class BoundDeclaredBaseTypeMemberFunction(
                 if (superFn.visibility.isPossiblyBroaderThan(visibility) && declaredOnType.visibility.isPossiblyBroaderThan(visibility)) {
                     reportings.add(Reporting.overrideRestrictsVisibility(this, superFn))
                 }
+
+                superFn.parameters.parameters.zip(this.parameters.parameters)
+                    .filterNot { (superFnParam, overrideFnParam) -> overrideFnParam.ownershipAtDeclarationTime.canOverride(superFnParam.ownershipAtDeclarationTime) }
+                    .forEach { (superFnParam, overrideFnParam) ->
+                        reportings.add(Reporting.overridingParameterExtendsOwnership(overrideFnParam, superFnParam))
+                    }
             }
 
             return@phase3 reportings

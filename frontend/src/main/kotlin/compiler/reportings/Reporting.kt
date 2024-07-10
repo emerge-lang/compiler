@@ -37,6 +37,7 @@ import compiler.binding.BoundFunction
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
+import compiler.binding.BoundParameter
 import compiler.binding.BoundReturnStatement
 import compiler.binding.BoundStatement
 import compiler.binding.BoundThrowStatement
@@ -390,6 +391,9 @@ abstract class Reporting internal constructor(
 
         fun overrideRestrictsVisibility(override: BoundMemberFunction, superFunction: BoundMemberFunction)
             = OverrideRestrictsVisibilityReporting(override, superFunction)
+
+        fun overridingParameterExtendsOwnership(override: BoundParameter, superParameter: BoundParameter)
+            = ExtendingOwnershipOverrideReporting(override, superParameter)
 
         fun nothrowViolatingInvocation(invocation: BoundInvocationExpression, boundary: NothrowViolationReporting.SideEffectBoundary)
             = NothrowViolationReporting.ThrowingInvocation(invocation, boundary)

@@ -1,6 +1,7 @@
 package compiler.compiler.negative
 
 import compiler.reportings.BorrowedVariableCapturedReporting
+import compiler.reportings.ExtendingOwnershipOverrideReporting
 import compiler.reportings.LifetimeEndingCaptureInLoopReporting
 import compiler.reportings.VariableUsedAfterLifetimeReporting
 import io.kotest.core.spec.style.FreeSpec
@@ -284,6 +285,32 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<VariableUsedAfterLifetimeReporting>()
+        }
+    }
+
+    "borrowing X overriding" - {
+        "overriding function cannot capture a parameter that's borrowed in the parent function" {
+            validateModule("""
+                interface I {
+                    fn foo(self, borrow p: String)
+                }
+                class C : I {
+                    override fn foo(self, capture p: String) {}
+                } 
+            """.trimIndent())
+                .shouldReport<ExtendingOwnershipOverrideReporting>()
+        }
+
+        "overriding function can borrow a parameter that's captured in the parent function" {
+            validateModule("""
+                interface I {
+                    fn foo(self, capture p: String)
+                }
+                class C : I {
+                    override fn foo(self, borrow p: String) {}
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
         }
     }
 })
