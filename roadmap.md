@@ -106,6 +106,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
         2. ~~bundle the ones for x86_64 into the compiler, so they're available wherever the compiler can run~~
         3. ~~implement some method for using an LLVM installation on windows, so windows -> linux cross-compilation is possible~~
     2. `throw` statement
+        1. implement Printable on exceptions so the toplevel main() function can show them properly
+        2. actual throw expression
+        3. cleanup on unwind/exception propagation
     3. `Throwable` for everything that can be thrown, `Exception : Throwable` for recoverable errors,
        `Error : Throwable` for unrecoverable errors. `Error` cannot be `catch`ed
     5. try+catch+finally
