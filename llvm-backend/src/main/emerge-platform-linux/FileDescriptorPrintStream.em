@@ -14,15 +14,23 @@ class FileDescriptorPrintStream : PrintStream {
     
     override fn put(self: mut _, str: String) {
         var bufToWrite: read Array<S8> = str.utf8Data
-        var nBytesWritten = 0 as UWord
-        while nBytesWritten < str.utf8Data.size {
+        while true {
             writeResult = pureWrite(self.fd, bufToWrite.addressOfFirst(), bufToWrite.size)
             if writeResult <= 0 {
                 // TODO: raise IOException
                 // TODO: include errno, once PrintStream.toString is implemented
                 panic("write errored")
             }
-            set nBytesWritten = nBytesWritten + writeResult.asUWord()
+            
+            nBytesWritten = writeResult.asUWord()
+            if nBytesWritten >= bufToWrite.size {
+                break
+            }
+            
+            // workaround until there are array slices / pointe arithmetic
+            newBuf: mut _ = Array.new::<S8>(bufToWrite.size - nBytesWritten, 0 as S8)
+            Array.copy(bufToWrite, nBytesWritten, newBuf, 0, newBuf.size)
+            set bufToWrite = newBuf
         }
     }
     
