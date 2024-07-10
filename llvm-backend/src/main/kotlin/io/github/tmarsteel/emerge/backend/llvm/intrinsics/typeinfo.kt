@@ -91,7 +91,7 @@ internal class TypeinfoType private constructor(val nVTableEntries: Long) : Llvm
 /**
  * Getter function for [EmergeArrayOfPointersToTypeInfoType]
  */
-private val getter_EmergeArrayOfPointersToTypeInfoType_exceptionBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<LlvmPointerType<TypeinfoType>>> by lazy {
+private val getter_EmergeArrayOfPointersToTypeInfoType_fallibleBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<LlvmPointerType<TypeinfoType>>> by lazy {
     KotlinLlvmFunction.define(
         "emerge.platform.valueArrayOfPointersToTypeinfo_Get_ExceptionOnOutOfBounds",
         EmergeFallibleCallResult.WithValue(pointerTo(TypeinfoType.GENERIC)),
@@ -172,7 +172,7 @@ private val setter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck: KotlinL
 /**
  * Setter function for [EmergeArrayOfPointersToTypeInfoType]
  */
-private val setter_EmergeArrayOfPointersToTypeInfoType_exceptionBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.OfVoid> by lazy {
+private val setter_EmergeArrayOfPointersToTypeInfoType_fallibleBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.OfVoid> by lazy {
     KotlinLlvmFunction.define(
         "emerge.platform.valueArrayOfPointersToTypeinfo_Set",
         EmergeFallibleCallResult.OfVoid,
@@ -195,8 +195,8 @@ private val setter_EmergeArrayOfPointersToTypeInfoType_exceptionBoundsCheck: Kot
 }
 
 internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
-    val virtualGetter = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
-        "array_pointer_to_typeinfo_virtualGet",
+    val virtualGetterFallible = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+        "array_pointer_to_typeinfo_virtualGet_fallible",
         EmergeFallibleCallResult.ofEmergeReference,
     ) {
         param(PointerToAnyEmergeValue)
@@ -207,9 +207,34 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
         }
     }
 
-    val virtualSetter = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
-        "array_pointer_to_typeinfo_virtualSet",
+    val virtualGetterPanic = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+        "array_pointer_to_typeinfo_virtualGet_panic",
+        PointerToAnyEmergeValue,
+    ) {
+        param(PointerToAnyEmergeValue)
+        param(EmergeWordType)
+
+        body {
+            inlinePanic("array_pointer_to_typeinfo_virtualGet is not implemented")
+        }
+    }
+
+    val virtualSetterFallible = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+        "array_pointer_to_typeinfo_virtualSet_fallible",
         EmergeFallibleCallResult.OfVoid,
+    ) {
+        param(PointerToAnyEmergeValue)
+        param(EmergeWordType)
+        param(pointerTo(TypeinfoType.GENERIC))
+
+        body {
+            inlinePanic("array_pointer_to_typeinfo_virtualSet is not implemented")
+        }
+    }
+
+    val virtualSetterPanic = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+        "array_pointer_to_typeinfo_virtualSet_panic",
+        LlvmVoidType,
     ) {
         param(PointerToAnyEmergeValue)
         param(EmergeWordType)
@@ -236,11 +261,15 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
         EmergeArrayType(
             "pointer_to_typeinfo",
             pointerTo(TypeinfoType.GENERIC),
-            virtualGetter,
-            virtualSetter,
-            getter_EmergeArrayOfPointersToTypeInfoType_exceptionBoundsCheck,
+            virtualGetterFallible,
+            virtualGetterPanic,
+            virtualSetterFallible,
+            virtualSetterPanic,
+            getter_EmergeArrayOfPointersToTypeInfoType_fallibleBoundsCheck,
             getter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck,
-            setter_EmergeArrayOfPointersToTypeInfoType_exceptionBoundsCheck,
+            getter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck,
+            setter_EmergeArrayOfPointersToTypeInfoType_fallibleBoundsCheck,
+            setter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck,
             setter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck,
             valueArrayFinalize,
             defaultValueCtor,
@@ -429,7 +458,7 @@ val getDynamicCallAddress: KotlinLlvmFunction<EmergeLlvmContext, LlvmFunctionAdd
 
 class VirtualFunctionHashCollisionException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
 
-val missingVirtualFunctionHandler = KotlinLlvmFunction.define<LlvmContext, LlvmVoidType>(
+val missingVirtualFunctionHandler = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>(
     "emerge.platform.missingVirtualFunction",
     LlvmVoidType,
 ) {

@@ -23,16 +23,13 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
+import io.github.tmarsteel.emerge.backend.llvm.linux.libcWriteFunction
 
 // TODO: rename file to panic.kt
 
-private fun BasicBlockBuilder<*, *>.buildPrinter(fd: LlvmValue<LlvmI32Type>): (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeWordType>) -> Unit {
-    val writeFnAddr = context.getNamedFunctionAddress("write")!!
-    // fd: S32, buf: COpaquePointer, count: UWord) -> SWord
-    val writeFnType = LlvmFunctionType(EmergeWordType, listOf(LlvmI32Type, pointerTo(LlvmVoidType), EmergeWordType))
-
+private fun BasicBlockBuilder<out EmergeLlvmContext, *>.buildPrinter(fd: LlvmValue<LlvmI32Type>): (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeWordType>) -> Unit {
     return { dataPtr: LlvmValue<LlvmPointerType<*>>, dataLen: LlvmValue<EmergeWordType> ->
-        call(writeFnAddr, writeFnType, listOf(
+        call(context.libcWriteFunction, listOf(
             fd,
             dataPtr,
             dataLen
@@ -40,7 +37,7 @@ private fun BasicBlockBuilder<*, *>.buildPrinter(fd: LlvmValue<LlvmI32Type>): (L
     }
 }
 
-private fun BasicBlockBuilder<*, *>.buildStdErrPrinter(): (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeWordType>) -> Unit {
+private fun BasicBlockBuilder<out EmergeLlvmContext, *>.buildStdErrPrinter(): (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeWordType>) -> Unit {
     return buildPrinter(context.i32(2) /* FD_STDERR */)
 }
 
@@ -106,7 +103,7 @@ val panic = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>("emerge.p
     }
 }
 
-fun BasicBlockBuilder<out LlvmContext, *>.inlinePanic(message: String): BasicBlockBuilder.Termination {
+fun BasicBlockBuilder<out EmergeLlvmContext, *>.inlinePanic(message: String): BasicBlockBuilder.Termination {
     val panicMessageGlobal = context.constantString("PANIC! $message")
 
     val writeToStdErr = buildStdErrPrinter()
@@ -124,7 +121,9 @@ internal val panicOnThrowable = KotlinLlvmFunction.define<EmergeLlvmContext, Llv
     functionAttribute(LlvmFunctionAttribute.NoReturn)
 
     body {
-        inlinePanic("unhandled exception")
+        val implAddr = context.getNamedFunctionAddress("emerge.platform.panicOnThrowableImpl")!!
+        call(implAddr, LlvmFunctionType(LlvmVoidType, listOf(PointerToAnyEmergeValue)), listOf(exceptionPtr))
+        unreachable()
     }
 }
 

@@ -15,10 +15,10 @@ internal val IrMemberFunction.rootSignatureHash: ULong by tackLazyVal {
 
     if (ownerBaseType.canonicalName.toString() == "emerge.core.Array") {
         if (canonicalName.simpleName == "get" && parameters.size == 2) {
-            return@tackLazyVal EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT
+            return@tackLazyVal EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT_FALLIBLE
         }
         if (canonicalName.simpleName == "set" && parameters.size == 3) {
-            return@tackLazyVal EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT
+            return@tackLazyVal EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT_FALLIBLE
         }
     }
 

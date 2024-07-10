@@ -53,6 +53,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindConte
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindCursorSize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.intrinsicNumberOperations
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.isNullBuiltin
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.pureWrite
 import io.github.tmarsteel.emerge.backend.llvm.isNothing
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
@@ -629,14 +630,15 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
         listOf(
             arrayAddressOfFirst,
             arraySize,
-            arrayAbstractGet,
-            arrayAbstractSet,
+            arrayAbstractFallibleGet,
+            arrayAbstractFallibleSet,
             panic,
             unwindContextSize,
             unwindCursorSize,
             isNullBuiltin,
             panicOnThrowable,
             writeMemoryAddress,
+            pureWrite,
         )
             + intrinsicNumberOperations
     )

@@ -61,6 +61,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.PhiBucket
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i1
@@ -98,8 +99,9 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.PointerToAnyEmergeValue
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceCreated
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceDropped
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractGet
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractSet
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractFallibleGet
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractFallibleSet
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractPanicSet
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arraySize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.getDynamicCallAddress
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.registerWeakReference
@@ -890,49 +892,109 @@ private sealed interface ArrayDispatchOverride {
             if (invocation.function.canonicalName.simpleName == "get" && invocation.function.parameters.size == 2) {
                 when (accessType) {
                     ArrayAccessType.VIRTUAL -> return InvokeVirtual(
-                        EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT,
-                        context.registerIntrinsic(arrayAbstractGet).type,
+                        EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT_FALLIBLE,
+                        context.registerIntrinsic(arrayAbstractFallibleGet).type,
                     )
                     ArrayAccessType.VALUE_TYPE_DIRECT -> return InvokeIntrinsic(when (elementTypeBound) {
-                        context.rawS8Clazz -> EmergeS8ArrayType.rawGetterWithBoundsCheck
-                        context.rawU8Clazz -> EmergeU8ArrayType.rawGetterWithBoundsCheck
-                        context.rawS16Clazz -> EmergeS16ArrayType.rawGetterWithBoundsCheck
-                        context.rawU16Clazz -> EmergeU16ArrayType.rawGetterWithBoundsCheck
-                        context.rawS32Clazz -> EmergeS32ArrayType.rawGetterWithBoundsCheck
-                        context.rawU32Clazz -> EmergeU32ArrayType.rawGetterWithBoundsCheck
-                        context.rawS64Clazz -> EmergeS64ArrayType.rawGetterWithBoundsCheck
-                        context.rawU64Clazz -> EmergeU64ArrayType.rawGetterWithBoundsCheck
-                        context.rawSWordClazz -> EmergeSWordArrayType.rawGetterWithBoundsCheck
-                        context.rawUWordClazz -> EmergeUWordArrayType.rawGetterWithBoundsCheck
-                        context.rawBoolClazz -> EmergeBooleanArrayType.rawGetterWithBoundsCheck
+                        context.rawS8Clazz -> EmergeS8ArrayType.rawGetterWithFallibleBoundsCheck
+                        context.rawU8Clazz -> EmergeU8ArrayType.rawGetterWithFallibleBoundsCheck
+                        context.rawS16Clazz -> EmergeS16ArrayType.rawGetterWithFallibleBoundsCheck
+                        context.rawU16Clazz -> EmergeU16ArrayType.rawGetterWithFallibleBoundsCheck
+                        context.rawS32Clazz -> EmergeS32ArrayType.rawGetterWithFallibleBoundsCheck
+                        context.rawU32Clazz -> EmergeU32ArrayType.rawGetterWithFallibleBoundsCheck
+                        context.rawS64Clazz -> EmergeS64ArrayType.rawGetterWithFallibleBoundsCheck
+                        context.rawU64Clazz -> EmergeU64ArrayType.rawGetterWithFallibleBoundsCheck
+                        context.rawSWordClazz -> EmergeSWordArrayType.rawGetterWithFallibleBoundsCheck
+                        context.rawUWordClazz -> EmergeUWordArrayType.rawGetterWithFallibleBoundsCheck
+                        context.rawBoolClazz -> EmergeBooleanArrayType.rawGetterWithFallibleBoundsCheck
                         else -> throw CodeGenerationException("No value type direct access intrinsic available for ${elementTypeBound.canonicalName}")
                     })
                     ArrayAccessType.REFERENCE_TYPE_DIRECT -> return InvokeIntrinsic(
-                        EmergeReferenceArrayType.rawGetterWithBoundsCheck
+                        EmergeReferenceArrayType.rawGetterWithFallibleBoundsCheck
                     )
                 }
             } else if (invocation.function.canonicalName.simpleName == "set" && invocation.function.parameters.size == 3) {
                 when (accessType) {
                     ArrayAccessType.VIRTUAL -> return InvokeVirtual(
-                        EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT,
-                        context.registerIntrinsic(arrayAbstractSet).type,
+                        EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT_FALLIBLE,
+                        context.registerIntrinsic(arrayAbstractFallibleSet).type,
                     )
-                    ArrayAccessType.VALUE_TYPE_DIRECT -> return InvokeIntrinsic(when (elementTypeBound) {
-                        context.rawS8Clazz -> EmergeS8ArrayType.rawSetterWithBoundsCheck
-                        context.rawU8Clazz -> EmergeU8ArrayType.rawSetterWithBoundsCheck
-                        context.rawS16Clazz -> EmergeS16ArrayType.rawSetterWithBoundsCheck
-                        context.rawU16Clazz -> EmergeU16ArrayType.rawSetterWithBoundsCheck
-                        context.rawS32Clazz -> EmergeS32ArrayType.rawSetterWithBoundsCheck
-                        context.rawU32Clazz -> EmergeU32ArrayType.rawSetterWithBoundsCheck
-                        context.rawS64Clazz -> EmergeS64ArrayType.rawSetterWithBoundsCheck
-                        context.rawU64Clazz -> EmergeU64ArrayType.rawSetterWithBoundsCheck
-                        context.rawSWordClazz -> EmergeSWordArrayType.rawSetterWithBoundsCheck
-                        context.rawUWordClazz -> EmergeUWordArrayType.rawSetterWithBoundsCheck
-                        context.rawBoolClazz -> EmergeBooleanArrayType.rawSetterWithBoundsCheck
-                        else -> throw CodeGenerationException("No value type direct access intrinsic available for ${elementTypeBound.canonicalName}")
-                    })
+
+                    ArrayAccessType.VALUE_TYPE_DIRECT -> return InvokeIntrinsic(
+                        when (elementTypeBound) {
+                            context.rawS8Clazz -> EmergeS8ArrayType.rawSetterWithFallibleBoundsCheck
+                            context.rawU8Clazz -> EmergeU8ArrayType.rawSetterWithFallibleBoundsCheck
+                            context.rawS16Clazz -> EmergeS16ArrayType.rawSetterWithFallibleBoundsCheck
+                            context.rawU16Clazz -> EmergeU16ArrayType.rawSetterWithFallibleBoundsCheck
+                            context.rawS32Clazz -> EmergeS32ArrayType.rawSetterWithFallibleBoundsCheck
+                            context.rawU32Clazz -> EmergeU32ArrayType.rawSetterWithFallibleBoundsCheck
+                            context.rawS64Clazz -> EmergeS64ArrayType.rawSetterWithFallibleBoundsCheck
+                            context.rawU64Clazz -> EmergeU64ArrayType.rawSetterWithFallibleBoundsCheck
+                            context.rawSWordClazz -> EmergeSWordArrayType.rawSetterWithFallibleBoundsCheck
+                            context.rawUWordClazz -> EmergeUWordArrayType.rawSetterWithFallibleBoundsCheck
+                            context.rawBoolClazz -> EmergeBooleanArrayType.rawSetterWithFallibleBoundsCheck
+                            else -> throw CodeGenerationException("No value type direct access intrinsic available for ${elementTypeBound.canonicalName}")
+                        }
+                    )
+
                     ArrayAccessType.REFERENCE_TYPE_DIRECT -> return InvokeIntrinsic(
-                        EmergeReferenceArrayType.rawSetterWithBoundsCheck
+                        EmergeReferenceArrayType.rawSetterWithFallibleBoundsCheck
+                    )
+                }
+            } else if (invocation.function.canonicalName.simpleName == "getOrPanic" && invocation.function.parameters.size == 2) {
+                when (accessType) {
+                    ArrayAccessType.VIRTUAL -> return InvokeVirtual(
+                        EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT_PANIC,
+                        context.registerIntrinsic(arrayAbstractFallibleGet).type,
+                    )
+
+                    ArrayAccessType.VALUE_TYPE_DIRECT -> return InvokeIntrinsic(
+                        when (elementTypeBound) {
+                            context.rawS8Clazz -> EmergeS8ArrayType.rawGetterWithPanicBoundsCheck
+                            context.rawU8Clazz -> EmergeU8ArrayType.rawGetterWithPanicBoundsCheck
+                            context.rawS16Clazz -> EmergeS16ArrayType.rawGetterWithPanicBoundsCheck
+                            context.rawU16Clazz -> EmergeU16ArrayType.rawGetterWithPanicBoundsCheck
+                            context.rawS32Clazz -> EmergeS32ArrayType.rawGetterWithPanicBoundsCheck
+                            context.rawU32Clazz -> EmergeU32ArrayType.rawGetterWithPanicBoundsCheck
+                            context.rawS64Clazz -> EmergeS64ArrayType.rawGetterWithPanicBoundsCheck
+                            context.rawU64Clazz -> EmergeU64ArrayType.rawGetterWithPanicBoundsCheck
+                            context.rawSWordClazz -> EmergeSWordArrayType.rawGetterWithPanicBoundsCheck
+                            context.rawUWordClazz -> EmergeUWordArrayType.rawGetterWithPanicBoundsCheck
+                            context.rawBoolClazz -> EmergeBooleanArrayType.rawGetterWithPanicBoundsCheck
+                            else -> throw CodeGenerationException("No value type direct access intrinsic available for ${elementTypeBound.canonicalName}")
+                        }
+                    )
+
+                    ArrayAccessType.REFERENCE_TYPE_DIRECT -> return InvokeIntrinsic(
+                        EmergeReferenceArrayType.rawGetterWithPanicBoundsCheck
+                    )
+                }
+            } else if (invocation.function.canonicalName.simpleName == "setOrPanic" && invocation.function.parameters.size == 3) {
+                when (accessType) {
+                    ArrayAccessType.VIRTUAL -> return InvokeVirtual(
+                        EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT_PANIC,
+                        context.registerIntrinsic(arrayAbstractPanicSet).type,
+                    )
+
+                    ArrayAccessType.VALUE_TYPE_DIRECT -> return InvokeIntrinsic(
+                        when (elementTypeBound) {
+                            context.rawS8Clazz -> EmergeS8ArrayType.rawSetterWithPanicBoundsCheck
+                            context.rawU8Clazz -> EmergeU8ArrayType.rawSetterWithPanicBoundsCheck
+                            context.rawS16Clazz -> EmergeS16ArrayType.rawSetterWithPanicBoundsCheck
+                            context.rawU16Clazz -> EmergeU16ArrayType.rawSetterWithPanicBoundsCheck
+                            context.rawS32Clazz -> EmergeS32ArrayType.rawSetterWithPanicBoundsCheck
+                            context.rawU32Clazz -> EmergeU32ArrayType.rawSetterWithPanicBoundsCheck
+                            context.rawS64Clazz -> EmergeS64ArrayType.rawSetterWithPanicBoundsCheck
+                            context.rawU64Clazz -> EmergeU64ArrayType.rawSetterWithPanicBoundsCheck
+                            context.rawSWordClazz -> EmergeSWordArrayType.rawSetterWithPanicBoundsCheck
+                            context.rawUWordClazz -> EmergeUWordArrayType.rawSetterWithPanicBoundsCheck
+                            context.rawBoolClazz -> EmergeBooleanArrayType.rawSetterWithPanicBoundsCheck
+                            else -> throw CodeGenerationException("No value type direct access intrinsic available for ${elementTypeBound.canonicalName}")
+                        }
+                    )
+
+                    ArrayAccessType.REFERENCE_TYPE_DIRECT -> return InvokeIntrinsic(
+                        EmergeReferenceArrayType.rawSetterWithPanicBoundsCheck
                     )
                 }
             } else {

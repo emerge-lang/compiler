@@ -182,7 +182,7 @@ internal val registerWeakReference = KotlinLlvmFunction.define<EmergeLlvmContext
     }
 }
 
-internal val unregisterWeakReference = KotlinLlvmFunction.define<LlvmContext, _>("emerge.platform.unregisterWeakReference", LlvmVoidType) {
+internal val unregisterWeakReference = KotlinLlvmFunction.define<EmergeLlvmContext, _>("emerge.platform.unregisterWeakReference", LlvmVoidType) {
     val pointerToWeakReference by param(pointerTo(PointerToAnyEmergeValue))
     val objectBeingReferred by param(PointerToAnyEmergeValue)
     body {
