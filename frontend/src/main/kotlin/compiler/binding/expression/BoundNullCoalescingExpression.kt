@@ -136,13 +136,6 @@ class BoundNullCoalescingExpression(
             IrTemporaryValueReferenceImpl(isNullTemporary),
             IrImplicitEvaluationExpressionImpl(
                 IrCodeChunkImpl(listOfNotNull(
-                    IrCreateStrongReferenceStatementImpl(nullableValueTemporary)
-                        .takeIf { this.isEvaluationResultReferenceCounted && !nullableExpression.isEvaluationResultReferenceCounted },
-                )),
-                IrTemporaryValueReferenceImpl(nullableValueTemporary),
-            ),
-            IrImplicitEvaluationExpressionImpl(
-                IrCodeChunkImpl(listOfNotNull(
                     IrUpdateSourceLocationStatementImpl(alternativeExpression.declaration.span),
                     // nullableTemporary is null, no need to drop a reference count
                     alternateValueTemporary,
@@ -150,6 +143,13 @@ class BoundNullCoalescingExpression(
                         .takeIf { this.isEvaluationResultReferenceCounted && !alternativeExpression.isEvaluationResultReferenceCounted }
                 )),
                 IrTemporaryValueReferenceImpl(alternateValueTemporary)
+            ),
+            IrImplicitEvaluationExpressionImpl(
+                IrCodeChunkImpl(listOfNotNull(
+                    IrCreateStrongReferenceStatementImpl(nullableValueTemporary)
+                        .takeIf { this.isEvaluationResultReferenceCounted && !nullableExpression.isEvaluationResultReferenceCounted },
+                )),
+                IrTemporaryValueReferenceImpl(nullableValueTemporary),
             ),
             type!!.toBackendIr(),
         ))
