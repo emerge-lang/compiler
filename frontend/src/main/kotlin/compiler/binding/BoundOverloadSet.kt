@@ -1,5 +1,6 @@
 package compiler.binding
 
+import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.binding.misc_ir.IrOverloadGroupImpl
 import compiler.binding.type.nonDisjointPairs
 import compiler.reportings.InconsistentReceiverPresenceInOverloadSetReporting
@@ -66,16 +67,19 @@ class BoundOverloadSet<out Fn : BoundFunction>(
     }
 
     fun toBackendIr(): IrOverloadGroup<IrFunction> {
-        assert(overloads.all { it.canonicalName == canonicalName }) {
-            val violator = overloads.first { it.canonicalName != canonicalName }
-            """
-                This overload has a different canonical name than the overload set:
-                
-                ${violator.declaredAt}
-                
-                overload set has name $canonicalName
-            """.trimIndent()
-        }
+        overloads
+            .asSequence()
+            .filter { it !is InheritedBoundMemberFunction }
+            .firstOrNull { it.canonicalName != canonicalName }
+            ?.let { sameCanonicalNameViolator ->
+                error("""
+                    This overload has a different canonical name than the overload set:
+                    
+                    ${sameCanonicalNameViolator.declaredAt}
+                    
+                    overload set has name $canonicalName
+                """.trimIndent())
+            }
         assert(overloads.all { it.parameters.parameters.size == parameterCount })
 
         return IrOverloadGroupImpl(canonicalName, parameterCount, overloads)
