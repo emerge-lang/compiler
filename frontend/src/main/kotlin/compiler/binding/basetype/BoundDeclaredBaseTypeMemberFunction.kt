@@ -46,6 +46,10 @@ class BoundDeclaredBaseTypeMemberFunction(
     override val isVirtual get() = declaresReceiver
     override val isAbstract = !attributes.impliesNoBody && body == null
 
+    override val visibility by lazy {
+        attributes.visibility.coerceAtMost(declaredOnType.visibility)
+    }
+
     override var overrides: Set<InheritedBoundMemberFunction>? = null
         get() {
             seanHelper.requirePhase1Done()
@@ -145,9 +149,14 @@ class BoundDeclaredBaseTypeMemberFunction(
                 }
             }
 
+
+
             overrides?.forEach { superFn ->
                 if (!superFn.purity.contains(this.purity)) {
                     reportings.add(Reporting.overrideAddsSideEffects(this, superFn))
+                }
+                if (superFn.visibility.isPossiblyBroaderThan(visibility) && declaredOnType.visibility.isPossiblyBroaderThan(visibility)) {
+                    reportings.add(Reporting.overrideRestrictsVisibility(this, superFn))
                 }
             }
 

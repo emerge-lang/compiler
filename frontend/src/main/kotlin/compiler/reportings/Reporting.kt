@@ -388,6 +388,9 @@ abstract class Reporting internal constructor(
         fun overrideAddsSideEffects(override: BoundMemberFunction, superFunction: BoundMemberFunction)
             = OverrideAddsSideEffectsReporting(override, superFunction)
 
+        fun overrideRestrictsVisibility(override: BoundMemberFunction, superFunction: BoundMemberFunction)
+            = OverrideRestrictsVisibilityReporting(override, superFunction)
+
         fun nothrowViolatingInvocation(invocation: BoundInvocationExpression, boundary: NothrowViolationReporting.SideEffectBoundary)
             = NothrowViolationReporting.ThrowingInvocation(invocation, boundary)
 

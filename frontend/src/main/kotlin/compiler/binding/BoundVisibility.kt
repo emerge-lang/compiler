@@ -23,8 +23,18 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
      */
     abstract fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility): Collection<Reporting>
 
-    abstract fun isStrictlyBroarderThan(other: BoundVisibility): Boolean
+    abstract fun isStrictlyBroaderThan(other: BoundVisibility): Boolean
     abstract fun isPossiblyBroaderThan(other: BoundVisibility): Boolean
+
+    abstract fun withAstNode(newNode: AstVisibility): BoundVisibility
+
+    fun coerceAtMost(other: BoundVisibility): BoundVisibility {
+        if (this.isPossiblyBroaderThan(other)) {
+            return other.withAstNode(this.astNode)
+        }
+
+        return this
+    }
 
     override fun semanticAnalysisPhase1() = emptySet<Reporting>()
     override fun semanticAnalysisPhase2() = emptySet<Reporting>()
@@ -34,7 +44,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
      * Assuming `this` visibility appears on [element], validates.
      */
     open fun validateOnElement(element: DefinitionWithVisibility): Collection<Reporting> {
-        if (this.isStrictlyBroarderThan(context.visibility)) {
+        if (this.isStrictlyBroaderThan(context.visibility)) {
             return setOf(Reporting.visibilityShadowed(element, context.visibility))
         }
 
@@ -51,14 +61,33 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
             return setOf(Reporting.elementNotAccessible(subject, this, accessAt))
         }
 
-        override fun isStrictlyBroarderThan(other: BoundVisibility) = false
+        override fun isStrictlyBroaderThan(other: BoundVisibility) = false
 
         override fun isPossiblyBroaderThan(other: BoundVisibility) = when(other) {
             is FileScope -> this.lexerFile != other.lexerFile
             else -> false
         }
 
+        override fun withAstNode(newNode: AstVisibility): BoundVisibility {
+            return FileScope(context, newNode)
+        }
+
         override fun toString() = "private in file $lexerFile"
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is FileScope) return false
+
+            if (lexerFile != other.lexerFile) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = javaClass.hashCode()
+            result = 31 * result + lexerFile.hashCode()
+            return result
+        }
     }
 
     class PackageScope(
@@ -92,7 +121,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
             return super.validateOnElement(element)
         }
 
-        override fun isStrictlyBroarderThan(other: BoundVisibility) = when(other) {
+        override fun isStrictlyBroaderThan(other: BoundVisibility) = when(other) {
             is FileScope -> true
             is PackageScope -> packageName != other.packageName && packageName.containsOrEquals(other.packageName)
             is ExportedScope -> false
@@ -104,7 +133,26 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
             is ExportedScope -> false
         }
 
+        override fun withAstNode(newNode: AstVisibility): BoundVisibility {
+            return PackageScope(context, packageName, newNode, isDefault)
+        }
+
         override fun toString() = "internal to package $packageName"
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is PackageScope) return false
+
+            if (packageName != other.packageName) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = javaClass.hashCode()
+            result = 31 * result + packageName.hashCode()
+            return result
+        }
     }
 
     class ExportedScope(
@@ -115,7 +163,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
             return emptySet()
         }
 
-        override fun isStrictlyBroarderThan(other: BoundVisibility) = when (other) {
+        override fun isStrictlyBroaderThan(other: BoundVisibility) = when (other) {
             is ExportedScope -> false
             else -> true
         }
@@ -125,7 +173,22 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
             else -> true
         }
 
+        override fun withAstNode(newNode: AstVisibility): BoundVisibility {
+            return ExportedScope(context, astNode)
+        }
+
         override fun toString() = "exported"
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is ExportedScope) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            return javaClass.hashCode()
+        }
     }
 
     companion object {

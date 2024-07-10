@@ -374,15 +374,15 @@ export class ArrayIndexOutOfBoundsError : Error {
     
     private var stackTrace: const ArrayList<StackTraceElement>? = null
     
-    override nothrow fn setStackTrace(self: mut _, trace: const ArrayList<StackTraceElement>) {
+    export override nothrow fn setStackTrace(self: mut _, trace: const ArrayList<StackTraceElement>) {
         set self.stackTrace = trace
     }
     
-    override nothrow fn getStackTrace(self) -> const ArrayList<StackTraceElement> {
+    export override nothrow fn getStackTrace(self) -> const ArrayList<StackTraceElement> {
         return self.stackTrace ?: panic("stack trace not set")
     }
     
-    override nothrow fn getMessage(self) -> const String? = null
+    export override nothrow fn getMessage(self) -> const String? = null
 
     nothrow destructor {}
 }

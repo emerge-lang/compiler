@@ -7,6 +7,7 @@ import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.reportings.ElementNotAccessibleReporting
 import compiler.reportings.HiddenTypeExposedReporting
+import compiler.reportings.OverrideRestrictsVisibilityReporting
 import compiler.reportings.ShadowedVisibilityReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
@@ -379,5 +380,39 @@ class VisibilityTests : FreeSpec({
                     it.type.simpleName shouldBe "Foo"
                 }
         }
+
+        "receiver parameter exception" - {
+            "applies to member functions" {
+                validateModule("""
+                    export interface I {
+                        fn foo(self: mut _)
+                    }
+                    class C : I {
+                        override fn foo(self: mut C) {}
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "does not apply to toplevel functions" {
+                validateModule("""
+                    private class C {}
+                    export fn test(self: C) {}
+                """.trimIndent())
+                    .shouldReport<HiddenTypeExposedReporting>()
+            }
+        }
+    }
+
+    "voldemort overrides" {
+        validateModule("""
+            export interface I {
+                export fn foo(self)
+            }
+            export class C : I {
+                override fn foo(self) {}
+            }
+        """.trimIndent())
+            .shouldReport<OverrideRestrictsVisibilityReporting>()
     }
 })
