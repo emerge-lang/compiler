@@ -2,7 +2,7 @@ package emerge.std.collections
 
 import emerge.platform.panic
 
-export class ArrayList<X> {
+export class ArrayList<X : Any> {
     private var storage: Array<X?> = Array.new::<X?>(20, null)
     private var _size: UWord = 0
 
@@ -18,10 +18,19 @@ export class ArrayList<X> {
 
     export operator fn `get`(self, index: UWord) -> X {
         if index >= self._size {
+            // TODO: throw
             panic("arraylist index out of bounds!")
         }
 
         return self.storage[index]!!
+    }
+    
+    export nothrow fn getOrPanic(self, index: UWord) -> X {
+        if index >= self._size  {
+            panic("arraylist index out of bounds!")
+        }
+        
+        return self.storage.getOrPanic(index) ?: panic("null value shouldn't be present!")
     }
 
     private fn enlarge(self: mut _) {
