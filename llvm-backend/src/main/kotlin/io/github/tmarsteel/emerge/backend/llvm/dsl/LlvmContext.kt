@@ -52,9 +52,9 @@ open class LlvmContext(val target: LlvmTarget) : AutoCloseable {
         Llvm.LLVMAddModuleFlag(module, behavior, idBytes, NativeLong(idBytes.size.toLong()), value)
     }
 
-    fun getNamedFunctionAddress(name: String): LlvmValue<LlvmFunctionAddressType>? {
+    fun getNamedFunctionAddress(name: String): LlvmConstant<LlvmFunctionAddressType>? {
         val raw = Llvm.LLVMGetNamedFunction(module, name) ?: return null
-        return LlvmValue(raw, LlvmFunctionAddressType)
+        return LlvmConstant(raw, LlvmFunctionAddressType)
     }
 
     override fun close() {
