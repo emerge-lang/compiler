@@ -1,6 +1,10 @@
 package emerge.core
 
 import emerge.platform.panic
+import emerge.platform.collectStackTrace
+import emerge.std.io.PrintStream
+import emerge.std.collections.ArrayList
+import emerge.core.StackTraceElement
 
 export class Unit {
     private constructor {}
@@ -22,7 +26,7 @@ export class F64 {
     nothrow destructor {}
 }
 
-export class S8 {
+export class S8 : Printable {
     private constructor {}
     nothrow destructor {}
 
@@ -44,10 +48,12 @@ export class S8 {
 
     export intrinsic nothrow fn toS64(self) -> S64
 
-    export fn toString(self) = self.toS64().toString()
+    export override nothrow fn printTo(self, borrow stream: mut PrintStream) {
+        self.toS64().printTo(stream)
+    }
 }
 
-export class U8 {
+export class U8 : Printable {
     private constructor {}
     nothrow destructor {}
 
@@ -66,10 +72,12 @@ export class U8 {
 
     export intrinsic nothrow fn toU64(self) -> U64
 
-    export fn toString(self) = self.toU64().toString()
+    export override nothrow fn printTo(self, borrow stream: mut PrintStream) {
+        self.toU64().printTo(stream)
+    }
 }
 
-export class S16 {
+export class S16 : Printable {
     private constructor {}
     nothrow destructor {}
 
@@ -91,10 +99,12 @@ export class S16 {
 
     export intrinsic nothrow fn toS64(self) -> S64
 
-    export fn toString(self) = self.toS64().toString()
+    export override nothrow fn printTo(self, borrow stream: mut PrintStream) {
+        self.toS64().printTo(stream)
+    }
 }
 
-export class U16 {
+export class U16 : Printable {
     private constructor {}
     nothrow destructor {}
 
@@ -113,10 +123,12 @@ export class U16 {
 
     export intrinsic nothrow fn toU64(self) -> U64
 
-    export fn toString(self) = self.toU64().toString()
+    export override nothrow fn printTo(self, borrow stream: mut PrintStream) {
+        self.toU64().printTo(stream)
+    }
 }
 
-export class S32 {
+export class S32 : Printable {
     private constructor {}
     nothrow destructor {}
 
@@ -138,10 +150,12 @@ export class S32 {
 
     export intrinsic nothrow fn toS64(self) -> S64
 
-    export fn toString(self) = self.toS64().toString()
+    export override nothrow fn printTo(self, borrow stream: mut PrintStream) {
+        self.toS64().printTo(stream)
+    }
 }
 
-export class U32 {
+export class U32 : Printable {
     private constructor {}
     nothrow destructor {}
 
@@ -160,10 +174,12 @@ export class U32 {
 
     export intrinsic nothrow fn toU64(self) -> U64
 
-    export fn toString(self) = self.toU64().toString()
+    export override nothrow fn printTo(self, borrow stream: mut PrintStream) {
+        self.toU64().printTo(stream)
+    }
 }
 
-export class S64 {
+export class S64 : Printable {
     private constructor {}
     nothrow destructor {}
 
@@ -186,16 +202,16 @@ export class S64 {
     // converts this number to an SWord, loosing information if SWord is smaller than S64 on the target platform
     export intrinsic nothrow fn asSWord(self) -> SWord
 
-    export fn toString(self: S64) -> const String {
-        return if self < 0 {
-            self.abs().asU64().toString(true)
+    export override nothrow fn printTo(self, borrow stream: mut PrintStream) {
+        if self < 0 {
+            self.abs().asU64().printTo(stream, true)
         } else {
-            self.asU64().toString(false)
+            self.asU64().printTo(stream, false)
         }
     }
 }
 
-export class U64 {
+export class U64 : Printable {
     private constructor {}
     nothrow destructor {}
 
@@ -215,7 +231,14 @@ export class U64 {
     // converts this number to a UWord, loosing information if UWord is smaller than U64 on the target platform
     export intrinsic nothrow fn asUWord(self) -> UWord
 
-    export fn toString(self: U64) = self.toString(false)
+    export override nothrow fn printTo(self, borrow stream: mut PrintStream) {
+        self.printTo(stream, false)
+    }
+
+    private nothrow fn printTo(self, stream: mut PrintStream, addMinusSign: Bool) {
+        
+    }
+    
     private fn toString(self: U64, addMinusSign: Bool) -> const String {
         if self == 0 {
             return "0"
@@ -246,7 +269,7 @@ export class U64 {
     }
 }
 
-export class SWord {
+export class SWord : Printable {
     private constructor {}
     nothrow destructor {}
 
@@ -269,10 +292,12 @@ export class SWord {
     export intrinsic nothrow fn asS64(self) -> S64
     export intrinsic nothrow fn asU64(self) -> U64
 
-    export fn toString(self) = self.asS64().toString()
+    export override nothrow fn printTo(self, borrow stream: mut PrintStream) {
+        self.asS64().printTo(stream)
+    }
 }
 
-export class UWord {
+export class UWord : Printable {
     private constructor {}
     nothrow destructor {}
 
@@ -292,7 +317,9 @@ export class UWord {
     export intrinsic nothrow fn asS64(self) -> S64
     export intrinsic nothrow fn asU64(self) -> U64
 
-    export fn toString(self) = self.asU64().toString()
+    export override nothrow fn printTo(self, borrow stream: mut PrintStream) {
+        self.asU64().printTo(stream)
+    }
 }
 
 export class Bool {
@@ -314,6 +341,9 @@ export class Array<Element> {
 
     export operator intrinsic fn `get`(self: read _<out Element>, index: UWord) -> Element
     export operator intrinsic fn `set`(self: mut _<in Element>, index: UWord, value: Element) -> Unit
+    
+    export nothrow intrinsic fn getOrPanic(self: read _<out Element>, index: UWord) -> Element
+    export nothrow intrinsic fn setOrPanic(self: mut _<in Element>, index: UWord, value: Element) -> Unit
 
     export intrinsic fn new<T>(size: UWord, initialValue: T) -> exclusive Array<T>
 
@@ -341,6 +371,18 @@ export class Array<Element> {
 
 export class ArrayIndexOutOfBoundsError : Error {
     export invalidIndex: UWord = init
+    
+    private var stackTrace: const ArrayList<StackTraceElement>? = null
+    
+    override nothrow fn setStackTrace(self: mut _, trace: const ArrayList<StackTraceElement>) {
+        set self.stackTrace = trace
+    }
+    
+    override nothrow fn getStackTrace(self) -> const ArrayList<StackTraceElement> {
+        return self.stackTrace ?: panic("stack trace not set")
+    }
+    
+    override nothrow fn getMessage(self) -> const String? = null
 
     nothrow destructor {}
 }

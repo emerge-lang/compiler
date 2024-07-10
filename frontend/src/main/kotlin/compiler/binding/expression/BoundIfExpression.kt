@@ -197,7 +197,7 @@ internal class IrIfExpressionImpl(
     override val evaluatesTo: IrType,
 ) : IrIfExpression
 
-private class IrConditionalBranchImpl(
+internal class IrConditionalBranchImpl(
     override val condition: IrTemporaryValueReference,
     override val thenBranch: IrExecutable,
     override val elseBranch: IrExecutable?

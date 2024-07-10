@@ -323,7 +323,6 @@ class BoundInvocationExpression(
                     return@mapNotNull null
                 }
 
-                // TODO: source location
                 val returnTypeArgsLocation = typeArguments
                     ?.mapNotNull { it.astNode.span }
                     ?.reduce(Span::rangeTo)
