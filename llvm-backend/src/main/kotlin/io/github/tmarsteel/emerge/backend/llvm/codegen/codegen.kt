@@ -765,9 +765,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitIsNull(
     )
 }
 
-private class BranchEmitter(
+private class BranchEmitter<R : LlvmType>(
     val branchCode: IrImplicitEvaluationExpression,
-    val valueStorage: PhiBucket<in LlvmType>?,
+    val valueStorage: PhiBucket<R>?,
     val functionHasNothrowAbi: Boolean,
     val functionReturnType: IrType,
 ) {
@@ -779,7 +779,13 @@ private class BranchEmitter(
         branchResult = localBranchResult
         when (localBranchResult) {
             is ExpressionResult.Value -> {
-                valueStorage?.setBranchResult(localBranchResult.value)
+                if (valueStorage != null) {
+                    if (localBranchResult.value.type is LlvmVoidType) {
+                        valueStorage.setBranchResult(context.poisonValue(valueStorage.type))
+                    } else {
+                        valueStorage.setBranchResult(localBranchResult.value as LlvmValue<R>)
+                    }
+                }
                 concludeBranch()
             }
             is ExpressionResult.Terminated -> localBranchResult.termination
