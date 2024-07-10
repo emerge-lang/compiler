@@ -4,7 +4,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.poi
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmMetadataRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
-import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmValueKind
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmValueRef
 
@@ -18,13 +17,9 @@ open class LlvmValue<out Type : LlvmType>(
     fun <NewT : LlvmType> reinterpretAs(type: NewT): LlvmValue<NewT> = LlvmValue(raw, type)
     fun toMetadata(): LlvmMetadataRef = Llvm.LLVMValueAsMetadata(raw)
 
-    /**
-     * for debugging
-     * @return true iff this value can be assigned to the given type __only according to LLVM!!__ e.g. for
-     * pointers, this doesn't check the pointee-type; use [LlvmType.isAssignableTo] for that.
-     */
-    fun isLlvmAssignableTo(target: LlvmTypeRef): Boolean {
-        return Llvm.LLVMTypeOf(raw) == target
+    /** for debugging; see [LlvmType.isLlvmAssignableTo] */
+    fun isLlvmAssignableTo(target: LlvmType): Boolean {
+        return type.isLlvmAssignableTo(target)
     }
 }
 

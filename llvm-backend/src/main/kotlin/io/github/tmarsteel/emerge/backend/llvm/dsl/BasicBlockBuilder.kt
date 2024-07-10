@@ -337,7 +337,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
             "The function ${function.name} takes ${function.type.parameterTypes.size} parameters, ${args.size} arguments given."
         }
         args.zip(function.type.parameterTypes).forEachIndexed { index, (arg, paramType) ->
-            require(arg.isLlvmAssignableTo(paramType.getRawInContext(context))) {
+            require(arg.isLlvmAssignableTo(paramType)) {
                 "argument #$index: ${arg.type} is not llvm-assignable to $paramType"
             }
         }

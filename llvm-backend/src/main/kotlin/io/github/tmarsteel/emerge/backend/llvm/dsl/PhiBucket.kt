@@ -11,7 +11,7 @@ class PhiBucket<E : LlvmType>(val type: E) {
 
     context(BasicBlockBuilder<*, *>)
     fun setBranchResult(result: LlvmValue<E>) {
-        assert(result.isLlvmAssignableTo(this.type.getRawInContext(context)))
+        assert(result.isLlvmAssignableTo(this.type))
         branches.add(Llvm.LLVMGetInsertBlock(builder))
         results.add(result.raw)
     }

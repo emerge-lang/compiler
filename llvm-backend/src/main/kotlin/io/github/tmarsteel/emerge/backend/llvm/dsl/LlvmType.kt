@@ -16,6 +16,13 @@ import java.math.BigInteger
 interface LlvmType {
     fun getRawInContext(context: LlvmContext): LlvmTypeRef
     fun isAssignableTo(other: LlvmType) = this == other
+
+    /**
+     * for debugging
+     * @return true iff this value can be assigned to the given type __only according to LLVM!!__ e.g. for
+     * pointers, this doesn't check the pointee-type; use [LlvmType.isAssignableTo] for that.
+     */
+    fun isLlvmAssignableTo(target: LlvmType) = this == target
 }
 
 abstract class LlvmCachedType : LlvmType {
@@ -93,6 +100,10 @@ class LlvmPointerType<Pointed : LlvmType>(val pointed: Pointed) : LlvmType {
         }
 
         return super.isAssignableTo(other)
+    }
+
+    override fun isLlvmAssignableTo(target: LlvmType): Boolean {
+        return target is LlvmPointerType<*>
     }
 
     override fun toString() = "*$pointed"
