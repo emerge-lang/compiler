@@ -20,7 +20,6 @@ package compiler.binding.expression
 
 import compiler.ast.expression.NullLiteralExpression
 import compiler.ast.type.TypeReference
-import compiler.binding.BoundStatement
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -53,7 +52,7 @@ class BoundNullLiteralExpression(
     override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> = emptySet()
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
     override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {}
 
     override val isEvaluationResultReferenceCounted = false

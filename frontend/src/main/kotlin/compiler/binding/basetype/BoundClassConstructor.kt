@@ -13,9 +13,9 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundCodeChunk
+import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
-import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.IrAssignmentStatementImpl
 import compiler.binding.IrAssignmentStatementTargetClassMemberVariableImpl
@@ -285,7 +285,7 @@ class BoundClassConstructor(
             reportings.addAll(additionalInitCode.semanticAnalysisPhase3())
 
             if (BoundFunction.Purity.READONLY.contains(this.purity)) {
-                val statementsWritingBeyondConstructorContext: Collection<BoundStatement<*>> = handleCyclicInvocation(
+                val statementsWritingBeyondConstructorContext: Collection<BoundExecutable<*>> = handleCyclicInvocation(
                     this,
                     action = {
                         boundMemberVariableInitCodeFromExpression.findWritesBeyond(constructorFunctionRootContext) +

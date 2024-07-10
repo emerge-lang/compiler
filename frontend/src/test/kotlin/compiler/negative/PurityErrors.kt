@@ -1,9 +1,10 @@
 package compiler.compiler.negative
 
+import compiler.reportings.AssignmentOutsideOfPurityBoundaryReporting
 import compiler.reportings.ImpureInvocationInPureContextReporting
 import compiler.reportings.ModifyingInvocationInReadonlyContextReporting
+import compiler.reportings.MutableUsageOfStateOutsideOfPurityBoundaryReporting
 import compiler.reportings.ReadInPureContextReporting
-import compiler.reportings.StateModificationOutsideOfPurityBoundaryReporting
 import io.kotest.core.spec.style.FreeSpec
 
 class PurityErrors : FreeSpec({
@@ -79,14 +80,32 @@ class PurityErrors : FreeSpec({
             .shouldReport<ReadInPureContextReporting>()
     }
 
-    "mutating outside of a pure context" {
-        validateModule("""
-            var x = 1
-            pure fn a() {
-                set x = 2
-            }
-        """.trimIndent())
-            .shouldReport<StateModificationOutsideOfPurityBoundaryReporting>()
+    "mutating outside of a pure context" - {
+        "by variable assignment" {
+            validateModule("""
+                var x = 1
+                pure fn a() {
+                    set x = 2
+                }
+            """.trimIndent())
+                .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
+        }
+
+        "by calling a function that takes a mutable parameter" {
+            validateModule("""
+                class H {
+                    var i = 0
+                }
+                var x = H()
+                fn pureMutate(p: mut H) {
+                    set p.i = 1
+                }
+                read fn test() {
+                    pureMutate(x)
+                }
+            """.trimIndent())
+                .shouldReport<MutableUsageOfStateOutsideOfPurityBoundaryReporting>()
+        }
     }
 
     "mutation outside of a read context" {
@@ -96,6 +115,6 @@ class PurityErrors : FreeSpec({
                 set x = 2
             }
         """.trimIndent())
-            .shouldReport<StateModificationOutsideOfPurityBoundaryReporting>()
+            .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
     }
 })

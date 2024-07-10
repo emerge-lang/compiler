@@ -112,7 +112,7 @@ class BoundReturnStatement(
         return this.expression?.findReadsBeyond(boundary) ?: emptySet()
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
         return this.expression?.findWritesBeyond(boundary) ?: emptySet()
     }
 

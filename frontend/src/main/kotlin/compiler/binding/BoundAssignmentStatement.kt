@@ -126,7 +126,7 @@ abstract class BoundAssignmentStatement(
         return toAssignExpression.findReadsBeyond(boundary)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
         return toAssignExpression.findWritesBeyond(boundary)
     }
 

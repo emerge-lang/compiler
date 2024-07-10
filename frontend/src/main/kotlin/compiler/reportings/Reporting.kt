@@ -430,7 +430,7 @@ abstract class Reporting internal constructor(
         fun continueOutsideOfLoop(continueStatement: BoundContinueStatement)
             = ContinueOutsideOfLoopReporting(continueStatement.declaration)
 
-        fun purityViolations(readingViolations: Collection<BoundExpression<*>>, writingViolations: Collection<BoundStatement<*>>, context: BoundFunction): Collection<Reporting> {
+        fun purityViolations(readingViolations: Collection<BoundExpression<*>>, writingViolations: Collection<BoundExecutable<*>>, context: BoundFunction): Collection<Reporting> {
             val boundary = PurityViolationReporting.SideEffectBoundary.Function(context)
             val readingReportings = readingViolations.map { readingPurityViolationToReporting(it, boundary) }
             val writingReportings = writingViolations.asSequence()
@@ -440,7 +440,7 @@ abstract class Reporting internal constructor(
             return readingReportings + writingReportings
         }
 
-        fun purityViolations(readingViolations: Collection<BoundExpression<*>>, writingViolations: Collection<BoundStatement<*>>, context: BoundBaseTypeMemberVariable): Collection<Reporting> {
+        fun purityViolations(readingViolations: Collection<BoundExpression<*>>, writingViolations: Collection<BoundExecutable<*>>, context: BoundBaseTypeMemberVariable): Collection<Reporting> {
             val boundary = PurityViolationReporting.SideEffectBoundary.ClassMemberInitializer(context)
             val readingReportings = readingViolations.map { readingPurityViolationToReporting(it, boundary) }
             val writingReportings = writingViolations.asSequence()
@@ -450,7 +450,7 @@ abstract class Reporting internal constructor(
             return readingReportings + writingReportings
         }
 
-        fun readonlyViolations(writingViolations: Collection<BoundStatement<*>>, readonlyFunction: BoundFunction): Collection<Reporting> {
+        fun readonlyViolations(writingViolations: Collection<BoundExecutable<*>>, readonlyFunction: BoundFunction): Collection<Reporting> {
             return purityViolations(emptySet(), writingViolations, readonlyFunction)
         }
 
@@ -527,9 +527,13 @@ abstract class Reporting internal constructor(
             return ImpureInvocationInPureContextReporting(violation, boundary)
         }
 
-        private fun modifyingPurityViolationToReporting(violation: BoundStatement<*>, boundary: PurityViolationReporting.SideEffectBoundary): Reporting {
+        private fun modifyingPurityViolationToReporting(violation: BoundExecutable<*>, boundary: PurityViolationReporting.SideEffectBoundary): Reporting {
             if (violation is BoundAssignmentStatement) {
-                return StateModificationOutsideOfPurityBoundaryReporting(violation, boundary)
+                return AssignmentOutsideOfPurityBoundaryReporting(violation, boundary)
+            }
+
+            if (violation is BoundIdentifierExpression) {
+                return MutableUsageOfStateOutsideOfPurityBoundaryReporting(violation, boundary)
             }
 
             check(violation is BoundInvocationExpression)

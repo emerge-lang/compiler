@@ -6,7 +6,7 @@ import compiler.ast.expression.ArrayLiteralExpression
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
-import compiler.binding.BoundStatement
+import compiler.binding.BoundExecutable
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.basetype.BoundBaseType
@@ -109,7 +109,7 @@ class BoundArrayLiteralExpression(
         return elements.flatMap { it.findReadsBeyond(boundary) }
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
         return elements.flatMap { it.findWritesBeyond(boundary) }
     }
 

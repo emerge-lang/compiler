@@ -22,7 +22,6 @@ import compiler.ast.VariableOwnership
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.SideEffectPrediction
@@ -116,7 +115,7 @@ class BoundIdentifierExpression(
         return referral?.findReadsBeyond(boundary) ?: emptySet()
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
         // this does not write by itself; writs are done by other statements
         return emptySet()
     }

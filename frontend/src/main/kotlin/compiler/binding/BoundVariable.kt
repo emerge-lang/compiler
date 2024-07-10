@@ -281,7 +281,7 @@ class BoundVariable(
         return initializerExpression?.findReadsBeyond(boundary) ?: emptySet()
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
         return initializerExpression?.findWritesBeyond(boundary) ?: emptySet()
     }
 

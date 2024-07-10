@@ -1,6 +1,7 @@
 package compiler.compiler.negative
 
 import compiler.reportings.AbstractInheritedFunctionNotImplementedReporting
+import compiler.reportings.AssignmentOutsideOfPurityBoundaryReporting
 import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
 import compiler.reportings.ConstructorDeclaredModifyingReporting
 import compiler.reportings.DuplicateBaseTypeMemberReporting
@@ -19,7 +20,6 @@ import compiler.reportings.ObjectNotFullyInitializedReporting
 import compiler.reportings.OverloadSetHasNoDisjointParameterReporting
 import compiler.reportings.OverrideAddsSideEffectsReporting
 import compiler.reportings.ReadInPureContextReporting
-import compiler.reportings.StateModificationOutsideOfPurityBoundaryReporting
 import compiler.reportings.StaticFunctionDeclaredOverrideReporting
 import compiler.reportings.SuperFunctionForOverrideNotFoundReporting
 import compiler.reportings.TypeArgumentOutOfBoundsReporting
@@ -461,7 +461,7 @@ class ClassErrors : FreeSpec({
                             }
                         }
                     """.trimIndent())
-                        .shouldReport<StateModificationOutsideOfPurityBoundaryReporting>()
+                        .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
                 }
             }
 
@@ -489,7 +489,7 @@ class ClassErrors : FreeSpec({
                             }
                         }
                     """.trimIndent())
-                        .shouldReport<StateModificationOutsideOfPurityBoundaryReporting>()
+                        .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
                 }
             }
 

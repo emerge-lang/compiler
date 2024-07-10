@@ -23,6 +23,7 @@ import compiler.binding.BoundFunction
 import compiler.binding.BoundStatement
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
+import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundInvocationExpression
 
@@ -105,16 +106,16 @@ class ModifyingInvocationInReadonlyContextReporting internal constructor(val inv
     }
 }
 
-class StateModificationOutsideOfPurityBoundaryReporting internal constructor(val assignment: BoundAssignmentStatement, val boundary: SideEffectBoundary) : PurityViolationReporting(
+class AssignmentOutsideOfPurityBoundaryReporting internal constructor(val assignment: BoundAssignmentStatement, val boundary: SideEffectBoundary) : PurityViolationReporting(
     assignment,
     run {
         val boundaryType = if (boundary.isPure) "purity" else "readonlyness"
-        "$boundary cannot assign state outside of its $boundaryType boundary"
+        "$boundary cannot change state outside of its $boundaryType boundary"
     }
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is StateModificationOutsideOfPurityBoundaryReporting) return false
+        if (other !is AssignmentOutsideOfPurityBoundaryReporting) return false
 
         if (assignment.declaration.span != other.assignment.declaration.span) return false
 
@@ -123,5 +124,26 @@ class StateModificationOutsideOfPurityBoundaryReporting internal constructor(val
 
     override fun hashCode(): Int {
         return assignment.declaration.span.hashCode()
+    }
+}
+
+class MutableUsageOfStateOutsideOfPurityBoundaryReporting internal constructor(val expression: BoundExpression<*>, val boundary: SideEffectBoundary) : PurityViolationReporting(
+    expression,
+    run {
+        val boundaryType = if (boundary.isPure) "purity" else "readonlyness"
+        "$boundary cannot change state outside of its $boundaryType boundary"
+    }
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is AssignmentOutsideOfPurityBoundaryReporting) return false
+
+        if (expression.declaration.span != other.assignment.declaration.span) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return expression.declaration.span.hashCode()
     }
 }

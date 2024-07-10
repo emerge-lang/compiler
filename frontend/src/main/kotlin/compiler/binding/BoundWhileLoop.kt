@@ -79,7 +79,7 @@ class BoundWhileLoop(
         return condition.findReadsBeyond(boundary) + body.findReadsBeyond(boundary)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
         return condition.findWritesBeyond(boundary) + body.findWritesBeyond(boundary)
     }
 

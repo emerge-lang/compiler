@@ -3,7 +3,7 @@ package compiler.binding.expression
 import compiler.ast.expression.BinaryExpression
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.BoundStatement
+import compiler.binding.BoundExecutable
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.combineBranch
@@ -111,7 +111,7 @@ class BoundNullCoalescingExpression(
         return nullableExpression.findReadsBeyond(boundary) + alternativeExpression.findReadsBeyond(boundary)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
         return nullableExpression.findWritesBeyond(boundary) + alternativeExpression.findWritesBeyond(boundary)
     }
 

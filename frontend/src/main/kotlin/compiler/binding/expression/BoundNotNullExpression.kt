@@ -25,7 +25,6 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
-import compiler.binding.BoundStatement
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -105,7 +104,7 @@ class BoundNotNullExpression(
         return nullableExpression.findReadsBeyond(boundary)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
         return nullableExpression.findWritesBeyond(boundary)
     }
 

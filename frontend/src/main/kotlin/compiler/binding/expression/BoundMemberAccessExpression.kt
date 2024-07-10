@@ -19,7 +19,7 @@
 package compiler.binding.expression
 
 import compiler.ast.expression.MemberAccessExpression
-import compiler.binding.BoundStatement
+import compiler.binding.BoundExecutable
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
@@ -125,7 +125,7 @@ class BoundMemberAccessExpression(
         return valueExpression.findReadsBeyond(boundary)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
         return valueExpression.findWritesBeyond(boundary)
     }
 

@@ -119,7 +119,7 @@ class BoundCodeChunk(
         }
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
         return statements.flatMap {
             handleCyclicInvocation(
                 context = this,

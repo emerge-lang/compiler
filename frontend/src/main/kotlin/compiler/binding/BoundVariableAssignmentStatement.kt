@@ -93,7 +93,7 @@ class BoundVariableAssignmentStatement(
         return reportings
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
         if (targetVariable == null || context.containsWithinBoundary(targetVariable!!, boundary)) {
             return super.findWritesBeyond(boundary)
         }

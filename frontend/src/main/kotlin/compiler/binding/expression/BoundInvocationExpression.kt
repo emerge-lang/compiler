@@ -26,7 +26,6 @@ import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
-import compiler.binding.BoundStatement
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
@@ -399,7 +398,7 @@ class BoundInvocationExpression(
         seanHelper.requirePhase2Done()
 
         val byReceiver = receiverExpression?.findReadsBeyond(boundary) ?: emptySet()
-        val byParameters = valueArguments.flatMap { it.findReadsBeyond(boundary) }
+        val byArguments = valueArguments.flatMap { it.findReadsBeyond(boundary) }
 
         val invokedFunctionIsPure = functionToInvoke?.let {
             it.semanticAnalysisPhase3()
@@ -408,22 +407,28 @@ class BoundInvocationExpression(
 
         val bySelf = if (invokedFunctionIsPure) emptySet() else setOf(this)
 
-        return byReceiver + byParameters + bySelf
+        return byReceiver + byArguments + bySelf
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> {
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
         seanHelper.requirePhase2Done()
 
         val byReceiver = receiverExpression?.findWritesBeyond(boundary) ?: emptySet()
-        val byParameters = valueArguments.flatMap { it.findWritesBeyond(boundary) }
+        val byArguments = valueArguments.flatMap { it.findWritesBeyond(boundary) }
+        val byParameters = valueArguments.zip(functionToInvoke!!.parameters.parameters)
+            // does the function potentially modify the parameter?
+            .filter { (_, parameter) -> parameter.typeAtDeclarationTime?.mutability?.isMutable ?: false }
+            // is the argument itself a read beyond the boundary
+            .filter { (argument, _) -> argument in argument.findReadsBeyond(boundary) }
+            .map { (argument, _) -> argument }
 
         val invokedFunctionIsReadonly = functionToInvoke?.let {
             it.semanticAnalysisPhase3()
             BoundFunction.Purity.READONLY.contains(it.purity)
         } ?: true
-        val bySelf: Collection<BoundStatement<*>> = if (invokedFunctionIsReadonly) emptySet() else setOf(this)
+        val bySelf: Collection<BoundExecutable<*>> = if (invokedFunctionIsReadonly) emptySet() else setOf(this)
 
-        return byReceiver + byParameters + bySelf
+        return byReceiver + byArguments + byParameters + bySelf
     }
 
     private var expectedEvaluationResultType: BoundTypeReference? = null

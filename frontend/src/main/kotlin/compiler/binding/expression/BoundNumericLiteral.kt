@@ -20,7 +20,6 @@ package compiler.binding.expression
 
 import compiler.InternalCompilerError
 import compiler.ast.expression.NumericLiteralExpression
-import compiler.binding.BoundStatement
 import compiler.binding.SideEffectPrediction
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
@@ -59,7 +58,7 @@ open class BoundNumericLiteral(
     override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
     override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> = emptySet()
+    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
     override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {}
 
     protected var expectedNumericType: BoundBaseType? = null

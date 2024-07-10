@@ -95,7 +95,7 @@ interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
      * @return All the nested [BoundExecutable]s (or `this` if there are no nested ones) that write state that belongs
      *         to context outside the given boundary.
      */
-    fun findWritesBeyond(boundary: CTContext): Collection<BoundStatement<*>> = emptySet() // TODO remove default impl
+    fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> = emptySet() // TODO remove default impl
 
     fun toBackendIrStatement(): IrExecutable
 }
