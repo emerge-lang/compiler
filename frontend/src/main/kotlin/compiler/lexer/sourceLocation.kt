@@ -118,7 +118,7 @@ class DiskSourceFile(
         override val path = sourceFilePath
     }
 
-    override fun toString(): String = "${sourceSet.moduleName} $ ${pathRelativeToSourceSet}"
+    override fun toString(): String = sourceFilePath.toString()
 }
 
 /**
