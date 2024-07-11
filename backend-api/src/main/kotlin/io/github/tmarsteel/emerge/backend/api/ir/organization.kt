@@ -20,6 +20,7 @@ interface IrSoftwareContext {
 }
 
 interface IrGlobalVariable {
+    val name: CanonicalElementName.Global
     val declaration: IrVariableDeclaration
     val initializer: IrExpression
     val declaredAt: IrSourceLocation

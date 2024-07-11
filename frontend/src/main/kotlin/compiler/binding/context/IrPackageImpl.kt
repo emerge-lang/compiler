@@ -40,6 +40,7 @@ internal class IrPackageImpl(
                 ?: throw CodeGenerationException("Missing initializer for global variable ${this.name.plus(it.name)}")
 
             IrGlobalVariableImpl(
+                CanonicalElementName.Global(packageContext.packageName, it.name),
                 it.backendIrDeclaration,
                 initializer,
             )
@@ -63,6 +64,7 @@ internal class IrPackageImpl(
 }
 
 internal class IrGlobalVariableImpl(
+    override val name: CanonicalElementName.Global,
     override val declaration: IrVariableDeclaration,
     private val boundInitialValue: BoundExpression<*>,
 ) : IrGlobalVariable {

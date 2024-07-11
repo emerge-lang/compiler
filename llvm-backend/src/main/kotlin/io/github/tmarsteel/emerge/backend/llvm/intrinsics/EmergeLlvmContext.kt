@@ -229,7 +229,7 @@ class EmergeLlvmContext(
             "emerge.core.ArrayIndexOutOfBoundsError" -> arrayIndexOutOfBoundsErrorType = emergeClassType
             "emerge.core.Unit" -> {
                 unitType = emergeClassType
-                pointerToPointerToUnitInstance = addGlobal(undefValue(pointerTo(emergeClassType)), LlvmThreadLocalMode.NOT_THREAD_LOCAL)
+                pointerToPointerToUnitInstance = addGlobal(undefValue(pointerTo(emergeClassType)), LlvmThreadLocalMode.NOT_THREAD_LOCAL, "unit_instance")
             }
         }
 
@@ -354,6 +354,7 @@ class EmergeLlvmContext(
                 globalType,
             ),
             LlvmThreadLocalMode.LOCAL_DYNAMIC,
+            global.name.toString(),
         )
         global.declaration.emitRead = {
             allocation.dereference()

@@ -299,8 +299,8 @@ internal class StaticAndDynamicTypeInfo private constructor(
             val vtableConstant = buildVTable(context, virtualFunctions(context), context.registerIntrinsic(missingVirtualFunctionHandler).address)
             val typeinfoType = TypeinfoType(vtableConstant.type.nEntries)
 
-            val dynamicGlobal = context.addGlobal(context.undefValue(typeinfoType), LlvmThreadLocalMode.NOT_THREAD_LOCAL)
-            val staticGlobal = context.addGlobal(context.undefValue(typeinfoType), LlvmThreadLocalMode.NOT_THREAD_LOCAL)
+            val dynamicGlobal = context.addGlobal(context.undefValue(typeinfoType), LlvmThreadLocalMode.NOT_THREAD_LOCAL, "typeinfo_${typeName}_dynamic")
+            val staticGlobal = context.addGlobal(context.undefValue(typeinfoType), LlvmThreadLocalMode.NOT_THREAD_LOCAL, "typeinfo_${typeName}_static")
             val bundle = StaticAndDynamicTypeInfo(context, dynamicGlobal, staticGlobal)
             // register now to break loops
             byContext[context] = bundle

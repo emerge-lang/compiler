@@ -110,4 +110,27 @@ sealed interface CanonicalElementName {
             return result
         }
     }
+
+    class Global(
+        val parent: Package,
+        val simpleName: String
+    ) : CanonicalElementName {
+        override fun toString() = "$parent.$simpleName"
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Global) return false
+
+            if (parent != other.parent) return false
+            if (simpleName != other.simpleName) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = parent.hashCode()
+            result = 31 * result + simpleName.hashCode()
+            return result
+        }
+    }
 }
