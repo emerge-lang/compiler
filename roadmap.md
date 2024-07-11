@@ -139,7 +139,23 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * implement generic supertypes - yey, another logic monstrosity
     * Like Java Iterable<T>, D ranges, ... ?
     * for each over iterable
-34. for each loops over arrays
+34. arrays slices; goal/target situation
+    * there are array-base-objects, identical to what an Array<T> is before
+    * emerge source can never reference these base objects directly, only ever slices of that
+    * when emerge source says "Array<T>", this is actually a fat pointer consisting of
+      * a pointer to the base array object that holds reference count, vtable, the length of the memory chunk
+        and the actual array data
+      * a pointer to the first element in the slice
+      * the length of the slice
+    * so when you have a variable/parameter of type `Array<T>`, it can be a full array, but could also just be
+      a sub-slice of one
+    * `Array.new<T>(UWord, T)` creates a base array object and then returns a slice covering the entire array
+    * slicing functions, e.g. `someArray[1..5]`
+    * how to deal with `exclusive` mutability? idea: Array.new is the only way to get hold of an `exclusive`
+      slice. Slicing operations always capture the old slice, stopping the exclusive lifetime and settling the
+      sub-slice to either `mut` or `const`
+    * apply to standard library, especially IO functions
+35. for each loops over arrays
     ```
     for each item in iterable { /* ... */ }
     // is actually
@@ -153,12 +169,12 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     // gets rewritten to
     for i in 0.rangeTo(10) { /* ... */ }
     ```
-35. Stdlib basics
+36. Stdlib basics
     * some good standard collections
     * ArrayList, LinkedList, (De)Queue, Stack, ...
       * hashCodes: Java-style is overkill, have an explicit Hashable interface
     * Map
-36. Function types
+37. Function types
     1. `operator fun invoke`: `obj(param)` to `obj.invoke(param)`
     2. Regular functions: `(T1, T2) -> R`
     3. do we need functions with receiver? Or is receiver/self VS regular parameter just a syntax
@@ -166,36 +182,36 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     4. deal with the higher-order function purity problem: do functions need to be generic on purity?
     5. extend InvocationExpression
     6. implement `objectRef.foo()` where `foo` is a property of a function type
-37. functional-style collection operations (possible because the higher-order function purity problem is solved)
+38. functional-style collection operations (possible because the higher-order function purity problem is solved)
     1. start simple with forEach
     2. go on with filter, map, fold, ...
     3. more tricky: make sure the code emitted by LLVM doesn't actually do all the allocation. A chain of maps and filters
        should be compiled down to a single loop.
-38. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
-39. optimize reference counting; see [](refcounting optimizations.md)
+39. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
+40. optimize reference counting; see [](refcounting optimizations.md)
     * for this, the logic to determine where reference counts are needed must move from the LLVM backend to
       the frontend; the frontend has the tools to deal with the complexity, the backend doesn't. Especially
       temporary values are BAD offenders
-40. some stdlib primitives for filesystem IO
-41. typealiases
-42. smart casts
-43. fix loophole in the typesystem: the `exclusive` modifier becomes incorrect in this code:
+41. some stdlib primitives for filesystem IO
+42. typealiases
+43. smart casts
+44. fix loophole in the typesystem: the `exclusive` modifier becomes incorrect in this code:
     ```
     class Foo {}
     arr = Array.new::<exclusive Foo>(20, Foo()) // compiler doesn't complain, but should
     v: exclusive Foo = arr[0] // compiler doesn't complain here, either
     ```
-43. optional parameters
+45. optional parameters
     * parameter with default value is optional
     * affects overload validation and resolution
     * default value should be evaluated on the caller side because it allows to keep the
       ABI calling conventions
       * as a consequence, only the initial declaration of a function can declare default values,
         overrides cannot
-44. named arguments
+46. named arguments
     * allow to change the order of arguments? Its important to keep the evaluation order on the
       calling side to match the order of the arguments as passed, not as declared
-45. threading
+47. threading
     The whole shtick of the explicit-mutability types is to simplify multithreading. Avoiding the
     complexity of having a `shared` mutability like D allows to infer some properties necessary for
     multithreading:
