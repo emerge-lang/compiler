@@ -4,6 +4,7 @@ import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseTypeFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
+import io.github.tmarsteel.emerge.backend.api.ir.IrFullyInheritedMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrGlobalVariable
@@ -259,6 +260,18 @@ class EmergeLlvmContext(
     ): LlvmFunction<*>? {
         fn.llvmRef?.let { return it }
 
+        if (fn is IrFullyInheritedMemberFunction) {
+            check(returnTypeOverride == null) {
+                "cannot override return type on fully inherited function ${fn.canonicalName}"
+            }
+            check(symbolNameOverride == null) {
+                "cannot override symbol name on fully inherited function ${fn.canonicalName}"
+            }
+            val llvmFn = registerFunction(fn.superFunction, null, null)
+            llvmFn?.let { fn.llvmRef = it }
+            return llvmFn
+        }
+
         val llvmParameterTypes = fn.parameters.map { getReferenceSiteType(it.type) }
         val coreReturnValueLlvmType = returnTypeOverride ?: when {
             fn.returnType.isUnit -> LlvmVoidType
@@ -354,6 +367,10 @@ class EmergeLlvmContext(
     private var structConstructorsRegistered: Boolean = false
     fun defineFunctionBody(fn: IrFunction) {
         if (getInstrinsic(fn) != null) {
+            return
+        }
+        if (fn is IrFullyInheritedMemberFunction) {
+            // re-uses code of super fn
             return
         }
 

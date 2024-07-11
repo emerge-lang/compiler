@@ -1,6 +1,5 @@
 package compiler.binding
 
-import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.binding.misc_ir.IrOverloadGroupImpl
 import compiler.binding.type.nonDisjointPairs
 import compiler.reportings.InconsistentReceiverPresenceInOverloadSetReporting
@@ -68,8 +67,6 @@ class BoundOverloadSet<out Fn : BoundFunction>(
 
     fun toBackendIr(): IrOverloadGroup<IrFunction> {
         overloads
-            .asSequence()
-            .filter { it !is InheritedBoundMemberFunction }
             .firstOrNull { it.canonicalName != canonicalName }
             ?.let { sameCanonicalNameViolator ->
                 error("""

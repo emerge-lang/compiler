@@ -139,6 +139,13 @@ class Linux_x68_64_Backend : EmergeBackend {
                 .filter { it.body != null }
                 .forEach(llvmContext::defineFunctionBody)
 
+            softwareContext.packagesSeq
+                .flatMap { it.interfaces }
+                .flatMap { it.memberFunctions }
+                .flatMap { it.overloads }
+                .filter { it.body != null }
+                .forEach(llvmContext::defineFunctionBody)
+
             softwareContext.modules
                 .flatMap { it.packages }
                 .flatMap { it.classes }

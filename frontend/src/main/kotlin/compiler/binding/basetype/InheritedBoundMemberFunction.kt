@@ -11,6 +11,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.reportings.Reporting
 import compiler.util.checkNoDiagnostics
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrFullyInheritedMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 
@@ -36,6 +37,11 @@ class InheritedBoundMemberFunction(
             return rawSuperFnContext.resolveType(ref, fromOwnFileOnly)
         }
     }
+
+    override val canonicalName = CanonicalElementName.Function(
+        subtype.canonicalName,
+        supertypeMemberFn.name,
+    )
 
     // this is intentional - as long as not overridden, this info is truthful & accurate
     override val declaredOnType get()= supertypeMemberFn.declaredOnType
@@ -89,7 +95,7 @@ class InheritedBoundMemberFunction(
     }
 
     private val backendIr by lazy {
-        IrFullyInheritedMemberFunctionImpl(supertypeMemberFn.toBackendIr())
+        IrFullyInheritedMemberFunctionImpl(supertypeMemberFn.toBackendIr(), canonicalName)
     }
     override fun toBackendIr(): IrMemberFunction = backendIr
 
@@ -99,5 +105,6 @@ class InheritedBoundMemberFunction(
 }
 
 private class IrFullyInheritedMemberFunctionImpl(
-    override val superFunction: IrMemberFunction
+    override val superFunction: IrMemberFunction,
+    override val canonicalName: CanonicalElementName.Function,
 ) : IrFullyInheritedMemberFunction, IrMemberFunction by superFunction
