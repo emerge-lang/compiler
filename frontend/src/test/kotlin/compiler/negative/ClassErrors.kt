@@ -31,6 +31,7 @@ import compiler.reportings.ValueNotAssignableReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forAll
 import io.kotest.matchers.collections.haveSize
+import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 
@@ -263,10 +264,25 @@ class ClassErrors : FreeSpec({
                     fn doSomething(p: Foo) {}
                 """.trimIndent())
                     .shouldReport<ObjectNotFullyInitializedReporting> {
-                        it.uninitializedMembers should haveSize(1)
-                        it.uninitializedMembers.single().name.value shouldBe "x"
+                        it.uninitializedMembers.shouldBeSingleton().single().name.value shouldBe "x"
                     }
             }
+        }
+
+        "constructor must initialize all member variables" {
+            validateModule("""
+                class Foo {
+                    x: S32
+                    y: S32
+                    
+                    constructor {
+                        set self.x = 1
+                    }
+                }
+            """.trimIndent())
+                .shouldReport<ClassMemberVariableNotInitializedDuringObjectConstructionReporting> {
+                    it.memberDeclaration.name.value shouldBe "y"
+                }
         }
 
         "member variable has maybe been initialized" - {
