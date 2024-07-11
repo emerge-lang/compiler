@@ -19,6 +19,7 @@ import compiler.reportings.MultipleClassDestructorsReporting
 import compiler.reportings.ObjectNotFullyInitializedReporting
 import compiler.reportings.OverloadSetHasNoDisjointParameterReporting
 import compiler.reportings.OverrideAddsSideEffectsReporting
+import compiler.reportings.OverrideDropsNothrowReporting
 import compiler.reportings.ReadInPureContextReporting
 import compiler.reportings.StaticFunctionDeclaredOverrideReporting
 import compiler.reportings.SuperFunctionForOverrideNotFoundReporting
@@ -209,6 +210,20 @@ class ClassErrors : FreeSpec({
                     class Dog : QuadraPede {}
                 """.trimIndent())
                     .shouldHaveNoDiagnostics()
+            }
+        }
+
+        "overriding X nothrow" - {
+            "if super fn is nothrow, override must be nothrow, too" {
+                validateModule("""
+                    interface I {
+                        nothrow fn foo(self) {}
+                    }
+                    class Test : I {
+                        override fn foo(self) {}
+                    }
+                """.trimIndent())
+                    .shouldReport<OverrideDropsNothrowReporting>()
             }
         }
     }

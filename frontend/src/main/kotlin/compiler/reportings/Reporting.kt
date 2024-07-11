@@ -389,6 +389,9 @@ abstract class Reporting internal constructor(
         fun overrideAddsSideEffects(override: BoundMemberFunction, superFunction: BoundMemberFunction)
             = OverrideAddsSideEffectsReporting(override, superFunction)
 
+        fun overrideDropsNothrow(override: BoundMemberFunction, superFunction: BoundMemberFunction)
+            = OverrideDropsNothrowReporting(override, superFunction)
+
         fun overrideRestrictsVisibility(override: BoundMemberFunction, superFunction: BoundMemberFunction)
             = OverrideRestrictsVisibilityReporting(override, superFunction)
 

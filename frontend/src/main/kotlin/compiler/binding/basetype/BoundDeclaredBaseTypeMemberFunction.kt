@@ -153,6 +153,9 @@ class BoundDeclaredBaseTypeMemberFunction(
                 if (!superFn.purity.contains(this.purity)) {
                     reportings.add(Reporting.overrideAddsSideEffects(this, superFn))
                 }
+                if (superFn.attributes.isDeclaredNothrow && !this.attributes.isDeclaredNothrow) {
+                    reportings.add(Reporting.overrideDropsNothrow(this, superFn))
+                }
                 if (superFn.visibility.isPossiblyBroaderThan(visibility) && declaredOnType.visibility.isPossiblyBroaderThan(visibility)) {
                     reportings.add(Reporting.overrideRestrictsVisibility(this, superFn))
                 }
