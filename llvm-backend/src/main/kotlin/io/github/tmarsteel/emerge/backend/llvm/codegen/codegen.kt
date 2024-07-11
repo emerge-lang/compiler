@@ -36,6 +36,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStringLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrThrowStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatement
@@ -79,6 +80,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleFailure
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeI16ArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeI32ArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeI64ArrayCopyFn
@@ -247,6 +249,17 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             }
 
             return ExpressionResult.Terminated(ret(llvmValueToReturn))
+        }
+        is IrThrowStatement -> {
+            if (functionHasNothrowAbi) {
+                // TODO: could just jump to a catch inside the function
+                throw CodeGenerationException("${IrThrowStatement::class.simpleName} in a nothrow context!")
+            }
+
+            this as BasicBlockBuilder<EmergeLlvmContext, out EmergeFallibleCallResult<*>>
+            return ExpressionResult.Terminated(
+                fallibleFailure(code.throwable.declaration.llvmValue.reinterpretAs(PointerToAnyEmergeValue))
+            )
         }
         is IrConditionalBranch -> {
             val conditionValue = code.condition.declaration.llvmValue

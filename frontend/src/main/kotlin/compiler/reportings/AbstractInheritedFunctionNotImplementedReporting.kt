@@ -2,6 +2,7 @@ package compiler.reportings
 
 import compiler.binding.BoundMemberFunction
 import compiler.binding.basetype.BoundBaseType
+import compiler.lexer.Keyword
 
 class AbstractInheritedFunctionNotImplementedReporting(
     val implementingType: BoundBaseType,
@@ -32,7 +33,7 @@ class AbstractInheritedFunctionNotImplementedReporting(
 
         """
             Class ${implementingType.simpleName} must implement abstract function ${functionToImplement.name} inherited from ${functionToImplement.declaredOnType.canonicalName}. Implement this member function:
-            fun ${functionToImplement.name}$signature
+            ${Keyword.FUNCTION.text} ${functionToImplement.name}$signature
         """.trimIndent()
     },
     implementingType.declaration.declaredAt,

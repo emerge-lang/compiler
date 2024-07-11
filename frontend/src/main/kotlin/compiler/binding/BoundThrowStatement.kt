@@ -4,10 +4,14 @@ import compiler.ast.AstThrowStatement
 import compiler.ast.type.TypeMutability
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
+import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
+import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrThrowStatement
 
 class BoundThrowStatement(
     override val context: ExecutionScopedCTContext,
@@ -56,6 +60,14 @@ class BoundThrowStatement(
     }
 
     override fun toBackendIrStatement(): IrExecutable {
-        TODO("Not yet implemented")
+        val throwableInstance = IrCreateTemporaryValueImpl(throwableExpression.toBackendIrExpression())
+        return IrCodeChunkImpl(listOf(
+            throwableInstance,
+            IrThrowStatementImpl(IrTemporaryValueReferenceImpl(throwableInstance))
+        ))
     }
 }
+
+private class IrThrowStatementImpl(
+    override val throwable: IrTemporaryValueReference
+) : IrThrowStatement

@@ -116,6 +116,16 @@ interface IrContinueStatement : IrExecutable {
 }
 
 /**
+ * Throw the given temporary.
+ */
+interface IrThrowStatement : IrExecutable {
+    /**
+     * the object to throw; must reference a non-null object of type `emerge.core.Throwable`
+     */
+    val throwable: IrTemporaryValueReference
+}
+
+/**
  * The counterpart to [IrDeallocateObjectStatement]. It makes the memory occupied by the given reference.
  *
  * The frontend must emit code prior to this statement that ensures that
