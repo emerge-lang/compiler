@@ -23,7 +23,7 @@ open class LlvmValue<out Type : LlvmType>(
     }
 }
 
-class LlvmConstant<out Type : LlvmType>(
+open class LlvmConstant<out Type : LlvmType>(
     raw: LlvmValueRef,
     type: Type,
 ) : LlvmValue<Type>(raw, type) {
@@ -37,7 +37,7 @@ class LlvmConstant<out Type : LlvmType>(
 class LlvmGlobal<Type : LlvmType>(
     raw: LlvmValueRef,
     type: Type,
-) : LlvmValue<LlvmPointerType<Type>>(raw, pointerTo(type)) {
+) : LlvmConstant<LlvmPointerType<Type>>(raw, pointerTo(type)) {
     init {
         check(Llvm.LLVMGetValueKind(raw) == LlvmValueKind.GLOBAL_VARIABLE)
     }

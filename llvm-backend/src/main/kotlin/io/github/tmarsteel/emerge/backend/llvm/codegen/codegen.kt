@@ -51,13 +51,10 @@ import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.requireNotAut
 import io.github.tmarsteel.emerge.backend.llvm.StateTackDelegate
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
-import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction.Companion.callIntrinsic
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmI8Type
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
@@ -376,22 +373,18 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
 ): ExpressionResult {
     when (expression) {
         is IrStringLiteralExpression -> {
-            val llvmStructWrapper = context.getAllocationSiteType(expression.evaluatesTo) as EmergeClassType
-            val byteArrayPtr = expression.assureByteArrayConstantIn(context)
-            val stringTemporary = call(llvmStructWrapper.constructor, listOf(byteArrayPtr)).abortOnException { exceptionPtr ->
-                propagateOrPanic(exceptionPtr, "allocating a string literal in nothrow context failed (most likely OOM)")
-            }
-
-            // super dirty hack: the frontend assumes string literals are constants/statics, but they aren't
-            // the frontend also assumes it has to do refcounting here, because it's not aware we're invoking
-            // a constructor here. So, to workaround for now .... until string literals can become actual constants
-            val stringRefcountPtr = stringTemporary.anyValueBase().member { strongReferenceCount }.get()
-            store(
-                sub(stringRefcountPtr.dereference(), context.word(1)),
-                stringRefcountPtr,
+            val byteArrayConstant = EmergeS8ArrayType.buildConstantIn(
+                context,
+                expression.utf8Bytes.asList(),
+                { context.i8(it) }
             )
+            val byteArrayGlobal = context.addGlobal(byteArrayConstant, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
+            val stringLiteralConstant = context.stringType.buildStaticConstant(mapOf(
+                context.stringType.irClass.memberVariables.single() to byteArrayGlobal
+            ))
+            val stringLiteralGlobal = context.addGlobal(stringLiteralConstant, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
 
-            return ExpressionResult.Value(stringTemporary)
+            return ExpressionResult.Value(stringLiteralGlobal)
         }
         is IrClassMemberVariableAccessExpression -> {
             if (expression.base.type.findSimpleTypeBound().baseType.canonicalName.toString() == "emerge.core.Array") {
@@ -823,20 +816,6 @@ internal var IrVariableDeclaration.emitRead: (BasicBlockBuilder<EmergeLlvmContex
 internal var IrVariableDeclaration.emitWrite: (BasicBlockBuilder<EmergeLlvmContext, *>.(v: LlvmValue<LlvmType>) -> Unit)? by tackState { null }
 
 internal var IrCreateTemporaryValue.llvmValue: LlvmValue<LlvmType> by tackLateInitState()
-
-internal var IrStringLiteralExpression.byteArrayGlobal: LlvmGlobal<EmergeArrayType<LlvmI8Type>>? by tackState { null }
-internal fun IrStringLiteralExpression.assureByteArrayConstantIn(context: EmergeLlvmContext): LlvmGlobal<EmergeArrayType<LlvmI8Type>> {
-    byteArrayGlobal?.let { return it }
-    val constant = EmergeS8ArrayType.buildConstantIn(
-        context,
-        utf8Bytes.asList(),
-        { context.i8(it) }
-    )
-    val untypedGlobal = context.addGlobal(constant, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
-    val global = LlvmGlobal(untypedGlobal.raw, EmergeS8ArrayType)
-    byteArrayGlobal = global
-    return global
-}
 
 private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.getPointerToStructMember(
     structPointer: LlvmValue<*>,

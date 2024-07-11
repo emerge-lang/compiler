@@ -1,16 +1,19 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
+import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
+import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.indexInLlvmStruct
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
@@ -58,16 +61,20 @@ internal class EmergeClassType private constructor(
         )
     }
 
+    private fun getTypeinfoInContext(context: EmergeLlvmContext): StaticAndDynamicTypeInfo {
+        try {
+            return typeinfoProvider.provide(context)
+        } catch (ex: VirtualFunctionHashCollisionException) {
+            throw VirtualFunctionHashCollisionException("Type ${irClass.canonicalName}: ${ex.message}", ex)
+        }
+    }
+
     /**
      * The implementation of [IrAllocateObjectExpression], for objects that are supposed to be de-allocate-able (not static)
      */
     fun allocateUninitializedDynamicObject(builder: BasicBlockBuilder<EmergeLlvmContext, *>): LlvmValue<LlvmPointerType<EmergeClassType>> {
-        val typeinfo = try {
-            typeinfoProvider.provide(context)
-        } catch (ex: VirtualFunctionHashCollisionException) {
-            throw VirtualFunctionHashCollisionException("Type ${irClass.canonicalName}: ${ex.message}", ex)
-        }
-
+        check(builder.context === this.context)
+        val typeinfo = getTypeinfoInContext(builder.context)
         val heapAllocation: LlvmValue<LlvmPointerType<EmergeClassType>>
         with(builder) {
             heapAllocation = heapAllocate(this@EmergeClassType)
@@ -93,6 +100,45 @@ internal class EmergeClassType private constructor(
         }
 
         return heapAllocation
+    }
+
+    /**
+     * Builds an LLVM constant of the same shape as [allocateUninitializedDynamicObject] would build at runtime.
+     * Initializes all fields as per [fieldValues], **entirely ignoring any initializer expressions or constructors
+     * defined in the emerge source**.
+     */
+    fun buildStaticConstant(fieldValues: Map<IrClass.MemberVariable, LlvmConstant<*>>): LlvmConstant<EmergeClassType> {
+        fieldValues.keys.firstOrNull { it !in irClass.memberVariables }?.also {
+            throw CodeGenerationException("${it.name} is not a member variable of ${irClass.canonicalName}")
+        }
+
+        assureLlvmStructMembersDefined()
+
+        val typeinfo = getTypeinfoInContext(context)
+        val baseValue = EmergeHeapAllocatedValueBaseType.buildConstantIn(context) {
+            setValue(EmergeHeapAllocatedValueBaseType.strongReferenceCount, context.word(1))
+            setValue(EmergeHeapAllocatedValueBaseType.typeinfo, typeinfo.static)
+            setNull(EmergeHeapAllocatedValueBaseType.weakReferenceCollection)
+        }
+        val fieldValueConstants = irClass.memberVariables
+            .sortedBy { it.indexInLlvmStruct }
+            .map { irMember ->
+                val fieldValue = fieldValues[irMember] ?: throw CodeGenerationException("Missing a value for field ${irMember.name}")
+                val fieldType = context.getReferenceSiteType(irMember.type)
+                check(fieldValue.type.isAssignableTo(fieldType)) {
+                    "Value for field ${irMember.name} is of type ${fieldValue.type}, which is not assignable to the type of the field $fieldType"
+                }
+                fieldValue
+            }
+            .map { it.raw }
+
+        val structValues = listOf(baseValue.raw) + fieldValueConstants
+
+        val rawConstant = NativePointerArray.fromJavaPointers(structValues).use { rawFieldLlvmValues ->
+            Llvm.LLVMConstNamedStruct(structRef, rawFieldLlvmValues, rawFieldLlvmValues.length)
+        }
+
+        return LlvmConstant(rawConstant, this)
     }
 
     private var llvmStructMembersDefined = false

@@ -74,6 +74,9 @@ public class Llvm {
     public static native @Unsigned int LLVMCountStructElementTypes(@NotNull LlvmTypeRef structTy);
 
     /** see Core.h */
+    public static native @LlvmBool int LLVMIsPackedStruct(@NotNull LlvmTypeRef StructTy);
+
+    /** see Core.h */
     public static native @NotNull LlvmTypeRef LLVMArrayType2(@NotNull LlvmTypeRef elementType, @Unsigned long elementCount);
 
     /** see Core.h */

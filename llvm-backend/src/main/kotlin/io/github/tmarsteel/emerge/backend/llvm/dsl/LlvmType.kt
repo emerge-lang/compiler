@@ -146,6 +146,20 @@ abstract class LlvmStructType(
         init {
             check(indexInStruct >= 0)
         }
+
+        override fun toString() = type.toString()
+    }
+
+    override fun isAssignableTo(other: LlvmType): Boolean {
+        if (other === this) {
+            return true
+        }
+        if (other !is LlvmStructType) return false
+        if (other.packed != this.packed) return false
+        if (other.nMembers != this.nMembers) return false
+        return this.membersInOrder.zip(other.membersInOrder).all { (selfMember, otherMember) ->
+            selfMember.type.isAssignableTo(otherMember.type)
+        }
     }
 
     val nMembers: Int
@@ -259,6 +273,22 @@ class LlvmArrayType<Element : LlvmType>(
 
     override fun getRawInContext(context: LlvmContext): LlvmTypeRef {
         return Llvm.LLVMArrayType2(elementType.getRawInContext(context), elementCount)
+    }
+
+    override fun isAssignableTo(other: LlvmType): Boolean {
+        return isLlvmAssignableTo(other)
+    }
+
+    override fun isLlvmAssignableTo(target: LlvmType): Boolean {
+        if (target !is LlvmArrayType<*>) {
+            return false
+        }
+
+        if (!this.elementType.isAssignableTo(target.elementType)) {
+            return false
+        }
+
+        return this.elementCount >= target.elementCount
     }
 
     override fun toString() = "[$elementCount x $elementType]"
