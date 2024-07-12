@@ -32,7 +32,7 @@ class DiBuilder(
             dirBytes,
             NativeLong(dirBytes.size.toLong()),
         )
-        file = DebugInfoScope.File(fileRef)
+        file = DebugInfoScope.File(fileRef, filePath)
 
         val compileUnitRef = Llvm.LLVMDIBuilderCreateCompileUnit(
             ref,
@@ -50,7 +50,7 @@ class DiBuilder(
             null, ZERO_WORD,
             null, ZERO_WORD,
         )
-        compileUnit = DebugInfoScope.CompileUnit(compileUnitRef)
+        compileUnit = DebugInfoScope.CompileUnit(compileUnitRef, filePath.toString())
     }
 
     fun createFunction(
@@ -86,7 +86,7 @@ class DiBuilder(
             0,
         )
 
-        return DebugInfoScope.Function(ref)
+        return DebugInfoScope.Function(ref, name.toString())
     }
 
     fun createDebugLocation(

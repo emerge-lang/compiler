@@ -62,6 +62,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun enterDebugScope(scope: DebugInfoScope)
     fun leaveDebugScope()
     fun markSourceLocation(line: UInt, column: UInt)
+    fun currentDebugLocation(): String
 
     /**
      * @param code will be executed when this scope is closed, either on a function-terminating instruction
@@ -452,6 +453,16 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
             column,
         )
         Llvm.LLVMSetCurrentDebugLocation2(builder, location)
+    }
+
+    override fun currentDebugLocation(): String {
+        val scope = try {
+            scopeTracker.currentDebugScope
+        } catch (ex: NoSuchElementException) {
+            return "unknown"
+        }
+
+        return "$scope, line $lastKnownLine"
     }
 
     override fun defer(code: NonTerminalCodeGenerator<C>) {
