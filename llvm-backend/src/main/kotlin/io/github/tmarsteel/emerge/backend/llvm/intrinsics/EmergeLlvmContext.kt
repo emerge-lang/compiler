@@ -620,7 +620,7 @@ class EmergeLlvmContext(
         }
 
         if (intrinsic == null) {
-            intrinsic = intrinsicFunctions[fn.canonicalName.toString()]
+            intrinsic = intrinsicFunctions[fn.llvmName]
                 ?.let {
                     this.registerIntrinsic(it as KotlinLlvmFunction<in EmergeLlvmContext, *>)
                 }

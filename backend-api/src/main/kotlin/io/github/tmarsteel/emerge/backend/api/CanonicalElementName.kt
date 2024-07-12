@@ -30,6 +30,10 @@ sealed interface CanonicalElementName {
 
         val last: String get() = components.last()
 
+        /**
+         * Whether `this` is the same package as [other], or, is a in the same hierarchy, and higher up.
+         * E.g. `emerge.core` containsOrEquals `emerge.core.reflect`.
+         */
         fun containsOrEquals(other: Package): Boolean {
             return containsOrEquals(other.components)
         }

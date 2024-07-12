@@ -9,3 +9,4 @@ export class ReflectionBaseType {
 }
 
 export nothrow intrinsic fn reflect(self: Any) -> ReflectionBaseType
+export nothrow intrinsic fn reflect<T>() -> ReflectionBaseType
