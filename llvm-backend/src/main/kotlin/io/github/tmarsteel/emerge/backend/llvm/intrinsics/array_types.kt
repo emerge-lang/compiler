@@ -1,5 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
+import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
 import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
@@ -67,13 +68,13 @@ internal class EmergeArrayType<Element : LlvmType>(
      * A function of the signature (self: Array<Element>, index: UWord) -> Any, to be placed in the vtable.
      * This is important for arrays of primitives, as this function will do the automatic boxing (e.g. S8 -> S8Box)
      */
-    private val virtualGetterWithFallibleBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<LlvmPointerType<EmergeHeapAllocatedValueBaseType>>>,
+    private val virtualGetterWithFallibleBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<LlvmPointerType<out EmergeHeapAllocated>>>,
 
     /**
      * A function of the signature (self: Array<Element>, index: UWord) -> Any, to be placed in the vtable.
      * This is important for arrays of primitives, as this function will do the automatic boxing (e.g. S8 -> S8Box)
      */
-    private val virtualGetterWithPanicBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>>,
+    private val virtualGetterWithPanicBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<out EmergeHeapAllocated>>,
 
     /**
      * A function of the signature (self: Array<Element>, index: UWord, value: Any) -> Unit, to be placed in the vtable.
@@ -126,7 +127,7 @@ internal class EmergeArrayType<Element : LlvmType>(
      * A function of the signature (size: UWord, defaultValue: Element) -> Array<Element> that creates a new array
      * of the given size and sets all the elements to the given value.
      */
-    val defaultValueConstructor: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>>,
+    val defaultValueConstructor: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<out EmergeHeapAllocated>>,
 ) : LlvmNamedStructType("array_$elementTypeName"), EmergeHeapAllocated {
     val base by structMember(EmergeArrayBaseType)
     val elements by structMember(LlvmArrayType(0L, elementType))
@@ -313,7 +314,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementGetterWithFallibleB
     typeName: String,
     getValueArrayType: () -> EmergeArrayType<Element>,
     getBoxType: EmergeLlvmContext.() -> EmergeClassType,
-): KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<LlvmPointerType<EmergeHeapAllocatedValueBaseType>>> {
+): KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<LlvmPointerType<out EmergeHeapAllocated>>> {
     return KotlinLlvmFunction.define(
         "emerge.platform.array_${typeName}_getBoxed_fallibleBoundsCheck",
         EmergeFallibleCallResult.ofEmergeReference,
@@ -341,7 +342,7 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementGetterWithPanicBoun
     typeName: String,
     getValueArrayType: () -> EmergeArrayType<Element>,
     getBoxType: EmergeLlvmContext.() -> EmergeClassType,
-): KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>> {
+): KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<out EmergeHeapAllocated>> {
     return KotlinLlvmFunction.define(
         "emerge.platform.value_${typeName}_getBoxed_panicBoundsCheck",
         PointerToAnyEmergeValue,
@@ -602,7 +603,7 @@ private fun <Element : LlvmType> buildValueArrayDefaultValueConstructor(
     elementTypeName: String,
     elementType: Element,
     getSelfType: () -> EmergeArrayType<Element>,
-) : KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>> {
+) : KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<out EmergeHeapAllocated>> {
     return KotlinLlvmFunction.define<_, _>(
         "emerge.core.array_${elementTypeName}_nullCtor",
         PointerToAnyEmergeValue,
@@ -774,7 +775,7 @@ val EmergeI32ArrayCopyFn = buildValueArrayCopy(LlvmI32Type) { EmergeU32ArrayType
 val EmergeI64ArrayCopyFn = buildValueArrayCopy(LlvmI64Type) { EmergeU64ArrayType }
 val EmergeWordArrayCopyFn = buildValueArrayCopy(EmergeWordType) { EmergeUWordArrayType }
 
-private val referenceArrayElementGetterNoBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>> = KotlinLlvmFunction.define(
+private val referenceArrayElementGetterNoBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<out EmergeHeapAllocated>> = KotlinLlvmFunction.define(
     "emerge.platform.referenceArray_get_noBoundsCheck",
     PointerToAnyEmergeValue,
 ) {
@@ -794,7 +795,7 @@ private val referenceArrayElementGetterNoBoundsCheck: KotlinLlvmFunction<EmergeL
     }
 }
 
-private val referenceArrayElementGetterFallibleBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<LlvmPointerType<EmergeHeapAllocatedValueBaseType>>> = KotlinLlvmFunction.define(
+private val referenceArrayElementGetterFallibleBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<LlvmPointerType<out EmergeHeapAllocated>>> = KotlinLlvmFunction.define(
     "emerge.platform.referenceArray_get_fallibleBoundsCheck",
     EmergeFallibleCallResult.ofEmergeReference,
 ) {
@@ -808,7 +809,7 @@ private val referenceArrayElementGetterFallibleBoundsCheck: KotlinLlvmFunction<E
     }
 }
 
-private val referenceArrayElementGetterPanicBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<EmergeHeapAllocatedValueBaseType>> = KotlinLlvmFunction.define(
+private val referenceArrayElementGetterPanicBoundsCheck: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<out EmergeHeapAllocated>> = KotlinLlvmFunction.define(
     "emerge.platform.referenceArray_get_panicBoundsCheck",
     PointerToAnyEmergeValue,
 ) {
@@ -914,8 +915,8 @@ private val referenceArrayFinalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmV
     }
 }
 
-internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<EmergeHeapAllocatedValueBaseType>> by lazy {
-    lateinit var arrayTypeHolder: EmergeArrayType<LlvmPointerType<EmergeHeapAllocatedValueBaseType>>
+internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<out EmergeHeapAllocated>> by lazy {
+    lateinit var arrayTypeHolder: EmergeArrayType<LlvmPointerType<out EmergeHeapAllocated>>
     val defaultValueCtor = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
         "emerge.platform.ref_array_defaultValueCtor",
         PointerToAnyEmergeValue,
@@ -931,7 +932,8 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<EmergeHea
             conditionalBranch(
                 condition = isNotNull(defaultValue),
                 ifTrue = {
-                    val refcountLocation = getelementptr(defaultValue)
+                    val refcountLocation = defaultValue
+                        .anyValueBase()
                         .member { strongReferenceCount }
                         .get()
                     store(add(refcountLocation.dereference(), size), refcountLocation)

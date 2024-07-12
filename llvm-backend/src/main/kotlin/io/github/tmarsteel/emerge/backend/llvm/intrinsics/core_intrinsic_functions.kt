@@ -3,6 +3,7 @@ package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
+import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
 import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
@@ -12,7 +13,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction.Companion.callIntrinsic
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAddressType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
@@ -34,7 +34,8 @@ import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 internal val nullWeakReferences = KotlinLlvmFunction.define<EmergeLlvmContext, _>("emerge.platform.nullWeakReferences", LlvmVoidType) {
     val self by param(PointerToAnyEmergeValue)
     body {
-        val weakRefCollPtrPtr = getelementptr(self)
+        val weakRefCollPtrPtr = self
+            .anyValueBase()
             .member { weakReferenceCollection }
             .get()
         val weakRefCollPtr = weakRefCollPtrPtr.dereference()
@@ -111,7 +112,8 @@ internal val registerWeakReference = KotlinLlvmFunction.define<EmergeLlvmContext
         val currentWeakRefCollPtrPtrPtr = alloca(pointerTo(pointerTo(EmergeWeakReferenceCollectionType)))
         val currentCollIndexPtr = alloca(EmergeWordType)
         store(
-            getelementptr(objectBeingReferred)
+            objectBeingReferred
+                .anyValueBase()
                 .member { weakReferenceCollection }
                 .get(),
             to = currentWeakRefCollPtrPtrPtr,
@@ -193,7 +195,8 @@ internal val unregisterWeakReference = KotlinLlvmFunction.define<EmergeLlvmConte
         val currentWeakRefCollPtrPtrPtr = alloca(pointerTo(pointerTo(EmergeWeakReferenceCollectionType)))
         val currentCollIndexPtr = alloca(EmergeWordType)
         store(
-            getelementptr(objectBeingReferred)
+            objectBeingReferred
+                .anyValueBase()
                 .member { weakReferenceCollection }
                 .get(),
             to = currentWeakRefCollPtrPtrPtr,
@@ -291,7 +294,10 @@ private val afterReferenceCreatedNonNullable = KotlinLlvmFunction.define<EmergeL
     val inputRef by param(PointerToAnyEmergeValue)
 
     body {
-        val referenceCountPtr = getelementptr(inputRef).member { strongReferenceCount }.get()
+        val referenceCountPtr = inputRef
+            .anyValueBase()
+            .member { strongReferenceCount }
+            .get()
 
         store(
             add(referenceCountPtr.dereference(), context.word(1)),
@@ -365,12 +371,12 @@ private val dropReferenceFunction = KotlinLlvmFunction.define<EmergeLlvmContext,
     val objectPtr by param(PointerToAnyEmergeValue)
 
     body {
-        val referenceCountPtr = getelementptr(objectPtr).member { strongReferenceCount }.get()
+        val referenceCountPtr = objectPtr.anyValueBase().member { strongReferenceCount }.get()
         val decremented = sub(referenceCountPtr.dereference(), context.word(1))
         val isZero = icmp(decremented, LlvmIntPredicate.EQUAL, context.word(0))
         conditionalBranch(isZero, ifTrue = {
             callIntrinsic(nullWeakReferences, listOf(objectPtr))
-            val typeinfoPtr = getelementptr(objectPtr)
+            val typeinfoPtr = objectPtr.anyValueBase()
                 .member { typeinfo }
                 .get()
                 .dereference()
