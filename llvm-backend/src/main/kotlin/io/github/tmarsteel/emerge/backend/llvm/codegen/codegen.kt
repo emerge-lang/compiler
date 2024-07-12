@@ -109,7 +109,6 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
 import io.github.tmarsteel.emerge.backend.llvm.isAny
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
-import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.llvmType
@@ -373,18 +372,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
 ): ExpressionResult {
     when (expression) {
         is IrStringLiteralExpression -> {
-            val byteArrayConstant = EmergeS8ArrayType.buildConstantIn(
-                context,
-                expression.utf8Bytes.asList(),
-                { context.i8(it) }
+            return ExpressionResult.Value(
+                context.emergeStringLiteral(expression.utf8Bytes)
             )
-            val byteArrayGlobal = context.addGlobal(byteArrayConstant, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
-            val stringLiteralConstant = context.stringType.buildStaticConstant(mapOf(
-                context.stringType.irClass.memberVariables.single() to byteArrayGlobal
-            ))
-            val stringLiteralGlobal = context.addGlobal(stringLiteralConstant, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
-
-            return ExpressionResult.Value(stringLiteralGlobal)
         }
         is IrClassMemberVariableAccessExpression -> {
             if (expression.base.type.findSimpleTypeBound().baseType.canonicalName.toString() == "emerge.core.Array") {
