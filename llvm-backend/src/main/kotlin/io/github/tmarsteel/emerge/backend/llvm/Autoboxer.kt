@@ -11,17 +11,21 @@ import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
 import io.github.tmarsteel.emerge.backend.llvm.codegen.llvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
+import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.TypeinfoType
 
 /**
  * Helps with automatic boxing and unboxing of values
@@ -29,6 +33,8 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 internal sealed interface Autoboxer {
     fun getBoxedType(context: EmergeLlvmContext): EmergeClassType
     val unboxedType: LlvmType
+
+    val omitConstructorAndDestructor: Boolean
 
     /**
      * to be invoked on the [Autoboxer] of the [IrClassMemberVariableAccessExpression.base]s type. If this function
@@ -85,6 +91,8 @@ internal sealed interface Autoboxer {
         val primitiveTypeGetter: (EmergeLlvmContext) -> IrClass,
         override val unboxedType: LlvmType,
     ) : Autoboxer {
+        override val omitConstructorAndDestructor = true
+
         override fun getBoxedType(context: EmergeLlvmContext): EmergeClassType {
             return boxedTypeGetter(context)
         }
@@ -114,7 +122,9 @@ internal sealed interface Autoboxer {
         ): LlvmValue<*> {
             val llvmValue = value.declaration.llvmValue
             check(llvmValue.type == unboxedType)
-            return call(getBoxedType(context).constructor, listOf(llvmValue))
+            return call(getBoxedType(context).constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
+                propagateOrPanic(exceptionPtr)
+            }
         }
 
         override fun isBox(context: EmergeLlvmContext, value: IrTemporaryValueReference): Boolean {
@@ -143,6 +153,95 @@ internal sealed interface Autoboxer {
     }
 
     /**
+     * Used for bridging `emerge.core.reflect.ReflectionBaseType` to [TypeinfoType]
+     */
+    object ReflectionBaseType : Autoboxer {
+        override val omitConstructorAndDestructor = true
+
+        override fun getBoxedType(context: EmergeLlvmContext): EmergeClassType {
+            return context.boxTypeReflectionBaseType
+        }
+
+        override val unboxedType: LlvmType get() = pointerTo(TypeinfoType.GENERIC)
+
+        private val memberVariableMappings: Map<String, TypeinfoType.() -> LlvmStructType.Member<TypeinfoType, *>> = mapOf(
+            "supertypes" to { supertypes },
+            "canonicalName" to { canonicalNamePtr },
+            "dynamicInstance" to { dynamicTypeInfoPtr },
+        )
+
+        override fun isAccessingIntoTheBox(
+            context: EmergeLlvmContext,
+            readAccess: IrClassMemberVariableAccessExpression
+        ): Boolean {
+            check(readAccess.base.type.autoboxer === this)
+            return readAccess.memberVariable.name in memberVariableMappings
+        }
+
+        context(BasicBlockBuilder<EmergeLlvmContext, *>)
+        override fun rewriteAccessIntoTheBox(readAccess: IrClassMemberVariableAccessExpression): LlvmValue<*> {
+            val baseValue = readAccess.base.declaration.llvmValue
+            check(baseValue.type is LlvmPointerType<*> && baseValue.type.pointed is TypeinfoType) {
+                "cannot rewrite this access, base value needs to be a pointer to typeinfo"
+            }
+            @Suppress("UNCHECKED_CAST")
+            baseValue as LlvmValue<LlvmPointerType<TypeinfoType>>
+
+            return getelementptr(baseValue)
+                .member {
+                    memberVariableMappings.getValue(readAccess.memberVariable.name).invoke(this) as LlvmStructType.Member<TypeinfoType, LlvmType>
+                }
+                .get()
+                .dereference()
+        }
+
+        override fun assignmentRequiresTransformation(context: EmergeLlvmContext, toType: IrType): Boolean {
+            if (!toType.isNullable && toType is IrSimpleType && toType.baseType == context.rawReflectionBaseTypeClazz) {
+                return false
+            }
+
+            return true
+        }
+
+        context(BasicBlockBuilder<EmergeLlvmContext, *>)
+        override fun transformForAssignmentTo(
+            value: IrTemporaryValueReference,
+            toType: IrType
+        ): LlvmValue<*> {
+            val llvmValue = value.declaration.llvmValue
+            check(llvmValue.type == unboxedType)
+            val boxedType = getBoxedType(context)
+            return call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
+                propagateOrPanic(exceptionPtr)
+            }
+        }
+
+        override fun isBox(context: EmergeLlvmContext, value: IrTemporaryValueReference): Boolean {
+            if (value.type.isNullable) {
+                return true
+            }
+
+            val valueTypeBound = value.type.findSimpleTypeBound()
+            if (valueTypeBound.baseType != context.rawReflectionBaseTypeClazz) {
+                return true
+            }
+
+            return false
+        }
+
+        context(BasicBlockBuilder<EmergeLlvmContext, *>)
+        override fun unbox(value: IrTemporaryValueReference): LlvmValue<*> {
+            val boxedType = getBoxedType(context)
+            val valueHolderMember = boxedType.irClass.memberVariables.single { it.name == "value" }
+            val valueAsBoxPtr = value.declaration.llvmValue.reinterpretAs(pointerTo(boxedType))
+            return getelementptr(valueAsBoxPtr)
+                .member(valueHolderMember)
+                .get()
+                .dereference()
+        }
+    }
+
+    /**
      * used for types that resemble pointers in the C FFI. In contrast to the primitive emerge types,
      * the user/input program is handling the **boxed** version of the value, but under the hood it
      * should be simplified to a primitive version wherever possible, without the input program being able
@@ -153,6 +252,8 @@ internal sealed interface Autoboxer {
         val memberVariableNameToAccessUnboxedValue: String,
         override val unboxedType: LlvmType,
     ) : Autoboxer {
+        override val omitConstructorAndDestructor = false
+
         override fun getBoxedType(context: EmergeLlvmContext): EmergeClassType {
             return boxedTypeGetter(context)
         }

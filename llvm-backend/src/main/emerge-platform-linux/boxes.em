@@ -1,5 +1,7 @@
 package emerge.platform
 
+import emerge.core.reflect.ReflectionBaseType
+
 class S8Box {
     value: S8 = init
 }
@@ -50,4 +52,8 @@ class UWordBox {
 
 class BoolBox {
     value: Bool = init
+}
+
+class ReflectionBaseTypeBox {
+    value: ReflectionBaseType = init
 }

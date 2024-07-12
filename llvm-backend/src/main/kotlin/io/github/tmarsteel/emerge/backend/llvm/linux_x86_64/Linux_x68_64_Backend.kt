@@ -150,10 +150,6 @@ class Linux_x68_64_Backend : EmergeBackend {
                 .flatMap { it.packages }
                 .flatMap { it.classes }
                 .forEach { clazz ->
-                    if (clazz.autoboxer !is Autoboxer.PrimitiveType && clazz.canonicalName.toString() != "emerge.core.Array") {
-                        llvmContext.defineFunctionBody(clazz.constructor) // TODO: EmergeLlvmContext does that, too; redundant?
-                    }
-
                     clazz.memberFunctions
                         .flatMap { it.overloads }
                         .filter { it.body != null }

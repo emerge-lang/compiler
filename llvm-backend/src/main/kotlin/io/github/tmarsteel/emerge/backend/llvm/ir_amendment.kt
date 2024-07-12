@@ -46,6 +46,7 @@ internal val IrBaseType.autoboxer: Autoboxer? by tackLazyVal {
         "emerge.core.SWord" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeSWord, "value", EmergeLlvmContext::rawSWordClazz, EmergeWordType)
         "emerge.core.UWord" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeUWord, "value", EmergeLlvmContext::rawUWordClazz, EmergeWordType)
         "emerge.core.Bool" -> Autoboxer.PrimitiveType(EmergeLlvmContext::boxTypeBool, "value", EmergeLlvmContext::rawBoolClazz, LlvmBooleanType)
+        "emerge.core.reflect.ReflectionBaseType" -> Autoboxer.ReflectionBaseType
         "emerge.ffi.c.CPointer" -> Autoboxer.CFfiPointerType(EmergeLlvmContext::cPointerType, "pointed", LlvmPointerType(LlvmVoidType))
         "emerge.ffi.c.COpaquePointer" -> Autoboxer.CFfiPointerType(EmergeLlvmContext::cOpaquePointerType, "pointed", LlvmPointerType(LlvmVoidType))
         else -> null

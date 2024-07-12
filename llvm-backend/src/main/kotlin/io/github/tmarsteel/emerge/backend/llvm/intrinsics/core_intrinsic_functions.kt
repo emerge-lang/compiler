@@ -256,30 +256,6 @@ internal val unregisterWeakReference = KotlinLlvmFunction.define<EmergeLlvmConte
     }
 }
 
-internal val getSupertypePointers = KotlinLlvmFunction.define<LlvmContext, _>(
-    "emerge.platform.getSupertypePointers",
-    PointerToEmergeArrayOfPointersToTypeInfoType,
-) {
-    val inputRef by param(PointerToAnyEmergeValue)
-    body {
-        val typeinfoPointer = getelementptr(inputRef)
-            .member { typeinfo }
-            .get()
-            .dereference()
-        val arrayPointerAsAny = getelementptr(typeinfoPointer)
-            .member { supertypes }
-            .get()
-            .dereference()
-
-        /** see [TypeinfoType.supertypes] for why this cast is needed */
-        val arrayPointer = arrayPointerAsAny
-            .reinterpretAs(PointerToEmergeArrayOfPointersToTypeInfoType)
-
-        // refcounting not needed, typeinfo is always static
-        ret(arrayPointer)
-    }
-}
-
 // TODO: mark with alwaysinline
 private val afterReferenceCreatedNonNullable = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
     "emerge.platform.afterReferenceCreatedNonNullable",

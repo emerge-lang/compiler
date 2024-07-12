@@ -60,10 +60,15 @@ internal class VTableType private constructor(val nEntries: Long) : LlvmNamedStr
 internal class TypeinfoType private constructor(val nVTableEntries: Long) : LlvmNamedStructType("typeinfo$nVTableEntries") {
     /**
      * actually always is a [PointerToEmergeArrayOfPointersToTypeInfoType]. Declaring that type here would create a cyclic
-     * reference on JVM classload time. This is cast back in the [getSupertypePointers] intrinsic.
+     * reference on JVM classload time.
      */
     val supertypes by structMember(PointerToAnyEmergeValue)
     val anyValueVirtuals by structMember(EmergeAnyValueVirtualsType)
+    /** for dynamic typeinfo instances: null; for static ones: points to the dynamic version */
+    val dynamicTypeInfoPtr by structMember(pointerTo(this))
+    /** always points to a static `emerge.core.String` */
+    val canonicalNamePtr by structMember(PointerToAnyEmergeValue)
+    /** !! dynamically sized !! */
     val vtable by structMember(VTableType(nVTableEntries))
 
     override fun computeRaw(context: LlvmContext): LlvmTypeRef {
@@ -289,7 +294,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
     }
 
     private class ProviderImpl(
-        val typeName: String,
+        val canonicalName: String,
         val supertypes: List<LlvmConstant<LlvmPointerType<TypeinfoType>>>,
         val finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
         val virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
@@ -301,13 +306,19 @@ internal class StaticAndDynamicTypeInfo private constructor(
             val vtableConstant = buildVTable(context, virtualFunctions(context), context.registerIntrinsic(missingVirtualFunctionHandler).address)
             val typeinfoType = TypeinfoType(vtableConstant.type.nEntries)
 
-            val dynamicGlobal = context.addGlobal(context.undefValue(typeinfoType), LlvmThreadLocalMode.NOT_THREAD_LOCAL, "typeinfo_${typeName}_dynamic")
-            val staticGlobal = context.addGlobal(context.undefValue(typeinfoType), LlvmThreadLocalMode.NOT_THREAD_LOCAL, "typeinfo_${typeName}_static")
+            val dynamicGlobal = context.addGlobal(context.undefValue(typeinfoType), LlvmThreadLocalMode.NOT_THREAD_LOCAL, "typeinfo_${canonicalName}_dynamic")
+            val staticGlobal = context.addGlobal(context.undefValue(typeinfoType), LlvmThreadLocalMode.NOT_THREAD_LOCAL, "typeinfo_${canonicalName}_static")
             val bundle = StaticAndDynamicTypeInfo(context, dynamicGlobal, staticGlobal)
             // register now to break loops
             byContext[context] = bundle
 
-            val (dynamicConstant, staticConstant) = build(context, typeinfoType, vtableConstant)
+            val (dynamicConstant, staticConstant) = build(
+                context,
+                typeinfoType,
+                canonicalName,
+                vtableConstant,
+                dynamicGlobal,
+            )
             Llvm.LLVMSetInitializer(dynamicGlobal.raw, dynamicConstant.raw)
             Llvm.LLVMSetInitializer(staticGlobal.raw, staticConstant.raw)
 
@@ -317,11 +328,15 @@ internal class StaticAndDynamicTypeInfo private constructor(
         private fun build(
             context: EmergeLlvmContext,
             typeinfoType: TypeinfoType,
+            canonicalName: String,
             vtable: LlvmConstant<VTableType>,
+            dynamicGlobal: LlvmGlobal<TypeinfoType>,
         ): Pair<LlvmConstant<TypeinfoType>, LlvmConstant<TypeinfoType>> {
             val supertypesData = PointerToEmergeArrayOfPointersToTypeInfoType.pointed.buildConstantIn(context, supertypes, { it })
             val supertypesGlobal = context.addGlobal(supertypesData, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
                 .reinterpretAs(PointerToAnyEmergeValue)
+
+            val canonicalNameGlobal = context.emergeStringLiteral(canonicalName)
 
             val typeinfoDynamicData = typeinfoType.buildConstantIn(context) {
                 setValue(typeinfoType.vtable, vtable)
@@ -329,6 +344,8 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 setValue(typeinfoType.anyValueVirtuals, EmergeAnyValueVirtualsType.buildConstantIn(context) {
                     setValue(EmergeAnyValueVirtualsType.finalizeFunction, finalizerFunction(context).address)
                 })
+                setNull(typeinfoType.dynamicTypeInfoPtr)
+                setValue(typeinfoType.canonicalNamePtr, canonicalNameGlobal)
             }
 
             val typeinfoStaticData = typeinfoType.buildConstantIn(context) {
@@ -337,6 +354,8 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 setValue(typeinfoType.anyValueVirtuals, EmergeAnyValueVirtualsType.buildConstantIn(context) {
                     setValue(EmergeAnyValueVirtualsType.finalizeFunction, context.registerIntrinsic(staticObjectFinalizer).address)
                 })
+                setValue(typeinfoType.dynamicTypeInfoPtr, dynamicGlobal)
+                setValue(typeinfoType.canonicalNamePtr, canonicalNameGlobal)
             }
 
             return Pair(typeinfoDynamicData, typeinfoStaticData)

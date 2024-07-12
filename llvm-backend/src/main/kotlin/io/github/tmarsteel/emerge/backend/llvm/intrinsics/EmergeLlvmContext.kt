@@ -52,6 +52,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResu
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.retFallibleVoid
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindContextSize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindCursorSize
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.anyReflect
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.intrinsicNumberOperations
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.isNullBuiltin
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.pureWrite
@@ -124,6 +125,8 @@ class EmergeLlvmContext(
     internal lateinit var boxTypeUWord: EmergeClassType
     /** `emerge.platform.BoolBox` */
     internal lateinit var boxTypeBool: EmergeClassType
+    /** `emerge.platform.ReflectionBaseTypeBox */
+    internal lateinit var boxTypeReflectionBaseType: EmergeClassType
     /** `emerge.ffi.c.CPointer */
     internal lateinit var cPointerType: EmergeClassType
     /** `emerge.ffi.c.COpaquePointer` */
@@ -159,6 +162,8 @@ class EmergeLlvmContext(
     internal lateinit var rawUWordClazz: IrClass
     /** `emerge.core.Bool */
     internal lateinit var rawBoolClazz: IrClass
+    /** `emerge.core.reflect.ReflectionBaseType` */
+    internal lateinit var rawReflectionBaseTypeClazz: IrClass
 
     /** `emerge.core.Unit` */
     internal lateinit var unitType: EmergeClassType
@@ -193,6 +198,7 @@ class EmergeLlvmContext(
             "emerge.core.SWord" -> rawSWordClazz = clazz
             "emerge.core.UWord" -> rawUWordClazz = clazz
             "emerge.core.Bool" -> rawBoolClazz = clazz
+            "emerge.core.reflect.ReflectionBaseType" -> rawReflectionBaseTypeClazz = clazz
         }
 
         if (clazz.autoboxer is Autoboxer.PrimitiveType) {
@@ -223,6 +229,7 @@ class EmergeLlvmContext(
             "emerge.platform.SWordBox" -> boxTypeSWord = emergeClassType
             "emerge.platform.UWordBox" -> boxTypeUWord = emergeClassType
             "emerge.platform.BoolBox" -> boxTypeBool = emergeClassType
+            "emerge.platform.ReflectionBaseTypeBox" -> boxTypeReflectionBaseType = emergeClassType
             "emerge.ffi.c.CPointer" -> cPointerType = emergeClassType
             "emerge.ffi.c.COpaquePointer" -> cOpaquePointerType = emergeClassType
             "emerge.core.String" -> stringType = emergeClassType
@@ -385,7 +392,7 @@ class EmergeLlvmContext(
             structConstructorsRegistered = true
             emergeStructs
                 .asSequence()
-                .filter { it.irClass.autoboxer !is Autoboxer.PrimitiveType && it.irClass.canonicalName.toString() !in setOf("emerge.core.Array") }
+                .filter { it.irClass.autoboxer?.omitConstructorAndDestructor != true && it.irClass.canonicalName.toString() !in setOf("emerge.core.Array") }
                 .forEach {
                     // TODO: this handling is wonky, needs more conceptual work
                     // the code will convert a return value of Unit to LLvmVoidType. That is correct except for this one
@@ -438,6 +445,12 @@ class EmergeLlvmContext(
             return
         }
         completed = true
+
+        emergeStructs.forEach {
+            if (it.irClass.autoboxer?.omitConstructorAndDestructor != true && it.irClass.canonicalName.toString() != "emerge.core.Array") {
+                defineFunctionBody(it.irClass.constructor)
+            }
+        }
 
         // todo: move to llvm global_ctors
         // this doesn't work as of now because for some reason, llc doesn't emit them into the .init_array.X sections of the object file
@@ -657,6 +670,7 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             panicOnThrowable,
             writeMemoryAddress,
             pureWrite,
+            anyReflect,
         )
             + intrinsicNumberOperations
     )
