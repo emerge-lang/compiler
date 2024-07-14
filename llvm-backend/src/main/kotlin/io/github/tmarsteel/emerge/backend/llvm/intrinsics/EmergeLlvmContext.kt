@@ -15,6 +15,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSourceFile
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.IrSimpleTypeImpl
@@ -476,7 +477,7 @@ class EmergeLlvmContext(
                     (this as BasicBlockBuilder<EmergeLlvmContext, LlvmType>)
                     val initResult = emitExpressionCode(
                         global.initializer,
-                        IrSimpleTypeImpl(context.unitType.irClass, false),
+                        IrSimpleTypeImpl(context.unitType.irClass, IrTypeMutability.READONLY, false),
                         functionHasNothrowAbi = true, // this will cause a panic if the initializer throws an exception
                         expressionResultUsed = true,
                     )

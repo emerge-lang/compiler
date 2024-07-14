@@ -17,6 +17,7 @@ interface IrParameterizedType : IrType {
     val simpleType: IrSimpleType
     val arguments: Map<String, Argument>
 
+    override val mutability get() = simpleType.mutability
     override val isNullable get() = simpleType.isNullable
 
     override fun asNullable(): IrParameterizedType
@@ -45,6 +46,7 @@ interface IrGenericTypeReference : IrType {
     val parameter: IrBaseType.Parameter
     val effectiveBound: IrType
 
+    override val mutability get() = effectiveBound.mutability
     override val isNullable get() = effectiveBound.isNullable
     override fun asNullable(): IrGenericTypeReference
 }

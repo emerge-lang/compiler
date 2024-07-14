@@ -56,6 +56,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrRegisterWeakReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 
 /**
  * The constructor of a class that, once compiled, does the basic bootstrapping:
@@ -377,11 +378,12 @@ class BoundClassConstructor(
 }
 
 private class IrClassSimpleType(
-    val classDef: BoundBaseType
+    val classDef: BoundBaseType,
+    override val mutability: IrTypeMutability,
 ) : IrSimpleType {
     override val isNullable = false
     override val baseType get() = classDef.toBackendIr()
-    override fun asNullable(): IrSimpleType = IrSimpleTypeImpl(baseType, true)
+    override fun asNullable(): IrSimpleType = IrSimpleTypeImpl(baseType, mutability, true)
 }
 
 private class IrDefaultConstructorImpl(
@@ -391,7 +393,7 @@ private class IrDefaultConstructorImpl(
     override val canonicalName = ctor.canonicalName
     override val parameters = ctor.parameters.parameters.map { it.backendIrDeclaration }
     override val declaresReceiver = false
-    override val returnType = IrClassSimpleType(ctor.classDef)
+    override val returnType = IrClassSimpleType(ctor.classDef, IrTypeMutability.EXCLUSIVE)
     override val isExternalC = false
     override val isNothrow = ctor.attributes.isDeclaredNothrow
     override val ownerBaseType get() = ctor.classDef.toBackendIr()
@@ -405,8 +407,9 @@ private class IrAllocateObjectExpressionImpl(val classDef: BoundBaseType) : IrAl
     override val clazz: IrClass by lazy { classDef.toBackendIr() as IrClass }
     override val evaluatesTo = object : IrSimpleType {
         override val isNullable = false
+        override val mutability = IrTypeMutability.EXCLUSIVE
         override val baseType get() = this@IrAllocateObjectExpressionImpl.clazz
-        override fun asNullable(): IrSimpleType = IrSimpleTypeImpl(baseType, true)
+        override fun asNullable(): IrSimpleType = IrSimpleTypeImpl(baseType, mutability,true)
     }
 }
 

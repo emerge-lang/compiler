@@ -131,7 +131,7 @@ abstract class BoundAssignmentStatement(
     }
 
     protected fun IrType.nullable(): IrType = if (isNullable) this else when (this) {
-        is IrSimpleType -> IrSimpleTypeImpl(this.baseType, true)
+        is IrSimpleType -> IrSimpleTypeImpl(this.baseType, mutability,true)
         is IrGenericTypeReference -> IrGenericTypeReferenceImpl(this.parameter, effectiveBound.nullable())
         is IrParameterizedType -> IrParameterizedTypeImpl(this.simpleType.nullable() as IrSimpleType, arguments)
     }

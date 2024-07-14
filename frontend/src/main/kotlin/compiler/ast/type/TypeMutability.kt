@@ -19,6 +19,7 @@
 package compiler.ast.type
 
 import compiler.lexer.Keyword
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 
 enum class TypeMutability(
     val keyword: Keyword,
@@ -63,6 +64,13 @@ enum class TypeMutability(
         this == EXCLUSIVE -> other
         other == EXCLUSIVE -> this
         else -> READONLY
+    }
+
+    fun toBackendIr(): IrTypeMutability = when (this) {
+        IMMUTABLE -> IrTypeMutability.EXCLUSIVE
+        READONLY -> IrTypeMutability.READONLY
+        MUTABLE -> IrTypeMutability.MUTABLE
+        EXCLUSIVE -> IrTypeMutability.EXCLUSIVE
     }
 
     override fun toString() = keyword.text

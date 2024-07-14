@@ -16,6 +16,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 
 /**
  * A [TypeReference] where the root type is resolved
@@ -242,7 +243,7 @@ class RootResolvedTypeReference private constructor(
     }
 
     override fun toBackendIr(): IrType {
-        val raw = IrSimpleTypeImpl(baseType.toBackendIr(), false)
+        val raw = IrSimpleTypeImpl(baseType.toBackendIr(), this.mutability.toBackendIr(), false)
         if (arguments.isNullOrEmpty() || baseType.typeParameters.isNullOrEmpty()) {
             return raw
         }
@@ -280,10 +281,11 @@ class RootResolvedTypeReference private constructor(
 
 internal class IrSimpleTypeImpl(
     override val baseType: IrBaseType,
+    override val mutability: IrTypeMutability,
     override val isNullable: Boolean,
 ) : IrSimpleType {
     override fun toString() = "IrSimpleType[${baseType.canonicalName}]"
-    override fun asNullable(): IrSimpleType = IrSimpleTypeImpl(baseType, true)
+    override fun asNullable(): IrSimpleType = IrSimpleTypeImpl(baseType, mutability, true)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

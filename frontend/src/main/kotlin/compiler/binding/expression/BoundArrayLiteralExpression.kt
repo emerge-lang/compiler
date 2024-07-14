@@ -26,6 +26,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullInitializedArrayExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 import io.github.tmarsteel.emerge.backend.llvm.indexed
 import java.math.BigInteger
 
@@ -159,7 +160,10 @@ class BoundArrayLiteralExpression(
                 instrs.add(arrayTemporary)
                 for ((index, element) in args.indexed()) {
                     val indexTemporary = IrCreateTemporaryValueImpl(
-                        IrIntegerLiteralExpressionImpl(BigInteger.valueOf(index.toLong()), IrSimpleTypeImpl(context.swCtx.uword.toBackendIr(), false))
+                        IrIntegerLiteralExpressionImpl(
+                            BigInteger.valueOf(index.toLong()),
+                            IrSimpleTypeImpl(context.swCtx.uword.toBackendIr(), IrTypeMutability.IMMUTABLE, false)
+                        )
                     )
                     instrs.add(indexTemporary)
                     instrs.add(IrCreateTemporaryValueImpl(
@@ -173,7 +177,7 @@ class BoundArrayLiteralExpression(
                             mapOf(
                                 (type as RootResolvedTypeReference).baseType.typeParameters!!.single().name to irElementType,
                             ),
-                            IrSimpleTypeImpl(context.swCtx.unit.toBackendIr(), false),
+                            IrSimpleTypeImpl(context.swCtx.unit.toBackendIr(), IrTypeMutability.IMMUTABLE,false),
                         ),
                     ))
                 }
