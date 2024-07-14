@@ -100,6 +100,16 @@ class EmergeLlvmContext(
      */
     internal lateinit var mainFunction: LlvmFunction<*>
 
+    /**
+     * `emerge.platform.panicOnThrowableImpl(Throwable)`, set by [registerFunction].
+     */
+    internal lateinit var panicOnThrowableFunction: LlvmFunction<*>
+
+    /**
+     * `emerge.platform.printStackTraceToStandardError()`, set by [registerFunction]
+     */
+    internal lateinit var printStackTraceToStdErrFunction: LlvmFunction<*>
+
     /** `emerge.platform.S8Box` */
     internal lateinit var boxTypeS8: EmergeClassType
     /** `emerge.platform.U8Box` */
@@ -297,6 +307,7 @@ class EmergeLlvmContext(
             assert(intrinsic.type.returnType.isAssignableTo(returnLlvmType))
 
             fn.llvmRef = intrinsic
+            fn.llvmName = intrinsic.name
             if (fn is IrMemberFunction) {
                 fn.llvmFunctionType = intrinsic.type
             }
@@ -348,6 +359,15 @@ class EmergeLlvmContext(
 
             @Suppress("UNCHECKED_CAST")
             this.mainFunction = fn.llvmRef as LlvmFunction<*>
+        }
+
+        if (fn.canonicalName.parent.toString() == "emerge.platform") {
+            if (fn.canonicalName.simpleName == "printStackTraceToStandardError" && fn.parameters.isEmpty()) {
+                printStackTraceToStdErrFunction = fn.llvmRef!!
+            }
+            if (fn.canonicalName.simpleName == "panicOnThrowableImpl" && fn.parameters.size == 1) {
+                panicOnThrowableFunction = fn.llvmRef!!
+            }
         }
 
         return fn.llvmRef!!
@@ -621,7 +641,7 @@ class EmergeLlvmContext(
         }
 
         if (intrinsic == null) {
-            intrinsic = intrinsicFunctions[fn.llvmName]
+            intrinsic = intrinsicFunctions[fn.canonicalName.toString()]
                 ?.let {
                     this.registerIntrinsic(it as KotlinLlvmFunction<in EmergeLlvmContext, *>)
                 }

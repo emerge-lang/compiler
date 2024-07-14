@@ -146,10 +146,59 @@ object Mangler {
                             }
                         }
                     }
-                    false -> {
-                        val refSigil = getTypeSigil(true, isGeneric, variance, mutability)
-                        check(refSigil.isLowerCase())
-                        refSigil.uppercaseChar().also { check(it != refSigil )}
+                    false -> when (isGeneric) {
+                        true -> when (variance) {
+                            IrTypeVariance.IN -> when(mutability) {
+                                IrTypeMutability.IMMUTABLE -> 'A'
+                                IrTypeMutability.READONLY  -> 'B'
+                                IrTypeMutability.MUTABLE -> 'C'
+                                IrTypeMutability.EXCLUSIVE -> 'D'
+                            }
+                            IrTypeVariance.OUT -> when(mutability) {
+                                IrTypeMutability.IMMUTABLE -> 'E'
+                                IrTypeMutability.READONLY  -> 'F'
+                                IrTypeMutability.MUTABLE -> 'G'
+                                IrTypeMutability.EXCLUSIVE -> 'H'
+                            }
+                            IrTypeVariance.INVARIANT -> when(mutability) {
+                                IrTypeMutability.IMMUTABLE -> 'I'
+                                IrTypeMutability.READONLY  -> 'J'
+                                IrTypeMutability.MUTABLE -> 'K'
+                                IrTypeMutability.EXCLUSIVE -> 'L'
+                            }
+                            null -> when(mutability) {
+                                IrTypeMutability.IMMUTABLE -> 'M'
+                                IrTypeMutability.READONLY  -> 'N'
+                                IrTypeMutability.MUTABLE -> 'O'
+                                IrTypeMutability.EXCLUSIVE -> 'P'
+                            }
+                        }
+                        false -> when (variance) {
+                            IrTypeVariance.IN -> when(mutability) {
+                                IrTypeMutability.IMMUTABLE -> 'Q'
+                                IrTypeMutability.READONLY  -> 'R'
+                                IrTypeMutability.MUTABLE -> 'S'
+                                IrTypeMutability.EXCLUSIVE -> 'T'
+                            }
+                            IrTypeVariance.OUT -> when(mutability) {
+                                IrTypeMutability.IMMUTABLE -> 'U'
+                                IrTypeMutability.READONLY  -> 'V'
+                                IrTypeMutability.MUTABLE -> 'W'
+                                IrTypeMutability.EXCLUSIVE -> 'X'
+                            }
+                            IrTypeVariance.INVARIANT -> when(mutability) {
+                                IrTypeMutability.IMMUTABLE -> 'Y'
+                                IrTypeMutability.READONLY  -> 'Z'
+                                IrTypeMutability.MUTABLE -> '6'
+                                IrTypeMutability.EXCLUSIVE -> '7'
+                            }
+                            null -> when(mutability) {
+                                IrTypeMutability.IMMUTABLE -> '8'
+                                IrTypeMutability.READONLY  -> '9'
+                                IrTypeMutability.MUTABLE -> '.'
+                                IrTypeMutability.EXCLUSIVE -> '_'
+                            }
+                        }
                     }
                 }
             }

@@ -1,13 +1,11 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
-import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmArrayType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionAttribute
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
@@ -55,11 +53,8 @@ private fun BasicBlockBuilder<*, *>.printLinefeed(printer: (LlvmValue<LlvmPointe
     printer(linefeedData, context.word(1))
 }
 
-private fun BasicBlockBuilder<*, *>.printStackTraceToStdErr() {
-    val fnName = "emerge.platform.printStackTraceToStandardError"
-    val printStackFnAddr = context.getNamedFunctionAddress(fnName) ?: throw CodeGenerationException("Could not find $fnName")
-    val printStackFnType = LlvmFunctionType(LlvmBooleanType, emptyList())
-    call(printStackFnAddr, printStackFnType, emptyList())
+private fun BasicBlockBuilder<out EmergeLlvmContext, *>.printStackTraceToStdErr() {
+    call(context.printStackTraceToStdErrFunction, emptyList())
 }
 
 private fun BasicBlockBuilder<*, *>.exit(status: UByte): BasicBlockBuilder.Termination {
@@ -121,8 +116,7 @@ internal val panicOnThrowable = KotlinLlvmFunction.define<EmergeLlvmContext, Llv
     functionAttribute(LlvmFunctionAttribute.NoReturn)
 
     body {
-        val implAddr = context.getNamedFunctionAddress("emerge.platform.panicOnThrowableImpl")!!
-        call(implAddr, LlvmFunctionType(LlvmVoidType, listOf(PointerToAnyEmergeValue)), listOf(exceptionPtr))
+        call(context.panicOnThrowableFunction, listOf(exceptionPtr))
         unreachable()
     }
 }
