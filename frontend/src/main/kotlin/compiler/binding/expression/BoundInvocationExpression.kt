@@ -415,7 +415,7 @@ class BoundInvocationExpression(
 
         val byReceiver = receiverExpression?.findWritesBeyond(boundary) ?: emptySet()
         val byArguments = valueArguments.flatMap { it.findWritesBeyond(boundary) }
-        val byParameters = valueArguments.zip(functionToInvoke!!.parameters.parameters)
+        val byParameters = valueArguments.zip(functionToInvoke?.parameters?.parameters ?: emptyList())
             // does the function potentially modify the parameter?
             .filter { (_, parameter) -> parameter.typeAtDeclarationTime?.mutability?.isMutable ?: false }
             // is the argument itself a read beyond the boundary
