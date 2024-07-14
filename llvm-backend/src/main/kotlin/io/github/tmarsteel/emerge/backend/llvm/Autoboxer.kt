@@ -21,6 +21,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmStructType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.PhiBucket
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
@@ -209,11 +210,26 @@ internal sealed interface Autoboxer {
             toType: IrType
         ): LlvmValue<*> {
             val llvmValue = value.declaration.llvmValue
-            check(llvmValue.type == unboxedType)
-            val boxedType = getBoxedType(context)
-            return call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
-                propagateOrPanic(exceptionPtr)
+            check(llvmValue.type is LlvmPointerType<*> && llvmValue.type.pointed is TypeinfoType) {
+                "transformForAssignmentTo called on a value of unsupported type"
             }
+            llvmValue as LlvmValue<LlvmPointerType<TypeinfoType>>
+            val boxedType = getBoxedType(context)
+            val boxed = PhiBucket(pointerTo(boxedType))
+            conditionalBranch(
+                condition = isNull(llvmValue),
+                ifTrue = {
+                    boxed.setBranchResult(context.nullValue(boxed.type))
+                    concludeBranch()
+                },
+                ifFalse = {
+                    boxed.setBranchResult(call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
+                        propagateOrPanic(exceptionPtr)
+                    })
+                    concludeBranch()
+                }
+            )
+            return boxed.buildPhi()
         }
 
         override fun isBox(context: EmergeLlvmContext, value: IrTemporaryValueReference): Boolean {
