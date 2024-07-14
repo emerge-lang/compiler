@@ -68,6 +68,10 @@ enum class Keyword(val text: String)
 
     AS("as"),
     SAFE_AS("as?"),
+
+    INSTANCEOF("is"),
+
+    REFLECT("reflect"),
     ;
 }
 

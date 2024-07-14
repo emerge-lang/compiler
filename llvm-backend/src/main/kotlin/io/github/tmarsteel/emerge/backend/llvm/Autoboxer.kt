@@ -153,7 +153,7 @@ internal sealed interface Autoboxer {
     }
 
     /**
-     * Used for bridging `emerge.core.reflect.ReflectionBaseType` to [TypeinfoType]
+     * Used for bridging `emerge.core.reflection.ReflectionBaseType` to [TypeinfoType]
      */
     object ReflectionBaseType : Autoboxer {
         override val omitConstructorAndDestructor = true

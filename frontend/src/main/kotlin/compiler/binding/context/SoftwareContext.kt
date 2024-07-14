@@ -141,6 +141,18 @@ class SoftwareContext {
     val array: BoundBaseType by coreType()
     val throwable: BoundBaseType by coreType()
     val error: BoundBaseType by coreType()
+    val reflectionBaseType: BoundBaseType by lazy {
+        val reflectPackageName = CanonicalElementName.Package(listOf(
+            "emerge", "core", "reflection"
+        ))
+        val reflectPackage = getPackage(reflectPackageName)
+            ?: throw InternalCompilerError("reflect package not found!")
+
+        reflectPackage.types
+            .filter { it.simpleName == "ReflectionBaseType" }
+            .singleOrNull()
+            ?: throw InternalCompilerError("Could not find typeinfo type in emerge source")
+    }
 
     /** the type to use when a type cannot be determined, see [UnresolvedType] */
     val unresolvableReplacementType: BoundTypeReference by lazy {

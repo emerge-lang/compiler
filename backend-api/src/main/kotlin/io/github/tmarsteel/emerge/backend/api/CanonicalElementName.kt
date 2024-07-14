@@ -32,7 +32,7 @@ sealed interface CanonicalElementName {
 
         /**
          * Whether `this` is the same package as [other], or, is a in the same hierarchy, and higher up.
-         * E.g. `emerge.core` containsOrEquals `emerge.core.reflect`.
+         * E.g. `emerge.core` containsOrEquals `emerge.core.reflection`.
          */
         fun containsOrEquals(other: Package): Boolean {
             return containsOrEquals(other.components)

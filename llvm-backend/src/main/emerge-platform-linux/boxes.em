@@ -1,6 +1,6 @@
 package emerge.platform
 
-import emerge.core.reflect.ReflectionBaseType
+import emerge.core.reflection.ReflectionBaseType
 
 class S8Box {
     value: S8 = init

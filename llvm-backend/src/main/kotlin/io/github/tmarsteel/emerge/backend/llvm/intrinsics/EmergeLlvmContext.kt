@@ -1,5 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
+import com.google.common.collect.MapMaker
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseTypeFunction
@@ -173,7 +175,7 @@ class EmergeLlvmContext(
     internal lateinit var rawUWordClazz: IrClass
     /** `emerge.core.Bool */
     internal lateinit var rawBoolClazz: IrClass
-    /** `emerge.core.reflect.ReflectionBaseType` */
+    /** `emerge.core.reflection.ReflectionBaseType` */
     internal lateinit var rawReflectionBaseTypeClazz: IrClass
 
     /** `emerge.core.Unit` */
@@ -209,7 +211,7 @@ class EmergeLlvmContext(
             "emerge.core.SWord" -> rawSWordClazz = clazz
             "emerge.core.UWord" -> rawUWordClazz = clazz
             "emerge.core.Bool" -> rawBoolClazz = clazz
-            "emerge.core.reflect.ReflectionBaseType" -> rawReflectionBaseTypeClazz = clazz
+            "emerge.core.reflection.ReflectionBaseType" -> rawReflectionBaseTypeClazz = clazz
         }
 
         if (clazz.autoboxer is Autoboxer.PrimitiveType) {
@@ -256,6 +258,16 @@ class EmergeLlvmContext(
 
     fun defineClassStructure(clazz: IrClass) {
         clazz.llvmType.assureLlvmStructMembersDefined()
+    }
+
+    private val emergeClassesByIrTypeCache: MutableMap<CanonicalElementName.BaseType, EmergeClassType> = MapMaker().weakValues().makeMap()
+    internal fun getEmergeClassByIrType(irType: IrBaseType): EmergeClassType? {
+        emergeClassesByIrTypeCache[irType.canonicalName]?.let { return it }
+        val instance = emergeStructs.find { it.irClass.canonicalName == irType.canonicalName }
+        if (instance != null) {
+            emergeClassesByIrTypeCache[irType.canonicalName] = instance
+        }
+        return instance
     }
 
     fun <R : LlvmType> registerIntrinsic(fn: KotlinLlvmFunction<in EmergeLlvmContext, R>): LlvmFunction<R> {

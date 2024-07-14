@@ -25,6 +25,7 @@ import compiler.ast.Executable
 import compiler.ast.IfExpression
 import compiler.ast.TypeArgumentBundle
 import compiler.ast.expression.ArrayLiteralExpression
+import compiler.ast.expression.AstReflectExpression
 import compiler.ast.expression.BooleanLiteralExpression
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.NullLiteralExpression
@@ -38,6 +39,7 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.Keyword.ELSE
 import compiler.lexer.Keyword.IF
+import compiler.lexer.Keyword.REFLECT
 import compiler.lexer.KeywordToken
 import compiler.lexer.NumericLiteralToken
 import compiler.lexer.Operator
@@ -155,10 +157,21 @@ val IdentifierExpression = sequence("identifier") {
         }
     }
 
+val ReflectExpression = sequence("reflection") {
+    keyword(REFLECT)
+    ref(Type)
+}
+    .astTransformation { tokens ->
+        val keyword = tokens.next() as KeywordToken
+        val type = tokens.next() as TypeReference
+        AstReflectExpression(keyword, type)
+    }
+
 val ValueExpression = eitherOf("value expression") {
     ref(LiteralExpression)
     ref(IdentifierExpression)
     ref(ArrayLiteralExpression)
+    ref(ReflectExpression)
 }
 
 val ParanthesisedExpression: Rule<AstExpression> = sequence("paranthesised expression") {

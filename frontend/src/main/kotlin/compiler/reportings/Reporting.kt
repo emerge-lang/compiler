@@ -519,6 +519,12 @@ abstract class Reporting internal constructor(
         fun forbiddenCast(castOp: BoundCastExpression, reason: String, span: Span = castOp.declaration.span)
             = ForbiddenCastReporting(castOp.declaration, reason, span)
 
+        fun unsupportedReflection(onType: BoundTypeReference)
+            = UnsupportedTypeReflectionException(onType.span ?: Span.UNKNOWN)
+
+        fun typeCheckOnVolatileTypeParameter(node: BoundInstanceOfExpression)
+            = TypeCheckOnVolatileTypeParameterReporting(node.declaration.typeToCheck.span ?: node.declaration.span)
+
         fun nullCheckOnNonNullableValue(value: BoundExpression<*>)
             = NullCheckingNonNullableValueReporting(value.declaration)
 

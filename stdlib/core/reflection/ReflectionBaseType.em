@@ -1,4 +1,4 @@
-package emerge.core.reflect
+package emerge.core.reflection
 
 // runtime type information / reflection data on a base type (class or interface)
 // TODO: parameterize on type it is reflection on, like java.lang.Class<T> ?
@@ -8,5 +8,4 @@ export class ReflectionBaseType {
     private dynamicInstance: ReflectionBaseType? = init
 }
 
-export nothrow intrinsic fn reflect(self: Any) -> ReflectionBaseType
-export nothrow intrinsic fn reflect<T>() -> ReflectionBaseType
+export nothrow intrinsic fn reflectType(self: Any) -> ReflectionBaseType

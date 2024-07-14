@@ -9,7 +9,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.PointerToAnyEmergeValu
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.TypeinfoType
 
 internal val anyReflect = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
-    "emerge.core.reflect.reflect",
+    "emerge.core.reflection.reflectType",
     pointerTo(TypeinfoType.GENERIC),
 ) {
     val self by param(PointerToAnyEmergeValue)

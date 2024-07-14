@@ -208,6 +208,13 @@ interface IrIfExpression : IrExpression {
 }
 
 /**
+ * Evaluates to the runtime type information object about [baseType].
+ */
+interface IrBaseTypeReflectionExpression : IrExpression {
+    val baseType: IrBaseType
+}
+
+/**
  * Interface for all IrTypes that have to implement [IrExpression] for semantic-analysis reasons
  * but are not actually expressions. Prime candidate: assignment statements.
  *

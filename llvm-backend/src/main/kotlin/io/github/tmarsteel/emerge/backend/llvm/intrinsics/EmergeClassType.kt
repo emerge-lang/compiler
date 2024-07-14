@@ -61,7 +61,7 @@ internal class EmergeClassType private constructor(
         )
     }
 
-    private fun getTypeinfoInContext(context: EmergeLlvmContext): StaticAndDynamicTypeInfo {
+    fun getTypeinfoInContext(context: EmergeLlvmContext): StaticAndDynamicTypeInfo {
         try {
             return typeinfoProvider.provide(context)
         } catch (ex: VirtualFunctionHashCollisionException) {

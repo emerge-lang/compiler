@@ -3,6 +3,7 @@ package io.github.tmarsteel.emerge.backend.llvm.codegen
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseTypeReflectionExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrBooleanLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrBreakStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
@@ -738,6 +739,15 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             )
 
             return ExpressionResult.Value(identityComparisonResult.buildPhi())
+        }
+        is IrBaseTypeReflectionExpression -> {
+            check(expression.evaluatesTo.autoboxer == Autoboxer.ReflectionBaseType)
+            val emergeClassToReflectOn = context.getEmergeClassByIrType(expression.baseType)
+                ?: throw CodeGenerationException("Cannot reflect on unknown base type ${expression.baseType}")
+
+            return ExpressionResult.Value(
+                emergeClassToReflectOn.getTypeinfoInContext(context).dynamic
+            )
         }
         is IrImplicitEvaluationExpression -> {
             val result = emitCode(expression.code, functionReturnType, functionHasNothrowAbi, expressionResultUsed)
