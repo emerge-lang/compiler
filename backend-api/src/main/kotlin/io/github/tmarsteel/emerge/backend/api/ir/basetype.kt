@@ -3,6 +3,10 @@ package io.github.tmarsteel.emerge.backend.api.ir
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 
 interface IrBaseType {
+    /**
+     * The supertypes of this type; **must not include emerge.core.Any!!**
+     */
+    val supertypes: Set<IrInterface>
     val canonicalName: CanonicalElementName.BaseType
     val parameters: List<Parameter>
 

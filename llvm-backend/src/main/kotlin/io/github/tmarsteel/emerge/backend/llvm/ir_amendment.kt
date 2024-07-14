@@ -3,6 +3,7 @@ package io.github.tmarsteel.emerge.backend.llvm
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrPackage
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
@@ -22,6 +23,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeInterfaceTypeinfoHolder
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
@@ -67,6 +69,10 @@ internal var IrClass.rawLlvmRef: LlvmTypeRef? by tackState { null }
 internal val IrClass.llvmName: String get() = this.canonicalName.toString()
 internal var IrClass.llvmType: EmergeClassType by tackLateInitState()
 internal var IrClass.MemberVariable.indexInLlvmStruct: Int? by tackState { null }
+
+internal val IrInterface.typeinfoHolder: EmergeInterfaceTypeinfoHolder by tackLazyVal {
+    EmergeInterfaceTypeinfoHolder(this)
+}
 
 /**
  * True only for the member `pointed` of `emerge.ffi.c.CPointer`

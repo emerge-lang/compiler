@@ -1,6 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import com.google.common.collect.MapMaker
+import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
@@ -30,6 +31,7 @@ import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 import io.github.tmarsteel.emerge.backend.llvm.requireStructuralSupertypeOf
+import io.github.tmarsteel.emerge.backend.llvm.typeinfoHolder
 
 internal val staticObjectFinalizer: KotlinLlvmFunction<LlvmContext, LlvmVoidType> = KotlinLlvmFunction.define(
     "emerge.platform.finalizeStaticObject",
@@ -295,7 +297,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
 
     private class ProviderImpl(
         val canonicalName: String,
-        val supertypes: List<LlvmConstant<LlvmPointerType<TypeinfoType>>>,
+        val supertypes: Collection<IrInterface>,
         val finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
         val virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
     ) : Provider {
@@ -332,7 +334,9 @@ internal class StaticAndDynamicTypeInfo private constructor(
             vtable: LlvmConstant<VTableType>,
             dynamicGlobal: LlvmGlobal<TypeinfoType>,
         ): Pair<LlvmConstant<TypeinfoType>, LlvmConstant<TypeinfoType>> {
-            val supertypesData = PointerToEmergeArrayOfPointersToTypeInfoType.pointed.buildConstantIn(context, supertypes, { it })
+            val supertypesData = PointerToEmergeArrayOfPointersToTypeInfoType.pointed.buildConstantIn(context, supertypes) {
+                it.typeinfoHolder.getTypeinfoInContext(context)
+            }
             val supertypesGlobal = context.addGlobal(supertypesData, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
                 .reinterpretAs(PointerToAnyEmergeValue)
 
@@ -365,7 +369,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
     companion object {
         fun define(
             typeName: String,
-            supertypes: List<LlvmConstant<LlvmPointerType<TypeinfoType>>>,
+            supertypes: Collection<IrInterface>,
             finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
             virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
         ): Provider = ProviderImpl(typeName, supertypes, finalizerFunction, virtualFunctions)

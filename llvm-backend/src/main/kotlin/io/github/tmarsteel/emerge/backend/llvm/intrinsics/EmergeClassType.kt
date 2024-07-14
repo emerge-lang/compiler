@@ -1,14 +1,18 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
+import com.google.common.collect.MapMaker
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
+import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
+import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
@@ -18,11 +22,13 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.indexInLlvmStruct
 import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
+import io.github.tmarsteel.emerge.backend.llvm.typeinfoHolder
 
 internal class EmergeClassType private constructor(
     val context: EmergeLlvmContext,
@@ -48,7 +54,7 @@ internal class EmergeClassType private constructor(
     private val typeinfoProvider by lazy {
         StaticAndDynamicTypeInfo.define(
             irClass.llvmName,
-            emptyList(),
+            irClass.supertypes,
             { _ -> destructor },
             virtualFunctions = {
                 irClass.memberFunctions
@@ -203,6 +209,37 @@ internal class EmergeClassType private constructor(
 
             check(memberVariable in this@member.pointeeType.irClass.memberVariables)
             return stepUnsafe(context.i32(memberVariable.indexInLlvmStruct!!), context.getReferenceSiteType(memberVariable.type))
+        }
+    }
+}
+
+internal class EmergeInterfaceTypeinfoHolder(
+    val emergeInterface: IrInterface
+) {
+    private val valuesByContext: MutableMap<EmergeLlvmContext, LlvmGlobal<TypeinfoType>> = MapMaker().weakKeys().makeMap()
+
+    fun getTypeinfoInContext(context: EmergeLlvmContext): LlvmGlobal<TypeinfoType> {
+        return valuesByContext.computeIfAbsent(context) { context ->
+            val canonicalName = emergeInterface.canonicalName.toString()
+            val namePtr = context.emergeStringLiteral(canonicalName)
+
+            val tArrayOfTypeinfoPtr = PointerToEmergeArrayOfPointersToTypeInfoType.pointed
+            val supertypesArrayPtr = context.addGlobal(
+                tArrayOfTypeinfoPtr.buildConstantIn(context, emergeInterface.supertypes) {
+                    it.typeinfoHolder.getTypeinfoInContext(context)
+                },
+                LlvmThreadLocalMode.NOT_THREAD_LOCAL,
+            ).reinterpretAs(pointerTo(EmergeHeapAllocatedValueBaseType))
+
+            val constant = TypeinfoType.GENERIC.buildConstantIn(context) {
+                setValue(TypeinfoType.GENERIC.supertypes, supertypesArrayPtr)
+                setValue(TypeinfoType.GENERIC.anyValueVirtuals, context.poisonValue(EmergeAnyValueVirtualsType))
+                setNull(TypeinfoType.GENERIC.dynamicTypeInfoPtr)
+                setValue(TypeinfoType.GENERIC.canonicalNamePtr, namePtr)
+                setValue(TypeinfoType.GENERIC.vtable, context.poisonValue(VTableType(0)))
+            }
+
+            context.addGlobal(constant, LlvmThreadLocalMode.NOT_THREAD_LOCAL, "typeinfo_${canonicalName}_interface")
         }
     }
 }

@@ -24,6 +24,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrIdentityComparisonExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIfExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrNotReallyAnExpression
@@ -97,6 +98,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeU8ArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeUWordArrayType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.PointerToAnyEmergeValue
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.TypeinfoType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceCreated
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceDropped
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.arrayAbstractFallibleGet
@@ -117,6 +119,7 @@ import io.github.tmarsteel.emerge.backend.llvm.llvmType
 import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
 import io.github.tmarsteel.emerge.backend.llvm.tackLateInitState
 import io.github.tmarsteel.emerge.backend.llvm.tackState
+import io.github.tmarsteel.emerge.backend.llvm.typeinfoHolder
 
 internal sealed interface ExecutableResult {
     object ExecutionOngoing : ExecutableResult
@@ -742,12 +745,17 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         }
         is IrBaseTypeReflectionExpression -> {
             check(expression.evaluatesTo.autoboxer == Autoboxer.ReflectionBaseType)
-            val emergeClassToReflectOn = context.getEmergeClassByIrType(expression.baseType)
-                ?: throw CodeGenerationException("Cannot reflect on unknown base type ${expression.baseType}")
+            val typeinfoPtr: LlvmValue<LlvmPointerType<TypeinfoType>> = when (val localBaseType = expression.baseType) {
+                is IrClass -> {
+                    val emergeClass = context.getEmergeClassByIrType(expression.baseType)
+                        ?: throw CodeGenerationException("Cannot reflect on unknown base type ${expression.baseType}")
+                    emergeClass.getTypeinfoInContext(context).dynamic
+                }
+                is IrInterface -> localBaseType.typeinfoHolder.getTypeinfoInContext(context)
+                else -> throw CodeGenerationException("Unsupported base type ${localBaseType::class.qualifiedName}")
+            }
 
-            return ExpressionResult.Value(
-                emergeClassToReflectOn.getTypeinfoInContext(context).dynamic
-            )
+            return ExpressionResult.Value(typeinfoPtr)
         }
         is IrImplicitEvaluationExpression -> {
             val result = emitCode(expression.code, functionReturnType, functionHasNothrowAbi, expressionResultUsed)

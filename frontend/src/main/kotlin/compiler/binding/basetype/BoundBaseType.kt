@@ -431,9 +431,10 @@ class BoundBaseType(
 }
 
 private class IrInterfaceImpl(
-    typeDef: BoundBaseType,
+    val typeDef: BoundBaseType,
 ) : IrInterface {
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
+    override val supertypes: Set<IrInterface> get() = typeDef.superTypes.baseTypes.map { it.toBackendIr() as IrInterface }.toSet()
     override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()
     override val memberFunctions by lazy { typeDef.memberFunctions.map { it.toBackendIr() as IrOverloadGroup<IrMemberFunction> } }
 
@@ -452,9 +453,10 @@ private class IrInterfaceImpl(
 }
 
 private class IrClassImpl(
-    typeDef: BoundBaseType,
+    val typeDef: BoundBaseType,
 ) : IrClass {
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
+    override val supertypes: Set<IrInterface> get() = typeDef.superTypes.baseTypes.map { it.toBackendIr() as IrInterface }.toSet()
     override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()
     override val memberVariables by lazy { typeDef.memberVariables.map { it.toBackendIr() } }
     override val memberFunctions by lazy { typeDef.memberFunctions.map { it.toBackendIr() as IrOverloadGroup<IrMemberFunction> } }
