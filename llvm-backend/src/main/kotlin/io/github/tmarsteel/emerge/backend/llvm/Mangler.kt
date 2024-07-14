@@ -17,6 +17,7 @@ object Mangler {
     fun computeMangledNameFor(function: IrFunction): String {
         val context = Context()
         val builder = StringBuilder()
+        builder.append(EMERGE_PREFIX)
         if (function is IrMemberFunction) {
             builder.append(SIGIL_MEMBER_FUNCTION)
         } else {
@@ -62,6 +63,8 @@ object Mangler {
         'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
         'w', 'x', 'y', 'z'
     )
+
+    private const val EMERGE_PREFIX = "\$EM"
 
     private class Context {
         /* can probably be optimized by using a tree instead of the map+linear search, but doing that on
