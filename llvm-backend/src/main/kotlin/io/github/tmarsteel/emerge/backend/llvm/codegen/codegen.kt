@@ -110,6 +110,7 @@ import io.github.tmarsteel.emerge.backend.llvm.isAny
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
+import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.llvmType
 import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
@@ -444,7 +445,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                     } else {
                         // general handling
                         val llvmFunction = expression.function.llvmRef
-                            ?: throw CodeGenerationException("Missing implementation for ${expression.function.canonicalName}")
+                            ?: throw CodeGenerationException(
+                                "Missing implementation for ${expression.function.canonicalName}; mangled name: ${expression.function.llvmName}"
+                            )
                         call(
                             llvmFunction,
                             expression.arguments.zip(expression.function.parameters)

@@ -2,6 +2,7 @@ package io.github.tmarsteel.emerge.backend.api.ir
 
 sealed interface IrType {
     val isNullable: Boolean
+    val mutability: IrTypeMutability
 
     fun asNullable(): IrType
 }
@@ -24,6 +25,13 @@ interface IrParameterizedType : IrType {
         val variance: IrTypeVariance
         val type: IrType
     }
+}
+
+enum class IrTypeMutability {
+    MUTABLE,
+    IMMUTABLE,
+    READONLY,
+    EXCLUSIVE,
 }
 
 enum class IrTypeVariance {
