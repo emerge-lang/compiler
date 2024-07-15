@@ -30,6 +30,7 @@ import io.github.tmarsteel.emerge.backend.llvm.codegen.emitCode
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitExpressionCode
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitRead
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitWrite
+import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
 import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
@@ -60,6 +61,8 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.anyReflect
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.intrinsicNumberOperations
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.isNullBuiltin
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.pureWrite
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.reflectionBaseTypeIsSameObjectAs
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.safemathFns
 import io.github.tmarsteel.emerge.backend.llvm.isNothing
 import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
@@ -641,7 +644,14 @@ class EmergeLlvmContext(
 
     private fun getInstrinsic(fn: IrFunction): LlvmFunction<*>? {
         var intrinsic: LlvmFunction<*>? = null
-        if (fn is IrBaseTypeFunction) {
+
+        if (intrinsic == null && fn.canonicalName.parent == CanonicalElementName.Package(listOf("emerge", "core", "safemath")) && fn.parameters.size == 2) {
+            intrinsic = safemathFns[fn.canonicalName.simpleName]
+                ?.get(fn.parameters.first().type.findSimpleTypeBound().baseType.canonicalName.simpleName)
+                ?.let { registerIntrinsic(it) }
+        }
+
+        if (intrinsic == null && fn is IrBaseTypeFunction) {
             val autoboxer = fn.ownerBaseType.autoboxer
             if (autoboxer is Autoboxer.CFfiPointerType) {
                 if (fn.canonicalName.simpleName == "\$constructor") {
@@ -654,11 +664,9 @@ class EmergeLlvmContext(
         }
 
         if (intrinsic == null) {
-            intrinsic = intrinsicFunctions[fn.canonicalName.toString()]
-                ?.let {
-                    this.registerIntrinsic(it as KotlinLlvmFunction<in EmergeLlvmContext, *>)
-                }
-            // TODO: different intrinsic per overload
+            intrinsic = intrinsicFunctions[fn.canonicalName.toString()]?.let {
+                this.registerIntrinsic(it as KotlinLlvmFunction<in EmergeLlvmContext, *>)
+            }
         }
 
         return intrinsic
