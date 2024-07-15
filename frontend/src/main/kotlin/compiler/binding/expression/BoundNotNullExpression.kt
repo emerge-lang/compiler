@@ -31,8 +31,8 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.SoftwareContext
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrExpressionSideEffectsStatementImpl
-import compiler.binding.misc_ir.IrIdentityComparisonExpressionImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
+import compiler.binding.misc_ir.IrIsNullExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
@@ -136,13 +136,9 @@ class BoundNotNullExpression(
      */
     private val backendIr: Pair<IrCodeChunk, IrCreateTemporaryValue> by lazy {
         val valueToCheck = IrCreateTemporaryValueImpl(nullableExpression.toBackendIrExpression())
-        val nullLiteral = IrCreateTemporaryValueImpl(IrNullLiteralExpressionImpl(
-            context.swCtx.nothing.baseReference.withCombinedNullability(TypeReference.Nullability.NULLABLE).toBackendIr()
-        ))
         val nullCmpResult = IrCreateTemporaryValueImpl(
-            IrIdentityComparisonExpressionImpl(
+            IrIsNullExpressionImpl(
                 IrTemporaryValueReferenceImpl(valueToCheck),
-                IrTemporaryValueReferenceImpl(nullLiteral),
                 context.swCtx,
             )
         )
@@ -163,7 +159,6 @@ class BoundNotNullExpression(
 
         val code = IrCodeChunkImpl(listOf(
             valueToCheck,
-            nullLiteral,
             nullCmpResult,
             IrExpressionSideEffectsStatementImpl(IrIfExpressionImpl(
                 IrTemporaryValueReferenceImpl(nullCmpResult),

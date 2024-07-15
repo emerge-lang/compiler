@@ -391,8 +391,6 @@ val BinaryOperator = eitherOf {
     operator(Operator.LESS_THAN)
     operator(Operator.GREATER_THAN_OR_EQUALS)
     operator(Operator.LESS_THAN_OR_EQUALS)
-    operator(Operator.IDENTITY_EQ)
-    operator(Operator.IDENTITY_NEQ)
 
     // Logic
     keyword(Keyword.AND)

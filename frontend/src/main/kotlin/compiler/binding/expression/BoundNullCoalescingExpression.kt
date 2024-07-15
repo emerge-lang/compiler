@@ -14,8 +14,8 @@ import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
-import compiler.binding.misc_ir.IrIdentityComparisonExpressionImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
+import compiler.binding.misc_ir.IrIsNullExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeReference
@@ -123,10 +123,8 @@ class BoundNullCoalescingExpression(
 
     override fun toBackendIrExpression(): IrExpression {
         val nullableValueTemporary = IrCreateTemporaryValueImpl(nullableExpression.toBackendIrExpression())
-        val nullLiteralTemporary = IrCreateTemporaryValueImpl(IrNullLiteralExpressionImpl(nullableExpression.type!!.toBackendIr().asNullable()))
-        val isNullTemporary = IrCreateTemporaryValueImpl(IrIdentityComparisonExpressionImpl(
+        val isNullTemporary = IrCreateTemporaryValueImpl(IrIsNullExpressionImpl(
             IrTemporaryValueReferenceImpl(nullableValueTemporary),
-            IrTemporaryValueReferenceImpl(nullLiteralTemporary),
             context.swCtx,
         ))
 
@@ -157,7 +155,6 @@ class BoundNullCoalescingExpression(
         return IrImplicitEvaluationExpressionImpl(
             IrCodeChunkImpl(listOfNotNull(
                 IrUpdateSourceLocationStatementImpl(nullableExpression.declaration.span),
-                nullLiteralTemporary,
                 nullableValueTemporary,
                 isNullTemporary,
                 conditionalResultTemporary,

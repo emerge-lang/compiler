@@ -98,9 +98,7 @@ private val AstSemanticOperator.priority: Int
         Operator.GREATER_THAN,
         Operator.GREATER_THAN_OR_EQUALS,
         Operator.EQUALS,
-        Operator.NOT_EQUALS,
-        Operator.IDENTITY_EQ,
-        Operator.IDENTITY_NEQ -> 30
+        Operator.NOT_EQUALS -> 30
 
         Operator.PLUS,
         Operator.MINUS -> 40

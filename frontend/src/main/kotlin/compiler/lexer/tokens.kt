@@ -94,8 +94,6 @@ enum class Operator(val text: String, private val _humanReadableName: String? = 
     PLUS                  ("+"),
     MINUS                 ("-"),
     DIVIDE                ("/"),
-    IDENTITY_EQ           ("==="),
-    IDENTITY_NEQ          ("!=="),
     EQUALS                ("=="),
     NOT_EQUALS            ("!="),
     ASSIGNMENT            ("="),

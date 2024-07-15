@@ -173,19 +173,12 @@ interface IrNumericComparisonExpression : IrExpression {
 }
 
 /**
- * This expression evaluates to `true` iff both [lhs] and [rhs] can be used in `any` code without an observable
- * difference (including side-channels).
- *
  * Always evaluates to a boolean, [evaluatesTo] must always be `IrSimpleType(emerge.core.Bool)`.
  *
- * For reference/heap-allocated types: does an equality test on the memory addresses being pointed to. Must also
- * equality-test additional information for fat pointers.
- *
- * For value/non-heap-allocated types this must be an equality test on the bits of both values.
+ * Evaluates to true iff the value in [nullableValue] is `null`
  */
-interface IrIdentityComparisonExpression : IrExpression {
-    val lhs: IrTemporaryValueReference
-    val rhs: IrTemporaryValueReference
+interface IrIsNullExpression : IrExpression {
+    val nullableValue: IrTemporaryValueReference
 }
 
 /**
