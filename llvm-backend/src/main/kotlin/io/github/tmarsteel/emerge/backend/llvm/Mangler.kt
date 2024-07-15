@@ -2,14 +2,17 @@ package io.github.tmarsteel.emerge.backend.llvm
 
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseTypeFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrConstructor
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
-import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
+import io.github.tmarsteel.emerge.backend.llvm.Mangler.Context.Companion.appendNonReferenceBaseType
 import io.github.tmarsteel.emerge.backend.llvm.Mangler.Context.Companion.appendPackageName
 import io.github.tmarsteel.emerge.backend.llvm.Mangler.Context.Companion.appendType
 
@@ -18,22 +21,29 @@ object Mangler {
         val context = Context()
         val builder = StringBuilder()
         builder.append(EMERGE_PREFIX)
-        if (function is IrMemberFunction) {
-            builder.append(SIGIL_MEMBER_FUNCTION)
-        } else {
-            builder.append(SIGIL_TOPLEVEL_FUNCTION)
+        when (function) {
+            is IrBaseTypeFunction -> {
+                builder.append(if (function is IrConstructor) SIGIL_CONSTRUCTOR else SIGIL_MEMBER_FUNCTION)
+                builder.appendNonReferenceBaseType(context, function.ownerBaseType)
+            }
+
+            else -> {
+                builder.append(SIGIL_TOPLEVEL_FUNCTION)
+                val packageName = when (val parentName = function.canonicalName.parent) {
+                    is CanonicalElementName.BaseType -> parentName.packageName
+                    is CanonicalElementName.Package -> parentName
+                    else -> throw CodeGenerationException("this should never happen")
+                }
+
+                builder.appendPackageName(context, packageName)
+            }
         }
 
-        val packageName = when (val parentName = function.canonicalName.parent) {
-            is CanonicalElementName.BaseType -> parentName.packageName
-            is CanonicalElementName.Package -> parentName
-            else -> throw CodeGenerationException("this should never happen")
-        }
-
-        builder.appendPackageName(context, packageName)
-        builder.appendLengthDelimitedText(function.canonicalName.simpleName)
-        for (parameter in function.parameters) {
-            builder.appendType(context, parameter.type, null)
+        if (function !is IrConstructor) {
+            builder.appendLengthDelimitedText(function.canonicalName.simpleName)
+            for (parameter in function.parameters) {
+                builder.appendType(context, parameter.type, null)
+            }
         }
 
         return builder.toString()
@@ -232,6 +242,12 @@ object Mangler {
                 appendLengthDelimitedText(nameSuffix)
             }
 
+            fun StringBuilder.appendNonReferenceBaseType(context: Context, type: IrBaseType) {
+                appendPackageName(context, type.canonicalName.packageName)
+                appendLengthDelimitedText(type.canonicalName.simpleName)
+                context.knownBaseTypeNames[type.canonicalName] = context.knownBaseTypeNames.size.toUInt()
+            }
+
             fun StringBuilder.appendType(context: Context, type: IrType, argumentVariance: IrTypeVariance?) {
                 when (type) {
                     is IrSimpleType -> {
@@ -241,9 +257,7 @@ object Mangler {
                             appendEncodedNumber(existingTypeValue)
                         } else {
                             append(getTypeSigil(isReference = false, isGeneric = false, mutability = type.mutability, variance = argumentVariance))
-                            appendPackageName(context, type.baseType.canonicalName.packageName)
-                            appendLengthDelimitedText(type.baseType.canonicalName.simpleName)
-                            context.knownBaseTypeNames[type.baseType.canonicalName] = context.knownBaseTypeNames.size.toUInt()
+                            appendNonReferenceBaseType(context, type.baseType)
                         }
                     }
                     is IrGenericTypeReference -> {
@@ -275,4 +289,6 @@ object Mangler {
 
     private val SIGIL_TOPLEVEL_FUNCTION = 'T'
     private val SIGIL_MEMBER_FUNCTION = 'M'
+    private val SIGIL_CONSTRUCTOR = 'C'
+    private val SIGIL_DESTRUCTOR = 'D'
 }
