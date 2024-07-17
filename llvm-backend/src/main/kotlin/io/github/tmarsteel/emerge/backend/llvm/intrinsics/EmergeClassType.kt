@@ -1,14 +1,14 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import com.google.common.collect.MapMaker
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
-import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.allDistinctSupertypesExceptAny
-import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
+import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
@@ -53,9 +53,19 @@ internal class EmergeClassType private constructor(
     val constructor get() = irClass.constructor.llvmRef!! as LlvmFunction<EmergeFallibleCallResult.WithValue<LlvmPointerType<EmergeClassType>>>
     val destructor: LlvmFunction<*> get() = irClass.destructor.llvmRef!! as LlvmFunction<*>
 
+    private fun getTypeNameInContext(context: EmergeLlvmContext): CanonicalElementName.BaseType {
+        val isBox = irClass.canonicalName.packageName.toString() == "emerge.platform" && irClass.canonicalName.simpleName.endsWith("Box")
+        if (!isBox) {
+            return irClass.canonicalName
+        }
+
+        // boxing types have only one field, holding the boxed value. We use the name of that
+        return irClass.memberVariables.single().type.findSimpleTypeBound().baseType.canonicalName
+    }
+
     private val typeinfoProvider by lazy {
         StaticAndDynamicTypeInfo.define(
-            { ctx -> (irClass.autoboxer?.getTypeinfoNameOverrideInContext(ctx) ?: irClass.canonicalName).toString() },
+            { ctx -> getTypeNameInContext(ctx).toString() },
             irClass.allDistinctSupertypesExceptAny,
             { _ -> destructor },
             virtualFunctions = {
@@ -70,7 +80,6 @@ internal class EmergeClassType private constructor(
     }
 
     fun getTypeinfoInContext(context: EmergeLlvmContext): StaticAndDynamicTypeInfo {
-        val typeName = ((irClass.autoboxer as? Autoboxer.PrimitiveType)?.primitiveTypeGetter?.invoke(context) ?: irClass).canonicalName.toString()
         try {
             return typeinfoProvider.provide(context)
         } catch (ex: VirtualFunctionHashCollisionException) {
