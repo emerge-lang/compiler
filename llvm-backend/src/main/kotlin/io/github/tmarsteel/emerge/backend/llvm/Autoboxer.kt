@@ -33,6 +33,13 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.TypeinfoType
  */
 internal sealed interface Autoboxer {
     fun getBoxedType(context: EmergeLlvmContext): EmergeClassType
+
+    /**
+     * Overrides the [TypeinfoType.canonicalNamePtr] on the boxed type; e.g. for `emerge.platform.S8Box`,
+     * overrides to `emerge.core.S8` so that the typeinfo of S8Box can act as the effective typeinfo for S8.
+     */
+    fun getTypeinfoNameOverrideInContext(context: EmergeLlvmContext): CanonicalElementName.BaseType?
+
     val unboxedType: LlvmType
 
     val omitConstructorAndDestructor: Boolean
@@ -98,6 +105,10 @@ internal sealed interface Autoboxer {
             return boxedTypeGetter(context)
         }
 
+        override fun getTypeinfoNameOverrideInContext(context: EmergeLlvmContext): CanonicalElementName.BaseType? {
+            return primitiveTypeGetter(context).canonicalName
+        }
+
         override fun isAccessingIntoTheBox(
             context: EmergeLlvmContext,
             readAccess: IrClassMemberVariableAccessExpression
@@ -161,6 +172,10 @@ internal sealed interface Autoboxer {
 
         override fun getBoxedType(context: EmergeLlvmContext): EmergeClassType {
             return context.boxTypeReflectionBaseType
+        }
+
+        override fun getTypeinfoNameOverrideInContext(context: EmergeLlvmContext): CanonicalElementName.BaseType? {
+            return context.rawReflectionBaseTypeClazz.canonicalName
         }
 
         override val unboxedType: LlvmType get() = pointerTo(TypeinfoType.GENERIC)
@@ -272,6 +287,10 @@ internal sealed interface Autoboxer {
 
         override fun getBoxedType(context: EmergeLlvmContext): EmergeClassType {
             return boxedTypeGetter(context)
+        }
+
+        override fun getTypeinfoNameOverrideInContext(context: EmergeLlvmContext): CanonicalElementName.BaseType? {
+            return null
         }
 
         override fun isAccessingIntoTheBox(

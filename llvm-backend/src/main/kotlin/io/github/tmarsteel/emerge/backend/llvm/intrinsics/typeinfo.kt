@@ -291,12 +291,12 @@ internal class StaticAndDynamicTypeInfo private constructor(
     val dynamic: LlvmGlobal<TypeinfoType>,
     val static: LlvmGlobal<TypeinfoType>,
 ) {
-    interface Provider {
+    fun interface Provider {
         fun provide(context: EmergeLlvmContext): StaticAndDynamicTypeInfo
     }
 
     private class ProviderImpl(
-        val canonicalName: String,
+        val canonicalName: (EmergeLlvmContext) -> String,
         val supertypes: Collection<IrInterface>,
         val finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
         val virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
@@ -317,7 +317,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
             val (dynamicConstant, staticConstant) = build(
                 context,
                 typeinfoType,
-                canonicalName,
+                canonicalName(context),
                 vtableConstant,
                 dynamicGlobal,
             )
@@ -368,7 +368,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
 
     companion object {
         fun define(
-            typeName: String,
+            typeName: (EmergeLlvmContext) -> String,
             supertypes: Collection<IrInterface>,
             finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
             virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,

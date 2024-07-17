@@ -609,14 +609,18 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         }
         is IrBaseTypeReflectionExpression -> {
             check(expression.evaluatesTo.autoboxer == Autoboxer.ReflectionBaseType)
-            val typeinfoPtr: LlvmValue<LlvmPointerType<TypeinfoType>> = when (val localBaseType = expression.baseType) {
-                is IrClass -> {
-                    val emergeClass = context.getEmergeClassByIrType(expression.baseType)
-                        ?: throw CodeGenerationException("Cannot reflect on unknown base type ${expression.baseType}")
-                    emergeClass.getTypeinfoInContext(context).dynamic
+            val boxedType = expression.baseType.autoboxer?.getBoxedType(context)
+            val typeinfoPtr: LlvmValue<LlvmPointerType<TypeinfoType>> = when (boxedType) {
+                null -> when (val localBaseType = expression.baseType) {
+                    is IrClass -> {
+                        val emergeClass = context.getEmergeClassByIrType(expression.baseType)
+                            ?: throw CodeGenerationException("Cannot reflect on unknown base type ${expression.baseType}")
+                        emergeClass.getTypeinfoInContext(context).dynamic
+                    }
+                    is IrInterface -> localBaseType.typeinfoHolder.getTypeinfoInContext(context)
+                    else -> throw CodeGenerationException("Unsupported base type ${localBaseType::class.qualifiedName}")
                 }
-                is IrInterface -> localBaseType.typeinfoHolder.getTypeinfoInContext(context)
-                else -> throw CodeGenerationException("Unsupported base type ${localBaseType::class.qualifiedName}")
+                else -> boxedType.getTypeinfoInContext(context).dynamic
             }
 
             return ExpressionResult.Value(typeinfoPtr)

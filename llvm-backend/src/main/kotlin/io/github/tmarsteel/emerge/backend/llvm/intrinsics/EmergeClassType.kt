@@ -5,7 +5,9 @@ import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
+import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.allDistinctSupertypesExceptAny
+import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
@@ -26,7 +28,6 @@ import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
-import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
 import io.github.tmarsteel.emerge.backend.llvm.typeinfoHolder
@@ -54,7 +55,7 @@ internal class EmergeClassType private constructor(
 
     private val typeinfoProvider by lazy {
         StaticAndDynamicTypeInfo.define(
-            irClass.llvmName,
+            { ctx -> (irClass.autoboxer?.getTypeinfoNameOverrideInContext(ctx) ?: irClass.canonicalName).toString() },
             irClass.allDistinctSupertypesExceptAny,
             { _ -> destructor },
             virtualFunctions = {
@@ -69,6 +70,7 @@ internal class EmergeClassType private constructor(
     }
 
     fun getTypeinfoInContext(context: EmergeLlvmContext): StaticAndDynamicTypeInfo {
+        val typeName = ((irClass.autoboxer as? Autoboxer.PrimitiveType)?.primitiveTypeGetter?.invoke(context) ?: irClass).canonicalName.toString()
         try {
             return typeinfoProvider.provide(context)
         } catch (ex: VirtualFunctionHashCollisionException) {

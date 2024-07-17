@@ -133,7 +133,7 @@ internal class EmergeArrayType<Element : LlvmType>(
     val elements by structMember(LlvmArrayType(0L, elementType))
 
     val typeinfo = StaticAndDynamicTypeInfo.define(
-        name,
+        { _ -> name },
         emptyList(),
         { ctx -> ctx.registerIntrinsic(finalizer) },
         { mapOf(
