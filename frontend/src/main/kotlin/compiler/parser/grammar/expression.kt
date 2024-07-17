@@ -49,6 +49,7 @@ import compiler.parser.BinaryExpressionPostfix
 import compiler.parser.CastExpressionPostfix
 import compiler.parser.ExpressionPostfix
 import compiler.parser.IndexAccessExpressionPostfix
+import compiler.parser.InstanceOfExpressionPostfix
 import compiler.parser.InvocationExpressionPostfix
 import compiler.parser.MemberAccessExpressionPostfix
 import compiler.parser.NotNullExpressionPostfix
@@ -377,6 +378,18 @@ val ExpressionPostfixCast = sequence("cast") {
         CastExpressionPostfix(operator, toType)
     }
 
+val ExpressionPostfixInstaceOf = sequence("instance-of") {
+    eitherOf {
+        keyword(Keyword.INSTANCEOF)
+    }
+    ref(Type)
+}
+    .astTransformation { tokens ->
+        val operator = tokens.next()!! as KeywordToken
+        val typeToCheck = tokens.next()!! as TypeReference
+        InstanceOfExpressionPostfix(operator, typeToCheck)
+    }
+
 val BinaryOperator = eitherOf {
     // Arithmetic
     operator(Operator.PLUS)
@@ -424,6 +437,7 @@ val ExpressionPostfixExcludingBinary = eitherOf {
     ref(ExpressionPostfixMemberAccess)
     ref(ExpressionPostfixIndexAccess)
     ref(ExpressionPostfixCast)
+    ref(ExpressionPostfixInstaceOf)
 }
 
 val ExpressionPostfix = eitherOf {

@@ -9,5 +9,4 @@ import emerge.core.Throwable
 // but if you're panicking, what use is the side-effect reasoning anyways?
 export intrinsic nothrow fn panic(message: String) -> Nothing
 
-// TODO: rename to just panic, needs mangling of types
-export intrinsic nothrow fn panicOnThrowable(throwable: Throwable) -> Nothing
+export intrinsic nothrow fn panic(throwable: Throwable) -> Nothing

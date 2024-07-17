@@ -5,6 +5,7 @@ import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
+import io.github.tmarsteel.emerge.backend.llvm.allDistinctSupertypesExceptAny
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
@@ -54,7 +55,7 @@ internal class EmergeClassType private constructor(
     private val typeinfoProvider by lazy {
         StaticAndDynamicTypeInfo.define(
             irClass.llvmName,
-            irClass.supertypes,
+            irClass.allDistinctSupertypesExceptAny,
             { _ -> destructor },
             virtualFunctions = {
                 irClass.memberFunctions
@@ -225,7 +226,7 @@ internal class EmergeInterfaceTypeinfoHolder(
 
             val tArrayOfTypeinfoPtr = PointerToEmergeArrayOfPointersToTypeInfoType.pointed
             val supertypesArrayPtr = context.addGlobal(
-                tArrayOfTypeinfoPtr.buildConstantIn(context, emergeInterface.supertypes) {
+                tArrayOfTypeinfoPtr.buildConstantIn(context, emergeInterface.allDistinctSupertypesExceptAny) {
                     it.typeinfoHolder.getTypeinfoInContext(context)
                 },
                 LlvmThreadLocalMode.NOT_THREAD_LOCAL,

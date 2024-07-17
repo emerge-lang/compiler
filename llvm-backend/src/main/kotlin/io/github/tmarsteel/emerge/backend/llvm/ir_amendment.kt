@@ -27,6 +27,8 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeInterfaceTypeinf
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
+import java.util.Collections
+import java.util.IdentityHashMap
 
 /*
 Amendmends to the backend-api IR using tack.kt
@@ -72,6 +74,23 @@ internal var IrClass.MemberVariable.indexInLlvmStruct: Int? by tackState { null 
 
 internal val IrInterface.typeinfoHolder: EmergeInterfaceTypeinfoHolder by tackLazyVal {
     EmergeInterfaceTypeinfoHolder(this)
+}
+
+internal val IrBaseType.allDistinctSupertypesExceptAny: Set<IrInterface> by tackLazyVal {
+    val allSupertypes: MutableSet<IrInterface> = Collections.newSetFromMap(IdentityHashMap())
+    allSupertypes.addAll(supertypes)
+    do {
+        val additional = allSupertypes
+            .asSequence()
+            .flatMap { it.supertypes }
+            .filter { it !in allSupertypes }
+            .toList()
+        allSupertypes.addAll(additional)
+    } while (additional.isNotEmpty())
+
+    allSupertypes.removeAll { it.isAny }
+
+    allSupertypes
 }
 
 /**

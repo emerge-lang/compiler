@@ -5,6 +5,7 @@ import compiler.ast.AstSemanticOperator
 import compiler.ast.Expression
 import compiler.ast.expression.AstCastExpression
 import compiler.ast.expression.AstIndexAccessExpression
+import compiler.ast.expression.AstInstanceOfExpression
 import compiler.ast.expression.BinaryExpression
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
@@ -69,6 +70,15 @@ class CastExpressionPostfix(
     val toType: TypeReference,
 ) : ExpressionPostfix<AstCastExpression> {
     override fun modify(expr: Expression) = AstCastExpression(expr, operator, toType)
+}
+
+class InstanceOfExpressionPostfix(
+    val operator: KeywordToken,
+    val typeToCheck: TypeReference,
+) : ExpressionPostfix<AstInstanceOfExpression> {
+    override fun modify(expr: Expression): AstInstanceOfExpression {
+        return AstInstanceOfExpression(expr, operator, typeToCheck)
+    }
 }
 
 class BinaryExpressionPostfix(

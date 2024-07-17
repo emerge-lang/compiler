@@ -714,6 +714,7 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             writeMemoryAddress,
             pureWrite,
             anyReflect,
+            reflectionBaseTypeIsSameObjectAs,
         )
             + intrinsicNumberOperations
     )
