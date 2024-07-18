@@ -64,6 +64,10 @@ internal class EmergeClassType private constructor(
     }
 
     private val typeinfoProvider by lazy {
+        if (this.irClass.canonicalName.toString() == "emerge.core.Array") {
+            return@lazy EmergeReferenceArrayType.typeinfo
+        }
+
         StaticAndDynamicTypeInfo.define(
             { ctx -> getTypeNameInContext(ctx).toString() },
             irClass.allDistinctSupertypesExceptAny,

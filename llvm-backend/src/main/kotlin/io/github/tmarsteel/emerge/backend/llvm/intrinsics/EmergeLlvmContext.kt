@@ -705,6 +705,8 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             arraySize,
             arrayAbstractFallibleGet,
             arrayAbstractFallibleSet,
+            arrayAbstractPanicGet,
+            arrayAbstractPanicSet,
             panic,
             unwindContextSize,
             unwindCursorSize,

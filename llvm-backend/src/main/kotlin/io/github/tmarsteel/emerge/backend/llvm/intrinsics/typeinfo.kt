@@ -282,6 +282,7 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
             setter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck,
             valueArrayFinalize,
             defaultValueCtor,
+            listOf(EmergeReferenceArrayType.typeinfo),
         )
     )
 }
@@ -297,7 +298,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
 
     private class ProviderImpl(
         val canonicalName: (EmergeLlvmContext) -> String,
-        val supertypes: Collection<IrInterface>,
+        val supertypes: Collection<(EmergeLlvmContext) -> LlvmGlobal<TypeinfoType>>,
         val finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
         val virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
     ) : Provider {
@@ -335,7 +336,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
             dynamicGlobal: LlvmGlobal<TypeinfoType>,
         ): Pair<LlvmConstant<TypeinfoType>, LlvmConstant<TypeinfoType>> {
             val supertypesData = PointerToEmergeArrayOfPointersToTypeInfoType.pointed.buildConstantIn(context, supertypes) {
-                it.typeinfoHolder.getTypeinfoInContext(context)
+                it(context)
             }
             val supertypesGlobal = context.addGlobal(supertypesData, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
                 .reinterpretAs(PointerToAnyEmergeValue)
@@ -367,12 +368,29 @@ internal class StaticAndDynamicTypeInfo private constructor(
     }
 
     companion object {
+        fun defineRaw(
+            typeName: (EmergeLlvmContext) -> String,
+            supertypes: Collection<(EmergeLlvmContext) -> LlvmGlobal<TypeinfoType>>,
+            finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
+            virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
+        ): Provider = ProviderImpl(
+            typeName,
+            supertypes,
+            finalizerFunction,
+            virtualFunctions
+        )
+
         fun define(
             typeName: (EmergeLlvmContext) -> String,
             supertypes: Collection<IrInterface>,
             finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
             virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
-        ): Provider = ProviderImpl(typeName, supertypes, finalizerFunction, virtualFunctions)
+        ): Provider = ProviderImpl(
+            typeName,
+            supertypes.map { irSupertype -> { ctx -> irSupertype.typeinfoHolder.getTypeinfoInContext(ctx) } },
+            finalizerFunction,
+            virtualFunctions,
+        )
     }
 }
 
@@ -398,7 +416,6 @@ private fun buildVTable(
         shiftLeftAmount = 0
         while (shiftLeftAmount <= 63) {
             shiftRightAmount = shiftLeftAmount + (63 - shiftLeftAmount) - windowSize
-            assert(shiftLeftAmount < shiftRightAmount)
             val sections = functions.keys.map { getSection(it, shiftLeftAmount, shiftRightAmount) }
             if (sections.isDistinct()) {
                 break@tryWindowSize

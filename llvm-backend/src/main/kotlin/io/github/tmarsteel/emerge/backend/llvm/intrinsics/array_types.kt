@@ -128,13 +128,15 @@ internal class EmergeArrayType<Element : LlvmType>(
      * of the given size and sets all the elements to the given value.
      */
     val defaultValueConstructor: KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<out EmergeHeapAllocated>>,
+
+    val supertypes: Iterable<StaticAndDynamicTypeInfo.Provider>,
 ) : LlvmNamedStructType("array_$elementTypeName"), EmergeHeapAllocated {
     val base by structMember(EmergeArrayBaseType)
     val elements by structMember(LlvmArrayType(0L, elementType))
 
-    val typeinfo = StaticAndDynamicTypeInfo.define(
+    val typeinfo = StaticAndDynamicTypeInfo.defineRaw(
         { _ -> name },
-        emptyList(),
+        supertypes.map { superTiP -> { ctx: EmergeLlvmContext -> superTiP.provide(ctx).dynamic } },
         { ctx -> ctx.registerIntrinsic(finalizer) },
         { mapOf(
             VIRTUAL_FUNCTION_HASH_GET_ELEMENT_FALLIBLE to registerIntrinsic(virtualGetterWithFallibleBoundsCheck),
@@ -668,23 +670,11 @@ private fun <Element : LlvmType> buildValueArrayType(
         rawSetterWithoutBoundsCheck,
         valueArrayFinalize,
         defaultValueCtor,
+        listOf(EmergeReferenceArrayType.typeinfo),
     )
 
     return arrayTypeHolder
 }
-
-internal val EmergeS8ArrayType = buildValueArrayType("s8", LlvmI8Type, EmergeLlvmContext::boxTypeS8)
-internal val EmergeU8ArrayType = buildValueArrayType("u8", LlvmI8Type, EmergeLlvmContext::boxTypeU8)
-internal val EmergeS16ArrayType = buildValueArrayType("s16", LlvmI16Type, EmergeLlvmContext::boxTypeS16)
-internal val EmergeU16ArrayType = buildValueArrayType("u16", LlvmI16Type, EmergeLlvmContext::boxTypeU16)
-internal val EmergeS32ArrayType = buildValueArrayType("s32", LlvmI32Type, EmergeLlvmContext::boxTypeS32)
-internal val EmergeU32ArrayType = buildValueArrayType("u32", LlvmI32Type, EmergeLlvmContext::boxTypeU32)
-internal val EmergeS64ArrayType = buildValueArrayType("s64", LlvmI64Type, EmergeLlvmContext::boxTypeS64)
-internal val EmergeU64ArrayType = buildValueArrayType("u64", LlvmI64Type, EmergeLlvmContext::boxTypeU64)
-internal val EmergeSWordArrayType = buildValueArrayType("sword", EmergeWordType, EmergeLlvmContext::boxTypeSWord)
-internal val EmergeUWordArrayType = buildValueArrayType("uword", EmergeWordType, EmergeLlvmContext::boxTypeUWord)
-internal val EmergeBooleanArrayType = buildValueArrayType("bool", LlvmBooleanType, EmergeLlvmContext::boxTypeBool)
-
 
 /** intrinsic for emerge.std.Array::copy */
 private fun <Element : LlvmIntegerType> buildValueArrayCopy(
@@ -980,6 +970,7 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<out Emerg
         rawSetterWithoutBoundsCheck = referenceArrayElementSetterNoBoundsCheck,
         finalizer = referenceArrayFinalizer,
         defaultValueConstructor = defaultValueCtor,
+        emptyList(),
     )
     arrayTypeHolder
 }
@@ -1141,3 +1132,15 @@ internal fun inlinePanicBoundsCheck(
         }
     )
 }
+
+internal val EmergeS8ArrayType = buildValueArrayType("s8", LlvmI8Type, EmergeLlvmContext::boxTypeS8)
+internal val EmergeU8ArrayType = buildValueArrayType("u8", LlvmI8Type, EmergeLlvmContext::boxTypeU8)
+internal val EmergeS16ArrayType = buildValueArrayType("s16", LlvmI16Type, EmergeLlvmContext::boxTypeS16)
+internal val EmergeU16ArrayType = buildValueArrayType("u16", LlvmI16Type, EmergeLlvmContext::boxTypeU16)
+internal val EmergeS32ArrayType = buildValueArrayType("s32", LlvmI32Type, EmergeLlvmContext::boxTypeS32)
+internal val EmergeU32ArrayType = buildValueArrayType("u32", LlvmI32Type, EmergeLlvmContext::boxTypeU32)
+internal val EmergeS64ArrayType = buildValueArrayType("s64", LlvmI64Type, EmergeLlvmContext::boxTypeS64)
+internal val EmergeU64ArrayType = buildValueArrayType("u64", LlvmI64Type, EmergeLlvmContext::boxTypeU64)
+internal val EmergeSWordArrayType = buildValueArrayType("sword", EmergeWordType, EmergeLlvmContext::boxTypeSWord)
+internal val EmergeUWordArrayType = buildValueArrayType("uword", EmergeWordType, EmergeLlvmContext::boxTypeUWord)
+internal val EmergeBooleanArrayType = buildValueArrayType("bool", LlvmBooleanType, EmergeLlvmContext::boxTypeBool)
