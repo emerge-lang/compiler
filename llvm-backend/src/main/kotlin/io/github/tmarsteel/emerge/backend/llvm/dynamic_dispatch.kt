@@ -20,6 +20,12 @@ internal val IrMemberFunction.rootSignatureHash: ULong by tackLazyVal {
         if (canonicalName.simpleName == "set" && parameters.size == 3) {
             return@tackLazyVal EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT_FALLIBLE
         }
+        if (canonicalName.simpleName == "getOrPanic" && parameters.size == 2) {
+            return@tackLazyVal EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT_PANIC
+        }
+        if (canonicalName.simpleName == "setOrPanic" && parameters.size == 3) {
+            return@tackLazyVal EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT_PANIC
+        }
     }
 
     calculateSignatureHash(this)
