@@ -273,8 +273,6 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             return ExecutableResult.ExecutionOngoing
         }
         is IrReturnStatement -> {
-            // TODO: unit return to unit declaration
-
             val rawReturnValue = assureBoxed(code.value, functionReturnType)
             val llvmValueToReturn = if (functionHasNothrowAbi) {
                 rawReturnValue

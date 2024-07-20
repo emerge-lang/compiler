@@ -239,7 +239,7 @@ abstract class BoundDeclaredFunction(
 
         class Full(val code: BoundCodeChunk) : Body, BoundExecutable<Executable> by code {
             override fun toBackendIr(): IrCodeChunk {
-                return code.toBackendIrStatement() // TODO: implicit unit return
+                return code.toBackendIrStatement()
             }
         }
     }

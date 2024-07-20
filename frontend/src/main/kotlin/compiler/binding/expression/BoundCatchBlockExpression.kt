@@ -96,7 +96,7 @@ class BoundCatchBlockExpression(
     }
 
     override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
-        // TODO: this needs to be implemented in BoundCodeChunk
+        catchCode.markEvaluationResultCaptured(withMutability)
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
