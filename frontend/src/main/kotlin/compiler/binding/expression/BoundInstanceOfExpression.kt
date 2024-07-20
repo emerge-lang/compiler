@@ -6,6 +6,7 @@ import compiler.ast.type.TypeMutability
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.SoftwareContext
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
@@ -16,6 +17,8 @@ import compiler.binding.type.UnresolvedType
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 
 /**
  * Entirely syntax sugar; `v is T` desugars to `isInstance(v, reflect T)`,
@@ -76,53 +79,58 @@ class BoundInstanceOfExpression(
     override val isCompileTimeConstant = expressionToCheck.isCompileTimeConstant
 
     override fun toBackendIrExpression(): IrExpression {
-        val reflectPackage = context.swCtx.getPackage(context.swCtx.reflectionBaseType.canonicalName.packageName)
-            ?: throw InternalCompilerError("reflect package not found!")
-
-        val isInstanceFn = reflectPackage.getTopLevelFunctionOverloadSetsBySimpleName("isInstanceOf")
-            .asSequence()
-            .filter { it.parameterCount == 2 }
-            .flatMap { it.overloads }
-            .filter { it.parameterTypes[0]!!.hasSameBaseTypeAs(context.swCtx.any.baseReference) }
-            .filter {
-                val param2Type = it.parameterTypes[1]!!
-                param2Type is RootResolvedTypeReference && param2Type.baseType == context.swCtx.reflectionBaseType
-            }
-            .singleOrNull()
-            ?: throw InternalCompilerError("Could not unambiguously determine isInstanceOf(Any, ReflectionBaseType) function!")
-
-        assert(isInstanceFn.returnType is RootResolvedTypeReference)
-        assert((isInstanceFn.returnType as RootResolvedTypeReference).baseType == context.swCtx.bool)
-
-        val reflectionObjectTemporary = IrCreateTemporaryValueImpl(
-            IrBaseTypeReflectionExpressionImpl(
-                typeToCheck!!.toBackendIr(),
-                context.swCtx.reflectionBaseType.baseReference.withMutability(TypeMutability.IMMUTABLE).toBackendIr(),
-            )
-        )
-
-        val isInstanceTemporary = IrCreateTemporaryValueImpl(
-            buildInvocationLikeIr(
-                listOf(this.expressionToCheck),
-                buildActualCall = { arguments ->
-                    IrStaticDispatchFunctionInvocationImpl(
-                        isInstanceFn.toBackendIr(),
-                        arguments + listOf(
-                            IrTemporaryValueReferenceImpl(reflectionObjectTemporary)
-                        ),
-                        emptyMap(),
-                        isInstanceFn.returnType!!.toBackendIr(),
-                    )
-                },
-            )
-        )
-
-        return IrImplicitEvaluationExpressionImpl(
-            IrCodeChunkImpl(listOf(
-                reflectionObjectTemporary,
-                isInstanceTemporary
-            )),
-            IrTemporaryValueReferenceImpl(isInstanceTemporary),
+        return buildNothrowInvocationLikeIr(
+            listOf(this.expressionToCheck),
+            buildActualCall = { args -> buildInstanceOf(context.swCtx, args.single(), this.typeToCheck!!) },
         )
     }
+}
+
+internal fun buildInstanceOf(
+    swCtx: SoftwareContext,
+    value: IrTemporaryValueReference,
+    typeToCheck: BoundBaseType
+): IrImplicitEvaluationExpression {
+    val reflectPackage = swCtx.getPackage(swCtx.reflectionBaseType.canonicalName.packageName)
+        ?: throw InternalCompilerError("reflect package not found!")
+
+    val isInstanceFn = reflectPackage.getTopLevelFunctionOverloadSetsBySimpleName("isInstanceOf")
+        .asSequence()
+        .filter { it.parameterCount == 2 }
+        .flatMap { it.overloads }
+        .filter { it.parameterTypes[0]!!.hasSameBaseTypeAs(swCtx.any.baseReference) }
+        .filter {
+            val param2Type = it.parameterTypes[1]!!
+            param2Type is RootResolvedTypeReference && param2Type.baseType == swCtx.reflectionBaseType
+        }
+        .singleOrNull()
+        ?: throw InternalCompilerError("Could not unambiguously determine isInstanceOf(Any, ReflectionBaseType) function!")
+
+    assert(isInstanceFn.returnType is RootResolvedTypeReference)
+    assert((isInstanceFn.returnType as RootResolvedTypeReference).baseType == swCtx.bool)
+
+    val reflectionObjectTemporary = IrCreateTemporaryValueImpl(
+        IrBaseTypeReflectionExpressionImpl(
+            typeToCheck.toBackendIr(),
+            swCtx.reflectionBaseType.baseReference.withMutability(TypeMutability.IMMUTABLE).toBackendIr(),
+        )
+    )
+
+    val isInstanceTemporary = IrCreateTemporaryValueImpl(
+        IrStaticDispatchFunctionInvocationImpl(
+            isInstanceFn.toBackendIr(),
+            listOf(value, IrTemporaryValueReferenceImpl(reflectionObjectTemporary)),
+            emptyMap(),
+            isInstanceFn.returnType!!.toBackendIr(),
+            null, // isInstanceOf is declared nothrow
+        )
+    )
+
+    return IrImplicitEvaluationExpressionImpl(
+        IrCodeChunkImpl(listOf(
+            reflectionObjectTemporary,
+            isInstanceTemporary
+        )),
+        IrTemporaryValueReferenceImpl(isInstanceTemporary),
+    )
 }
