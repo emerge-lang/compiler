@@ -33,6 +33,12 @@ interface ExecutionScopedCTContext : CTContext {
     val isFunctionRoot: Boolean
 
     /**
+     * True if this context (or any of its parents) has a `catch` or `finally` block
+     * attached to it that has to be executed when an exception is thrown.
+     */
+    val hasExceptionHandler: Boolean
+
+    /**
      * @return Whether this context contains the given variable. Only parent contexts up to and including the
      *         given `boundary` will be searched.
      */
@@ -136,6 +142,12 @@ open class MutableExecutionScopedCTContext protected constructor(
             }
         }
         parent
+    }
+
+    override val hasExceptionHandler: Boolean by lazy {
+        hierarchy
+            .drop(1) // ignore self, is not an exception handler as evidenced by the fact that this code is being executed
+            .any { it is ExecutionScopedCTContext && it.hasExceptionHandler }
     }
 
     private var localDeferredCode: ArrayList<Statement>? = null
@@ -353,4 +365,15 @@ class LoopExecutionScopedCTContext<LoopNode : BoundLoop<*>>(
     }
 ) {
     val loopNode: LoopNode by lazy(getBoundLoopNode)
+}
+
+class ExceptionHandlingExecutionScopedCTContext(
+    parent: CTContext,
+) : MutableExecutionScopedCTContext(
+    parent,
+    isScopeBoundary = true,
+    isFunctionRoot = false,
+    ExecutionScopedCTContext.Repetition.ZERO_OR_MORE,
+) {
+    override val hasExceptionHandler = true
 }
