@@ -20,17 +20,14 @@ export class Nothing {
 
 export class F32 {
     private constructor {}
-    nothrow destructor {}
 }
 
 export class F64 {
     private constructor {}
-    nothrow destructor {}
 }
 
 export class S8 : Printable {
     private constructor {}
-    nothrow destructor {}
 
     export intrinsic nothrow operator fn unaryMinus(self) -> S8
     export intrinsic nothrow operator fn negate(self) -> S8
@@ -57,7 +54,6 @@ export class S8 : Printable {
 
 export class U8 : Printable {
     private constructor {}
-    nothrow destructor {}
 
     export intrinsic nothrow operator fn negate(self) -> U8
 
@@ -81,7 +77,6 @@ export class U8 : Printable {
 
 export class S16 : Printable {
     private constructor {}
-    nothrow destructor {}
 
     export intrinsic nothrow operator fn unaryMinus(self) -> S16
     export intrinsic nothrow operator fn negate(self) -> S16
@@ -108,7 +103,6 @@ export class S16 : Printable {
 
 export class U16 : Printable {
     private constructor {}
-    nothrow destructor {}
 
     export intrinsic nothrow operator fn negate(self) -> U16
 
@@ -132,7 +126,6 @@ export class U16 : Printable {
 
 export class S32 : Printable {
     private constructor {}
-    nothrow destructor {}
 
     export intrinsic nothrow operator fn unaryMinus(self) -> S32
     export intrinsic nothrow operator fn negate(self) -> S32
@@ -159,7 +152,6 @@ export class S32 : Printable {
 
 export class U32 : Printable {
     private constructor {}
-    nothrow destructor {}
 
     export intrinsic nothrow operator fn negate(self) -> U32
 
@@ -183,7 +175,6 @@ export class U32 : Printable {
 
 export class S64 : Printable {
     private constructor {}
-    nothrow destructor {}
 
     export intrinsic nothrow operator fn unaryMinus(self) -> S64
     export intrinsic nothrow operator fn negate(self) -> S64
@@ -215,7 +206,6 @@ export class S64 : Printable {
 
 export class U64 : Printable {
     private constructor {}
-    nothrow destructor {}
 
     export intrinsic nothrow operator fn negate(self) -> U64
 
@@ -273,7 +263,6 @@ export class U64 : Printable {
 
 export class SWord : Printable {
     private constructor {}
-    nothrow destructor {}
 
     export intrinsic nothrow operator fn unaryMinus(self) -> SWord
     export intrinsic nothrow operator fn negate(self) -> SWord
@@ -301,7 +290,6 @@ export class SWord : Printable {
 
 export class UWord : Printable {
     private constructor {}
-    nothrow destructor {}
 
     export intrinsic nothrow operator fn negate(self) -> UWord
 
@@ -326,7 +314,6 @@ export class UWord : Printable {
 
 export class Bool {
     private constructor {}
-    nothrow destructor {}
 
     export intrinsic nothrow operator fn negate(self) -> Bool
 
@@ -339,7 +326,6 @@ export class Array<Element> {
     export size: UWord = init
 
     private constructor {}
-    nothrow destructor {}
 
     export operator intrinsic fn `get`(self: read _<out Element>, index: UWord) -> Element
     export operator intrinsic fn `set`(self: mut _<in Element>, index: UWord, value: Element) -> Unit
@@ -385,8 +371,6 @@ export class ArrayIndexOutOfBoundsError : Error {
     }
     
     export override nothrow fn getMessage(self) -> const String? = null
-
-    nothrow destructor {}
 }
 
 private SPACE_CODEPOINT: S8 = 32

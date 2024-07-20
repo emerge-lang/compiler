@@ -36,7 +36,7 @@ class ExceptionErrors : FreeSpec({
                 validateModule("""
                     intrinsic fn dangerous()
                     class A {
-                        nothrow destructor {
+                        destructor {
                             dangerous()
                         }
                     }
@@ -57,7 +57,7 @@ class ExceptionErrors : FreeSpec({
                 validateModule("""
                     someV: Any? = 3
                     class A {
-                        nothrow destructor {
+                        destructor {
                             someV!!
                         }
                     }
@@ -81,7 +81,7 @@ class ExceptionErrors : FreeSpec({
                 validateModule("""
                     class SomeError : Throwable {}
                     class A {
-                        nothrow destructor {
+                        destructor {
                             throw SomeError()
                         }
                     }
