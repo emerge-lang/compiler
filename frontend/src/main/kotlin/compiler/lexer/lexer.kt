@@ -96,11 +96,11 @@ fun lex(sourceFile: SourceFile, addTrailingNewline: Boolean = true): Array<Token
             tokens.add(
                 OperatorToken(
                     Operator.NEWLINE,
-                    lastToken!!.span.copy(
+                    lastToken?.span?.copy(
                         fromLineNumber = lastToken.span.toLineNumber,
                         fromColumnNumber = lastToken.span.toColumnNumber + 1u,
                         toColumnNumber = lastToken.span.toColumnNumber + 1u,
-                    )
+                    ) ?: Span(sourceFile, 1u, 1u, 1u, 1u)
                 )
             )
         }
