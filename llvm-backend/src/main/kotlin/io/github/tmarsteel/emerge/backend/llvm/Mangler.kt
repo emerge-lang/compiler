@@ -281,6 +281,7 @@ object Mangler {
                             .forEach { (_, argument) ->
                                 appendType(context, argument.type, argument.variance)
                             }
+                        append('>')
                     }
                 }
             }
@@ -290,5 +291,4 @@ object Mangler {
     private val SIGIL_TOPLEVEL_FUNCTION = 'T'
     private val SIGIL_MEMBER_FUNCTION = 'M'
     private val SIGIL_CONSTRUCTOR = 'C'
-    private val SIGIL_DESTRUCTOR = 'D'
 }
