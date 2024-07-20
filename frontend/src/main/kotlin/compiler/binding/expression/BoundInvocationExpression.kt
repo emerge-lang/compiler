@@ -50,6 +50,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -415,7 +416,7 @@ class BoundInvocationExpression(
 
         val byReceiver = receiverExpression?.findWritesBeyond(boundary) ?: emptySet()
         val byArguments = valueArguments.flatMap { it.findWritesBeyond(boundary) }
-        val byParameters = valueArguments.zip(functionToInvoke?.parameters?.parameters ?: emptyList())
+        val byParameters = (listOfNotNull(receiverExpression) + valueArguments).zip(functionToInvoke?.parameters?.parameters ?: emptyList())
             // does the function potentially modify the parameter?
             .filter { (_, parameter) -> parameter.typeAtDeclarationTime?.mutability?.isMutable ?: false }
             // is the argument itself a read beyond the boundary
