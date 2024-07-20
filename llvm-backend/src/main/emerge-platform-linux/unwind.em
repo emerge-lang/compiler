@@ -6,7 +6,7 @@ import emerge.ffi.c.addressOfFirst
 import emerge.ffi.c.COpaquePointer
 import emerge.linux.libc.write
 
-export mut fn collectStackTrace() -> ArrayList<StackTraceElement> {
+export read fn collectStackTrace() -> ArrayList<StackTraceElement> {
     // the logic around the context and cursor buffers cannot be moved into emerge classes
     // the reason is that it matters very much on which stack frame unw_create_context and unw_init_local
     // are being called. They need to be called from the same stack frame. Additionally, when a function
@@ -151,7 +151,8 @@ private external(C) nothrow fn unw_get_proc_info(cursor: COpaquePointer, buf: CO
 
 // attempts to move the cursor to the next, less deeply nested tack frame
 // @return true if the cursor was successfully moved, false if there are no more stack frames left
-private mut fn unwindCursorTryStepUp(cursorPtr: COpaquePointer) -> Bool {
+// TODO: make pure, change parameter to mut COpaquePointer; needs parameterized mutability for Array.addressOfFirst()
+private read fn unwindCursorTryStepUp(cursorPtr: COpaquePointer) -> Bool {
     errorCode = unw_step(cursorPtr)
     if errorCode == UNWIND_ERROR_STOP or errorCode == 0 {
         return false
@@ -172,7 +173,7 @@ private read fn unwindCursorGetInstructionPointer(cursorPtr: COpaquePointer) -> 
 }
 
 // returns the name of the function belonging to the stack frame this cursor is currently pointing at
-private mut fn unwindCursorGetProcedureName(cursorPtr: COpaquePointer) -> String {
+private read fn unwindCursorGetProcedureName(cursorPtr: COpaquePointer) -> String {
     var nameBuf = Array.new::<S8>(256, 0 as S8)
     offpBuf = Array.new::<UWord>(1, 0 as UWord)
 
