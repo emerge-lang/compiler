@@ -23,8 +23,12 @@ import compiler.ast.type.TypeMutability
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
+import compiler.binding.IrCodeChunkImpl
+import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrExpressionSideEffectsStatementImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
+import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -101,12 +105,22 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
         get() = type
 
     override fun toBackendIrStatement(): IrExecutable {
-        val exprResult = this.toBackendIrExpression()
-        if (exprResult is IrImplicitEvaluationExpressionImpl) {
-            return exprResult.code
+        val asIrExpression = this.toBackendIrExpression()
+
+        if (isEvaluationResultReferenceCounted) {
+            // the value is ignored, so the reference count needs to be maintained
+            val resultTemporary = IrCreateTemporaryValueImpl(asIrExpression)
+            return IrCodeChunkImpl(listOf(
+                resultTemporary,
+                IrDropStrongReferenceStatementImpl(IrTemporaryValueReferenceImpl(resultTemporary)),
+            ))
         }
 
-        return IrExpressionSideEffectsStatementImpl(exprResult)
+        return if (asIrExpression is IrImplicitEvaluationExpressionImpl) {
+            asIrExpression.code
+        } else {
+            IrExpressionSideEffectsStatementImpl(asIrExpression)
+        }
     }
 
     fun toBackendIrExpression(): IrExpression
