@@ -32,7 +32,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleFailure
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleSuccess
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.retFallibleVoid
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.instructionAliasAttributes
@@ -1109,13 +1108,7 @@ internal fun inlineFallibleBoundsCheck(
     conditionalBranch(
         condition = indexIsOutOfBounds(arrayPtr, index),
         ifTrue = {
-            val exceptionCtor = context.arrayIndexOutOfBoundsErrorType.constructor
-            val exceptionCreateResult = call(exceptionCtor, listOf(index)) as LlvmValue<EmergeFallibleCallResult<LlvmPointerType<EmergeHeapAllocatedValueBaseType>>>
-            val exceptionPtr = exceptionCreateResult.abortOnException { exceptionPtr ->
-                inlinePanic("Array index out of bounds, ${exceptionCtor.name} raised an exception")
-            }
-
-            fallibleFailure(exceptionPtr)
+            inlineThrow(context.arrayIndexOutOfBoundsErrorType.irClass, listOf(index))
         }
     )
 }

@@ -1,6 +1,7 @@
 package emerge.std.collections
 
 import emerge.platform.panic
+import emerge.core.ArrayIndexOutOfBoundsError
 
 export class ArrayList<X : Any> {
     private var storage: Array<X?> = Array.new::<X?>(20, null)
@@ -18,8 +19,7 @@ export class ArrayList<X : Any> {
 
     export operator fn `get`(self, index: UWord) -> X {
         if index >= self._size {
-            // TODO: throw
-            panic("arraylist index out of bounds!")
+            throw ArrayIndexOutOfBoundsError(index)
         }
 
         return self.storage[index]!!

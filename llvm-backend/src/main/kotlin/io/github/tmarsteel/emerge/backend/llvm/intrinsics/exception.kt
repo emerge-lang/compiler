@@ -1,5 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
+import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emitRead
 import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
@@ -23,9 +24,12 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Companion.member
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleFailure
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.handle
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.linux.libcWriteFunction
+import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
 
 // TODO: rename file to panic.kt
@@ -131,6 +135,39 @@ fun BasicBlockBuilder<out EmergeLlvmContext, *>.inlinePanic(message: String): Ba
     printStackTraceToStdErr()
 
     return exit(1u)
+}
+
+internal fun BasicBlockBuilder<out EmergeLlvmContext, out EmergeFallibleCallResult<*>>.inlineThrow(
+    exceptionClass: IrClass,
+    ctorArguments: List<LlvmValue<*>>,
+): BasicBlockBuilder.Termination {
+    val exceptionPtr = call(exceptionClass.constructor.llvmRef!!, ctorArguments)
+        .reinterpretAs(EmergeFallibleCallResult.ofEmergeReference)
+        .abortOnException { exceptionCtorException ->
+            propagateOrPanic(exceptionCtorException)
+        }
+
+    val fillStackTraceIrFn = context.throwableClazz.memberFunctions
+        .single { it.canonicalName.simpleName == "fillStackTrace" }
+        .overloads
+        .single()
+
+    val fillStackTraceFnAddress = call(context.registerIntrinsic(getDynamicCallAddress), listOf(
+        exceptionPtr,
+        context.word(fillStackTraceIrFn.signatureHashes.first()),
+    ))
+
+    call(
+        fillStackTraceFnAddress,
+        LlvmFunctionType(EmergeFallibleCallResult.OfVoid, listOf(PointerToAnyEmergeValue)),
+        listOf(exceptionPtr),
+    )
+        .abortOnException { _ ->
+            // ignore this one
+            propagateOrPanic(exceptionPtr)
+        }
+
+    return fallibleFailure(exceptionPtr)
 }
 
 private val displayThrowableToStdErr = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>(
