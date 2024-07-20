@@ -22,6 +22,7 @@ import compiler.ast.type.TypeReference
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 import compiler.lexer.Span
@@ -40,11 +41,12 @@ data class VariableDeclaration(
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundVariable = bindTo(context, BoundVariable.Kind.LOCAL_VARIABLE)
     fun bindTo(context: ExecutionScopedCTContext, kind: BoundVariable.Kind): BoundVariable {
+        val initializerContext = if (kind.runInitializerInSubScope) MutableExecutionScopedCTContext.deriveNewScopeFrom(context) else context
         return BoundVariable(
             context,
             this,
             visibility?.bindTo(context) ?: BoundVisibility.default(context),
-            initializerExpression?.bindTo(context),
+            initializerExpression?.bindTo(initializerContext),
             kind,
         )
     }

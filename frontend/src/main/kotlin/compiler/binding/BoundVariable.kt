@@ -345,6 +345,7 @@ class BoundVariable(
         val requiresExplicitType: Boolean,
         val isInitializedByDefault: Boolean,
         val allowsVisibility: Boolean,
+        val runInitializerInSubScope: Boolean,
     ) {
         LOCAL_VARIABLE(
             implicitMutabilityWhenNotReAssignable = TypeMutability.IMMUTABLE,
@@ -353,6 +354,7 @@ class BoundVariable(
             requiresExplicitType = false,
             isInitializedByDefault = false,
             allowsVisibility = false,
+            runInitializerInSubScope = false,
         ),
         MEMBER_VARIABLE(
             TypeMutability.IMMUTABLE,
@@ -361,6 +363,7 @@ class BoundVariable(
             requiresExplicitType = false,
             isInitializedByDefault = false,
             allowsVisibility = true,
+            runInitializerInSubScope = false,
         ),
         GLOBAL_VARIABLE(
             TypeMutability.IMMUTABLE,
@@ -369,6 +372,7 @@ class BoundVariable(
             requiresExplicitType = false,
             isInitializedByDefault = true,
             allowsVisibility = true,
+            runInitializerInSubScope = true,
         ),
         PARAMETER(
             TypeMutability.READONLY,
@@ -377,6 +381,7 @@ class BoundVariable(
             requiresExplicitType = true,
             isInitializedByDefault = true,
             allowsVisibility = false,
+            runInitializerInSubScope = false,
         ),
         ;
 

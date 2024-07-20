@@ -15,7 +15,11 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.panicOnThrowable
 val EmergeEntrypoint = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>("main", LlvmVoidType) {
     body {
         callIntrinsic(context.globalInitializerFn, emptyList())
-        callIntrinsic(context.threadInitializerFn, emptyList())
+        val threadInitResult = callIntrinsic(context.threadInitializerFn, emptyList())
+        threadInitResult.abortOnException { exceptionPtr ->
+            callIntrinsic(panicOnThrowable, listOf(exceptionPtr))
+            unreachable()
+        }
         val mainResult = call(context.mainFunction, emptyList())
         if (mainResult.type is EmergeFallibleCallResult<*>) {
             (mainResult as LlvmValue<EmergeFallibleCallResult<LlvmType>>).abortOnException { exceptionPtr ->

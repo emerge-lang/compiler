@@ -485,7 +485,7 @@ class EmergeLlvmContext(
     }
 
     lateinit var globalInitializerFn: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>
-    lateinit var threadInitializerFn: KotlinLlvmFunction<EmergeLlvmContext, LlvmVoidType>
+    internal lateinit var threadInitializerFn: KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.OfVoid>
         private set
     private var completed = false
     fun complete() {
@@ -517,7 +517,7 @@ class EmergeLlvmContext(
 
         threadInitializerFn = KotlinLlvmFunction.define(
             "_emerge_thread_init",
-            LlvmVoidType,
+            EmergeFallibleCallResult.OfVoid,
         ) {
             body {
                 for (global in globalVariables) {
@@ -525,7 +525,7 @@ class EmergeLlvmContext(
                     val initResult = emitExpressionCode(
                         global.initializer,
                         IrSimpleTypeImpl(context.unitType.irClass, IrTypeMutability.READONLY, false),
-                        functionHasNothrowAbi = true, // this will cause a panic if the initializer throws an exception
+                        functionHasNothrowAbi = false,
                         expressionResultUsed = true,
                         null,
                     )
@@ -536,7 +536,7 @@ class EmergeLlvmContext(
                         return@body initResult.termination
                     }
                 }
-                retVoid()
+                retFallibleVoid()
             }
         }
 
