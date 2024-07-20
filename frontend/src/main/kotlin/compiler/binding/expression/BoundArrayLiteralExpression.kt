@@ -24,6 +24,7 @@ import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullInitializedArrayExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
@@ -136,7 +137,7 @@ class BoundArrayLiteralExpression(
         get() = elements.all { it.isCompileTimeConstant }
 
     override fun toBackendIrExpression(): IrExpression {
-        val arraySetFn = context.swCtx.array.resolveMemberFunction("set")
+        val arraySetFn = context.swCtx.array.resolveMemberFunction("setOrPanic")
             .single()
             .overloads
             .single()
@@ -149,11 +150,13 @@ class BoundArrayLiteralExpression(
         val irType = type!!.toBackendIr()
         val irElementType = (type as RootResolvedTypeReference).arguments!!.single().type.toBackendIr()
 
-        return buildInvocationLikeIr(
+        return buildGenericInvocationLikeIr(
+            context,
+            declaration.span,
             elements,
-            { args ->
+            { args, landingpad ->
                 val arrayTemporary = IrCreateTemporaryValueImpl(
-                    IrNullInitializedArrayExpressionImpl(irType, irElementType, args.size.toULong())
+                    IrNullInitializedArrayExpressionImpl(irType, irElementType, args.size.toULong(), landingpad!!)
                 )
                 val arrayTemporaryRef = IrTemporaryValueReferenceImpl(arrayTemporary)
                 val instrs = mutableListOf<IrExecutable>()
@@ -178,11 +181,13 @@ class BoundArrayLiteralExpression(
                                 (type as RootResolvedTypeReference).baseType.typeParameters!!.single().name to irElementType,
                             ),
                             IrSimpleTypeImpl(context.swCtx.unit.toBackendIr(), IrTypeMutability.IMMUTABLE,false),
+                            null, // the set will not throw, index is guaranteed to be in bounds
                         ),
                     ))
                 }
                 IrImplicitEvaluationExpressionImpl(IrCodeChunkImpl(instrs), arrayTemporaryRef)
             },
+            assumeNothrow = false, // array ctor can always throw an OOM error
         )
     }
 }
@@ -190,5 +195,6 @@ class BoundArrayLiteralExpression(
 private class IrNullInitializedArrayExpressionImpl(
     override val evaluatesTo: IrType,
     override val elementType: IrType,
-    override val size: ULong
+    override val size: ULong,
+    override val oomLandingpad: IrInvocationExpression.Landingpad,
 ) : IrNullInitializedArrayExpression

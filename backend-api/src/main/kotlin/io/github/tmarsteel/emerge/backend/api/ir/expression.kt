@@ -92,6 +92,11 @@ interface IrNullInitializedArrayExpression : IrExpression {
      */
     val elementType: IrType
     val size: ULong
+
+    /**
+     * Will be called in an OOM condition. No cleanup for the array is necessary in that case.
+     */
+    val oomLandingpad: IrInvocationExpression.Landingpad
 }
 
 interface IrBooleanLiteralExpression : IrExpression {
