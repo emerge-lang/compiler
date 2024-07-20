@@ -545,7 +545,7 @@ internal class IrStaticDispatchFunctionInvocationImpl(
     override val landingpad: IrInvocationExpression.Landingpad?,
 ) : IrStaticDispatchFunctionInvocationExpression
 
-private class IrDynamicDispatchFunctionInvocationImpl(
+internal class IrDynamicDispatchFunctionInvocationImpl(
     override val dispatchOn: IrTemporaryValueReference,
     override val function: IrMemberFunction,
     override val arguments: List<IrTemporaryValueReference>,
