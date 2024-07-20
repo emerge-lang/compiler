@@ -149,6 +149,16 @@ class BoundIfExpression(
         }
     }
 
+    override val isEvaluationResultAnchored: Boolean get() = when {
+        elseCode != null -> {
+            thenCode.isEvaluationResultAnchored && elseCode.isEvaluationResultAnchored
+        }
+        else -> {
+            // elseCode == null, doesn't evaluate to either branch but to implicit unit -> that is static
+            true
+        }
+    }
+
     override val isCompileTimeConstant = false
 
     override fun toBackendIrStatement(): IrExecutable {

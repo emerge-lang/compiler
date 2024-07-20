@@ -34,6 +34,7 @@ class BoundStringLiteralExpression(
     }
 
     override val isEvaluationResultReferenceCounted = false
+    override val isEvaluationResultAnchored = true
     override val isCompileTimeConstant = true
 
     override fun toBackendIrExpression(): IrExpression = IrStringLiteralExpressionImpl(

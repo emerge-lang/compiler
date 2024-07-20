@@ -69,6 +69,9 @@ class BoundCodeChunk(
     override val isEvaluationResultReferenceCounted: Boolean
         get() = lastStatementAsExpression != null && lastStatementAsExpression.isEvaluationResultReferenceCounted
 
+    override val isEvaluationResultAnchored: Boolean
+        get() = lastStatementAsExpression == null || lastStatementAsExpression.isEvaluationResultAnchored
+
     private var expectedImplicitEvaluationResultType: BoundTypeReference? = null
     private var isInExpressionContext = false
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {

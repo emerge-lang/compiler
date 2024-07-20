@@ -38,7 +38,9 @@ class BoundCatchBlockExpression(
     override val type get() = catchCode.type
     override val isEvaluationResultReferenceCounted: Boolean
         get() = catchCode.isEvaluationResultReferenceCounted
-    override val isCompileTimeConstant
+    override val isEvaluationResultAnchored: Boolean
+        get() = catchCode.isEvaluationResultAnchored
+    override val isCompileTimeConstant: Boolean
         get() = catchCode.isCompileTimeConstant
 
     val seanHelper = SeanHelper()

@@ -82,8 +82,23 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
      * make sure to also emit a [IrCreateStrongReferenceStatement] for the result if needed.
      *
      * Prime use case: function calls, as return values always are counted as per the refcounting rules.
+     *
+     * **need not be meaningful before [semanticAnalysisPhase3] has completed**
      */
     val isEvaluationResultReferenceCounted: Boolean
+
+    /**
+     * A value is anchored with respect to reference counting iff the stack-oriented RAII rules make sure that
+     * the reference count of this value is always at least 1. This applies to (non-exhaustively!)
+     * * all function parameters, especially borrowed ones (here, the caller does the anchoring)
+     * * local variables that are not re-assignable
+     * * global variables that are not re-assignable
+     *
+     * This enables some reference-counting to be elided.
+     *
+     * **need not be meaningful before [semanticAnalysisPhase3] has completed**
+     */
+    val isEvaluationResultAnchored: Boolean
 
     /**
      * Whether the result of this expression could be determined at compile time. This does not imply that anything

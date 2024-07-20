@@ -76,6 +76,7 @@ class BoundInstanceOfExpression(
     }
 
     override val isEvaluationResultReferenceCounted = true
+    override val isEvaluationResultAnchored = false
     override val isCompileTimeConstant = expressionToCheck.isCompileTimeConstant
 
     override fun toBackendIrExpression(): IrExpression {

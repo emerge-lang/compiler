@@ -28,6 +28,7 @@ class BoundTryCatchExpression(
     override val modifiedContext = context
 
     override val isEvaluationResultReferenceCounted = fallibleCode.isEvaluationResultReferenceCounted || catchBlock.isEvaluationResultReferenceCounted
+    override val isEvaluationResultAnchored = fallibleCode.isEvaluationResultAnchored && catchBlock.isEvaluationResultAnchored
 
     override val isCompileTimeConstant: Boolean get() = when (fallibleCode.throwBehavior) {
         SideEffectPrediction.NEVER -> fallibleCode.isCompileTimeConstant

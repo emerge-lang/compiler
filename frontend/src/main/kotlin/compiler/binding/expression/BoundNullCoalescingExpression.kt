@@ -118,6 +118,9 @@ class BoundNullCoalescingExpression(
     override val isEvaluationResultReferenceCounted: Boolean
         get() = nullableExpression.isEvaluationResultReferenceCounted || alternativeExpression.isEvaluationResultReferenceCounted
 
+    override val isEvaluationResultAnchored: Boolean
+        get() = nullableExpression.isEvaluationResultAnchored && alternativeExpression.isEvaluationResultAnchored
+
     override val isCompileTimeConstant: Boolean
         get() = nullableExpression.isCompileTimeConstant && alternativeExpression.isCompileTimeConstant
 

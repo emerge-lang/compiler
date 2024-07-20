@@ -46,6 +46,8 @@ class BoundArrayLiteralExpression(
     override var type: BoundTypeReference? = null
         private set
 
+    override val isEvaluationResultAnchored = false
+
     private val arrayType: BoundBaseType by lazy {
         val corePackage = context.swCtx.getPackage(CoreIntrinsicsModule.NAME)
             ?: throw InternalCompilerError("The software context doesn't define the default package ${CoreIntrinsicsModule.NAME}")

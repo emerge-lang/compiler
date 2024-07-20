@@ -134,6 +134,7 @@ class BoundMemberAccessExpression(
     }
 
     override val isEvaluationResultReferenceCounted = false
+    override val isEvaluationResultAnchored get() = valueExpression.isEvaluationResultAnchored && member?.isReAssignable == false
     override val isCompileTimeConstant get() = valueExpression.isCompileTimeConstant
 
     override fun toBackendIrExpression(): IrExpression {

@@ -99,6 +99,7 @@ class BoundIdentifierExpression(
         (referral as? ReferringVariable)?.allowPartiallyUninitializedValue()
     }
 
+    override val isEvaluationResultAnchored get() = referral?.isEvaluationResultAnchored ?: false
     override val isCompileTimeConstant get() = referral?.isCompileTimeConstant ?: false
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
@@ -146,12 +147,16 @@ class BoundIdentifierExpression(
 
         /** @see BoundExpression.isCompileTimeConstant */
         val isCompileTimeConstant: Boolean
+
+        /** @see BoundExpression.isEvaluationResultAnchored */
+        val isEvaluationResultAnchored: Boolean
     }
     inner class ReferringVariable(val variable: BoundVariable) : Referral {
         override val span = declaration.span
         private var usageContext = VariableUsageContext.WRITE
         private var allowPartiallyUninitialized: Boolean = false
         private var thisUsageCapturesWithMutability: TypeMutability? = null
+        override val isEvaluationResultAnchored get() = !variable.isReAssignable
 
         fun allowPartiallyUninitializedValue() {
             allowPartiallyUninitialized = true
@@ -255,6 +260,7 @@ class BoundIdentifierExpression(
         }
 
         override val isCompileTimeConstant = true
+        override val isEvaluationResultAnchored = true // typeinfos are static, no refcounting needed
     }
 
     override val isEvaluationResultReferenceCounted = false

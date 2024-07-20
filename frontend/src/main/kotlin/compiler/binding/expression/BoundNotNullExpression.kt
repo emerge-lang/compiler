@@ -109,6 +109,7 @@ class BoundNotNullExpression(
     }
 
     override val isEvaluationResultReferenceCounted get() = nullableExpression.isEvaluationResultReferenceCounted
+    override val isEvaluationResultAnchored get() = nullableExpression.isEvaluationResultAnchored
     override val isCompileTimeConstant get() = nullableExpression.isCompileTimeConstant
 
     /**

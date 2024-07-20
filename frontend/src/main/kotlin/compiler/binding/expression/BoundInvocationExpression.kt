@@ -446,6 +446,7 @@ class BoundInvocationExpression(
     }
 
     override val isEvaluationResultReferenceCounted = true
+    override val isEvaluationResultAnchored = false
     override val isCompileTimeConstant: Boolean
         get() {
             val localDispatchedFunction = functionToInvoke ?: return false
@@ -570,10 +571,12 @@ private fun buildInvocationLikeIrInternal(
         val temporary = IrCreateTemporaryValueImpl(irExpr)
         argumentTemporaries.add(temporary)
         prepareArgumentsCode.add(temporary)
-        if (!boundArgumentExpr.isEvaluationResultReferenceCounted) {
+        if (!boundArgumentExpr.isEvaluationResultReferenceCounted && !boundArgumentExpr.isEvaluationResultAnchored) {
             prepareArgumentsCode.add(IrCreateStrongReferenceStatementImpl(temporary))
         }
-        cleanUpArgumentsCode.add(IrDropStrongReferenceStatementImpl(temporary))
+        if (!boundArgumentExpr.isEvaluationResultAnchored) {
+            cleanUpArgumentsCode.add(IrDropStrongReferenceStatementImpl(temporary))
+        }
     }
 
     val returnValueTemporary = IrCreateTemporaryValueImpl(
