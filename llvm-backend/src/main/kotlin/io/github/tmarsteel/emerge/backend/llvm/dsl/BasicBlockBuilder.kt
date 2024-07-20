@@ -99,6 +99,20 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     )
 
     /**
+     * Creates a new basic block in the owning function. Then continues to fill the current basic block
+     * with [prepare].
+     * This is called "unsafe" because there is no guarantee that the resulting control flow graph is safe,
+     * or even legal in terms of LLVM IR. The safe alternatives are [conditionalBranch] and [loop].
+     *
+     * @param prepare in kotlin runtime, is executed before [branch] so that it can create state for [branch]
+     * to reference
+     */
+    fun unsafeBranch(
+        prepare: UnsafeBranchPrepare<C, R>.() -> Termination,
+        branch: Branch<C, R>.() -> Termination,
+    )
+
+    /**
      * Used to symbol that a terminal instruction has been built. There are two key facts about the [Termination] type:
      * * only [BasicBlockBuilderImpl] can instantiate this value
      * * it will only do so if you build one of the terminal instructions (e.g. [BasicBlockBuilderImpl.ret])
@@ -110,6 +124,20 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     interface Branch<C : LlvmContext, R : LlvmType> : BasicBlockBuilder<C, R> {
         /** transfers control flow to the basic block after the current branch. */
         fun concludeBranch(): Termination
+    }
+
+    @LlvmBasicBlockDsl
+    interface UnsafeBranchPrepare<C : LlvmContext, R : LlvmType> : BasicBlockBuilder<C, R> {
+        /**
+         * transfers control to the `branch` portion of the related [unsafeBranch] call.
+         */
+        fun jumpToUnsafeBranch(): Termination
+
+        /**
+         * transfers control back to after the call to [unsafeBranch], just like [Branch.concludeBranch]. The
+         * unsafe branch is not taken.
+         */
+        fun skipUnsafeBranch(): Termination
     }
 
     interface AbstractLoop<C : LlvmContext, R : LlvmType> : BasicBlockBuilder<C, R> {
@@ -559,6 +587,40 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         Llvm.LLVMPositionBuilderAtEnd(builder, continueBlock)
         return
     }
+
+    override fun unsafeBranch(
+        prepare: BasicBlockBuilder.UnsafeBranchPrepare<C, R>.() -> BasicBlockBuilder.Termination,
+        branch: BasicBlockBuilder.Branch<C, R>.() -> BasicBlockBuilder.Termination,
+    ) {
+        val branchBlockRef = Llvm.LLVMAppendBasicBlockInContext(context.ref, owningFunction, tmpVars.next() + "_unsafe_branch")
+        val resumeBlockRef = Llvm.LLVMAppendBasicBlockInContext(context.ref, owningFunction, tmpVars.next() + "_unsafe_resume")
+
+        prepare(UnsafeBranchPrepareImpl(
+            context,
+            llvmFunctionReturnType,
+            diBuilder,
+            owningFunction,
+            builder,
+            tmpVars,
+            scopeTracker,
+            branchBlockRef,
+            resumeBlockRef,
+        ))
+
+        Llvm.LLVMPositionBuilderAtEnd(builder, branchBlockRef)
+        branch(BranchImpl(
+            context,
+            llvmFunctionReturnType,
+            diBuilder,
+            owningFunction,
+            builder,
+            tmpVars,
+            scopeTracker.createSubScope(),
+            resumeBlockRef,
+        ))
+
+        Llvm.LLVMPositionBuilderAtEnd(builder, resumeBlockRef)
+    }
 }
 
 private class BranchImpl<C : LlvmContext, R : LlvmType>(
@@ -605,6 +667,28 @@ private class LoopImpl<C : LlvmContext, R : LlvmType>(
     override fun loopContinue(): BasicBlockBuilder.Termination {
         scopeTracker.runLocalDeferredCode()
         Llvm.LLVMBuildBr(builder, headerBlockRef)
+        return TerminationImpl
+    }
+}
+
+private class UnsafeBranchPrepareImpl<C : LlvmContext, R : LlvmType>(
+    context: C,
+    llvmFunctionReturnType: R,
+    diBuilder: DiBuilder,
+    owningFunction: LlvmValueRef,
+    builder: LlvmBuilderRef,
+    tmpVars: NameScope,
+    scopeTracker: ScopeTracker<C>,
+    private val branchBlockRef: LlvmBasicBlockRef,
+    private val resumeBlockRef: LlvmBasicBlockRef,
+) : BasicBlockBuilder.UnsafeBranchPrepare<C, R>, BasicBlockBuilderImpl<C, R>(context, llvmFunctionReturnType, diBuilder, owningFunction, builder, tmpVars, scopeTracker) {
+    override fun jumpToUnsafeBranch(): BasicBlockBuilder.Termination {
+        Llvm.LLVMBuildBr(builder, branchBlockRef)
+        return TerminationImpl
+    }
+
+    override fun skipUnsafeBranch(): BasicBlockBuilder.Termination {
+        Llvm.LLVMBuildBr(builder, resumeBlockRef)
         return TerminationImpl
     }
 }
