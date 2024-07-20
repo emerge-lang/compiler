@@ -100,14 +100,6 @@ class BoundObjectMemberAssignmentStatement(
                 ?.let(reportings::add)
         }
 
-        nothrowBoundary?.let { nothrowBoundary ->
-            if (initializationStateBefore != null && initializationStateBefore != VariableInitialization.State.NOT_INITIALIZED) {
-                if (targetExpression.type?.destructorThrowBehavior != SideEffectPrediction.NEVER) {
-                    reportings.add(Reporting.droppingReferenceToObjectWithThrowingConstructor(this, nothrowBoundary))
-                }
-            }
-        }
-
         return reportings
     }
 

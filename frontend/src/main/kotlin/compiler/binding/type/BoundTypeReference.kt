@@ -24,7 +24,6 @@ import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundParameter
 import compiler.binding.SemanticallyAnalyzable
-import compiler.binding.SideEffectPrediction
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.lexer.Span
 import compiler.reportings.Reporting
@@ -200,12 +199,6 @@ sealed interface BoundTypeReference {
      * `T => Int` in [TypeUnification.left]
      */
     val inherentTypeBindings: TypeUnification
-
-    /**
-     * The [BoundMemberFunction.throwBehavior] of the destructor of this type, or just [SideEffectPrediction.POSSIBLY]
-     * if the concrete type is not known.
-     */
-    val destructorThrowBehavior: SideEffectPrediction?
 
     fun toBackendIr(): IrType
 }

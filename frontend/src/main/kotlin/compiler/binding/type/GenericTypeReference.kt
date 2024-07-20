@@ -4,7 +4,6 @@ import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
-import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.lexer.Span
 import compiler.reportings.Reporting
@@ -150,8 +149,6 @@ sealed class GenericTypeReference : BoundTypeReference {
 
         return bound.isSubtypeOf(other)
     }
-
-    override val destructorThrowBehavior = SideEffectPrediction.POSSIBLY
 
     fun mapEffectiveBound(mapper: (BoundTypeReference) -> BoundTypeReference): GenericTypeReference {
         return MappedEffectiveBoundGenericTypeReference(this, mapper)

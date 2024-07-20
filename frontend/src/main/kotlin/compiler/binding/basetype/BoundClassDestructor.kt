@@ -100,12 +100,7 @@ class BoundClassDestructor(
     }
 
     override val purity = BoundFunction.Purity.MODIFYING
-    override val throwBehavior: SideEffectPrediction? get() {
-        if (attributes.isDeclaredNothrow) {
-            return SideEffectPrediction.NEVER
-        }
-        return userDefinedCode.throwBehavior
-    }
+    override val throwBehavior: SideEffectPrediction = SideEffectPrediction.NEVER
 
     private val seanHelper = SeanHelper()
 
@@ -118,9 +113,7 @@ class BoundClassDestructor(
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return seanHelper.phase2 {
             val reportings = userDefinedCode.semanticAnalysisPhase2()
-            if (attributes.isDeclaredNothrow) {
-                userDefinedCode.setNothrow(NothrowViolationReporting.SideEffectBoundary.Function(this))
-            }
+            userDefinedCode.setNothrow(NothrowViolationReporting.SideEffectBoundary.Function(this))
             return@phase2 reportings
         }
     }
@@ -129,12 +122,6 @@ class BoundClassDestructor(
         return seanHelper.phase3 {
             val reportings = mutableListOf<Reporting>()
             reportings.addAll(userDefinedCode.semanticAnalysisPhase3())
-            if (attributes.isDeclaredNothrow) {
-                val boundary = NothrowViolationReporting.SideEffectBoundary.Function(this)
-                classDef.memberVariables
-                    .filter { it.type?.destructorThrowBehavior != SideEffectPrediction.NEVER }
-                    .forEach { reportings.add(Reporting.droppingReferenceToObjectWithThrowingConstructor(it, classDef, boundary))}
-            }
 
             return@phase3 reportings
         }

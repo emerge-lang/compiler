@@ -338,7 +338,6 @@ internal fun LlvmValue<LlvmType>.afterReferenceCreated(
     asAnyRef.afterReferenceCreated(emergeType.isNullable)
 }
 
-// TODO for exceptions: add dropReferenceInCatch(ref: Any, throwable: Throwable)
 private val dropReferenceFunction = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
     "emerge.platform.dropReference",
     LlvmVoidType

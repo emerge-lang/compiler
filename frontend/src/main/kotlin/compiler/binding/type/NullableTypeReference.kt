@@ -4,7 +4,6 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
-import compiler.binding.SideEffectPrediction
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.lexer.Span
 import compiler.reportings.Reporting
@@ -91,12 +90,6 @@ class NullableTypeReference private constructor(
     }
 
     override val inherentTypeBindings get() = nested.inherentTypeBindings
-
-    override val destructorThrowBehavior get() = when (nested.destructorThrowBehavior) {
-        null -> null
-        SideEffectPrediction.NEVER -> SideEffectPrediction.NEVER
-        else -> SideEffectPrediction.POSSIBLY
-    }
 
     override fun toBackendIr() = nested.toBackendIr().asNullable()
 

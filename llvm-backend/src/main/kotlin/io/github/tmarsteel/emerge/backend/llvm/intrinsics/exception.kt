@@ -133,17 +133,14 @@ fun BasicBlockBuilder<out EmergeLlvmContext, *>.inlinePanic(message: String): Ba
     return exit(1u)
 }
 
-internal val panicOnThrowable = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>("emerge.platform.panicOnThrowable", LlvmVoidType) {
+private val displayThrowableToStdErr = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>(
+    "emerge.core.displayThrowableToStandardError",
+    LlvmVoidType
+) {
     val exceptionPtr by param(PointerToAnyEmergeValue)
-
-    functionAttribute(LlvmFunctionAttribute.NoRecurse)
-    functionAttribute(LlvmFunctionAttribute.NoReturn)
 
     body {
         val writeToStdErr = buildStdErrPrinter()
-
-        printConstantString(writeToStdErr, "PANIC! unhandled exception\n")
-
         val printToIrFn = context.throwableClazz.memberFunctions
             .single { it.canonicalName.simpleName == "printTo" && it.parameterCount == 2 }
             .overloads
@@ -169,6 +166,21 @@ internal val panicOnThrowable = KotlinLlvmFunction.define<EmergeLlvmContext, Llv
             }
         )
 
+        retVoid()
+    }
+}
+
+internal val panicOnThrowable = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmVoidType>("emerge.platform.panicOnThrowable", LlvmVoidType) {
+    val exceptionPtr by param(PointerToAnyEmergeValue)
+
+    functionAttribute(LlvmFunctionAttribute.NoRecurse)
+    functionAttribute(LlvmFunctionAttribute.NoReturn)
+
+    body {
+        val writeToStdErr = buildStdErrPrinter()
+
+        printConstantString(writeToStdErr, "PANIC! unhandled exception\n")
+        call(context.registerIntrinsic(displayThrowableToStdErr), listOf(exceptionPtr))
         printConstantString(writeToStdErr, "\nthis panic was triggered from this call chain:\n")
         printStackTraceToStdErr()
         exit(1u)

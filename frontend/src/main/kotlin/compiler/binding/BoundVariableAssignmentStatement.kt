@@ -80,14 +80,6 @@ class BoundVariableAssignmentStatement(
                     reportings.add(Reporting.illegalAssignment("Variable ${targetVariable.name} is already initialized, cannot re-assign", this))
                 }
             }
-
-            nothrowBoundary?.let { nothrowBoundary ->
-                if (!thisAssignmentIsFirstInitialization) {
-                    if (targetVariable.typeAtDeclarationTime?.destructorThrowBehavior != SideEffectPrediction.NEVER) {
-                        reportings.add(Reporting.droppingReferenceToObjectWithThrowingConstructor(this, nothrowBoundary))
-                    }
-                }
-            }
         }
 
         return reportings

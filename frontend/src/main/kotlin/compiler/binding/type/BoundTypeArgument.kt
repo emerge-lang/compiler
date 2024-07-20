@@ -6,7 +6,6 @@ import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
-import compiler.binding.SideEffectPrediction
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
 import compiler.lexer.Span
@@ -200,8 +199,6 @@ class BoundTypeArgument(
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
         return type.hasSameBaseTypeAs(other)
     }
-
-    override val destructorThrowBehavior = SideEffectPrediction.POSSIBLY
 
     override fun toBackendIr(): IrType = type.toBackendIr()
 

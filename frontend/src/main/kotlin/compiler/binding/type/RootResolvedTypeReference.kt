@@ -7,7 +7,6 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
-import compiler.binding.SideEffectPrediction
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.lexer.Span
@@ -34,11 +33,6 @@ class RootResolvedTypeReference private constructor(
 
     override val inherentTypeBindings by lazy {
         TypeUnification.fromExplicit(baseType.typeParameters ?: emptyList(), arguments, span ?: Span.UNKNOWN)
-    }
-
-    override val destructorThrowBehavior get() = when (baseType.kind) {
-        BoundBaseType.Kind.CLASS -> baseType.destructor?.throwBehavior
-        else -> SideEffectPrediction.POSSIBLY
     }
 
     constructor(original: TypeReference, baseType: BoundBaseType, parameters: List<BoundTypeArgument>?) : this(

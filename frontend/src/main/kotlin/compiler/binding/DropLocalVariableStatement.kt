@@ -18,13 +18,10 @@ class DropLocalVariableStatement(
         override val context = contextOnDeferredExecution
         override val declaration = variable.declaration
         override val returnBehavior = SideEffectPrediction.NEVER
-        override val throwBehavior get() = variable.typeAtDeclarationTime?.destructorThrowBehavior
+        override val throwBehavior get() = SideEffectPrediction.NEVER
 
-        private var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
         override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
-            require(nothrowBoundary == null) { "setNothrow called more than once" }
 
-            this.nothrowBoundary = boundary
         }
 
         override fun toBackendIrStatement(): IrExecutable {
@@ -37,14 +34,6 @@ class DropLocalVariableStatement(
 
         override fun semanticAnalysisPhase1(): Collection<Reporting> = emptyList()
         override fun semanticAnalysisPhase2(): Collection<Reporting> = emptyList()
-        override fun semanticAnalysisPhase3(): Collection<Reporting> {
-            val reportings = mutableListOf<Reporting>()
-            nothrowBoundary?.let { nothrowBoundary ->
-                if (throwBehavior != SideEffectPrediction.NEVER) {
-                    reportings.add(Reporting.droppingReferenceToObjectWithThrowingConstructor(variable, nothrowBoundary))
-                }
-            }
-            return reportings
-        }
+        override fun semanticAnalysisPhase3(): Collection<Reporting> = emptyList()
     }
 }

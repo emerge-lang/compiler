@@ -3,7 +3,6 @@ package compiler.binding.type
 import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.SideEffectPrediction
 import compiler.lexer.Span
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -51,7 +50,6 @@ class TypeVariable private constructor(
     override val simpleName get() = parameter.name
     override val isNullable get() = parameter.bound.isNullable
     override val inherentTypeBindings = TypeUnification.EMPTY
-    override val destructorThrowBehavior = SideEffectPrediction.POSSIBLY
 
     val effectiveBound: BoundTypeReference get() {
         return parameter.bound

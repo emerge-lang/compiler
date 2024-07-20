@@ -403,23 +403,6 @@ abstract class Reporting internal constructor(
         fun nothrowViolatingNotNullAssertion(assertion: BoundNotNullExpression, boundary: NothrowViolationReporting.SideEffectBoundary)
             = NothrowViolationReporting.NotNullAssertion(assertion.declaration, boundary)
 
-        fun droppingReferenceToObjectWithThrowingConstructor(reference: BoundVariable, boundary: NothrowViolationReporting.SideEffectBoundary)
-            = NothrowViolationReporting.PotentialThrowingDestruction(reference, "variable ${reference.name}", reference.declaration.span, boundary)
-
-        fun droppingReferenceToObjectWithThrowingConstructor(reference: BoundBaseTypeMemberVariable, ownerType: BoundBaseType, boundary: NothrowViolationReporting.SideEffectBoundary)
-            = NothrowViolationReporting.ObjectMemberWithThrowingDestructor(reference, ownerType, boundary)
-
-        fun droppingReferenceToObjectWithThrowingConstructor(reference: BoundAssignmentStatement, boundary: NothrowViolationReporting.SideEffectBoundary)
-            = NothrowViolationReporting.PotentialThrowingDestruction(reference, "the previous value", reference.declaration.span, boundary)
-
-        fun droppingReferenceToObjectWithThrowingConstructor(returnValueOf: BoundInvocationExpression, boundary: NothrowViolationReporting.SideEffectBoundary)
-            = NothrowViolationReporting.PotentialThrowingDestruction(
-                returnValueOf,
-                "return value of ${returnValueOf.functionToInvoke?.name ?: returnValueOf.functionNameToken.value}",
-                returnValueOf.declaration.span,
-                boundary,
-            )
-
         fun throwStatementInNothrowContext(statement: BoundThrowStatement, boundary: NothrowViolationReporting.SideEffectBoundary)
             = NothrowViolationReporting.ThrowStatement(statement.declaration, boundary)
 

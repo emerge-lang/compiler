@@ -3,7 +3,6 @@ package compiler.binding.type
 import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.lexer.Span
 import compiler.reportings.Reporting
@@ -25,7 +24,6 @@ class UnresolvedType private constructor(
     override val mutability get() = standInType.mutability
     override val span = reference.declaringNameToken?.span
     override val inherentTypeBindings = TypeUnification.EMPTY
-    override val destructorThrowBehavior = SideEffectPrediction.NEVER // avoid complaining extra
 
     override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
         return (parameters ?: emptyList()).flatMap { it.validate(forUsage.deriveIrrelevant()) } + setOf(Reporting.unknownType(reference))

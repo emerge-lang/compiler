@@ -391,9 +391,6 @@ class BoundInvocationExpression(
                     if (targetFn.throwBehavior != SideEffectPrediction.NEVER) {
                         reportings.add(Reporting.nothrowViolatingInvocation(this, nothrowBoundary))
                     }
-                    if (!evaluationResultUsed && targetFn.returnType?.destructorThrowBehavior != SideEffectPrediction.NEVER) {
-                        reportings.add(Reporting.droppingReferenceToObjectWithThrowingConstructor(this, nothrowBoundary))
-                    }
                 }
             }
 
