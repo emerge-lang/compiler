@@ -91,8 +91,11 @@ class Linux_x68_64_Backend : EmergeBackend {
 
         EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-gnu")) { llvmContext ->
             softwareContext.packagesSeq
+                .flatMap { it.interfaces }
+                .forEach(llvmContext::registerBaseType)
+            softwareContext.packagesSeq
                 .flatMap { it.classes }
-                .forEach(llvmContext::registerClass)
+                .forEach(llvmContext::registerBaseType)
             softwareContext.packagesSeq
                 .flatMap { it.interfaces }
                 .flatMap { it.memberFunctions }

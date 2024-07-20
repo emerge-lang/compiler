@@ -107,11 +107,6 @@ class EmergeLlvmContext(
     internal lateinit var mainFunction: LlvmFunction<*>
 
     /**
-     * `emerge.platform.panicOnThrowableImpl(Throwable)`, set by [registerFunction].
-     */
-    internal lateinit var panicOnThrowableFunction: LlvmFunction<*>
-
-    /**
      * `emerge.platform.printStackTraceToStandardError()`, set by [registerFunction]
      */
     internal lateinit var printStackTraceToStdErrFunction: LlvmFunction<*>
@@ -181,10 +176,14 @@ class EmergeLlvmContext(
     internal lateinit var rawBoolClazz: IrClass
     /** `emerge.core.reflection.ReflectionBaseType` */
     internal lateinit var rawReflectionBaseTypeClazz: IrClass
+    /** `emerge.core.Throwable` */
+    internal lateinit var throwableClazz: IrInterface
 
     /** `emerge.core.Unit` */
     internal lateinit var unitType: EmergeClassType
     internal lateinit var pointerToPointerToUnitInstance: LlvmGlobal<LlvmPointerType<EmergeClassType>>
+    /** `emerge.platform.StandardError` */
+    internal lateinit var standardErrorStreamGlobalVar: IrGlobalVariable
 
     private val emergeStructs = ArrayList<EmergeClassType>()
     private val kotlinLlvmFunctions: MutableMap<KotlinLlvmFunction<in EmergeLlvmContext, *>, KotlinLlvmFunction.DeclaredInContext<in EmergeLlvmContext, *>> = IdentityHashMap()
@@ -195,8 +194,19 @@ class EmergeLlvmContext(
             DiBuilder(module, location.path)
         }
     }
-
-    fun registerClass(clazz: IrClass) {
+    
+    fun registerBaseType(type: IrBaseType) {
+        when (type) {
+            is IrInterface -> {
+                when (type.canonicalName.toString()) {
+                    "emerge.core.Throwable" -> throwableClazz = type
+                }
+            }
+            is IrClass -> registerClass(type)
+        }
+    }
+    
+    private fun registerClass(clazz: IrClass) {
         if (clazz.rawLlvmRef != null) {
             return
         }
@@ -381,9 +391,6 @@ class EmergeLlvmContext(
             if (fn.canonicalName.simpleName == "printStackTraceToStandardError" && fn.parameters.isEmpty()) {
                 printStackTraceToStdErrFunction = fn.llvmRef!!
             }
-            if (fn.canonicalName.simpleName == "panicOnThrowableImpl" && fn.parameters.size == 1) {
-                panicOnThrowableFunction = fn.llvmRef!!
-            }
         }
 
         return fn.llvmRef!!
@@ -407,6 +414,10 @@ class EmergeLlvmContext(
             store(newValue, allocation)
         }
         globalVariables.add(global)
+
+        if (global.name.toString() == "emerge.platform.StandardError") {
+            standardErrorStreamGlobalVar = global
+        }
     }
 
     private var structConstructorsRegistered: Boolean = false
@@ -457,7 +468,7 @@ class EmergeLlvmContext(
                     }
                 }
 
-            when (val codeResult = emitCode(body, fn.returnType, fn.hasNothrowAbi, false)) {
+            when (val codeResult = emitCode(body, fn.returnType, fn.hasNothrowAbi, false, null)) {
                 is ExecutableResult.ExecutionOngoing,
                 is ExpressionResult.Value -> {
                     if (fn.hasNothrowAbi) {
@@ -516,6 +527,7 @@ class EmergeLlvmContext(
                         IrSimpleTypeImpl(context.unitType.irClass, IrTypeMutability.READONLY, false),
                         functionHasNothrowAbi = true, // this will cause a panic if the initializer throws an exception
                         expressionResultUsed = true,
+                        null,
                     )
                     if (initResult is ExpressionResult.Value) {
                         global.declaration.emitWrite!!(initResult.value)
@@ -651,6 +663,18 @@ class EmergeLlvmContext(
                 ?.let { registerIntrinsic(it) }
         }
 
+        if (intrinsic == null && fn.canonicalName.parent == CanonicalElementName.Package(listOf("emerge", "platform")) && fn.canonicalName.simpleName == "panic") {
+            if (fn.parameters.size == 1) {
+                val paramType = fn.parameters.single().type.findSimpleTypeBound().baseType
+                if (paramType.canonicalName.simpleName == "String") {
+                    intrinsic = registerIntrinsic(panicOnString)
+                }
+                if (paramType.canonicalName.simpleName == "Throwable") {
+                    intrinsic = registerIntrinsic(panicOnThrowable)
+                }
+            }
+        }
+
         if (intrinsic == null && fn is IrBaseTypeFunction) {
             val autoboxer = fn.ownerBaseType.autoboxer
             if (autoboxer is Autoboxer.CFfiPointerType) {
@@ -707,7 +731,6 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             arrayAbstractFallibleSet,
             arrayAbstractPanicGet,
             arrayAbstractPanicSet,
-            panic,
             unwindContextSize,
             unwindCursorSize,
             isNullBuiltin,
