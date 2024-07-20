@@ -167,15 +167,12 @@ class BoundIfExpression(
     }
 
     override fun toBackendIrExpression(): IrExpression {
-        val thenResultNeedsToIncludeRefCount = isEvaluationResultReferenceCounted && !thenCode.isImplicitEvaluationResultReferenceCounted
-        val elseResultNeedsToIncludeRefCount = isEvaluationResultReferenceCounted && !(elseCode?.isImplicitEvaluationResultReferenceCounted ?: true)
-
         val conditionTemporary = IrCreateTemporaryValueImpl(condition.toBackendIrExpression())
         val ifTemporary = IrCreateTemporaryValueImpl(
             IrIfExpressionImpl(
                 IrTemporaryValueReferenceImpl(conditionTemporary),
-                thenCode.toBackendIrAsImplicitEvaluationExpression(thenResultNeedsToIncludeRefCount),
-                elseCode?.toBackendIrAsImplicitEvaluationExpression(elseResultNeedsToIncludeRefCount),
+                thenCode.toBackendIrAsImplicitEvaluationExpression(isEvaluationResultReferenceCounted),
+                elseCode?.toBackendIrAsImplicitEvaluationExpression(isEvaluationResultReferenceCounted),
                 type!!.toBackendIr(),
             )
         )

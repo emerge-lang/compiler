@@ -38,6 +38,9 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatemen
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import java.math.BigInteger
 
+/**
+ * TODO: refactor to be a subclass of [BoundExpression]. Currently, implicit evaluation does not respect capture semantics
+ */
 class BoundCodeChunk(
     /**
      * Context that applies to the leftHandSide statement; derivatives are stored within the statements themselves
@@ -162,7 +165,7 @@ class BoundCodeChunk(
             val implicitValueTemporary = IrCreateTemporaryValueImpl(lastStatement.toBackendIrExpression())
             plainStatements += implicitValueTemporary
             if (lastStatement.isEvaluationResultReferenceCounted) {
-                check(!assureResultHasReferenceCountIncrement) {
+                check(assureResultHasReferenceCountIncrement) {
                     "Reference counting bug: the implicit result is implicitly reference counted (${lastStatement::class.simpleName}) but the code using the result isn't aware."
                 }
             } else if (assureResultHasReferenceCountIncrement) {
