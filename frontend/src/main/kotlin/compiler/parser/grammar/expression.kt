@@ -25,7 +25,9 @@ import compiler.ast.Executable
 import compiler.ast.IfExpression
 import compiler.ast.TypeArgumentBundle
 import compiler.ast.expression.ArrayLiteralExpression
+import compiler.ast.expression.AstCatchBlockExpression
 import compiler.ast.expression.AstReflectExpression
+import compiler.ast.expression.AstTryCatchExpression
 import compiler.ast.expression.BooleanLiteralExpression
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.NullLiteralExpression
@@ -37,9 +39,11 @@ import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
+import compiler.lexer.Keyword.CATCH
 import compiler.lexer.Keyword.ELSE
 import compiler.lexer.Keyword.IF
 import compiler.lexer.Keyword.REFLECT
+import compiler.lexer.Keyword.TRY
 import compiler.lexer.KeywordToken
 import compiler.lexer.NumericLiteralToken
 import compiler.lexer.Operator
@@ -66,6 +70,7 @@ private val ExpressionBase: Rule<AstExpression> = eitherOf("expression without p
     ref(ValueExpression)
     ref(ParanthesisedExpression)
     ref(IfExpression)
+    ref(TryCatchExpression)
 }
     .astTransformation { tokens -> tokens.next() as AstExpression }
 
@@ -269,6 +274,32 @@ val IfExpression = sequence("if-expression") {
             condition,
             thenCode,
             elseCode
+        )
+    }
+
+val TryCatchExpression = sequence("try-catch expression") {
+    keyword(TRY)
+    ref(BracedCodeOrSingleStatement)
+
+    keyword(CATCH)
+    ref(Identifier)
+    ref(BracedCodeOrSingleStatement)
+}
+    .astTransformation { tokens ->
+        val tryKeyword = tokens.next() as KeywordToken
+        val fallibleCode = tokens.next() as Executable
+        val catchKeyword = tokens.next() as KeywordToken
+        val throwableNameToken = tokens.next() as IdentifierToken
+        val catchCode = tokens.next() as Executable
+
+        AstTryCatchExpression(
+            tryKeyword.span .. catchCode.span,
+            fallibleCode,
+            AstCatchBlockExpression(
+                catchKeyword.span .. catchCode.span,
+                throwableNameToken,
+                catchCode,
+            ),
         )
     }
 

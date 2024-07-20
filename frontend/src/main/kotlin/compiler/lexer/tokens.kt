@@ -72,6 +72,9 @@ enum class Keyword(val text: String)
     INSTANCEOF("is"),
 
     REFLECT("reflect"),
+
+    TRY("try"),
+    CATCH("catch"),
     ;
 }
 

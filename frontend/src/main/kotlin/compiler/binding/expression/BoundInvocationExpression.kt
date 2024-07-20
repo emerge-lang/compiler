@@ -18,21 +18,25 @@
 
 package compiler.binding.expression
 
+import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.IrCodeChunkImpl
+import compiler.binding.IrThrowStatementImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
@@ -44,6 +48,8 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
+import compiler.util.checkNoDiagnostics
+import io.github.tmarsteel.emerge.backend.api.ir.IrCatchExceptionStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrDynamicDispatchFunctionInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -450,7 +456,10 @@ class BoundInvocationExpression(
             return receiverIsConstant && valueArguments.all { it.isCompileTimeConstant }
         }
 
-    private fun buildBackendIrInvocation(arguments: List<IrTemporaryValueReference>): IrExpression {
+    private fun buildBackendIrInvocation(
+        arguments: List<IrTemporaryValueReference>,
+        landingpad: IrInvocationExpression.Landingpad?,
+    ): IrExpression {
         val isCallOnInterfaceType = (receiverExpression?.type as? RootResolvedTypeReference)?.baseType?.kind == BoundBaseType.Kind.INTERFACE
         val fn = functionToInvoke!!
         val returnType = type!!.toBackendIr()
@@ -464,7 +473,8 @@ class BoundInvocationExpression(
                 fn.toBackendIr(),
                 arguments,
                 irResolvedTypeArgs,
-                returnType
+                returnType,
+                landingpad,
             )
         }
 
@@ -473,21 +483,28 @@ class BoundInvocationExpression(
             arguments,
             irResolvedTypeArgs,
             type!!.toBackendIr(),
+            landingpad,
         )
     }
 
     override fun toBackendIrExpression(): IrExpression {
-        return buildInvocationLikeIr(
+        return buildGenericInvocationLikeIr(
+            context,
+            declaration.span,
             listOfNotNull(receiverExceptReferringType) + valueArguments,
             ::buildBackendIrInvocation,
+            assumeNothrow = functionToInvoke!!.attributes.isDeclaredNothrow,
         )
     }
 
     override fun toBackendIrStatement(): IrExecutable {
-        return buildInvocationLikeIr(
+        return buildGenericInvocationLikeIr(
+            context,
+            declaration.span,
             listOfNotNull(receiverExceptReferringType) + valueArguments,
             ::buildBackendIrInvocation,
             { listOf(IrDropStrongReferenceStatementImpl(it)) },
+            assumeNothrow = functionToInvoke!!.attributes.isDeclaredNothrow,
         ).code
     }
 }
@@ -524,6 +541,7 @@ internal class IrStaticDispatchFunctionInvocationImpl(
     override val arguments: List<IrTemporaryValueReference>,
     override val typeArgumentsAtCallSite: Map<String, IrType>,
     override val evaluatesTo: IrType,
+    override val landingpad: IrInvocationExpression.Landingpad?,
 ) : IrStaticDispatchFunctionInvocationExpression
 
 private class IrDynamicDispatchFunctionInvocationImpl(
@@ -531,18 +549,17 @@ private class IrDynamicDispatchFunctionInvocationImpl(
     override val function: IrMemberFunction,
     override val arguments: List<IrTemporaryValueReference>,
     override val typeArgumentsAtCallSite: Map<String, IrType>,
-    override val evaluatesTo: IrType
+    override val evaluatesTo: IrType,
+    override val landingpad: IrInvocationExpression.Landingpad?,
 ) : IrDynamicDispatchFunctionInvocationExpression
 
 /**
- * Contains logic for invocation-like IR. Used for actual invocations, but also e.g. for [BoundArrayLiteralExpression].
- * Doesn't assume any value for [BoundExpression.isEvaluationResultReferenceCounted]; refcounting logic can be cleanly
- * customized with [buildResultCleanup].
+ * common base for [buildGenericInvocationLikeIr] and [buildNothrowInvocationLikeIr]
  */
-internal fun buildInvocationLikeIr(
+private fun buildInvocationLikeIrInternal(
     boundArgumentExprs: List<BoundExpression<*>>,
-    buildActualCall: (arguments: List<IrTemporaryValueReference>) -> IrExpression,
-    buildResultCleanup: (IrTemporaryValueReference) -> List<IrExecutable> = { emptyList() },
+    buildActualCall: (arguments: List<IrTemporaryValueReference>, argumentsCleanupCode: List<IrExecutable>) -> IrExpression,
+    buildResultCleanup: (IrTemporaryValueReference) -> List<IrExecutable>,
 ): IrImplicitEvaluationExpression {
     val prepareArgumentsCode = ArrayList<IrExecutable>(boundArgumentExprs.size * 2)
     val argumentTemporaries = ArrayList<IrCreateTemporaryValue>(boundArgumentExprs.size)
@@ -560,7 +577,10 @@ internal fun buildInvocationLikeIr(
     }
 
     val returnValueTemporary = IrCreateTemporaryValueImpl(
-        buildActualCall(argumentTemporaries.map { IrTemporaryValueReferenceImpl(it) })
+        buildActualCall(
+            argumentTemporaries.map { IrTemporaryValueReferenceImpl(it) },
+            cleanUpArgumentsCode,
+        )
     )
     val returnValueTemporaryRef = IrTemporaryValueReferenceImpl(returnValueTemporary)
     val cleanupCode = buildResultCleanup(returnValueTemporaryRef)
@@ -568,4 +588,105 @@ internal fun buildInvocationLikeIr(
         IrCodeChunkImpl(prepareArgumentsCode + returnValueTemporary + cleanUpArgumentsCode + cleanupCode),
         returnValueTemporaryRef,
     )
+}
+
+/**
+ * like [buildGenericInvocationLikeIr], but assumes the caller knows the invocation is nothrow
+ */
+internal fun buildNothrowInvocationLikeIr(
+    boundArgumentExprs: List<BoundExpression<*>>,
+    buildActualCall: (arguments: List<IrTemporaryValueReference>) -> IrExpression,
+    buildResultCleanup: (IrTemporaryValueReference) -> List<IrExecutable> = { emptyList() },
+): IrImplicitEvaluationExpression {
+    return buildInvocationLikeIrInternal(
+        boundArgumentExprs,
+        { args, _ -> buildActualCall(args) },
+        buildResultCleanup,
+    )
+}
+
+/**
+ * Contains logic for invocation-like IR. Used for actual invocations, but also e.g. for [BoundArrayLiteralExpression].
+ * Doesn't assume any value for [BoundExpression.isEvaluationResultReferenceCounted]; refcounting logic can be cleanly
+ * customized with [buildResultCleanup].
+ *
+ * @param assumeNothrow if true, [buildActualCall] will not receive a landingpad
+ */
+internal fun buildGenericInvocationLikeIr(
+    context: ExecutionScopedCTContext,
+    invocationLocation: Span,
+    boundArgumentExprs: List<BoundExpression<*>>,
+    buildActualCall: (arguments: List<IrTemporaryValueReference>, landingpad: IrInvocationExpression.Landingpad?) -> IrExpression,
+    buildResultCleanup: (IrTemporaryValueReference) -> List<IrExecutable> = { emptyList() },
+    assumeNothrow: Boolean,
+): IrImplicitEvaluationExpression {
+    return buildInvocationLikeIrInternal(
+        boundArgumentExprs,
+        { args, argsCleanupCode ->
+            val landingpad = if (assumeNothrow) null else {
+                val cleanupCode = argsCleanupCode + context.getScopeLocalDeferredCode().map { it.toBackendIrStatement() }
+                val landingpadContext = MutableExecutionScopedCTContext.deriveFrom(context)
+                val throwableVar = VariableDeclaration(
+                    invocationLocation,
+                    null,
+                    null,
+                    null,
+                    IdentifierToken(
+                        landingpadContext.newInternalVariableName("t"),
+                        invocationLocation
+                    ),
+                    TypeReference(IdentifierToken("Throwable", invocationLocation)),
+                    null,
+                ).bindTo(landingpadContext)
+                checkNoDiagnostics(throwableVar.semanticAnalysisPhase1())
+                checkNoDiagnostics(throwableVar.semanticAnalysisPhase2())
+                checkNoDiagnostics(throwableVar.semanticAnalysisPhase3())
+                landingpadContext.addVariable(throwableVar)
+
+                val exceptionTemporary = IrCreateTemporaryValueImpl(
+                    IrVariableAccessExpressionImpl(throwableVar.backendIrDeclaration)
+                )
+                val rethrowStmt = IrThrowStatementImpl(IrTemporaryValueReferenceImpl(exceptionTemporary))
+                val catchOrRethrow: List<IrExecutable> = if (context.hasExceptionHandler) {
+                    val isError = IrCreateTemporaryValueImpl(buildInstanceOf(
+                        landingpadContext.swCtx,
+                        IrTemporaryValueReferenceImpl(exceptionTemporary),
+                        landingpadContext.swCtx.error,
+                    ))
+                    val catchOrThrowBranch = IrConditionalBranchImpl(
+                        condition = IrTemporaryValueReferenceImpl(isError),
+                        thenBranch = rethrowStmt,
+                        elseBranch = IrCatchExceptionStatementImpl(IrTemporaryValueReferenceImpl(exceptionTemporary)),
+                    )
+
+                    listOf(isError, catchOrThrowBranch)
+                } else {
+                    listOf(rethrowStmt)
+                }
+
+                IrInvocationExpression.Landingpad(
+                    throwableVar.backendIrDeclaration,
+                    IrCodeChunkImpl(cleanupCode + exceptionTemporary + catchOrRethrow),
+                )
+            }
+
+            buildActualCall(args, landingpad)
+        },
+        buildResultCleanup,
+    )
+}
+
+private class IrCatchExceptionStatementImpl(
+    override val exceptionReference: IrTemporaryValueReference
+) : IrCatchExceptionStatement
+
+private fun ExecutionScopedCTContext.newInternalVariableName(namePayload: String): String {
+    var i = 0
+    var name: String
+    do {
+        name = "__${namePayload}$i"
+        i++
+    } while (resolveVariable(name) != null)
+
+    return name
 }

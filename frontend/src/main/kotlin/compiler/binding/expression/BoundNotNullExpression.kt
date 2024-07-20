@@ -155,6 +155,7 @@ class BoundNotNullExpression(
             listOf(IrTemporaryValueReferenceImpl(errorMessage)),
             emptyMap(),
             panicFunction.returnType!!.toBackendIr(),
+            null,
         ))
 
         val code = IrCodeChunkImpl(listOf(

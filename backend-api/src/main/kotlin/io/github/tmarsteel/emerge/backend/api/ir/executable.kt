@@ -126,6 +126,17 @@ interface IrThrowStatement : IrExecutable {
 }
 
 /**
+ * May only be used inside [IrInvocationExpression.landingpad] to transfer control to the [IrTryCatchExpression.catchpad]
+ * of the lexically closest [IrTryCatchExpression].
+ */
+interface IrCatchExceptionStatement : IrExecutable {
+    /**
+     * The exception to be caught. The type of this value must be a subtype of `emerge.core.Throwable`
+     */
+    val exceptionReference: IrTemporaryValueReference
+}
+
+/**
  * The counterpart to [IrDeallocateObjectStatement]. It makes the memory occupied by the given reference.
  *
  * The frontend must emit code prior to this statement that ensures that

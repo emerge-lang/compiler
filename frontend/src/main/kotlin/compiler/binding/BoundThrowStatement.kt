@@ -68,6 +68,6 @@ class BoundThrowStatement(
     }
 }
 
-private class IrThrowStatementImpl(
+internal class IrThrowStatementImpl(
     override val throwable: IrTemporaryValueReference
 ) : IrThrowStatement

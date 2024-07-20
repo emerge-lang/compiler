@@ -100,6 +100,16 @@ interface IrBooleanLiteralExpression : IrExpression {
 
 interface IrNullLiteralExpression : IrExpression
 
+/**
+ * Calls the given function with the given arguments. Control flow resumes to the next [IrExecutable]
+ * after this [IrInvocationExpression] on a regular return.
+ * If the called function throws an exception, control flow passes to the [landingpad], if present, or
+ * up the stack instead. The [landingpad] is supposed to carry out cleanup work that is needed regardless
+ * of whether the exception is caught or not. Afterward it has two options:
+ * * continue the stack unwinding by executing another [IrThrowStatement]
+ * * transfer control to the [IrTryCatchExpression.catchpad] of the lexically closest
+ *   parent [IrTryCatchExpression] by executing an [].
+ */
 sealed interface IrInvocationExpression : IrExpression {
     val function: IrFunction
     val arguments: List<IrTemporaryValueReference>
@@ -125,6 +135,42 @@ sealed interface IrInvocationExpression : IrExpression {
      * parent lexical scopes.
      */
     val typeArgumentsAtCallSite: Map<String, IrType>
+
+    /**
+     * Cleanup code for exceptions, plus possibly triggering a catch mechanism
+     */
+    val landingpad: Landingpad?
+
+    class Landingpad(
+        /**
+         * The variable that [code] uses to refer to the throwable that is being handled, either for catching
+         * or for rethrowing.
+         */
+        val throwableVariable: IrVariableDeclaration,
+        val code: IrExecutable,
+    )
+}
+
+/**
+ * Introduces a new nesting of try-catch context, in which [fallibleCode] is executed.
+ * The sole purpose of this is so that [IrInvocationExpression.landingpad]s and [catchpad]s can transfer
+ * control to after the _entire_ try+catch source language construct.
+ *
+ * Note that there is no `finally` concept here. Frontends must implement this by incorporating the cleanupcode
+ * from a source-level finally block into the (potentially many) branches of [catchpad].
+ */
+interface IrTryCatchExpression : IrExpression {
+    /**
+     * Code that the source program expects to fail
+     */
+    val fallibleCode: IrExpression
+
+    /**
+     * The variable that [catchpad] uses to refer to the throwable being caught
+     */
+    val throwableVariable: IrVariableDeclaration
+
+    val catchpad: IrExpression
 }
 
 interface IrStaticDispatchFunctionInvocationExpression : IrInvocationExpression

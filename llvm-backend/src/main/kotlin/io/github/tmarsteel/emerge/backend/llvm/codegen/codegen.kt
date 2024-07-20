@@ -6,6 +6,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseTypeReflectionExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrBooleanLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrBreakStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrCatchExceptionStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassMemberVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -39,6 +40,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrStaticDispatchFunctionInvocat
 import io.github.tmarsteel.emerge.backend.api.ir.IrStringLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrThrowStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrTryCatchExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatement
@@ -79,6 +81,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Compan
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleFailure
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeHeapAllocated
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeI16ArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeI32ArrayCopyFn
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeI64ArrayCopyFn
@@ -129,6 +132,18 @@ internal sealed interface ExpressionResult : ExecutableResult {
 }
 
 /**
+ * Is defined within the context of [IrTryCatchExpression.fallibleCode] providing the ability to
+ * go to the [IrTryCatchExpression.catchpad] to the code in [IrInvocationExpression.landingpad]
+ * through [IrCatchExceptionStatement]
+ */
+internal fun interface TryContext {
+    /**
+     * within a [IrInvocationExpression.landingpad], catches the exception and jumps to the handling code
+     */
+    fun jumpToCatchpad(exceptionPtr: LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>): BasicBlockBuilder.Termination
+}
+
+/**
  * @param functionHasNothrowAbi see [hasNothrowAbi]
  */
 internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
@@ -136,6 +151,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
     functionReturnType: IrType,
     functionHasNothrowAbi: Boolean,
     expressionResultUsed: Boolean,
+    tryContext: TryContext?,
 ): ExecutableResult {
     when (code) {
         is IrCreateStrongReferenceStatement -> {
@@ -163,7 +179,13 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             return ExecutableResult.ExecutionOngoing
         }
         is IrCreateTemporaryValue -> {
-            val valueResult = emitExpressionCode(code.value, functionReturnType, functionHasNothrowAbi, expressionResultUsed = true)
+            val valueResult = emitExpressionCode(
+                code.value,
+                functionReturnType,
+                functionHasNothrowAbi,
+                expressionResultUsed = true,
+                tryContext,
+            )
             return when (valueResult) {
                 is ExpressionResult.Terminated -> valueResult
                 is ExpressionResult.Value -> {
@@ -175,9 +197,21 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         is IrExpressionSideEffectsStatement -> {
             val expr = code.expression
             if (expr is IrImplicitEvaluationExpression) {
-                return emitCode(expr.code, functionReturnType, functionHasNothrowAbi, expressionResultUsed = false)
+                return emitCode(
+                    expr.code,
+                    functionReturnType,
+                    functionHasNothrowAbi,
+                    expressionResultUsed = false,
+                    tryContext,
+                )
             } else {
-                return emitExpressionCode(expr, functionReturnType, functionHasNothrowAbi, expressionResultUsed = false)
+                return emitExpressionCode(
+                    expr,
+                    functionReturnType,
+                    functionHasNothrowAbi,
+                    expressionResultUsed = false,
+                    tryContext,
+                )
             }
         }
         is IrCodeChunk -> {
@@ -185,7 +219,13 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 .take((code.components.size - 1).coerceAtLeast(0))
                 .fold(ExecutableResult.ExecutionOngoing as ExecutableResult) { accResult, component ->
                     if (accResult !is ExpressionResult.Terminated) {
-                        emitCode(component, functionReturnType, functionHasNothrowAbi, expressionResultUsed = false)
+                        emitCode(
+                            component,
+                            functionReturnType,
+                            functionHasNothrowAbi,
+                            expressionResultUsed = false,
+                            tryContext,
+                        )
                     } else {
                         accResult
                     }
@@ -195,7 +235,15 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 return resultAfterNonImplicitCode
             }
 
-            return code.components.lastOrNull()?.let { emitCode(it, functionReturnType, functionHasNothrowAbi, expressionResultUsed) }
+            return code.components.lastOrNull()?.let {
+                emitCode(
+                    it,
+                    functionReturnType,
+                    functionHasNothrowAbi,
+                    expressionResultUsed,
+                    tryContext,
+                )
+            }
                 ?: ExecutableResult.ExecutionOngoing
         }
         is IrVariableDeclaration -> {
@@ -260,6 +308,14 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 fallibleFailure(code.throwable.declaration.llvmValue.reinterpretAs(PointerToAnyEmergeValue))
             )
         }
+        is IrCatchExceptionStatement -> {
+            check(tryContext != null) {
+                "illegal IR - ${IrCatchExceptionStatement::class.simpleName} with no landingpad context"
+            }
+            val exceptionReference = code.exceptionReference.declaration.llvmValue
+            check(exceptionReference.type.isAssignableTo(PointerToAnyEmergeValue))
+            return ExpressionResult.Terminated(tryContext.jumpToCatchpad(exceptionReference.reinterpretAs(PointerToAnyEmergeValue)))
+        }
         is IrConditionalBranch -> {
             val conditionValue = code.condition.declaration.llvmValue
             check(conditionValue.type == LlvmBooleanType)
@@ -270,7 +326,13 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 conditionalBranch(
                     condition = conditionValue,
                     ifTrue = {
-                        val thenBranchResult = emitCode(code.thenBranch, functionReturnType, functionHasNothrowAbi, expressionResultUsed = false)
+                        val thenBranchResult = emitCode(
+                            code.thenBranch,
+                            functionReturnType,
+                            functionHasNothrowAbi,
+                            expressionResultUsed = false,
+                            tryContext,
+                        )
                         (thenBranchResult as? ExpressionResult.Terminated)?.termination ?: concludeBranch()
                     }
                 )
@@ -282,12 +344,24 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             conditionalBranch(
                 condition = conditionValue,
                 ifTrue = {
-                    val thenBranchResult = emitCode(code.thenBranch, functionReturnType, functionHasNothrowAbi, expressionResultUsed = false)
+                    val thenBranchResult = emitCode(
+                        code.thenBranch,
+                        functionReturnType,
+                        functionHasNothrowAbi,
+                        expressionResultUsed = false,
+                        tryContext,
+                    )
                     thenTerminates = thenBranchResult is ExpressionResult.Terminated
                     (thenBranchResult as? ExpressionResult.Terminated)?.termination ?: concludeBranch()
                 },
                 ifFalse = {
-                    val elseBranchResult = emitCode(code.elseBranch!!, functionReturnType, functionHasNothrowAbi, expressionResultUsed = false)
+                    val elseBranchResult = emitCode(
+                        code.elseBranch!!,
+                        functionReturnType,
+                        functionHasNothrowAbi,
+                        expressionResultUsed = false,
+                        tryContext,
+                    )
                     elseTerminates = elseBranchResult is ExpressionResult.Terminated
                     (elseBranchResult as? ExpressionResult.Terminated)?.termination ?: concludeBranch()
                 },
@@ -307,7 +381,13 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                     code.emitContinue = {
                         throw CodeGenerationException("Cannot continue in a while loop header")
                     }
-                    val conditionResult = emitExpressionCode(code.condition, functionReturnType, functionHasNothrowAbi, expressionResultUsed = true)
+                    val conditionResult = emitExpressionCode(
+                        code.condition,
+                        functionReturnType,
+                        functionHasNothrowAbi,
+                        expressionResultUsed = true,
+                        tryContext,
+                    )
                     if (conditionResult is ExpressionResult.Terminated) {
                         conditionTermination = conditionResult
                         breakLoop()
@@ -321,14 +401,20 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
 
                     conditionalBranch(
                         condition = conditionValue,
-                        ifTrue = { doIteration() },
+                        ifTrue = { this@loop.doIteration() },
                     )
                     breakLoop()
                 },
                 body = {
                     code.emitBreak = { breakLoop() }
                     code.emitContinue = { loopContinue() }
-                    val bodyResult = emitCode(code.body, functionReturnType, functionHasNothrowAbi, expressionResultUsed = false)
+                    val bodyResult = emitCode(
+                        code.body,
+                        functionReturnType,
+                        functionHasNothrowAbi,
+                        expressionResultUsed = false,
+                        tryContext,
+                    )
                     if (bodyResult is ExpressionResult.Terminated) {
                         bodyResult.termination
                     } else {
@@ -372,6 +458,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
     functionReturnType: IrType,
     functionHasNothrowAbi: Boolean,
     expressionResultUsed: Boolean,
+    tryContext: TryContext?,
 ): ExpressionResult {
     when (expression) {
         is IrStringLiteralExpression -> {
@@ -484,7 +571,26 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
 
             @Suppress("UNCHECKED_CAST") // implied by !hasNothrowAbi
             val unwrappedReturnValue = (callInstruction as LlvmValue<EmergeFallibleCallResult<LlvmType>>).abortOnException { exceptionPtr ->
-                propagateOrPanic(exceptionPtr)
+                if (expression.landingpad == null) {
+                    return@abortOnException propagateOrPanic(exceptionPtr)
+                }
+                val invocationLandingpad = expression.landingpad!!
+                invocationLandingpad.throwableVariable.emitRead = { exceptionPtr }
+                invocationLandingpad.throwableVariable.emitWrite = {
+                    throw CodeGenerationException("Cannot write to exception variables in landingpads or catchpads!")
+                }
+                val landingpadResult = emitCode(
+                    invocationLandingpad.code,
+                    functionReturnType,
+                    functionHasNothrowAbi,
+                    expressionResultUsed,
+                    tryContext,
+                )
+
+                check(landingpadResult is ExpressionResult.Terminated) {
+                    "illegal IR - landingpad does not terminate. It should either catch or rethrow"
+                }
+                landingpadResult.termination
             }
 
             if (expression.evaluatesTo.isUnit) {
@@ -525,7 +631,13 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 conditionalBranch(
                     condition = conditionValue,
                     ifTrue = thenBranch@{
-                        val branchCodeResult = this@thenBranch.emitCode(expression.thenBranch.code, functionReturnType, functionHasNothrowAbi, expressionResultUsed = false)
+                        val branchCodeResult = this@thenBranch.emitCode(
+                            expression.thenBranch.code,
+                            functionReturnType,
+                            functionHasNothrowAbi,
+                            expressionResultUsed = false,
+                            tryContext,
+                        )
                         (branchCodeResult as? ExpressionResult.Terminated)?.termination ?: concludeBranch()
                     }
                 )
@@ -535,8 +647,8 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             val expressionResultLlvmType = context.getReferenceSiteType(expression.evaluatesTo)
             val valueBucket = if (expressionResultUsed) PhiBucket(expressionResultLlvmType) else null
 
-            val thenEmitter = BranchEmitter(expression.thenBranch, valueBucket, functionHasNothrowAbi, functionReturnType)
-            val elseEmitter = BranchEmitter(expression.elseBranch!!, valueBucket, functionHasNothrowAbi, functionReturnType)
+            val thenEmitter = BranchEmitter(expression.thenBranch, valueBucket, functionHasNothrowAbi, functionReturnType, tryContext)
+            val elseEmitter = BranchEmitter(expression.elseBranch!!, valueBucket, functionHasNothrowAbi, functionReturnType, tryContext)
 
             conditionalBranch(
                 condition = conditionValue,
@@ -625,8 +737,65 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
 
             return ExpressionResult.Value(typeinfoPtr)
         }
+        is IrTryCatchExpression -> {
+            val tryCatchResultLlvmType = context.getReferenceSiteType(expression.evaluatesTo, false)
+            val resultBucket = if (expressionResultUsed) PhiBucket(tryCatchResultLlvmType) else null
+            val exceptionBucket = PhiBucket(PointerToAnyEmergeValue)
+            unsafeBranch(
+                prepare = {
+                    val fallibleExprResult = emitExpressionCode(
+                        expression.fallibleCode,
+                        functionReturnType,
+                        functionHasNothrowAbi,
+                        expressionResultUsed,
+                        tryContext = { exceptionPtr ->
+                            exceptionBucket.setBranchResult(exceptionPtr)
+                            jumpToUnsafeBranch()
+                        }
+                    )
+                    when (fallibleExprResult) {
+                        is ExpressionResult.Terminated -> fallibleExprResult.termination
+                        is ExpressionResult.Value -> {
+                            resultBucket?.setBranchResult(fallibleExprResult.value)
+                            skipUnsafeBranch()
+                        }
+                    }
+                },
+                branch = {
+                    val exceptionPtr = exceptionBucket.buildPhi()
+                    expression.throwableVariable.emitRead = { exceptionPtr }
+                    expression.throwableVariable.emitWrite = {
+                        throw CodeGenerationException("Cannot write to the exception variable of a catch")
+                    }
+                    val catchpadResult = emitExpressionCode(
+                        expression.catchpad,
+                        functionReturnType,
+                        functionHasNothrowAbi,
+                        expressionResultUsed,
+                        tryContext,
+                    )
+                    when (catchpadResult) {
+                        is ExpressionResult.Terminated -> catchpadResult.termination
+                        is ExpressionResult.Value -> {
+                            resultBucket?.setBranchResult(catchpadResult.value)
+                            concludeBranch()
+                        }
+                    }
+                }
+            )
+
+            return ExpressionResult.Value(
+                resultBucket?.buildPhi() ?: context.poisonValue(tryCatchResultLlvmType)
+            )
+        }
         is IrImplicitEvaluationExpression -> {
-            val result = emitCode(expression.code, functionReturnType, functionHasNothrowAbi, expressionResultUsed)
+            val result = emitCode(
+                expression.code,
+                functionReturnType,
+                functionHasNothrowAbi,
+                expressionResultUsed,
+                tryContext,
+            )
             return when (result) {
                 is ExecutableResult.ExecutionOngoing,
                 is ExpressionResult.Value -> ExpressionResult.Value(expression.implicitValue.declaration.llvmValue)
@@ -655,12 +824,19 @@ private class BranchEmitter<R : LlvmType>(
     val valueStorage: PhiBucket<R>?,
     val functionHasNothrowAbi: Boolean,
     val functionReturnType: IrType,
+    val tryContext: TryContext?,
 ) {
     lateinit var branchResult: ExecutableResult
         private set
 
     val generatorFn: BasicBlockBuilder.Branch<EmergeLlvmContext, LlvmType>.() -> BasicBlockBuilder.Termination = {
-        val localBranchResult = emitExpressionCode(branchCode, this@BranchEmitter.functionReturnType, functionHasNothrowAbi, expressionResultUsed = valueStorage != null)
+        val localBranchResult = emitExpressionCode(
+            branchCode,
+            this@BranchEmitter.functionReturnType,
+            functionHasNothrowAbi,
+            expressionResultUsed = valueStorage != null,
+            tryContext,
+        )
         branchResult = localBranchResult
         when (localBranchResult) {
             is ExpressionResult.Value -> {
