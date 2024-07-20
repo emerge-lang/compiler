@@ -76,14 +76,6 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
      */
     fun markEvaluationResultCaptured(withMutability: TypeMutability) {}
 
-    /*
-     * these two shouldn't be overridden by expressions
-     */
-    override fun requireImplicitEvaluationTo(type: BoundTypeReference) {
-        markEvaluationResultUsed()
-        setExpectedEvaluationResultType(type)
-    }
-
     /**
      * If `true`, the reference counter in the result of this expression already includes a +1 to account for
      * the fact that the expression result might be used. If `false`, code using the expression result must
@@ -100,9 +92,6 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
      * **Need not be meaningful until [semanticAnalysisPhase3] starts.**
      */
     val isCompileTimeConstant: Boolean
-
-    override val implicitEvaluationResultType: BoundTypeReference?
-        get() = type
 
     override fun toBackendIrStatement(): IrExecutable {
         val asIrExpression = this.toBackendIrExpression()

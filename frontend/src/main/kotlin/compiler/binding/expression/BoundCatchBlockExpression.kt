@@ -35,11 +35,11 @@ class BoundCatchBlockExpression(
     override val throwBehavior get() = catchCode.throwBehavior
     override val returnBehavior get() = catchCode.returnBehavior
 
-    override val type get() = catchCode.implicitEvaluationResultType
-    override val implicitEvaluationResultType get() = type
+    override val type get() = catchCode.type
     override val isEvaluationResultReferenceCounted: Boolean
-        get() = catchCode.isImplicitEvaluationResultReferenceCounted
-    override val isCompileTimeConstant: Boolean = false // TODO: implement in BoundCodeChunk
+        get() = catchCode.isEvaluationResultReferenceCounted
+    override val isCompileTimeConstant
+        get() = catchCode.isCompileTimeConstant
 
     val seanHelper = SeanHelper()
 
@@ -58,18 +58,12 @@ class BoundCatchBlockExpression(
         }
     }
 
-    private var isInExpressionContext = false
-    override fun requireImplicitEvaluationTo(type: BoundTypeReference) {
-        isInExpressionContext = true
-        catchCode.requireImplicitEvaluationTo(type)
-    }
-
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
-        requireImplicitEvaluationTo(type)
+        catchCode.setExpectedEvaluationResultType(type)
     }
 
     override fun markEvaluationResultUsed() {
-        isInExpressionContext = true
+
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {

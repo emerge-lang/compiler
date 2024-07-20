@@ -5,6 +5,7 @@ import compiler.ast.type.TypeMutability
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundExecutable
 import compiler.binding.SeanHelper
+import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.combineBranch
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -26,13 +27,16 @@ class BoundTryCatchExpression(
     override val returnBehavior get() = fallibleCode.returnBehavior.combineBranch(catchBlock.returnBehavior)
     override val modifiedContext = context
 
-    override val isEvaluationResultReferenceCounted = fallibleCode.isImplicitEvaluationResultReferenceCounted || catchBlock.isEvaluationResultReferenceCounted
+    override val isEvaluationResultReferenceCounted = fallibleCode.isEvaluationResultReferenceCounted || catchBlock.isEvaluationResultReferenceCounted
 
-    override val isCompileTimeConstant = false // TODO: implement in BoundCodeChunk
-    override val implicitEvaluationResultType get() = type
+    override val isCompileTimeConstant: Boolean get() = when (fallibleCode.throwBehavior) {
+        SideEffectPrediction.NEVER -> fallibleCode.isCompileTimeConstant
+        SideEffectPrediction.GUARANTEED -> catchBlock.isCompileTimeConstant
+        else -> false
+    }
 
     override val type: BoundTypeReference? get() {
-        val fallibleType = fallibleCode.implicitEvaluationResultType
+        val fallibleType = fallibleCode.type
         val catchType = catchBlock.type
 
         if (fallibleType == null || catchType == null) {
@@ -55,19 +59,13 @@ class BoundTryCatchExpression(
     }
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
-        fallibleCode.requireImplicitEvaluationTo(type)
+        fallibleCode.setExpectedEvaluationResultType(type)
         catchBlock.setExpectedEvaluationResultType(type)
     }
 
     override fun markEvaluationResultUsed() {
-        // TODO: implement in BoundCodeChunk, so that fallibleCode can be informed
+        fallibleCode.markEvaluationResultUsed()
         catchBlock.markEvaluationResultUsed()
-    }
-
-    override fun requireImplicitEvaluationTo(type: BoundTypeReference) {
-        fallibleCode.requireImplicitEvaluationTo(type)
-        catchBlock.requireImplicitEvaluationTo(type)
-        catchBlock.setExpectedEvaluationResultType(type)
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
@@ -100,7 +98,7 @@ class BoundTryCatchExpression(
     }
 
     override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
-        // TODO: implement in BoundCodeChunk so that fallibleCode can be informed
+        fallibleCode.markEvaluationResultCaptured(withMutability)
         catchBlock.markEvaluationResultCaptured(withMutability)
     }
 

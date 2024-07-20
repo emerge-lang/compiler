@@ -21,10 +21,10 @@ package compiler.parser.grammar
 import compiler.InternalCompilerError
 import compiler.ast.AssignmentStatement
 import compiler.ast.AstBreakStatement
+import compiler.ast.AstCodeChunk
 import compiler.ast.AstContinueStatement
 import compiler.ast.AstThrowStatement
 import compiler.ast.AstWhileLoop
-import compiler.ast.CodeChunk
 import compiler.ast.ReturnStatement
 import compiler.ast.Statement
 import compiler.lexer.DelimitedIdentifierContentToken
@@ -110,7 +110,7 @@ val WhileLoop = sequence("while loop") {
         val whileKeyword = tokens.next()!! as KeywordToken
         val condition = tokens.next()!! as AstExpression
         tokens.next()!! // skip cbrace open
-        val body = tokens.next()!! as CodeChunk
+        val body = tokens.next()!! as AstCodeChunk
         AstWhileLoop(
             whileKeyword.span .. condition.span,
             condition,
@@ -148,7 +148,7 @@ val LineOfCode = sequence {
 }
     .astTransformation { tokens -> tokens.next() as Statement }
 
-val CodeChunk: Rule<CodeChunk> = sequence("a chunk of code") {
+val CodeChunk: Rule<AstCodeChunk> = sequence("a chunk of code") {
     optional {
         ref(LineOfCode)
 
@@ -160,5 +160,5 @@ val CodeChunk: Rule<CodeChunk> = sequence("a chunk of code") {
     .astTransformation { tokens ->
         tokens.remainingToList()
             .map { it as? Statement ?: throw InternalCompilerError("How did this thing get into here?!") }
-            .let(::CodeChunk)
+            .let(::AstCodeChunk)
     }

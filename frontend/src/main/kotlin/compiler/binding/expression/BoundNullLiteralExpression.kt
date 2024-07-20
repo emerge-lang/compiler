@@ -19,6 +19,7 @@
 package compiler.binding.expression
 
 import compiler.ast.expression.NullLiteralExpression
+import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
@@ -42,7 +43,9 @@ class BoundNullLiteralExpression(
 
     override val type: BoundTypeReference
         get() = expectedType?.withCombinedNullability(TypeReference.Nullability.NULLABLE)
-            ?: context.swCtx.nothing.baseReference.withCombinedNullability(TypeReference.Nullability.NULLABLE)
+            ?: context.swCtx.nothing.baseReference
+                .withCombinedNullability(TypeReference.Nullability.NULLABLE)
+                .withCombinedMutability(TypeMutability.EXCLUSIVE)
 
     override val throwBehavior = SideEffectPrediction.NEVER
     override val returnBehavior = SideEffectPrediction.NEVER

@@ -1,6 +1,6 @@
 package compiler.ast.expression
 
-import compiler.ast.CodeChunk
+import compiler.ast.AstCodeChunk
 import compiler.ast.Statement
 import compiler.ast.VariableDeclaration
 import compiler.ast.type.TypeMutability
@@ -34,8 +34,8 @@ class AstCatchBlockExpression(
             initializerExpression = null,
         )
         val catchBlockAsChunk = when(catchBlock) {
-            is CodeChunk -> catchBlock
-            is Statement -> CodeChunk(listOf(catchBlock))
+            is AstCodeChunk -> catchBlock
+            is Statement -> AstCodeChunk(listOf(catchBlock))
         }
         val catchContext = MutableExecutionScopedCTContext.deriveNewScopeFrom(context)
         val boundThrowableVariable = catchThrowableVariableDeclaration.bindTo(context, BoundVariable.Kind.LOCAL_VARIABLE)

@@ -19,9 +19,9 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
+import compiler.ast.AstCodeChunk
 import compiler.ast.AstFunctionAttribute
 import compiler.ast.AstVisibility
-import compiler.ast.CodeChunk
 import compiler.ast.FunctionDeclaration
 import compiler.ast.ParameterList
 import compiler.ast.TypeParameterBundle
@@ -259,7 +259,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
         }
 
         if (next == OperatorToken(Operator.CBRACE_OPEN)) {
-            val code = tokens.next()!! as CodeChunk
+            val code = tokens.next()!! as AstCodeChunk
             // ignore trailing CBRACE_CLOSE
 
             return@astTransformation FunctionDeclaration(

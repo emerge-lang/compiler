@@ -1,13 +1,11 @@
 package compiler.binding
 
-import compiler.InternalCompilerError
 import compiler.ast.Statement
 import compiler.ast.VariableDeclaration
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
-import compiler.binding.type.BoundTypeReference
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -21,11 +19,6 @@ class DropLocalVariableStatement(
         override val declaration = variable.declaration
         override val returnBehavior = SideEffectPrediction.NEVER
         override val throwBehavior get() = variable.typeAtDeclarationTime?.destructorThrowBehavior
-        override val implicitEvaluationResultType = null
-
-        override fun requireImplicitEvaluationTo(type: BoundTypeReference) {
-            throw InternalCompilerError("Cannot have a deferred statement be an implicit evaluation result")
-        }
 
         private var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
         override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {

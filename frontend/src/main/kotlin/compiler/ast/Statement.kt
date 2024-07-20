@@ -25,7 +25,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 /**
  * Something that can be executed. All expressions are executable (because executing an expression means evaluating
  * it within a certain context). Unless this is a compound (like e.g. [IfExpression]), any [Statement] can only
- * declare one variable. [CodeChunk]s, by nature, can declare many.
+ * declare one variable. [AstCodeChunk]s, by nature, can declare many.
  */
 interface Statement : Executable {
     fun bindTo(context: ExecutionScopedCTContext): BoundStatement<*>

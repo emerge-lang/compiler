@@ -39,7 +39,6 @@ import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundParameter
 import compiler.binding.BoundReturnStatement
-import compiler.binding.BoundStatement
 import compiler.binding.BoundThrowStatement
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
@@ -319,7 +318,7 @@ abstract class Reporting internal constructor(
         fun ambiguousImports(imports: Iterable<BoundImportDeclaration>)
             = AmbiguousImportsReporting(imports.map { it.declaration }, imports.first().simpleName!!)
 
-        fun implicitlyEvaluatingAStatement(statement: BoundStatement<*>)
+        fun implicitlyEvaluatingAStatement(statement: BoundExecutable<*>)
             = ImplicitlyEvaluatedStatementReporting(statement.declaration)
 
         fun ambiguousInvocation(invocation: BoundInvocationExpression, candidates: List<BoundFunction>)

@@ -42,27 +42,11 @@ interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
     val returnBehavior: SideEffectPrediction?
 
     /**
-     * When implicitly evaluating the result of this executable, this type is returned. Available after
-     * [semanticAnalysisPhase2]. Need not be set unless [BoundExecutable.requireImplicitEvaluationTo] is called.
-     */
-    val implicitEvaluationResultType: BoundTypeReference?
-
-    /**
      * A context derived from the one bound to ([context]), containing all the changes the [Executable] applies
      * to its enclosing scope (e.g. a variable declaration add a new variable)
      */
     val modifiedContext: ExecutionScopedCTContext
         get() = context
-
-    /**
-     * Must be invoked before [semanticAnalysisPhase2]
-     *
-     * If invoked, the last statement in this executable must be an expression. If that's not the case, an appropriate
-     * reporting will be returned from [semanticAnalysisPhase2]. This very last expression will use [type] for type
-     * inference.
-     * @see BoundExpression.setExpectedEvaluationResultType
-     */
-    fun requireImplicitEvaluationTo(type: BoundTypeReference)
 
     /**
      * Must be invoked before [semanticAnalysisPhase3].

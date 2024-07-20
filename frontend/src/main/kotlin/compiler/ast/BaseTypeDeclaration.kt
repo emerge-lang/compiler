@@ -152,7 +152,7 @@ class BaseTypeMemberVariableDeclaration(
 class BaseTypeConstructorDeclaration(
     val attributes: List<AstFunctionAttribute>,
     val constructorKeyword: IdentifierToken,
-    val code: CodeChunk,
+    val code: AstCodeChunk,
 ) : BaseTypeEntryDeclaration {
     override val span = constructorKeyword.span
 
@@ -164,7 +164,7 @@ class BaseTypeConstructorDeclaration(
 class BaseTypeDestructorDeclaration(
     val destructorKeyword: IdentifierToken,
     val attributes: List<AstFunctionAttribute>,
-    val code: CodeChunk,
+    val code: AstCodeChunk,
 ) : BaseTypeEntryDeclaration {
     override val span = destructorKeyword.span
 

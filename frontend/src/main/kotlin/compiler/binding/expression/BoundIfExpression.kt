@@ -77,14 +77,11 @@ class BoundIfExpression(
     }
 
     private var isInExpressionContext = false
-    override fun requireImplicitEvaluationTo(type: BoundTypeReference) {
-        isInExpressionContext = true
-        thenCode.requireImplicitEvaluationTo(type)
-        elseCode?.requireImplicitEvaluationTo(type)
-    }
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
-        requireImplicitEvaluationTo(type)
+        isInExpressionContext = true
+        thenCode.setExpectedEvaluationResultType(type)
+        elseCode?.setExpectedEvaluationResultType(type)
     }
 
     override fun markEvaluationResultUsed() {
@@ -101,8 +98,8 @@ class BoundIfExpression(
 
         if (isInExpressionContext) {
             type = listOfNotNull(
-                thenCode.implicitEvaluationResultType,
-                elseCode?.implicitEvaluationResultType
+                thenCode.type,
+                elseCode?.type,
             )
                 .takeUnless { it.isEmpty() }
                 ?.reduce(BoundTypeReference::closestCommonSupertypeWith)
@@ -144,7 +141,7 @@ class BoundIfExpression(
     override val isEvaluationResultReferenceCounted get() = when {
         elseCode != null -> {
             // if either is implicitly refcounted, we have to add the reference counting on the other
-            thenCode.isImplicitEvaluationResultReferenceCounted || elseCode.isImplicitEvaluationResultReferenceCounted
+            thenCode.isEvaluationResultReferenceCounted || elseCode.isEvaluationResultReferenceCounted
         }
         else -> {
             // elseCode == null, doesn't evaluate to either branch but to implicit unit -> not refcounted

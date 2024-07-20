@@ -1,8 +1,8 @@
 package compiler.binding.basetype
 
 import compiler.ast.AssignmentStatement
+import compiler.ast.AstCodeChunk
 import compiler.ast.BaseTypeConstructorDeclaration
-import compiler.ast.CodeChunk
 import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
@@ -178,7 +178,7 @@ class BoundClassConstructor(
                     IdentifierExpression(IdentifierToken(parameter.name, generatedSourceLocation)),
                 )
             }
-            .let(::CodeChunk)
+            .let(::AstCodeChunk)
             .bindTo(parameters.modifiedContext)
     }
 
@@ -199,7 +199,7 @@ class BoundClassConstructor(
                     memberVariable.initializer!!.declaration,
                 )
             }
-            .let(::CodeChunk)
+            .let(::AstCodeChunk)
             .bindTo(contextAfterInitFromCtorParams)
     }
 

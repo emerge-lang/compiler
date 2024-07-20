@@ -169,12 +169,6 @@ class BoundVariable(
         }
     }
 
-    override val implicitEvaluationResultType: BoundTypeReference? = null
-    private var implicitEvaluationRequired = false
-    override fun requireImplicitEvaluationTo(type: BoundTypeReference) {
-        implicitEvaluationRequired = true
-    }
-
     override fun setExpectedReturnType(type: BoundTypeReference) {
         initializerExpression?.setExpectedReturnType(type)
     }
@@ -184,10 +178,6 @@ class BoundVariable(
             val reportings = mutableSetOf<Reporting>()
 
             reportings.addAll(visibility.semanticAnalysisPhase2())
-
-            if (implicitEvaluationRequired) {
-                reportings.add(Reporting.implicitlyEvaluatingAStatement(this))
-            }
 
             if (initializerExpression != null) {
                 handleCyclicInvocation(

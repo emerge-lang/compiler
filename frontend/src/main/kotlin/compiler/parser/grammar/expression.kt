@@ -19,8 +19,8 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
+import compiler.ast.AstCodeChunk
 import compiler.ast.AstSemanticOperator
-import compiler.ast.CodeChunk
 import compiler.ast.Executable
 import compiler.ast.IfExpression
 import compiler.ast.TypeArgumentBundle
@@ -234,10 +234,10 @@ val BracedCodeOrSingleStatement = eitherOf("curly braced code or single statemen
         next = tokens.next()
 
         if (next == OperatorToken(Operator.CBRACE_CLOSE)) {
-            return@astTransformation CodeChunk(emptyList())
+            return@astTransformation AstCodeChunk(emptyList())
         }
 
-        if (next !is CodeChunk) {
+        if (next !is AstCodeChunk) {
             throw InternalCompilerError("Unexpected $next, expecting code or ${Operator.CBRACE_CLOSE}")
         }
 

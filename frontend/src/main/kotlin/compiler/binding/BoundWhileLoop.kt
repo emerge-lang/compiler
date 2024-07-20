@@ -22,16 +22,10 @@ class BoundWhileLoop(
     override val throwBehavior get() = condition.throwBehavior.combineSequentialExecution(body.throwBehavior)
     override val returnBehavior get() = condition.returnBehavior.combineSequentialExecution(body.returnBehavior)
 
-    override val implicitEvaluationResultType = null
-
     override val modifiedContext = SingleBranchJoinExecutionScopedCTContext(
         context,
         body.modifiedContext,
     )
-
-    override fun requireImplicitEvaluationTo(type: BoundTypeReference) {
-        // nothing to do, loops don't evaluate to anything
-    }
 
     override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
         condition.setNothrow(boundary)

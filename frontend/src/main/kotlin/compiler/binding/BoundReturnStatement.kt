@@ -55,12 +55,6 @@ class BoundReturnStatement(
     override val returnBehavior = SideEffectPrediction.GUARANTEED // this is the core LoC that makes the property work big-scale
     override val throwBehavior get() = if (expression == null) SideEffectPrediction.NEVER else expression.throwBehavior
 
-    override val implicitEvaluationResultType = null
-
-    override fun requireImplicitEvaluationTo(type: BoundTypeReference) {
-
-    }
-
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return expression?.semanticAnalysisPhase1() ?: emptySet()
     }

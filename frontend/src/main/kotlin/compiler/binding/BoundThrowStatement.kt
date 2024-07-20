@@ -6,7 +6,6 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
-import compiler.binding.type.BoundTypeReference
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -20,11 +19,6 @@ class BoundThrowStatement(
 ) : BoundStatement<AstThrowStatement> {
     override val throwBehavior = SideEffectPrediction.GUARANTEED
     override val returnBehavior = SideEffectPrediction.NEVER
-    override val implicitEvaluationResultType = null
-
-    override fun requireImplicitEvaluationTo(type: BoundTypeReference) {
-
-    }
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return throwableExpression.semanticAnalysisPhase1()

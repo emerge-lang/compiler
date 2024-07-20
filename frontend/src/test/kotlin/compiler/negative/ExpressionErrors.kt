@@ -51,5 +51,16 @@ class ExpressionErrors : FreeSpec({
                     it.statement.shouldBeInstanceOf<VariableDeclaration>().name.value shouldBe "y"
                 }
         }
+
+        "should error if no implicit evaluation" {
+            validateModule("""
+                fn foo(cond: Bool) {
+                    x: S32 = if cond {
+                        3
+                    } else {}
+                }
+            """.trimIndent())
+                .shouldReport<ImplicitlyEvaluatedStatementReporting>()
+        }
     }
 })

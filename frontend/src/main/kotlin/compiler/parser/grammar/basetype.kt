@@ -18,6 +18,7 @@
 
 package compiler.parser.grammar
 
+import compiler.ast.AstCodeChunk
 import compiler.ast.AstFunctionAttribute
 import compiler.ast.AstSupertypeList
 import compiler.ast.AstVisibility
@@ -27,7 +28,6 @@ import compiler.ast.BaseTypeDestructorDeclaration
 import compiler.ast.BaseTypeEntryDeclaration
 import compiler.ast.BaseTypeMemberFunctionDeclaration
 import compiler.ast.BaseTypeMemberVariableDeclaration
-import compiler.ast.CodeChunk
 import compiler.ast.FunctionDeclaration
 import compiler.ast.TypeParameterBundle
 import compiler.ast.VariableDeclaration
@@ -77,7 +77,7 @@ val BaseTypeConstructor = sequence("constructor declaration") {
         val attributes = tokens.next() as List<AstFunctionAttribute>
         val ctorKeyword = tokens.next() as IdentifierToken
         tokens.next() as OperatorToken // skip CBRACE_OPEN
-        val code = tokens.next() as CodeChunk
+        val code = tokens.next() as AstCodeChunk
 
         BaseTypeConstructorDeclaration(
             attributes,
@@ -98,7 +98,7 @@ val BaseTypeDestructor = sequence("destructor declaration") {
         val attributes = tokens.next() as List<AstFunctionAttribute>
         val dtorKeyword = tokens.next() as IdentifierToken
         tokens.next() as OperatorToken // skip CBRACE_OPEN
-        val code = tokens.next() as CodeChunk
+        val code = tokens.next() as AstCodeChunk
 
         BaseTypeDestructorDeclaration(dtorKeyword, attributes, code)
     }

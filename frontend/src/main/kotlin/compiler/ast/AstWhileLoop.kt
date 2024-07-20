@@ -10,7 +10,7 @@ import compiler.lexer.Span
 class AstWhileLoop(
     override val span: Span,
     val condition: Expression,
-    val body: CodeChunk,
+    val body: AstCodeChunk,
 ) : Statement {
     override fun bindTo(context: ExecutionScopedCTContext): BoundStatement<*> {
         lateinit var boundWhileHolder: BoundWhileLoop

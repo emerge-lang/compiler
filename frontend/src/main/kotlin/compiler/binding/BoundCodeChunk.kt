@@ -18,7 +18,8 @@
 
 package compiler.binding
 
-import compiler.ast.CodeChunk
+import compiler.ast.AstCodeChunk
+import compiler.ast.type.TypeMutability
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -36,23 +37,25 @@ import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
+import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import java.math.BigInteger
 
-/**
- * TODO: refactor to be a subclass of [BoundExpression]. Currently, implicit evaluation does not respect capture semantics
- */
 class BoundCodeChunk(
     /**
      * Context that applies to the leftHandSide statement; derivatives are stored within the statements themselves
      */
     override val context: ExecutionScopedCTContext,
 
-    override val declaration: CodeChunk,
+    override val declaration: AstCodeChunk,
 
     val statements: List<BoundExecutable<*>>,
-) : BoundExecutable<CodeChunk> {
+) : BoundExpression<AstCodeChunk> {
     override val returnBehavior get() = statements.map { it.returnBehavior }.reduceSequentialExecution()
     override val throwBehavior get() = statements.map { it.throwBehavior }.reduceSequentialExecution()
+
+    private val lastStatementAsExpression = statements.lastOrNull() as? BoundExpression<*>
+
+    override var type: BoundTypeReference? = null
 
     override val modifiedContext: ExecutionScopedCTContext
         get() = statements.lastOrNull()?.modifiedContext ?: context
@@ -63,11 +66,24 @@ class BoundCodeChunk(
         }
     }
 
-    override val implicitEvaluationResultType: BoundTypeReference?
-        get() = statements.lastOrNull()?.implicitEvaluationResultType
+    override val isEvaluationResultReferenceCounted: Boolean
+        get() = lastStatementAsExpression != null && lastStatementAsExpression.isEvaluationResultReferenceCounted
 
-    override fun requireImplicitEvaluationTo(type: BoundTypeReference) {
-        statements.lastOrNull()?.requireImplicitEvaluationTo(type)
+    private var expectedImplicitEvaluationResultType: BoundTypeReference? = null
+    private var isInExpressionContext = false
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+        expectedImplicitEvaluationResultType = type
+        isInExpressionContext = true
+        lastStatementAsExpression?.setExpectedEvaluationResultType(type)
+    }
+
+    override fun markEvaluationResultUsed() {
+        isInExpressionContext = true
+        lastStatementAsExpression?.markEvaluationResultUsed()
+    }
+
+    override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
+        lastStatementAsExpression?.markEvaluationResultCaptured(withMutability)
     }
 
     private val seanHelper = SeanHelper()
@@ -81,7 +97,28 @@ class BoundCodeChunk(
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return seanHelper.phase2 {
-            statements.flatMap { it.semanticAnalysisPhase2() }
+            val reportings = mutableSetOf<Reporting>()
+            statements.map(BoundExecutable<*>::semanticAnalysisPhase2).forEach(reportings::addAll)
+
+            if (lastStatementAsExpression != null) {
+                type = lastStatementAsExpression.type
+            } else {
+                if (statements.lastOrNull()?.throwBehavior == SideEffectPrediction.GUARANTEED || statements.lastOrNull()?.returnBehavior == SideEffectPrediction.GUARANTEED) {
+                    // implicit evaluation never matters
+                    type = context.swCtx.nothing.baseReference
+                        .withMutability(TypeMutability.EXCLUSIVE)
+                } else if (isInExpressionContext) {
+                    // the type is still unit, technically. However, this will trigger a confusing error message
+                    // using exclusive Nothing hides that error, and this becomes the more understandable alternative
+                    reportings.add(Reporting.implicitlyEvaluatingAStatement(statements.lastOrNull() ?: this))
+                    type = context.swCtx.nothing.baseReference
+                        .withMutability(TypeMutability.EXCLUSIVE)
+                } else {
+                    type = context.swCtx.unit.baseReference
+                }
+            }
+
+            return@phase2 reportings
         }
     }
 
@@ -142,11 +179,12 @@ class BoundCodeChunk(
         )
     }
 
-    /**
-     * the equivalent of [BoundExpression.isEvaluationResultReferenceCounted]
-     */
-    val isImplicitEvaluationResultReferenceCounted: Boolean
-        get() = (statements.lastOrNull() as? BoundExpression<*>)?.isEvaluationResultReferenceCounted ?: false
+    override val isCompileTimeConstant: Boolean
+        get() = lastStatementAsExpression != null && lastStatementAsExpression.isCompileTimeConstant
+
+    override fun toBackendIrExpression(): IrExpression {
+        return toBackendIrAsImplicitEvaluationExpression(isEvaluationResultReferenceCounted)
+    }
 
     /**
      * @param assureResultHasReferenceCountIncrement if true and if the implicit result has

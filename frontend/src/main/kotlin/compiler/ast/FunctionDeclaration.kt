@@ -95,7 +95,7 @@ data class FunctionDeclaration(
             }
         }
 
-        class Full(val code: CodeChunk) : Body {
+        class Full(val code: AstCodeChunk) : Body {
             override fun bindTo(context: ExecutionScopedCTContext): BoundDeclaredFunction.Body {
                 return BoundDeclaredFunction.Body.Full(code.bindTo(context))
             }

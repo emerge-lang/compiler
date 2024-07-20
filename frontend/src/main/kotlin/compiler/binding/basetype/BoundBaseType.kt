@@ -19,10 +19,10 @@
 package compiler.binding.basetype
 
 import compiler.InternalCompilerError
+import compiler.ast.AstCodeChunk
 import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
-import compiler.ast.CodeChunk
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundElement
 import compiler.binding.BoundMemberFunction
@@ -146,14 +146,14 @@ class BoundBaseType(
                     ?.let { list -> reportings.add(Reporting.multipleClassDestructors(list.map { it.declaration })) }
 
                 if (declaredConstructors.none()) {
-                    val defaultCtorAst = BaseTypeConstructorDeclaration(listOfNotNull(declaration.visibility), IdentifierToken("constructor", declaration.declaredAt), CodeChunk(emptyList()))
+                    val defaultCtorAst = BaseTypeConstructorDeclaration(listOfNotNull(declaration.visibility), IdentifierToken("constructor", declaration.declaredAt), AstCodeChunk(emptyList()))
                     constructor = defaultCtorAst.bindTo(typeRootContext, typeParameters) { this }
                     reportings.addAll(constructor!!.semanticAnalysisPhase1())
                 } else {
                     constructor = declaredConstructors.first()
                 }
                 if (declaredDestructors.none()) {
-                    val defaultDtorAst = BaseTypeDestructorDeclaration(IdentifierToken("destructor", declaration.declaredAt), emptyList(), CodeChunk(emptyList()))
+                    val defaultDtorAst = BaseTypeDestructorDeclaration(IdentifierToken("destructor", declaration.declaredAt), emptyList(), AstCodeChunk(emptyList()))
                     destructor = defaultDtorAst.bindTo(typeRootContext, typeParameters) { this }
                     reportings.addAll(destructor!!.semanticAnalysisPhase1())
                 } else {

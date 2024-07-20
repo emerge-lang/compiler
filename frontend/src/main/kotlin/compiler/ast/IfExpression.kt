@@ -34,8 +34,8 @@ class IfExpression (
         val contextBeforeCondition: ExecutionScopedCTContext = MutableExecutionScopedCTContext.deriveFrom(context)
         val boundCondition = BoundCondition(condition.bindTo(contextBeforeCondition))
 
-        val thenCodeAsChunk: CodeChunk = if (thenCode is CodeChunk) thenCode else CodeChunk(listOf(thenCode as Statement))
-        val elseCodeAsChunk: CodeChunk? = if (elseCode == null) null else if (elseCode is CodeChunk) elseCode else CodeChunk(listOf(elseCode as Statement))
+        val thenCodeAsChunk: AstCodeChunk = if (thenCode is AstCodeChunk) thenCode else AstCodeChunk(listOf(thenCode as Statement))
+        val elseCodeAsChunk: AstCodeChunk? = if (elseCode == null) null else if (elseCode is AstCodeChunk) elseCode else AstCodeChunk(listOf(elseCode as Statement))
 
         return BoundIfExpression(
             contextBeforeCondition,

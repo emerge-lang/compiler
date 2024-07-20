@@ -35,8 +35,6 @@ abstract class BoundAssignmentStatement(
     protected val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(toAssignExpression.modifiedContext)
     override val modifiedContext: ExecutionScopedCTContext = _modifiedContext
 
-    override val implicitEvaluationResultType: BoundTypeReference? = null
-
     private val seanHelper = SeanHelper()
 
     final override fun semanticAnalysisPhase1(): Collection<Reporting> {
@@ -50,11 +48,6 @@ abstract class BoundAssignmentStatement(
     }
 
     protected abstract fun additionalSemanticAnalysisPhase1(): Collection<Reporting>
-
-    private var implicitEvaluationRequired = false
-    override fun requireImplicitEvaluationTo(type: BoundTypeReference) {
-        implicitEvaluationRequired = true
-    }
 
     /**
      * does [SemanticallyAnalyzable.semanticAnalysisPhase2] only on the target of the assignment
@@ -85,10 +78,6 @@ abstract class BoundAssignmentStatement(
                     assignedType.evaluateAssignabilityTo(targetType, toAssignExpression.declaration.span)
                         ?.let(reportings::add)
                 }
-            }
-
-            if (implicitEvaluationRequired) {
-                reportings.add(Reporting.assignmentUsedAsExpression(this))
             }
 
             reportings
