@@ -2,6 +2,7 @@ package emerge.core
 
 import emerge.std.io.PrintStream
 import emerge.std.collections.ArrayList
+import emerge.core.reflection.reflectType
 
 export interface Throwable : Printable {
     // TODO: make into virtual property
@@ -20,7 +21,8 @@ export interface Throwable : Printable {
     export nothrow fn getStackTrace(self) -> const ArrayList<StackTraceElement>?
 
     export override fn printTo(self, borrow target: mut PrintStream) {
-        // TODO: include type name
+        target.put(self.reflectType().canonicalName)
+        target.put(": ")
         target.put(self.getMessage() ?: "<no message>")
         target.putEndOfLine()
         
