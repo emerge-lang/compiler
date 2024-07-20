@@ -6,7 +6,9 @@ import emerge.ffi.c.addressOfFirst
 import emerge.ffi.c.COpaquePointer
 import emerge.linux.libc.write
 
-export read fn collectStackTrace() -> ArrayList<StackTraceElement> {
+export read fn collectStackTrace() -> ArrayList<StackTraceElement> = collectStackTrace(1 as U32, false)
+
+export read fn collectStackTrace(nFramesToSkip: U32, includeRuntimeFrames: Bool) -> ArrayList<StackTraceElement> {
     // the logic around the context and cursor buffers cannot be moved into emerge classes
     // the reason is that it matters very much on which stack frame unw_create_context and unw_init_local
     // are being called. They need to be called from the same stack frame. Additionally, when a function
@@ -27,13 +29,20 @@ export read fn collectStackTrace() -> ArrayList<StackTraceElement> {
 
     // TODO: do-while
     var hasNext = true
+    var nSkipped = 0 as U32
     while hasNext {
-        procName = unwindCursorGetProcedureName(cursorBuffer.addressOfFirst())
-        // TODO: stop when encountering "main"; currently String::equals is missing for that
-        ip = unwindCursorGetInstructionPointer(cursorBuffer.addressOfFirst())
+        if nSkipped >= nFramesToSkip {
+            procName = unwindCursorGetProcedureName(cursorBuffer.addressOfFirst())
+            // TODO: stop when encountering "main"; currently String::equals is missing for that
+            ip = unwindCursorGetInstructionPointer(cursorBuffer.addressOfFirst())
 
-        stackList.add(StackTraceElement(ip, procName))
+            stackList.add(StackTraceElement(ip, procName))
+        } else {
+            set nSkipped = nSkipped + 1
+        }
+
         set hasNext = unwindCursorTryStepUp(cursorBuffer.addressOfFirst())
+        // TODO: implement the includeRuntimeFrames parameter, needs string equals
     }
 
     return stackList
