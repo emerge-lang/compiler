@@ -10,6 +10,10 @@ import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmValueRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
 import java.util.Stack
 
+@DslMarker
+annotation class LlvmBasicBlockDsl
+
+@LlvmBasicBlockDsl
 interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     val context: C
     val llvmFunctionReturnType: R
@@ -102,6 +106,7 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
      */
     sealed interface Termination
 
+    @LlvmBasicBlockDsl
     interface Branch<C : LlvmContext, R : LlvmType> : BasicBlockBuilder<C, R> {
         /** transfers control flow to the basic block after the current branch. */
         fun concludeBranch(): Termination
@@ -114,16 +119,19 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
         fun breakLoop(): Termination
     }
 
+    @LlvmBasicBlockDsl
     interface LoopHeader<C : LlvmContext, R : LlvmType> : AbstractLoop<C, R> {
         /** starts the next iteration of the loop by transferring control flow to the loop body. */
         fun doIteration(): Termination
     }
 
+    @LlvmBasicBlockDsl
     interface LoopBody<C : LlvmContext, R : LlvmType> : AbstractLoop<C, R> {
         /** Transfers control flow back to the loop header. */
         fun loopContinue(): Termination
     }
 
+    @LlvmBasicBlockDsl
     interface DeferSubScope<C : LlvmContext, R : LlvmType> : BasicBlockBuilder<C, R> {
         fun concludeSubScope(): Termination
     }

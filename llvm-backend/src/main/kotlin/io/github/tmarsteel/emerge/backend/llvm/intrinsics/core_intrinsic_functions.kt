@@ -73,7 +73,7 @@ private val nullAndFreeWeakReferenceCollection: KotlinLlvmFunction<EmergeLlvmCon
                     conditionalBranch(
                         condition = icmp(currentColIndexPtr.dereference(), LlvmIntPredicate.EQUAL, context.word(EmergeWeakReferenceCollectionType.pointersToWeakReferences.type.elementCount)),
                         ifTrue = {
-                            breakLoop()
+                            this@loop.breakLoop()
                         }
                     )
                     doIteration()
@@ -123,7 +123,7 @@ internal val registerWeakReference = KotlinLlvmFunction.define<EmergeLlvmContext
                 conditionalBranch(
                     condition = isNull(currentWeakRefCollPtrPtrPtr.dereference().dereference()),
                     ifTrue = {
-                        breakLoop()
+                        this@loop.breakLoop()
                     }
                 )
                 doIteration()
@@ -206,7 +206,7 @@ internal val unregisterWeakReference = KotlinLlvmFunction.define<EmergeLlvmConte
                 conditionalBranch(
                     condition = isNull(currentWeakRefCollPtrPtrPtr.dereference().dereference()),
                     ifTrue = {
-                        breakLoop()
+                        this@loop.breakLoop()
                     }
                 )
                 doIteration()

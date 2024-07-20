@@ -622,7 +622,7 @@ private fun <Element : LlvmType> buildValueArrayDefaultValueConstructor(
                 header = {
                     conditionalBranch(
                         condition = icmp(indexStack.dereference(), LlvmIntPredicate.EQUAL, size),
-                        ifTrue = { breakLoop() }
+                        ifTrue = { this@loop.breakLoop() }
                     )
                     doIteration()
                 },
@@ -880,7 +880,7 @@ private val referenceArrayFinalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmV
             header = {
                 val endReached = icmp(indexStackSlot.dereference(), LlvmIntPredicate.EQUAL, size)
                 conditionalBranch(endReached, ifTrue = {
-                    breakLoop()
+                    this@loop.breakLoop()
                 })
                 doIteration()
             },
@@ -935,7 +935,7 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<out Emerg
                 header = {
                     conditionalBranch(
                         condition = icmp(indexStack.dereference(), LlvmIntPredicate.EQUAL, size),
-                        ifTrue = { breakLoop() },
+                        ifTrue = { this@loop.breakLoop() },
                     )
                     doIteration()
                 },
