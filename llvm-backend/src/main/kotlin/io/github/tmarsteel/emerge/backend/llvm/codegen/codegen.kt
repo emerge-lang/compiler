@@ -561,7 +561,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
 
             if (callInstruction.type !is EmergeFallibleCallResult<*>) {
                 if (expression.evaluatesTo.isUnit) {
-                    return ExpressionResult.Value(context.pointerToPointerToUnitInstance.dereference())
+                    return ExpressionResult.Value(context.pointerToUnitInstance)
                 }
 
                 return ExpressionResult.Value(callInstruction)
@@ -594,7 +594,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             }
 
             if (expression.evaluatesTo.isUnit) {
-                return ExpressionResult.Value(context.pointerToPointerToUnitInstance.dereference())
+                return ExpressionResult.Value(context.pointerToUnitInstance)
             }
 
             return ExpressionResult.Value(unwrappedReturnValue)
@@ -641,7 +641,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                         (branchCodeResult as? ExpressionResult.Terminated)?.termination ?: concludeBranch()
                     }
                 )
-                return ExpressionResult.Value(context.pointerToPointerToUnitInstance.dereference())
+                return ExpressionResult.Value(context.pointerToUnitInstance)
             }
 
             val expressionResultLlvmType = context.getReferenceSiteType(expression.evaluatesTo)

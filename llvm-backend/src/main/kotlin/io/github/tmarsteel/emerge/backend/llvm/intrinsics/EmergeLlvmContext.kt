@@ -52,7 +52,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
 import io.github.tmarsteel.emerge.backend.llvm.hasNothrowAbi
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.retFallibleVoid
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindContextSize
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.exceptions.unwindCursorSize
@@ -181,7 +180,7 @@ class EmergeLlvmContext(
 
     /** `emerge.core.Unit` */
     internal lateinit var unitType: EmergeClassType
-    internal lateinit var pointerToPointerToUnitInstance: LlvmGlobal<LlvmPointerType<EmergeClassType>>
+    internal lateinit var pointerToUnitInstance: LlvmGlobal<EmergeClassType>
     /** `emerge.platform.StandardError` */
     internal lateinit var standardErrorStreamGlobalVar: IrGlobalVariable
 
@@ -263,7 +262,7 @@ class EmergeLlvmContext(
             "emerge.core.ArrayIndexOutOfBoundsError" -> arrayIndexOutOfBoundsErrorType = emergeClassType
             "emerge.core.Unit" -> {
                 unitType = emergeClassType
-                pointerToPointerToUnitInstance = addGlobal(undefValue(pointerTo(emergeClassType)), LlvmThreadLocalMode.NOT_THREAD_LOCAL, "unit_instance")
+                pointerToUnitInstance = addGlobal(undefValue(emergeClassType), LlvmThreadLocalMode.NOT_THREAD_LOCAL, "unit_instance")
             }
         }
 
@@ -500,6 +499,8 @@ class EmergeLlvmContext(
             }
         }
 
+        Llvm.LLVMSetInitializer(pointerToUnitInstance.raw, unitType.buildStaticConstant(emptyMap()).raw)
+
         // todo: move to llvm global_ctors
         // this doesn't work as of now because for some reason, llc doesn't emit them into the .init_array.X sections of the object file
         globalInitializerFn = KotlinLlvmFunction.define(
@@ -507,10 +508,7 @@ class EmergeLlvmContext(
             LlvmVoidType,
         ) {
             body {
-                val unitInstance = call(unitType.constructor, emptyList()).abortOnException {
-                    inlinePanic("failed to allocate unit instance")
-                }
-                store(unitInstance, pointerToPointerToUnitInstance)
+                // currently nothing to do here :)
                 retVoid()
             }
         }
