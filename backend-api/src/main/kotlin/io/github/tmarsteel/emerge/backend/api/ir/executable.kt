@@ -52,6 +52,12 @@ interface IrVariableDeclaration : IrExecutable {
     val name: String
     val type: IrType
     val isBorrowed: Boolean
+
+    /**
+     * if false, the backend can assume that at runtime, at most one [IrAssignmentStatement] to this variable
+     * will ever be executed
+     */
+    val isReAssignable: Boolean
 }
 
 interface IrAssignmentStatement : IrExecutable {

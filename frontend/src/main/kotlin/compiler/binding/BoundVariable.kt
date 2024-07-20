@@ -307,6 +307,7 @@ class BoundVariable(
             name,
             typeAtDeclarationTime!!.toBackendIr(),
             ownershipAtDeclarationTime == VariableOwnership.BORROWED,
+            isReAssignable,
         )
     }
 
@@ -405,4 +406,5 @@ private class IrVariableDeclarationImpl(
     override val name: String,
     override val type: IrType,
     override val isBorrowed: Boolean,
+    override val isReAssignable: Boolean,
 ) : IrVariableDeclaration

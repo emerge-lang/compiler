@@ -45,7 +45,11 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun <Small : LlvmIntegerType, Large : LlvmIntegerType> enlargeUnsigned(value: LlvmValue<Small>, to: Large): LlvmValue<Large>
     fun <Small : LlvmIntegerType, Large : LlvmIntegerType> enlargeSigned(value: LlvmValue<Small>, to: Large): LlvmValue<Large>
     fun <Small : LlvmIntegerType, Large: LlvmIntegerType> truncate(value: LlvmValue<Large>, to: Small): LlvmValue<Small>
-    fun <T: LlvmType> alloca(type: T): LlvmValue<LlvmPointerType<T>>
+    /**
+     * @param forceEntryBlock if true, the `alloca` instruction will be placed in the functions entry block. This greatly
+     * helps the `mem2reg` LLVM pass optimize stack variables into register uses.
+     */
+    fun <T: LlvmType> alloca(type: T, forceEntryBlock: Boolean = true): LlvmValue<LlvmPointerType<T>>
     fun <R : LlvmType> call(function: LlvmFunction<R>, args: List<LlvmValue<*>>): LlvmValue<R>
     fun <R : LlvmType> call(function: LlvmValue<LlvmFunctionAddressType>, functionType: LlvmFunctionType<R>, args: List<LlvmValue<*>>): LlvmValue<R>
     fun <R : LlvmType> call(llvmIntrinsic: LlvmIntrinsic<R>, args: List<LlvmValue<*>>): LlvmValue<R> {
@@ -364,8 +368,24 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         return LlvmValue(truncInstr, to)
     }
 
-    override fun <T: LlvmType> alloca(type: T): LlvmValue<LlvmPointerType<T>> {
+    override fun <T: LlvmType> alloca(type: T, forceEntryBlock: Boolean): LlvmValue<LlvmPointerType<T>> {
+        val switchBackToBlockAfter: LlvmBasicBlockRef?
+        if (forceEntryBlock) {
+            switchBackToBlockAfter = Llvm.LLVMGetInsertBlock(builder)
+            val entryBlock = Llvm.LLVMGetEntryBasicBlock(owningFunction)
+            val firstInstruction = Llvm.LLVMGetFirstInstruction(entryBlock)
+            if (firstInstruction != null) {
+                Llvm.LLVMPositionBuilderBefore(builder, firstInstruction)
+            } else {
+                Llvm.LLVMPositionBuilderAtEnd(builder, entryBlock)
+            }
+        } else {
+            switchBackToBlockAfter = null
+        }
         val ptr = Llvm.LLVMBuildAlloca(builder, type.getRawInContext(context), tmpVars.next())
+        switchBackToBlockAfter?.let {
+            Llvm.LLVMPositionBuilderAtEnd(builder, it)
+        }
         return LlvmValue(ptr, pointerTo(type))
     }
 

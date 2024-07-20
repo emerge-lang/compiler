@@ -1,16 +1,11 @@
 package io.github.tmarsteel.emerge.backend.llvm.jna;
 
 import com.sun.jna.*;
-import com.sun.jna.ptr.IntByReference;
-import com.sun.jna.ptr.NativeLongByReference;
-import com.sun.jna.ptr.PointerByReference;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import com.sun.jna.ptr.*;
+import org.jetbrains.annotations.*;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Map;
-import java.util.Objects;
+import java.nio.file.*;
+import java.util.*;
 
 /**
  * LLVM C interface functions mapped for LLVM-18 using JNA.
@@ -233,8 +228,16 @@ public class Llvm {
     /** see Core.h */
     public static native void LLVMPositionBuilderAtEnd(@NotNull LlvmBuilderRef builder, @NotNull LlvmBasicBlockRef block);
 
+    public static native void LLVMPositionBuilderBefore(@NotNull LlvmBuilderRef builder, @NotNull LlvmValueRef instruction);
+
+    /** see Core.h */
+    public static native @NotNull LlvmBasicBlockRef LLVMGetEntryBasicBlock(@NotNull LlvmValueRef function);
+
     /** see Core.h */
     public static native @NotNull LlvmBasicBlockRef LLVMGetInsertBlock(@NotNull LlvmBuilderRef builder);
+
+    /** see Core.h */
+    public static native @Nullable LlvmValueRef LLVMGetFirstInstruction(@NotNull LlvmBasicBlockRef basicBlock);
 
     /** see Core.h */
     public static native @Nullable LlvmValueRef LLVMGetLastInstruction(@NotNull LlvmBasicBlockRef basicBlock);

@@ -248,7 +248,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         }
         is IrVariableDeclaration -> {
             val type = context.getReferenceSiteType(code.type)
-            val stackAllocation = alloca(type)
+            val stackAllocation = alloca(type, forceEntryBlock = !code.isReAssignable)
             code.emitRead = {
                 stackAllocation.dereference()
             }
