@@ -21,6 +21,8 @@ package compiler.binding
 import compiler.InternalCompilerError
 import compiler.ast.ReturnStatement
 import compiler.ast.expression.IdentifierExpression
+import compiler.ast.expression.InvocationExpression
+import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.TypeMutability
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -36,9 +38,12 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeVariable
 import compiler.binding.type.UnresolvedType
 import compiler.lexer.IdentifierToken
+import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import compiler.reportings.ReturnTypeMismatchReporting
+import compiler.util.checkNoDiagnostics
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -112,12 +117,20 @@ class BoundReturnStatement(
 
     override fun toBackendIrStatement(): IrExecutable {
         val actualExpression: BoundExpression<*> = this.expression ?: run {
-            // TODO: this is a dirty hack, Unit could be aliased in this context
-            val ast = IdentifierExpression(IdentifierToken("Unit", declaration.returnKeyword.span))
+            val ast = InvocationExpression(
+                MemberAccessExpression(
+                    IdentifierExpression(IdentifierToken("Unit", declaration.returnKeyword.span)),
+                    OperatorToken(Operator.DOT),
+                    IdentifierToken("instance", declaration.returnKeyword.span),
+                ),
+                null,
+                emptyList(),
+                declaration.returnKeyword.span,
+            )
             val bound = ast.bindTo(context)
-            check(bound.semanticAnalysisPhase1().isEmpty())
-            check(bound.semanticAnalysisPhase2().isEmpty())
-            check(bound.semanticAnalysisPhase3().isEmpty())
+            checkNoDiagnostics(bound.semanticAnalysisPhase1())
+            checkNoDiagnostics(bound.semanticAnalysisPhase2())
+            checkNoDiagnostics(bound.semanticAnalysisPhase3())
             bound
         }
 

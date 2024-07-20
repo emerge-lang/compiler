@@ -8,6 +8,8 @@ import emerge.core.StackTraceElement
 
 export class Unit {
     private constructor {}
+
+    intrinsic nothrow fn instance() -> Unit
 }
 
 export interface Any {}
@@ -374,12 +376,12 @@ export class ArrayIndexOutOfBoundsError : Error {
     
     private var stackTrace: const ArrayList<StackTraceElement>? = null
     
-    export override nothrow fn setStackTrace(self: mut _, trace: const ArrayList<StackTraceElement>) {
-        set self.stackTrace = trace
+    export override read fn fillStackTrace(self: mut _) {
+        set self.stackTrace = self.stackTrace ?: collectStackTrace(2 as U32, false)
     }
     
-    export override nothrow fn getStackTrace(self) -> const ArrayList<StackTraceElement> {
-        return self.stackTrace ?: panic("stack trace not set")
+    export override nothrow fn getStackTrace(self) -> const ArrayList<StackTraceElement>? {
+        return self.stackTrace
     }
     
     export override nothrow fn getMessage(self) -> const String? = null

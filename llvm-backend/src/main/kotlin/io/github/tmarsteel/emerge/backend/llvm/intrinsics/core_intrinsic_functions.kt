@@ -27,6 +27,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.instructionAliasAttributes
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
@@ -407,6 +408,19 @@ internal fun LlvmValue<LlvmType>.afterReferenceDropped(
     }
 
     this.reinterpretAs(PointerToAnyEmergeValue).afterReferenceDropped(emergeType.isNullable)
+}
+
+internal val unitInstance = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+    "emerge.core.Unit::instance",
+    LlvmVoidType,
+) {
+    instructionAliasAttributes()
+
+    body {
+        // we don't even need to return a pointer to unit here; the code generator inserts that
+        // wherever unit gets assigned to any
+        retVoid()
+    }
 }
 
 /**
