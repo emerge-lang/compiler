@@ -1,5 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib
 
+import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFixedIntegerType
@@ -21,7 +22,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResu
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.fallibleSuccess
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.inlinePanic
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.inlineThrow
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.word
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 
@@ -204,7 +205,7 @@ private fun <T : LlvmIntegerType> buildBinaryOpWithOverflow(
     emergeFunctionCanonicalName: String,
     llvmIntrinsicName: String,
     llvmType: T,
-    panicMessage: String,
+    messageOnOverflow: String,
 ): KotlinLlvmFunction<EmergeLlvmContext, EmergeFallibleCallResult.WithValue<T>> {
     val llvmIntrinsic = LlvmIntrinsic(
         llvmIntrinsicName,
@@ -233,8 +234,9 @@ private fun <T : LlvmIntegerType> buildBinaryOpWithOverflow(
             conditionalBranch(
                 condition = extractValue(intrinsicResult) { hadOverflow },
                 ifTrue = {
-                    // TODO: replace with a proper throw
-                    inlinePanic(panicMessage)
+                    inlineThrow(context.arithmeticErrorClazz, listOf(
+                        context.emergeStringLiteral(messageOnOverflow)
+                    ))
                 }
             )
             ret(fallibleSuccess(extractValue(intrinsicResult) { result }))
@@ -364,8 +366,9 @@ private fun <T : LlvmIntegerType> buildSignedDivisionWithZeroCheck(
             conditionalBranch(
                 condition = isZero(operand2),
                 ifTrue = {
-                    // TODO: replace with a proper throw
-                    inlinePanic("division by zero")
+                    inlineThrow(context.arithmeticErrorClazz, listOf(
+                        context.emergeStringLiteral("division by zero")
+                    ))
                 }
             )
 
@@ -391,8 +394,9 @@ private fun <T : LlvmIntegerType> buildUnsignedDivisionWithZeroCheck(
             conditionalBranch(
                 condition = isZero(operand2),
                 ifTrue = {
-                    // TODO: replace with a proper throw
-                    inlinePanic("division by zero")
+                    inlineThrow(context.arithmeticErrorClazz, listOf(
+                        context.emergeStringLiteral("division by zero")
+                    ))
                 }
             )
 

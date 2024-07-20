@@ -177,6 +177,8 @@ class EmergeLlvmContext(
     internal lateinit var rawReflectionBaseTypeClazz: IrClass
     /** `emerge.core.Throwable` */
     internal lateinit var throwableClazz: IrInterface
+    /** `emerge.core.ArithmeticError` */
+    internal lateinit var arithmeticErrorClazz: IrClass
 
     /** `emerge.core.Unit` */
     internal lateinit var unitType: EmergeClassType
@@ -224,6 +226,7 @@ class EmergeLlvmContext(
             "emerge.core.SWord" -> rawSWordClazz = clazz
             "emerge.core.UWord" -> rawUWordClazz = clazz
             "emerge.core.Bool" -> rawBoolClazz = clazz
+            "emerge.core.ArithmeticError" -> arithmeticErrorClazz = clazz
             "emerge.core.reflection.ReflectionBaseType" -> rawReflectionBaseTypeClazz = clazz
         }
 
