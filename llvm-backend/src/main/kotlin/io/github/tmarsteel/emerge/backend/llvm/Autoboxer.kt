@@ -66,12 +66,12 @@ internal sealed interface Autoboxer {
     fun assignmentRequiresTransformation(context: EmergeLlvmContext, toType: IrType): Boolean
 
     /**
-     * @see rewriteAccessIntoTheBox
+     * @see assignmentRequiresTransformation
      * inserts instructions on the [BasicBlockBuilder] that perform the transformation
      * @return the transformed value, ready to be assigned
      */
     context(BasicBlockBuilder<EmergeLlvmContext, *>)
-    fun transformForAssignmentTo(value: IrTemporaryValueReference, toType: IrType): LlvmValue<*>
+    fun transformForAssignmentTo(llvmValue: LlvmValue<*>, toType: IrType): LlvmValue<*>
 
     /**
      * @return whether [value] holds a box of this autoboxing type
@@ -129,13 +129,13 @@ internal sealed interface Autoboxer {
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
         override fun transformForAssignmentTo(
-            value: IrTemporaryValueReference,
+            llvmValue: LlvmValue<*>,
             toType: IrType
         ): LlvmValue<*> {
-            val llvmValue = value.declaration.llvmValue
             check(llvmValue.type == unboxedType)
-            return call(getBoxedType(context).constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
-                propagateOrPanic(exceptionPtr)
+            val boxedType = getBoxedType(context)
+            return call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
+                propagateOrPanic(exceptionPtr, "autoboxing failed; constructor of ${boxedType.irClass.canonicalName} threw")
             }
         }
 
@@ -221,10 +221,9 @@ internal sealed interface Autoboxer {
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
         override fun transformForAssignmentTo(
-            value: IrTemporaryValueReference,
+            llvmValue: LlvmValue<*>,
             toType: IrType
         ): LlvmValue<*> {
-            val llvmValue = value.declaration.llvmValue
             check(llvmValue.type is LlvmPointerType<*> && llvmValue.type.pointed is TypeinfoType) {
                 "transformForAssignmentTo called on a value of unsupported type"
             }
@@ -239,7 +238,7 @@ internal sealed interface Autoboxer {
                 },
                 ifFalse = {
                     boxed.setBranchResult(call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
-                        propagateOrPanic(exceptionPtr)
+                        propagateOrPanic(exceptionPtr, "autoboxing failed; constructor of ${boxedType.irClass.canonicalName} threw")
                     })
                     concludeBranch()
                 }
@@ -351,13 +350,16 @@ internal sealed interface Autoboxer {
             return true
         }
 
-        context(BasicBlockBuilder<EmergeLlvmContext, *>) override fun transformForAssignmentTo(
-            value: IrTemporaryValueReference,
+        context(BasicBlockBuilder<EmergeLlvmContext, *>)
+        override fun transformForAssignmentTo(
+            llvmValue: LlvmValue<*>,
             toType: IrType
         ): LlvmValue<*> {
-            val llvmValue = value.declaration.llvmValue
             check(llvmValue.type == unboxedType)
-            return call(getBoxedType(context).constructor, listOf(llvmValue))
+            val boxedType = getBoxedType(context)
+            return call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
+                propagateOrPanic(exceptionPtr, "autoboxing failed; constructor of ${boxedType.irClass.canonicalName} threw")
+            }
         }
 
         override fun isBox(context: EmergeLlvmContext, value: IrTemporaryValueReference): Boolean {
@@ -389,15 +391,20 @@ internal sealed interface Autoboxer {
          */
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
         fun assureBoxed(value: IrTemporaryValueReference, targetType: IrType): LlvmValue<*> {
-            if (value.type == targetType) {
-                return value.declaration.llvmValue
+            return assureBoxed(value.declaration.llvmValue, value.type, targetType)
+        }
+
+        context(BasicBlockBuilder<EmergeLlvmContext, *>)
+        fun assureBoxed(llvmValue: LlvmValue<*>, irTypeOfValue: IrType, targetIrType: IrType): LlvmValue<*> {
+            if (irTypeOfValue == targetIrType) {
+                return llvmValue
             }
 
-            val autoboxer = value.declaration.type.autoboxer
-            if (autoboxer == null || !autoboxer.assignmentRequiresTransformation(context, targetType)) {
-                return value.declaration.llvmValue
+            val autoboxer = irTypeOfValue.autoboxer
+            if (autoboxer == null || !autoboxer.assignmentRequiresTransformation(context, targetIrType)) {
+                return llvmValue
             }
-            return autoboxer.transformForAssignmentTo(value, targetType)
+            return autoboxer.transformForAssignmentTo(llvmValue, targetIrType)
         }
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)

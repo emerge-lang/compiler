@@ -645,8 +645,8 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             val expressionResultLlvmType = context.getReferenceSiteType(expression.evaluatesTo)
             val valueBucket = if (expressionResultUsed) PhiBucket(expressionResultLlvmType) else null
 
-            val thenEmitter = BranchEmitter(expression.thenBranch, valueBucket, functionHasNothrowAbi, functionReturnType, tryContext)
-            val elseEmitter = BranchEmitter(expression.elseBranch!!, valueBucket, functionHasNothrowAbi, functionReturnType, tryContext)
+            val thenEmitter = IfElseExprBranchEmitter(expression.thenBranch, valueBucket, expression.evaluatesTo, functionHasNothrowAbi, functionReturnType, tryContext)
+            val elseEmitter = IfElseExprBranchEmitter(expression.elseBranch!!, valueBucket, expression.evaluatesTo, functionHasNothrowAbi, functionReturnType, tryContext)
 
             conditionalBranch(
                 condition = conditionValue,
@@ -817,9 +817,10 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitIsNull(
     )
 }
 
-private class BranchEmitter<R : LlvmType>(
+private class IfElseExprBranchEmitter<R : LlvmType>(
     val branchCode: IrImplicitEvaluationExpression,
     val valueStorage: PhiBucket<R>?,
+    val valueStorageIrType: IrType,
     val functionHasNothrowAbi: Boolean,
     val functionReturnType: IrType,
     val tryContext: TryContext?,
@@ -830,7 +831,7 @@ private class BranchEmitter<R : LlvmType>(
     val generatorFn: BasicBlockBuilder.Branch<EmergeLlvmContext, LlvmType>.() -> BasicBlockBuilder.Termination = {
         val localBranchResult = emitExpressionCode(
             branchCode,
-            this@BranchEmitter.functionReturnType,
+            this@IfElseExprBranchEmitter.functionReturnType,
             functionHasNothrowAbi,
             expressionResultUsed = valueStorage != null,
             tryContext,
@@ -842,7 +843,8 @@ private class BranchEmitter<R : LlvmType>(
                     if (localBranchResult.value.type is LlvmVoidType) {
                         valueStorage.setBranchResult(context.poisonValue(valueStorage.type))
                     } else {
-                        valueStorage.setBranchResult(localBranchResult.value as LlvmValue<R>)
+                        val boxedValue = assureBoxed(localBranchResult.value, branchCode.evaluatesTo, valueStorageIrType)
+                        valueStorage.setBranchResult(boxedValue as LlvmValue<R>)
                     }
                 }
                 concludeBranch()
