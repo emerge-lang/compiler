@@ -5,6 +5,7 @@ import compiler.ast.type.TypeMutability
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrDynamicDispatchFunctionInvocationImpl
+import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrExpressionSideEffectsStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
@@ -84,8 +85,9 @@ class BoundThrowStatement(
                 )),
             )
         ))
-        return IrCodeChunkImpl(listOf(
+        return IrCodeChunkImpl(listOfNotNull(
             throwableInstance,
+            IrCreateStrongReferenceStatementImpl(throwableInstance).takeUnless { throwableExpression.isEvaluationResultReferenceCounted },
             fillStackTraceCall,
             IrThrowStatementImpl(IrTemporaryValueReferenceImpl(throwableInstance))
         ))
