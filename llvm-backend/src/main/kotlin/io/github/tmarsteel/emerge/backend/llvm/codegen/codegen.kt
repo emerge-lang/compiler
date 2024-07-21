@@ -189,7 +189,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             return when (valueResult) {
                 is ExpressionResult.Terminated -> valueResult
                 is ExpressionResult.Value -> {
-                    code.llvmValue = valueResult.value
+                    code.llvmValue = assureBoxed(valueResult.value, code.value.evaluatesTo, code.type)
                     ExecutableResult.ExecutionOngoing
                 }
             }

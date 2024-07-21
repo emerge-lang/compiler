@@ -203,7 +203,10 @@ class BoundCodeChunk(
         val lastStatement = statements.lastOrNull()
 
         if (lastStatement is BoundExpression<*>) {
-            val implicitValueTemporary = IrCreateTemporaryValueImpl(lastStatement.toBackendIrExpression())
+            val implicitValueTemporary = IrCreateTemporaryValueImpl(
+                lastStatement.toBackendIrExpression(),
+                expectedImplicitEvaluationResultType?.toBackendIr(),
+            )
             plainStatements += implicitValueTemporary
             if (lastStatement.isEvaluationResultReferenceCounted) {
                 check(assureResultHasReferenceCountIncrement) {
