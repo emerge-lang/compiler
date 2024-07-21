@@ -1,5 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.codegen
 
+import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
@@ -52,6 +53,7 @@ import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.assureBoxed
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.requireNotAutoboxed
 import io.github.tmarsteel.emerge.backend.llvm.StateTackDelegate
+import io.github.tmarsteel.emerge.backend.llvm.allDistinctSupertypesExceptAny
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
@@ -296,15 +298,28 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             return ExpressionResult.Terminated(ret(llvmValueToReturn))
         }
         is IrThrowStatement -> {
+            val exceptionPtr = code.throwable.declaration.llvmValue.reinterpretAs(PointerToAnyEmergeValue)
+            if (tryContext != null) {
+                // throw inside a try-catch, jump directly to catch
+                if (functionHasNothrowAbi) {
+                    // verify that the catch can even do something about the exception
+                    code.throwable.type.findSimpleTypeBound().baseType.allDistinctSupertypesExceptAny
+                        .filter { it.canonicalName.packageName == CanonicalElementName.Package(listOf("emerge", "core")) }
+                        .filter { it.canonicalName.simpleName == "Error" }
+                        .firstOrNull()
+                        ?.let {
+                            throw CodeGenerationException("illegal IR - throwing a subtype of error within a try-catch in a nothrow function")
+                        }
+                }
+                return ExpressionResult.Terminated(tryContext.jumpToCatchpad(exceptionPtr))
+            }
+
             if (functionHasNothrowAbi) {
-                // TODO: could just jump to a catch inside the function
                 throw CodeGenerationException("${IrThrowStatement::class.simpleName} in a nothrow context!")
             }
 
             this as BasicBlockBuilder<EmergeLlvmContext, out EmergeFallibleCallResult<*>>
-            return ExpressionResult.Terminated(
-                fallibleFailure(code.throwable.declaration.llvmValue.reinterpretAs(PointerToAnyEmergeValue))
-            )
+            return ExpressionResult.Terminated(fallibleFailure(exceptionPtr))
         }
         is IrCatchExceptionStatement -> {
             check(tryContext != null) {
