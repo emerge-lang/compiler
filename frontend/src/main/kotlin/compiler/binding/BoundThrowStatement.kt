@@ -5,8 +5,10 @@ import compiler.ast.type.TypeMutability
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrDynamicDispatchFunctionInvocationImpl
+import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrExpressionSideEffectsStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.reportings.NothrowViolationReporting
@@ -61,6 +63,26 @@ class BoundThrowStatement(
 
     override fun toBackendIrStatement(): IrExecutable {
         val throwableInstance = IrCreateTemporaryValueImpl(throwableExpression.toBackendIrExpression())
+        
+        // calling fillStackTrace can throw an exception; that should be ignored. But it needs to be properly dropped/refcounted,
+        // so that is more elaborate here; might make sense to look into addSuppressed like Java has
+        val varDeclExceptionFromFillStackTrace = object : IrVariableDeclaration {
+            override val name = context.findInternalVariableName("fillStackTraceException")
+            override val type: IrType = context.swCtx.throwable.baseReference.toBackendIr()
+            override val isBorrowed = false
+            override val isReAssignable= false
+        }
+        val fillStackTraceExceptionTemporary = IrCreateTemporaryValueImpl(IrVariableAccessExpressionImpl(varDeclExceptionFromFillStackTrace))
+        val fillStackTraceLandingpad = IrInvocationExpression.Landingpad(
+            // for now, just ignore any throwable that results from the fillStackTrace call, 
+            varDeclExceptionFromFillStackTrace,
+            IrCodeChunkImpl(listOf(
+                fillStackTraceExceptionTemporary,
+                IrDropStrongReferenceStatementImpl(fillStackTraceExceptionTemporary),
+                IrThrowStatementImpl(IrTemporaryValueReferenceImpl(throwableInstance))
+            )),
+        )
+        
         val fillStackTraceCall = IrExpressionSideEffectsStatementImpl(IrDynamicDispatchFunctionInvocationImpl(
             IrTemporaryValueReferenceImpl(throwableInstance),
             context.swCtx.throwable.memberFunctions
@@ -71,23 +93,17 @@ class BoundThrowStatement(
             listOf(IrTemporaryValueReferenceImpl(throwableInstance)),
             emptyMap(),
             context.swCtx.unit.baseReference.toBackendIr(),
-            IrInvocationExpression.Landingpad(
-                // for now, just ignore any throwable that results from the fillStackTrace call, might make sense
-                // to look into addSuppressed like Java has
-                object : IrVariableDeclaration {
-                    override val name = "_"
-                    override val type: IrType = context.swCtx.throwable.baseReference.toBackendIr()
-                    override val isBorrowed = false
-                    override val isReAssignable= false
-                },
-                IrCodeChunkImpl(listOf(
-                    IrThrowStatementImpl(IrTemporaryValueReferenceImpl(throwableInstance))
-                )),
-            )
+            fillStackTraceLandingpad,
         ))
+
+        val cleanupCode = context.getExceptionHandlingLocalDeferredCode()
+            .map { it.toBackendIrStatement() }
+            .toList()
+        
         return IrCodeChunkImpl(listOfNotNull(
             throwableInstance,
             IrCreateStrongReferenceStatementImpl(throwableInstance).takeUnless { throwableExpression.isEvaluationResultReferenceCounted },
+        ) + cleanupCode + listOf(
             fillStackTraceCall,
             IrThrowStatementImpl(IrTemporaryValueReferenceImpl(throwableInstance))
         ))

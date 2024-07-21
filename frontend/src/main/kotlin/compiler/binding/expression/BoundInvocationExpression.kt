@@ -632,7 +632,7 @@ internal fun buildGenericInvocationLikeIr(
                     null,
                     null,
                     IdentifierToken(
-                        landingpadContext.newInternalVariableName("t"),
+                        landingpadContext.findInternalVariableName("t"),
                         invocationLocation
                     ),
                     TypeReference(IdentifierToken("Throwable", invocationLocation)),
@@ -679,14 +679,3 @@ internal fun buildGenericInvocationLikeIr(
 private class IrCatchExceptionStatementImpl(
     override val exceptionReference: IrTemporaryValueReference
 ) : IrCatchExceptionStatement
-
-private fun ExecutionScopedCTContext.newInternalVariableName(namePayload: String): String {
-    var i = 0
-    var name: String
-    do {
-        name = "__${namePayload}$i"
-        i++
-    } while (resolveVariable(name) != null)
-
-    return name
-}

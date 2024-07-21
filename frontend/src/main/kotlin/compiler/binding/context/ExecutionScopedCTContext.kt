@@ -33,8 +33,13 @@ interface ExecutionScopedCTContext : CTContext {
     val isFunctionRoot: Boolean
 
     /**
-     * True if this context (or any of its parents) has a `catch` or `finally` block
-     * attached to it that has to be executed when an exception is thrown.
+     * true for all contexts that introduce a new exception handling boundary (a try block). For now
+     * that is only [ExceptionHandlingExecutionScopedCTContext].
+     */
+    val isExceptionHandler: Boolean
+
+    /**
+     * true iff this context or any of its parents has [isExceptionHandler] = `true`
      */
     val hasExceptionHandler: Boolean
 
@@ -72,6 +77,14 @@ interface ExecutionScopedCTContext : CTContext {
      * **reverse** order of how it was added to [MutableExecutionScopedCTContext.addDeferredCode].
      */
     fun getScopeLocalDeferredCode(): Sequence<BoundExecutable<*>>
+
+    /**
+     * If there is a parent context that has [isExceptionHandler] = `true`, returns all deferred code up to and including
+     * that context, in the **reverse** order of how it was added to [MutableExecutionScopedCTContext.addDeferredCode].
+     * If there is no parent context marked with [isExceptionHandler], returns the same value as [getFunctionDeferredCode].
+     * @return all code that needs to be executed before a throw
+     */
+    fun getExceptionHandlingLocalDeferredCode(): Sequence<BoundExecutable<*>>
 
     /**
      * @return all code that has been deferred in this scope and all of its parent [ExecutionScopedCTContext]s up until
@@ -144,11 +157,14 @@ open class MutableExecutionScopedCTContext protected constructor(
         parent
     }
 
-    override val hasExceptionHandler: Boolean by lazy {
-        hierarchy
-            .drop(1) // ignore self, is not an exception handler as evidenced by the fact that this code is being executed
-            .any { it is ExecutionScopedCTContext && it.hasExceptionHandler }
+    private val parentExceptionHandlerContext: ExecutionScopedCTContext? by lazy {
+        hierarchy.drop(1)
+            .filterIsInstance<ExecutionScopedCTContext>()
+            .firstOrNull { it.isExceptionHandler }
     }
+
+    override val isExceptionHandler = false
+    override val hasExceptionHandler get() = parentExceptionHandlerContext != null
 
     private var localDeferredCode: ArrayList<Statement>? = null
 
@@ -181,6 +197,14 @@ open class MutableExecutionScopedCTContext protected constructor(
         }
 
         return getDeferredCodeUpToIncluding(parentScopeContext ?: this)
+    }
+
+    override fun getExceptionHandlingLocalDeferredCode(): Sequence<BoundExecutable<*>> {
+        parentExceptionHandlerContext?.let { tryCtx ->
+            return getDeferredCodeUpToIncluding(tryCtx)
+        }
+
+        return getFunctionDeferredCode()
     }
 
     override fun getFunctionDeferredCode(): Sequence<BoundExecutable<*>> {
@@ -364,6 +388,7 @@ class LoopExecutionScopedCTContext<LoopNode : BoundLoop<*>>(
         ExecutionScopedCTContext.Repetition.ZERO_OR_MORE
     }
 ) {
+    override val isExceptionHandler = false
     val loopNode: LoopNode by lazy(getBoundLoopNode)
 }
 
@@ -375,5 +400,5 @@ class ExceptionHandlingExecutionScopedCTContext(
     isFunctionRoot = false,
     ExecutionScopedCTContext.Repetition.ZERO_OR_MORE,
 ) {
-    override val hasExceptionHandler = true
+    override val isExceptionHandler = true
 }

@@ -93,6 +93,21 @@ interface CTContext {
      */
     fun resolveVariable(name: String, fromOwnFileOnly: Boolean = false): BoundVariable?
 
+    /**
+     * @return a variable name that is guaranteed to not be occupied ([resolveVariable] will return `null`),
+     * contains markers as an internal variable (prefix of `__`) and contains [namePayload]
+     */
+    fun findInternalVariableName(namePayload: String): String {
+        var i = 0
+        var name: String
+        do {
+            name = "__${namePayload}$i"
+            i++
+        } while (resolveVariable(name) != null)
+
+        return name
+    }
+
     fun <Subject : Any, State> getEphemeralState(stateClass: EphemeralStateClass<Subject, State, *>, subject: Subject): State {
         return stateClass.getInitialState(subject)
     }

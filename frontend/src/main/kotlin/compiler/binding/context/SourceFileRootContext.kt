@@ -61,6 +61,7 @@ class SourceFileRootContext(
 
             override val isScopeBoundary = false
             override val isFunctionRoot = false
+            override val isExceptionHandler = false
             override val hasExceptionHandler = false
             override val repetitionRelativeToParent = ExecutionScopedCTContext.Repetition.EXACTLY_ONCE
             override val imports = emptySet<BoundImportDeclaration>()
@@ -81,6 +82,9 @@ class SourceFileRootContext(
                 throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
             }
             override fun getScopeLocalDeferredCode(): Sequence<BoundExecutable<*>> {
+                throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
+            }
+            override fun getExceptionHandlingLocalDeferredCode(): Sequence<BoundExecutable<*>> {
                 throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
             }
             override fun getFunctionDeferredCode(): Sequence<BoundExecutable<*>> {
