@@ -111,7 +111,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
         3. cleanup on unwind/exception propagation
     3. `Throwable` for everything that can be thrown, `Exception : Throwable` for recoverable errors,
        `Error : Throwable` for unrecoverable errors. `Error` cannot be `catch`ed
-    4. try+catch+finally
+    4. ~~try+catch+finally~~
 30. add instance-of and cast operations
 31. implement module dependencies and access checks
     1. upgrade the compilers CLI interface to a configuration via a proper config format. NOT YAML! Maybe TOML, maybe PKL. Should have schema
