@@ -73,7 +73,6 @@ class Linux_x68_64_Backend : EmergeBackend {
                 objectFilePath,
                 getClasspathResourceAsFileOnDisk(javaClass, "/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/crtendS.o"),
                 getClasspathResourceAsFileOnDisk(javaClass, "/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/libunwind-x86_64.a"),
-                Paths.get("/usr/lib/x86_64-linux-gnu/liblzma.a"),
             ),
             executablePath,
             dynamicallyLinkAtRuntime = listOf("c"),
