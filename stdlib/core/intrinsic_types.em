@@ -47,6 +47,7 @@ export class S8 : Printable {
 
     export intrinsic nothrow fn toS64(self) -> S64
 
+    export fn toString(self) = self.toS64().toString()
     export override fn printTo(self, borrow stream: mut PrintStream) {
         self.toS64().printTo(stream)
     }
@@ -70,6 +71,7 @@ export class U8 : Printable {
 
     export intrinsic nothrow fn toU64(self) -> U64
 
+    export fn toString(self) = self.toU64().toString()
     export override fn printTo(self, borrow stream: mut PrintStream) {
         self.toU64().printTo(stream)
     }
@@ -96,6 +98,7 @@ export class S16 : Printable {
 
     export intrinsic nothrow fn toS64(self) -> S64
 
+    export fn toString(self) = self.toS64().toString()
     export override fn printTo(self, borrow stream: mut PrintStream) {
         self.toS64().printTo(stream)
     }
@@ -119,6 +122,7 @@ export class U16 : Printable {
 
     export intrinsic nothrow fn toU64(self) -> U64
 
+    export fn toString(self) = self.toU64().toString()
     export override fn printTo(self, borrow stream: mut PrintStream) {
         self.toU64().printTo(stream)
     }
@@ -145,6 +149,7 @@ export class S32 : Printable {
 
     export intrinsic nothrow fn toS64(self) -> S64
 
+    export fn toString(self) = self.toS64().toString()
     export override fn printTo(self, borrow stream: mut PrintStream) {
         self.toS64().printTo(stream)
     }
@@ -168,6 +173,7 @@ export class U32 : Printable {
 
     export intrinsic nothrow fn toU64(self) -> U64
 
+    export fn toString(self) = self.toU64().toString()
     export override fn printTo(self, borrow stream: mut PrintStream) {
         self.toU64().printTo(stream)
     }
@@ -195,6 +201,7 @@ export class S64 : Printable {
     // converts this number to an SWord, loosing information if SWord is smaller than S64 on the target platform
     export intrinsic nothrow fn asSWord(self) -> SWord
 
+    export fn toString(self) = if self >= 0 self.asU64().toString() else self.abs().asU64().toString(true)
     export override fn printTo(self, borrow stream: mut PrintStream) {
         if self < 0 {
             self.abs().asU64().printTo(stream, true)
@@ -222,6 +229,8 @@ export class U64 : Printable {
 
     // converts this number to a UWord, loosing information if UWord is smaller than U64 on the target platform
     export intrinsic nothrow fn asUWord(self) -> UWord
+
+    export fn toString(self) = self.toString(false)
 
     export override fn printTo(self, borrow stream: mut PrintStream) {
         self.printTo(stream, false)
@@ -283,6 +292,7 @@ export class SWord : Printable {
     export intrinsic nothrow fn asS64(self) -> S64
     export intrinsic nothrow fn asU64(self) -> U64
 
+    export fn toString(self) = self.asS64().toString()
     export override fn printTo(self, borrow stream: mut PrintStream) {
         self.asS64().printTo(stream)
     }
@@ -307,6 +317,7 @@ export class UWord : Printable {
     export intrinsic nothrow fn asS64(self) -> S64
     export intrinsic nothrow fn asU64(self) -> U64
 
+    export fn toString(self) = self.asU64().toString()
     export override fn printTo(self, borrow stream: mut PrintStream) {
         self.asU64().printTo(stream)
     }
