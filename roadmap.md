@@ -97,8 +97,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * ~~array bounds checks, null deref~~
     * ~~a to-string abstraction: Java-style toString on all objects is probably overkill, more like rusts Display trait~~
     * equality
-      * reference equality operator: really === ??
-      * it would be great to be able to do == on Any
+      * ~~reference equality operator: really === ??~~ -> reference equality is not supported as it introduces inherent impurity
+      * ~~it would be great to be able to do == on Any~~ without reference equality to fall back on, there is no sane default
 28. while + do-while loops
 29. error handling
     1. this is going to touch the runtime significantly. Use this opportunity to
@@ -106,11 +106,11 @@ This file describes the Items that are next on the TODO list. **This list is NOT
         2. ~~bundle the ones for x86_64 into the compiler, so they're available wherever the compiler can run~~
         3. ~~implement some method for using an LLVM installation on windows, so windows -> linux cross-compilation is possible~~
     2. `throw` statement
-        1. implement Printable on exceptions so the toplevel main() function can show them properly
+        1. ~~implement Printable on exceptions so the toplevel main() function can show them properly~~
         2. ~~actual throw expression~~
-        3. cleanup on unwind/exception propagation
-    3. `Throwable` for everything that can be thrown, `Exception : Throwable` for recoverable errors,
-       `Error : Throwable` for unrecoverable errors. `Error` cannot be `catch`ed
+        3. ~~cleanup on unwind/exception propagation~~
+    3. ~~`Throwable` for everything that can be thrown, `Exception : Throwable` for recoverable errors,
+       `Error : Throwable` for unrecoverable errors. `Error` cannot be `catch`ed~~
     4. ~~try+catch+finally~~
 30. add instance-of and cast operations
 31. implement module dependencies and access checks
@@ -174,7 +174,33 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * ArrayList, LinkedList, (De)Queue, Stack, ...
       * hashCodes: Java-style is overkill, have an explicit Hashable interface
     * Map
-37. Function types
+    * string templates
+      * interpolation like in Kotlin instead of concatenation like in Java or D
+      * make that work with the Printable interface. So e.g. a template "a ${x} b ${y} c" desugars to an
+        memory-buffered printstream, with calls to put of "a ", x.printTo(...), " b ", y.printTo(...), " c"
+    * remote print and println functions and instead expose the emerge.platform.StandardOut and StandardError
+      variables
+      * add emerge.platform.StandardIn for good measure
+37. ALPHA TESTABLE MILESTONE; At this point, the language should be powerful enough to tackle advent of code challenges.
+    Todo: actually try and solve some!
+38. integration tests!! Include emerge source code in this repository that tests the runtime and correct compilation.
+    The unit tests in the frontend test the negative cases; these should test the positive ones. E.g. that 2+3=5,
+    refcounting, control flow + exceptions, ...
+39. documentation and presentation
+    * from a user perspective. Github pages?
+      * language syntax and semantics, maybe a good tutorial
+      * design decisions, philosophy and reasoning
+    * from a maintainer perspective
+      * compiler architecture
+      * llvm patterns
+      * debugging techniques
+40. user tooling
+    * installable packages that handle upgrades/multiple parallel versions, too
+      * windows
+      * debian
+    * CLI interface for the compiler
+    * language server and VSCode plugin
+41. Function types
     1. `operator fun invoke`: `obj(param)` to `obj.invoke(param)`
     2. Regular functions: `(T1, T2) -> R`
     3. do we need functions with receiver? Or is receiver/self VS regular parameter just a syntax
@@ -182,36 +208,36 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     4. deal with the higher-order function purity problem: do functions need to be generic on purity?
     5. extend InvocationExpression
     6. implement `objectRef.foo()` where `foo` is a property of a function type
-38. functional-style collection operations (possible because the higher-order function purity problem is solved)
+42. functional-style collection operations (possible because the higher-order function purity problem is solved)
     1. start simple with forEach
     2. go on with filter, map, fold, ...
     3. more tricky: make sure the code emitted by LLVM doesn't actually do all the allocation. A chain of maps and filters
        should be compiled down to a single loop.
-39. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
-40. optimize reference counting; see [](refcounting optimizations.md)
+43. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
+44. optimize reference counting; see [](refcounting optimizations.md)
     * for this, the logic to determine where reference counts are needed must move from the LLVM backend to
       the frontend; the frontend has the tools to deal with the complexity, the backend doesn't. Especially
       temporary values are BAD offenders
-41. some stdlib primitives for filesystem IO
-42. typealiases
-43. smart casts
-44. fix loophole in the typesystem: the `exclusive` modifier becomes incorrect in this code:
+45. some stdlib primitives for filesystem IO
+46. typealiases
+47. smart casts
+48. fix loophole in the typesystem: the `exclusive` modifier becomes incorrect in this code:
     ```
     class Foo {}
     arr = Array.new::<exclusive Foo>(20, Foo()) // compiler doesn't complain, but should
     v: exclusive Foo = arr[0] // compiler doesn't complain here, either
     ```
-45. optional parameters
+49. optional parameters
     * parameter with default value is optional
     * affects overload validation and resolution
     * default value should be evaluated on the caller side because it allows to keep the
       ABI calling conventions
       * as a consequence, only the initial declaration of a function can declare default values,
         overrides cannot
-46. named arguments
+50. named arguments
     * allow to change the order of arguments? Its important to keep the evaluation order on the
       calling side to match the order of the arguments as passed, not as declared
-47. threading
+51. threading
     The whole shtick of the explicit-mutability types is to simplify multithreading. Avoiding the
     complexity of having a `shared` mutability like D allows to infer some properties necessary for
     multithreading:
@@ -240,16 +266,6 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       val futureVal: Future<S32> = forkJoinPool.submit({ doExpensiveComputation() })
       ```
       Which brings the important question to the table: Push-Based or Pull-Based futures?
------
-
-## Small things to think about
- 
-* syntax opinionation
-  * steal from rust
-    * use `fn` instead of `fun`?
-  * shorter keywords for mutability
-    * `imm`, `mut`, `read`?
-  * type names MUST start with an uppercase letter, identifiers MUST start with a lowercase letter
 
 -----
 
