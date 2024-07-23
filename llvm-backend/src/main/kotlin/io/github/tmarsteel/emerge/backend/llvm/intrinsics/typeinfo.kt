@@ -297,7 +297,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
     }
 
     private class ProviderImpl(
-        val canonicalName: (EmergeLlvmContext) -> String,
+        val canonicalNameGetter: (EmergeLlvmContext) -> String,
         val supertypes: Collection<(EmergeLlvmContext) -> LlvmGlobal<TypeinfoType>>,
         val finalizerFunction: (EmergeLlvmContext) -> LlvmFunction<*>,
         val virtualFunctions: EmergeLlvmContext.() -> Map<ULong, LlvmFunction<*>>,
@@ -306,6 +306,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
         override fun provide(context: EmergeLlvmContext): StaticAndDynamicTypeInfo {
             byContext[context]?.let { return it }
 
+            val canonicalName = canonicalNameGetter(context)
             val vtableConstant = buildVTable(context, virtualFunctions(context), context.registerIntrinsic(missingVirtualFunctionHandler).address)
             val typeinfoType = TypeinfoType(vtableConstant.type.nEntries)
 
@@ -318,7 +319,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
             val (dynamicConstant, staticConstant) = build(
                 context,
                 typeinfoType,
-                canonicalName(context),
+                canonicalName,
                 vtableConstant,
                 dynamicGlobal,
             )
