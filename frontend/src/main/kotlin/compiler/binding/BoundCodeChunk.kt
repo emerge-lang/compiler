@@ -203,6 +203,7 @@ class BoundCodeChunk(
         val lastStatement = statements.lastOrNull()
 
         if (lastStatement is BoundExpression<*>) {
+            plainStatements.add(IrUpdateSourceLocationStatementImpl(lastStatement.declaration.span))
             val implicitValueTemporary = IrCreateTemporaryValueImpl(
                 lastStatement.toBackendIrExpression(),
                 expectedImplicitEvaluationResultType?.toBackendIr(),
