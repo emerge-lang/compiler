@@ -36,6 +36,10 @@ class PhiBucket<E : LlvmType>(val type: E) {
             "phi node with no incoming values"
         }
 
+        if (branches.size == 1) {
+            return LlvmValue(results.single(), type)
+        }
+
         val phiInst = Llvm.LLVMBuildPhi(builder, type.getRawInContext(context), "result")
 
         NativePointerArray.fromJavaPointers(branches).use { incomingBranches ->
