@@ -27,7 +27,7 @@ class FileDescriptorPrintStream : PrintStream {
                 break
             }
             
-            // workaround until there are array slices / pointe arithmetic
+            // workaround until there are array slices / pointer arithmetic
             newBuf: mut _ = Array.new::<S8>(bufToWrite.size - nBytesWritten, 0 as S8)
             Array.copy(bufToWrite, nBytesWritten, newBuf, 0, newBuf.size)
             set bufToWrite = newBuf

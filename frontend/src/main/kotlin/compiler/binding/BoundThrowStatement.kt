@@ -61,7 +61,7 @@ class BoundThrowStatement(
         return reportings
     }
 
-    override fun toBackendIrStatement(): IrExecutable {
+    private val _backendIr: IrExecutable by lazy {
         val throwableInstance = IrCreateTemporaryValueImpl(throwableExpression.toBackendIrExpression())
         
         // calling fillStackTrace can throw an exception; that should be ignored. But it needs to be properly dropped/refcounted,
@@ -100,13 +100,17 @@ class BoundThrowStatement(
             .map { it.toBackendIrStatement() }
             .toList()
         
-        return IrCodeChunkImpl(listOfNotNull(
+        return@lazy IrCodeChunkImpl(listOfNotNull(
             throwableInstance,
             IrCreateStrongReferenceStatementImpl(throwableInstance).takeUnless { throwableExpression.isEvaluationResultReferenceCounted },
         ) + cleanupCode + listOf(
             fillStackTraceCall,
             IrThrowStatementImpl(IrTemporaryValueReferenceImpl(throwableInstance))
         ))
+    }
+
+    override fun toBackendIrStatement(): IrExecutable {
+        return _backendIr
     }
 }
 

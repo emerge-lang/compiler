@@ -193,10 +193,10 @@ private val displayThrowableToStdErr = KotlinLlvmFunction.define<EmergeLlvmConte
         printToResult.handle(
             regularBranch = { concludeBranch() },
             exceptionBranch = { printToException ->
-                printConstantString(writeToStdErr, "PANIC! unhandled exception of type ")
+                printConstantString(writeToStdErr, "Caught exception while printing the stacktrace of ")
                 printEmergeString(writeToStdErr, exceptionPtr.typeName)
                 printLinefeed(writeToStdErr)
-                printConstantString(writeToStdErr, "suppressed: caught this exception while printing the stacktrace: ")
+                printConstantString(writeToStdErr, "This exception was caught while printing the stack trace: ")
                 printEmergeString(writeToStdErr, printToException.typeName)
                 printLinefeed(writeToStdErr)
                 concludeBranch()

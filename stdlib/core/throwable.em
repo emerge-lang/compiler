@@ -33,6 +33,7 @@ export interface Throwable : Printable {
         }
         var i = 0 as UWord
         while i < stackTrace!!.size() {
+            target.put("  at ")
             stackTrace!![i].printTo(target)
             target.putEndOfLine()
             set i = i + 1
@@ -46,7 +47,6 @@ export class StackTraceElement : Printable {
     export procedureName: String = init
     
     export override fn printTo(self, borrow target: mut PrintStream) {
-        target.put("  at ")
         target.put(self.procedureName)
         target.put(" (")
         self.address.printTo(target)
