@@ -128,11 +128,11 @@ class BoundObjectMemberAssignmentStatement(
         val toAssignTemporaryRefIncrement = IrCreateStrongReferenceStatementImpl(toAssignTemporary).takeUnless { toAssignExpression.isEvaluationResultReferenceCounted }
 
         return IrCodeChunkImpl(listOfNotNull(
-            dropPreviousReferenceCode,
             baseTemporary,
             baseTemporaryRefIncrement,
             toAssignTemporary,
-            toAssignTemporaryRefIncrement,
+            toAssignRefIncrement,
+            dropPreviousReferenceCode,
             IrAssignmentStatementImpl(
                 IrAssignmentStatementTargetClassMemberVariableImpl(
                     targetExpression.member!!.toBackendIr(),
