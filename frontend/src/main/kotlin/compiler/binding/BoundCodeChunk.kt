@@ -24,7 +24,7 @@ import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
-import compiler.binding.expression.IrIntegerLiteralExpressionImpl
+import compiler.binding.expression.IrStaticDispatchFunctionInvocationImpl
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
@@ -38,7 +38,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
-import java.math.BigInteger
 
 class BoundCodeChunk(
     /**
@@ -222,7 +221,19 @@ class BoundCodeChunk(
             )
         }
 
-        val standInLiteralTemporary = IrCreateTemporaryValueImpl(IrIntegerLiteralExpressionImpl(BigInteger.ZERO, context.swCtx.uword.baseReference.toBackendIr()))
+        val standInLiteralTemporary = IrCreateTemporaryValueImpl(
+            IrStaticDispatchFunctionInvocationImpl(
+                context.swCtx.unit.resolveMemberFunction("instance")
+                    .single { it.parameterCount == 0 }
+                    .overloads
+                    .single()
+                    .toBackendIr(),
+                emptyList(),
+                emptyMap(),
+                context.swCtx.unit.baseReference.toBackendIr(),
+                null,
+            )
+        )
         return IrImplicitEvaluationExpressionImpl(
             IrCodeChunkImpl(plainStatements + listOfNotNull(lastStatement?.toBackendIrStatement()) + getDeferredCodeAtEndOfChunk() + listOf(standInLiteralTemporary)),
             IrTemporaryValueReferenceImpl(standInLiteralTemporary),
