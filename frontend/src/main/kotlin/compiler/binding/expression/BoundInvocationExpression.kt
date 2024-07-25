@@ -568,12 +568,16 @@ private fun buildInvocationLikeIrInternal(
         val temporary = IrCreateTemporaryValueImpl(irExpr)
         argumentTemporaries.add(temporary)
         prepareArgumentsCode.add(temporary)
-        if (!boundArgumentExpr.isEvaluationResultReferenceCounted && !boundArgumentExpr.isEvaluationResultAnchored) {
-            prepareArgumentsCode.add(IrCreateStrongReferenceStatementImpl(temporary))
-        }
         if (!boundArgumentExpr.isEvaluationResultAnchored) {
-            cleanUpArgumentsCode.add(IrDropStrongReferenceStatementImpl(temporary))
-        }
+            if (!boundArgumentExpr.isEvaluationResultReferenceCounted) {
+                // refcount to keep alive during the evaluation of subsequent temporaries
+                prepareArgumentsCode.add(IrCreateStrongReferenceStatementImpl(temporary))
+            }
+            if (boundArgumentExpr.isEvaluationResultReferenceCounted) {
+                // use of the temporary is over after the call, drop the reference
+                cleanUpArgumentsCode.add(IrDropStrongReferenceStatementImpl(temporary))
+            }
+        } // else: if anchored we don't need to refcount the temporary
     }
 
     val returnValueTemporary = IrCreateTemporaryValueImpl(

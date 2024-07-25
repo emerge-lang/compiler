@@ -123,9 +123,12 @@ class BoundObjectMemberAssignmentStatement(
         }
 
         val baseTemporary = IrCreateTemporaryValueImpl(targetExpression.valueExpression.toBackendIrExpression())
-        val baseTemporaryRefIncrement = IrCreateStrongReferenceStatementImpl(baseTemporary).takeUnless { targetExpression.valueExpression.isEvaluationResultReferenceCounted }
+        val baseTemporaryRefIncrement = IrCreateStrongReferenceStatementImpl(baseTemporary)
+            .takeUnless { targetExpression.valueExpression.isEvaluationResultReferenceCounted }
+            .takeUnless { targetExpression.valueExpression.isEvaluationResultAnchored }
         val toAssignTemporary = IrCreateTemporaryValueImpl(toAssignExpression.toBackendIrExpression())
-        val toAssignTemporaryRefIncrement = IrCreateStrongReferenceStatementImpl(toAssignTemporary).takeUnless { toAssignExpression.isEvaluationResultReferenceCounted }
+        val toAssignRefIncrement = IrCreateStrongReferenceStatementImpl(toAssignTemporary)
+            .takeUnless { toAssignExpression.isEvaluationResultReferenceCounted }
 
         return IrCodeChunkImpl(listOfNotNull(
             baseTemporary,
@@ -140,7 +143,8 @@ class BoundObjectMemberAssignmentStatement(
                 ),
                 IrTemporaryValueReferenceImpl(toAssignTemporary),
             ),
-            IrDropStrongReferenceStatementImpl(baseTemporary),
+            IrDropStrongReferenceStatementImpl(baseTemporary)
+                .takeUnless { targetExpression.valueExpression.isEvaluationResultAnchored },
         ))
     }
 }
