@@ -3,10 +3,13 @@ package compiler.binding
 import compiler.*
 import compiler.ast.Executable
 import compiler.ast.FunctionDeclaration
+import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeVariance
-import compiler.binding.context.CTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.IrVariableAccessExpressionImpl
+import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
@@ -19,6 +22,7 @@ import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import compiler.reportings.ReturnTypeMismatchReporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
+import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 
 /**
@@ -27,12 +31,12 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
  * so that [BaseType]s for receiver, parameters and return type can be resolved.
  */
 abstract class BoundDeclaredFunction(
-    final override val context: CTContext,
+    final override val context: MutableExecutionScopedCTContext,
     val declaration: FunctionDeclaration,
     final override val attributes: BoundFunctionAttributeList,
     final override val declaredTypeParameters: List<BoundTypeParameter>,
     final override val parameters: BoundParameterList,
-    val body: Body?,
+    protected val body: Body?,
 ) : BoundFunction {
     final override val declaredAt = declaration.declaredAt
     final override val name: String = declaration.name.value
@@ -190,6 +194,34 @@ abstract class BoundDeclaredFunction(
 
     override fun validateAccessFrom(location: Span): Collection<Reporting> {
         return attributes.visibility.validateAccessFrom(location, this)
+    }
+
+    // refcounting for parameters
+    init {
+        if (body != null) {
+            parameters.parameters.asSequence()
+                .filter { it.ownershipAtDeclarationTime == VariableOwnership.CAPTURED }
+                .forEach { param ->
+                    context.addDeferredCode(DropLocalVariableStatement(param))
+                }
+        }
+    }
+
+    fun getFullBodyBackendIr(): IrCodeChunk? {
+        if (body == null) {
+            return null
+        }
+
+        val refcountIncrements = ArrayList<IrExecutable>(parameters.parameters.size)
+        parameters.parameters.asSequence()
+            .filter { it.ownershipAtDeclarationTime == VariableOwnership.CAPTURED }
+            .forEach { param ->
+                val tmp = IrCreateTemporaryValueImpl(IrVariableAccessExpressionImpl(param.backendIrDeclaration))
+                refcountIncrements.add(tmp)
+                refcountIncrements.add(IrCreateStrongReferenceStatementImpl(tmp))
+            }
+
+        return IrCodeChunkImpl(refcountIncrements + body.toBackendIr().components)
     }
 
     sealed interface Body : BoundExecutable<Executable> {

@@ -7,7 +7,7 @@ import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundParameterList
 import compiler.binding.SeanHelper
-import compiler.binding.context.CTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.lexer.Span
 import compiler.reportings.IncompatibleReturnTypeOnOverrideReporting
@@ -19,7 +19,7 @@ import java.util.Collections
 import java.util.IdentityHashMap
 
 class BoundDeclaredBaseTypeMemberFunction(
-    functionRootContext: CTContext,
+    functionRootContext: MutableExecutionScopedCTContext,
     declaration: FunctionDeclaration,
     attributes: BoundFunctionAttributeList,
     declaredTypeParameters: List<BoundTypeParameter>,
@@ -220,7 +220,7 @@ private class IrMemberFunctionImpl(
     override val returnType by lazy { boundFn.returnType!!.toBackendIr() }
     override val isExternalC = boundFn.attributes.externalAttribute?.ffiName?.value == "C"
     override val isNothrow = boundFn.attributes.isDeclaredNothrow
-    override val body: IrCodeChunk? by lazy { boundFn.body?.toBackendIr() }
+    override val body: IrCodeChunk? by lazy { boundFn.getFullBodyBackendIr() }
     override val overrides: Set<IrMemberFunction> by lazy { (boundFn.overrides ?: emptyList()).map { it.toBackendIr() }.toSet() }
     override val supportsDynamicDispatch = boundFn.isVirtual
     override val ownerBaseType by lazy { boundFn.declaredOnType.toBackendIr() }

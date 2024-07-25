@@ -461,15 +461,6 @@ class EmergeLlvmContext(
         llvmFunction.setDiFunction(diFunction)
 
         BasicBlockBuilder.fillBody(this, llvmFunction, diBuilder, diFunction) {
-            fn.parameters
-                .filterNot { it.isBorrowed }
-                .forEach { param ->
-                    param.emitRead!!().afterReferenceCreated(param.type)
-                    defer {
-                        param.emitRead!!().afterReferenceDropped(param.type)
-                    }
-                }
-
             when (val codeResult = emitCode(body, fn.returnType, fn.hasNothrowAbi, false, null)) {
                 is ExecutableResult.ExecutionOngoing,
                 is ExpressionResult.Value -> {

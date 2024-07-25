@@ -72,18 +72,6 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun markSourceLocation(line: UInt, column: UInt)
     fun currentDebugLocation(): String
 
-    /**
-     * @param code will be executed when this scope is closed, either on a function-terminating instruction
-     * or when a logical scope is completed (e.g. [conditionalBranch], [loop])
-     * TODO: encode into the type of [code] that defer cannot be called there again. Maybe it even throws a ConcurrentModificationException?
-     */
-    fun defer(code: NonTerminalCodeGenerator<C>)
-
-    /**
-     * Generates the given [code] in a new scope for [defer].
-     */
-    fun <SubR> inSubScope(code: BasicBlockBuilder<C, R>.() -> SubR): SubR
-
     fun ret(value: LlvmValue<R>): Termination
     fun unreachable(): Termination
 
@@ -193,9 +181,6 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
         }
 
         fun <C : LlvmContext> BasicBlockBuilder<C, LlvmVoidType>.retVoid(): Termination {
-            with(this as BasicBlockBuilderImpl<C, *>) {
-                this.scopeTracker.runAllFunctionDeferredCode()
-            }
             Llvm.LLVMBuildRetVoid(builder)
             return TerminationImpl
         }
@@ -521,25 +506,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         return "$scope, line $lastKnownLine"
     }
 
-    override fun defer(code: NonTerminalCodeGenerator<C>) {
-        scopeTracker.addDeferredStatement(code)
-    }
-
-    override fun <SubR> inSubScope(code: BasicBlockBuilder<C, R>.() -> SubR): SubR {
-        val subBuilder = BasicBlockBuilderImpl<C, R>(context, llvmFunctionReturnType, diBuilder, owningFunction, builder, tmpVars, scopeTracker.createSubScope())
-        val returnValue = subBuilder.code()
-
-        val mostRecentInstruction = Llvm.LLVMGetLastInstruction(Llvm.LLVMGetInsertBlock(builder))
-        if (mostRecentInstruction == null || Llvm.LLVMIsATerminatorInst(mostRecentInstruction) == null) {
-            // the sub-scope code didn't terminate -> need to emit defer code
-            subBuilder.scopeTracker.runLocalDeferredCode()
-        }
-
-        return returnValue
-    }
-
     override fun ret(value: LlvmValue<R>): BasicBlockBuilder.Termination {
-        scopeTracker.runAllFunctionDeferredCode()
         Llvm.LLVMBuildRet(builder, value.raw)
 
         return TerminationImpl
@@ -654,7 +621,6 @@ private class BranchImpl<C : LlvmContext, R : LlvmType>(
     val continueBlock: LlvmBasicBlockRef,
 ) : BasicBlockBuilderImpl<C, R>(context, functionReturnType, diBuilder, owningFunction, builder, tmpVars, scopeTracker), BasicBlockBuilder.Branch<C, R> {
     override fun concludeBranch(): BasicBlockBuilder.Termination {
-        scopeTracker.runLocalDeferredCode()
         Llvm.LLVMBuildBr(builder, continueBlock)
         return TerminationImpl
     }
@@ -673,19 +639,16 @@ private class LoopImpl<C : LlvmContext, R : LlvmType>(
     val continueBlock: LlvmBasicBlockRef,
 ) : BasicBlockBuilderImpl<C, R>(context, functionReturnType, diBuilder, owningFunction, builder, tmpVars, scopeTracker), BasicBlockBuilder.LoopHeader<C, R>, BasicBlockBuilder.LoopBody<C, R> {
     override fun breakLoop(): BasicBlockBuilder.Termination {
-        scopeTracker.runLocalDeferredCode()
         Llvm.LLVMBuildBr(builder, continueBlock)
         return TerminationImpl
     }
 
     override fun doIteration(): BasicBlockBuilder.Termination {
-        scopeTracker.runLocalDeferredCode()
         Llvm.LLVMBuildBr(builder, bodyBlockRef)
         return TerminationImpl
     }
 
     override fun loopContinue(): BasicBlockBuilder.Termination {
-        scopeTracker.runLocalDeferredCode()
         Llvm.LLVMBuildBr(builder, headerBlockRef)
         return TerminationImpl
     }
@@ -717,35 +680,10 @@ private data object TerminationImpl : BasicBlockBuilder.Termination
 
 typealias CodeGenerator<C, R> = BasicBlockBuilder<C, R>.() -> BasicBlockBuilder.Termination
 
-/**
- * code to execute before the scope exits, must not emit terminal instructions.
- * TODO: build the "no terminals" limitation into the type of the lambda, e.g. BasicBlockBuilder.NonTerminal<C, R>
- */
-typealias NonTerminalCodeGenerator<C> = BasicBlockBuilder<C, *>.() -> Unit
-
 private class ScopeTracker<C : LlvmContext> private constructor(private val parent: ScopeTracker<C>?) {
     constructor() : this(null) {}
 
-    private val deferredCode = ArrayList<NonTerminalCodeGenerator<C>>()
-
-    fun addDeferredStatement(code: NonTerminalCodeGenerator<C>) {
-        deferredCode.add(code)
-    }
-
     fun createSubScope(): ScopeTracker<C> = ScopeTracker(this)
-
-    context(BasicBlockBuilder<C, *>)
-    fun runLocalDeferredCode() {
-        deferredCode.forEach {
-            it(this@BasicBlockBuilder)
-        }
-    }
-
-    context(BasicBlockBuilder<C, *>)
-    fun runAllFunctionDeferredCode() {
-        parent?.runAllFunctionDeferredCode()
-        runLocalDeferredCode()
-    }
 
     private val debugScopes = Stack<DebugInfoScope>()
 

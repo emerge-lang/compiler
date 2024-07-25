@@ -6,6 +6,7 @@ import compiler.ast.type.TypeMutability
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundVariable
+import compiler.binding.DropLocalVariableStatement
 import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -31,6 +32,9 @@ class BoundCatchBlockExpression(
     }
 
     override val modifiedContext = context
+    init {
+        contextOfCatchCode.addDeferredCode(DropLocalVariableStatement(throwableVariable))
+    }
 
     override val throwBehavior get() = catchCode.throwBehavior
     override val returnBehavior get() = catchCode.returnBehavior

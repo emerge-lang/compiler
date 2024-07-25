@@ -1,7 +1,7 @@
 package compiler.binding
 
 import compiler.ast.FunctionDeclaration
-import compiler.binding.context.CTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
@@ -9,7 +9,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 
 class BoundTopLevelFunction(
-    context: CTContext,
+    context: MutableExecutionScopedCTContext,
     declaration: FunctionDeclaration,
     attributes: BoundFunctionAttributeList,
     declaredTypeParameters: List<BoundTypeParameter>,
@@ -56,6 +56,6 @@ private class IrTopLevelFunctionImpl(
     override val returnType by lazy { boundFn.returnType!!.toBackendIr() }
     override val isExternalC = boundFn.attributes.externalAttribute?.ffiName?.value == "C"
     override val isNothrow = boundFn.attributes.isDeclaredNothrow
-    override val body: IrCodeChunk? by lazy { boundFn.body?.toBackendIr() }
+    override val body: IrCodeChunk? by lazy { boundFn.getFullBodyBackendIr() }
     override val declaredAt = boundFn.declaredAt
 }
