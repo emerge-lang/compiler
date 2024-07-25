@@ -58,6 +58,15 @@ interface IrVariableDeclaration : IrExecutable {
      * will ever be executed
      */
     val isReAssignable: Boolean
+
+    /**
+     * If true, the backend may assume that
+     * * a single write to this variable will be placed in the IR and executed at runtime before the first access to the variable
+     * * only ever one [IrAssignmentStatement] to this variable will ever be executed at runtime
+     *
+     * [isSSA] implies [isReAssignable] `== false`.
+     */
+    val isSSA: Boolean
 }
 
 interface IrAssignmentStatement : IrExecutable {

@@ -250,12 +250,21 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         }
         is IrVariableDeclaration -> {
             val type = context.getReferenceSiteType(code.type)
-            val stackAllocation = alloca(type, forceEntryBlock = !code.isReAssignable)
-            code.emitRead = {
-                stackAllocation.dereference()
-            }
-            code.emitWrite = { newValue ->
-                store(newValue, stackAllocation)
+            if (code.isSSA) {
+                code.emitRead = {
+                    throw CodeGenerationException("invalid IR - accessing an SSA variable before its assignment")
+                }
+                code.emitWrite = { value ->
+                    code.emitRead = { value }
+                }
+            } else {
+                val stackAllocation = alloca(type, forceEntryBlock = !code.isReAssignable)
+                code.emitRead = {
+                    stackAllocation.dereference()
+                }
+                code.emitWrite = { newValue ->
+                    store(newValue, stackAllocation)
+                }
             }
             return ExecutableResult.ExecutionOngoing
         }

@@ -70,7 +70,8 @@ class BoundThrowStatement(
             override val name = context.findInternalVariableName("fillStackTraceException")
             override val type: IrType = context.swCtx.throwable.baseReference.toBackendIr()
             override val isBorrowed = false
-            override val isReAssignable= false
+            override val isReAssignable = false
+            override val isSSA = true
         }
         val fillStackTraceExceptionTemporary = IrCreateTemporaryValueImpl(IrVariableAccessExpressionImpl(varDeclExceptionFromFillStackTrace))
         val fillStackTraceLandingpad = IrInvocationExpression.Landingpad(
