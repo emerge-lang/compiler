@@ -28,6 +28,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Compan
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.TypeinfoType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceDropped
 
 /**
  * Helps with automatic boxing and unboxing of values
@@ -135,9 +136,14 @@ internal sealed interface Autoboxer {
         ): LlvmValue<*> {
             check(llvmValue.type == unboxedType)
             val boxedType = getBoxedType(context)
-            return call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
+            val box = call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
                 propagateOrPanic(exceptionPtr, "autoboxing failed; constructor of ${boxedType.irClass.canonicalName} threw")
             }
+            defer {
+                box.afterReferenceDropped(isNullable = false)
+            }
+
+            return box
         }
 
         override fun isBox(context: EmergeLlvmContext, value: IrTemporaryValueReference): Boolean {
@@ -244,7 +250,12 @@ internal sealed interface Autoboxer {
                     concludeBranch()
                 }
             )
-            return boxed.buildPhi()
+            val box = boxed.buildPhi()
+            defer {
+                box.afterReferenceDropped(isNullable = true)
+            }
+
+            return box
         }
 
         override fun isBox(context: EmergeLlvmContext, value: IrTemporaryValueReference): Boolean {
@@ -358,9 +369,14 @@ internal sealed interface Autoboxer {
         ): LlvmValue<*> {
             check(llvmValue.type == unboxedType)
             val boxedType = getBoxedType(context)
-            return call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
+            val box = call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
                 propagateOrPanic(exceptionPtr, "autoboxing failed; constructor of ${boxedType.irClass.canonicalName} threw")
             }
+            defer {
+                box.afterReferenceDropped(isNullable = false)
+            }
+
+            return box
         }
 
         override fun isBox(context: EmergeLlvmContext, value: IrTemporaryValueReference): Boolean {
