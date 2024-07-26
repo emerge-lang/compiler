@@ -1,7 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import com.google.common.collect.MapMaker
-import com.sun.jna.NativeLong
 import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
@@ -368,8 +367,7 @@ class EmergeLlvmContext(
 
         fn.parameters.zip(llvmParameterTypes).forEachIndexed { index, (param, llvmParamType) ->
             val paramLlvmRawValue = Llvm.LLVMGetParam(rawRef, index)
-            val paramNameBytes = param.name.toByteArray(Charsets.UTF_8)
-            Llvm.LLVMSetValueName2(paramLlvmRawValue, paramNameBytes, NativeLong(paramNameBytes.size.toLong()))
+            LlvmValue.setName(paramLlvmRawValue, param.name)
             param.emitRead = {
                 LlvmValue(paramLlvmRawValue, llvmParamType)
             }

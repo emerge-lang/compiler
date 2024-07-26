@@ -256,6 +256,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 }
                 code.emitWrite = { value ->
                     code.emitRead = { value }
+                    value.name = code.name
                 }
             } else {
                 val stackAllocation = alloca(
