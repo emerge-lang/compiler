@@ -33,6 +33,7 @@ import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
+import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.RootResolvedTypeReference
@@ -166,6 +167,7 @@ class BoundClassConstructor(
         classDef.memberVariables
             .filter { it.isConstructorParameterInitialized }
             .map { memberVariable ->
+                val generatedSourceLocation = memberVariable.initializer?.declaration?.span ?: memberVariable.declaredAt
                 val parameter = parameters.parameters.single { it.name == memberVariable.name }
                 AssignmentStatement(
                     KeywordToken(Keyword.SET, span = generatedSourceLocation),
@@ -188,6 +190,7 @@ class BoundClassConstructor(
             .filterNot { it.isConstructorParameterInitialized }
             .filter { it.initializer != null  /* if null, there should be another error diagnosed for it */ }
             .map { memberVariable ->
+                val generatedSourceLocation = memberVariable.initializer!!.declaration.span
                 AssignmentStatement(
                     KeywordToken(Keyword.SET, span = generatedSourceLocation),
                     MemberAccessExpression(
@@ -196,7 +199,7 @@ class BoundClassConstructor(
                         IdentifierToken(memberVariable.name, generatedSourceLocation)
                     ),
                     OperatorToken(Operator.EQUALS, generatedSourceLocation),
-                    memberVariable.initializer!!.declaration,
+                    memberVariable.initializer.declaration,
                 )
             }
             .let(::AstCodeChunk)
@@ -333,6 +336,7 @@ class BoundClassConstructor(
     private val backendIr by lazy {
         val selfTemporary = IrCreateTemporaryValueImpl(IrAllocateObjectExpressionImpl(classDef))
         val initIr = ArrayList<IrExecutable>()
+        initIr.add(IrUpdateSourceLocationStatementImpl(declaredAt))
         initIr.add(selfTemporary)
         if (classDef === context.swCtx.weak) {
             check(additionalInitCode.statements.isEmpty()) {
