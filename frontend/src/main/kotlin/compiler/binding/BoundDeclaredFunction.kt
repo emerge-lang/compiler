@@ -212,7 +212,8 @@ abstract class BoundDeclaredFunction(
             return null
         }
 
-        val refcountIncrements = ArrayList<IrExecutable>(parameters.parameters.size)
+        val refcountIncrements = ArrayList<IrExecutable>(parameters.parameters.size + 1)
+        refcountIncrements.add(IrUpdateSourceLocationStatementImpl(declaredAt))
         parameters.parameters.asSequence()
             .filter { it.ownershipAtDeclarationTime == VariableOwnership.CAPTURED }
             .forEach { param ->
