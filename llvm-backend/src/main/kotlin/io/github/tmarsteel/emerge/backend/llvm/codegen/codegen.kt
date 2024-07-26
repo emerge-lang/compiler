@@ -258,9 +258,13 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                     code.emitRead = { value }
                 }
             } else {
-                val stackAllocation = alloca(type, forceEntryBlock = !code.isReAssignable)
+                val stackAllocation = alloca(
+                    type,
+                    forceEntryBlock = !code.isReAssignable,
+                    code.name + "Ptr",
+                )
                 code.emitRead = {
-                    stackAllocation.dereference()
+                    stackAllocation.dereference(code.name)
                 }
                 code.emitWrite = { newValue ->
                     store(newValue, stackAllocation)

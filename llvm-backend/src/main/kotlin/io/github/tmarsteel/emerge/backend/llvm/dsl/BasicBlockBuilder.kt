@@ -29,7 +29,8 @@ interface DeferScopeBasicBlockBuilder<C : LlvmContext> {
     ): GetElementPointerStep<BasePointee>
 
     fun <P : LlvmType> GetElementPointerStep<P>.get(): LlvmValue<LlvmPointerType<P>>
-    fun <P : LlvmType> LlvmValue<LlvmPointerType<P>>.dereference(): LlvmValue<P>
+    /** @param name Name for the LLVM temporary, auto-generates one if null */
+    fun <P : LlvmType> LlvmValue<LlvmPointerType<P>>.dereference(name: String? = null): LlvmValue<P>
     fun <S : LlvmStructType, T : LlvmType> extractValue(struct: LlvmValue<S>, memberSelector: S.() -> LlvmStructType.Member<S, T>): LlvmValue<T>
     fun <S : LlvmStructType, T : LlvmType> insertValue(struct: LlvmValue<S>, value: LlvmValue<T>, memberSelector: S.() -> LlvmStructType.Member<S, T>): LlvmValue<S>
 
@@ -53,8 +54,9 @@ interface DeferScopeBasicBlockBuilder<C : LlvmContext> {
     /**
      * @param forceEntryBlock if true, the `alloca` instruction will be placed in the functions entry block. This greatly
      * helps the `mem2reg` LLVM pass optimize stack variables into register uses.
+     * @param name Name for the LLVM temporary, auto-generates one if null
      */
-    fun <T: LlvmType> alloca(type: T, forceEntryBlock: Boolean = true): LlvmValue<LlvmPointerType<T>>
+    fun <T: LlvmType> alloca(type: T, forceEntryBlock: Boolean = true, name: String? = null): LlvmValue<LlvmPointerType<T>>
     fun <R : LlvmType> call(function: LlvmFunction<R>, args: List<LlvmValue<*>>): LlvmValue<R>
     fun <R : LlvmType> call(function: LlvmValue<LlvmFunctionAddressType>, functionType: LlvmFunctionType<R>, args: List<LlvmValue<*>>): LlvmValue<R>
     fun <R : LlvmType> call(llvmIntrinsic: LlvmIntrinsic<R>, args: List<LlvmValue<*>>): LlvmValue<R> {
@@ -234,8 +236,8 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         return LlvmValue(instruction, LlvmPointerType(resultPointeeType))
     }
 
-    override fun <P : LlvmType> LlvmValue<LlvmPointerType<P>>.dereference(): LlvmValue<P> {
-        val loadResult = Llvm.LLVMBuildLoad2(builder, type.pointed.getRawInContext(context), raw, tmpVars.next())
+    override fun <P : LlvmType> LlvmValue<LlvmPointerType<P>>.dereference(name: String?): LlvmValue<P> {
+        val loadResult = Llvm.LLVMBuildLoad2(builder, type.pointed.getRawInContext(context), raw, name ?: tmpVars.next())
         return LlvmValue(loadResult, type.pointed)
     }
 
@@ -370,7 +372,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         return LlvmValue(truncInstr, to)
     }
 
-    override fun <T: LlvmType> alloca(type: T, forceEntryBlock: Boolean): LlvmValue<LlvmPointerType<T>> {
+    override fun <T: LlvmType> alloca(type: T, forceEntryBlock: Boolean, name: String?): LlvmValue<LlvmPointerType<T>> {
         val switchBackToBlockAfter: LlvmBasicBlockRef?
         if (forceEntryBlock) {
             switchBackToBlockAfter = Llvm.LLVMGetInsertBlock(builder)
@@ -384,7 +386,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         } else {
             switchBackToBlockAfter = null
         }
-        val ptr = Llvm.LLVMBuildAlloca(builder, type.getRawInContext(context), tmpVars.next())
+        val ptr = Llvm.LLVMBuildAlloca(builder, type.getRawInContext(context), name ?: tmpVars.next())
         switchBackToBlockAfter?.let {
             Llvm.LLVMPositionBuilderAtEnd(builder, it)
         }
