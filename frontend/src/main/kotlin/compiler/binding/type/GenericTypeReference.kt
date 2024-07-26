@@ -11,6 +11,7 @@ import compiler.util.andThen
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.api.ir.independentToString
 
 sealed class GenericTypeReference : BoundTypeReference {
     abstract val context: CTContext
@@ -211,6 +212,6 @@ internal class IrGenericTypeReferenceImpl(
     override val parameter: IrBaseType.Parameter,
     override val effectiveBound: IrType,
 ) : IrGenericTypeReference {
-    override fun toString() = "IrGenericReference[${parameter.name} : $effectiveBound]"
+    override fun toString() = independentToString()
     override fun asNullable(): IrGenericTypeReference = IrGenericTypeReferenceImpl(parameter, effectiveBound.asNullable())
 }

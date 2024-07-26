@@ -16,6 +16,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
+import io.github.tmarsteel.emerge.backend.api.ir.independentToString
 
 /**
  * A [TypeReference] where the root type is resolved
@@ -281,36 +282,15 @@ internal class IrSimpleTypeImpl(
     override val mutability: IrTypeMutability,
     override val isNullable: Boolean,
 ) : IrSimpleType {
-    override fun toString() = "IrSimpleType[${baseType.canonicalName}]"
+    override fun toString() = independentToString()
     override fun asNullable(): IrSimpleType = IrSimpleTypeImpl(baseType, mutability, true)
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is IrSimpleTypeImpl) return false
-
-        if (baseType != other.baseType) return false
-        if (isNullable != other.isNullable) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = baseType.hashCode()
-        result = 31 * result + isNullable.hashCode()
-        return result
-    }
-
 }
 
 internal class IrParameterizedTypeImpl(
     override val simpleType: IrSimpleType,
     override val arguments: Map<String, IrParameterizedType.Argument>,
 ) : IrParameterizedType {
-    override fun toString() = "IrParameterizedType[$simpleType" + arguments.entries.joinToString(
-        prefix = "<",
-        transform = { (name, value) -> "$name = $value" },
-        postfix = ">]"
-    )
+    override fun toString() = independentToString()
 
     override fun asNullable(): IrParameterizedType = IrParameterizedTypeImpl(simpleType.asNullable(), arguments)
 

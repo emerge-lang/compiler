@@ -58,6 +58,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrRegisterWeakReferenceStatemen
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
+import io.github.tmarsteel.emerge.backend.api.ir.independentToString
 
 /**
  * The constructor of a class that, once compiled, does the basic bootstrapping:
@@ -388,6 +389,7 @@ private class IrClassSimpleType(
     override val isNullable = false
     override val baseType get() = classDef.toBackendIr()
     override fun asNullable(): IrSimpleType = IrSimpleTypeImpl(baseType, mutability, true)
+    override fun toString(): String = independentToString()
 }
 
 private class IrDefaultConstructorImpl(
@@ -409,12 +411,7 @@ private class IrAllocateObjectExpressionImpl(val classDef: BoundBaseType) : IrAl
         require(classDef.kind == BoundBaseType.Kind.CLASS)
     }
     override val clazz: IrClass by lazy { classDef.toBackendIr() as IrClass }
-    override val evaluatesTo = object : IrSimpleType {
-        override val isNullable = false
-        override val mutability = IrTypeMutability.EXCLUSIVE
-        override val baseType get() = this@IrAllocateObjectExpressionImpl.clazz
-        override fun asNullable(): IrSimpleType = IrSimpleTypeImpl(baseType, mutability,true)
-    }
+    override val evaluatesTo = IrClassSimpleType(classDef, IrTypeMutability.EXCLUSIVE)
 }
 
 private class IrRegisterWeakReferenceStatementImpl(

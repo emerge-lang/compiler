@@ -7,6 +7,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrClassMemberVariableAccessExpr
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.api.ir.independentEquals
 import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
 import io.github.tmarsteel.emerge.backend.llvm.codegen.llvmValue
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
@@ -396,7 +397,7 @@ internal sealed interface Autoboxer {
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
         fun assureBoxed(llvmValue: LlvmValue<*>, irTypeOfValue: IrType, targetIrType: IrType): LlvmValue<*> {
-            if (irTypeOfValue == targetIrType) {
+            if (irTypeOfValue.independentEquals(targetIrType)) {
                 return llvmValue
             }
 
