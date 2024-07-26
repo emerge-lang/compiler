@@ -178,6 +178,19 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 .shouldReport<BorrowedVariableCapturedReporting> {
                     it.variable.name.value shouldBe "p2"
                 }
+
+            validateModule("""
+                class Dummy {}
+                class Test {
+                    fn capture(self, p1: Dummy) {}
+                    fn test(self, borrow p2: Dummy) {
+                        self.capture(p2)
+                    }
+                }
+            """.trimIndent())
+                .shouldReport<BorrowedVariableCapturedReporting> {
+                    it.variable.name.value shouldBe "p2"
+                }
         }
 
         "capture by initializing a variable" {

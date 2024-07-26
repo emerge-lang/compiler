@@ -236,7 +236,7 @@ export class U64 : Printable {
         self.printTo(stream, false)
     }
 
-    private fn printTo(self, stream: mut PrintStream, addMinusSign: Bool) {
+    private fn printTo(self, borrow stream: mut PrintStream, addMinusSign: Bool) {
         stream.put(self.toString(addMinusSign))
     }
     

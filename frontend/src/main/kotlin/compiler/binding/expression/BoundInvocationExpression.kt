@@ -170,7 +170,7 @@ class BoundInvocationExpression(
                 )
             }
 
-            chosenOverload!!.candidate.parameters.parameters.zip(valueArguments)
+            chosenOverload!!.candidate.parameters.parameters.zip(listOfNotNull(receiverExceptReferringType) + valueArguments)
                 .filter { (parameter, _) -> parameter.ownershipAtDeclarationTime == VariableOwnership.CAPTURED }
                 .forEach { (parameter, argument) -> argument.markEvaluationResultCaptured(parameter.typeAtDeclarationTime?.mutability ?: TypeMutability.READONLY) }
 
