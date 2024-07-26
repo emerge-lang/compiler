@@ -303,12 +303,24 @@ class BoundVariable(
     override fun toStringForErrorMessage() = "$kind $name"
 
     val backendIrDeclaration: IrVariableDeclaration by lazy {
+        val isSSA = when  {
+            isReAssignable -> false
+            initializerExpression != null -> true
+            else -> {
+                // there are some special variables, e.g. self within constructors, that don't get an initializerExpression
+                // but are nonetheless immediately initialized by otherwise generated IR, e.g. IrAllocateObjectExpression
+                // marking these as ínitialized is important for semantic validation to pass, making that a pretty
+                // reliable source of information
+                val isExternallyInitialized = context.getEphemeralState(VariableInitialization, this) == VariableInitialization.State.INITIALIZED
+                isExternallyInitialized
+            }
+        }
         IrVariableDeclarationImpl(
             name,
             typeAtDeclarationTime!!.toBackendIr(),
             isBorrowed = ownershipAtDeclarationTime == VariableOwnership.BORROWED,
             isReAssignable = isReAssignable,
-            isSSA = !isReAssignable && initializerExpression != null,
+            isSSA = isSSA,
         )
     }
 
