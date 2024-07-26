@@ -7,6 +7,7 @@ import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.context.effect.VariableLifetime
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrVariableAccessExpressionImpl
+import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
@@ -117,10 +118,10 @@ class BoundVariableAssignmentStatement(
             IrTemporaryValueReferenceImpl(toAssignTemporary),
         )
 
-        return IrCodeChunkImpl(dropPreviousCode + listOf(
+        return IrCodeChunkImpl(listOfNotNull(
             toAssignTemporary,
-            assignStatement
-        ))
+            IrCreateStrongReferenceStatementImpl(toAssignTemporary).takeUnless { toAssignExpression.isEvaluationResultReferenceCounted },
+        ) + dropPreviousCode + assignStatement)
     }
 }
 
