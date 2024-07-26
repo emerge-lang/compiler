@@ -28,6 +28,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i8
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib.instructionAliasAttributes
+import io.github.tmarsteel.emerge.backend.llvm.isUnit
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmIntPredicate
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
@@ -330,7 +331,7 @@ context(BasicBlockBuilder<EmergeLlvmContext, *>)
 internal fun LlvmValue<LlvmType>.afterReferenceCreated(
     emergeType: IrType,
 ) {
-    if (emergeType.autoboxer != null || type == LlvmVoidType) {
+    if (emergeType.autoboxer != null || emergeType.isUnit || type == LlvmVoidType) {
         return
     }
 
@@ -402,7 +403,7 @@ context(BasicBlockBuilder<EmergeLlvmContext, *>)
 internal fun LlvmValue<LlvmType>.afterReferenceDropped(
     emergeType: IrType,
 ) {
-    if (emergeType.autoboxer != null || type == LlvmVoidType) {
+    if (emergeType.autoboxer != null || emergeType.isUnit || type == LlvmVoidType) {
         return
     }
 
