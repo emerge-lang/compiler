@@ -13,11 +13,16 @@ import java.util.Stack
 @DslMarker
 annotation class LlvmBasicBlockDsl
 
+/**
+ * DSL for deferred code. Has limited capabilities:
+ * * cannot terminate the basic block, including no return from the function
+ * * cannot add further deferred statements
+ */
 @LlvmBasicBlockDsl
-interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
+interface DeferScopeBasicBlockBuilder<C : LlvmContext> {
     val context: C
-    val llvmFunctionReturnType: R
     val builder: LlvmBuilderRef
+
     fun <BasePointee : LlvmType> getelementptr(
         base: LlvmValue<LlvmPointerType<out BasePointee>>,
         index: LlvmValue<LlvmIntegerType> = context.i32(0)
@@ -71,6 +76,20 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
     fun leaveDebugScope()
     fun markSourceLocation(line: UInt, column: UInt)
     fun currentDebugLocation(): String
+}
+
+/**
+ * Full DSL for LLVM instructions
+ */
+@LlvmBasicBlockDsl
+interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> : DeferScopeBasicBlockBuilder<C> {
+    val llvmFunctionReturnType: R
+
+    /**
+     * @param code will be executed when this scope is closed, either on a function-terminating instruction
+     * or when a logical scope is completed (e.g. [conditionalBranch], [loop])
+     */
+    fun defer(code: DeferredCodeGenerator<C>)
 
     fun ret(value: LlvmValue<R>): Termination
     fun unreachable(): Termination
@@ -151,11 +170,6 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
         fun loopContinue(): Termination
     }
 
-    @LlvmBasicBlockDsl
-    interface DeferSubScope<C : LlvmContext, R : LlvmType> : BasicBlockBuilder<C, R> {
-        fun concludeSubScope(): Termination
-    }
-
     companion object {
         fun <C : LlvmContext, R : LlvmType> fillBody(
             context: C,
@@ -181,6 +195,9 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> {
         }
 
         fun <C : LlvmContext> BasicBlockBuilder<C, LlvmVoidType>.retVoid(): Termination {
+            with(this as BasicBlockBuilderImpl<C, *>) {
+                this.scopeTracker.runAllFunctionDeferredCode()
+            }
             Llvm.LLVMBuildRetVoid(builder)
             return TerminationImpl
         }
@@ -506,7 +523,12 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         return "$scope, line $lastKnownLine"
     }
 
+    override fun defer(code: DeferredCodeGenerator<C>) {
+        scopeTracker.addDeferredStatement(code)
+    }
+
     override fun ret(value: LlvmValue<R>): BasicBlockBuilder.Termination {
+        scopeTracker.runAllFunctionDeferredCode()
         Llvm.LLVMBuildRet(builder, value.raw)
 
         return TerminationImpl
@@ -621,6 +643,7 @@ private class BranchImpl<C : LlvmContext, R : LlvmType>(
     val continueBlock: LlvmBasicBlockRef,
 ) : BasicBlockBuilderImpl<C, R>(context, functionReturnType, diBuilder, owningFunction, builder, tmpVars, scopeTracker), BasicBlockBuilder.Branch<C, R> {
     override fun concludeBranch(): BasicBlockBuilder.Termination {
+        scopeTracker.runLocalDeferredCode()
         Llvm.LLVMBuildBr(builder, continueBlock)
         return TerminationImpl
     }
@@ -639,16 +662,19 @@ private class LoopImpl<C : LlvmContext, R : LlvmType>(
     val continueBlock: LlvmBasicBlockRef,
 ) : BasicBlockBuilderImpl<C, R>(context, functionReturnType, diBuilder, owningFunction, builder, tmpVars, scopeTracker), BasicBlockBuilder.LoopHeader<C, R>, BasicBlockBuilder.LoopBody<C, R> {
     override fun breakLoop(): BasicBlockBuilder.Termination {
+        scopeTracker.runLocalDeferredCode()
         Llvm.LLVMBuildBr(builder, continueBlock)
         return TerminationImpl
     }
 
     override fun doIteration(): BasicBlockBuilder.Termination {
+        scopeTracker.runLocalDeferredCode()
         Llvm.LLVMBuildBr(builder, bodyBlockRef)
         return TerminationImpl
     }
 
     override fun loopContinue(): BasicBlockBuilder.Termination {
+        scopeTracker.runLocalDeferredCode()
         Llvm.LLVMBuildBr(builder, headerBlockRef)
         return TerminationImpl
     }
@@ -666,11 +692,13 @@ private class UnsafeBranchPrepareImpl<C : LlvmContext, R : LlvmType>(
     private val resumeBlockRef: LlvmBasicBlockRef,
 ) : BasicBlockBuilder.UnsafeBranchPrepare<C, R>, BasicBlockBuilderImpl<C, R>(context, llvmFunctionReturnType, diBuilder, owningFunction, builder, tmpVars, scopeTracker) {
     override fun jumpToUnsafeBranch(): BasicBlockBuilder.Termination {
+        scopeTracker.runLocalDeferredCode()
         Llvm.LLVMBuildBr(builder, branchBlockRef)
         return TerminationImpl
     }
 
     override fun skipUnsafeBranch(): BasicBlockBuilder.Termination {
+        scopeTracker.runLocalDeferredCode()
         Llvm.LLVMBuildBr(builder, resumeBlockRef)
         return TerminationImpl
     }
@@ -680,10 +708,34 @@ private data object TerminationImpl : BasicBlockBuilder.Termination
 
 typealias CodeGenerator<C, R> = BasicBlockBuilder<C, R>.() -> BasicBlockBuilder.Termination
 
+/**
+ * code to execute before the scope exits, must not emit terminal instructions.
+ */
+typealias DeferredCodeGenerator<C> = DeferScopeBasicBlockBuilder<C>.() -> Unit
+
 private class ScopeTracker<C : LlvmContext> private constructor(private val parent: ScopeTracker<C>?) {
     constructor() : this(null) {}
 
+    private val deferredCode = ArrayList<DeferredCodeGenerator<C>>()
+
+    fun addDeferredStatement(code: DeferredCodeGenerator<C>) {
+        deferredCode.add(code)
+    }
+
     fun createSubScope(): ScopeTracker<C> = ScopeTracker(this)
+
+    context(BasicBlockBuilder<C, *>)
+    fun runLocalDeferredCode() {
+        deferredCode.forEach {
+            it(this@BasicBlockBuilder)
+        }
+    }
+
+    context(BasicBlockBuilder<C, *>)
+    fun runAllFunctionDeferredCode() {
+        parent?.runAllFunctionDeferredCode()
+        runLocalDeferredCode()
+    }
 
     private val debugScopes = Stack<DebugInfoScope>()
 
