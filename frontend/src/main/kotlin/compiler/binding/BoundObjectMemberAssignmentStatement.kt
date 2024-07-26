@@ -104,10 +104,13 @@ class BoundObjectMemberAssignmentStatement(
     }
 
     override fun toBackendIrStatement(): IrExecutable {
-        val dropPreviousReferenceCode: IrCodeChunk
-        if (targetExpression.member!!.isReAssignable) {
+        val dropPreviousReferenceCode: IrCodeChunk?
+        if (initializationStateBefore == VariableInitialization.State.NOT_INITIALIZED) {
+            // this is the first assignment, no need to drop a previous reference
+            dropPreviousReferenceCode = null
+        } else {
             var previousType = targetExpression.type!!.toBackendIr()
-            if (initializationStateBefore != VariableInitialization.State.INITIALIZED) {
+            if (initializationStateBefore == VariableInitialization.State.MAYBE_INITIALIZED) {
                 // forces a null-check on the reference drop, which prevents a nullpointer deref for an empty object
                 previousType = previousType.nullable()
             }
@@ -116,10 +119,6 @@ class BoundObjectMemberAssignmentStatement(
                 previousTemporary,
                 IrDropStrongReferenceStatementImpl(previousTemporary),
             ))
-        } else {
-            check(initializationStateBefore == VariableInitialization.State.NOT_INITIALIZED) { "multiple assignments to a non-reassignable target" }
-            // this is the first and only assignment, no need to drop a previous reference
-            dropPreviousReferenceCode = IrCodeChunkImpl(emptyList())
         }
 
         val baseTemporary = IrCreateTemporaryValueImpl(targetExpression.valueExpression.toBackendIrExpression())
