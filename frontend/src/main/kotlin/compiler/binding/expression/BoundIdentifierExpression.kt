@@ -156,7 +156,8 @@ class BoundIdentifierExpression(
         private var usageContext = VariableUsageContext.WRITE
         private var allowPartiallyUninitialized: Boolean = false
         private var thisUsageCapturesWithMutability: TypeMutability? = null
-        override val isEvaluationResultAnchored get() = !variable.isReAssignable
+        /* variables are always anchored, refcount on assignment + deferred refcount of the value at scope exit */
+        override val isEvaluationResultAnchored get() = true
 
         fun allowPartiallyUninitializedValue() {
             allowPartiallyUninitialized = true

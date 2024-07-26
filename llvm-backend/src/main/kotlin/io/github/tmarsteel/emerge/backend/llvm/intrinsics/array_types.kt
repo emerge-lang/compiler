@@ -606,7 +606,7 @@ private fun <Element : LlvmType> buildValueArrayDefaultValueConstructor(
     getSelfType: () -> EmergeArrayType<Element>,
 ) : KotlinLlvmFunction<EmergeLlvmContext, LlvmPointerType<out EmergeHeapAllocated>> {
     return KotlinLlvmFunction.define<_, _>(
-        "emerge.core.array_${elementTypeName}_nullCtor",
+        "emerge.core.array_${elementTypeName}_defaultValueCtor",
         PointerToAnyEmergeValue,
     ) {
         val size by param(EmergeWordType)
