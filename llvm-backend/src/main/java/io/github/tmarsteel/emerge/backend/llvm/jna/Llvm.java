@@ -470,6 +470,9 @@ public class Llvm {
     public static native @NotNull Pointer LLVMGetValueName2(@NotNull LlvmValueRef value, @Out NativeLongByReference length);
 
     /** see Core.h */
+    public static native void LLVMSetValueName2(@NotNull LlvmValueRef value, @NotNull byte[] nameBytes, @NotNull @ArraySizeOf("nameBytes") NativeLong nameLength);
+
+    /** see Core.h */
     public static native void LLVMSetVolatile(@NotNull LlvmValueRef memoryAccessInst, @LlvmBool int isVolatile);
 
     /** see Target.h */
