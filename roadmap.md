@@ -99,7 +99,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * equality
       * ~~reference equality operator: really === ??~~ -> reference equality is not supported as it introduces inherent impurity
       * ~~it would be great to be able to do == on Any~~ without reference equality to fall back on, there is no sane default
-28. while + do-while loops
+28. ~~while + do-while loops~~
 29. error handling
     1. this is going to touch the runtime significantly. Use this opportunity to
         1. ~~find out what all the gnu gcc runtime libs do, which and why they're needed~~

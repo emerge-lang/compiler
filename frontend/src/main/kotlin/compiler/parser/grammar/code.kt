@@ -21,6 +21,7 @@ package compiler.parser.grammar
 import compiler.InternalCompilerError
 import compiler.ast.AssignmentStatement
 import compiler.ast.AstCodeChunk
+import compiler.ast.AstDoWhileLoop
 import compiler.ast.AstWhileLoop
 import compiler.ast.Statement
 import compiler.lexer.DelimitedIdentifierContentToken
@@ -78,13 +79,36 @@ val WhileLoop = sequence("while loop") {
     ref(CodeChunk)
     operator(Operator.CBRACE_CLOSE)
 }
-    .astTransformation {  tokens ->
+    .astTransformation { tokens ->
         val whileKeyword = tokens.next()!! as KeywordToken
         val condition = tokens.next()!! as AstExpression
         tokens.next()!! // skip cbrace open
         val body = tokens.next()!! as AstCodeChunk
         AstWhileLoop(
             whileKeyword.span .. condition.span,
+            condition,
+            body,
+        )
+    }
+
+val DoWhileLoop = sequence("do-while loop") {
+    keyword(Keyword.DO)
+    operator(Operator.CBRACE_OPEN)
+    ref(CodeChunk)
+    operator(Operator.CBRACE_CLOSE)
+    keyword(Keyword.WHILE)
+    ref(Expression)
+}
+    .astTransformation { tokens ->
+        val doKeyword = tokens.next() as KeywordToken
+        tokens.next()!! // skip cbrace open
+        val body = tokens.next() as AstCodeChunk
+        tokens.next()!! // skip cbrace close
+        tokens.next()!! // skip while keyword
+        val condition = tokens.next() as AstExpression
+
+        AstDoWhileLoop(
+            doKeyword.span .. condition.span,
             condition,
             body,
         )
@@ -98,8 +122,7 @@ val LineOfCode = sequence {
         ref(VariableDeclaration)
         ref(Expression)
         ref(WhileLoop)
-        ref(BreakStatement)
-        ref(ContinueStatement)
+        ref(DoWhileLoop)
     }
 
     operator(Operator.NEWLINE)

@@ -27,10 +27,8 @@ export read fn collectStackTrace(nFramesToSkip: U32, includeRuntimeFrames: Bool)
         panic("unw_init_local errored: " + unwindErrorToString(errorCode))
     }
 
-    // TODO: do-while
-    var hasNext = true
     var nSkipped = 0 as U32
-    while hasNext {
+    do {
         if nSkipped >= nFramesToSkip {
             procName = unwindCursorGetProcedureName(cursorBuffer.addressOfFirst())
             // TODO: stop when encountering "main"; currently String::equals is missing for that
@@ -41,9 +39,8 @@ export read fn collectStackTrace(nFramesToSkip: U32, includeRuntimeFrames: Bool)
             set nSkipped = nSkipped + 1
         }
 
-        set hasNext = unwindCursorTryStepUp(cursorBuffer.addressOfFirst())
         // TODO: implement the includeRuntimeFrames parameter, needs string equals
-    }
+    } while (unwindCursorTryStepUp(cursorBuffer.addressOfFirst()))
 
     return stackList
 }
