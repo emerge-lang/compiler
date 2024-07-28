@@ -28,6 +28,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIsNullExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrLoop
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrNotReallyAnExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullInitializedArrayExpression
@@ -48,7 +49,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatem
 import io.github.tmarsteel.emerge.backend.api.ir.IrUpdateSourceLocationStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
-import io.github.tmarsteel.emerge.backend.api.ir.IrWhileLoop
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.assureBoxed
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.requireNotAutoboxed
@@ -400,60 +400,30 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 ExecutableResult.ExecutionOngoing
             }
         }
-        is IrWhileLoop -> {
-            var conditionTermination: ExpressionResult.Terminated? = null
-            loop(
-                header = {
-                    code.emitBreak = { breakLoop() }
-                    code.emitContinue = {
-                        throw CodeGenerationException("Cannot continue in a while loop header")
-                    }
-                    val conditionResult = emitExpressionCode(
-                        code.condition,
-                        functionReturnType,
-                        functionHasNothrowAbi,
-                        expressionResultUsed = true,
-                        tryContext,
-                    )
-                    if (conditionResult is ExpressionResult.Terminated) {
-                        conditionTermination = conditionResult
-                        breakLoop()
-                    } else {
-                        conditionTermination = null
-                    }
-                    val conditionValue = (conditionResult as ExpressionResult.Value).value
-                    check(conditionValue.type == LlvmBooleanType)
-                    @Suppress("UNCHECKED_CAST")
-                    conditionValue as LlvmValue<LlvmBooleanType>
+        is IrLoop -> {
+            loop {
+                code.emitBreak = { this@loop.breakLoop() }
+                code.emitContinue = { this@loop.loopContinue() }
 
-                    conditionalBranch(
-                        condition = conditionValue,
-                        ifTrue = { this@loop.doIteration() },
-                    )
-                    breakLoop()
-                },
-                body = {
-                    code.emitBreak = { breakLoop() }
-                    code.emitContinue = { loopContinue() }
-                    val bodyResult = emitCode(
-                        code.body,
-                        functionReturnType,
-                        functionHasNothrowAbi,
-                        expressionResultUsed = false,
-                        tryContext,
-                    )
-                    if (bodyResult is ExpressionResult.Terminated) {
-                        bodyResult.termination
-                    } else {
-                        loopContinue()
-                    }
+                val bodyResult = emitCode(
+                    code.body,
+                    functionReturnType,
+                    functionHasNothrowAbi,
+                    false,
+                    tryContext,
+                )
+
+                StateTackDelegate.reset(code, IrLoop::emitBreak)
+                StateTackDelegate.reset(code, IrLoop::emitContinue)
+
+                when (bodyResult) {
+                    ExecutableResult.ExecutionOngoing,
+                    is ExpressionResult.Value -> loopContinue()
+                    is ExpressionResult.Terminated -> bodyResult.termination
                 }
-            )
+            }
 
-            StateTackDelegate.reset(code, IrWhileLoop::emitBreak)
-            StateTackDelegate.reset(code, IrWhileLoop::emitContinue)
-
-            return conditionTermination ?: ExecutableResult.ExecutionOngoing
+            return ExecutableResult.ExecutionOngoing
         }
         is IrBreakStatement -> {
             return ExpressionResult.Terminated(code.fromLoop.emitBreak!!())

@@ -618,21 +618,18 @@ private fun <Element : LlvmType> buildValueArrayDefaultValueConstructor(
             val arrayPtr = call(context.registerIntrinsic(getSelfType().constructorOfNullEntries), listOf(size))
             val indexStack = alloca(EmergeWordType)
             store(context.word(0), indexStack)
-            loop(
-                header = {
-                    conditionalBranch(
-                        condition = icmp(indexStack.dereference(), LlvmIntPredicate.EQUAL, size),
-                        ifTrue = { this@loop.breakLoop() }
-                    )
-                    doIteration()
-                },
-                body = {
-                    val index = indexStack.dereference()
-                    call(rawSetterNoBoundsCheck, listOf(arrayPtr, index, defaultValue))
-                    store(add(index, context.word(1)), indexStack)
-                    loopContinue()
-                }
-            )
+            loop {
+                val index = indexStack.dereference()
+
+                conditionalBranch(
+                    condition = icmp(index, LlvmIntPredicate.EQUAL, size),
+                    ifTrue = { this@loop.breakLoop() }
+                )
+
+                call(rawSetterNoBoundsCheck, listOf(arrayPtr, index, defaultValue))
+                store(add(index, context.word(1)), indexStack)
+                loopContinue()
+            }
             ret(arrayPtr.reinterpretAs(PointerToAnyEmergeValue))
         }
     }
@@ -876,31 +873,25 @@ private val referenceArrayFinalizer: KotlinLlvmFunction<EmergeLlvmContext, LlvmV
             .get()
             .dereference()
 
-        loop(
-            header = {
-                val endReached = icmp(indexStackSlot.dereference(), LlvmIntPredicate.EQUAL, size)
-                conditionalBranch(endReached, ifTrue = {
-                    this@loop.breakLoop()
-                })
-                doIteration()
-            },
-            body = {
-                val currentIndex = indexStackSlot.dereference()
-                val element = getelementptr(self)
-                    .member { elements }
-                    .index(currentIndex)
-                    .get()
-                    .dereference()
-                element.afterReferenceDropped(isNullable = true)
+        loop {
+            val currentIndex = indexStackSlot.dereference()
+            conditionalBranch(icmp(currentIndex, LlvmIntPredicate.EQUAL, size), ifTrue = {
+                this@loop.breakLoop()
+            })
 
-                val nextIndex = add(currentIndex, context.word(1))
-                store(nextIndex, indexStackSlot)
-                loopContinue()
-            }
-        )
+            val element = getelementptr(self)
+                .member { elements }
+                .index(currentIndex)
+                .get()
+                .dereference()
+            element.afterReferenceDropped(isNullable = true)
+
+            val nextIndex = add(currentIndex, context.word(1))
+            store(nextIndex, indexStackSlot)
+            loopContinue()
+        }
 
         call(context.freeFunction, listOf(self))
-
         retVoid()
     }
 }
@@ -915,9 +906,6 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<out Emerg
         val defaultValue by param(PointerToAnyEmergeValue)
 
         body {
-            val indexStack = alloca(EmergeWordType)
-            store(context.word(0), indexStack)
-
             // efficient refcounting
             conditionalBranch(
                 condition = isNotNull(defaultValue),
@@ -931,27 +919,26 @@ internal val EmergeReferenceArrayType: EmergeArrayType<LlvmPointerType<out Emerg
                 }
             )
             val arrayPtr = call(context.registerIntrinsic(arrayTypeHolder.constructorOfNullEntries), listOf(size))
-            loop(
-                header = {
-                    conditionalBranch(
-                        condition = icmp(indexStack.dereference(), LlvmIntPredicate.EQUAL, size),
-                        ifTrue = { this@loop.breakLoop() },
-                    )
-                    doIteration()
-                },
-                body = {
-                    val index = indexStack.dereference()
-                    store(
-                        defaultValue,
-                        getelementptr(arrayPtr)
-                            .member { elements }
-                            .index(index)
-                            .get()
-                    )
-                    store(add(index, context.word(1)), indexStack)
-                    loopContinue()
-                }
-            )
+            val indexStack = alloca(EmergeWordType, forceEntryBlock = true)
+            store(context.word(0), indexStack)
+            loop {
+                val index = indexStack.dereference()
+                conditionalBranch(
+                    condition = icmp(index, LlvmIntPredicate.EQUAL, size),
+                    ifTrue = { this@loop.breakLoop() },
+                )
+
+                store(
+                    defaultValue,
+                    getelementptr(arrayPtr)
+                        .member { elements }
+                        .index(index)
+                        .get()
+                )
+                store(add(index, context.word(1)), indexStack)
+                loopContinue()
+            }
+
             ret(arrayPtr.reinterpretAs(PointerToAnyEmergeValue))
         }
     }

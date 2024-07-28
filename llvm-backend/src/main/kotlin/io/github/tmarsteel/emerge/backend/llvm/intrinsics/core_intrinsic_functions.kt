@@ -4,7 +4,6 @@ import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
-import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder.Companion.retVoid
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.index
@@ -70,32 +69,29 @@ private val nullAndFreeWeakReferenceCollection: KotlinLlvmFunction<EmergeLlvmCon
                     concludeBranch()
                 }
             )
-            loop(
-                header = {
-                    conditionalBranch(
-                        condition = icmp(currentColIndexPtr.dereference(), LlvmIntPredicate.EQUAL, context.word(EmergeWeakReferenceCollectionType.pointersToWeakReferences.type.elementCount)),
-                        ifTrue = {
-                            this@loop.breakLoop()
-                        }
-                    )
-                    doIteration()
-                },
-                body = {
-                    val currentColIndex = currentColIndexPtr.dereference()
-                    val referringReferencePtrPtr = getelementptr(collectionPtr)
-                        .member { pointersToWeakReferences }
-                        .index(currentColIndex)
-                        .get()
-                    val referringReferencePtr = referringReferencePtrPtr.dereference()
-                    conditionalBranch(condition = isNotNull(referringReferencePtr), ifTrue = {
-                        store(context.nullValue(PointerToAnyEmergeValue), referringReferencePtr)
-                        store(context.nullValue(pointerTo(PointerToAnyEmergeValue)), referringReferencePtrPtr)
-                        concludeBranch()
-                    })
-                    store(add(currentColIndex, context.word(1)), currentColIndexPtr)
-                    loopContinue()
-                }
-            )
+            loop {
+                val currentColIndex = currentColIndexPtr.dereference()
+
+                conditionalBranch(
+                    condition = icmp(currentColIndex, LlvmIntPredicate.EQUAL, context.word(EmergeWeakReferenceCollectionType.pointersToWeakReferences.type.elementCount)),
+                    ifTrue = {
+                        this@loop.breakLoop()
+                    }
+                )
+
+                val referringReferencePtrPtr = getelementptr(collectionPtr)
+                    .member { pointersToWeakReferences }
+                    .index(currentColIndex)
+                    .get()
+                val referringReferencePtr = referringReferencePtrPtr.dereference()
+                conditionalBranch(condition = isNotNull(referringReferencePtr), ifTrue = {
+                    store(context.nullValue(PointerToAnyEmergeValue), referringReferencePtr)
+                    store(context.nullValue(pointerTo(PointerToAnyEmergeValue)), referringReferencePtrPtr)
+                    concludeBranch()
+                })
+                store(add(currentColIndex, context.word(1)), currentColIndexPtr)
+                loopContinue()
+            }
             call(context.freeFunction, listOf(collectionPtr))
             retVoid()
         }
@@ -120,60 +116,52 @@ internal val registerWeakReference = KotlinLlvmFunction.define<EmergeLlvmContext
                 .get(),
             to = currentWeakRefCollPtrPtrPtr,
         )
-        loop(
-            header = {
+        loop iterateCollections@{
+            conditionalBranch(
+                condition = isNull(currentWeakRefCollPtrPtrPtr.dereference().dereference()),
+                ifTrue = {
+                    this@iterateCollections.breakLoop()
+                }
+            )
+
+            store(context.word(0), to = currentCollIndexPtr)
+            loop iterateCollectionEntries@{
+                val currentColIndexValue = currentCollIndexPtr.dereference()
                 conditionalBranch(
-                    condition = isNull(currentWeakRefCollPtrPtrPtr.dereference().dereference()),
+                    condition = icmp(currentColIndexValue, LlvmIntPredicate.EQUAL, context.word(EmergeWeakReferenceCollectionType.pointersToWeakReferences.type.elementCount)),
                     ifTrue = {
-                        this@loop.breakLoop()
+                        this@iterateCollectionEntries.breakLoop()
                     }
                 )
-                doIteration()
-            },
-            body = collIterBody@{
-                store(context.word(0), to = currentCollIndexPtr)
-                loop(
-                    header = innerHeader@{
-                        conditionalBranch(
-                            condition = icmp(currentCollIndexPtr.dereference(), LlvmIntPredicate.EQUAL, context.word(EmergeWeakReferenceCollectionType.pointersToWeakReferences.type.elementCount)),
-                            ifTrue = {
-                                this@innerHeader.breakLoop()
-                            }
-                        )
-                        this@innerHeader.doIteration()
-                    },
-                    body = collEntryIterBody@{
-                        val currentColIndexValue = currentCollIndexPtr.dereference()
-                        val entryPtr = getelementptr(currentWeakRefCollPtrPtrPtr.dereference().dereference())
-                            .member { pointersToWeakReferences }
-                            .index(currentColIndexValue)
-                            .get()
-                        val entryValue = entryPtr.dereference()
-                        conditionalBranch(
-                            condition = isNull(entryValue),
-                            ifTrue = {
-                                store(pointerToWeakReference, to = entryPtr)
-                                retVoid()
-                            }
-                        )
-                        store(
-                            add(currentColIndexValue, context.word(1)),
-                            to = currentCollIndexPtr
-                        )
-                        this@collEntryIterBody.loopContinue()
-                    }
-                )
-                // the current collection doesn't have any free slots, try the next
-                val nextCollPtrPtr = getelementptr(currentWeakRefCollPtrPtrPtr.dereference().dereference())
-                    .member { next }
+
+                val entryPtr = getelementptr(currentWeakRefCollPtrPtrPtr.dereference().dereference())
+                    .member { pointersToWeakReferences }
+                    .index(currentColIndexValue)
                     .get()
-                store(nextCollPtrPtr, to = currentWeakRefCollPtrPtrPtr)
-                this@collIterBody.loopContinue()
+                val entryValue = entryPtr.dereference()
+                conditionalBranch(
+                    condition = isNull(entryValue),
+                    ifTrue = {
+                        store(pointerToWeakReference, to = entryPtr)
+                        retVoid()
+                    }
+                )
+                store(
+                    add(currentColIndexValue, context.word(1)),
+                    to = currentCollIndexPtr
+                )
+                loopContinue()
             }
-        )
+            // the current collection doesn't have any free slots, try the next
+            val nextCollPtrPtr = getelementptr(currentWeakRefCollPtrPtrPtr.dereference().dereference())
+                .member { next }
+                .get()
+            store(nextCollPtrPtr, to = currentWeakRefCollPtrPtrPtr)
+            loopContinue()
+        }
+
         // all collections are filled, allocate a new one
         val newCollPtr = heapAllocate(EmergeWeakReferenceCollectionType)
-        memset(newCollPtr, context.i8(0), EmergeWeakReferenceCollectionType.sizeof())
         store(
             pointerToWeakReference,
             to = getelementptr(newCollPtr)
@@ -195,7 +183,6 @@ internal val unregisterWeakReference = KotlinLlvmFunction.define<EmergeLlvmConte
             retVoid()
         })
         val currentWeakRefCollPtrPtrPtr = alloca(pointerTo(pointerTo(EmergeWeakReferenceCollectionType)))
-        val currentCollIndexPtr = alloca(EmergeWordType)
         store(
             objectBeingReferred
                 .anyValueBase()
@@ -203,57 +190,54 @@ internal val unregisterWeakReference = KotlinLlvmFunction.define<EmergeLlvmConte
                 .get(),
             to = currentWeakRefCollPtrPtrPtr,
         )
-        loop(
-            header = {
+        loop iterateCollections@{
+            val currentWeakRefColl = currentWeakRefCollPtrPtrPtr.dereference().dereference()
+            conditionalBranch(isNull(currentWeakRefColl), ifTrue = {
+                this@iterateCollections.breakLoop()
+            })
+
+            val currentCollIndexPtr = alloca(EmergeWordType, forceEntryBlock = true)
+            store(context.word(0), to = currentCollIndexPtr)
+            loop iterateCollectionEntries@{
+                val currentColIndexValue = currentCollIndexPtr.dereference()
+
                 conditionalBranch(
-                    condition = isNull(currentWeakRefCollPtrPtrPtr.dereference().dereference()),
+                    condition = icmp(
+                        currentColIndexValue,
+                        LlvmIntPredicate.EQUAL,
+                        context.word(EmergeWeakReferenceCollectionType.pointersToWeakReferences.type.elementCount)
+                    ),
                     ifTrue = {
-                        this@loop.breakLoop()
+                        this@iterateCollectionEntries.breakLoop()
                     }
                 )
-                doIteration()
-            },
-            body = collIterBody@{
-                store(context.word(0), to = currentCollIndexPtr)
-                loop(
-                    header = innerHeader@{
-                        conditionalBranch(
-                            condition = icmp(currentCollIndexPtr.dereference(), LlvmIntPredicate.EQUAL, context.word(EmergeWeakReferenceCollectionType.pointersToWeakReferences.type.elementCount)),
-                            ifTrue = {
-                                this@innerHeader.breakLoop()
-                            }
-                        )
-                        this@innerHeader.doIteration()
-                    },
-                    body = collEntryIterBody@{
-                        val currentColIndexValue = currentCollIndexPtr.dereference()
-                        val entryPtr = getelementptr(currentWeakRefCollPtrPtrPtr.dereference().dereference())
-                            .member { pointersToWeakReferences }
-                            .index(currentColIndexValue)
-                            .get()
-                        val entryValue = entryPtr.dereference()
-                        conditionalBranch(
-                            condition = isEq(entryValue, pointerToWeakReference),
-                            ifTrue = {
-                                store(context.nullValue(pointerTo(PointerToAnyEmergeValue)), to = entryPtr)
-                                retVoid()
-                            }
-                        )
-                        store(
-                            add(currentColIndexValue, context.word(1)),
-                            to = currentCollIndexPtr
-                        )
-                        this@collEntryIterBody.loopContinue()
-                    }
-                )
-                // the current collection doesn't have any free slots, try the next
-                val nextCollPtrPtr = getelementptr(currentWeakRefCollPtrPtrPtr.dereference().dereference())
-                    .member { next }
+
+                val entryPtr = getelementptr(currentWeakRefCollPtrPtrPtr.dereference().dereference())
+                    .member { pointersToWeakReferences }
+                    .index(currentColIndexValue)
                     .get()
-                store(nextCollPtrPtr, to = currentWeakRefCollPtrPtrPtr)
-                this@collIterBody.loopContinue()
+                val entryValue = entryPtr.dereference()
+                conditionalBranch(
+                    condition = isEq(entryValue, pointerToWeakReference),
+                    ifTrue = {
+                        store(context.nullValue(pointerTo(PointerToAnyEmergeValue)), to = entryPtr)
+                        retVoid()
+                    }
+                )
+                store(
+                    add(currentColIndexValue, context.word(1)),
+                    to = currentCollIndexPtr
+                )
+                loopContinue()
             }
-        )
+
+            // the current collection doesn't have any free slots, try the next
+            val nextCollPtrPtr = getelementptr(currentWeakRefColl)
+                .member { next }
+                .get()
+            store(nextCollPtrPtr, to = currentWeakRefCollPtrPtrPtr)
+            loopContinue()
+        }
         inlinePanic("weak reference is not registered, cannot unregister")
     }
 }

@@ -102,9 +102,12 @@ interface IrConditionalBranch : IrExecutable {
     val elseBranch: IrExecutable?
 }
 
-interface IrWhileLoop : IrExecutable {
-    val condition: IrExpression
-    val body: IrCodeChunk
+/**
+ * [body] is executed infinitely. Different kinds of loops (for, while, do-while, ...) can be implemented
+ * using [IrConditionalBranch], [IrBreakStatement] and [IrContinueStatement] in [body].
+ */
+interface IrLoop : IrExecutable {
+    val body: IrExecutable
 }
 
 /**
@@ -113,21 +116,20 @@ interface IrWhileLoop : IrExecutable {
 interface IrBreakStatement : IrExecutable {
     /**
      * the loop to break out from; is guaranteed to be a parent of this statement. Or in
-     * other words, `this` statement is guaranteed to be located in the body of the loop it is breaking out from
+     * other words, `this` statement is guaranteed to be located in the [IrLoop.body] of the loop it is breaking out from
      */
-    val fromLoop: IrWhileLoop
+    val fromLoop: IrLoop
 }
 
 /**
- * Stop executing the loop body and jump back to the loop condition, starting the body again should the condition
- * still hold
+ * Stop executing the loop body and jump back to the beginning of the body.
  */
 interface IrContinueStatement : IrExecutable {
     /**
      * the loop to continue; is guaranteed to be a parent of this statement. Or in
-     * other words, `this` statement is guaranteed to be located in the body of the loop it is breaking out from
+     * other words, `this` statement is guaranteed to be located in the [IrLoop.body] of the loop it is breaking out from
      */
-    val loop: IrWhileLoop
+    val loop: IrLoop
 }
 
 /**

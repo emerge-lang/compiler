@@ -6,12 +6,15 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.IrConditionalBranchImpl
+import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrLoopImpl
+import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
-import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrWhileLoop
+import io.github.tmarsteel.emerge.backend.api.ir.IrBreakStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrLoop
 
 class BoundWhileLoop(
     override val context: ExecutionScopedCTContext,
@@ -78,14 +81,25 @@ class BoundWhileLoop(
     }
 
     private val backendIr by lazy {
-        IrWhileLoopImpl(condition.toBackendIrExpression(), body.toBackendIrStatement())
+        val conditionTemporary = IrCreateTemporaryValueImpl(condition.toBackendIrExpression())
+        lateinit var irLoop: IrLoop
+        val breakStmt = object : IrBreakStatement {
+            override val fromLoop get() = irLoop
+        }
+        irLoop = IrLoopImpl(
+            IrCodeChunkImpl(listOf(
+                conditionTemporary,
+                IrConditionalBranchImpl(
+                    condition = IrTemporaryValueReferenceImpl(conditionTemporary),
+                    thenBranch = body.toBackendIrStatement(),
+                    elseBranch = breakStmt,
+                )
+            ))
+        )
+
+        irLoop
     }
-    override fun toBackendIrStatement(): IrWhileLoop {
+    override fun toBackendIrStatement(): IrLoop {
         return backendIr
     }
 }
-
-private class IrWhileLoopImpl(
-    override val condition: IrExpression,
-    override val body: IrCodeChunk,
-) : IrWhileLoop

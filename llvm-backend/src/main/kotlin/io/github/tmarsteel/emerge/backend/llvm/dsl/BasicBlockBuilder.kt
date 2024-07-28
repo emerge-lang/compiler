@@ -96,6 +96,9 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> : DeferScopeBasicBloc
     fun ret(value: LlvmValue<R>): Termination
     fun unreachable(): Termination
 
+    /**
+     * directly resembles an if-else from typical imperative languages
+     */
     fun conditionalBranch(
         condition: LlvmValue<LlvmBooleanType>,
         ifTrue: Branch<C, R>.() -> Termination,
@@ -103,13 +106,10 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> : DeferScopeBasicBloc
     )
 
     /**
-     * @param header is executed before every iteration and implements the loop condition
-     * @param body is executed on every iteration, can break out of the loop or continue at the header
+     * @param body is executed infinitely in a loop. Use [LoopBody.breakLoop] together with [conditionalBranch]
+     * to implement loop latches for different kinds of source-program loops.
      */
-    fun loop(
-        header: LoopHeader<C, R>.() -> Termination,
-        body: LoopBody<C, R>.() -> Termination,
-    )
+    fun loop(body: LoopBody<C, R>.() -> Termination)
 
     /**
      * Creates a new basic block in the owning function. Then continues to fill the current basic block
@@ -153,22 +153,12 @@ interface BasicBlockBuilder<C : LlvmContext, R : LlvmType> : DeferScopeBasicBloc
         fun skipUnsafeBranch(): Termination
     }
 
-    interface AbstractLoop<C : LlvmContext, R : LlvmType> : BasicBlockBuilder<C, R> {
-        /**
-         * Transfers control flow to the code after the loop
-         */
+    @LlvmBasicBlockDsl
+    interface LoopBody<C : LlvmContext, R : LlvmType> : BasicBlockBuilder<C, R> {
+        /** Transfers control flow to the code after the loop */
         fun breakLoop(): Termination
-    }
 
-    @LlvmBasicBlockDsl
-    interface LoopHeader<C : LlvmContext, R : LlvmType> : AbstractLoop<C, R> {
-        /** starts the next iteration of the loop by transferring control flow to the loop body. */
-        fun doIteration(): Termination
-    }
-
-    @LlvmBasicBlockDsl
-    interface LoopBody<C : LlvmContext, R : LlvmType> : AbstractLoop<C, R> {
-        /** Transfers control flow back to the loop header. */
+        /** Transfers control flow back to the beginning of the looped code */
         fun loopContinue(): Termination
     }
 
@@ -577,22 +567,16 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
     }
 
     override fun loop(
-        header: BasicBlockBuilder.LoopHeader<C, R>.() -> BasicBlockBuilder.Termination,
         body: BasicBlockBuilder.LoopBody<C, R>.() -> BasicBlockBuilder.Termination
     ) {
         val loopName = tmpVars.next() + "_loop"
-        val headerBlock = Llvm.LLVMAppendBasicBlockInContext(context.ref, owningFunction, "${loopName}_header")
-        val bodyBlock = Llvm.LLVMAppendBasicBlockInContext(context.ref, owningFunction, "${loopName}_body")
+        val bodyBlock = Llvm.LLVMAppendBasicBlockInContext(context.ref, owningFunction, loopName)
         val continueBlock = Llvm.LLVMAppendBasicBlockInContext(context.ref, owningFunction, "${loopName}_cont")
 
-        Llvm.LLVMBuildBr(builder, headerBlock)
-
-        Llvm.LLVMPositionBuilderAtEnd(builder, headerBlock)
-        val headerDslBuilder = LoopImpl<C, R>(context, llvmFunctionReturnType, diBuilder, owningFunction, builder, tmpVars, scopeTracker.createSubScope(), headerBlock, bodyBlock, continueBlock)
-        headerDslBuilder.header()
+        Llvm.LLVMBuildBr(builder, bodyBlock)
 
         Llvm.LLVMPositionBuilderAtEnd(builder, bodyBlock)
-        val bodyDslBuilder = LoopImpl<C, R>(context, llvmFunctionReturnType, diBuilder, owningFunction, builder, tmpVars, scopeTracker.createSubScope(), headerBlock, bodyBlock, continueBlock)
+        val bodyDslBuilder = LoopImpl(context, llvmFunctionReturnType, diBuilder, owningFunction, builder, tmpVars, scopeTracker.createSubScope(), bodyBlock, continueBlock)
         bodyDslBuilder.body()
 
         Llvm.LLVMPositionBuilderAtEnd(builder, continueBlock)
@@ -659,25 +643,18 @@ private class LoopImpl<C : LlvmContext, R : LlvmType>(
     builder: LlvmBuilderRef,
     tmpVars: NameScope,
     scopeTracker: ScopeTracker<C>,
-    val headerBlockRef: LlvmBasicBlockRef,
     val bodyBlockRef: LlvmBasicBlockRef,
     val continueBlock: LlvmBasicBlockRef,
-) : BasicBlockBuilderImpl<C, R>(context, functionReturnType, diBuilder, owningFunction, builder, tmpVars, scopeTracker), BasicBlockBuilder.LoopHeader<C, R>, BasicBlockBuilder.LoopBody<C, R> {
+) : BasicBlockBuilderImpl<C, R>(context, functionReturnType, diBuilder, owningFunction, builder, tmpVars, scopeTracker), BasicBlockBuilder.LoopBody<C, R> {
     override fun breakLoop(): BasicBlockBuilder.Termination {
         scopeTracker.runLocalDeferredCode()
         Llvm.LLVMBuildBr(builder, continueBlock)
         return TerminationImpl
     }
 
-    override fun doIteration(): BasicBlockBuilder.Termination {
-        scopeTracker.runLocalDeferredCode()
-        Llvm.LLVMBuildBr(builder, bodyBlockRef)
-        return TerminationImpl
-    }
-
     override fun loopContinue(): BasicBlockBuilder.Termination {
         scopeTracker.runLocalDeferredCode()
-        Llvm.LLVMBuildBr(builder, headerBlockRef)
+        Llvm.LLVMBuildBr(builder, bodyBlockRef)
         return TerminationImpl
     }
 }

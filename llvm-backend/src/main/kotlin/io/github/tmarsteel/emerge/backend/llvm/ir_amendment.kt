@@ -4,13 +4,13 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
+import io.github.tmarsteel.emerge.backend.api.ir.IrLoop
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrPackage
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
-import io.github.tmarsteel.emerge.backend.api.ir.IrWhileLoop
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
@@ -131,8 +131,8 @@ internal val IrFunction.hasNothrowAbi: Boolean by tackLazyVal {
     isNothrow
 }
 
-internal var IrWhileLoop.emitBreak: (() -> BasicBlockBuilder.Termination)? by tackState { null }
-internal var IrWhileLoop.emitContinue: (() -> BasicBlockBuilder.Termination)? by tackState { null }
+internal var IrLoop.emitBreak: (() -> BasicBlockBuilder.Termination)? by tackState { null }
+internal var IrLoop.emitContinue: (() -> BasicBlockBuilder.Termination)? by tackState { null }
 
 internal val IrSoftwareContext.packagesSeq: Sequence<IrPackage> get() = modules.asSequence()
     .flatMap { it.packages }
