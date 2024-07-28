@@ -271,6 +271,27 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 
 ## Future features
 
+### Feed LLVM with all info available
+
+Without targeting specific optimizations, it probably still helps performance to feed LLVM all information that is
+available. These are possible (not exhaustive):
+
+* `zeroext` / `signext` on numeric and boolean return values
+* `dereferenceable(<n>)/dereferenceable_or_null(<n>)`
+  * parameters
+  * return values
+  * stack read results
+  * heap read results (object member access)
+* `nofree` for borrowed parameters
+* `noundef` - for everything??
+* `readnone` - for unused parameters
+* `readonly` - for readonly/constant parameters
+* `nounwind` on functions, as exceptions use the regular return path in LLVM
+* weights for branches
+  * mark the exception path on function invocations as unlikely
+  * mark the exception branch on fallible math as unlikely
+  * loop header conditions should be heavily likely - after all, loops are supposed to be run often
+
 ### Emergent properties
 Statements about the state of an object, e.g. isAbsolute on Path:
 ```
