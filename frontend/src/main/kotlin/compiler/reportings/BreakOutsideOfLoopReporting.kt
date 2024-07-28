@@ -1,9 +1,9 @@
 package compiler.reportings
 
-import compiler.ast.AstBreakStatement
+import compiler.ast.AstBreakExpression
 
 class BreakOutsideOfLoopReporting(
-    val breakStatement: AstBreakStatement,
+    val breakStatement: AstBreakExpression,
 ) : Reporting(
     Level.ERROR,
     "Break statements must appear inside loops, this one is not in any loop.",

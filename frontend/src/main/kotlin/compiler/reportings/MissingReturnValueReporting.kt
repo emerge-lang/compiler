@@ -1,10 +1,10 @@
 package compiler.reportings
 
-import compiler.ast.ReturnStatement
+import compiler.ast.ReturnExpression
 import compiler.binding.type.BoundTypeReference
 
 data class MissingReturnValueReporting(
-    val valueLessReturn: ReturnStatement,
+    val valueLessReturn: ReturnExpression,
     val expectedType: BoundTypeReference,
 ) : Reporting(
     Level.ERROR,

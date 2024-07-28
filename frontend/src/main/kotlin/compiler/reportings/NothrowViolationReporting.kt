@@ -1,6 +1,6 @@
 package compiler.reportings
 
-import compiler.ast.AstThrowStatement
+import compiler.ast.AstThrowExpression
 import compiler.ast.expression.NotNullExpression
 import compiler.binding.BoundFunction
 import compiler.binding.basetype.BoundClassConstructor
@@ -32,7 +32,7 @@ open class NothrowViolationReporting(
     )
 
     class ThrowStatement(
-        val statement: AstThrowStatement,
+        val statement: AstThrowExpression,
         val boundary: SideEffectBoundary,
     ) : NothrowViolationReporting(
         Level.ERROR,

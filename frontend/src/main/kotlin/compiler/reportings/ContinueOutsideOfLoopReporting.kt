@@ -1,9 +1,9 @@
 package compiler.reportings
 
-import compiler.ast.AstContinueStatement
+import compiler.ast.AstContinueExpression
 
 class ContinueOutsideOfLoopReporting(
-    val breakStatement: AstContinueStatement,
+    val breakStatement: AstContinueExpression,
 ) : Reporting(
     Level.ERROR,
     "Continue statements must appear inside loops, this one is not in any loop.",

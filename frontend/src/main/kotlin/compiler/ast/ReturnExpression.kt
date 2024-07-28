@@ -18,15 +18,15 @@
 
 package compiler.ast
 
-import compiler.binding.BoundReturnStatement
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.expression.BoundReturnExpression
 import compiler.lexer.KeywordToken
 
-class ReturnStatement(
+class ReturnExpression(
     val returnKeyword: KeywordToken,
     val expression: Expression?,
-) : Statement {
+) : Expression {
     override val span = if (expression == null) returnKeyword.span else returnKeyword.span .. expression.span
 
-    override fun bindTo(context: ExecutionScopedCTContext) = BoundReturnStatement(context, this)
+    override fun bindTo(context: ExecutionScopedCTContext) = BoundReturnExpression(context, this)
 }

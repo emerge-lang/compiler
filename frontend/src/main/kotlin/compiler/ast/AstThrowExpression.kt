@@ -1,20 +1,20 @@
 package compiler.ast
 
-import compiler.binding.BoundStatement
-import compiler.binding.BoundThrowStatement
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.BoundThrowExpression
 import compiler.lexer.KeywordToken
 import compiler.lexer.Span
 
-class AstThrowStatement(
+class AstThrowExpression(
     val throwKeyword: KeywordToken,
     val expression: Expression,
-) : Statement {
+) : Expression {
     override val span: Span = throwKeyword.span .. expression.span
 
-    override fun bindTo(context: ExecutionScopedCTContext): BoundStatement<*> {
+    override fun bindTo(context: ExecutionScopedCTContext): BoundExpression<*> {
         val throwableExpression = expression.bindTo(context)
-        return BoundThrowStatement(
+        return BoundThrowExpression(
             throwableExpression.modifiedContext,
             throwableExpression,
             this,

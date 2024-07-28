@@ -154,6 +154,14 @@ class SoftwareContext {
             ?: throw InternalCompilerError("Could not find typeinfo type in emerge source")
     }
 
+    /**
+     * the absolute bottom type, `exclusive Nothing`. Note that just `Nothing` is **not** the bottom type because
+     * it has `read` mutability, so it's neither a subtype of `const Any` nor of `mut Any`
+     */
+    val bottomTypeRef by lazy {
+        nothing.baseReference.withMutability(TypeMutability.EXCLUSIVE)
+    }
+
     /** the type to use when a type cannot be determined, see [UnresolvedType] */
     val unresolvableReplacementType: BoundTypeReference by lazy {
         any.baseReference

@@ -16,17 +16,19 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-package compiler.binding
+package compiler.binding.expression
 
 import compiler.InternalCompilerError
-import compiler.ast.ReturnStatement
+import compiler.ast.ReturnExpression
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.TypeMutability
+import compiler.binding.BoundExecutable
+import compiler.binding.IrCodeChunkImpl
+import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.binding.expression.BoundExpression
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
@@ -48,17 +50,20 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 
-class BoundReturnStatement(
+class BoundReturnExpression(
     override val context: ExecutionScopedCTContext,
-    override val declaration: ReturnStatement
-) : BoundStatement<ReturnStatement> {
+    override val declaration: ReturnExpression
+) : BoundScopeAbortingExpression() {
 
     private var expectedReturnType: BoundTypeReference? = null
 
     val expression = declaration.expression?.bindTo(context)
 
-    override val returnBehavior = SideEffectPrediction.GUARANTEED // this is the core LoC that makes the property work big-scale
     override val throwBehavior get() = if (expression == null) SideEffectPrediction.NEVER else expression.throwBehavior
+    override val returnBehavior get() = when (throwBehavior) {
+        SideEffectPrediction.GUARANTEED -> SideEffectPrediction.NEVER
+        else -> SideEffectPrediction.GUARANTEED
+    }
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return expression?.semanticAnalysisPhase1() ?: emptySet()

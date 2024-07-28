@@ -1,11 +1,11 @@
-package compiler.binding
+package compiler.binding.expression
 
-import compiler.ast.AstThrowStatement
+import compiler.ast.AstThrowExpression
 import compiler.ast.type.TypeMutability
+import compiler.binding.IrCodeChunkImpl
+import compiler.binding.SeanHelper
+import compiler.binding.SideEffectPrediction
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.binding.expression.BoundExpression
-import compiler.binding.expression.IrDynamicDispatchFunctionInvocationImpl
-import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
@@ -20,29 +20,35 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrThrowStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
-class BoundThrowStatement(
+class BoundThrowExpression(
     override val context: ExecutionScopedCTContext,
     val throwableExpression: BoundExpression<*>,
-    override val declaration: AstThrowStatement,
-) : BoundStatement<AstThrowStatement> {
+    override val declaration: AstThrowExpression,
+) : BoundScopeAbortingExpression() {
     override val throwBehavior = SideEffectPrediction.GUARANTEED
     override val returnBehavior = SideEffectPrediction.NEVER
 
+    private val seanHelper = SeanHelper()
+
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return throwableExpression.semanticAnalysisPhase1()
+        return seanHelper.phase1 {
+            throwableExpression.semanticAnalysisPhase1()
+        }
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
+        return seanHelper.phase2 {
+            val reportings = mutableListOf<Reporting>()
 
-        val expectedType = context.swCtx.throwable.baseReference.withMutability(TypeMutability.READONLY)
-        throwableExpression.setExpectedEvaluationResultType(expectedType)
-        reportings.addAll(throwableExpression.semanticAnalysisPhase2())
-        throwableExpression.type
-            ?.evaluateAssignabilityTo(expectedType, throwableExpression.declaration.span)
-            ?.let(reportings::add)
+            val expectedType = context.swCtx.throwable.baseReference.withMutability(TypeMutability.READONLY)
+            throwableExpression.setExpectedEvaluationResultType(expectedType)
+            reportings.addAll(throwableExpression.semanticAnalysisPhase2())
+            throwableExpression.type
+                ?.evaluateAssignabilityTo(expectedType, throwableExpression.declaration.span)
+                ?.let(reportings::add)
 
-        return reportings
+            return@phase2 reportings
+        }
     }
 
     private var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
@@ -52,13 +58,15 @@ class BoundThrowStatement(
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        reportings.addAll(throwableExpression.semanticAnalysisPhase3())
-        nothrowBoundary?.let { nothrowBoundary ->
-            reportings.add(Reporting.throwStatementInNothrowContext(this, nothrowBoundary))
-        }
+        return seanHelper.phase3 {
+            val reportings = mutableListOf<Reporting>()
+            reportings.addAll(throwableExpression.semanticAnalysisPhase3())
+            nothrowBoundary?.let { nothrowBoundary ->
+                reportings.add(Reporting.throwStatementInNothrowContext(this, nothrowBoundary))
+            }
 
-        return reportings
+            return@phase3 reportings
+        }
     }
 
     private val _backendIr: IrExecutable by lazy {

@@ -107,14 +107,12 @@ class BoundCodeChunk(
             } else {
                 if (statements.lastOrNull()?.throwBehavior == SideEffectPrediction.GUARANTEED || statements.lastOrNull()?.returnBehavior == SideEffectPrediction.GUARANTEED) {
                     // implicit evaluation never matters
-                    type = context.swCtx.nothing.baseReference
-                        .withMutability(TypeMutability.EXCLUSIVE)
+                    type = context.swCtx.bottomTypeRef
                 } else if (isInExpressionContext) {
                     // the type is still unit, technically. However, this will trigger a confusing error message
-                    // using exclusive Nothing hides that error, and this becomes the more understandable alternative
+                    // using the bottom type hides that error, and this becomes the more understandable alternative
                     reportings.add(Reporting.implicitlyEvaluatingAStatement(statements.lastOrNull() ?: this))
-                    type = context.swCtx.nothing.baseReference
-                        .withMutability(TypeMutability.EXCLUSIVE)
+                    type = context.swCtx.bottomTypeRef
                 } else {
                     type = context.swCtx.unit.baseReference
                 }

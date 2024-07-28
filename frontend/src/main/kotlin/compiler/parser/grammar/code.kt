@@ -20,12 +20,8 @@ package compiler.parser.grammar
 
 import compiler.InternalCompilerError
 import compiler.ast.AssignmentStatement
-import compiler.ast.AstBreakStatement
 import compiler.ast.AstCodeChunk
-import compiler.ast.AstContinueStatement
-import compiler.ast.AstThrowStatement
 import compiler.ast.AstWhileLoop
-import compiler.ast.ReturnStatement
 import compiler.ast.Statement
 import compiler.lexer.DelimitedIdentifierContentToken
 import compiler.lexer.IdentifierToken
@@ -60,30 +56,6 @@ val Identifier = eitherOf("identifier") {
         IdentifierToken(content.content, first.span .. endDelimiter.span)
     }
 
-val ReturnStatement = sequence("return statement") {
-    keyword(Keyword.RETURN)
-    optional {
-        ref(Expression)
-    }
-}
-    .astTransformation { tokens ->
-        val keyword = tokens.next()!! as KeywordToken
-        val expression = if (tokens.hasNext()) tokens.next()!! as AstExpression else null
-
-        ReturnStatement(keyword, expression)
-    }
-
-val ThrowStatement = sequence("throw statement") {
-    keyword(Keyword.THROW)
-    ref(Expression)
-}
-    .astTransformation { tokens ->
-        val keyword = tokens.next()!! as KeywordToken
-        val expression = tokens.next()!! as AstExpression
-
-        AstThrowStatement(keyword, expression)
-    }
-
 val AssignmentStatement = sequence("assignment statement") {
     keyword(Keyword.SET)
     ref(Expression)
@@ -116,20 +88,6 @@ val WhileLoop = sequence("while loop") {
             condition,
             body,
         )
-    }
-
-val BreakStatement = sequence("break statement") {
-    keyword(Keyword.BREAK)
-}
-    .astTransformation { tokens ->
-        AstBreakStatement(tokens.next()!! as KeywordToken)
-    }
-
-val ContinueStatement = sequence("continue statement") {
-    keyword(Keyword.CONTINUE)
-}
-    .astTransformation { tokens ->
-        AstContinueStatement(tokens.next()!! as KeywordToken)
     }
 
 val LineOfCode = sequence {

@@ -29,8 +29,6 @@ import compiler.ast.VariableDeclaration
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundAssignmentStatement
-import compiler.binding.BoundBreakStatement
-import compiler.binding.BoundContinueStatement
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
@@ -38,8 +36,6 @@ import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundParameter
-import compiler.binding.BoundReturnStatement
-import compiler.binding.BoundThrowStatement
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
@@ -403,16 +399,16 @@ abstract class Reporting internal constructor(
         fun nothrowViolatingNotNullAssertion(assertion: BoundNotNullExpression, boundary: NothrowViolationReporting.SideEffectBoundary)
             = NothrowViolationReporting.NotNullAssertion(assertion.declaration, boundary)
 
-        fun throwStatementInNothrowContext(statement: BoundThrowStatement, boundary: NothrowViolationReporting.SideEffectBoundary)
+        fun throwStatementInNothrowContext(statement: BoundThrowExpression, boundary: NothrowViolationReporting.SideEffectBoundary)
             = NothrowViolationReporting.ThrowStatement(statement.declaration, boundary)
 
         fun constructorDeclaredNothrow(constructor: BoundClassConstructor)
             = ConstructorDeclaredNothrowReporting(constructor.attributes.firstNothrowAttribute!!.sourceLocation)
 
-        fun breakOutsideOfLoop(breakStatement: BoundBreakStatement)
+        fun breakOutsideOfLoop(breakStatement: BoundBreakExpression)
             = BreakOutsideOfLoopReporting(breakStatement.declaration)
 
-        fun continueOutsideOfLoop(continueStatement: BoundContinueStatement)
+        fun continueOutsideOfLoop(continueStatement: BoundContinueExpression)
             = ContinueOutsideOfLoopReporting(continueStatement.declaration)
 
         fun purityViolations(readingViolations: Collection<BoundExpression<*>>, writingViolations: Collection<BoundExecutable<*>>, context: BoundFunction): Collection<Reporting> {
@@ -439,7 +435,7 @@ abstract class Reporting internal constructor(
             return purityViolations(emptySet(), writingViolations, readonlyFunction)
         }
 
-        fun missingReturnValue(returnStatement: BoundReturnStatement, expectedType: BoundTypeReference) = MissingReturnValueReporting(
+        fun missingReturnValue(returnStatement: BoundReturnExpression, expectedType: BoundTypeReference) = MissingReturnValueReporting(
             returnStatement.declaration,
             expectedType,
         )

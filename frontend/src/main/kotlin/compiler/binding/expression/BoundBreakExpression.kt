@@ -1,16 +1,18 @@
-package compiler.binding
+package compiler.binding.expression
 
-import compiler.ast.AstContinueStatement
+import compiler.ast.AstBreakExpression
+import compiler.binding.BoundLoop
+import compiler.binding.SideEffectPrediction
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.ir.IrContinueStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrBreakStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
-class BoundContinueStatement(
+class BoundBreakExpression(
     override val context: ExecutionScopedCTContext,
-    override val declaration: AstContinueStatement,
-) : BoundStatement<AstContinueStatement> {
+    override val declaration: AstBreakExpression,
+) : BoundScopeAbortingExpression() {
     override val throwBehavior = SideEffectPrediction.NEVER
     override val returnBehavior = SideEffectPrediction.NEVER
 
@@ -21,7 +23,7 @@ class BoundContinueStatement(
 
         parentLoop = context.getParentLoop()
         if (parentLoop == null) {
-            reportings.add(Reporting.continueOutsideOfLoop(this))
+            reportings.add(Reporting.breakOutsideOfLoop(this))
         }
 
         return reportings
@@ -39,10 +41,10 @@ class BoundContinueStatement(
         return emptySet()
     }
 
-    private inner class IrContinueStatementImpl : IrContinueStatement {
-        override val loop get() = parentLoop!!.toBackendIrStatement()
+    private inner class IrBreakStatementImpl : IrBreakStatement {
+        override val fromLoop get() = parentLoop!!.toBackendIrStatement()
     }
-    private val backendIr = IrContinueStatementImpl()
+    private val backendIr = IrBreakStatementImpl()
     override fun toBackendIrStatement(): IrExecutable {
         return backendIr
     }

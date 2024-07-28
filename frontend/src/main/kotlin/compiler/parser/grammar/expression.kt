@@ -19,10 +19,14 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
+import compiler.ast.AstBreakExpression
 import compiler.ast.AstCodeChunk
+import compiler.ast.AstContinueExpression
 import compiler.ast.AstSemanticOperator
+import compiler.ast.AstThrowExpression
 import compiler.ast.Executable
 import compiler.ast.IfExpression
+import compiler.ast.ReturnExpression
 import compiler.ast.TypeArgumentBundle
 import compiler.ast.expression.ArrayLiteralExpression
 import compiler.ast.expression.AstCatchBlockExpression
@@ -69,6 +73,7 @@ private val ExpressionBase: Rule<AstExpression> = eitherOf("expression without p
     ref(UnaryExpression)
     ref(ValueExpression)
     ref(ParanthesisedExpression)
+    ref(ExecutionAbortingExpression)
     ref(IfExpression)
     ref(TryCatchExpression)
 }
@@ -212,6 +217,52 @@ val UnaryExpression = sequence("unary expression") {
         UnaryExpression(operator, expression)
     }
 
+val ExecutionAbortingExpression = eitherOf {
+    ref(ReturnStatement)
+    ref(ThrowStatement)
+    ref(ContinueStatement)
+    ref(BreakStatement)
+}
+    .astTransformation { tokens -> tokens.next() as AstExpression }
+
+val ReturnStatement = sequence("return statement") {
+    keyword(Keyword.RETURN)
+    optional {
+        ref(Expression)
+    }
+}
+    .astTransformation { tokens ->
+        val keyword = tokens.next()!! as KeywordToken
+        val expression = if (tokens.hasNext()) tokens.next()!! as AstExpression else null
+
+        ReturnExpression(keyword, expression)
+    }
+
+val ThrowStatement = sequence("throw statement") {
+    keyword(Keyword.THROW)
+    ref(Expression)
+}
+    .astTransformation { tokens ->
+        val keyword = tokens.next()!! as KeywordToken
+        val expression = tokens.next()!! as AstExpression
+
+        AstThrowExpression(keyword, expression)
+    }
+
+val BreakStatement = sequence("break statement") {
+    keyword(Keyword.BREAK)
+}
+    .astTransformation { tokens ->
+        AstBreakExpression(tokens.next()!! as KeywordToken)
+    }
+
+val ContinueStatement = sequence("continue statement") {
+    keyword(Keyword.CONTINUE)
+}
+    .astTransformation { tokens ->
+        AstContinueExpression(tokens.next()!! as KeywordToken)
+    }
+
 val BracedCodeOrSingleStatement = eitherOf("curly braced code or single statement") {
     sequence {
         operator(Operator.CBRACE_OPEN)
@@ -302,6 +353,12 @@ val TryCatchExpression = sequence("try-catch expression") {
             ),
         )
     }
+
+val ScopeAbortingStatement = eitherOf {
+    ref(ThrowStatement)
+    ref(ContinueStatement)
+    ref(BreakStatement)
+}
 
 val ExpressionPostfixNotNull = sequence("not null assertion") {
     operator(Operator.NOTNULL)
