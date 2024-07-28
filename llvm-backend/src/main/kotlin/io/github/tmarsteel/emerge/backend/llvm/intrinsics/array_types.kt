@@ -303,10 +303,11 @@ internal class EmergeArrayType<Element : LlvmType>(
     }
 }
 
-internal val valueArrayFinalize = KotlinLlvmFunction.define<EmergeLlvmContext, _>("emerge.platform.finalizeValueArray", LlvmVoidType) {
-    param(PointerToAnyEmergeValue)
+internal val valueArrayDestructor = KotlinLlvmFunction.define<EmergeLlvmContext, _>("emerge.platform.destructValueArray", LlvmVoidType) {
+    val self by param(PointerToAnyEmergeValue)
     body {
-        // nothing to do. There are no references, just values, so no dropping needed
+        // nothing to do for the array elements; there are no references, just values, so no dropping needed
+        call(context.freeFunction, listOf(self))
         retVoid()
     }
 }
@@ -667,7 +668,7 @@ private fun <Element : LlvmType> buildValueArrayType(
         rawSetterWithFallibleBoundsCheck,
         rawSetterWithPanicBoundsCheck,
         rawSetterWithoutBoundsCheck,
-        valueArrayFinalize,
+        valueArrayDestructor,
         defaultValueCtor,
         listOf(EmergeReferenceArrayType.typeinfo),
     )

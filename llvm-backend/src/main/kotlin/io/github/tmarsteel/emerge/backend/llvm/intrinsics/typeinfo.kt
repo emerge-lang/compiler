@@ -280,7 +280,7 @@ internal val PointerToEmergeArrayOfPointersToTypeInfoType by lazy {
             setter_EmergeArrayOfPointersToTypeInfoType_fallibleBoundsCheck,
             setter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck,
             setter_EmergeArrayOfPointersToTypeInfoType_panicBoundsCheck,
-            valueArrayFinalize,
+            valueArrayDestructor,
             defaultValueCtor,
             listOf(EmergeReferenceArrayType.typeinfo),
         )
