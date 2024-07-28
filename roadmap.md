@@ -287,6 +287,8 @@ available. These are possible (not exhaustive):
 * `readnone` - for unused parameters
 * `readonly` - for readonly/constant parameters
 * `nounwind` on functions, as exceptions use the regular return path in LLVM
+* `inbounds` on most getelementptr instructions. the current DSL already goes.to great lengths to ensure that, so it's probably safe to assume the constraints for `inbounds` are never violated
+* `nosync` on all/most emerge functions. the language is single threaded right now. once multi threading comes in the form of executors and channels, the channel API must somehow be made to not have the `nosync` attribute
 * weights for branches
   * mark the exception path on function invocations as unlikely
   * mark the exception branch on fallible math as unlikely
