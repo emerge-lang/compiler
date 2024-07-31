@@ -1,11 +1,13 @@
 package compiler.reportings
 
 import compiler.ast.AstThrowExpression
+import compiler.ast.expression.AstCastExpression
 import compiler.ast.expression.NotNullExpression
 import compiler.binding.BoundFunction
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.basetype.BoundClassDestructor
 import compiler.binding.expression.BoundInvocationExpression
+import compiler.lexer.Keyword
 import compiler.lexer.Span
 
 open class NothrowViolationReporting(
@@ -38,6 +40,15 @@ open class NothrowViolationReporting(
         Level.ERROR,
         "Cannot throw from nothrow $boundary",
         statement.span,
+    )
+
+    class StrictCast(
+        val castExpression: AstCastExpression,
+        val boundary: SideEffectBoundary,
+    ) : NothrowViolationReporting(
+        Level.ERROR,
+        "Cannot force-cast in nothrow $boundary; casts can always throw a CastError. Use ${Keyword.SAFE_AS.text} or ${Keyword.INSTANCEOF.text} in an ${Keyword.IF.text}-expression instead.",
+        castExpression.operator.span,
     )
 
     sealed interface SideEffectBoundary {

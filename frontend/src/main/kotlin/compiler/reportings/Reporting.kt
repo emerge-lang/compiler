@@ -399,6 +399,9 @@ abstract class Reporting internal constructor(
         fun nothrowViolatingNotNullAssertion(assertion: BoundNotNullExpression, boundary: NothrowViolationReporting.SideEffectBoundary)
             = NothrowViolationReporting.NotNullAssertion(assertion.declaration, boundary)
 
+        fun nothrowViolatingCast(cast: BoundCastExpression, boundary: NothrowViolationReporting.SideEffectBoundary)
+            = NothrowViolationReporting.StrictCast(cast.declaration, boundary)
+
         fun throwStatementInNothrowContext(statement: BoundThrowExpression, boundary: NothrowViolationReporting.SideEffectBoundary)
             = NothrowViolationReporting.ThrowStatement(statement.declaration, boundary)
 
@@ -500,8 +503,8 @@ abstract class Reporting internal constructor(
         fun unsupportedReflection(onType: BoundTypeReference)
             = UnsupportedTypeReflectionException(onType.span ?: Span.UNKNOWN)
 
-        fun typeCheckOnVolatileTypeParameter(node: BoundInstanceOfExpression)
-            = TypeCheckOnVolatileTypeParameterReporting(node.declaration.typeToCheck.span ?: node.declaration.span)
+        fun typeCheckOnVolatileTypeParameter(node: BoundExpression<*>, typeToCheck: BoundTypeReference)
+            = TypeCheckOnVolatileTypeParameterReporting(typeToCheck.span ?: node.declaration.span)
 
         fun nullCheckOnNonNullableValue(value: BoundExpression<*>)
             = NullCheckingNonNullableValueReporting(value.declaration)

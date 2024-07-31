@@ -109,22 +109,7 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
     val isCompileTimeConstant: Boolean
 
     override fun toBackendIrStatement(): IrExecutable {
-        val asIrExpression = this.toBackendIrExpression()
-
-        if (isEvaluationResultReferenceCounted) {
-            // the value is ignored, so the reference count needs to be maintained
-            val resultTemporary = IrCreateTemporaryValueImpl(asIrExpression)
-            return IrCodeChunkImpl(listOf(
-                resultTemporary,
-                IrDropStrongReferenceStatementImpl(IrTemporaryValueReferenceImpl(resultTemporary)),
-            ))
-        }
-
-        return if (asIrExpression is IrImplicitEvaluationExpressionImpl) {
-            asIrExpression.code
-        } else {
-            IrExpressionSideEffectsStatementImpl(asIrExpression)
-        }
+        return this.wrapIrAsStatement()
     }
 
     fun toBackendIrExpression(): IrExpression
@@ -137,6 +122,25 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
             return (this as? BoundIdentifierExpression)
                 ?.referral?.let { it as? BoundIdentifierExpression.ReferringVariable }
                 ?.variable
+        }
+
+        fun BoundExpression<*>.wrapIrAsStatement(): IrExecutable {
+            val asIrExpression = this.toBackendIrExpression()
+
+            if (isEvaluationResultReferenceCounted) {
+                // the value is ignored, so the reference count needs to be maintained
+                val resultTemporary = IrCreateTemporaryValueImpl(asIrExpression)
+                return IrCodeChunkImpl(listOf(
+                    resultTemporary,
+                    IrDropStrongReferenceStatementImpl(IrTemporaryValueReferenceImpl(resultTemporary)),
+                ))
+            }
+
+            return if (asIrExpression is IrImplicitEvaluationExpressionImpl) {
+                asIrExpression.code
+            } else {
+                IrExpressionSideEffectsStatementImpl(asIrExpression)
+            }
         }
     }
 }

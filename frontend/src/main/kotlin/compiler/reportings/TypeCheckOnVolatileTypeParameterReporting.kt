@@ -6,6 +6,6 @@ class TypeCheckOnVolatileTypeParameterReporting(
     val typeLocation: Span,
 ) : Reporting(
     Level.ERROR,
-    "Instance-of checks on generic types are not supported yet.",
+    "Instance-of checks are only supported on named types.",
     typeLocation,
 )

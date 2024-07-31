@@ -52,12 +52,7 @@ class BoundInstanceOfExpression(
 
         val fullTypeToCheck = context.resolveType(declaration.typeToCheck)
         reportings.addAll(fullTypeToCheck.validate(TypeUseSite.Irrelevant(declaration.operator.span, null)))
-        if (fullTypeToCheck is RootResolvedTypeReference) {
-            typeToCheck = fullTypeToCheck.baseType
-            // TODO: warn about unchecked type arguments!!
-        } else if (fullTypeToCheck !is UnresolvedType) {
-            reportings.add(Reporting.typeCheckOnVolatileTypeParameter(this))
-        }
+        typeToCheck = validateTypeCheck(this, fullTypeToCheck, reportings)
         type = context.swCtx.bool.baseReference
 
         return reportings
@@ -87,6 +82,23 @@ class BoundInstanceOfExpression(
     }
 }
 
+internal fun validateTypeCheck(node: BoundExpression<*>, fullTypeToCheck: BoundTypeReference, reportings: MutableCollection<Reporting>): BoundBaseType? {
+    if (fullTypeToCheck is RootResolvedTypeReference) {
+        return fullTypeToCheck.baseType
+        // TODO: warn about unchecked type arguments!!
+    }
+
+    if (fullTypeToCheck !is UnresolvedType) {
+        reportings.add(Reporting.typeCheckOnVolatileTypeParameter(node, fullTypeToCheck))
+    }
+
+    return null
+}
+
+/**
+ * @return an [IrExpression] that evaluates to `true` iff `value` refers to an object of type [typeToCheck],
+ * and `false` otherwise.
+ */
 internal fun buildInstanceOf(
     swCtx: SoftwareContext,
     value: IrTemporaryValueReference,
