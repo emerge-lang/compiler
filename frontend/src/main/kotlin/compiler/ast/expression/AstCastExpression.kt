@@ -5,16 +5,16 @@ import compiler.ast.type.TypeReference
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundCastExpression
 import compiler.binding.expression.BoundExpression
-import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Span
 
 class AstCastExpression(
     val value: Expression,
-    val operator: KeywordToken,
+    val asToken: KeywordToken,
+    val isSafe: Boolean,
     val toType: TypeReference,
 ) : Expression {
-    override val span: Span = value.span .. (toType.span ?: operator.span)
+    override val span: Span = value.span .. (toType.span ?: asToken.span)
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundExpression<*> {
         val boundValue = value.bindTo(context)
@@ -22,7 +22,7 @@ class AstCastExpression(
             boundValue.modifiedContext,
             this,
             boundValue,
-            operator.keyword == Keyword.SAFE_AS,
+            isSafe,
         )
     }
 }

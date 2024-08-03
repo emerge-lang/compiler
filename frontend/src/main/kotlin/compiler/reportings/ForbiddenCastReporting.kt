@@ -19,12 +19,12 @@ class ForbiddenCastReporting(
 
         other as ForbiddenCastReporting
 
-        return castAt.operator.span == other.castAt.operator.span
+        return castAt.asToken.span == other.castAt.asToken.span
     }
 
     override fun hashCode(): Int {
         var result = super.hashCode()
-        result = 31 * result + castAt.operator.span.hashCode()
+        result = 31 * result + castAt.asToken.span.hashCode()
         return result
     }
 }

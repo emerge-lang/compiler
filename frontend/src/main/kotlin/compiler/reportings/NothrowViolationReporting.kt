@@ -8,6 +8,7 @@ import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.basetype.BoundClassDestructor
 import compiler.binding.expression.BoundInvocationExpression
 import compiler.lexer.Keyword
+import compiler.lexer.Operator
 import compiler.lexer.Span
 
 open class NothrowViolationReporting(
@@ -47,8 +48,8 @@ open class NothrowViolationReporting(
         val boundary: SideEffectBoundary,
     ) : NothrowViolationReporting(
         Level.ERROR,
-        "Cannot force-cast in nothrow $boundary; casts can always throw a CastError. Use ${Keyword.SAFE_AS.text} or ${Keyword.INSTANCEOF.text} in an ${Keyword.IF.text}-expression instead.",
-        castExpression.operator.span,
+        "Cannot force-cast in nothrow $boundary; casts can always throw a CastError. Use ${Keyword.AS.text}${Operator.QUESTION_MARK.text} or ${Keyword.INSTANCEOF.text} in an ${Keyword.IF.text}-expression instead.",
+        castExpression.asToken.span,
     )
 
     sealed interface SideEffectBoundary {

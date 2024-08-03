@@ -68,7 +68,6 @@ enum class Keyword(val text: String)
     XOR("xor"),
 
     AS("as"),
-    SAFE_AS("as?"),
 
     INSTANCEOF("is"),
 

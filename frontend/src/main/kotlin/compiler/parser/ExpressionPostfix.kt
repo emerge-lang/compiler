@@ -66,10 +66,11 @@ class IndexAccessExpressionPostfix(
 }
 
 class CastExpressionPostfix(
-    val operator: KeywordToken,
+    val asToken: KeywordToken,
+    val isSafe: Boolean,
     val toType: TypeReference,
 ) : ExpressionPostfix<AstCastExpression> {
-    override fun modify(expr: Expression) = AstCastExpression(expr, operator, toType)
+    override fun modify(expr: Expression) = AstCastExpression(expr, asToken, isSafe, toType)
 }
 
 class InstanceOfExpressionPostfix(

@@ -4,6 +4,7 @@ import compiler.InternalCompilerError
 import compiler.ast.Expression
 import compiler.ast.expression.AstCastExpression
 import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeReference
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
 import compiler.binding.basetype.BoundBaseType
@@ -50,12 +51,11 @@ class BoundCastExpression(
 
         val type = context.resolveType(declaration.toType)
         this.type = type
+        if (safeCast) {
+            this.type = this.type.withCombinedNullability(TypeReference.Nullability.NULLABLE)
+        }
         reportings.addAll(type.validate(TypeUseSite.Irrelevant(declaration.span, null)))
         baseTypeToCheck = validateTypeCheck(this, type, reportings)
-
-        if (safeCast) {
-            reportings.add(Reporting.forbiddenCast(this, "Safe casts are not supported right now", declaration.operator.span))
-        }
 
         if (isTypedNumericLiteral) {
             // there is no suffix type notation for numeric literals; instead casting should do that
@@ -92,8 +92,32 @@ class BoundCastExpression(
             return value.toBackendIrExpression()
         }
 
+        val irTargetType = type.toBackendIr()
         val valueToCastTemporary = IrCreateTemporaryValueImpl(value.toBackendIrExpression())
         val instanceOfResultTemporary = IrCreateTemporaryValueImpl(buildInstanceOf(context.swCtx, IrTemporaryValueReferenceImpl(valueToCastTemporary), baseTypeToCheck!!))
+
+        if (safeCast) {
+            val nullResultTemporary = IrCreateTemporaryValueImpl(IrNullLiteralExpressionImpl(irTargetType.asNullable()))
+            val castOperationResultTemporary = IrCreateTemporaryValueImpl(IrIfExpressionImpl(
+                condition = IrTemporaryValueReferenceImpl(instanceOfResultTemporary),
+                thenBranch = IrImplicitEvaluationExpressionImpl(IrCodeChunkImpl(emptyList()), IrTemporaryValueReferenceImpl(valueToCastTemporary)),
+                elseBranch = IrImplicitEvaluationExpressionImpl(
+                    IrCodeChunkImpl(listOf(
+                        nullResultTemporary
+                    )),
+                    IrTemporaryValueReferenceImpl(nullResultTemporary),
+                ),
+                irTargetType.asNullable(),
+            ))
+            return IrImplicitEvaluationExpressionImpl(
+                IrCodeChunkImpl(listOf(
+                    valueToCastTemporary,
+                    instanceOfResultTemporary,
+                    castOperationResultTemporary,
+                )),
+                IrTemporaryValueReferenceImpl(castOperationResultTemporary),
+            )
+        }
 
         val classCastErrorBoundType = context.swCtx
             .getPackage(CanonicalElementName.Package(listOf("emerge", "core")))

@@ -354,12 +354,6 @@ val TryCatchExpression = sequence("try-catch expression") {
         )
     }
 
-val ScopeAbortingStatement = eitherOf {
-    ref(ThrowStatement)
-    ref(ContinueStatement)
-    ref(BreakStatement)
-}
-
 val ExpressionPostfixNotNull = sequence("not null assertion") {
     operator(Operator.NOTNULL)
 }
@@ -454,16 +448,25 @@ val ExpressionPostfixIndexAccess = sequence("index") {
     }
 
 val ExpressionPostfixCast = sequence("cast") {
-    eitherOf {
-        keyword(Keyword.AS)
-        keyword(Keyword.SAFE_AS)
+    keyword(Keyword.AS)
+    optional {
+        operator(Operator.QUESTION_MARK)
     }
     ref(Type)
 }
     .astTransformation { tokens ->
-        val operator = tokens.next()!! as KeywordToken
-        val toType = tokens.next()!! as TypeReference
-        CastExpressionPostfix(operator, toType)
+        val keyword = tokens.next()!! as KeywordToken
+        val next = tokens.next()
+        val isSafe: Boolean
+        val toType: TypeReference
+        if (next is OperatorToken && next.operator == Operator.QUESTION_MARK) {
+            isSafe = true
+            toType = tokens.next()!! as TypeReference
+        } else {
+            isSafe = false
+            toType = next as TypeReference
+        }
+        CastExpressionPostfix(keyword, isSafe, toType)
     }
 
 val ExpressionPostfixInstaceOf = sequence("instance-of") {
