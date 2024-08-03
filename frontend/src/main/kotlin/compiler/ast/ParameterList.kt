@@ -44,10 +44,10 @@ data class ParameterList (
                     }
                     else -> parameter.type
                 }
-                return@mapIndexed parameter.copy(type = actualType).bindTo(context, BoundVariable.Kind.PARAMETER)
+                return@mapIndexed parameter.copy(type = actualType).bindToAsParameter(context)
             }
 
-            return@mapIndexed parameter.bindTo(context, BoundVariable.Kind.PARAMETER)
+            return@mapIndexed parameter.bindToAsParameter(context)
         },
     )
 }

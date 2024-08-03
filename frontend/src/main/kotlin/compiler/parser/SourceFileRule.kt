@@ -52,7 +52,7 @@ object SourceFileRule {
                 astSourceFile.imports.add(declaration)
             }
             else if (declaration is VariableDeclaration) {
-                astSourceFile.variables.add(declaration)
+                astSourceFile.globalVariables.add(declaration)
             }
             else if (declaration is FunctionDeclaration) {
                 astSourceFile.functions.add(declaration)

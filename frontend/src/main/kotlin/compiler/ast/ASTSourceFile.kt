@@ -21,8 +21,8 @@ package compiler.ast
 import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
 import compiler.StandardLibraryModule
-import compiler.binding.BoundVariable
 import compiler.binding.context.ModuleContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.SoftwareContext
 import compiler.binding.context.SourceFile
 import compiler.binding.context.SourceFileRootContext
@@ -49,7 +49,7 @@ class ASTSourceFile(
 
     val imports: MutableList<ImportDeclaration> = mutableListOf()
 
-    val variables: MutableList<VariableDeclaration> = mutableListOf()
+    val globalVariables: MutableList<VariableDeclaration> = mutableListOf()
 
     val functions: MutableList<FunctionDeclaration> = mutableListOf()
 
@@ -125,15 +125,17 @@ class ASTSourceFile(
     }
 
     private fun bindVariablesInto(fileContext: SourceFileRootContext, reportings: MutableCollection<Reporting>) {
-        variables.forEach { declaredVariable ->
+        val initializerContext = MutableExecutionScopedCTContext.functionRootIn(fileContext)
+
+        for (globalVariable in globalVariables) {
             // check double declare
-            val existingVariable = fileContext.resolveVariable(declaredVariable.name.value, true)
-            if (existingVariable == null || existingVariable.declaration === declaredVariable) {
-                fileContext.addVariable(declaredVariable.bindTo(fileContext, BoundVariable.Kind.GLOBAL_VARIABLE))
+            val existingVariable = fileContext.resolveVariable(globalVariable.name.value, true)
+            if (existingVariable == null || existingVariable.declaration === globalVariable) {
+                fileContext.addVariable(globalVariable.bindToAsGlobalVariable(fileContext, initializerContext))
             }
             else {
                 // variable double-declared
-                reportings.add(Reporting.variableDeclaredMoreThanOnce(existingVariable.declaration, declaredVariable))
+                reportings.add(Reporting.variableDeclaredMoreThanOnce(existingVariable.declaration, globalVariable))
             }
         }
     }

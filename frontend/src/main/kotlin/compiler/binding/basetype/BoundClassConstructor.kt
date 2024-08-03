@@ -133,7 +133,7 @@ class BoundClassConstructor(
             (returnType as RootResolvedTypeReference).original!!.withMutability(TypeMutability.EXCLUSIVE),
             null,
         )
-        val varInstance = varAst.bindTo(contextWithSelfVar, BoundVariable.Kind.PARAMETER)
+        val varInstance = varAst.bindToAsParameter(contextWithSelfVar)
         contextWithSelfVar.addVariable(varInstance)
         varInstance.defaultOwnership = VariableOwnership.BORROWED
         contextWithSelfVar.trackSideEffect(VariableInitialization.WriteToVariableEffect(varInstance))

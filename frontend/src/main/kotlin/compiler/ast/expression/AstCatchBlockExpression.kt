@@ -5,7 +5,6 @@ import compiler.ast.Statement
 import compiler.ast.VariableDeclaration
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.BoundVariable
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundCatchBlockExpression
@@ -38,7 +37,7 @@ class AstCatchBlockExpression(
             is Statement -> AstCodeChunk(listOf(catchBlock))
         }
         val catchContext = MutableExecutionScopedCTContext.deriveNewScopeFrom(context)
-        val boundThrowableVariable = catchThrowableVariableDeclaration.bindTo(context, BoundVariable.Kind.LOCAL_VARIABLE)
+        val boundThrowableVariable = catchThrowableVariableDeclaration.bindToAsLocalVariable(context)
         catchContext.addVariable(boundThrowableVariable)
 
         return BoundCatchBlockExpression(

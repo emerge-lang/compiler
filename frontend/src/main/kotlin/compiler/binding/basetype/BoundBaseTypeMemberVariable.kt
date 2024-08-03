@@ -21,7 +21,6 @@ package compiler.binding.basetype
 import compiler.ast.BaseTypeMemberDeclaration
 import compiler.ast.BaseTypeMemberVariableDeclaration
 import compiler.ast.expression.IdentifierExpression
-import compiler.binding.BoundVariable
 import compiler.binding.DefinitionWithVisibility
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
@@ -49,7 +48,7 @@ class BoundBaseTypeMemberVariable(
     private val effectiveVariableDeclaration = if (!isConstructorParameterInitialized) declaration.variableDeclaration else {
         declaration.variableDeclaration.copy(initializerExpression = null)
     }
-    private val boundEffectiveVariableDeclaration = effectiveVariableDeclaration.bindTo(context, BoundVariable.Kind.MEMBER_VARIABLE)
+    private val boundEffectiveVariableDeclaration = effectiveVariableDeclaration.bindToAsMemberVariable(context)
 
     override val visibility = boundEffectiveVariableDeclaration.visibility
 
