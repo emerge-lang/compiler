@@ -739,6 +739,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             val resultBucket = if (expressionResultUsed) PhiBucket(tryCatchResultLlvmType) else null
             val exceptionBucket = PhiBucket(PointerToAnyEmergeValue)
             unsafeBranch(
+                prepareBlockName = "try",
                 prepare = {
                     val fallibleExprResult = emitExpressionCode(
                         expression.fallibleCode,
@@ -758,6 +759,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                         }
                     }
                 },
+                branchBlockName = "catch",
                 branch = {
                     val exceptionPtr = exceptionBucket.buildPhi()
                     expression.throwableVariable.emitRead = { exceptionPtr }

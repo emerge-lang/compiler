@@ -166,7 +166,8 @@ internal sealed interface EmergeFallibleCallResult<Value : LlvmType> : LlvmType 
                 condition = isNotNull(exceptionPtr),
                 ifTrue = {
                     abortBuilder.doAbort(exceptionPtr)
-                }
+                },
+                branchBlockName = "fallible_result",
             )
             val returnValue = extractValue(compoundReturnValue) { returnValue }
             return returnValue
@@ -238,7 +239,8 @@ internal sealed interface EmergeFallibleCallResult<Value : LlvmType> : LlvmType 
                 },
                 ifFalse = {
                     exceptionBranch(exceptionPtr)
-                }
+                },
+                branchBlockName = "propagate_exc",
             )
         }
 
@@ -253,7 +255,8 @@ internal sealed interface EmergeFallibleCallResult<Value : LlvmType> : LlvmType 
                 condition = isNotNull(exceptionPtr),
                 ifTrue = {
                     abortBuilder.doAbort(exceptionPtr)
-                }
+                },
+                branchBlockName = "fallible_result",
             )
 
             return context.poisonValue(LlvmVoidType)

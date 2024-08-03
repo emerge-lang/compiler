@@ -359,6 +359,27 @@ private val dropReferenceFunction = KotlinLlvmFunction.define<EmergeLlvmContext,
     }
 }
 
+private val dropNullableReferenceFunction = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
+    "emerge.platform.dropNullableReference",
+    LlvmVoidType
+) {
+    instructionAliasAttributes()
+
+    val objectPtr by param(PointerToAnyEmergeValue)
+
+    body {
+        conditionalBranch(
+            condition = isNull(objectPtr),
+            ifTrue = {
+                retVoid()
+            }
+        )
+
+        callIntrinsic(dropReferenceFunction, listOf(objectPtr))
+        retVoid()
+    }
+}
+
 /**
  * @param isNullable whether, according to the type information given by the frontend ([IrType.isNullable]),
  * the reference is nullable. If true, a runtime null-check will be emitted.
@@ -368,10 +389,7 @@ internal fun LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>.afterReferenceD
     isNullable: Boolean,
 ) {
     if (isNullable) {
-        conditionalBranch(condition = isNotNull(this), ifTrue = {
-            callIntrinsic(dropReferenceFunction, listOf(this@afterReferenceDropped))
-            concludeBranch()
-        })
+        callIntrinsic(dropNullableReferenceFunction, listOf(this@afterReferenceDropped))
     } else {
         callIntrinsic(dropReferenceFunction, listOf(this@afterReferenceDropped))
     }
