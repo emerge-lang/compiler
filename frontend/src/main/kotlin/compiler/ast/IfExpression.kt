@@ -41,8 +41,12 @@ class IfExpression (
             contextBeforeCondition,
             this,
             boundCondition,
-            thenCodeAsChunk.bindTo(boundCondition.modifiedContext),
-            elseCodeAsChunk?.bindTo(contextBeforeCondition),
+            thenCodeAsChunk.bindTo(MutableExecutionScopedCTContext.deriveNewScopeFrom(
+                boundCondition.modifiedContext
+            )),
+            elseCodeAsChunk?.bindTo(MutableExecutionScopedCTContext.deriveNewScopeFrom(
+                contextBeforeCondition
+            )),
         )
     }
 }
