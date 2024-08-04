@@ -4,6 +4,7 @@ import compiler.ast.AstCodeChunk
 import compiler.ast.Executable
 import compiler.binding.context.ExceptionHandlingExecutionScopedCTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundTryCatchExpression
 import compiler.lexer.Span
@@ -28,7 +29,7 @@ class AstTryCatchExpression(
             context,
             this,
             boundFallibleCode,
-            catchBlock.bindTo(context),
+            catchBlock.bindTo(MutableExecutionScopedCTContext.deriveNewScopeFrom(context)),
         )
     }
 }
