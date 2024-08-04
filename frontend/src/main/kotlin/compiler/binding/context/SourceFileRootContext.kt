@@ -87,6 +87,9 @@ class SourceFileRootContext(
             override fun getExceptionHandlingLocalDeferredCode(): Sequence<BoundExecutable<*>> {
                 throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
             }
+            override fun getDeferredCodeForThrow(): Sequence<BoundExecutable<*>> {
+                throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
+            }
             override fun getFunctionDeferredCode(): Sequence<BoundExecutable<*>> {
                 throw InternalCompilerError("Should be implemented on the level of ${SourceFileRootContext::class.qualifiedName}")
             }

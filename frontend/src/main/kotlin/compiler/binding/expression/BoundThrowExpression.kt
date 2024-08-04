@@ -123,7 +123,7 @@ internal fun buildIrThrow(
         fillStackTraceLandingpad,
     ))
 
-    val cleanupCode = context.getExceptionHandlingLocalDeferredCode()
+    val cleanupCode = (context.getExceptionHandlingLocalDeferredCode() + context.getDeferredCodeForThrow())
         .map { it.toBackendIrStatement() }
         .toList()
 

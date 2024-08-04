@@ -81,10 +81,18 @@ interface ExecutionScopedCTContext : CTContext {
     /**
      * If there is a parent context that has [isExceptionHandler] = `true`, returns all deferred code up to and including
      * that context, in the **reverse** order of how it was added to [MutableExecutionScopedCTContext.addDeferredCode].
-     * If there is no parent context marked with [isExceptionHandler], returns the same value as [getFunctionDeferredCode].
-     * @return all code that needs to be executed before a throw
+     * If there is no parent context marked with [isExceptionHandler], returns an empty sequence.
      */
     fun getExceptionHandlingLocalDeferredCode(): Sequence<BoundExecutable<*>>
+
+    /**
+     * If there is a parent context that has [isExceptionHandler] = `true`, returns an empty sequence. This range must
+     * be covered by using the return value of [getExceptionHandlingLocalDeferredCode].
+     * Otherwise, returns all deferred code starting with the parent context of the one that has [isExceptionHandler] = `true`
+     * up to the next parent with [isFunctionRoot] = `true`, in the **reverse** order of how it was added
+     * to [MutableExecutionScopedCTContext.addDeferredCode].
+     */
+    fun getDeferredCodeForThrow(): Sequence<BoundExecutable<*>>
 
     /**
      * @return all code that has been deferred in this scope and all of its parent [ExecutionScopedCTContext]s up until
@@ -200,8 +208,16 @@ open class MutableExecutionScopedCTContext protected constructor(
     }
 
     override fun getExceptionHandlingLocalDeferredCode(): Sequence<BoundExecutable<*>> {
-        parentExceptionHandlerContext?.let { tryCtx ->
-            return getDeferredCodeUpToIncluding(tryCtx)
+        parentExceptionHandlerContext
+            ?.let { return getDeferredCodeUpToIncluding(it) }
+
+        return emptySequence()
+    }
+
+    override fun getDeferredCodeForThrow(): Sequence<BoundExecutable<*>> {
+        val parentEHContext = parentExceptionHandlerContext
+        if (parentEHContext != null) {
+            return emptySequence()
         }
 
         return getFunctionDeferredCode()

@@ -628,7 +628,7 @@ internal fun buildGenericInvocationLikeIr(
         boundArgumentExprs,
         { args, argsCleanupCode ->
             val landingpad = if (assumeNothrow) null else {
-                val cleanupCode = argsCleanupCode + context.getScopeLocalDeferredCode().map { it.toBackendIrStatement() }
+                val cleanupCode = argsCleanupCode + context.getExceptionHandlingLocalDeferredCode().map { it.toBackendIrStatement() }.toList()
                 val landingpadContext = MutableExecutionScopedCTContext.deriveFrom(context)
                 val throwableVar = VariableDeclaration(
                     invocationLocation,
@@ -650,13 +650,20 @@ internal fun buildGenericInvocationLikeIr(
                 val exceptionTemporary = IrCreateTemporaryValueImpl(
                     IrVariableAccessExpressionImpl(throwableVar.backendIrDeclaration)
                 )
-                val rethrowStmt = IrThrowStatementImpl(IrTemporaryValueReferenceImpl(exceptionTemporary))
+                val rethrowStmt = IrCodeChunkImpl(
+                    context.getDeferredCodeForThrow()
+                        .map { it.toBackendIrStatement() }
+                        .toList()
+                    +
+                    listOf(IrThrowStatementImpl(IrTemporaryValueReferenceImpl(exceptionTemporary)))
+                )
                 val catchOrRethrow: List<IrExecutable> = if (context.hasExceptionHandler) {
                     val isError = IrCreateTemporaryValueImpl(buildInstanceOf(
                         landingpadContext.swCtx,
                         IrTemporaryValueReferenceImpl(exceptionTemporary),
                         landingpadContext.swCtx.error,
                     ))
+
                     val catchOrThrowBranch = IrConditionalBranchImpl(
                         condition = IrTemporaryValueReferenceImpl(isError),
                         thenBranch = rethrowStmt,
