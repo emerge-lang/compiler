@@ -12,7 +12,7 @@ class AstPackageName(
     val span by lazy {
         names
             .map { it.span }
-            .filter { it == Span.UNKNOWN }
+            .filterNot { it == Span.UNKNOWN }
             .takeUnless { it.isEmpty() }
             ?.let { it.first() to it.last() }
             ?.let { (first, last) -> first .. last }
