@@ -353,6 +353,7 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
         value: LlvmValue<Small>,
         to: Large,
     ): LlvmValue<Large> {
+        require(value.type.getNBitsInContext(context) <= to.getNBitsInContext(context))
         val zextInstr = Llvm.LLVMBuildZExt(builder, value.raw, to.getRawInContext(context), tmpVars.next())
         return LlvmValue(zextInstr, to)
     }

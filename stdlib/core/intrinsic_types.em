@@ -45,6 +45,8 @@ export class S8 : Printable {
 
     export intrinsic nothrow fn asU8(self) -> U8
 
+    export intrinsic nothrow fn toS16(self) -> S16
+    export intrinsic nothrow fn toS32(self) -> S32
     export intrinsic nothrow fn toS64(self) -> S64
 
     export fn toString(self) = self.toS64().toString()
@@ -69,6 +71,8 @@ export class U8 : Printable {
 
     export intrinsic nothrow fn asS8(self) -> S8
 
+    export intrinsic nothrow fn toU16(self) -> U16
+    export intrinsic nothrow fn toU32(self) -> U32
     export intrinsic nothrow fn toU64(self) -> U64
 
     export fn toString(self) = self.toU64().toString()
@@ -96,6 +100,7 @@ export class S16 : Printable {
 
     export intrinsic nothrow fn asU16(self) -> U16
 
+    export intrinsic nothrow fn toS32(self) -> S32
     export intrinsic nothrow fn toS64(self) -> S64
 
     export fn toString(self) = self.toS64().toString()
@@ -120,6 +125,7 @@ export class U16 : Printable {
 
     export intrinsic nothrow fn asS16(self) -> S16
 
+    export intrinsic nothrow fn toU32(self) -> U32
     export intrinsic nothrow fn toU64(self) -> U64
 
     export fn toString(self) = self.toU64().toString()

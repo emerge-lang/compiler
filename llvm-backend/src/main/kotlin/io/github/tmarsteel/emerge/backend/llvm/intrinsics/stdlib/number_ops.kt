@@ -114,10 +114,16 @@ internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContex
         equals_u64,
         equals_sWord,
         equals_uWord,
+        convert_s8_to_s16,
+        convert_s8_to_s32,
         convert_s8_to_s64,
+        convert_s16_to_s32,
         convert_s16_to_s64,
         convert_s32_to_s64,
+        convert_u8_to_u16,
+        convert_u8_to_u32,
         convert_u8_to_u64,
+        convert_u16_to_u32,
         convert_u16_to_u64,
         convert_u32_to_u64,
         convert_s64_to_sWord_lossy,
@@ -512,39 +518,45 @@ private val equals_u64 = buildEqualsFn("U64", LlvmI64Type)
 private val equals_sWord = buildEqualsFn("SWord", EmergeWordType)
 private val equals_uWord = buildEqualsFn("UWord", EmergeWordType)
 
-private fun buildSignedEnlargeTo64Fn(fromType: LlvmFixedIntegerType) = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmI64Type>(
-    "emerge.core.S${fromType.nBits}::toS64",
-    LlvmI64Type,
+private fun <T : LlvmFixedIntegerType> buildSignedEnlargeFn(fromType: LlvmFixedIntegerType, toType: T) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(
+    "emerge.core.S${fromType.nBits}::toS${toType.nBits}",
+    toType,
 ) {
     instructionAliasAttributes()
 
     val self by param(fromType)
 
     body {
-        ret(enlargeSigned(self, LlvmI64Type))
+        ret(enlargeSigned(self, toType))
     }
 }
 
-private val convert_s8_to_s64 = buildSignedEnlargeTo64Fn(LlvmI8Type)
-private val convert_s16_to_s64 = buildSignedEnlargeTo64Fn(LlvmI16Type)
-private val convert_s32_to_s64 = buildSignedEnlargeTo64Fn(LlvmI32Type)
+private val convert_s8_to_s16 = buildSignedEnlargeFn(LlvmI8Type, LlvmI16Type)
+private val convert_s8_to_s32 = buildSignedEnlargeFn(LlvmI8Type, LlvmI32Type)
+private val convert_s8_to_s64 = buildSignedEnlargeFn(LlvmI8Type, LlvmI64Type)
+private val convert_s16_to_s32 = buildSignedEnlargeFn(LlvmI16Type, LlvmI32Type)
+private val convert_s16_to_s64 = buildSignedEnlargeFn(LlvmI16Type, LlvmI64Type)
+private val convert_s32_to_s64 = buildSignedEnlargeFn(LlvmI32Type, LlvmI64Type)
 
-private fun buildUnsignedEnlargeTo64Fn(fromType: LlvmFixedIntegerType) = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmI64Type>(
-    "emerge.core.U${fromType.nBits}::toU64",
-    LlvmI64Type,
+private fun <T : LlvmFixedIntegerType> buildUnsignedEnlargeFn(fromType: LlvmFixedIntegerType, toType: T) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(
+    "emerge.core.U${fromType.nBits}::toU${toType.nBits}",
+    toType,
 ) {
     instructionAliasAttributes()
 
     val self by param(fromType)
 
     body {
-        ret(enlargeUnsigned(self, LlvmI64Type))
+        ret(enlargeUnsigned(self, toType))
     }
 }
 
-private val convert_u8_to_u64 = buildUnsignedEnlargeTo64Fn(LlvmI8Type)
-private val convert_u16_to_u64 = buildUnsignedEnlargeTo64Fn(LlvmI16Type)
-private val convert_u32_to_u64 = buildUnsignedEnlargeTo64Fn(LlvmI32Type)
+private val convert_u8_to_u16 = buildUnsignedEnlargeFn(LlvmI8Type, LlvmI16Type)
+private val convert_u8_to_u32 = buildUnsignedEnlargeFn(LlvmI8Type, LlvmI32Type)
+private val convert_u8_to_u64 = buildUnsignedEnlargeFn(LlvmI8Type, LlvmI64Type)
+private val convert_u16_to_u32 = buildUnsignedEnlargeFn(LlvmI16Type, LlvmI32Type)
+private val convert_u16_to_u64 = buildUnsignedEnlargeFn(LlvmI16Type, LlvmI64Type)
+private val convert_u32_to_u64 = buildUnsignedEnlargeFn(LlvmI32Type, LlvmI64Type)
 
 private fun <From : LlvmIntegerType, To : LlvmIntegerType> buildLossyConversionFn(
     fullSymbol: String,
