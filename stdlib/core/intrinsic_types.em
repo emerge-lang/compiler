@@ -366,6 +366,12 @@ export class Array<Element> {
             set nCopied = nCopied + 1
         }
     }
+    
+    // TODO: equals. Due to lack of a Any::equals (and its good that this isn't present!!)
+    // this needs the equals fn as a parameter. The signature would be
+    // fn Array<T>.equals(self, borrow other: Array<T>, equals: (T, T) -> Bool) -> Bool
+    // and could be invoked like so:
+    // str1.utf8Bytes.equals(str2.utf8Bytes, U8::equals)
 }
 
 export class ArrayIndexOutOfBoundsError : Error {

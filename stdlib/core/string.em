@@ -1,5 +1,7 @@
 package emerge.core
 
+import emerge.core.safemath.plusModulo
+
 export class String {
     export utf8Data: Array<S8> = init
 
@@ -9,5 +11,25 @@ export class String {
         Array.copy(other.utf8Data, 0, newData, self.utf8Data.size, other.utf8Data.size)
 
         return String(newData)
+    }
+
+    export nothrow operator fn equals(self, borrow other: read String) -> Bool {
+        // TODO: horribly inefficient. Needs Array::equals.
+        if self.utf8Data.size != other.utf8Data.size {
+            return false
+        }
+
+        var index = 0 as UWord
+        while index < self.utf8Data.size {
+            selfByte = self.utf8Data.getOrPanic(index)
+            otherByte = other.utf8Data.getOrPanic(index)
+            if selfByte != otherByte {
+                return false
+            }
+
+            set index = index.plusModulo(1 as UWord)
+        }
+
+        return true
     }
 }

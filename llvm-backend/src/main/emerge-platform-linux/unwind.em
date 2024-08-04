@@ -29,17 +29,18 @@ export read fn collectStackTrace(nFramesToSkip: U32, includeRuntimeFrames: Bool)
 
     var nSkipped = 0 as U32
     do {
+        procName = unwindCursorGetProcedureName(cursorBuffer.addressOfFirst())
+        if (not includeRuntimeFrames) and procName == "main" {
+            break
+        }
+    
         if nSkipped >= nFramesToSkip {
-            procName = unwindCursorGetProcedureName(cursorBuffer.addressOfFirst())
-            // TODO: stop when encountering "main"; currently String::equals is missing for that
             ip = unwindCursorGetInstructionPointer(cursorBuffer.addressOfFirst())
 
             stackList.add(StackTraceElement(ip, procName))
         } else {
             set nSkipped = nSkipped + 1
         }
-
-        // TODO: implement the includeRuntimeFrames parameter, needs string equals
     } while (unwindCursorTryStepUp(cursorBuffer.addressOfFirst()))
 
     return stackList
