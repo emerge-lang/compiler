@@ -28,7 +28,6 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Compan
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.TypeinfoType
-import io.github.tmarsteel.emerge.backend.llvm.intrinsics.afterReferenceDropped
 
 /**
  * Helps with automatic boxing and unboxing of values
@@ -139,9 +138,6 @@ internal sealed interface Autoboxer {
             val box = call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
                 propagateOrPanic(exceptionPtr, "autoboxing failed; constructor of ${boxedType.irClass.canonicalName} threw")
             }
-            defer {
-                box.afterReferenceDropped(isNullable = false)
-            }
 
             return box
         }
@@ -251,9 +247,6 @@ internal sealed interface Autoboxer {
                 }
             )
             val box = boxed.buildPhi()
-            defer {
-                box.afterReferenceDropped(isNullable = true)
-            }
 
             return box
         }
@@ -371,9 +364,6 @@ internal sealed interface Autoboxer {
             val boxedType = getBoxedType(context)
             val box = call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
                 propagateOrPanic(exceptionPtr, "autoboxing failed; constructor of ${boxedType.irClass.canonicalName} threw")
-            }
-            defer {
-                box.afterReferenceDropped(isNullable = false)
             }
 
             return box
