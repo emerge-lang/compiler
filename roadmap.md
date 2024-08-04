@@ -74,6 +74,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 9. integration tests!! Include emerge source code in this repository that tests the runtime and correct compilation.
    The unit tests in the frontend test the negative cases; these should test the positive ones. E.g. that 2+3=5,
    refcounting, control flow + exceptions, ...
+   * ideally, valgrind can be used as a library in the testing framework to check every single test-case
+     for memory leaks.
 10. documentation and presentation
     * from a user perspective. Github pages?
       * language syntax and semantics, maybe a good tutorial
@@ -158,6 +160,28 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 -----
 
 ## Future features
+
+### Stateless Singletons
+
+Emerge can't have Kotlins `object` singletons because that suggest a single identity per program execution,
+but due to how all other state works, it would be an identity per thread. That complicates sending these
+singletons across threads even more complicated. The possible solution: atoms. Like in functional and logic programming,
+atoms are stateless identities. Because they're stateless they can retain their identity across all threads, just
+like string literals/constants. They could even implement interfaces. Atoms can come in handy together
+with algebraic data types to form Java-Like enums:
+
+    atom A {}
+    atom B {}
+    atom C {}
+    typealias Enum = A | B | C
+
+Implementing interfaces is handy for modelling state external to the program:
+
+    atom StandardOut : PrintStream {
+        override fn put(self: mut _, string: String) {
+            // ...
+        }
+    }
 
 ### Feed LLVM with all info available
 
