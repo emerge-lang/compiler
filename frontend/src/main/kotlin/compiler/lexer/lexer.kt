@@ -32,6 +32,12 @@ fun lex(sourceFile: SourceFile, addTrailingNewline: Boolean = true): Array<Token
             break@tokenLoop
         }
 
+        val numericLiteralToken = iterator.tryMatchNumericLiteral(sourceFile)
+        if (numericLiteralToken != null) {
+            tokens.add(numericLiteralToken)
+            continue@tokenLoop
+        }
+
         val operatorToken = iterator.tryMatchOperator(sourceFile)
         if (operatorToken != null) {
             if (operatorToken.operator == Operator.COMMENT) {
@@ -65,12 +71,6 @@ fun lex(sourceFile: SourceFile, addTrailingNewline: Boolean = true): Array<Token
                 else -> {}
             }
 
-            continue@tokenLoop
-        }
-
-        val numericLiteralToken = iterator.tryMatchNumericLiteral(sourceFile)
-        if (numericLiteralToken != null) {
-            tokens.add(numericLiteralToken)
             continue@tokenLoop
         }
 
@@ -183,12 +183,29 @@ private fun PositionTrackingCodePointTransactionalSequence.collectUntilOperatorO
 }
 
 private fun PositionTrackingCodePointTransactionalSequence.tryMatchNumericLiteral(sourceFile: SourceFile): NumericLiteralToken? {
-    if (peek()?.isDigit == false) {
+    val startLocation = currentPosition
+    val firstCodePoint = peek() ?: return null
+
+    mark()
+
+    var isNegative = false
+    if (firstCodePoint == MINUS_CODEPOINT) {
+        isNegative = true
+        nextOrThrow()
+    }
+
+    if (!hasNext) {
+        rollback()
         return null
     }
+
+    if (!peek()!!.isDigit) {
+        rollback()
+        return null
+    }
+
     // NUMERIC_LITERAL
     val (firstIntegerString, firstIntegerStringLocation) = collectUntilOperatorOrWhitespace(sourceFile)
-    mark()
     if (peek() == DECIMAL_SEPARATOR) {
         // skip the dot
         nextOrThrow()
@@ -197,14 +214,18 @@ private fun PositionTrackingCodePointTransactionalSequence.tryMatchNumericLitera
             // <DIGIT, ...> <DOT> <DIGIT, ...> => Floating point literal
             commit()
             // floating point literal
-            val floatBuilder = StringBuilder(firstIntegerString)
+            val floatBuilder = StringBuilder()
+            if (isNegative) {
+                floatBuilder.append('-')
+            }
+            floatBuilder.append(firstIntegerString)
             floatBuilder.appendCodePoint(DECIMAL_SEPARATOR.value)
             val (fractionalString, fractionalStringLocation) = collectUntilOperatorOrWhitespace(sourceFile)
             floatBuilder.append(fractionalString)
 
             // return numericStr later
             return NumericLiteralToken(
-                firstIntegerStringLocation .. fractionalStringLocation,
+                Span(sourceFile, startLocation.lineNumber, startLocation.columnNumber, fractionalStringLocation.toLineNumber, fractionalStringLocation.toColumnNumber),
                 floatBuilder.toString(),
             )
         }
@@ -217,7 +238,10 @@ private fun PositionTrackingCodePointTransactionalSequence.tryMatchNumericLitera
         }
     }
 
-    return NumericLiteralToken(firstIntegerStringLocation, firstIntegerString)
+    return NumericLiteralToken(
+        Span(sourceFile, startLocation.lineNumber, startLocation.columnNumber, firstIntegerStringLocation.toLineNumber, firstIntegerStringLocation.toColumnNumber),
+        if (isNegative) "-$firstIntegerString" else firstIntegerString,
+    )
 }
 
 private fun PositionTrackingCodePointTransactionalSequence.collectStringContent(sourceFile: SourceFile): Pair<String, Span> {
@@ -274,6 +298,7 @@ private fun PositionTrackingCodePointTransactionalSequence.collectDelimitedIdent
     return Pair(data.toString(), Span(sourceFile, start ?: currentPosition, currentPosition))
 }
 
+private val MINUS_CODEPOINT = CodePoint(Operator.MINUS.text.single().code)
 private val ESCAPE_SEQUENCES: Map<CodePoint, CodePoint> = mapOf<Char, Char>(
     'n' to '\n',
     't' to '\t',

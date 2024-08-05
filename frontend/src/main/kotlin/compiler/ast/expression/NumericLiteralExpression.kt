@@ -83,11 +83,11 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
                 str = str.substring(0, str.lastIndex)
             }
 
-            var allowedChars = ('0' .. '9') + arrayOf('.', 'e', 'E')
+            var allowedChars = ('0' .. '9') + arrayOf('.', 'e', 'E', '-')
             val unallowed = str.minus(allowedChars)
             if (unallowed.isNotEmpty()) {
                 validationResult = setOf(Reporting.erroneousLiteralExpression(
-                    "Floating point literal contains unallowed characters: ${unallowed.unique()}",
+                    "Floating point literal contains forbidden characters: ${unallowed.unique()}",
                     literalToken.span
                 ))
                 return
@@ -182,7 +182,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
                 allowedChars = ('0'..'9').toList()
             }
 
-            val unallowed = str.minus(allowedChars)
+            val unallowed = str.minus(allowedChars + listOf('-'))
             if (unallowed.isNotEmpty()) {
                 validationResult = setOf(Reporting.erroneousLiteralExpression(
                     "Integer literal contains unallowed characters: ${unallowed.unique()}",
