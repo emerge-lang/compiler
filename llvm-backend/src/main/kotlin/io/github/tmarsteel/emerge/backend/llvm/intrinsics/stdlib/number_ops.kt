@@ -169,8 +169,39 @@ internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContex
         reinterpret_u64_as_s64,
         reinterpret_sWord_as_uWord,
         reinterpret_uWord_as_sWord,
+        bitwise_and_s8,
+        bitwise_and_u8,
+        bitwise_and_s16,
+        bitwise_and_u16,
+        bitwise_and_s32,
+        bitwise_and_u32,
+        bitwise_and_s64,
+        bitwise_and_u64,
+        bitwise_and_sWord,
+        bitwise_and_uWord,
+        bitwise_or_s8,
+        bitwise_or_u8,
+        bitwise_or_s16,
+        bitwise_or_u16,
+        bitwise_or_s32,
+        bitwise_or_u32,
+        bitwise_or_s64,
+        bitwise_or_u64,
+        bitwise_or_sWord,
+        bitwise_or_uWord,
+        bitwise_xor_s8,
+        bitwise_xor_u8,
+        bitwise_xor_s16,
+        bitwise_xor_u16,
+        bitwise_xor_s32,
+        bitwise_xor_u32,
+        bitwise_xor_s64,
+        bitwise_xor_u64,
+        bitwise_xor_sWord,
+        bitwise_xor_uWord,
         binary_and_bool,
         binary_or_bool,
+        binary_xor_bool,
     )
 }
 
@@ -766,30 +797,81 @@ private val arithmeticShiftRight_s32 = buildArithmeticBitShiftRightFn("S32", Llv
 private val arithmeticShiftRight_s64 = buildArithmeticBitShiftRightFn("S64", LlvmI64Type)
 private val arithmeticShiftRight_sWord = buildArithmeticBitShiftRightFn("SWord", EmergeWordType)
 
-private val binary_and_bool = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmBooleanType>(
-    "emerge.core.Bool::and",
-    LlvmBooleanType,
+private fun <T : LlvmIntegerType> buildBitwiseAndFunction(typeSimpleName: String, llvmType: T) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(
+    "emerge.core.$typeSimpleName::and",
+    llvmType
 ) {
     instructionAliasAttributes()
 
-    val lhs by param(LlvmBooleanType)
-    val rhs by param(LlvmBooleanType)
+    val self by param(llvmType)
+    val other by param(llvmType)
 
     body {
-        ret(and(lhs, rhs))
+        ret(and(self, other))
     }
 }
 
-private val binary_or_bool = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmBooleanType>(
-    "emerge.core.Bool::or",
-    LlvmBooleanType,
+private fun <T : LlvmIntegerType> buildBitwiseOrFunction(typeSimpleName: String, llvmType: T) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(
+    "emerge.core.$typeSimpleName::or",
+    llvmType
 ) {
     instructionAliasAttributes()
 
-    val lhs by param(LlvmBooleanType)
-    val rhs by param(LlvmBooleanType)
+    val self by param(llvmType)
+    val other by param(llvmType)
 
     body {
-        ret(or(lhs, rhs))
+        ret(or(self, other))
     }
 }
+
+private fun <T : LlvmIntegerType> buildBitwiseXorFunction(typeSimpleName: String, llvmType: T) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(
+    "emerge.core.$typeSimpleName::xor",
+    llvmType
+) {
+    instructionAliasAttributes()
+
+    val self by param(llvmType)
+    val other by param(llvmType)
+
+    body {
+        ret(xor(self, other))
+    }
+}
+
+private val bitwise_and_s8 = buildBitwiseAndFunction("S8", LlvmI8Type)
+private val bitwise_and_u8 = buildBitwiseAndFunction("U8", LlvmI8Type)
+private val bitwise_and_s16 = buildBitwiseAndFunction("S16", LlvmI16Type)
+private val bitwise_and_u16 = buildBitwiseAndFunction("U16", LlvmI16Type)
+private val bitwise_and_s32 = buildBitwiseAndFunction("S32", LlvmI32Type)
+private val bitwise_and_u32 = buildBitwiseAndFunction("U32", LlvmI32Type)
+private val bitwise_and_s64 = buildBitwiseAndFunction("S64", LlvmI64Type)
+private val bitwise_and_u64 = buildBitwiseAndFunction("U64", LlvmI64Type)
+private val bitwise_and_sWord = buildBitwiseAndFunction("SWord", EmergeWordType)
+private val bitwise_and_uWord = buildBitwiseAndFunction("UWord", EmergeWordType)
+
+private val bitwise_or_s8 = buildBitwiseOrFunction("S8", LlvmI8Type)
+private val bitwise_or_u8 = buildBitwiseOrFunction("U8", LlvmI8Type)
+private val bitwise_or_s16 = buildBitwiseOrFunction("S16", LlvmI16Type)
+private val bitwise_or_u16 = buildBitwiseOrFunction("U16", LlvmI16Type)
+private val bitwise_or_s32 = buildBitwiseOrFunction("S32", LlvmI32Type)
+private val bitwise_or_u32 = buildBitwiseOrFunction("U32", LlvmI32Type)
+private val bitwise_or_s64 = buildBitwiseOrFunction("S64", LlvmI64Type)
+private val bitwise_or_u64 = buildBitwiseOrFunction("U64", LlvmI64Type)
+private val bitwise_or_sWord = buildBitwiseOrFunction("SWord", EmergeWordType)
+private val bitwise_or_uWord = buildBitwiseOrFunction("UWord", EmergeWordType)
+
+private val bitwise_xor_s8 = buildBitwiseXorFunction("S8", LlvmI8Type)
+private val bitwise_xor_u8 = buildBitwiseXorFunction("U8", LlvmI8Type)
+private val bitwise_xor_s16 = buildBitwiseXorFunction("S16", LlvmI16Type)
+private val bitwise_xor_u16 = buildBitwiseXorFunction("U16", LlvmI16Type)
+private val bitwise_xor_s32 = buildBitwiseXorFunction("S32", LlvmI32Type)
+private val bitwise_xor_u32 = buildBitwiseXorFunction("U32", LlvmI32Type)
+private val bitwise_xor_s64 = buildBitwiseXorFunction("S64", LlvmI64Type)
+private val bitwise_xor_u64 = buildBitwiseXorFunction("U64", LlvmI64Type)
+private val bitwise_xor_sWord = buildBitwiseXorFunction("SWord", EmergeWordType)
+private val bitwise_xor_uWord = buildBitwiseXorFunction("UWord", EmergeWordType)
+
+private val binary_and_bool = buildBitwiseAndFunction("Bool", LlvmBooleanType)
+private val binary_or_bool = buildBitwiseOrFunction("Bool", LlvmBooleanType)
+private val binary_xor_bool = buildBitwiseXorFunction("Bool", LlvmBooleanType)
