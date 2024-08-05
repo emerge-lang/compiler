@@ -1,6 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics.stdlib
 
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
+import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFixedIntegerType
@@ -14,6 +15,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmIntegerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmIntrinsic
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
+import io.github.tmarsteel.emerge.backend.llvm.dsl.SignedMin
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i16
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i64
@@ -94,6 +96,31 @@ internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContex
         remainder_u64,
         remainder_sWord,
         remainder_uWord,
+        shiftLeft_u8,
+        shiftLeft_s8,
+        shiftLeft_u16,
+        shiftLeft_s16,
+        shiftLeft_u32,
+        shiftLeft_s32,
+        shiftLeft_u64,
+        shiftLeft_s64,
+        shiftLeft_uWord,
+        shiftLeft_sWord,
+        logicalShiftRight_u8,
+        logicalShiftRight_s8,
+        logicalShiftRight_u16,
+        logicalShiftRight_s16,
+        logicalShiftRight_u32,
+        logicalShiftRight_s32,
+        logicalShiftRight_u64,
+        logicalShiftRight_s64,
+        logicalShiftRight_uWord,
+        logicalShiftRight_sWord,
+        arithmeticShiftRight_s8,
+        arithmeticShiftRight_s16,
+        arithmeticShiftRight_s32,
+        arithmeticShiftRight_s64,
+        arithmeticShiftRight_sWord,
         compareTo_s8,
         compareTo_u8,
         compareTo_s16,
@@ -658,6 +685,86 @@ private val remainder_s64 = buildSignedRemainderFn("S64", LlvmI64Type)
 private val remainder_u64 = buildUnsignedRemainderFn("U64", LlvmI64Type)
 private val remainder_sWord = buildSignedRemainderFn("SWord", EmergeWordType)
 private val remainder_uWord = buildUnsignedRemainderFn("UWord", EmergeWordType)
+
+/**
+ * shifting by more than there are bits in the type is undefined in LLVM and yields a poison value.
+ */
+private fun <T : LlvmIntegerType> BasicBlockBuilder<EmergeLlvmContext, *>.clampBitShiftAmount(givenAmount: LlvmValue<LlvmI8Type>, forType: T): LlvmValue<T> {
+    val nBitsInType = forType.getNBitsInContext(context)
+    check(nBitsInType <= UByte.MAX_VALUE.toInt())
+    val maxShiftAmount = enlargeUnsigned(context.i8(nBitsInType.toUByte()), forType)
+    return call(SignedMin(forType), listOf(enlargeUnsigned(givenAmount, forType), maxShiftAmount))
+}
+
+private fun <T : LlvmIntegerType> buildShiftLeftFn(typeSimpleName: String, llvmType: T) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(
+    "emerge.core.${typeSimpleName}::bitShiftLeft",
+    llvmType,
+) {
+    instructionAliasAttributes()
+
+    val self by param(llvmType)
+    val amount by param(LlvmI8Type)
+
+    body {
+        ret(shl(self, clampBitShiftAmount(amount, llvmType)))
+    }
+}
+
+private val shiftLeft_u8 = buildShiftLeftFn("U8", LlvmI8Type)
+private val shiftLeft_s8 = buildShiftLeftFn("S8", LlvmI8Type)
+private val shiftLeft_u16 = buildShiftLeftFn("U16", LlvmI16Type)
+private val shiftLeft_s16 = buildShiftLeftFn("S16", LlvmI16Type)
+private val shiftLeft_u32 = buildShiftLeftFn("U32", LlvmI32Type)
+private val shiftLeft_s32 = buildShiftLeftFn("S32", LlvmI32Type)
+private val shiftLeft_u64 = buildShiftLeftFn("U64", LlvmI64Type)
+private val shiftLeft_s64 = buildShiftLeftFn("S64", LlvmI64Type)
+private val shiftLeft_uWord = buildShiftLeftFn("UWord", EmergeWordType)
+private val shiftLeft_sWord = buildShiftLeftFn("SWord", EmergeWordType)
+
+private fun <T : LlvmIntegerType> buildLogicalBitShiftRightFn(typeSimpleName: String, llvmType: T) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(
+    "emerge.platform.$typeSimpleName::logicalBitShiftRight",
+    llvmType,
+) {
+    instructionAliasAttributes()
+
+    val self by param(llvmType)
+    val amount by param(LlvmI8Type)
+
+    body {
+        ret(lshr(self, clampBitShiftAmount(amount, llvmType)))
+    }
+}
+
+private val logicalShiftRight_u8 = buildLogicalBitShiftRightFn("U8", LlvmI8Type)
+private val logicalShiftRight_s8 = buildLogicalBitShiftRightFn("S8", LlvmI8Type)
+private val logicalShiftRight_u16 = buildLogicalBitShiftRightFn("U16", LlvmI16Type)
+private val logicalShiftRight_s16 = buildLogicalBitShiftRightFn("S16", LlvmI16Type)
+private val logicalShiftRight_u32 = buildLogicalBitShiftRightFn("U32", LlvmI32Type)
+private val logicalShiftRight_s32 = buildLogicalBitShiftRightFn("S32", LlvmI32Type)
+private val logicalShiftRight_u64 = buildLogicalBitShiftRightFn("U64", LlvmI64Type)
+private val logicalShiftRight_s64 = buildLogicalBitShiftRightFn("S64", LlvmI64Type)
+private val logicalShiftRight_uWord = buildLogicalBitShiftRightFn("UWord", EmergeWordType)
+private val logicalShiftRight_sWord = buildLogicalBitShiftRightFn("SWord", EmergeWordType)
+
+private fun <T : LlvmIntegerType> buildArithmeticBitShiftRightFn(typeSimpleName: String, llvmType: T) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(
+    "emerge.platform.$typeSimpleName::arithmeticBitShiftRight",
+    llvmType,
+) {
+    instructionAliasAttributes()
+
+    val self by param(llvmType)
+    val amount by param(LlvmI8Type)
+
+    body {
+        ret(ashr(self, clampBitShiftAmount(amount, llvmType)))
+    }
+}
+
+private val arithmeticShiftRight_s8 = buildArithmeticBitShiftRightFn("S8", LlvmI8Type)
+private val arithmeticShiftRight_s16 = buildArithmeticBitShiftRightFn("S16", LlvmI16Type)
+private val arithmeticShiftRight_s32 = buildArithmeticBitShiftRightFn("S32", LlvmI32Type)
+private val arithmeticShiftRight_s64 = buildArithmeticBitShiftRightFn("S64", LlvmI64Type)
+private val arithmeticShiftRight_sWord = buildArithmeticBitShiftRightFn("SWord", EmergeWordType)
 
 private val binary_and_bool = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmBooleanType>(
     "emerge.core.Bool::and",

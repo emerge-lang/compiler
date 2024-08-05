@@ -13,3 +13,10 @@ internal object UnsignedWordAddWithOverflow : LlvmIntrinsic<UnsignedWordAddWithO
         val hadOverflow by structMember(LlvmBooleanType)
     }
 }
+
+class SignedMin<T : LlvmIntegerType>(llvmType: T) : LlvmIntrinsic<T>(
+    "llvm.smin",
+    listOf(llvmType),
+    listOf(llvmType, llvmType),
+    llvmType,
+)

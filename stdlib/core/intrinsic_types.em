@@ -37,6 +37,10 @@ export class S8 : Printable {
     export intrinsic operator fn times(self, factor: S8) -> S8
     export intrinsic operator fn divideBy(self, divisor: S8) -> S8
     export intrinsic nothrow operator fn rem(self, divisor: S8) -> S8
+    
+    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> S8
+    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> S8
+    export intrinsic nothrow operator fn arithmeticBitShiftRight(self, amount: U8) -> S8
 
     export intrinsic nothrow operator fn compareTo(self, other: S8) -> S8
     export intrinsic nothrow operator fn equals(self, other: S8) -> Bool
@@ -65,6 +69,9 @@ export class U8 : Printable {
     export intrinsic operator fn times(self, factor: U8) -> U8
     export intrinsic operator fn divideBy(self, divisor: U8) -> U8
     export intrinsic nothrow operator fn rem(self, divisor: U8) -> U8
+    
+    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> U8
+    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> U8
 
     export intrinsic nothrow operator fn compareTo(self, other: U8) -> S8
     export intrinsic nothrow operator fn equals(self, other: U8) -> Bool
@@ -92,6 +99,10 @@ export class S16 : Printable {
     export intrinsic operator fn times(self, factor: S16) -> S16
     export intrinsic operator fn divideBy(self, divisor: S16) -> S16
     export intrinsic nothrow operator fn rem(self, divisor: S16) -> S16
+    
+    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> S16
+    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> S16
+    export intrinsic nothrow operator fn arithmeticBitShiftRight(self, amount: U8) -> S16
 
     export intrinsic nothrow operator fn compareTo(self, other: S16) -> S16
     export intrinsic nothrow operator fn equals(self, other: S16) -> Bool
@@ -119,6 +130,9 @@ export class U16 : Printable {
     export intrinsic operator fn times(self, factor: U16) -> U16
     export intrinsic operator fn divideBy(self, divisor: U16) -> U16
     export intrinsic nothrow operator fn rem(self, divisor: U16) -> U16
+    
+    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> S16
+    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> S16
 
     export intrinsic nothrow operator fn compareTo(self, other: U16) -> S16
     export intrinsic nothrow operator fn equals(self, other: U16) -> Bool
@@ -145,6 +159,10 @@ export class S32 : Printable {
     export intrinsic operator fn times(self, factor: S32) -> S32
     export intrinsic operator fn divideBy(self, divisor: S32) -> S32
     export intrinsic nothrow operator fn rem(self, divisor: S32) -> S32
+    
+    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> S32
+    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> S32
+    export intrinsic nothrow operator fn arithmeticBitShiftRight(self, amount: U8) -> S32
 
     export intrinsic nothrow operator fn compareTo(self, other: S32) -> S32
     export intrinsic nothrow operator fn equals(self, other: S32) -> Bool
@@ -171,6 +189,9 @@ export class U32 : Printable {
     export intrinsic operator fn times(self, factor: U32) -> U32
     export intrinsic operator fn divideBy(self, divisor: U32) -> U32
     export intrinsic nothrow operator fn rem(self, divisor: U32) -> U32
+    
+    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> U32
+    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> U32
 
     export intrinsic nothrow operator fn compareTo(self, other: U32) -> S32
     export intrinsic nothrow operator fn equals(self, other: U32) -> Bool
@@ -196,6 +217,10 @@ export class S64 : Printable {
     export intrinsic operator fn times(self, factor: S64) -> S64
     export intrinsic operator fn divideBy(self, divisor: S64) -> S64
     export intrinsic nothrow operator fn rem(self, divisor: S64) -> S64
+    
+    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> S64
+    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> S64
+    export intrinsic nothrow operator fn arithmeticBitShiftRight(self, amount: U8) -> S64
 
     export intrinsic nothrow operator fn compareTo(self, other: S64) -> S64
     export intrinsic nothrow operator fn equals(self, other: S64) -> Bool
@@ -227,6 +252,9 @@ export class U64 : Printable {
     export intrinsic operator fn times(self, factor: U64) -> U64
     export intrinsic operator fn divideBy(self, divisor: U64) -> U64
     export intrinsic nothrow operator fn rem(self, divisor: U64) -> U64
+    
+    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> U64
+    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> U64
 
     export intrinsic nothrow operator fn compareTo(self, other: U64) -> S64
     export intrinsic nothrow operator fn equals(self, other: U64) -> Bool
@@ -287,6 +315,10 @@ export class SWord : Printable {
     export intrinsic operator fn times(self, factor: SWord) -> SWord
     export intrinsic operator fn divideBy(self, divisor: SWord) -> SWord
     export intrinsic nothrow operator fn rem(self, divisor: SWord) -> SWord
+    
+    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> SWord
+    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> SWord
+    export intrinsic nothrow operator fn arithmeticBitShiftRight(self, amount: U8) -> SWord
 
     export intrinsic nothrow operator fn compareTo(self, other: SWord) -> SWord
     export intrinsic nothrow operator fn equals(self, other: SWord) -> Bool
@@ -314,6 +346,9 @@ export class UWord : Printable {
     export intrinsic operator fn times(self, factor: UWord) -> UWord
     export intrinsic operator fn divideBy(self, dividend: UWord) -> UWord
     export intrinsic nothrow operator fn rem(self, divisor: UWord) -> UWord
+    
+    export intrinsic nothrow operator fn bitShiftLeft(self, amount: U8) -> UWord
+    export intrinsic nothrow operator fn logicalBitShiftRight(self, amount: U8) -> UWord
 
     export intrinsic nothrow operator fn compareTo(self, other: UWord) -> SWord
     export intrinsic nothrow operator fn equals(self, other: UWord) -> Bool

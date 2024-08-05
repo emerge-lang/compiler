@@ -1,11 +1,16 @@
 package io.github.tmarsteel.emerge.backend.llvm.jna;
 
 import com.sun.jna.*;
-import com.sun.jna.ptr.*;
-import org.jetbrains.annotations.*;
+import com.sun.jna.ptr.IntByReference;
+import com.sun.jna.ptr.NativeLongByReference;
+import com.sun.jna.ptr.PointerByReference;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-import java.nio.file.*;
-import java.util.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * LLVM C interface functions mapped for LLVM-18 using JNA.
@@ -307,6 +312,9 @@ public class Llvm {
 
     /** see Core.h */
     public static native @NotNull LlvmValueRef LLVMBuildLShr(@NotNull LlvmBuilderRef builder, @NotNull LlvmValueRef lhs, @NotNull LlvmValueRef rhs, @NotNull String name);
+
+    /** see Core.h */
+    public static native @NotNull LlvmValueRef LLVMBuildAShr(@NotNull LlvmBuilderRef builder, @NotNull LlvmValueRef lhs, @NotNull LlvmValueRef rhs, @NotNull String name);
 
     /** see Core.h */
     public static native @NotNull LlvmValueRef LLVMBuildAnd(@NotNull LlvmBuilderRef builder, @NotNull LlvmValueRef lhs, @NotNull LlvmValueRef rhs, @NotNull String name);

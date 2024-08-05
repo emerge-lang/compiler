@@ -45,6 +45,7 @@ interface DeferScopeBasicBlockBuilder<C : LlvmContext> {
     fun <T : LlvmIntegerType> icmp(lhs: LlvmValue<T>, type: LlvmIntPredicate, rhs: LlvmValue<T>): LlvmValue<LlvmBooleanType>
     fun <T : LlvmIntegerType> shl(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> lshr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T>
+    fun <T : LlvmIntegerType> ashr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> and(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> or(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
     fun <T : LlvmIntegerType> xor(lhs: LlvmValue<T>, rhs: LlvmValue<T>): LlvmValue<T>
@@ -323,6 +324,11 @@ private open class BasicBlockBuilderImpl<C : LlvmContext, R : LlvmType>(
 
     override fun <T : LlvmIntegerType> lshr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T> {
         val shiftInstr = Llvm.LLVMBuildLShr(builder, value.raw, shiftAmount.raw, tmpVars.next())
+        return LlvmValue(shiftInstr, value.type)
+    }
+
+    override fun <T : LlvmIntegerType> ashr(value: LlvmValue<T>, shiftAmount: LlvmValue<T>): LlvmValue<T> {
+        val shiftInstr = Llvm.LLVMBuildAShr(builder, value.raw, shiftAmount.raw, tmpVars.next())
         return LlvmValue(shiftInstr, value.type)
     }
 
