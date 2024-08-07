@@ -50,7 +50,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrUpdateSourceLocationStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
-import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.assureBoxed
+import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.autoBoxOrUnbox
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.requireNotAutoboxed
 import io.github.tmarsteel.emerge.backend.llvm.StateTackDelegate
 import io.github.tmarsteel.emerge.backend.llvm.allDistinctSupertypesExceptAny
@@ -191,7 +191,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             return when (valueResult) {
                 is ExpressionResult.Terminated -> valueResult
                 is ExpressionResult.Value -> {
-                    code.llvmValue = assureBoxed(valueResult.value, code.value.evaluatesTo, code.type)
+                    code.llvmValue = autoBoxOrUnbox(valueResult.value, code.value.evaluatesTo, code.type)
                     ExecutableResult.ExecutionOngoing
                 }
             }
@@ -274,7 +274,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             return ExecutableResult.ExecutionOngoing
         }
         is IrAssignmentStatement -> {
-            val valueForAssignment: LlvmValue<*> = assureBoxed(code.value, code.target.type)
+            val valueForAssignment: LlvmValue<*> = autoBoxOrUnbox(code.value, code.target.type)
 
             when (val localTarget = code.target) {
                 is IrAssignmentStatement.Target.Variable -> {
@@ -289,7 +289,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
             return ExecutableResult.ExecutionOngoing
         }
         is IrReturnStatement -> {
-            val rawReturnValue = assureBoxed(code.value, functionReturnType)
+            val rawReturnValue = autoBoxOrUnbox(code.value, functionReturnType)
             val llvmValueToReturn = if (functionHasNothrowAbi) {
                 rawReturnValue
             } else {
@@ -510,7 +510,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                                     addr,
                                     override.fnType,
                                     expression.arguments.zip(expression.function.parameters)
-                                        .map { (argument, parameter) -> assureBoxed(argument, parameter.type) }
+                                        .map { (argument, parameter) -> autoBoxOrUnbox(argument, parameter.type) }
                                 )
                             }
 
@@ -537,14 +537,14 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                         call(
                             llvmFunction,
                             expression.arguments.zip(expression.function.parameters)
-                                .map { (argument, parameter) -> assureBoxed(argument, parameter.type) },
+                                .map { (argument, parameter) -> autoBoxOrUnbox(argument, parameter.type) },
                         )
                     }
                 }
 
                 is IrDynamicDispatchFunctionInvocationExpression -> {
                     val argumentsForInvocation = expression.arguments.zip(expression.function.parameters)
-                        .map { (argument, parameter) -> assureBoxed(argument, parameter.type) }
+                        .map { (argument, parameter) -> autoBoxOrUnbox(argument, parameter.type) }
 
                     val targetAddr = callIntrinsic(
                         getDynamicCallAddress, listOf(
@@ -844,7 +844,7 @@ private class IfElseExprBranchEmitter<R : LlvmType>(
                     if (localBranchResult.value.type is LlvmVoidType) {
                         valueStorage.setBranchResult(context.poisonValue(valueStorage.type))
                     } else {
-                        val boxedValue = assureBoxed(localBranchResult.value, branchCode.evaluatesTo, valueStorageIrType)
+                        val boxedValue = autoBoxOrUnbox(localBranchResult.value, branchCode.evaluatesTo, valueStorageIrType)
                         valueStorage.setBranchResult(boxedValue as LlvmValue<R>)
                     }
                 }

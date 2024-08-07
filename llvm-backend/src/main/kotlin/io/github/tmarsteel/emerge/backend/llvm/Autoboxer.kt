@@ -63,27 +63,22 @@ internal sealed interface Autoboxer {
      * Given a value of the type this autoboxer is responsible for should be stored in a reference of type [IrType].
      * @return whether storing the value there requires boxing it.
      */
-    fun requiresBoxing(context: EmergeLlvmContext, type: IrType): Boolean
+    fun isBox(context: EmergeLlvmContext, type: IrType): Boolean
 
     /**
-     * Given
-     *
-     * * [requiresBoxing] for [toType] = `true`
-     * * [llvmValue] of some type `T` for which [requiresBoxing] = `true`
-     *
-     * inserts instructions on the [BasicBlockBuilder] that transform the value to conform to
-     * type [toType]
-     * @return the transformed value, ready to be assigned
+     * Given [llvmValue] is of some type `T` for which [isBox] = `false` inserts instructions on the [BasicBlockBuilder]
+     * that create a box around [llvmValue]
+     * @return the boxed value
      */
     context(BasicBlockBuilder<EmergeLlvmContext, *>)
-    fun transformForAssignmentTo(llvmValue: LlvmValue<*>, toType: IrType): LlvmValue<*>
+    fun box(llvmValue: LlvmValue<*>): LlvmValue<*>
 
     /**
      * Assumes [value] is a box according to [isBox] and that [value] does not hold a
      * null value at runtime, even if its type is nullable.
      */
     context(BasicBlockBuilder<EmergeLlvmContext, *>)
-    fun unbox(value: IrTemporaryValueReference): LlvmValue<*>
+    fun unbox(llvmValue: LlvmValue<*>): LlvmValue<*>
 
     fun getReferenceSiteType(context: EmergeLlvmContext, referenceSiteType: IrType, forceBoxed: Boolean): LlvmType {
         return if (forceBoxed || referenceSiteType.isNullable) pointerTo(getBoxedType(context)) else unboxedType
@@ -119,7 +114,7 @@ internal sealed interface Autoboxer {
             throw UnsupportedOperationException("cannot access into an unboxed type")
         }
 
-        override fun requiresBoxing(context: EmergeLlvmContext, type: IrType): Boolean {
+        override fun isBox(context: EmergeLlvmContext, type: IrType): Boolean {
             if (type.isNullable) {
                 return true
             }
@@ -133,10 +128,7 @@ internal sealed interface Autoboxer {
         }
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
-        override fun transformForAssignmentTo(
-            llvmValue: LlvmValue<*>,
-            toType: IrType
-        ): LlvmValue<*> {
+        override fun box(llvmValue: LlvmValue<*>): LlvmValue<*> {
             check(llvmValue.type == unboxedType)
             val boxedType = getBoxedType(context)
             val box = call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
@@ -147,10 +139,10 @@ internal sealed interface Autoboxer {
         }
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
-        override fun unbox(value: IrTemporaryValueReference): LlvmValue<*> {
+        override fun unbox(llvmValue: LlvmValue<*>): LlvmValue<*> {
             val boxedType = getBoxedType(context)
             val valueHolderMember = boxedType.irClass.memberVariables.single { it.name == boxValueHoldingMemberVariableName }
-            val valueAsBoxPtr = value.declaration.llvmValue.reinterpretAs(pointerTo(boxedType))
+            val valueAsBoxPtr = llvmValue.reinterpretAs(pointerTo(boxedType))
             return getelementptr(valueAsBoxPtr)
                 .member(valueHolderMember)
                 .get()
@@ -205,7 +197,7 @@ internal sealed interface Autoboxer {
                 .dereference()
         }
 
-        override fun requiresBoxing(context: EmergeLlvmContext, type: IrType): Boolean {
+        override fun isBox(context: EmergeLlvmContext, type: IrType): Boolean {
             if (type.isNullable) {
                 return true
             }
@@ -219,12 +211,9 @@ internal sealed interface Autoboxer {
         }
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
-        override fun transformForAssignmentTo(
-            llvmValue: LlvmValue<*>,
-            toType: IrType
-        ): LlvmValue<*> {
+        override fun box(llvmValue: LlvmValue<*>, ): LlvmValue<*> {
             check(llvmValue.type is LlvmPointerType<*> && llvmValue.type.pointed is TypeinfoType) {
-                "transformForAssignmentTo called on a value of unsupported type"
+                "${Autoboxer::box} called on a value of unsupported type"
             }
             llvmValue as LlvmValue<LlvmPointerType<TypeinfoType>>
             val boxedType = getBoxedType(context)
@@ -248,10 +237,10 @@ internal sealed interface Autoboxer {
         }
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
-        override fun unbox(value: IrTemporaryValueReference): LlvmValue<*> {
+        override fun unbox(llvmValue: LlvmValue<*>): LlvmValue<*> {
             val boxedType = getBoxedType(context)
             val valueHolderMember = boxedType.irClass.memberVariables.single { it.name == "value" }
-            val valueAsBoxPtr = value.declaration.llvmValue.reinterpretAs(pointerTo(boxedType))
+            val valueAsBoxPtr = llvmValue.reinterpretAs(pointerTo(boxedType))
             return getelementptr(valueAsBoxPtr)
                 .member(valueHolderMember)
                 .get()
@@ -329,7 +318,7 @@ internal sealed interface Autoboxer {
             return context.registerIntrinsic(boxDestructor)
         }
 
-        override fun requiresBoxing(context: EmergeLlvmContext, type: IrType): Boolean {
+        override fun isBox(context: EmergeLlvmContext, type: IrType): Boolean {
             if (type is IrSimpleType && type.baseType == getBoxedType(context).irClass) {
                 // nullability is not relevant here; a null reference in emerge is a perfectly fine null pointer in C
                 return false
@@ -339,10 +328,7 @@ internal sealed interface Autoboxer {
         }
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
-        override fun transformForAssignmentTo(
-            llvmValue: LlvmValue<*>,
-            toType: IrType
-        ): LlvmValue<*> {
+        override fun box(llvmValue: LlvmValue<*>): LlvmValue<*> {
             check(llvmValue.type == unboxedType)
             val boxedType = getBoxedType(context)
             val box = call(boxedType.constructor, listOf(llvmValue)).abortOnException { exceptionPtr ->
@@ -353,7 +339,7 @@ internal sealed interface Autoboxer {
         }
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
-        override fun unbox(value: IrTemporaryValueReference): LlvmValue<*> {
+        override fun unbox(llvmValue: LlvmValue<*>): LlvmValue<*> {
             throw UnsupportedOperationException("Cannot unbox a C FFI pointer")
         }
     }
@@ -371,40 +357,63 @@ internal sealed interface Autoboxer {
         }
 
         /**
-         * Whenever a [value] is placed in a reference/storage of type [targetType],
-         * this function ensures that the value is unboxed if necessary
-         * @return the unboxed value, or simply [value] if unboxing is not needed
+         * Performs necessary auto boxing or unboxing on [value] before the value is to be used
+         * with the semantics of [targetType]. E.g.
+         * * if [value] is of type `S8` and [targetType] is `Any`, emits creation of a box.
+         * * if [value] is of type `S8?` and [targetType] is `S8`, emits code that takes the value from inside the box
          */
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
-        fun assureBoxed(value: IrTemporaryValueReference, targetType: IrType): LlvmValue<*> {
-            return assureBoxed(value.declaration.llvmValue, value.type, targetType)
+        fun autoBoxOrUnbox(value: IrTemporaryValueReference, targetType: IrType): LlvmValue<*> {
+            return autoBoxOrUnbox(value.declaration.llvmValue, value.type, targetType)
         }
 
+        /**
+         * @see autoBoxOrUnbox
+         */
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
-        fun assureBoxed(llvmValue: LlvmValue<*>, irTypeOfValue: IrType, targetIrType: IrType): LlvmValue<*> {
+        fun autoBoxOrUnbox(llvmValue: LlvmValue<*>, irTypeOfValue: IrType, targetIrType: IrType): LlvmValue<*> {
             if (irTypeOfValue.independentEquals(targetIrType)) {
                 return llvmValue
             }
 
-            val autoboxer = irTypeOfValue.autoboxer
-            if (autoboxer == null || !autoboxer.requiresBoxing(context, targetIrType)) {
+            val valueAutoboxer = irTypeOfValue.autoboxer
+            val targetAutoboxer = targetIrType.autoboxer
+            if (valueAutoboxer == null && targetAutoboxer == null) {
                 return llvmValue
             }
-            if (autoboxer.requiresBoxing(context, irTypeOfValue)) {
-                // already boxed
+
+            if (valueAutoboxer == null) {
+                check(targetAutoboxer != null) { "assured by previous check" }
+                check(targetAutoboxer.isBox(context, irTypeOfValue)) {
+                    "assigning an unboxed value to a reference that is not equipped to hold an unboxed value"
+                }
+
                 return llvmValue
             }
-            return autoboxer.transformForAssignmentTo(llvmValue, targetIrType)
-        }
 
-        context(BasicBlockBuilder<EmergeLlvmContext, *>)
-        fun assureUnboxed(value: IrTemporaryValueReference): LlvmValue<*> {
-            val autoboxer = value.declaration.type.autoboxer!!
-            if (!autoboxer.requiresBoxing(context, value.type)) {
-                return value.declaration.llvmValue
+            if (targetAutoboxer == null) {
+                return if (valueAutoboxer.isBox(context, irTypeOfValue)) {
+                    llvmValue
+                } else {
+                    valueAutoboxer.box(llvmValue)
+                }
             }
 
-            return autoboxer.unbox(value)
+            check(valueAutoboxer === targetAutoboxer) {
+                "autoboxing cannot convert between types - value is $irTypeOfValue, target is $targetIrType"
+            }
+
+            val valueIsBox = valueAutoboxer.isBox(context, irTypeOfValue)
+            val targetIsBox = targetAutoboxer.isBox(context, targetIrType)
+
+            return when {
+                valueIsBox == targetIsBox -> llvmValue
+                valueIsBox -> valueAutoboxer.unbox(llvmValue)
+                else -> {
+                    check(!valueIsBox && targetIsBox)
+                    targetAutoboxer.box(llvmValue)
+                }
+            }
         }
     }
 }

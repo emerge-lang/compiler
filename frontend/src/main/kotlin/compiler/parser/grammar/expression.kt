@@ -469,7 +469,7 @@ val ExpressionPostfixCast = sequence("cast") {
         CastExpressionPostfix(keyword, isSafe, toType)
     }
 
-val ExpressionPostfixInstaceOf = sequence("instance-of") {
+val ExpressionPostfixInstanceOf = sequence("instance-of") {
     eitherOf {
         keyword(Keyword.INSTANCEOF)
     }
@@ -528,7 +528,7 @@ val ExpressionPostfixExcludingBinary = eitherOf {
     ref(ExpressionPostfixMemberAccess)
     ref(ExpressionPostfixIndexAccess)
     ref(ExpressionPostfixCast)
-    ref(ExpressionPostfixInstaceOf)
+    ref(ExpressionPostfixInstanceOf)
 }
 
 val ExpressionPostfix = eitherOf {
