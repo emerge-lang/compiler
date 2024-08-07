@@ -26,6 +26,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.CoreTypes
+import compiler.binding.type.NullableTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.handleCyclicInvocation
 import compiler.reportings.NothrowViolationReporting
@@ -63,6 +64,10 @@ open class BoundNumericLiteral(
 
     protected var expectedNumericType: BoundBaseType? = null
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+        if (type is NullableTypeReference) {
+            return setExpectedEvaluationResultType(type.nested)
+        }
+
         if (type !is RootResolvedTypeReference) {
             return
         }
