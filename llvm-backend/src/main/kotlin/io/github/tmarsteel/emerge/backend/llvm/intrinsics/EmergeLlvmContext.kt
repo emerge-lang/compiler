@@ -582,7 +582,7 @@ class EmergeLlvmContext(
             is IrGenericTypeReference -> return getReferenceSiteType(type.effectiveBound)
         }
 
-        baseType.autoboxer?.let { return it.getReferenceSiteType(this, forceBoxed) }
+        baseType.autoboxer?.let { return it.getReferenceSiteType(this, type, forceBoxed) }
         /*if (baseType.isNothing && !type.isNullable) {
             return LlvmVoidType
         }*/
@@ -739,16 +739,4 @@ private val intrinsicFunctions: Map<String, KotlinLlvmFunction<*, *>> by lazy {
             + intrinsicNumberOperations
     )
         .associateByErrorOnDuplicate { it.name }
-}
-
-private val IrFunction.isDestructorOnValueOrBoxType: Boolean get() {
-    return this is IrMemberFunction
-        && this.canonicalName.simpleName == "\$destructor"
-        && this.ownerBaseType.autoboxer != null
-}
-
-private val IrFunction.isUserFacingBoxDestructor: Boolean get() {
-    return this is IrMemberFunction
-        && this.canonicalName.simpleName == "\$destructor"
-        && this.ownerBaseType.autoboxer is Autoboxer.CFfiPointerType
 }
