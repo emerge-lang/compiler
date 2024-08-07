@@ -206,6 +206,26 @@ available. These are possible (not exhaustive):
   * mark the exception branch on fallible math as unlikely
   * loop header conditions should be heavily likely - after all, loops are supposed to be run often
 
+### Forced Type Mutability
+
+For some types, certain mutabilities don't make sense. E.g. a `const Weak` doesn't make any sense 
+as the weak reference can turn `null` at any point.
+For primitive number types (and for strings, too, probably), mutability doesn't make sense, so they
+can always be `const`.
+
+-> Allow the programmer to express this in the type definition
+
+Could e.g. be
+
+```
+const class S8 { }
+
+read class Weak<T> { }
+```
+
+For `Weak`, this is a bit tricky. `read` is the middle ground between `const` and `mut`, so declaring a
+class as `read` doesn't say to which side it should gravitate. It might need to be `read|mut class Weak<T>`
+
 ### Emergent properties
 Statements about the state of an object, e.g. isAbsolute on Path:
 ```
