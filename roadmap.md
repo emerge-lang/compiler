@@ -226,6 +226,40 @@ read class Weak<T> { }
 For `Weak`, this is a bit tricky. `read` is the middle ground between `const` and `mut`, so declaring a
 class as `read` doesn't say to which side it should gravitate. It might need to be `read|mut class Weak<T>`
 
+### Invariants
+
+Steal from D
+
+Classes and traits can define invariants. Those are checked
+* after construction
+* at the end of each method that can modify the receiver
+
+```
+class Foo {
+    var x: S32 = init
+    
+    invariant {
+        assert(x.rem(4) == 0)
+    }
+    
+    fn addToX(self: mut _, valueToAdd: S32) {
+        prevX = self.x
+        set self.x = 3 // this does not trigger the invariant
+        set self.x = prevX + valueToAdd
+        // here, the invariant gets checked
+    }
+}
+
+a = Foo(3) // panics due to the violated invariant
+b = Foo(4) // okay
+b.addToX(4) // this works; the temporary violation of the invariant is ignored
+b.addToX(3) // this panics due to the violated invariant
+```
+
+#### Contract programming
+
+Also steal from D?
+
 ### Emergent properties
 Statements about the state of an object, e.g. isAbsolute on Path:
 ```
