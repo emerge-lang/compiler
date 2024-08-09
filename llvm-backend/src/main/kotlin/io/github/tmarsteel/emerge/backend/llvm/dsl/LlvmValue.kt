@@ -27,7 +27,10 @@ open class LlvmValue<out Type : LlvmType>(
             setName(raw, value)
         }
 
-    fun <NewT : LlvmType> reinterpretAs(type: NewT): LlvmValue<NewT> = LlvmValue(raw, type)
+    fun <NewT : LlvmType> reinterpretAs(type: NewT): LlvmValue<NewT> {
+        check(isLlvmAssignableTo(type)) { "Cannot reinterpret ${this.type} as $type" }
+        return LlvmValue(raw, type)
+    }
     fun toMetadata(): LlvmMetadataRef = Llvm.LLVMValueAsMetadata(raw)
 
     /** for debugging; see [LlvmType.isLlvmAssignableTo] */

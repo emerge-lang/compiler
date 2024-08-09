@@ -29,6 +29,14 @@ internal object EmergeWordType : LlvmCachedType(), LlvmIntegerType {
     override fun getNBitsInContext(context: LlvmContext): Int = context.targetData.pointerSizeInBytes * 8
     override fun computeRaw(context: LlvmContext) = Llvm.LLVMIntTypeInContext(context.ref, getNBitsInContext(context))
     override fun toString() = "%word"
+    override fun isAssignableTo(other: LlvmType): Boolean {
+        return isLlvmAssignableTo(other)
+    }
+
+    override fun isLlvmAssignableTo(target: LlvmType): Boolean {
+        // bit width depends on context, assume yes
+        return target is LlvmIntegerType
+    }
 }
 
 internal fun LlvmContext.word(value: Int): LlvmConstant<EmergeWordType> {
@@ -225,6 +233,10 @@ internal sealed interface EmergeFallibleCallResult<Value : LlvmType> : LlvmType 
             return PointerToAnyEmergeValue.getRawInContext(context)
         }
 
+        override fun toString(): String {
+            return PointerToAnyEmergeValue.toString()
+        }
+
         context(BasicBlockBuilder<C, R>)
         override fun <C : EmergeLlvmContext, R : LlvmType> handle(
             compoundReturnValue: LlvmValue<EmergeFallibleCallResult<LlvmVoidType>>,
@@ -264,6 +276,10 @@ internal sealed interface EmergeFallibleCallResult<Value : LlvmType> : LlvmType 
 
         override fun isAssignableTo(other: LlvmType): Boolean {
             return other is OfVoid
+        }
+
+        override fun isLlvmAssignableTo(target: LlvmType): Boolean {
+            return target is OfVoid || target is LlvmPointerType<*>
         }
     }
 

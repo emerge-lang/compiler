@@ -2,6 +2,7 @@ package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import com.google.common.collect.MapMaker
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType
+import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeHeapAllocatedValueBaseType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeWordType
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
@@ -61,6 +62,25 @@ abstract class LlvmFixedIntegerType(
 
     override fun getNBitsInContext(context: LlvmContext): Int = nBits
 
+    override fun isLlvmAssignableTo(target: LlvmType): Boolean {
+        if (target === this) {
+            return true
+        }
+        if (target is LlvmFixedIntegerType) {
+            return target.nBits == nBits
+        }
+        if (target is LlvmIntegerType) {
+            // depends on the context, assume yes
+            return true
+        }
+
+        return false
+    }
+
+    override fun isAssignableTo(other: LlvmType): Boolean {
+        return isLlvmAssignableTo(other)
+    }
+
     override fun computeRaw(context: LlvmContext): LlvmTypeRef {
         return Llvm.LLVMIntTypeInContext(context.ref, nBits)
     }
@@ -99,11 +119,15 @@ class LlvmPointerType<Pointed : LlvmType>(val pointed: Pointed) : LlvmType {
             return this.pointed.isAssignableTo(other.pointed)
         }
 
+        if (other is EmergeFallibleCallResult.OfVoid) {
+            return true
+        }
+
         return super.isAssignableTo(other)
     }
 
     override fun isLlvmAssignableTo(target: LlvmType): Boolean {
-        return target is LlvmPointerType<*>
+        return target is LlvmPointerType<*> || target is EmergeFallibleCallResult.OfVoid
     }
 
     override fun toString() = "*$pointed"

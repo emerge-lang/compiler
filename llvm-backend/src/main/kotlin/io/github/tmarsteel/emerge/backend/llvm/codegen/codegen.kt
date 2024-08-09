@@ -44,6 +44,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrThrowStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrTryCatchExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrUpdateSourceLocationStatement
@@ -52,6 +53,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.autoBoxOrUnbox
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer.Companion.requireNotAutoboxed
+import io.github.tmarsteel.emerge.backend.llvm.IrSimpleTypeImpl
 import io.github.tmarsteel.emerge.backend.llvm.StateTackDelegate
 import io.github.tmarsteel.emerge.backend.llvm.allDistinctSupertypesExceptAny
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
@@ -255,6 +257,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                     throw CodeGenerationException("invalid IR - accessing an SSA variable before its assignment")
                 }
                 code.emitWrite = { value ->
+                    check(value.isLlvmAssignableTo(type)) {
+                        "Cannot write a value of type ${value.type} into a variable of type $type"
+                    }
                     code.emitRead = { value }
                     value.name = code.name
                 }
@@ -268,6 +273,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                     stackAllocation.dereference(code.name)
                 }
                 code.emitWrite = { newValue ->
+                    check(newValue.isLlvmAssignableTo(type)) {
+                        "Cannot write a value of type ${newValue.type} into a variable of type $type"
+                    }
                     store(newValue, stackAllocation)
                 }
             }
@@ -466,22 +474,26 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
         is IrClassMemberVariableAccessExpression -> {
             if (expression.base.type.findSimpleTypeBound().baseType.canonicalName.toString() == "emerge.core.Array") {
                 if (expression.memberVariable.name == "size") {
+                    val memberValue = callIntrinsic(arraySize, listOf(expression.base.declaration.llvmValue))
                     return ExpressionResult.Value(
-                        callIntrinsic(arraySize, listOf(expression.base.declaration.llvmValue))
+                        autoBoxOrUnbox(memberValue, IrSimpleTypeImpl(context.rawUWordClazz, IrTypeMutability.IMMUTABLE, false), expression.evaluatesTo)
                     )
                 }
             }
 
             expression.base.type.autoboxer?.let { autoboxer ->
                 if (autoboxer.isAccessingIntoTheBox(context, expression)) {
-                    return ExpressionResult.Value(autoboxer.rewriteAccessIntoTheBox(expression))
+                    val rewrittenValue = autoboxer.rewriteAccessIntoTheBox(expression)
+                    return ExpressionResult.Value(rewrittenValue)
                 }
             }
             val memberPointer = getPointerToStructMember(
-                expression.base.declaration.llvmValue,
+                expression.base.declaration.llvmValue
+                    .reinterpretAs(context.getReferenceSiteType(expression.base.type)),
                 expression.memberVariable,
             )
-            return ExpressionResult.Value(memberPointer.dereference())
+            val memberValue = autoBoxOrUnbox(memberPointer.dereference(), expression.memberVariable.type, expression.evaluatesTo)
+            return ExpressionResult.Value(memberValue)
         }
         is IrAllocateObjectExpression -> {
             expression.clazz.autoboxer?.let { autoboxer ->
