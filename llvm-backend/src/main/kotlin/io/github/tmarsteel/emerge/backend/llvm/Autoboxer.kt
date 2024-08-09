@@ -384,11 +384,12 @@ internal sealed interface Autoboxer {
 
             if (valueAutoboxer == null) {
                 check(targetAutoboxer != null) { "assured by previous check" }
-                check(targetAutoboxer.isBox(context, irTypeOfValue)) {
-                    "assigning an unboxed value to a reference that is not equipped to hold an unboxed value"
+                check(targetAutoboxer.isBox(context, irTypeOfValue))
+                if (targetAutoboxer.isBox(context, targetIrType)) {
+                    return llvmValue
+                } else {
+                    return targetAutoboxer.unbox(llvmValue)
                 }
-
-                return llvmValue
             }
 
             if (targetAutoboxer == null) {
