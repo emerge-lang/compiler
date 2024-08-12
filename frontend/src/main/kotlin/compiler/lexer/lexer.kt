@@ -204,15 +204,19 @@ private fun PositionTrackingCodePointTransactionalSequence.tryMatchNumericLitera
         return null
     }
 
+    commit()
+
     // NUMERIC_LITERAL
     val (firstIntegerString, firstIntegerStringLocation) = collectUntilOperatorOrWhitespace(sourceFile)
     if (peek() == DECIMAL_SEPARATOR) {
+        mark()
+
         // skip the dot
         nextOrThrow()
 
         if (peek()?.isDigit != false) {
             // <DIGIT, ...> <DOT> <DIGIT, ...> => Floating point literal
-            commit()
+
             // floating point literal
             val floatBuilder = StringBuilder()
             if (isNegative) {
