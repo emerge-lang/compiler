@@ -1,9 +1,14 @@
 package emerge.core
 
 import emerge.core.safemath.plusModulo
+import emerge.core.utf8.rejectInvalidUtf8
 
 export class String {
     export utf8Data: Array<S8> = init
+    
+    export constructor {
+        rejectInvalidUtf8(self.utf8Data)
+    }
 
     export operator fn plus(self, borrow other: read String) -> exclusive String {
         newData: exclusive Array<S8> = Array.new(self.utf8Data.size + other.utf8Data.size, 0 as S8)
