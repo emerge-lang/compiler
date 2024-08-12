@@ -33,6 +33,9 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
     /** integer value of this expression, if integer */
     private var integerValue: BigInteger? = null
 
+    /** if [integerValue] is not null, this is the base used in the source program to represent that number */
+    private var integerBase: UInt = 10u
+
     /** floating point value of this expression, if floating */
     private var floatingValue: BigDecimal? = null
 
@@ -42,13 +45,14 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
     override val span = literalToken.span
 
     override fun bindTo(context: ExecutionScopedCTContext): BoundNumericLiteral {
-        validate()
+        validateAndInitialize()
 
         if (integerValue != null) {
             return BoundIntegerLiteral(
                 context,
                 this,
                 integerValue!!,
+                integerBase,
                 validationResult!!
             )
         }
@@ -70,131 +74,143 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
     }
 
     /**
-     * Assures [validationResult] is filled with the validation results.
+     * initializes this object, assigns meaningful values to
+     * * [validationResult]
+     * * [integerValue] and [integerBase]
+     * * [floatingValue]
      */
-    private fun validate() {
+    private fun validateAndInitialize() {
         if (validationResult != null) return
 
-        var str = literalToken.stringContent
+        val str = literalToken.stringContent
 
-        if (str.contains('.') || str.endsWith('f') || str.contains('e')) {
-            // Floating point
-            if (str.endsWith('f')) {
-                str = str.substring(0, str.lastIndex)
-            }
-
-            var allowedChars = ('0' .. '9') + arrayOf('.', 'e', 'E', '-')
-            val unallowed = str.minus(allowedChars)
-            if (unallowed.isNotEmpty()) {
-                validationResult = setOf(Reporting.erroneousLiteralExpression(
-                    "Floating point literal contains forbidden characters: ${unallowed.unique()}",
-                    literalToken.span
-                ))
-                return
-            }
-
-            // cut e
-            val expIndex = str.lowercase().indexOf('e')
-            val exp: String?
-            if (expIndex >= 0) {
-                exp = str.substring(expIndex + 1)
-                str = str.substring(0 .. expIndex - 1)
-            }
-            else {
-                exp = null
-            }
-
-            val fpIndex = str.indexOf('.')
-            val preComma: String
-            val postComma: String?
-
-            if (fpIndex >= 0) {
-                preComma = str.substring(0 .. fpIndex - 1)
-                postComma = str.substring(fpIndex + 1)
-            }
-            else {
-                preComma = str
-                postComma = null
-            }
-
-            allowedChars = ('0'..'9').toList()
-
-            if (!preComma.map(Char::isDigit).reduce(Boolean::and)) {
-                // preComma is not OK
-                validationResult = setOf(Reporting.erroneousLiteralExpression(
-                    "Floating point literal contains non-decimal characters before the floating point: ${preComma.minus(allowedChars).unique()}",
-                    literalToken.span
-                ))
-                return
-            }
-
-            if (postComma != null && !postComma.map(Char::isDigit).reduce(Boolean::and)) {
-                // postComma is not OK
-                validationResult = setOf(Reporting.erroneousLiteralExpression(
-                    "Floating point literal contains non-decimal characters after the floating point: ${postComma.minus(allowedChars).unique()}",
-                    literalToken.span
-                ))
-                return
-            }
-
-            if (exp != null && exp.isBlank()) {
-                validationResult =  setOf(Reporting.erroneousLiteralExpression(
-                    "Empty exponent in floating point literal",
-                    literalToken.span
-                ))
-                return
-            }
-
-            if (exp != null && exp.map(Char::isDigit).reduce(Boolean::and)) {
-                // exponent is not OK
-                validationResult = setOf(Reporting.erroneousLiteralExpression(
-                    "Floating point literal contains non-decimal characters in the exponent: ${exp.minus(allowedChars).unique()}",
-                    literalToken.span
-                ))
-                return
-            }
-
-            floatingValue = BigDecimal(str)
-            validationResult = emptySet()
-            return
+        if (str.startsWith("0x")) {
+            validateAndInitializeAsInteger()
+        } else if (str.contains('.') || str.endsWith('f') || str.contains('e')) {
+            validateAndInitializeAsFloatingPoint()
         }
         else {
-            // Integer
-            val base: Int
-            val allowedChars: Collection<Char>
-            if (str.startsWith("0x")) {
-                base = 16
-                allowedChars = ('0'..'9') + ('a'..'f') + ('A'..'F')
-                str = str.substring(2)
-            }
-            else if (str.startsWith("0b")) {
-                base = 2
-                allowedChars = setOf('0', '1')
-                str = str.substring(2)
-            }
-            else if (str.endsWith("oct")) {
-                base = 8
-                allowedChars = ('0'..'7').toList()
-                str = str.dropLast(3)
-            }
-            else {
-                base = 10
-                allowedChars = ('0'..'9').toList()
-            }
+            validateAndInitializeAsInteger()
+        }
+    }
 
-            val unallowed = str.minus(allowedChars + listOf('-'))
-            if (unallowed.isNotEmpty()) {
-                validationResult = setOf(Reporting.erroneousLiteralExpression(
-                    "Integer literal contains unallowed characters: ${unallowed.unique()}",
-                    literalToken.span
-                ))
-                return
-            }
+    private fun validateAndInitializeAsFloatingPoint() {
+        var str = literalToken.stringContent
 
-            integerValue = BigInteger(str, base)
-            validationResult = emptySet()
+        if (str.endsWith('f')) {
+            str = str.substring(0, str.lastIndex)
+        }
+
+        var allowedChars = ('0' .. '9') + arrayOf('.', 'e', 'E', '-')
+        val unallowed = str.minus(allowedChars)
+        if (unallowed.isNotEmpty()) {
+            validationResult = setOf(Reporting.erroneousLiteralExpression(
+                "Floating point literal contains forbidden characters: ${unallowed.unique()}",
+                literalToken.span
+            ))
             return
         }
+
+        // cut e
+        val expIndex = str.lowercase().indexOf('e')
+        val exp: String?
+        if (expIndex >= 0) {
+            exp = str.substring(expIndex + 1)
+            str = str.substring(0 .. expIndex - 1)
+        }
+        else {
+            exp = null
+        }
+
+        val fpIndex = str.indexOf('.')
+        val preComma: String
+        val postComma: String?
+
+        if (fpIndex >= 0) {
+            preComma = str.substring(0 .. fpIndex - 1)
+            postComma = str.substring(fpIndex + 1)
+        }
+        else {
+            preComma = str
+            postComma = null
+        }
+
+        allowedChars = ('0'..'9').toList()
+
+        if (!preComma.map(Char::isDigit).reduce(Boolean::and)) {
+            // preComma is not OK
+            validationResult = setOf(Reporting.erroneousLiteralExpression(
+                "Floating point literal contains non-decimal characters before the floating point: ${preComma.minus(allowedChars).unique()}",
+                literalToken.span
+            ))
+            return
+        }
+
+        if (postComma != null && !postComma.map(Char::isDigit).reduce(Boolean::and)) {
+            // postComma is not OK
+            validationResult = setOf(Reporting.erroneousLiteralExpression(
+                "Floating point literal contains non-decimal characters after the floating point: ${postComma.minus(allowedChars).unique()}",
+                literalToken.span
+            ))
+            return
+        }
+
+        if (exp != null && exp.isBlank()) {
+            validationResult =  setOf(Reporting.erroneousLiteralExpression(
+                "Empty exponent in floating point literal",
+                literalToken.span
+            ))
+            return
+        }
+
+        if (exp != null && exp.map(Char::isDigit).reduce(Boolean::and)) {
+            // exponent is not OK
+            validationResult = setOf(Reporting.erroneousLiteralExpression(
+                "Floating point literal contains non-decimal characters in the exponent: ${exp.minus(allowedChars).unique()}",
+                literalToken.span
+            ))
+            return
+        }
+
+        floatingValue = BigDecimal(str)
+        validationResult = emptySet()
+    }
+
+    private fun validateAndInitializeAsInteger() {
+        var str = literalToken.stringContent
+
+        val allowedChars: Collection<Char>
+        if (str.startsWith("0x")) {
+            integerBase = 16u
+            allowedChars = ('0'..'9') + ('a'..'f') + ('A'..'F')
+            str = str.substring(2)
+        }
+        else if (str.startsWith("0b")) {
+            integerBase = 2u
+            allowedChars = setOf('0', '1')
+            str = str.substring(2)
+        }
+        else if (str.endsWith("oct")) {
+            integerBase = 8u
+            allowedChars = ('0'..'7').toList()
+            str = str.dropLast(3)
+        }
+        else {
+            integerBase = 10u
+            allowedChars = ('0'..'9').toList()
+        }
+
+        val unallowed = str.minus(allowedChars + listOf('-'))
+        if (unallowed.isNotEmpty()) {
+            validationResult = setOf(Reporting.erroneousLiteralExpression(
+                "Integer literal contains unallowed characters: ${unallowed.unique()}",
+                literalToken.span
+            ))
+            return
+        }
+
+        integerValue = BigInteger(str, integerBase.toInt())
+        validationResult = emptySet()
     }
 }
 

@@ -98,10 +98,14 @@ open class BoundNumericLiteral(
 class BoundIntegerLiteral(
     context: ExecutionScopedCTContext,
     declaration: NumericLiteralExpression,
-    val integer: BigInteger,
+    /** the value of the literal */
+    private val integer: BigInteger,
+    /** the number base that the source program used to represent the value in [integer] */
+    private val baseInSource: UInt,
     reportings: Collection<Reporting>
 ) : BoundNumericLiteral(context, declaration, reportings) {
     override lateinit var type: RootResolvedTypeReference
+    private lateinit var valueCoercedToRange: BigInteger
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         val reportings = mutableSetOf<Reporting>()
@@ -120,8 +124,25 @@ class BoundIntegerLiteral(
             else -> throw InternalCompilerError("How did the type $type end up here - apparently not an integer type")
         }
 
+        valueCoercedToRange = integer
         if (integer !in typeRange) {
-            reportings.add(Reporting.integerLiteralOutOfRange(declaration, type.baseType, typeRange))
+            // exception: for base 2 and base 16, literals are okay if they fit the range bit-length-wise and are unsigned
+            if (baseInSource in setOf(2u, 16u) && integer >= BigInteger.ZERO && typeRange.start < BigInteger.ZERO) {
+                val nBitsInType = typeRange.endInclusive.bitLength() + 1 // compensate for the sign bit
+                if (integer.bitLength() <= nBitsInType) {
+                    // it still fits, apply twos complement negation to compute the correct value
+                    val allOnesOfTypeBitLength = typeRange.endInclusive.setBit(typeRange.endInclusive.bitLength())
+                    valueCoercedToRange = integer
+                        .xor(allOnesOfTypeBitLength)
+                        .add(BigInteger.ONE)
+                        .and(allOnesOfTypeBitLength) // emulate overflow
+                        .negate()
+                } else {
+                    reportings.add(Reporting.integerLiteralOutOfRange(declaration, type.baseType, typeRange))
+                }
+            } else {
+                reportings.add(Reporting.integerLiteralOutOfRange(declaration, type.baseType, typeRange))
+            }
         }
 
         return reportings
@@ -129,7 +150,7 @@ class BoundIntegerLiteral(
 
     override fun toBackendIrExpression(): IrExpression {
         return IrIntegerLiteralExpressionImpl(
-            integer,
+            valueCoercedToRange,
             type.toBackendIr(),
         )
     }
