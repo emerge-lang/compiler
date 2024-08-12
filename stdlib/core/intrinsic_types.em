@@ -9,7 +9,7 @@ import emerge.core.StackTraceElement
 export class Unit {
     private constructor {}
 
-    intrinsic nothrow fn instance() -> Unit
+    export nothrow intrinsic fn instance() -> Unit
 }
 
 export interface Any {}
