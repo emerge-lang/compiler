@@ -16,6 +16,7 @@ import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
+import compiler.binding.BoundParameterList
 import compiler.binding.BoundVariable
 import compiler.binding.IrAssignmentStatementImpl
 import compiler.binding.IrAssignmentStatementTargetClassMemberVariableImpl
@@ -141,7 +142,7 @@ class BoundClassConstructor(
     }
 
     override val parameters by lazy {
-        val astParameterList = ParameterList(classDef.memberVariables
+        val astParameters = classDef.memberVariables
             .filter { it.isConstructorParameterInitialized }
             .map { member ->
                 val location = member.declaration.span.deriveGenerated()
@@ -158,8 +159,10 @@ class BoundClassConstructor(
                         ?: TypeReference("Any"),
                     null,
                 )
-            })
-        astParameterList.bindTo(contextWithSelfVar).also {
+            }
+
+        val astParameterList = ParameterList(astParameters)
+        BoundParameterList(contextWithSelfVar, astParameterList, astParameterList.parameters.map { it.bindToAsConstructorParameter(contextWithSelfVar) }).also {
             check(it.semanticAnalysisPhase1().isEmpty())
         }
     }

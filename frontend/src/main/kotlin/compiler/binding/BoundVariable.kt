@@ -23,6 +23,7 @@ import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -387,6 +388,19 @@ class BoundVariable(
             allowsVisibility = false,
             runInitializerInSubScope = false,
         ),
+        /**
+         * By definition identical to [PARAMETER], except that [TypeVariance] of the declared type is not relevant
+         * ([getTypeUseSite] returns an [TypeUseSite.Irrelevant])
+         */
+        CONSTRUCTOR_PARAMETER(
+            PARAMETER.implicitMutabilityWhenNotReAssignable,
+            PARAMETER.allowsExplicitBaseTypeInfer,
+            PARAMETER.allowsExplicitOwnership,
+            PARAMETER.requiresExplicitType,
+            PARAMETER.isInitializedByDefault,
+            PARAMETER.allowsVisibility,
+            PARAMETER.runInitializerInSubScope,
+        )
         ;
 
         init {
@@ -401,7 +415,8 @@ class BoundVariable(
             return when (this) {
                 LOCAL_VARIABLE,
                 MEMBER_VARIABLE,
-                GLOBAL_VARIABLE -> TypeUseSite.Irrelevant(location, effectiveExposedBy)
+                GLOBAL_VARIABLE,
+                CONSTRUCTOR_PARAMETER -> TypeUseSite.Irrelevant(location, effectiveExposedBy)
                 PARAMETER -> TypeUseSite.InUsage(location, effectiveExposedBy)
             }
         }

@@ -48,6 +48,10 @@ data class VariableDeclaration(
         return bindTo(context, context, BoundVariable.Kind.PARAMETER)
     }
 
+    fun bindToAsConstructorParameter(context: ExecutionScopedCTContext): BoundVariable {
+        return bindTo(context, context, BoundVariable.Kind.CONSTRUCTOR_PARAMETER)
+    }
+
     fun bindToAsLocalVariable(context: ExecutionScopedCTContext): BoundVariable {
         return bindTo(context, context, BoundVariable.Kind.LOCAL_VARIABLE)
     }
