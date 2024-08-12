@@ -24,10 +24,18 @@ export class String {
             return false
         }
 
+        return self.startsWith(other)
+    }
+    
+    export nothrow fn startsWith(self, borrow prefix: read String) -> Bool {
+        if self.utf8Data.size < prefix.utf8Data.size {
+            return false
+        }
+        
         var index = 0 as UWord
-        while index < self.utf8Data.size {
+        while index < prefix.utf8Data.size {
             selfByte = self.utf8Data.getOrPanic(index)
-            otherByte = other.utf8Data.getOrPanic(index)
+            otherByte = prefix.utf8Data.getOrPanic(index)
             if selfByte != otherByte {
                 return false
             }
