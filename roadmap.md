@@ -1,6 +1,6 @@
 This file describes the Items that are next on the TODO list. **This list is NOT EXHAUSTIVE!**
 
-1. add instance-of and cast operations
+1. ~~add instance-of and cast operations~~
 2. implement module dependencies and access checks
    1. upgrade the compilers CLI interface to a configuration via a proper config format. NOT YAML! Maybe TOML, maybe PKL. Should have schema
    2. implement dependencies between input modules/source sets
@@ -90,7 +90,19 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       * debian
     * CLI interface for the compiler
     * language server and VSCode plugin
-12. Function types
+12. runtime checks for generic parameters
+    * does that need to be enabled by the programmer? Could be e.g. `class Array<reflect T>` if necessary
+    * how to represent at runtime?
+    * implement checked casts
+      1. implement wildcard generic parameter to address unchecked generics, where the wildcard is always
+         treated as if it was the bound of the parameter. E.g. given `class Pair<reflect out A, reflect out B>`,
+         `x as Pair<String, *>` is treated like `Pair<String, Any?>`
+      2. implement type data structures equivalent to what the compiler has
+      3. implement isSubtypeOf checks for these data structures, like the compiler does
+         * how to keep these in sync?? Tests, tests, tests!
+      4. implement that isSubtypeOf check into the `is` and `as` operators. Afterwards, an `Array<String>`
+         must not possibly be referenced as an `Array<S8>`
+13. Function types
     1. `operator fun invoke`: `obj(param)` to `obj.invoke(param)`
     2. Regular functions: `(T1, T2) -> R`
     3. do we need functions with receiver? Or is receiver/self VS regular parameter just a syntax
@@ -98,36 +110,36 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     4. deal with the higher-order function purity problem: do functions need to be generic on purity?
     5. extend InvocationExpression
     6. implement `objectRef.foo()` where `foo` is a property of a function type
-13. functional-style collection operations (possible because the higher-order function purity problem is solved)
+14. functional-style collection operations (possible because the higher-order function purity problem is solved)
     1. start simple with forEach
     2. go on with filter, map, fold, ...
     3. more tricky: make sure the code emitted by LLVM doesn't actually do all the allocation. A chain of maps and filters
        should be compiled down to a single loop.
-14. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
-15. optimize reference counting; see [](refcounting optimizations.md)
+15. import aliases: `import emerge.platform.print as platformPrint`, `import emerge.std.HashMap as DefaultMutableMap`
+16. optimize reference counting; see [](refcounting optimizations.md)
     * for this, the logic to determine where reference counts are needed must move from the LLVM backend to
       the frontend; the frontend has the tools to deal with the complexity, the backend doesn't. Especially
       temporary values are BAD offenders
-16. some stdlib primitives for filesystem IO
-17. typealiases
-18. smart casts
-19. fix loophole in the typesystem: the `exclusive` modifier becomes incorrect in this code:
+17. some stdlib primitives for filesystem IO
+18. typealiases
+19. smart casts
+20. fix loophole in the typesystem: the `exclusive` modifier becomes incorrect in this code:
     ```
     class Foo {}
     arr = Array.new::<exclusive Foo>(20, Foo()) // compiler doesn't complain, but should
     v: exclusive Foo = arr[0] // compiler doesn't complain here, either
     ```
-20. optional parameters
+21. optional parameters
     * parameter with default value is optional
     * affects overload validation and resolution
     * default value should be evaluated on the caller side because it allows to keep the
       ABI calling conventions
       * as a consequence, only the initial declaration of a function can declare default values,
         overrides cannot
-21. named arguments
+22. named arguments
     * allow to change the order of arguments? Its important to keep the evaluation order on the
       calling side to match the order of the arguments as passed, not as declared
-22. threading
+23. threading
     The whole shtick of the explicit-mutability types is to simplify multithreading. Avoiding the
     complexity of having a `shared` mutability like D allows to infer some properties necessary for
     multithreading:
