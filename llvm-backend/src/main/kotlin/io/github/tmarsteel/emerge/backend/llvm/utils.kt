@@ -10,21 +10,6 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.writeBytes
 
-fun <T> Iterable<T>.indexed(): Iterable<Pair<Int, T>> = object : Iterable<Pair<Int, T>> {
-    override fun iterator(): Iterator<Pair<Int, T>> = object : Iterator<Pair<Int, T>> {
-        val inner = this@indexed.iterator()
-        var index = 0
-
-        override fun hasNext() = inner.hasNext()
-
-        override fun next(): Pair<Int, T> {
-            val element = Pair(index, inner.next())
-            index += 1
-            return element
-        }
-    }
-}
-
 val RESOURCE_CACHE_DIR: Path get() = System.getProperty("emerge.backend.llvm.cache-dir", null)
     ?.let(Paths::get)
     ?: Paths.get(System.getProperty("user.dir")).resolve(".emerge-compiler-cache").resolve("llvm-backend")

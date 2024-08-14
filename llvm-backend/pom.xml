@@ -10,7 +10,7 @@
         <version>0.1.0-SNAPSHOT</version>
     </parent>
 
-    <name>Emerge Lang Compiler LLVM-based Backends</name>
+    <name>Emerge Lang LLVM-based Compiler Backends</name>
 
     <build>
         <sourceDirectory>src/main/kotlin</sourceDirectory>

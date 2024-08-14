@@ -28,7 +28,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrInvocationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullInitializedArrayExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
-import io.github.tmarsteel.emerge.backend.llvm.indexed
+import io.github.tmarsteel.emerge.common.indexed
 import java.math.BigInteger
 
 class BoundArrayLiteralExpression(

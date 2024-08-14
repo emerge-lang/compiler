@@ -1,4 +1,4 @@
-package compiler.cli
+package io.github.tmarsteel.emerge.toolchain
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.PrintMessage
@@ -75,7 +75,7 @@ object CompileCommand : CliktCommand() {
                     when (fileResult) {
                         is MatchingResult.Success -> moduleContext.addSourceFile(fileResult.item)
                         is MatchingResult.Error -> {
-                            this.echo(fileResult.reporting)
+                            echo(fileResult.reporting)
                             anyParseErrors = true
                         }
                     }

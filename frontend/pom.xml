@@ -91,58 +91,6 @@
                     <argLine>-Xss20M</argLine>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>3.1.1</version>
-                <executions>
-                    <execution>
-                        <id>emerge-compile-test</id>
-                        <phase>none</phase>
-                        <goals>
-                            <goal>java</goal>
-                        </goals>
-                        <configuration>
-                            <mainClass>compiler.cli.MainKt</mainClass>
-                            <arguments>
-                                <argument>compilertest</argument>
-                                <argument>${project.parent.basedir}/emerge-test-sources</argument>
-                                <argument>--target</argument>
-                                <argument>linux-x86_64</argument>
-                            </arguments>
-                            <systemProperties>
-                                <systemProperty>
-                                    <systemProperty>
-                                        <key>emerge.compiler.native.libc-wrapper.sources</key>
-                                        <value>${project.parent.basedir}/llvm-backend/src/main/emerge-linux-libc</value>
-                                    </systemProperty>
-                                    <systemProperty>
-                                        <key>emerge.compiler.native.linux-platform.sources</key>
-                                        <value>${project.parent.basedir}/llvm-backend/src/main/emerge-platform-linux</value>
-                                    </systemProperty>
-                                    <systemProperty>
-                                        <key>emerge.frontend.core.sources</key>
-                                        <value>${project.parent.basedir}/stdlib/core</value>
-                                    </systemProperty>
-                                    <systemProperty>
-                                        <key>emerge.frontend.std.sources</key>
-                                        <value>${project.parent.basedir}/stdlib/std</value>
-                                    </systemProperty>
-                                    <systemProperty>
-                                        <key>emerge.backend.noop.platform.sources</key>
-                                        <value>${project.parent.basedir}/backend-api/src/main/emerge/noop-backend-platform
-                                        </value>
-                                    </systemProperty>
-                                    <systemProperty>
-                                        <key>emerge.compiler.native.c-ffi-sources</key>
-                                        <value>${project.parent.basedir}/llvm-backend/src/main/emerge-ffi-c</value>
-                                    </systemProperty>
-                                </systemProperty>
-                            </systemProperties>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
 
@@ -150,10 +98,6 @@
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>backend-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>llvm-backend</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
@@ -169,11 +113,6 @@
             <version>2.15.1</version>
         </dependency>
         <dependency>
-            <groupId>com.github.ajalt.clikt</groupId>
-            <artifactId>clikt-jvm</artifactId>
-            <version>4.2.2</version>
-        </dependency>
-        <dependency>
             <groupId>io.kotest</groupId>
             <artifactId>kotest-runner-junit5-jvm</artifactId>
             <scope>test</scope>
@@ -187,6 +126,12 @@
             <groupId>io.mockk</groupId>
             <artifactId>mockk-jvm</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.tmarsteel.emerge-lang</groupId>
+            <artifactId>common</artifactId>
+            <version>0.1.0-SNAPSHOT</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 </project>

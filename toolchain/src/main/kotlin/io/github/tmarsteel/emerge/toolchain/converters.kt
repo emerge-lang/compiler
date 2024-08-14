@@ -1,4 +1,4 @@
-package compiler.cli
+package io.github.tmarsteel.emerge.toolchain
 
 import com.github.ajalt.clikt.completion.CompletionCandidates
 import com.github.ajalt.clikt.core.BadParameterValue
