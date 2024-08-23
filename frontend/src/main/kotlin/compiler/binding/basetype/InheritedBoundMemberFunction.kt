@@ -11,9 +11,9 @@ import compiler.binding.type.BoundTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.reportings.Reporting
 import compiler.util.checkNoDiagnostics
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrFullyInheritedMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class InheritedBoundMemberFunction(
     val supertypeMemberFn: BoundMemberFunction,

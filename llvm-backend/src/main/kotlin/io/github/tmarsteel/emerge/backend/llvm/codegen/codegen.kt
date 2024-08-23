@@ -1,6 +1,5 @@
 package io.github.tmarsteel.emerge.backend.llvm.codegen
 
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
@@ -125,6 +124,7 @@ import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
 import io.github.tmarsteel.emerge.backend.llvm.tackLateInitState
 import io.github.tmarsteel.emerge.backend.llvm.tackState
 import io.github.tmarsteel.emerge.backend.llvm.typeinfoHolder
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 internal sealed interface ExecutableResult {
     object ExecutionOngoing : ExecutableResult

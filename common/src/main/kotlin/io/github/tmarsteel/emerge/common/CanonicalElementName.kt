@@ -1,4 +1,4 @@
-package io.github.tmarsteel.emerge.backend.api
+package io.github.tmarsteel.emerge.common
 
 /**
  * A name that can unambiguously point out any

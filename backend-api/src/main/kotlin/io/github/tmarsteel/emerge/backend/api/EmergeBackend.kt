@@ -1,24 +1,28 @@
 package io.github.tmarsteel.emerge.backend.api
 
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
-import java.nio.file.Path
+import io.github.tmarsteel.emerge.common.config.ConfigModuleDefinition
+import kotlin.reflect.KClass
 
-interface EmergeBackend {
+/**
+ * @param ToolchainConfig a class describing the toolchain-level configuration for this backend. This is information
+ * that varies as per the computer the compiler is running on.
+ * @param ProjectConfig a class describing the project-level configuration for this backend.
+ */
+interface EmergeBackend<ToolchainConfig : Any, ProjectConfig : Any> {
     /**
-     * The target that this backend compiles, e.g. unix-x86_64
+     * The target that this backend compiles, e.g. x86_64-pc-linux-gnu
      */
     val targetName: String
 
-    /**
-     * Additional modules that must be considered by the frontend for code to be compiled to this target
-     */
-    val targetSpecificModules: Collection<ModuleSourceRef>
-        get() = emptySet()
+    val toolchainConfigKClass: KClass<ToolchainConfig>
+    val projectConfigKClass: KClass<ProjectConfig>
+
+    fun getTargetSpecificModules(toolchainConfig: ToolchainConfig, projectConfig: ProjectConfig): Iterable<ConfigModuleDefinition>
 
     /**
-     * Generates all the code necessary for this software into [directory]. The backend implementation can further
-     * structure this directory as needed / wanted.
+     * Generates all the code necessary for this software
      */
     @Throws(CodeGenerationException::class)
-    fun emit(softwareContext: IrSoftwareContext, directory: Path)
+    fun emit(toolchainConfig: ToolchainConfig, projectConfig: ProjectConfig, softwareContext: IrSoftwareContext)
 }

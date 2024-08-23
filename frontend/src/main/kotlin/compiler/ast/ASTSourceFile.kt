@@ -18,9 +18,7 @@
 
 package compiler.ast
 
-import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
-import compiler.StandardLibraryModule
 import compiler.binding.context.ModuleContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.SoftwareContext
@@ -29,12 +27,13 @@ import compiler.binding.context.SourceFileRootContext
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
+import io.github.tmarsteel.emerge.common.CanonicalElementName
+import io.github.tmarsteel.emerge.common.EmergeConstants
 import compiler.lexer.SourceFile as LexerSourceFile
 
 private val DEFAULT_IMPORT_PACKAGES = listOf(
-    CoreIntrinsicsModule.NAME,
-    StandardLibraryModule.NAME,
+    EmergeConstants.CORE_MODULE_NAME,
+    EmergeConstants.STD_MODULE_NAME,
 )
 
 /**

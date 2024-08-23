@@ -19,7 +19,7 @@
 package compiler.binding.context
 
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 import compiler.lexer.SourceFile as LexerSourceFile
 
 class SourceFile(

@@ -1,7 +1,7 @@
 package compiler.binding
 
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 internal abstract class IrFunctionImpl private constructor(
     val canonicalName: CanonicalElementName.Function,

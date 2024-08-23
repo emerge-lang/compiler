@@ -1,6 +1,6 @@
 package io.github.tmarsteel.emerge.backend.api.ir
 
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 interface IrBaseType {
     /**

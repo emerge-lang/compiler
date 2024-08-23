@@ -1,6 +1,6 @@
 package compiler
 
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 /**
  * The very core module of the language, defining intrinsic elements that are implemented by the

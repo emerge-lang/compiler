@@ -5,7 +5,7 @@
 .idea
 *.iml
 **/*.iml
-emerge-test-sources
+test-project
 
 # Sensitive or high-churn files:
 .idea/**/dataSources/

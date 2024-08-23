@@ -55,7 +55,7 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.OperatorToken
 import compiler.lexer.Span
 import compiler.lexer.Token
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 import textutils.indentByFromSecondLine
 import java.math.BigInteger
 

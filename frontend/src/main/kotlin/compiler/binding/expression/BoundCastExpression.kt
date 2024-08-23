@@ -17,11 +17,11 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 /**
  * Currently this is merely a way to specify the type of numeric literals

@@ -2,19 +2,10 @@ package io.github.tmarsteel.emerge.backend.llvm.linux
 
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.llvm.ToolDiscoverer
-import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.runSyncCapturing
 import java.nio.file.Path
 
-object LinuxLinker {
-    private val executable by lazy {
-        ToolDiscoverer.INSTANCE.discover(
-            Llvm.LLVM_DIR.resolve("bin").resolve("ld.lld").toString(),
-            "ld.lld-18",
-            "ld",
-        )
-    }
-
+class LinuxLinker(val linkerBinary: Path) {
     fun linkObjectFilesToELF(
         objectFiles: List<Path>,
         outputFile: Path,
@@ -23,7 +14,7 @@ object LinuxLinker {
         libraryPaths: List<Path> = emptyList(),
     ) {
         val command = mutableListOf(
-            executable.toString(),
+            linkerBinary.toString(),
             "-o", outputFile.toString(),
             "--dynamic-linker=${runtimeDynamicLinker.path}",
         )
@@ -50,6 +41,18 @@ object LinuxLinker {
             "linker failed; command: $command\nerror:\n" + result.standardErrorAsString(),
             result.exitCode,
         )
+    }
+
+    companion object {
+        fun fromLlvmInstallationDirectory(llvmInstallationDirectory: Path): LinuxLinker {
+            return LinuxLinker(
+                ToolDiscoverer.INSTANCE.discover(
+                    llvmInstallationDirectory.resolve("bin").resolve("ld.lld").toString(),
+                    "ld.lld-18",
+                    "ld",
+                )
+            )
+        }
     }
 }
 

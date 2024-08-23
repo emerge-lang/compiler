@@ -7,7 +7,7 @@ import compiler.lexer.KeywordToken
 import compiler.lexer.SourceFile
 import compiler.lexer.Span
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 sealed class BoundVisibility : SemanticallyAnalyzable {
     protected abstract val context: CTContext

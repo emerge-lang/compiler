@@ -1,7 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm
 
 import com.google.common.collect.MapMaker
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassMemberVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
@@ -28,6 +27,7 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeClassType.Compan
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeFallibleCallResult.Companion.abortOnException
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.TypeinfoType
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 /**
  * Helps with automatic boxing and unboxing of values

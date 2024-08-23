@@ -11,16 +11,17 @@ import compiler.lexer.lex
 import compiler.parser.SourceFileRule
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
-import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
 import io.github.tmarsteel.emerge.backend.api.ir.IrModule
 import io.github.tmarsteel.emerge.backend.noop.NoopBackend
+import io.github.tmarsteel.emerge.common.CanonicalElementName
+import io.github.tmarsteel.emerge.common.config.ConfigModuleDefinition
 import io.kotest.inspectors.forNone
 import io.kotest.inspectors.forOne
 import io.kotest.matchers.Matcher
 import io.kotest.matchers.MatcherResult
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.types.shouldBeInstanceOf
+import java.nio.file.Paths
 
 fun lexCode(
     code: String,
@@ -40,25 +41,29 @@ fun lexCode(
     return lex(sourceFile, addTrailingNewline = addPackageDeclaration)
 }
 
+private val noopBackendConfig = NoopBackend.Config(ConfigModuleDefinition(
+    CanonicalElementName.Package(listOf("emerge", "platform")),
+    Paths.get(System.getProperty("emerge.backend.noop.platform.sources"))
+))
 private val defaultModulesParsed: List<Pair<CanonicalElementName.Package, List<ASTSourceFile>>> by lazy {
-    (NoopBackend().targetSpecificModules + listOf(
-        ModuleSourceRef(CoreIntrinsicsModule.SRC_DIR, CoreIntrinsicsModule.NAME),
-        ModuleSourceRef(StandardLibraryModule.SRC_DIR, StandardLibraryModule.NAME),
+    (NoopBackend().getTargetSpecificModules(noopBackendConfig) + listOf(
+        ConfigModuleDefinition(CoreIntrinsicsModule.NAME, Paths.get(System.getProperty("emerge.frontend.core.sources"))),
+        ConfigModuleDefinition(StandardLibraryModule.NAME, Paths.get(System.getProperty("emerge.frontend.std.sources"))),
     ))
         .map { module ->
-            val sourceFiles = SourceSet.load(module.path, module.moduleName)
+            val sourceFiles = SourceSet.load(module.sourceDirectory, module.name)
                 .map {
                     val tokens = lex(it)
                     SourceFileRule.match(tokens, tokens.first().span.sourceFile)
                 }
                 .partition { it is MatchingResult.Error }
                 .let { (errors, successes) ->
-                    require(errors.isEmpty()) { "default module ${module.moduleName} has errors: ${errors.map { (it as MatchingResult.Error).reporting }}" }
+                    require(errors.isEmpty()) { "default module ${module.name} has errors: ${errors.map { (it as MatchingResult.Error).reporting }}" }
                     successes as List<MatchingResult.Success<ASTSourceFile>>
                 }
                 .map { it.item }
 
-            module.moduleName to sourceFiles
+            module.name to sourceFiles
         }
 }
 

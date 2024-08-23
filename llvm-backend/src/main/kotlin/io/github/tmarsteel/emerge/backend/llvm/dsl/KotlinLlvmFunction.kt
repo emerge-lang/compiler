@@ -1,10 +1,10 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmDwarfEmissionKind
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmValueRef
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 import java.nio.file.Path
 import kotlin.reflect.KProperty
 

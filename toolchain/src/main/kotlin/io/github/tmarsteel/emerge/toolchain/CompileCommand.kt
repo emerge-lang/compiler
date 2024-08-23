@@ -1,15 +1,14 @@
 package io.github.tmarsteel.emerge.toolchain
 
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.CliktError
 import com.github.ajalt.clikt.core.PrintMessage
-import com.github.ajalt.clikt.parameters.arguments.argument
-import com.github.ajalt.clikt.parameters.arguments.defaultLazy
+import com.github.ajalt.clikt.core.requireObject
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
-import com.github.ajalt.clikt.parameters.types.path
-import compiler.CoreIntrinsicsModule
+import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.types.choice
 import compiler.InternalCompilerError
-import compiler.StandardLibraryModule
 import compiler.binding.context.SoftwareContext
 import compiler.lexer.SourceSet
 import compiler.lexer.lex
@@ -17,57 +16,53 @@ import compiler.parser.SourceFileRule
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.reportings.ModuleWithoutSourcesReporting
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.EmergeBackend
-import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
-import java.nio.file.Path
+import io.github.tmarsteel.emerge.common.EmergeConstants
+import io.github.tmarsteel.emerge.common.config.ConfigModuleDefinition
+import io.github.tmarsteel.emerge.toolchain.config.ProjectConfig
+import io.github.tmarsteel.emerge.toolchain.config.ToolchainConfig
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
-import java.util.ServiceLoader
-import java.util.stream.Collectors
-import kotlin.io.path.createDirectories
 import kotlin.time.toKotlinDuration
 
-private val backends: Map<String, EmergeBackend> = ServiceLoader.load(EmergeBackend::class.java)
-    .stream()
-    .map { it.get() }
-    .collect(Collectors.toMap(
-        { it.targetName },
-        { it },
-        { a, b -> throw InternalCompilerError("Found two backends with name ${a.targetName}: ${a::class.qualifiedName} and ${b::class.qualifiedName}")}
-    ))
-
 object CompileCommand : CliktCommand() {
-    private val moduleName: CanonicalElementName.Package by argument("module name").packageName()
-    private val srcDir: Path by argument("source directory")
-        .path(mustExist = true, canBeFile = false, canBeDir = true, mustBeReadable = true)
-    private val outDir: Path by argument("output directory")
-        .path(mustExist = false, canBeFile = false, mustBeWritable = true)
-        .defaultLazy(defaultForHelp = "<source dir>/../emerge-out") {
-            srcDir.toAbsolutePath().parent.resolve("emerge-out")
+    private val toolchainConfig by requireObject<ToolchainConfig>()
+    private val projectConfig by requireObject<ProjectConfig>()
+
+    private val target by option("--target")
+        .choice(backends)
+        .required()
+        .validate {
+            require(it in projectConfig.targets) {
+                "Target ${it.targetName} is not configured for the project"
+            }
         }
-    private val target: EmergeBackend by option("--target").selectFrom(backends).required()
 
     override fun run() {
+        val toolchainConfigForBackend = toolchainConfig.backendConfigs[target]
+            ?: throw CliktError("Missing toolchain configuration for target ${target.targetName}")
+        val projectConfigForBackend = projectConfig.targets[target]
+            ?: throw CliktError("Missing project configuration for target ${target.targetName}")
+        val typeunsafeTarget = target as EmergeBackend<in Any, in Any>
+
         val swCtx = SoftwareContext()
 
         val measureClock = Clock.systemUTC()
         val startedAt = measureClock.instant()
 
-        val modulesToLoad = target.targetSpecificModules + listOf(
-            ModuleSourceRef(CoreIntrinsicsModule.SRC_DIR, CoreIntrinsicsModule.NAME),
-            ModuleSourceRef(StandardLibraryModule.SRC_DIR, StandardLibraryModule.NAME),
-            ModuleSourceRef(srcDir, moduleName)
-        )
+        val modulesToLoad = listOf(
+            ConfigModuleDefinition(EmergeConstants.STD_MODULE_NAME, toolchainConfig.frontend.stdModuleSources),
+            ConfigModuleDefinition(EmergeConstants.CORE_MODULE_NAME, toolchainConfig.frontend.coreModuleSources),
+        ) + projectConfig.modules + typeunsafeTarget.getTargetSpecificModules(toolchainConfigForBackend, projectConfigForBackend)
         var anyParseErrors = false
         for (moduleRef in modulesToLoad) {
-            val moduleContext = swCtx.registerModule(moduleRef.moduleName)
-            SourceSet.load(moduleRef.path, moduleRef.moduleName)
+            val moduleContext = swCtx.registerModule(moduleRef.name)
+            SourceSet.load(moduleRef.sourceDirectory, moduleRef.name)
                 .also {
                     if (it.isEmpty()) {
-                        echo(ModuleWithoutSourcesReporting(moduleRef.moduleName, moduleRef.path))
+                        echo(ModuleWithoutSourcesReporting(moduleRef.name, moduleRef.sourceDirectory))
                     }
                 }
                 .map { SourceFileRule.match(lex(it), it) }
@@ -107,10 +102,10 @@ object CompileCommand : CliktCommand() {
             )
         }
 
-        outDir.createDirectories()
+        val irSwCtx = swCtx.toBackendIr()
         val backendStartedAt = measureClock.instant()
         try {
-            target.emit(swCtx.toBackendIr(), outDir)
+            typeunsafeTarget.emit(toolchainConfigForBackend, projectConfigForBackend, irSwCtx)
         } catch (ex: CodeGenerationException) {
             echo("The backend failed to generate code.")
             throw ex

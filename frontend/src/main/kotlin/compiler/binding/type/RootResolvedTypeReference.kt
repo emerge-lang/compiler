@@ -1,8 +1,6 @@
 package compiler.binding.type
 
-import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
-import compiler.StandardLibraryModule
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundMemberFunction
@@ -17,6 +15,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 import io.github.tmarsteel.emerge.backend.api.ir.independentToString
+import io.github.tmarsteel.emerge.common.EmergeConstants
 
 /**
  * A [TypeReference] where the root type is resolved
@@ -224,8 +223,8 @@ class RootResolvedTypeReference private constructor(
         str += " "
 
         str += when {
-            baseType.canonicalName.packageName == CoreIntrinsicsModule.NAME ||
-            baseType.canonicalName.packageName == StandardLibraryModule.NAME -> baseType.simpleName
+            baseType.canonicalName.packageName == EmergeConstants.CORE_MODULE_NAME ||
+            baseType.canonicalName.packageName == EmergeConstants.STD_MODULE_NAME -> baseType.simpleName
             else -> baseType.canonicalName.toString()
         }
 

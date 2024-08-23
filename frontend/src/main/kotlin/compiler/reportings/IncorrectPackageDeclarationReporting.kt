@@ -1,7 +1,7 @@
 package compiler.reportings
 
 import compiler.ast.AstPackageName
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class IncorrectPackageDeclarationReporting(
     val given: AstPackageName,

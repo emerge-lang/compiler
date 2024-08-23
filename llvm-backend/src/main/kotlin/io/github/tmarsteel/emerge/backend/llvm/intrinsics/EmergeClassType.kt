@@ -1,7 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
 import com.google.common.collect.MapMaker
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
@@ -31,6 +30,7 @@ import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
 import io.github.tmarsteel.emerge.backend.llvm.typeinfoHolder
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 internal class EmergeClassType private constructor(
     val context: EmergeLlvmContext,

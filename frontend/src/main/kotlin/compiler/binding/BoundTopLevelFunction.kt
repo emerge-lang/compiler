@@ -4,9 +4,9 @@ import compiler.ast.FunctionDeclaration
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class BoundTopLevelFunction(
     context: MutableExecutionScopedCTContext,

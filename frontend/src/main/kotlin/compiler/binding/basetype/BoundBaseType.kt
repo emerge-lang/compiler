@@ -37,12 +37,12 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
 import compiler.reportings.Reporting
 import compiler.reportings.UnconventionalTypeNameReporting
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 import kotlinext.duplicatesBy
 import kotlinext.get
 import java.util.Collections

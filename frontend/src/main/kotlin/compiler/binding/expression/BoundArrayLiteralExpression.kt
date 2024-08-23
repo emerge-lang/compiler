@@ -1,7 +1,5 @@
 package compiler.binding.expression
 
-import compiler.CoreIntrinsicsModule
-import compiler.InternalCompilerError
 import compiler.ast.expression.ArrayLiteralExpression
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
@@ -49,10 +47,7 @@ class BoundArrayLiteralExpression(
     override val isEvaluationResultAnchored = false
 
     private val arrayType: BoundBaseType by lazy {
-        val corePackage = context.swCtx.getPackage(CoreIntrinsicsModule.NAME)
-            ?: throw InternalCompilerError("The software context doesn't define the default package ${CoreIntrinsicsModule.NAME}")
-        corePackage.resolveBaseType("Array")
-            ?: throw InternalCompilerError("The software context doesn't define ${CoreIntrinsicsModule.NAME}.Array")
+        context.swCtx.array
     }
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {

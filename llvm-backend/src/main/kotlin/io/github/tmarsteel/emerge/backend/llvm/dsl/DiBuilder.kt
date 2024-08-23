@@ -1,13 +1,13 @@
 package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import com.sun.jna.NativeLong
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmDwarfEmissionKind
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmDwarfSourceLanguage
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmMetadataRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmModuleRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 import java.nio.file.Path
 
 class DiBuilder(

@@ -1,7 +1,7 @@
 package compiler.reportings
 
 import compiler.lexer.Span
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class PackageVisibilityTooBroadReporting(
     val owningModule: CanonicalElementName.Package,

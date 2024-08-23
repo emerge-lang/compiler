@@ -6,7 +6,7 @@ import compiler.lexer.ClasspathSourceFile
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
 import compiler.parser.grammar.rule.MatchingResult
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 import java.nio.file.Path
 import java.nio.file.Paths
 

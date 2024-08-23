@@ -1,11 +1,10 @@
 package io.github.tmarsteel.emerge.backend.llvm.linux_x86_64
 
+import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.sun.jna.ptr.PointerByReference
-import io.github.tmarsteel.emerge.backend.SystemPropertyDelegate.Companion.systemProperty
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.EmergeBackend
-import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
@@ -19,7 +18,6 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.poi
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmTarget
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.PassBuilderOptions
-import io.github.tmarsteel.emerge.backend.llvm.getClasspathResourceAsFileOnDisk
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmVerifierFailureAction
@@ -27,20 +25,32 @@ import io.github.tmarsteel.emerge.backend.llvm.linux.EmergeEntrypoint
 import io.github.tmarsteel.emerge.backend.llvm.linux.LinuxLinker
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.packagesSeq
+import io.github.tmarsteel.emerge.common.CanonicalElementName
+import io.github.tmarsteel.emerge.common.config.ConfigModuleDefinition
+import io.github.tmarsteel.emerge.common.config.DirectoryDeserializer
+import io.github.tmarsteel.emerge.common.config.ExistingFileDeserializer
 import java.nio.file.Path
-import java.nio.file.Paths
+import kotlin.io.path.createDirectories
 
-class Linux_x68_64_Backend : EmergeBackend {
-    override val targetName = "linux-x86_64"
+class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig, Linux_x68_64_Backend.ProjectConfig> {
+    override val targetName = "x86_64-pc-linux-gnu"
 
-    override val targetSpecificModules: Collection<ModuleSourceRef> = setOf(
-        ModuleSourceRef(FFI_C_SOURCES_PATH, CanonicalElementName.Package(listOf("emerge", "ffi", "c"))),
-        ModuleSourceRef(LINUX_LIBC_SOURCES_PATH, CanonicalElementName.Package(listOf("emerge", "linux", "libc"))),
-        ModuleSourceRef(LINUX_PLATFORM_PATH, CanonicalElementName.Package(listOf("emerge", "platform"))),
-    )
+    override val toolchainConfigKClass = ToolchainConfig::class
+    override val projectConfigKClass = ProjectConfig::class
 
-    override fun emit(softwareContext: IrSoftwareContext, directory: Path) {
-        val bitcodeFilePath = directory.resolve("out.bc").toAbsolutePath()
+    override fun getTargetSpecificModules(toolchainConfig: ToolchainConfig, projectConfig: ProjectConfig): Iterable<ConfigModuleDefinition> {
+        return listOf(
+            ConfigModuleDefinition(CanonicalElementName.Package(listOf("emerge", "ffi", "c")), toolchainConfig.ffiCSources),
+            ConfigModuleDefinition(LIBC_PACKAGE, toolchainConfig.libcSources),
+            ConfigModuleDefinition(CanonicalElementName.Package(listOf("emerge", "platform")), toolchainConfig.platformSources),
+        )
+    }
+
+    override fun emit(toolchainConfig: ToolchainConfig, projectConfig: ProjectConfig, softwareContext: IrSoftwareContext) {
+        Llvm.loadNativeLibrary(toolchainConfig.llvmInstallationDirectory)
+        projectConfig.outputDirectory.createDirectories()
+
+        val bitcodeFilePath = projectConfig.outputDirectory.resolve("out.bc").toAbsolutePath()
         writeSoftwareToBitcodeFile(softwareContext, bitcodeFilePath)
 
         /* we cannot use LLVMTargetMachineEmitToFile because:
@@ -57,27 +67,27 @@ class Linux_x68_64_Backend : EmergeBackend {
         i don't want to have to re-discover when chasing a segfault or something like that...
          */
 
-        val objectFilePath = directory.resolve("out.o")
-        LlvmCompiler.compileBitcodeFile(
+        val objectFilePath = projectConfig.outputDirectory.resolve("out.o")
+        LlvmCompiler.fromLlvmInstallationDirectory(toolchainConfig.llvmInstallationDirectory).compileBitcodeFile(
             bitcodeFilePath,
             objectFilePath,
         )
 
-        val executablePath = directory.resolve("runnable").toAbsolutePath()
-        LinuxLinker.linkObjectFilesToELF(
+        val executablePath = projectConfig.outputDirectory.resolve("runnable").toAbsolutePath()
+        LinuxLinker.fromLlvmInstallationDirectory(toolchainConfig.llvmInstallationDirectory).linkObjectFilesToELF(
             listOf(
                 // here is what all of these object files are for:
                 // https://dev.gentoo.org/~vapier/crt.txt
-                getClasspathResourceAsFileOnDisk(javaClass, "/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/Scrt1.o"),
-                getClasspathResourceAsFileOnDisk(javaClass, "/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/crtbeginS.o"),
+                toolchainConfig.staticLibs.sCrt1ObjectFile,
+                toolchainConfig.staticLibs.crtBeginSharedObjectFile,
                 objectFilePath,
-                getClasspathResourceAsFileOnDisk(javaClass, "/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/crtendS.o"),
-                getClasspathResourceAsFileOnDisk(javaClass, "/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/libunwind-x86_64.a"),
+                toolchainConfig.staticLibs.crtEndSharedObjectFile,
+                toolchainConfig.staticLibs.libUnwindObjectFile,
             ),
             executablePath,
             dynamicallyLinkAtRuntime = listOf("c"),
             libraryPaths = listOf(
-                getClasspathResourceAsFileOnDisk(javaClass, "/io/github/tmarsteel/emerge/backend/llvm/x86_64-pc-linux-gnu/libc.so"),
+                toolchainConfig.staticLibs.libCSharedObject,
             ).map { it.parent }.distinct(),
         )
     }
@@ -237,10 +247,6 @@ class Linux_x68_64_Backend : EmergeBackend {
     }
 
     companion object {
-        val FFI_C_SOURCES_PATH by systemProperty("emerge.compiler.native.c-ffi-sources", Paths::get)
-        val LINUX_LIBC_SOURCES_PATH by systemProperty("emerge.compiler.native.libc-wrapper.sources", Paths::get)
-        val LINUX_PLATFORM_PATH by systemProperty("emerge.compiler.native.linux-platform.sources", Paths::get)
-
         private val LIBC_PACKAGE = CanonicalElementName.Package(listOf("emerge", "linux", "libc"))
         private val ALLOCATOR_FUNCTION_NAME = CanonicalElementName.Function(LIBC_PACKAGE, "malloc")
         private val FREE_FUNCTION_NAME = CanonicalElementName.Function(LIBC_PACKAGE, "free")
@@ -274,5 +280,48 @@ class Linux_x68_64_Backend : EmergeBackend {
             ) to "_Ux86_64_get_reg",
         )
     }
+
+    data class ToolchainConfig(
+        @param:JsonDeserialize(using = DirectoryDeserializer::class)
+        val ffiCSources: Path,
+
+        @param:JsonDeserialize(using = DirectoryDeserializer::class)
+        val libcSources: Path,
+
+        @param:JsonDeserialize(using = DirectoryDeserializer::class)
+        val platformSources: Path,
+
+        @param:JsonDeserialize(using = DirectoryDeserializer::class)
+        val llvmInstallationDirectory: Path,
+
+        val staticLibs: StaticLibsConfig,
+    ) {
+        data class StaticLibsConfig(
+            @param:JsonProperty("crtbeginS")
+            @param:JsonDeserialize(using = ExistingFileDeserializer::class)
+            val crtBeginSharedObjectFile: Path,
+
+            @param:JsonProperty("crtendS")
+            @param:JsonDeserialize(using = ExistingFileDeserializer::class)
+            val crtEndSharedObjectFile: Path,
+
+            @param:JsonProperty("Scrt1")
+            @param:JsonDeserialize(using = ExistingFileDeserializer::class)
+            val sCrt1ObjectFile: Path,
+
+            @param:JsonProperty("libcSO")
+            @param:JsonDeserialize(using = ExistingFileDeserializer::class)
+            val libCSharedObject: Path,
+
+            @param:JsonProperty("libunwind")
+            @param:JsonDeserialize(using = ExistingFileDeserializer::class)
+            val libUnwindObjectFile: Path,
+        )
+    }
+
+    data class ProjectConfig(
+        @param:JsonDeserialize(using = DirectoryDeserializer::class)
+        val outputDirectory: Path,
+    )
 }
 

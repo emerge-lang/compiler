@@ -1,28 +1,35 @@
 package io.github.tmarsteel.emerge.backend.noop
 
-import io.github.tmarsteel.emerge.backend.SystemPropertyDelegate
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import io.github.tmarsteel.emerge.backend.api.EmergeBackend
-import io.github.tmarsteel.emerge.backend.api.ModuleSourceRef
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
+import io.github.tmarsteel.emerge.common.EmergeConstants
+import io.github.tmarsteel.emerge.common.config.ConfigModuleDefinition
+import io.github.tmarsteel.emerge.common.config.DirectoryDeserializer
 import java.nio.file.Path
-import java.nio.file.Paths
 
-class NoopBackend : EmergeBackend {
+class NoopBackend : EmergeBackend<NoopBackend.Config, Unit> {
     override val targetName = "noop"
 
-    override val targetSpecificModules: Collection<ModuleSourceRef> = listOf(
-        ModuleSourceRef(SRC_DIR, CanonicalElementName.Package(listOf("emerge", "platform")))
+    override val toolchainConfigKClass = Config::class
+    override val projectConfigKClass = Unit::class
+
+    override fun getTargetSpecificModules(
+        toolchainConfig: Config,
+        projectConfig: Unit
+    ): Iterable<ConfigModuleDefinition> {
+        return listOf(ConfigModuleDefinition(
+            EmergeConstants.PLATFORM_MODULE_NAME,
+            toolchainConfig.platformSources,
+        ))
+    }
+
+    override fun emit(toolchainConfig: Config, projectConfig: Unit, softwareContext: IrSoftwareContext) {
+
+    }
+
+    data class Config(
+        @param:JsonDeserialize(using = DirectoryDeserializer::class)
+        val platformSources: Path
     )
-
-    override fun emit(softwareContext: IrSoftwareContext, directory: Path) {
-
-    }
-
-    companion object {
-        val SRC_DIR: Path by SystemPropertyDelegate.Companion.systemProperty(
-            "emerge.backend.noop.platform.sources",
-            Paths::get
-        )
-    }
 }

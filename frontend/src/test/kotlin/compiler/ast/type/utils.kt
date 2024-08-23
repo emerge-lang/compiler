@@ -20,7 +20,7 @@ package compiler.compiler.ast.type
 
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.SoftwareContext
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 internal fun SoftwareContext.getTestType(simpleName: String): BoundBaseType {
     return getPackage(CanonicalElementName.Package(listOf("testmodule")))!!.resolveBaseType(simpleName)!!

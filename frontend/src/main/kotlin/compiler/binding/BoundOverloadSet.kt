@@ -5,9 +5,9 @@ import compiler.binding.type.nonDisjointPairs
 import compiler.reportings.InconsistentReceiverPresenceInOverloadSetReporting
 import compiler.reportings.Reporting
 import compiler.util.pivot
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 import kotlin.properties.Delegates
 
 class BoundOverloadSet<out Fn : BoundFunction>(

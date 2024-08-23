@@ -2,7 +2,6 @@ package io.github.tmarsteel.emerge.backend.llvm.dsl
 
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.llvm.ToolDiscoverer
-import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmCodeGenOptModel
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmCodeModel
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmRelocMode
@@ -13,11 +12,7 @@ import java.nio.file.Path
  * A convenient way around invoking `llc`. Necessary because llc gives access
  * to configuration options not available through the C interface, e.g. use-init-array.
  */
-object LlvmCompiler {
-    private val executable by lazy {
-        ToolDiscoverer.INSTANCE.discover(Llvm.LLVM_DIR.resolve("bin").resolve("llc").toString(), "llc-18")
-    }
-
+class LlvmCompiler(private val llcBinary: Path) {
     fun compileBitcodeFile(
         input: Path,
         output: Path,
@@ -27,7 +22,7 @@ object LlvmCompiler {
         optimizationLevel: LlvmCodeGenOptModel = LlvmCodeGenOptModel.DEFAULT,
     ) {
         val command = mutableListOf(
-            executable.toString(),
+            llcBinary.toString(),
             "-o", output.toString(),
             "--relocation-model", relocationModel.llcName,
             "--filetype", outputType.llcName,
@@ -51,6 +46,14 @@ object LlvmCompiler {
             "llc command: $command\nError:\n" + result.standardErrorAsString(),
             result.exitCode,
         )
+    }
+
+    companion object {
+        fun fromLlvmInstallationDirectory(llvmInstallationDirectory: Path): LlvmCompiler {
+            return LlvmCompiler(
+                ToolDiscoverer.INSTANCE.discover(llvmInstallationDirectory.resolve("bin").resolve("llc").toString(), "llc-18")
+            )
+        }
     }
 }
 

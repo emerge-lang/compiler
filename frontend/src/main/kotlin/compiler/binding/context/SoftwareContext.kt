@@ -18,7 +18,6 @@
 
 package compiler.binding.context
 
-import compiler.CoreIntrinsicsModule
 import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
@@ -26,8 +25,9 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
+import io.github.tmarsteel.emerge.common.CanonicalElementName
+import io.github.tmarsteel.emerge.common.EmergeConstants
 import textutils.capitalizeFirst
 import kotlin.reflect.KProperty
 
@@ -104,8 +104,8 @@ class SoftwareContext {
     }
 
     val emergeCorePackage: PackageContext by lazy {
-        getPackage(CoreIntrinsicsModule.NAME)
-            ?: throw InternalCompilerError("Core package ${CoreIntrinsicsModule.NAME} is not registered")
+        getPackage(EmergeConstants.CORE_MODULE_NAME)
+            ?: throw InternalCompilerError("Core package ${EmergeConstants.CORE_MODULE_NAME} is not registered")
     }
 
     private fun coreType(name: String? = null) = object {

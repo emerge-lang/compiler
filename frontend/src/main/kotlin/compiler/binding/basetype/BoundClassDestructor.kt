@@ -28,7 +28,6 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrDeallocateObjectStatement
@@ -36,6 +35,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatement
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class BoundClassDestructor(
     private val fileContextWithTypeParameters: CTContext,

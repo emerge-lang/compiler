@@ -8,40 +8,42 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * LLVM C interface functions mapped for LLVM-18 using JNA.
  */
 public class Llvm {
-    static final String LLVM_DIR_SYSTEM_PROPERTY = "emerge.backend.llvm.llvm-18-dir";
-    public static final Path LLVM_DIR = Paths.get(Objects.requireNonNull(
-            System.getProperty(LLVM_DIR_SYSTEM_PROPERTY),
-            "You must specify the Java system property " + LLVM_DIR_SYSTEM_PROPERTY
-    )).toAbsolutePath();
-
-    static {
-        NativeLibrary.addSearchPath("LLVM-18", LLVM_DIR.resolve("lib").toString());
-        NativeLibrary.addSearchPath("LLVM-C", LLVM_DIR.resolve("bin").toString());
-        Map<String, Object> options = Map.of(
-                Library.OPTION_TYPE_MAPPER, new LlvmTypeMapper()
-        );
-        NativeLibrary llvmLib;
-        try {
-            llvmLib = NativeLibrary.getInstance("LLVM-18", options);
-        }
-        catch (UnsatisfiedLinkError ex) {
+    private volatile static Path LLVM_DIR = null;
+    public static void loadNativeLibrary(Path llvmInstallationDirectory) {
+        synchronized (Llvm.class) {
+            if (LLVM_DIR != null) {
+                if (!LLVM_DIR.equals(llvmInstallationDirectory)) {
+                    throw new IllegalStateException("The installation path for LLVM has already been set to " + LLVM_DIR + ", it cannot be changed (trying to change to " + llvmInstallationDirectory + ")");
+                }
+                return;
+            }
+            LLVM_DIR = llvmInstallationDirectory;
+            NativeLibrary.addSearchPath("LLVM-18", LLVM_DIR.resolve("lib").toString());
+            NativeLibrary.addSearchPath("LLVM-C", LLVM_DIR.resolve("bin").toString());
+            Map<String, Object> options = Map.of(
+                    Library.OPTION_TYPE_MAPPER, new LlvmTypeMapper()
+            );
+            NativeLibrary llvmLib;
             try {
-                llvmLib = NativeLibrary.getInstance("LLVM-C", options);
+                llvmLib = NativeLibrary.getInstance("LLVM-18", options);
             }
-            catch (UnsatisfiedLinkError ex2) {
-                ex.addSuppressed(ex2);
-                throw ex;
+            catch (UnsatisfiedLinkError ex) {
+                try {
+                    llvmLib = NativeLibrary.getInstance("LLVM-C", options);
+                }
+                catch (UnsatisfiedLinkError ex2) {
+                    ex.addSuppressed(ex2);
+                    throw ex;
+                }
             }
+            Native.register(Llvm.class, llvmLib);
         }
-        Native.register(llvmLib);
     }
 
     public static native void LLVMGetVersion(@NotNull @Unsigned IntByReference major, @NotNull @Unsigned IntByReference minor, @NotNull @Unsigned IntByReference path);

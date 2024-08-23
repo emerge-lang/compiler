@@ -1,8 +1,8 @@
 package compiler.binding.context
 
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrModule
 import io.github.tmarsteel.emerge.backend.api.ir.IrPackage
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 internal class IrModuleImpl(
     private val _context: ModuleContext

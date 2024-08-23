@@ -1,9 +1,9 @@
 package compiler.binding.misc_ir
 
 import compiler.binding.BoundFunction
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 internal class IrOverloadGroupImpl(
     override val canonicalName: CanonicalElementName.Function,

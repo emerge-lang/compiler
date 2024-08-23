@@ -1,6 +1,5 @@
 package io.github.tmarsteel.emerge.backend.llvm
 
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseTypeFunction
@@ -15,6 +14,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 import io.github.tmarsteel.emerge.backend.llvm.Mangler.Context.Companion.appendNonReferenceBaseType
 import io.github.tmarsteel.emerge.backend.llvm.Mangler.Context.Companion.appendPackageName
 import io.github.tmarsteel.emerge.backend.llvm.Mangler.Context.Companion.appendType
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 object Mangler {
     fun computeMangledNameFor(function: IrFunction): String {

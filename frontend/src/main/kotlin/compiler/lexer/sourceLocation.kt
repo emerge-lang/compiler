@@ -19,9 +19,9 @@
 package compiler.lexer
 
 import compiler.reportings.illustrateSourceLocations
-import io.github.tmarsteel.emerge.backend.api.CanonicalElementName
 import io.github.tmarsteel.emerge.backend.api.ir.IrSourceFile
 import io.github.tmarsteel.emerge.backend.api.ir.IrSourceLocation
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 import org.apache.commons.io.input.BOMInputStream
 import java.nio.charset.Charset
 import java.nio.file.Files
