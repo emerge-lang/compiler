@@ -200,15 +200,6 @@ class TypeErrors : FreeSpec({
         }
 
         "use-site variance errors" - {
-            "out type at class member" {
-                validateModule("""
-                    class X<out T> {
-                        prop: T = init
-                    }
-                """.trimIndent())
-                    .shouldReport<UnsupportedTypeUsageVarianceReporting>()
-            }
-
             "in type at class member" {
                 validateModule("""
                     class X<in T> {

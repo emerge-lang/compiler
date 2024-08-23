@@ -58,7 +58,7 @@ object CompileCommand : CliktCommand() {
         ) + projectConfig.modules + typeunsafeTarget.getTargetSpecificModules(toolchainConfigForBackend, projectConfigForBackend)
         var anyParseErrors = false
         for (moduleRef in modulesToLoad) {
-            val moduleContext = swCtx.registerModule(moduleRef.name)
+            val moduleContext = swCtx.registerModule(moduleRef.name, moduleRef.uses)
             SourceSet.load(moduleRef.sourceDirectory, moduleRef.name)
                 .also {
                     if (it.isEmpty()) {

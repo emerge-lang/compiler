@@ -485,6 +485,9 @@ abstract class Reporting internal constructor(
         fun elementNotAccessible(element: DefinitionWithVisibility, visibility: BoundVisibility, accessAt: Span)
             = ElementNotAccessibleReporting(element, visibility, accessAt)
 
+        fun missingModuleDependency(element: DefinitionWithVisibility, accessAt: Span, moduleOfAccessedElement: CanonicalElementName.Package, moduleOfAccess: CanonicalElementName.Package)
+            = MissingModuleDependencyReporting(element, accessAt, moduleOfAccessedElement, moduleOfAccess)
+
         fun visibilityTooBroad(owningModule: CanonicalElementName.Package, visibilityDeclaration: BoundVisibility.PackageScope)
             = PackageVisibilityTooBroadReporting(owningModule, visibilityDeclaration.packageName, visibilityDeclaration.astNode.sourceLocation)
 

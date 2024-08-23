@@ -12,6 +12,8 @@ import io.github.tmarsteel.emerge.common.CanonicalElementName
  */
 class ModuleContext(
     val moduleName: CanonicalElementName.Package,
+    /** explicit dependencies of this module. Validating and supplying this is considered a task of the build tool, not the user. */
+    val explicitlyDependsOnModules: Set<CanonicalElementName.Package>,
     val softwareContext: SoftwareContext,
 ) : SemanticallyAnalyzable {
     private val seanHelper = SeanHelper()

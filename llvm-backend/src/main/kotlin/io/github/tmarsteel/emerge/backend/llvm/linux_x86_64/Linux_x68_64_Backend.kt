@@ -26,6 +26,7 @@ import io.github.tmarsteel.emerge.backend.llvm.linux.LinuxLinker
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.packagesSeq
 import io.github.tmarsteel.emerge.common.CanonicalElementName
+import io.github.tmarsteel.emerge.common.EmergeConstants
 import io.github.tmarsteel.emerge.common.config.ConfigModuleDefinition
 import io.github.tmarsteel.emerge.common.config.DirectoryDeserializer
 import io.github.tmarsteel.emerge.common.config.ExistingFileDeserializer
@@ -40,9 +41,9 @@ class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig,
 
     override fun getTargetSpecificModules(toolchainConfig: ToolchainConfig, projectConfig: ProjectConfig): Iterable<ConfigModuleDefinition> {
         return listOf(
-            ConfigModuleDefinition(CanonicalElementName.Package(listOf("emerge", "ffi", "c")), toolchainConfig.ffiCSources),
-            ConfigModuleDefinition(LIBC_PACKAGE, toolchainConfig.libcSources),
-            ConfigModuleDefinition(CanonicalElementName.Package(listOf("emerge", "platform")), toolchainConfig.platformSources),
+            ConfigModuleDefinition(FFIC_MODULE_NAME, toolchainConfig.ffiCSources),
+            ConfigModuleDefinition(LIBC_MODULE_NAME, toolchainConfig.libcSources, uses = setOf(FFIC_MODULE_NAME)),
+            ConfigModuleDefinition(EmergeConstants.PLATFORM_MODULE_NAME, toolchainConfig.platformSources, uses = setOf(FFIC_MODULE_NAME, LIBC_MODULE_NAME)),
         )
     }
 
@@ -247,10 +248,11 @@ class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig,
     }
 
     companion object {
-        private val LIBC_PACKAGE = CanonicalElementName.Package(listOf("emerge", "linux", "libc"))
-        private val ALLOCATOR_FUNCTION_NAME = CanonicalElementName.Function(LIBC_PACKAGE, "malloc")
-        private val FREE_FUNCTION_NAME = CanonicalElementName.Function(LIBC_PACKAGE, "free")
-        private val EXIT_FUNCTION_NAME = CanonicalElementName.Function(LIBC_PACKAGE, "exit")
+        private val LIBC_MODULE_NAME = CanonicalElementName.Package(listOf("emerge", "linux", "libc"))
+        private val FFIC_MODULE_NAME = CanonicalElementName.Package(listOf("emerge", "ffi", "c"))
+        private val ALLOCATOR_FUNCTION_NAME = CanonicalElementName.Function(LIBC_MODULE_NAME, "malloc")
+        private val FREE_FUNCTION_NAME = CanonicalElementName.Function(LIBC_MODULE_NAME, "free")
+        private val EXIT_FUNCTION_NAME = CanonicalElementName.Function(LIBC_MODULE_NAME, "exit")
 
         private val FUNCTION_SYMBOL_NAME_OVERRIDES: Map<CanonicalElementName.Function, String> = mapOf(
             // find those by calling the c-pre-processor on libunwind.h

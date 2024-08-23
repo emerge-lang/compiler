@@ -7,6 +7,7 @@ import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.reportings.ElementNotAccessibleReporting
 import compiler.reportings.HiddenTypeExposedReporting
+import compiler.reportings.MissingModuleDependencyReporting
 import compiler.reportings.OverrideRestrictsVisibilityReporting
 import compiler.reportings.ShadowedVisibilityReporting
 import io.kotest.core.spec.style.FreeSpec
@@ -303,6 +304,31 @@ class VisibilityTests : FreeSpec({
                         it.element should beInstanceOf<BoundBaseType>()
                     }
             }
+        }
+    }
+
+    "cross module" - {
+        "requires explicit dependency" {
+            validateModules(
+                IntegrationTestModule.of("module_A", """
+                    package module_A
+                    
+                    import module_B.foo
+                    
+                    export fn test() {
+                        foo()
+                    }
+                """.trimIndent()),
+                IntegrationTestModule.of("module_B", """
+                    package module_B
+                    
+                    export fn foo() {}
+                """.trimIndent())
+            )
+                .shouldReport<MissingModuleDependencyReporting> {
+                    it.moduleOfAccess.toString() shouldBe "module_A"
+                    it.moduleOfAccessedElement.toString() shouldBe "module_B"
+                }
         }
     }
 

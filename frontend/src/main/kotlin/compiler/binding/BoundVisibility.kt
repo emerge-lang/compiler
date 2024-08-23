@@ -1,6 +1,7 @@
 package compiler.binding
 
 import compiler.ast.AstVisibility
+import compiler.ast.DEFAULT_IMPORT_PACKAGES
 import compiler.binding.context.CTContext
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
@@ -8,6 +9,7 @@ import compiler.lexer.SourceFile
 import compiler.lexer.Span
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.common.CanonicalElementName
+import io.github.tmarsteel.emerge.common.EmergeConstants
 
 sealed class BoundVisibility : SemanticallyAnalyzable {
     protected abstract val context: CTContext
@@ -107,7 +109,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
 
         override fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility): Collection<Reporting> {
             if (packageName.containsOrEquals(accessAt.sourceFile.packageName)) {
-                return emptySet()
+                return validateCrossModuleAccess(context, accessAt, subject)
             }
 
             return setOf(Reporting.elementNotAccessible(subject, this, accessAt))
@@ -160,7 +162,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
         override val astNode: AstVisibility,
     ) : BoundVisibility() {
         override fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility): Collection<Reporting> {
-            return emptySet()
+            return validateCrossModuleAccess(context, accessAt, subject)
         }
 
         override fun isStrictlyBroaderThan(other: BoundVisibility) = when (other) {
@@ -196,4 +198,28 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
             return PackageScope(context, context.moduleContext.moduleName, AstVisibility.Module(KeywordToken(Keyword.MODULE)), true)
         }
     }
+}
+
+private fun validateCrossModuleAccess(contextOfAccessedElement: CTContext, accessAt: Span, subject: DefinitionWithVisibility): Collection<Reporting> {
+    val moduleOfAccessedElement = contextOfAccessedElement.moduleContext
+    val moduleOfAccess = contextOfAccessedElement.swCtx.getModuleOfPackage(accessAt.sourceFile.packageName)
+    if (moduleOfAccess == moduleOfAccessedElement) {
+        return emptySet()
+    }
+
+    // always allow accessing emerge.std and emerge.core
+    if (moduleOfAccessedElement.moduleName in DEFAULT_IMPORT_PACKAGES || DEFAULT_IMPORT_PACKAGES.any { it.containsOrEquals(moduleOfAccessedElement.moduleName) }) {
+        return emptySet()
+    }
+
+    // always allow accessing emerge.platform
+    if (EmergeConstants.PLATFORM_MODULE_NAME.containsOrEquals(moduleOfAccessedElement.moduleName)) {
+        return emptySet()
+    }
+
+    if (moduleOfAccessedElement.moduleName in moduleOfAccess.explicitlyDependsOnModules) {
+        return emptySet()
+    }
+
+    return setOf(Reporting.missingModuleDependency(subject, accessAt, moduleOfAccessedElement.moduleName, moduleOfAccess.moduleName))
 }

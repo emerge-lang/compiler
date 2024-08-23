@@ -18,7 +18,6 @@
 
 package compiler.compiler.ast.type
 
-import compiler.CoreIntrinsicsModule
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
@@ -26,6 +25,7 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.compiler.negative.emptySoftwareContext
 import compiler.compiler.negative.validateModule
+import io.github.tmarsteel.emerge.common.EmergeConstants
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 
@@ -149,7 +149,7 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
 
     "generics" - {
         val swCtx = emptySoftwareContext()
-        val context = swCtx.getPackage(CoreIntrinsicsModule.NAME)!!.moduleContext.sourceFiles.first().context
+        val context = swCtx.getPackage(EmergeConstants.CORE_MODULE_NAME)!!.moduleContext.sourceFiles.first().context
 
         "mutability projection" - {
             for (outerMutability in TypeMutability.entries) {

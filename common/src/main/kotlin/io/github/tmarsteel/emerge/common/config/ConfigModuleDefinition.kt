@@ -12,4 +12,7 @@ data class ConfigModuleDefinition(
     @param:JsonProperty("sources")
     @param:JsonDeserialize(using = DirectoryDeserializer::class)
     val sourceDirectory: Path,
+
+    @param:JsonProperty("uses")
+    val uses: Set<CanonicalElementName.Package> = emptySet()
 )

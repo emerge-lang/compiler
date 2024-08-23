@@ -31,7 +31,7 @@ import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
 import compiler.lexer.SourceFile as LexerSourceFile
 
-private val DEFAULT_IMPORT_PACKAGES = listOf(
+val DEFAULT_IMPORT_PACKAGES = listOf(
     EmergeConstants.CORE_MODULE_NAME,
     EmergeConstants.STD_MODULE_NAME,
 )

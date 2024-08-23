@@ -142,7 +142,7 @@ class ExecutionScopedCTContextTest : FreeSpec({
 
 private fun mockSourceFileContext(): SourceFileRootContext {
     val name = CanonicalElementName.Package(listOf("mock"))
-    return SourceFileRootContext(PackageContext(ModuleContext(name, mockk()), name))
+    return SourceFileRootContext(PackageContext(ModuleContext(name, emptySet(), mockk()), name))
 }
 
 private fun mockDeferrable() = object {

@@ -43,18 +43,25 @@ class SoftwareContext {
      * Creates and register a new [ModuleContext] in this software.
      * @return the new context so [SourceFile]s can be bound to it (see [ModuleContext.addSourceFile])
      */
-    fun registerModule(name: CanonicalElementName.Package): ModuleContext {
+    fun registerModule(
+        name: CanonicalElementName.Package,
+        dependsOnModules: Set<CanonicalElementName.Package>,
+    ): ModuleContext {
         modules.find { it.moduleName.containsOrEquals(name) }?.let { conflictingModule ->
             throw IllegalArgumentException("Cannot add module $name to this ${this::class.simpleName}, because it already contains a module with conflicting name: $conflictingModule")
         }
 
-        val moduleContext = ModuleContext(name, this)
+        val moduleContext = ModuleContext(name, dependsOnModules, this)
         modules.add(moduleContext)
         return moduleContext
     }
 
     fun getRegisteredModule(name: CanonicalElementName.Package): ModuleContext {
         return modules.find { it.moduleName == name } ?: throw IllegalStateException("Module $name has not been registered")
+    }
+
+    fun getModuleOfPackage(packageName: CanonicalElementName.Package): ModuleContext {
+        return modules.find { it.moduleName.containsOrEquals(packageName) } ?: throw IllegalStateException("Package $packageName is not part of any registered module")
     }
 
     private val packages = HashMap<CanonicalElementName.Package, PackageContext>()

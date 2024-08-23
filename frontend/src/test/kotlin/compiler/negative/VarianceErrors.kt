@@ -1,6 +1,5 @@
 package compiler.compiler.negative
 
-import compiler.CoreIntrinsicsModule
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance.IN
 import compiler.ast.type.TypeVariance.OUT
@@ -12,6 +11,7 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.compiler.ast.type.getTestType
 import compiler.lexer.Span
 import compiler.reportings.ValueNotAssignableReporting
+import io.github.tmarsteel.emerge.common.EmergeConstants
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.Matcher
 import io.kotest.matchers.MatcherResult
@@ -36,7 +36,7 @@ class VarianceErrors : FreeSpec({
 
     fun arrayOf(element: BoundTypeArgument): BoundTypeReference = RootResolvedTypeReference(
         TypeReference("Array"),
-        swCtx.getPackage(CoreIntrinsicsModule.NAME)!!.resolveBaseType("Array")!!,
+        swCtx.getPackage(EmergeConstants.CORE_MODULE_NAME)!!.resolveBaseType("Array")!!,
         listOf(element),
     )
 

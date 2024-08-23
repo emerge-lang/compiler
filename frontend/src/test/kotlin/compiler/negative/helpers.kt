@@ -1,7 +1,5 @@
 package compiler.compiler.negative
 
-import compiler.CoreIntrinsicsModule
-import compiler.StandardLibraryModule
 import compiler.ast.ASTSourceFile
 import compiler.binding.context.SoftwareContext
 import compiler.lexer.MemorySourceFile
@@ -14,6 +12,7 @@ import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrModule
 import io.github.tmarsteel.emerge.backend.noop.NoopBackend
 import io.github.tmarsteel.emerge.common.CanonicalElementName
+import io.github.tmarsteel.emerge.common.EmergeConstants
 import io.github.tmarsteel.emerge.common.config.ConfigModuleDefinition
 import io.kotest.inspectors.forNone
 import io.kotest.inspectors.forOne
@@ -41,14 +40,13 @@ fun lexCode(
     return lex(sourceFile, addTrailingNewline = addPackageDeclaration)
 }
 
-private val noopBackendConfig = NoopBackend.Config(ConfigModuleDefinition(
-    CanonicalElementName.Package(listOf("emerge", "platform")),
-    Paths.get(System.getProperty("emerge.backend.noop.platform.sources"))
-))
-private val defaultModulesParsed: List<Pair<CanonicalElementName.Package, List<ASTSourceFile>>> by lazy {
-    (NoopBackend().getTargetSpecificModules(noopBackendConfig) + listOf(
-        ConfigModuleDefinition(CoreIntrinsicsModule.NAME, Paths.get(System.getProperty("emerge.frontend.core.sources"))),
-        ConfigModuleDefinition(StandardLibraryModule.NAME, Paths.get(System.getProperty("emerge.frontend.std.sources"))),
+private val noopBackendConfig = NoopBackend.Config(
+    platformSources = Paths.get(System.getProperty("emerge.backend.noop.platform.sources"))
+)
+private val defaultModulesParsed: List<Pair<ConfigModuleDefinition, List<ASTSourceFile>>> by lazy {
+    (NoopBackend().getTargetSpecificModules(noopBackendConfig, Unit) + listOf(
+        ConfigModuleDefinition(EmergeConstants.CORE_MODULE_NAME, Paths.get(System.getProperty("emerge.frontend.core.sources"))),
+        ConfigModuleDefinition(EmergeConstants.STD_MODULE_NAME, Paths.get(System.getProperty("emerge.frontend.std.sources"))),
     ))
         .map { module ->
             val sourceFiles = SourceSet.load(module.sourceDirectory, module.name)
@@ -63,13 +61,14 @@ private val defaultModulesParsed: List<Pair<CanonicalElementName.Package, List<A
                 }
                 .map { it.item }
 
-            module.name to sourceFiles
+            module to sourceFiles
         }
 }
 
 
 class IntegrationTestModule(
     val moduleName: CanonicalElementName.Package,
+    val dependsOnModules: Set<CanonicalElementName.Package>,
     val tokens: Array<Token>,
 ) {
     companion object {
@@ -82,19 +81,19 @@ class IntegrationTestModule(
          * """.trimMargin())
          * ```
          */
-        fun of(moduleName: String, code: String, definedAt: StackTraceElement = Thread.currentThread().stackTrace[2]): IntegrationTestModule {
+        fun of(moduleName: String, code: String, uses: Set<CanonicalElementName.Package> = emptySet(), definedAt: StackTraceElement = Thread.currentThread().stackTrace[2]): IntegrationTestModule {
             val moduleDotName = CanonicalElementName.Package(moduleName.split('.'))
             val sourceFile = MemorySourceFile(definedAt.fileName!!, moduleDotName, code.assureEndsWith('\n'))
             val tokens = lex(sourceFile)
-            return IntegrationTestModule(moduleDotName, tokens)
+            return IntegrationTestModule(moduleDotName, uses, tokens)
         }
     }
 }
 
 fun emptySoftwareContext(validate: Boolean = true): SoftwareContext {
     val swCtxt = SoftwareContext()
-    defaultModulesParsed.forEach { (moduleName, sources) ->
-        val moduleCtx = swCtxt.registerModule(moduleName)
+    defaultModulesParsed.forEach { (module, sources) ->
+        val moduleCtx = swCtxt.registerModule(module.name, module.uses)
         sources.forEach(moduleCtx::addSourceFile)
     }
 
@@ -124,7 +123,7 @@ fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext
         val nTopLevelDeclarations = sourceFile.functions.size + sourceFile.baseTypes.size + sourceFile.globalVariables.size
         check(nTopLevelDeclarations > 0) { "Found no top-level declarations in the test source of module ${module.moduleName}. Very likely a parsing bug." }
 
-        swCtxt.registerModule(module.moduleName).addSourceFile(sourceFile)
+        swCtxt.registerModule(module.moduleName, module.dependsOnModules).addSourceFile(sourceFile)
     }
 
     val semanticReportings = swCtxt.doSemanticAnalysis()
@@ -147,7 +146,7 @@ fun validateModule(
     code: String,
     invokedFrom: StackTraceElement = Thread.currentThread().stackTrace[2],
 ): Pair<SoftwareContext, Collection<Reporting>> {
-    val module = IntegrationTestModule(CanonicalElementName.Package(listOf("testmodule")), lexCode(code.assureEndsWith('\n'), true, invokedFrom))
+    val module = IntegrationTestModule(CanonicalElementName.Package(listOf("testmodule")), emptySet(), lexCode(code.assureEndsWith('\n'), true, invokedFrom))
     return validateModules(module)
 }
 
