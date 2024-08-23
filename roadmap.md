@@ -2,7 +2,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 
 1. ~~add instance-of and cast operations~~
 2. implement module dependencies and access checks
-   1. upgrade the compilers CLI interface to a configuration via a proper config format. NOT YAML! Maybe TOML, maybe PKL. Should have schema
+   1. ~~upgrade the compilers CLI interface to a configuration via a proper config format. NOT YAML! Maybe TOML, maybe PKL. Should have schema~~
    2. implement dependencies between input modules/source sets
        * stdlib depends on platform module provided by backend
        * modules only have access to things in other modules that they explicitly depend on
