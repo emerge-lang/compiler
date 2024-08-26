@@ -1,0 +1,17 @@
+frontend:
+  std-module-sources: stdlib/std
+  core-module-sources: stdlib/core
+backends:
+  noop:
+    platform-sources: backend-api/src/main/emerge/noop-backend-platform
+  x86_64-pc-linux-gnu:
+    ffi-c-sources: llvm-backend/src/main/emerge-ffi-c
+    libc-sources: llvm-backend/src/main/emerge-linux-libc
+    platform-sources: llvm-backend/src/main/emerge-platform-linux
+    llvm-installation-directory: ~
+    static-libs:
+      crtbeginS: local-resources/x86_64-pc-linux-gnu/crtbeginS.o
+      crtendS: local-resources/x86_64-pc-linux-gnu/crtendS.o
+      Scrt1: local-resources/x86_64-pc-linux-gnu/Scrt1.o
+      libcSO: local-resources/x86_64-pc-linux-gnu/libc.so
+      libunwind: local-resources/x86_64-pc-linux-gnu/libunwind-x86_64.a
