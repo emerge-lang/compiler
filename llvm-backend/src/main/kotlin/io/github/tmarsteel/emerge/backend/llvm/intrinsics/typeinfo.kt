@@ -422,9 +422,9 @@ internal fun buildVTable(
             val hashes = functions.keys.joinToString(transform = { it.toString(2).padStart(64, '0') })
             throw VirtualFunctionHashCollisionException("signature collision. Couldn't find a unique window of <= $VTABLE_MAX_SIZE_LOG2 bits. ${nCommonOneBits + nCommonZeroBits} common bits; for hashes $hashes")
         }
+        shiftRightAmount = 64 - windowSize
         shiftLeftAmount = 0
         while (shiftLeftAmount <= 63) {
-            shiftRightAmount = shiftLeftAmount + (63 - shiftLeftAmount) - windowSize
             val sections = functions.keys.map { getSection(it, shiftLeftAmount, shiftRightAmount) }
             if (sections.isDistinct()) {
                 break@tryWindowSize

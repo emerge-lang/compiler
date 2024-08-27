@@ -144,6 +144,7 @@ class VTableAlgorithmTest : FreeSpec({
                         llvmCtx.registerBaseType(MockIrUnit)
                         virtualTypes.forEach(llvmCtx::registerBaseType)
                         llvmCtx.registerBaseType(concreteType)
+                        // this will throw an exception if a vtable cannot be built
                         buildVTable(
                             llvmCtx,
                             concreteType.memberFunctions
