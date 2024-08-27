@@ -1,13 +1,6 @@
 package io.github.tmarsteel.emerge.backend.llvm
 
-import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
-import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
-import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
-import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
-import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
-import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
-import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.api.ir.*
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArrayType
 import io.github.tmarsteel.emerge.common.EmergeConstants
@@ -72,10 +65,10 @@ internal fun IrSoftwareContext.assignVirtualFunctionHashes() {
 
 
 internal val IrMemberFunction.signatureHashes: Set<ULong> by tackLazyVal {
-    if (overrides.isEmpty()) {
-        setOf(rootSignatureHash)
-    } else {
-        overrides.flatMap { it.signatureHashes }.toSet()
+    when {
+        this is IrFullyInheritedMemberFunction -> superFunction.signatureHashes
+        overrides.isEmpty() -> setOf(rootSignatureHash)
+        else -> overrides.flatMap { it.signatureHashes }.toSet()
     }
 }
 

@@ -5,32 +5,16 @@ import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
-import io.github.tmarsteel.emerge.backend.llvm.allDistinctSupertypesExceptAny
+import io.github.tmarsteel.emerge.backend.llvm.*
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
 import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
-import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
-import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
+import io.github.tmarsteel.emerge.backend.llvm.dsl.*
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
-import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
-import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
-import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
-import io.github.tmarsteel.emerge.backend.llvm.indexInLlvmStruct
-import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
-import io.github.tmarsteel.emerge.backend.llvm.llvmRef
-import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
-import io.github.tmarsteel.emerge.backend.llvm.typeinfoHolder
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 internal class EmergeClassType private constructor(
@@ -73,9 +57,9 @@ internal class EmergeClassType private constructor(
                 irClass.memberFunctions
                     .asSequence()
                     .flatMap { it.overloads }
-                    .filter { it.supportsDynamicDispatch }
+                    .filter { it.overrides.isNotEmpty() && it.supportsDynamicDispatch }
                     .flatMap { memberFn -> memberFn.signatureHashes.map { hash -> Pair(hash, memberFn.llvmRef!!) } }
-                    .associate { it }
+                    .associateErrorOnDuplicate()
             }
         )
     }

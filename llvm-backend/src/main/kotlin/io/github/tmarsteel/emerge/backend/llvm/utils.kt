@@ -10,3 +10,13 @@ fun <T, K> Iterable<T>.associateByErrorOnDuplicate(keySelector: (T) -> K): Map<K
     }
     return destination
 }
+
+fun <T, K> Sequence<Pair<K, T>>.associateErrorOnDuplicate(): Map<K, T> {
+    val destination = HashMap<K, T>()
+    for ((key, e) in this) {
+        if (destination.putIfAbsent(key, e) != null) {
+            throw RuntimeException("Duplicate key: $key")
+        }
+    }
+    return destination
+}
