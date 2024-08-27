@@ -19,8 +19,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        * TEST, TEST, TEST. Unit test the shit out of the algorithm. More to proof the concept, less to
          test the implementation.
    4. deal with the wrapper mutability problem: do types need to be generic on mutability?
-   5. add `sealed` interfaces as in Kotlin
-   6. algebraic data types
+   5. algebraic data types
       1. union type: `TypeA | TypeB | TypeC`
       2. conjunction type: `TypeA & TypeB & TypeC`
 4. general iterable types

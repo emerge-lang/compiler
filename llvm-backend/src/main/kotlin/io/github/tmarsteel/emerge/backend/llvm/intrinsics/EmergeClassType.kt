@@ -19,6 +19,7 @@ import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
 import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
 import io.github.tmarsteel.emerge.backend.llvm.indexInLlvmStruct
@@ -37,10 +38,6 @@ internal class EmergeClassType private constructor(
     val structRef: LlvmTypeRef,
     val irClass: IrClass,
 ) : LlvmType, EmergeHeapAllocated {
-    init {
-        assureReinterpretableAsAnyValue(context, structRef)
-    }
-
     override fun getRawInContext(context: LlvmContext): LlvmTypeRef {
         check(context === context)
         return structRef
@@ -245,7 +242,7 @@ internal class EmergeInterfaceTypeinfoHolder(
                     it.typeinfoHolder.getTypeinfoInContext(context)
                 },
                 LlvmThreadLocalMode.NOT_THREAD_LOCAL,
-            ).reinterpretAs(pointerTo(EmergeHeapAllocatedValueBaseType))
+            ).reinterpretAs(pointerTo(LlvmVoidType))
 
             val constant = TypeinfoType.GENERIC.buildConstantIn(context) {
                 setValue(TypeinfoType.GENERIC.supertypes, supertypesArrayPtr)

@@ -61,10 +61,10 @@ internal class VTableType private constructor(val nEntries: Long) : LlvmNamedStr
 
 internal class TypeinfoType private constructor(val nVTableEntries: Long) : LlvmNamedStructType("typeinfo$nVTableEntries") {
     /**
-     * actually always is a [PointerToEmergeArrayOfPointersToTypeInfoType]. Declaring that type here would create a cyclic
-     * reference on JVM classload time.
+     * actually always is a [PointerToEmergeArrayOfPointersToTypeInfoType]. Declaring that type here (or even
+     * [PointerToAnyEmergeValueo] would create a cyclic reference on JVM classload time.
      */
-    val supertypes by structMember(PointerToAnyEmergeValue)
+    val supertypes by structMember(pointerTo(LlvmVoidType))
     val anyValueVirtuals by structMember(EmergeAnyValueVirtualsType)
     /** for dynamic typeinfo instances: null; for static ones: points to the dynamic version */
     val dynamicTypeInfoPtr by structMember(pointerTo(this))
@@ -340,7 +340,7 @@ internal class StaticAndDynamicTypeInfo private constructor(
                 it(context)
             }
             val supertypesGlobal = context.addGlobal(supertypesData, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
-                .reinterpretAs(PointerToAnyEmergeValue)
+                .reinterpretAs(pointerTo(LlvmVoidType))
 
             val canonicalNameGlobal = context.emergeStringLiteral(canonicalName)
 
