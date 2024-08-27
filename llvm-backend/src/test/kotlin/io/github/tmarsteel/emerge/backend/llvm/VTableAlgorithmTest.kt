@@ -8,6 +8,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
+import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.api.ir.IrSourceFile
 import io.github.tmarsteel.emerge.backend.api.ir.IrSourceLocation
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
@@ -17,11 +18,12 @@ import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeLlvmContext
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.buildVTable
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.missingVirtualFunctionHandler
 import io.github.tmarsteel.emerge.common.CanonicalElementName
+import io.github.tmarsteel.emerge.common.EmergeConstants
 import io.kotest.core.spec.style.FreeSpec
+import io.mockk.every
 import io.mockk.mockk
 import java.nio.file.Paths
 import java.util.stream.Collectors.toMap
-import kotlin.random.Random
 
 /**
  * This class is supposed to prove that the vtable algorithm is suitable for real-world use. C++ doesn't have issues
@@ -29,23 +31,23 @@ import kotlin.random.Random
  * per concrete type and needs to fit an arbitrary number of virtual types onto the same concrete type.
  */
 class VTableAlgorithmTest : FreeSpec({
-    val packageName = CanonicalElementName.Package(listOf("vtabletest", randomIdentifier()))
+    val packageName = CanonicalElementName.Package(listOf("vtabletest", randomIdentifier(10)))
     for (nVirtualTypes in 1..10) {
         "for $nVirtualTypes virtual types" - {
             for (nVirtualFunctions in 1..30) {
                 "for $nVirtualFunctions virtual functions each" - {
-                    val virtualTypes: Set<IrInterface> = (1 until nVirtualTypes).map { typeN ->
+                    val virtualTypes: Set<IrInterface> = (1 .. nVirtualTypes).map { typeN ->
                         val typeName = CanonicalElementName.BaseType(packageName, "V$typeN")
                         lateinit var typeHolder: IrInterface
                         typeHolder = object : IrInterface {
                             override val supertypes = emptySet<IrInterface>()
                             override val canonicalName = typeName
                             override val parameters = emptyList<IrBaseType.Parameter>()
-                            override val memberFunctions: List<IrOverloadGroup<IrMemberFunction>> = (1 until nVirtualFunctions).map { functionN ->
+                            override val memberFunctions: List<IrOverloadGroup<IrMemberFunction>> = (1 .. nVirtualFunctions).map { functionN ->
                                 SingletonIrOverloadGroup(object : IrMemberFunction {
                                     override val canonicalName = CanonicalElementName.Function(
                                         typeName,
-                                        "_v$functionN",
+                                        randomIdentifier(4) + "_v" + functionN,
                                     )
                                     override val parameters = listOf(object : IrVariableDeclaration {
                                         override val name = "self"
@@ -120,7 +122,25 @@ class VTableAlgorithmTest : FreeSpec({
                         override val destructor = mockk<IrFunction>()
                     }
 
+                    val irSoftwareContext = mockk<IrSoftwareContext> {
+                        every { modules } returns setOf(mockk {
+                            every { packages } returns setOf(
+                                mockk {
+                                    every { name } returns concreteType.canonicalName.packageName
+                                    every { classes } returns setOf(concreteType)
+                                    every { interfaces } returns virtualTypes
+                                },
+                                mockk {
+                                    every { name } returns EmergeConstants.CORE_MODULE_NAME
+                                    every { classes } returns setOf(object : MockCoreType("Array") {})
+                                    every { interfaces } returns emptySet()
+                                }
+                            )
+                        })
+                    }
+
                     EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-gnu")) { llvmCtx ->
+                        irSoftwareContext.assignVirtualFunctionHashes()
                         llvmCtx.registerBaseType(MockIrUnit)
                         virtualTypes.forEach(llvmCtx::registerBaseType)
                         llvmCtx.registerBaseType(concreteType)
@@ -144,8 +164,7 @@ class VTableAlgorithmTest : FreeSpec({
     }
 })
 
-private fun randomIdentifier(): String {
-    val length = Random.nextInt(8, 12)
+private fun randomIdentifier(length: Int): String {
     val chars = (0 .. length).map { ('a' .. 'z').random() }
     return String(chars.toTypedArray().toCharArray())
 }

@@ -396,9 +396,14 @@ internal class StaticAndDynamicTypeInfo private constructor(
 }
 
 /**
+ * The maximum number of entries in any vtable is `2^(this value)`.
+ */
+private const val VTABLE_MAX_SIZE_LOG2 = 10
+
+/**
  * @param missingFunction the address to place in the spots in the vtable where none of the [functions] end up in.
  */
-private fun buildVTable(
+internal fun buildVTable(
     context: EmergeLlvmContext,
     functions: Map<ULong, LlvmFunction<*>>,
     missingFunction: LlvmValue<LlvmFunctionAddressType>,
@@ -407,12 +412,15 @@ private fun buildVTable(
         return (hash shl shiftLeftAmount) shr shiftRightAmount
     }
 
-    var windowSize = 2
+    var windowSize = (functions.size.toUInt().discreteLog2Ceil().coerceAtLeast(2u)).toInt()
     var shiftLeftAmount: Int
     var shiftRightAmount: Int
     tryWindowSize@while (true) {
-        if (windowSize > 10) {
-            throw VirtualFunctionHashCollisionException("signature collision. Couldn't find a unique window of <= 10 bits for hashes ${functions.keys.joinToString()}")
+        if (windowSize > VTABLE_MAX_SIZE_LOG2) {
+            val nCommonOneBits = functions.keys.reduce(ULong::and).countOneBits()
+            val nCommonZeroBits = functions.keys.map(ULong::inv).reduce(ULong::and).countOneBits()
+            val hashes = functions.keys.joinToString(transform = { it.toString(2).padStart(64, '0') })
+            throw VirtualFunctionHashCollisionException("signature collision. Couldn't find a unique window of <= $VTABLE_MAX_SIZE_LOG2 bits. ${nCommonOneBits + nCommonZeroBits} common bits; for hashes $hashes")
         }
         shiftLeftAmount = 0
         while (shiftLeftAmount <= 63) {
@@ -444,6 +452,17 @@ private fun buildVTable(
             fnPtr?.address ?: missingFunction
         }))
     }
+}
+
+private fun UInt.discreteLog2Ceil(): UInt {
+    var log = 0u
+    var carry = this
+    while (carry > 0u) {
+        log++
+        carry = carry shr 1
+    }
+
+    return log
 }
 
 private fun List<ULong>.isDistinct(): Boolean {

@@ -7,6 +7,7 @@ import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.EmergeBackend
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.llvm.Autoboxer
+import io.github.tmarsteel.emerge.backend.llvm.assignVirtualFunctionHashes
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmCompiler
@@ -99,6 +100,8 @@ class Linux_x68_64_Backend : EmergeBackend<Linux_x68_64_Backend.ToolchainConfig,
         Llvm.LLVMInitializeX86TargetMC()
         Llvm.LLVMInitializeX86AsmPrinter()
         Llvm.LLVMInitializeX86AsmParser()
+
+        softwareContext.assignVirtualFunctionHashes()
 
         EmergeLlvmContext.createDoAndDispose(LlvmTarget.fromTriple("x86_64-pc-linux-gnu")) { llvmContext ->
             softwareContext.packagesSeq
