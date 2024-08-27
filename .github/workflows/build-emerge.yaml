@@ -6,6 +6,7 @@ env:
   GLIBC_SOURCE_BALL_URL: "http://mirror.dogado.de/gnu/libc/glibc-2.38.tar.bz2"
   GCC_GIT_REF: "releases/gcc-14.1.0"
   LIBUNWIND_GIT_REF: "v1.8.1"
+  LLVM_VERSION: "18"
 
 jobs:
   build-glibc-x86_64:
@@ -109,20 +110,16 @@ jobs:
           fail-on-cache-miss: true
       - name: checkout
         uses: actions/checkout@v4
-      - name: set up external-deps.properties file
-        run: |
-          echo "" > external-deps.properties
-          echo "emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.scrt1=${{ env.GITHUB_WORKSPACE }}/glibc-build/csu/Scrt1.o" | tee -a external-deps.properties
-          echo "emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.crtbeginS=${{ env.GITHUB_WORKSPACE }}/gcc-build/x86_64-pc-linux-gnu/libgcc/crtbeginS.o" | tee -a external-deps.properties
-          echo "emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.crtendS=${{ env.GITHUB_WORKSPACE }}/gcc-build/x86_64-pc-linux-gnu/libgcc/crtendS.o" | tee -a external-deps.properties
-          echo "emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.libcSO-6=${{ env.GITHUB_WORKSPACE }}/glibc-build/x86_64-pc-linux-gnu/libc.so" | tee -a external-deps.properties
-          echo "emerge-compiler.ext-deps.llvm.x86_64-pc-linux-gnu.libunwindA=${{ env.GITHUB_WORKSPACE }}/libunwind-install/lib/libunwind-x86_64.a" | tee -a external-deps.properties
-          cat external-deps.properties
       - name: Set up JDK 21
         uses: actions/setup-java@v4.0.0
         with:
           java-version-file: .java-version
           distribution: zulu
           cache: maven
+      - name: install llvm
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh "${{ env.LLVM_VERSION }}"
       - name: mvn clean verify
-        run: mvn -B clean verify
+        run: mvn "-Demerge.llvm-tests.llvm-install-dir=/usr/lib/llvm-18" -B clean verify
