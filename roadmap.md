@@ -10,7 +10,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
    1. class extends class will not be a thing! composition all the way. Probably needs some boilerplate-reduction
       tools, like Kotlins `by`, but more powerful
    2. add accessor-based member variables to interfaces
-   3. review the vtable approach: does looking for a prefix suffice to keep them small?
+   3. ~~review the vtable approach: does looking for a prefix suffice to keep them small?~~
        * idea 1: put 1s into the bitwise hashes at different, non-harmonic frequencies to generate hard-to-clash patterns
            * maybe adding phase-shift helps even more
            * e.g. '10101010101010...', '100100100100100100', '1000100010001000'
