@@ -24,29 +24,20 @@ import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
 import compiler.ast.type.TypeReference
-import compiler.binding.BoundElement
-import compiler.binding.BoundMemberFunction
-import compiler.binding.BoundOverloadSet
-import compiler.binding.BoundVisibility
-import compiler.binding.DefinitionWithVisibility
-import compiler.binding.SeanHelper
+import compiler.binding.*
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.RootResolvedTypeReference
-import compiler.lexer.IdentifierToken
+import compiler.lexer.Keyword
+import compiler.lexer.KeywordToken
 import compiler.lexer.Span
 import compiler.reportings.Reporting
 import compiler.reportings.UnconventionalTypeNameReporting
-import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
-import io.github.tmarsteel.emerge.backend.api.ir.IrClass
-import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
-import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
+import io.github.tmarsteel.emerge.backend.api.ir.*
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import kotlinext.duplicatesBy
 import kotlinext.get
-import java.util.Collections
-import java.util.IdentityHashMap
+import java.util.*
 
 class BoundBaseType(
     private val fileContext: CTContext,
@@ -146,14 +137,22 @@ class BoundBaseType(
                     ?.let { list -> reportings.add(Reporting.multipleClassDestructors(list.map { it.declaration })) }
 
                 if (declaredConstructors.none()) {
-                    val defaultCtorAst = BaseTypeConstructorDeclaration(listOfNotNull(declaration.visibility), IdentifierToken("constructor", declaration.declaredAt), AstCodeChunk(emptyList()))
+                    val defaultCtorAst = BaseTypeConstructorDeclaration(
+                        listOfNotNull(declaration.visibility),
+                        KeywordToken(Keyword.CONSTRUCTOR, span = declaration.declaredAt),
+                        AstCodeChunk(emptyList())
+                    )
                     constructor = defaultCtorAst.bindTo(typeRootContext, typeParameters) { this }
                     reportings.addAll(constructor!!.semanticAnalysisPhase1())
                 } else {
                     constructor = declaredConstructors.first()
                 }
                 if (declaredDestructors.none()) {
-                    val defaultDtorAst = BaseTypeDestructorDeclaration(IdentifierToken("destructor", declaration.declaredAt), emptyList(), AstCodeChunk(emptyList()))
+                    val defaultDtorAst = BaseTypeDestructorDeclaration(
+                        KeywordToken(Keyword.DESTRUCTOR, span = declaration.declaredAt),
+                        emptyList(),
+                        AstCodeChunk(emptyList())
+                    )
                     destructor = defaultDtorAst.bindTo(typeRootContext, typeParameters) { this }
                     reportings.addAll(destructor!!.semanticAnalysisPhase1())
                 } else {

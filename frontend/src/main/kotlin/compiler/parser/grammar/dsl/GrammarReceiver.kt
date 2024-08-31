@@ -18,20 +18,8 @@
 
 package compiler.parser.grammar.dsl
 
-import compiler.lexer.IdentifierToken
-import compiler.lexer.Keyword
-import compiler.lexer.KeywordToken
-import compiler.lexer.Operator
-import compiler.lexer.OperatorToken
-import compiler.lexer.Token
-import compiler.parser.grammar.rule.DelimitedIdentifierContentRule
-import compiler.parser.grammar.rule.EndOfInputRule
-import compiler.parser.grammar.rule.NumericLiteralRule
-import compiler.parser.grammar.rule.RepeatingRule
-import compiler.parser.grammar.rule.Rule
-import compiler.parser.grammar.rule.SequenceRule
-import compiler.parser.grammar.rule.StringLiteralContentRule
-import compiler.parser.grammar.rule.TokenEqualToRule
+import compiler.lexer.*
+import compiler.parser.grammar.rule.*
 
 typealias Grammar = GrammarReceiver.() -> Unit
 
@@ -89,11 +77,6 @@ abstract class GrammarReceiver {
 
     fun keyword(keyword: Keyword) {
         tokenEqualTo(KeywordToken(keyword))
-    }
-
-    /** TODO: yeet; local keywords are an antipattern, there's a reson modern langs don't have that anymore. Kotlin is an odd one out */
-    fun localKeyword(expectedIdentifier: String) {
-        tokenEqualTo(IdentifierToken(expectedIdentifier))
     }
 
     fun operator(operator: Operator) {

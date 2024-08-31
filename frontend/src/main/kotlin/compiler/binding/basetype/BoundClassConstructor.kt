@@ -1,29 +1,13 @@
 package compiler.binding.basetype
 
-import compiler.ast.AssignmentStatement
-import compiler.ast.AstCodeChunk
-import compiler.ast.BaseTypeConstructorDeclaration
-import compiler.ast.ParameterList
-import compiler.ast.VariableDeclaration
-import compiler.ast.VariableOwnership
+import compiler.ast.*
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
-import compiler.binding.BoundCodeChunk
-import compiler.binding.BoundExecutable
-import compiler.binding.BoundFunction
-import compiler.binding.BoundFunctionAttributeList
-import compiler.binding.BoundParameterList
-import compiler.binding.BoundVariable
-import compiler.binding.IrAssignmentStatementImpl
-import compiler.binding.IrAssignmentStatementTargetClassMemberVariableImpl
-import compiler.binding.IrAssignmentStatementTargetVariableImpl
-import compiler.binding.IrCodeChunkImpl
-import compiler.binding.SeanHelper
-import compiler.binding.SideEffectPrediction
+import compiler.binding.*
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -39,26 +23,10 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.handleCyclicInvocation
-import compiler.lexer.IdentifierToken
-import compiler.lexer.Keyword
-import compiler.lexer.KeywordToken
-import compiler.lexer.Operator
-import compiler.lexer.OperatorToken
-import compiler.lexer.Span
+import compiler.lexer.*
 import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
-import io.github.tmarsteel.emerge.backend.api.ir.IrClass
-import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
-import io.github.tmarsteel.emerge.backend.api.ir.IrConstructor
-import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
-import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrRegisterWeakReferenceStatement
-import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
-import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
-import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
-import io.github.tmarsteel.emerge.backend.api.ir.independentToString
+import io.github.tmarsteel.emerge.backend.api.ir.*
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 /**
@@ -152,7 +120,7 @@ class BoundClassConstructor(
                     null,
                     Pair(
                         VariableOwnership.CAPTURED,
-                        IdentifierToken("capture", location),
+                        KeywordToken(Keyword.CAPTURE, span = location),
                     ),
                     member.declaration.name,
                     member.declaration.variableDeclaration.type?.withMutability(member.type?.mutability ?: TypeMutability.IMMUTABLE)

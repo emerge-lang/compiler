@@ -9,12 +9,7 @@ import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
-import compiler.binding.BoundCodeChunk
-import compiler.binding.BoundFunction
-import compiler.binding.BoundFunctionAttributeList
-import compiler.binding.IrCodeChunkImpl
-import compiler.binding.SeanHelper
-import compiler.binding.SideEffectPrediction
+import compiler.binding.*
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.IrClassMemberVariableAccessExpressionImpl
@@ -25,16 +20,12 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.lexer.IdentifierToken
+import compiler.lexer.Keyword
+import compiler.lexer.KeywordToken
 import compiler.lexer.Span
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
-import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
-import io.github.tmarsteel.emerge.backend.api.ir.IrDeallocateObjectStatement
-import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
-import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
-import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatement
+import io.github.tmarsteel.emerge.backend.api.ir.*
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class BoundClassDestructor(
@@ -83,7 +74,7 @@ class BoundClassDestructor(
                 null,
                 Pair(
                     VariableOwnership.BORROWED,
-                    IdentifierToken("borrow", generatedSourceLocation),
+                    KeywordToken(Keyword.BORROW, span = generatedSourceLocation),
                 ),
                 IdentifierToken("self", generatedSourceLocation),
                 (receiverType as RootResolvedTypeReference).original!!.withMutability(TypeMutability.EXCLUSIVE),

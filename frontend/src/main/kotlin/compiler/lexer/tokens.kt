@@ -26,8 +26,12 @@ enum class Keyword(val text: String)
     IMPORT("import"),
 
     FUNCTION("fn"),
+    CONSTRUCTOR("constructor"),
+    DESTRUCTOR("destructor"),
     VAR("var"),
     SET("set"),
+    BORROW("borrow"),
+    CAPTURE("capture"),
 
     MUTABLE("mut"),
     READONLY("read"),

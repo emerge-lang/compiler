@@ -30,7 +30,7 @@ data class VariableDeclaration(
     override val declaredAt: Span,
     val visibility: AstVisibility?,
     val varToken: KeywordToken?,
-    val ownership: Pair<VariableOwnership, IdentifierToken>?,
+    val ownership: Pair<VariableOwnership, KeywordToken>?,
     val name: IdentifierToken,
     val type: TypeReference?,
     val initializerExpression: Expression?

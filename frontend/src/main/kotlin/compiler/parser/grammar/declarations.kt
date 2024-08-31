@@ -24,16 +24,9 @@ import compiler.ast.AstVisibility
 import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
-import compiler.lexer.Keyword.EXPORT
-import compiler.lexer.Keyword.MODULE
-import compiler.lexer.Keyword.PACKAGE
-import compiler.lexer.Keyword.PRIVATE
-import compiler.lexer.Keyword.VAR
+import compiler.lexer.Keyword.*
 import compiler.lexer.KeywordToken
-import compiler.lexer.Operator.ASSIGNMENT
-import compiler.lexer.Operator.COLON
-import compiler.lexer.Operator.PARANT_CLOSE
-import compiler.lexer.Operator.PARANT_OPEN
+import compiler.lexer.Operator.*
 import compiler.lexer.OperatorToken
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
@@ -75,14 +68,14 @@ val VariableDeclarationInitializingAssignment = sequence {
 }
 
 val VariableOwnership = eitherOf {
-    localKeyword("borrow")
-    localKeyword("capture")
+    keyword(BORROW)
+    keyword(CAPTURE)
 }
     .astTransformation { tokens ->
-        val token = tokens.next() as IdentifierToken
-        val value = when(token.value.lowercase()) {
-            "borrow" -> AstVariableOwnership.BORROWED
-            "capture" -> AstVariableOwnership.CAPTURED
+        val token = tokens.next() as KeywordToken
+        val value = when(token.keyword) {
+            BORROW -> AstVariableOwnership.BORROWED
+            CAPTURE -> AstVariableOwnership.CAPTURED
             else -> throw InternalCompilerError("grammar and ast builder mismatch")
         }
         Pair(value, token)
@@ -132,7 +125,7 @@ val VariableDeclaration = eitherOf("variable declaration") {
 }
     .astTransformation { tokens ->
         val visibility: AstVisibility?
-        val ownership: Pair<VariableOwnership, IdentifierToken>?
+        val ownership: Pair<VariableOwnership, KeywordToken>?
         val varKeywordToken: KeywordToken?
 
         var next = tokens.next()
@@ -145,7 +138,7 @@ val VariableDeclaration = eitherOf("variable declaration") {
 
         if (next is Pair<*, *>) {
             @Suppress("UNCHECKED_CAST")
-            ownership = next as Pair<VariableOwnership, IdentifierToken>
+            ownership = next as Pair<VariableOwnership, KeywordToken>
             next = tokens.next()
         } else {
             ownership = null

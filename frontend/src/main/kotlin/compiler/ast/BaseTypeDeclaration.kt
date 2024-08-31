@@ -20,21 +20,10 @@ package compiler.ast
 
 import compiler.InternalCompilerError
 import compiler.ast.AstSupertypeList.Companion.bindTo
-import compiler.ast.type.TypeArgument
-import compiler.ast.type.TypeMutability
-import compiler.ast.type.TypeParameter
-import compiler.ast.type.TypeReference
-import compiler.ast.type.TypeVariance
+import compiler.ast.type.*
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundVisibility
-import compiler.binding.basetype.BoundBaseType
-import compiler.binding.basetype.BoundBaseTypeEntry
-import compiler.binding.basetype.BoundBaseTypeMemberVariable
-import compiler.binding.basetype.BoundClassConstructor
-import compiler.binding.basetype.BoundClassDestructor
-import compiler.binding.basetype.BoundDeclaredBaseTypeMemberFunction
-import compiler.binding.basetype.BoundSupertypeDeclaration
-import compiler.binding.basetype.BoundSupertypeList
+import compiler.binding.basetype.*
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableCTContext
@@ -151,7 +140,7 @@ class BaseTypeMemberVariableDeclaration(
 
 class BaseTypeConstructorDeclaration(
     val attributes: List<AstFunctionAttribute>,
-    val constructorKeyword: IdentifierToken,
+    val constructorKeyword: KeywordToken,
     val code: AstCodeChunk,
 ) : BaseTypeEntryDeclaration {
     override val span = constructorKeyword.span
@@ -162,7 +151,7 @@ class BaseTypeConstructorDeclaration(
 }
 
 class BaseTypeDestructorDeclaration(
-    val destructorKeyword: IdentifierToken,
+    val destructorKeyword: KeywordToken,
     val attributes: List<AstFunctionAttribute>,
     val code: AstCodeChunk,
 ) : BaseTypeEntryDeclaration {
