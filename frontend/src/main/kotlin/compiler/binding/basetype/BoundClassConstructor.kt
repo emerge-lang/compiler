@@ -26,6 +26,7 @@ import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
@@ -46,6 +47,7 @@ import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.Span
 import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
@@ -87,7 +89,7 @@ class BoundClassConstructor(
         - contextWithSelfVar
             - contextWithParameters
      */
-    private val constructorFunctionRootContext = MutableExecutionScopedCTContext.functionRootIn(fileContextWithTypeParameters)
+    private val constructorFunctionRootContext = ConstructorFunctionRootContext(fileContextWithTypeParameters)
     override val context = fileContextWithTypeParameters
 
     override val declaredAt get() = declaration.span
@@ -383,7 +385,21 @@ class BoundClassConstructor(
             IrCodeChunkImpl(initIr),
         )
     }
+
     override fun toBackendIr(): IrFunction = backendIr
+
+    private inner class ConstructorFunctionRootContext(fileContextWithTypeParameters: CTContext) : MutableExecutionScopedCTContext(fileContextWithTypeParameters, true, true, ExecutionScopedCTContext.Repetition.EXACTLY_ONCE) {
+        override fun registerMixin(mixinStatement: BoundMixinStatement, diagnosis: Diagnosis): BoundBaseTypeMemberVariable {
+            when (val repetition = mixinStatement.context.getRepetitionBehaviorRelativeTo(this)) {
+                ExecutionScopedCTContext.Repetition.EXACTLY_ONCE -> {
+                    // all good
+                }
+                else -> diagnosis.add(Reporting.illegalMixinRepetition(mixinStatement, repetition))
+            }
+
+            return classDef.registerMixin(mixinStatement)
+        }
+    }
 }
 
 private class IrClassSimpleType(
