@@ -4,15 +4,18 @@ on:
   push:
     branches:
       - '**'
-      - '!release/*'
+      - '!release/**'
   workflow_call:
+    inputs:
+      kotlin-ref:
+        description: "The ref of the Kotlin code to build. NOTE: other build dependencies, e.g. glibc, will use the version of the workflow, not this ref."
+        type: string
+        required: true
+        default: "${{ github.sha }}"
     outputs:
-      dist-tarball-artifact-name:
-        description: "Name of the artifact on this workflow run that has the distributable binaries"
-        value: ${{ jobs.linux-all-arch-tarball.outputs.artifact-name }}
-      run-id:
-        description: "The run-id of this workflow"
-        value: ${{ github.run_id }}
+      tarball-filename:
+        description: "Name of the tarball inside the 'tarball' artifact."
+        value: "${{ jobs.linux-distributables.outputs.tarball-filename }}"
 
 env:
   GLIBC_SOURCE_BALL_URL: "http://mirror.dogado.de/gnu/libc/glibc-2.38.tar.bz2"
@@ -106,11 +109,13 @@ jobs:
         with:
           path: |
             ${{ github.workspace }}/toolchain/target/toolchain.jar
-          key: toolchain-runnable-jar-292c1ed71852899d3b80bf567d11a1d41e8fa8f0 # TODO: replace hash with ${{ github.sha }}
+          key: "toolchain-runnable-jar-${{ inputs.kotlin-ref || github.sha }}"
           #enableCrossOsArchive: true -- this causes the cache-hit output to not work properly - buggy mess
       - name: checkout
         if: steps.cache-emerge-toolchain-maven.outputs.cache-hit != 'true'
         uses: actions/checkout@v4
+        with:
+          ref: "${{ github.kotlin-ref || github.sha }}"
       - name: Set up JDK 21
         if: steps.cache-emerge-toolchain-maven.outputs.cache-hit != 'true'
         uses: actions/setup-java@v4.0.0
@@ -127,19 +132,22 @@ jobs:
       - name: mvn clean verify
         if: steps.cache-emerge-toolchain-maven.outputs.cache-hit != 'true'
         run: mvn "-Demerge.llvm-tests.llvm-install-dir=/usr/lib/llvm-18" -B clean verify
-  linux-all-arch-tarball:
-    name: Linux tarball for all Architectures
+  linux-distributables:
+    name: Linux distributable archives
     runs-on: ubuntu-20.04
+    outputs:
+      tarball-filename: "${{ steps.tarball.outputs.tarball_name }}"
+      deb-filename: "${{ steps.deb-package.outputs.deb_file_name }}"
     needs:
       - build-gcc-x86_64
       - build-glibc-x86_64
       - build-libunwind-x86_64
       - emerge-toolchain-maven
-    outputs:
-      artifact-name: ${{ env.TARBALL_NAME }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
+        with:
+          ref: "${{ inputs.ref || github.sha }}"
       - name: get C-runtime binaries from glibc
         uses: actions/cache/restore@v4
         with:
@@ -167,13 +175,14 @@ jobs:
         with:
           path: |
             ${{ github.workspace }}/toolchain/target/toolchain.jar
-          key: toolchain-runnable-jar-292c1ed71852899d3b80bf567d11a1d41e8fa8f0 # TODO: replace hash with ${{ github.sha }}
+          key: "toolchain-runnable-jar-${{ inputs.kotlin-ref || github.sha }}"
           fail-on-cache-miss: true
           enableCrossOsArchive: true
       - name: make tarball
+        id: tarball
         run: |
           set -ex
-          TARBALL_NAME="emerge-toolchain-${GITHUB_SHA}.tar.gz"
+          TARBALL_NAME="emerge-toolchain.tar.gz"
           mkdir -p "${{ github.workspace }}/tarball-root" && pushd $_
           
             cp -r "${{ github.workspace }}/stdlib" .
@@ -212,9 +221,10 @@ jobs:
             --format=gnu \
             . \
             > "$TARBALL_NAME"
-          echo "TARBALL_NAME=${TARBALL_NAME}" >> "$GITHUB_ENV"
+          echo "tarball_name=$TARBALL_NAME" >> "$GITHUB_OUTPUT"
+          echo "tarball_path=${{ github.workspace }}/$TARBALL_NAME" >> "$GITHUB_OUTPUT"
       - name: archive tarball
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.TARBALL_NAME }}
-          path: ${{ github.workspace }}/${{ env.TARBALL_NAME }}
+          name: tarball
+          path: "${{ steps.make-tarball.outputs.tarball_path }}"
