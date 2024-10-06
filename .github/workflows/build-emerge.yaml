@@ -1,7 +1,19 @@
 name: build emerge compiler
 run-name: Build & Test the Emerge compiler
 on:
-  - push
+  push:
+    branches:
+      - '**'
+      - '!release/*'
+  workflow_call:
+    outputs:
+      dist-tarball-artifact-name:
+        description: "Name of the artifact on this workflow run that has the distributable binaries"
+        value: ${{ jobs.linux-all-arch-tarball.outputs.artifact-name }}
+      run-id:
+        description: "The run-id of this workflow"
+        value: ${{ github.run_id }}
+
 env:
   GLIBC_SOURCE_BALL_URL: "http://mirror.dogado.de/gnu/libc/glibc-2.38.tar.bz2"
   GCC_GIT_REF: "releases/gcc-14.1.0"
@@ -14,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: cache-glibc
-        uses: actions/cache@v4
+        uses: actions/cache@v4.1.0
         with:
           path: |
             ${{ github.workspace }}/glibc-build/csu
@@ -36,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: cache-gcc
-        uses: actions/cache@v4
+        uses: actions/cache@v4.1.0
         with:
           path: |
             ${{ github.workspace }}/gcc-build/x86_64-pc-linux-gnu/libgcc
@@ -65,7 +77,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: cache-libunwind
-        uses: actions/cache@v4
+        uses: actions/cache@v4.1.0
         with:
           path: |
             ${{ github.workspace }}/libunwind-install/lib
@@ -85,14 +97,49 @@ jobs:
           ./configure "--prefix=${{ github.workspace }}/libunwind-install"
           make
           make install
-  emerge-compiler-maven:
+  emerge-toolchain-maven:
     runs-on: ubuntu-22.04
     name: emerge compiler maven verify
+    steps:
+      - id: cache-emerge-toolchain-maven
+        uses: actions/cache@v4.1.0
+        with:
+          path: |
+            ${{ github.workspace }}/toolchain/target/toolchain.jar
+          key: toolchain-runnable-jar-292c1ed71852899d3b80bf567d11a1d41e8fa8f0 # TODO: replace hash with ${{ github.sha }}
+          #enableCrossOsArchive: true -- this causes the cache-hit output to not work properly - buggy mess
+      - name: checkout
+        if: steps.cache-emerge-toolchain-maven.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+      - name: Set up JDK 21
+        if: steps.cache-emerge-toolchain-maven.outputs.cache-hit != 'true'
+        uses: actions/setup-java@v4.0.0
+        with:
+          java-version-file: .java-version
+          distribution: zulu
+          cache: maven
+      - name: install llvm
+        if: steps.cache-emerge-toolchain-maven.outputs.cache-hit != 'true'
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh "${{ env.LLVM_VERSION }}"
+      - name: mvn clean verify
+        if: steps.cache-emerge-toolchain-maven.outputs.cache-hit != 'true'
+        run: mvn "-Demerge.llvm-tests.llvm-install-dir=/usr/lib/llvm-18" -B clean verify
+  linux-all-arch-tarball:
+    name: Linux tarball for all Architectures
+    runs-on: ubuntu-20.04
     needs:
       - build-gcc-x86_64
       - build-glibc-x86_64
       - build-libunwind-x86_64
+      - emerge-toolchain-maven
+    outputs:
+      artifact-name: ${{ env.TARBALL_NAME }}
     steps:
+      - name: checkout
+        uses: actions/checkout@v4
       - name: get C-runtime binaries from glibc
         uses: actions/cache/restore@v4
         with:
@@ -108,18 +155,66 @@ jobs:
             ${{ github.workspace }}/gcc-build/x86_64-pc-linux-gnu/libgcc
           key: gcc-x86_64-pc-linux-gnu-${{ env.GCC_GIT_REF }}
           fail-on-cache-miss: true
-      - name: checkout
-        uses: actions/checkout@v4
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4.0.0
+      - name: get libunwind binaries
+        uses: actions/cache/restore@v4
         with:
-          java-version-file: .java-version
-          distribution: zulu
-          cache: maven
-      - name: install llvm
+          path: |
+            ${{ github.workspace }}/libunwind-install/lib
+          key: libunwind-x86_64-pc-linux-gnu-${{ env.LIBUNWIND_GIT_REF }}
+          fail-on-cache-miss: true
+      - name: get runnable toolchain jar
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ github.workspace }}/toolchain/target/toolchain.jar
+          key: toolchain-runnable-jar-292c1ed71852899d3b80bf567d11a1d41e8fa8f0 # TODO: replace hash with ${{ github.sha }}
+          fail-on-cache-miss: true
+          enableCrossOsArchive: true
+      - name: make tarball
         run: |
-          wget https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh "${{ env.LLVM_VERSION }}"
-      - name: mvn clean verify
-        run: mvn "-Demerge.llvm-tests.llvm-install-dir=/usr/lib/llvm-18" -B clean verify
+          set -ex
+          TARBALL_NAME="emerge-toolchain-${GITHUB_SHA}.tar.gz"
+          mkdir -p "${{ github.workspace }}/tarball-root" && pushd $_
+          
+            cp -r "${{ github.workspace }}/stdlib" .
+            
+            mkdir -p backends && pushd $_
+              mkdir -p noop && pushd $_
+                cp -r "${{ github.workspace }}/backend-api/src/main/emerge/noop-backend-platform" platform-sources
+              popd
+            
+              mkdir -p native && pushd $_
+                cp -r "${{ github.workspace }}/llvm-backend/src/main/emerge-ffi-c" .
+              popd
+            
+              mkdir -p linux-gnu && pushd $_
+                cp -r "${{ github.workspace }}/llvm-backend/src/main/emerge-linux-libc" .
+                cp -r "${{ github.workspace }}/llvm-backend/src/main/emerge-platform-linux" .
+              popd
+            
+              mkdir -p x86_64-pc-linux-gnu/lib && pushd $_
+                cp "${{ github.workspace }}/libunwind-install/lib/libunwind-x86_64.a" .
+                cp "${{ github.workspace }}/gcc-build/x86_64-pc-linux-gnu/libgcc/crtbeginS.o" .
+                cp "${{ github.workspace }}/gcc-build/x86_64-pc-linux-gnu/libgcc/crtendS.o" .
+                cp "${{ github.workspace }}/glibc-build/csu/Scrt1.o" .
+                cp "${{ github.workspace }}/glibc-build/libc.so" .
+              popd  
+            popd
+            cp "${{ github.workspace }}/distributable/"* .
+          popd
+          tar --create \
+            --directory=tarball-root \
+            --owner=root \
+            --group=root \
+            --mode='ug=rw,a=rX' \
+            --preserve-permissions \
+            --gzip \
+            --format=gnu \
+            . \
+            > "$TARBALL_NAME"
+          echo "TARBALL_NAME=${TARBALL_NAME}" >> "$GITHUB_ENV"
+      - name: archive tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.TARBALL_NAME }}
+          path: ${{ github.workspace }}/${{ env.TARBALL_NAME }}

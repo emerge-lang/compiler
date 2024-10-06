@@ -55,4 +55,4 @@ emerge-out/
 # the structure is not fixed, every environment/developer can have this as preferred. Files in here are linked/copied
 # into the maven build
 local-resources
-toolchain-config.yml
+./toolchain-config.yml

@@ -1,0 +1,126 @@
+name: Create Release
+run-name: Create Release ${{ inputs.version }}
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The version number, e.g. 1.4.2"
+        required: true
+        type: string
+      from-branch:
+        description: "The branch on which to create the commit"
+        required: true
+        type: string
+        default: "main"
+      make-latest:
+        description: "If true, will be marked as the latest release"
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  tag-release:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.from-branch }}
+      - name: update versions in source
+        run: |
+          mvn versions:set "-DnewVersion=${{ inputs.version }}" -DgenerateBackupPoms=false
+      - name: create commit and tag
+        id: tag-release
+        run: |
+          RELEASE_BRANCH="release/${{ inputs.version }}"
+          git checkout -b "$RELEASE_BRANCH"
+          git add .
+          git commit -m "Set version to ${{ inputs.version }}"
+          git push --set-upstream origin "$RELEASE_BRANCH"
+          RELEASE_TAG="v${{ inputs.version }}"
+          git tag "$RELEASE_TAG"
+          git push --tags
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "release_commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          git checkout "${{ github.event.repository.default_branch }}"
+          git merge "$RELEASE_BRANCH"
+          git push
+          git push origin ":$RELEASE_BRANCH"
+    outputs:
+      release_tag: ${{ steps.tag-release.outputs.release_tag }}
+      release_commit_sha: ${{ steps.tag-release.outputs.release_commit_sha }}
+  build-releaseable-binaries:
+    runs-on: ubuntu-22.04
+    needs:
+      - tag-release
+    outputs:
+      artifact_run_id: "${{ steps.release-ci.outputs.run_id }}"
+      artifact_name: "${{ steps.release-ci.outputs.run_id }}"
+    steps:
+      - name: build using the CI workflow
+        id: release-ci
+        uses: "${{ github.repository }}/.github/workflows/build-emerge.yml@${{ needs.tag-release.outputs.release_tag }}"
+  debian-package-and-release:
+    runs-on: ubuntu-22.04
+    needs:
+      - build-releaseable-binaries
+    steps:
+      - name: download distribution artifact
+        uses: actions/download-artifact@v4.1.8
+        with:
+          run-id: "${{ needs.build-releaseable-binaries.outputs.artifact_run_id }}"
+          name: "${{ needs.build-releaseable-binaries.outputs.artifact_name }}"
+      - name: extract tarball
+        id: extract-tarball
+        run: |
+          TARBALL_PATH="${{ github.workspace }}/${{ needs.build-releaseable-binaries.outputs.artifact_name }}.tar.gz"
+          echo "tarball_path=$TARBALL_PATH" >> "$GITHUB_OUTPUT"
+          mkdir distribution
+          tar --extract --directory=distribution --file "$TARBALL_PATH"
+      - name: create debian package
+        id: deb-package
+        run: |
+          SHORT_SHA="$(git rev-parse --short HEAD)"
+          N_COMMITS="$(git rev-list --count HEAD)"
+          DEB_NAME="emerge-toolchain-${{ inputs.version }}"
+          DEB_VERSION="1.0.0"
+          mkdir -p "deb-package/$DEB_NAME" && pushd $_
+          mkdir -p "opt/emerge-toolchain/$DEB_VERSION/bin" && pushd $_
+          cp "${{ github.workspace }}/toolchain/target/toolchain.jar" .
+          popd
+          mkdir DEBIAN && pushd $_
+          echo "Package: ${DEB_NAME}
+          Version: ${DEB_VERSION}
+          Maintainer: Tobias Marstaller
+          Depends: llvm-18, lld-18, java-runtime-headless (>= 21)
+          Homepage: https://github.com/tmarsteel/emerge-lang
+          Description: emerge toolchain built from $GITHUB_REF (commit $GITHUB_SHA)
+          Architecture: all" \
+          > control
+          popd
+          popd
+          dpkg --build "deb-package/$DEB_NAME"
+          echo "deb_file_path=${{ github.workspace }}/deb-package/$DEB_NAME.deb" >> "$GITHUB_OUTPUT"
+      - name: rename tarball for release
+        id: release-tarball
+        run: |
+          TARBALL_PATH="${{ steps.extract-tarball.outputs.tarball_path }}
+          TARBALL_EXT="${TARBALL_PATH#*.}"
+          RELEASE_TARBALL_NAME="emerge-toolchain-${{ inputs.version }}.$TARBALL_EXT"
+          mv "$TARBALL_PATH" "$RELEASE_TARBALL_NAME"
+          echo "release_tarball_path=${{ github.workspace }}/$RELEASE_TARBALL_NAME" >> "$GITHUB_OUTPUT"
+      - name: create release
+        uses: softprops/action-gh-release@v2.0.8
+        with:
+          tag_name: "${{ jobs.tag_release.steps.tag_release.outputs.release_tag }}"
+          name: ${{ inputs.version }}
+          fail_on_unmatched_files: true
+          target_commitish: "${{ jobs.tag_release.steps.tag_release.outputs.release_commit_sha }}"
+          make_latest: "${{ inputs.make-latest }}"
+          files: |
+            ${{ steps.release-tarball.outputs.release_tarball_path }}
+            ${{ steps.deb-package.outputs.deb_file_path }}
