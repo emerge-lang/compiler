@@ -13,7 +13,7 @@ on:
         type: string
         default: "main"
       make-latest:
-        description: "If true, will be marked as the latest release"
+        description: "Mark this as the latest release"
         required: true
         type: boolean
         default: true
@@ -54,16 +54,9 @@ jobs:
       release_tag: ${{ steps.tag-release.outputs.release_tag }}
       release_commit_sha: ${{ steps.tag-release.outputs.release_commit_sha }}
   build-releaseable-binaries:
-    runs-on: ubuntu-22.04
     needs:
       - tag-release
-    outputs:
-      artifact_run_id: "${{ steps.release-ci.outputs.run_id }}"
-      artifact_name: "${{ steps.release-ci.outputs.run_id }}"
-    steps:
-      - name: build using the CI workflow
-        id: release-ci
-        uses: "${{ github.repository }}/.github/workflows/build-emerge.yml@${{ needs.tag-release.outputs.release_tag }}"
+    uses: "emerge-lang/compiler/.github/workflows/build-emerge.yml@${{ needs.tag-release.outputs.release_tag }}"
   debian-package-and-release:
     runs-on: ubuntu-22.04
     needs:
