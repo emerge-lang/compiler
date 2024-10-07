@@ -26,13 +26,29 @@ jobs:
   tag-release:
     runs-on: ubuntu-22.04
     outputs:
-      tag: "${{ steps.tag-release.outputs.tag }}"
+      tag: "${{ steps.determine-tag.outputs.tag }}"
+      tag_commit_sha: "${{ steps.tag-release.outputs.tag_commit_sha }}"
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.0
         with:
           ref: ${{ inputs.from-branch }}
+      - name: check for existing tag
+        id: determine-tag
+        shell: bash
+        run: |
+          git fetch --tags
+          RELEASE_TAG="v${{ inputs.version }}"
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          exists=false
+          if [[ "$(git tag --list $RELEASE_TAG)" == "$RELEASE_TAG" ]]
+          then
+            exists=true
+          fi
+          echo "Tag exists: $exists"
+          echo "tag-exists=$exists" >> "$GITHUB_OUTPUT"
       - name: create local release branch
+        if: steps.determine-tag.outputs.tag-exists == 'false'
         run: |
           git config user.name "${{ github.actor }}"
           git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
@@ -40,6 +56,7 @@ jobs:
           echo "RELEASE_BRANCH=$RELEASE_BRANCH" >> "$GITHUB_ENV"
           git checkout -b "$RELEASE_BRANCH"
       - name: update versions in source
+        if: steps.determine-tag.outputs.tag-exists == 'false'
         run: |
           mvn -B versions:set "-DnewVersion=${{ inputs.version }}" -DgenerateBackupPoms=false
           git add pom.xml
@@ -48,26 +65,38 @@ jobs:
       - name: tag release
         id: tag-release
         run: |
-          git checkout "${{ github.event.repository.default_branch }}"
-          git merge --ff-only "$RELEASE_BRANCH"
-          RELEASE_TAG="v${{ inputs.version }}"
-          git tag "$RELEASE_TAG"
-          git push
-          git push --tags
-          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
-          echo "tag_commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          if [[ "${{ steps.determine-tag.outputs.tag-exists }}" == "true" ]]
+          then
+            echo "tag_commit_sha=$(git rev-parse ${{ steps.determine-tag.outputs.tag }})" >> "$GITHUB_OUTPUT"
+          else
+            git checkout "${{ github.event.repository.default_branch }}"
+            git merge --ff-only "$RELEASE_BRANCH"
+            git tag "${{ steps.determine-tag.outputs.tag }}"
+            git push
+            git push --tags
+            echo "tag_commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          fi
   build-releasable-binaries:
     uses: ./.github/workflows/build-emerge.yaml
     needs: tag-release
     with:
       kotlin-ref: "${{ needs.tag-release.outputs.tag }}"
   deb-package:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
+      - tag-release
       - build-releasable-binaries
     outputs:
       deb-filename: "${{ steps.deb-package.outputs.deb_file_name }}"
     steps:
+      - name: install build dependencies
+        run: sudo apt-get install moreutils
+      - name: checkout source for debian package
+        uses: actions/checkout@v4.2.0
+        with:
+          ref: "${{ needs.tag-release.outputs.tag }}"
+          sparse-checkout: dist/linux/deb
+          path: repository
       - name: download tarball
         uses: actions/download-artifact@v4.1.8
         with:
@@ -77,21 +106,21 @@ jobs:
         id: deb-package
         run: |
           # set variables, also for envsubst in the package files
-          TOOLCHAIN_VERSION="${{ inputs.version }}"
-          DEB_NAME="emerge-toolchain-${TOOLCHAIN_VERSION}"
-          DEB_VERSION="1.0.0"
-          RELEASE_REF="refs/tags/${{ needs.tag-release.outputs.tag }}"
-          RELEASE_COMMIT_SHA="${{ needs.tag-release.outputs.tag_commit_sha}}"
+          export TOOLCHAIN_VERSION="${{ inputs.version }}"
+          export DEB_NAME="emerge-toolchain-${TOOLCHAIN_VERSION}"
+          export DEB_VERSION="1.0.0"
+          export RELEASE_REF="refs/tags/${{ needs.tag-release.outputs.tag }}"
+          export RELEASE_COMMIT_SHA="${{ needs.tag-release.outputs.tag_commit_sha}}"
           mkdir -p "deb-package/$DEB_NAME" && pushd $_
             mkdir -p "opt/emerge-toolchain/${TOOLCHAIN_VERSION}" && pushd $_
               tar --extract --preserve-permissions --file "${{ github.workspace }}/${{ needs.build-releasable-binaries.outputs.tarball-filename }}"
             popd
-            cp -r "${{ github.workspace }}/dist/linux/deb/"* .
+            cp -ar "${{ github.workspace }}/repository/dist/linux/deb/." .
             envsubst < DEBIAN/control | sponge DEBIAN/control
             envsubst < DEBIAN/postinst | sponge DEBIAN/postinst
-            chown -R root DEBIAN
-            chgrp -R root DEBIAN
-            chmod uga=rx DEBIAN/postinst
+            sudo chown -R root DEBIAN
+            sudo chgrp -R root DEBIAN
+            sudo chmod uga=rx DEBIAN/postinst
           popd
           dpkg --build "deb-package/$DEB_NAME"
           echo "deb_file_name=${DEB_NAME}.deb" >> "$GITHUB_OUTPUT"

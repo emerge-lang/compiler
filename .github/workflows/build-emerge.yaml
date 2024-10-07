@@ -186,7 +186,7 @@ jobs:
           mkdir -p "${{ github.workspace }}/tarball-root" && pushd $_
           
             cp -r "${{ github.workspace }}/stdlib" .
-            cp "${{ github.workspace }}/dist/linux/all"* .
+            cp -ar "${{ github.workspace }}/dist/linux/all/." .
             
             mkdir -p backends && pushd $_
               mkdir -p noop && pushd $_
