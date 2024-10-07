@@ -185,6 +185,7 @@ jobs:
           TARBALL_NAME="emerge-toolchain.tar.gz"
           mkdir -p "${{ github.workspace }}/tarball-root" && pushd $_
           
+            cp -p "${{ github.workspace }}/toolchain/target/toolchain.jar" bin/toolchain.jar
             cp -r "${{ github.workspace }}/stdlib" .
             cp -ar "${{ github.workspace }}/dist/linux/all/." .
             
