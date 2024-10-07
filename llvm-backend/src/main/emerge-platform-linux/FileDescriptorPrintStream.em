@@ -8,8 +8,8 @@ import emerge.ffi.c.COpaquePointer
 import emerge.std.io.IOException
 import emerge.std.collections.ArrayList
 
-StandardOut: mut PrintStream = FileDescriptorPrintStream(FD_STDOUT)
-StandardError: mut PrintStream = FileDescriptorPrintStream(FD_STDERR)
+export StandardOut: mut PrintStream = FileDescriptorPrintStream(FD_STDOUT)
+export StandardError: mut PrintStream = FileDescriptorPrintStream(FD_STDERR)
 
 class FileDescriptorPrintStream : PrintStream {
     private fd: S32 = init

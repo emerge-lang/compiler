@@ -97,7 +97,7 @@ jobs:
         run: |
           cd ${{ github.workspace }}/libunwind-source
           autoreconf -i
-          ./configure "--prefix=${{ github.workspace }}/libunwind-install"
+          ./configure "--prefix=${{ github.workspace }}/libunwind-install" --disable-minidebuginfo
           make
           make install
   emerge-toolchain-maven:
