@@ -110,7 +110,6 @@ jobs:
           path: |
             ${{ github.workspace }}/toolchain/target/toolchain.jar
           key: "toolchain-runnable-jar-${{ inputs.kotlin-ref || github.sha }}"
-          #enableCrossOsArchive: true -- this causes the cache-hit output to not work properly - buggy mess
       - name: checkout
         if: steps.cache-emerge-toolchain-maven.outputs.cache-hit != 'true'
         uses: actions/checkout@v4
@@ -134,7 +133,7 @@ jobs:
         run: mvn "-Demerge.llvm-tests.llvm-install-dir=/usr/lib/llvm-18" -B clean verify
   linux-distributables:
     name: Linux distributable archives
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     outputs:
       tarball-filename: "${{ steps.tarball.outputs.tarball_name }}"
       deb-filename: "${{ steps.deb-package.outputs.deb_file_name }}"
@@ -185,7 +184,9 @@ jobs:
           TARBALL_NAME="emerge-toolchain.tar.gz"
           mkdir -p "${{ github.workspace }}/tarball-root" && pushd $_
           
-            cp -p "${{ github.workspace }}/toolchain/target/toolchain.jar" bin/toolchain.jar
+            mkdir bin && pushd $_
+              cp "${{ github.workspace }}/toolchain/target/toolchain.jar" .
+            popd
             cp -r "${{ github.workspace }}/stdlib" .
             cp -ar "${{ github.workspace }}/dist/linux/all/." .
             
