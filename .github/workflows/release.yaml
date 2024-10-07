@@ -37,13 +37,15 @@ jobs:
           git config user.name "${{ github.actor }}"
           git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
           RELEASE_BRANCH="release/${{ inputs.version }}"
+          echo "RELEASE_BRANCH=$RELEASE_BRANCH" >> "$GITHUB_ENV"
           git checkout -b "$RELEASE_BRANCH"
       - name: update versions in source
         run: |
           mvn -B versions:set "-DnewVersion=${{ inputs.version }}" -DgenerateBackupPoms=false
+          git add pom.xml
           git add "**/pom.xml"
           git commit -m "Set version to ${{ inputs.version }}"
-      - name: create git history for release
+      - name: tag release
         id: tag-release
         run: |
           git checkout "${{ github.event.repository.default_branch }}"
