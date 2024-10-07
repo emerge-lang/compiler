@@ -227,4 +227,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tarball
-          path: "${{ steps.make-tarball.outputs.tarball_path }}"
+          path: "${{ steps.tarball.outputs.tarball_path }}"
