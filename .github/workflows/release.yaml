@@ -135,7 +135,7 @@ jobs:
           tag_name: "${{ needs.tag-release.outputs.tag }}"
           name: "${{ inputs.version }}"
           fail_on_unmatched_files: true
-          target_commitish: "${{ needs.tag-release.outputs.tag }}"
+          target_commitish: "${{ needs.tag-release.outputs.tag_commit_sha }}"
           make_latest: "${{ inputs.make-latest }}"
           files: |
             ${{ steps.release-tarball.outputs.release_tarball_path }}
