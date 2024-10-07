@@ -12,7 +12,7 @@ jre_link="$SELFDIR/jre"
 if [[ ! -e "$jre_link" ]]
 then
 	selected_jvm_dir=
-	for jvm_dir in $(find /usr/lib/jvm -maxdepth 1 -print0 -type d | xargs -n 1 realpath)
+	for jvm_dir in $(find /usr/lib/jvm -maxdepth 1 -print0 -type d | xargs -0 realpath)
 	do
 		java_executable="$jvm_dir/bin/java"
 		if [[ ! -e "$java_executable" ]]
