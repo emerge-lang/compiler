@@ -186,6 +186,7 @@ jobs:
           mkdir -p "${{ github.workspace }}/tarball-root" && pushd $_
           
             cp -r "${{ github.workspace }}/stdlib" .
+            cp "${{ github.workspace }}/dist/linux/all"* .
             
             mkdir -p backends && pushd $_
               mkdir -p noop && pushd $_
@@ -209,7 +210,6 @@ jobs:
                 cp "${{ github.workspace }}/glibc-build/libc.so" .
               popd  
             popd
-            cp "${{ github.workspace }}/distributable/"* .
           popd
           tar --create \
             --directory=tarball-root \

@@ -76,27 +76,22 @@ jobs:
       - name: make debian package
         id: deb-package
         run: |
-          DEB_NAME="emerge-toolchain-${{ inputs.version }}"
+          # set variables, also for envsubst in the package files
+          TOOLCHAIN_VERSION="${{ inputs.version }}"
+          DEB_NAME="emerge-toolchain-${TOOLCHAIN_VERSION}"
           DEB_VERSION="1.0.0"
+          RELEASE_REF="refs/tags/${{ needs.tag-release.outputs.tag }}"
+          RELEASE_COMMIT_SHA="${{ needs.tag-release.outputs.tag_commit_sha}}"
           mkdir -p "deb-package/$DEB_NAME" && pushd $_
-          mkdir -p "opt/emerge-toolchain/${{ inputs.version }}" && pushd $_
-          tar --extract --preserve-permissions --file "${{ github.workspace }}/${{ needs.build-releasable-binaries.outputs.tarball-filename }}"
-          popd
-          mkdir DEBIAN && pushd $_
-          echo "Package: ${DEB_NAME}
-          Version: ${DEB_VERSION}
-          Maintainer: Tobias Marstaller
-          Depends: llvm-18, lld-18, java-runtime-headless (>= 21)
-          Homepage: https://github.com/tmarsteel/emerge-lang
-          Description: emerge toolchain built from $GITHUB_REF (commit $GITHUB_SHA)
-          Architecture: all" \
-          > control
-          echo "#!/bin/bash
-          set -e
-          \"/opt/emerge-toolchain/${{ inputs.version }}/configure.sh\"\
-          " > postinst
-          chmod uga=rx postinst
-          popd
+            mkdir -p "opt/emerge-toolchain/${TOOLCHAIN_VERSION}" && pushd $_
+              tar --extract --preserve-permissions --file "${{ github.workspace }}/${{ needs.build-releasable-binaries.outputs.tarball-filename }}"
+            popd
+            cp -r "${{ github.workspace }}/dist/linux/deb/"* .
+            envsubst < DEBIAN/control | sponge DEBIAN/control
+            envsubst < DEBIAN/postinst | sponge DEBIAN/postinst
+            chown -R root DEBIAN
+            chgrp -R root DEBIAN
+            chmod uga=rx DEBIAN/postinst
           popd
           dpkg --build "deb-package/$DEB_NAME"
           echo "deb_file_name=${DEB_NAME}.deb" >> "$GITHUB_OUTPUT"
