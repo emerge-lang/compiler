@@ -1,0 +1,8 @@
+module(
+    name = "rules_emerge",
+    version = "0.1.0",
+)
+
+register_toolchains(
+    "//:all",
+)
