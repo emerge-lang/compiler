@@ -42,7 +42,6 @@ def register_emerge_toolchains(version):
         ],
         target_compatible_with = [
             "@platforms//os:linux",
-            "@platforms//cpu:x86_64",
         ],
         toolchain = "@rules_emerge//:emerge_toolchain_on_linux",
         toolchain_type = "@rules_emerge//:toolchain",
