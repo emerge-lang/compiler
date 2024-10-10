@@ -28,8 +28,8 @@ bazel documentation and sources quite a bunch. However, setting up a project by 
 
 1. Add a new file `.bazelrc` with the following content:
    ```
-   --registry=https://raw.githubusercontent.com/emerge-lang/bazel-registry/tree/main
-   --registry=https://bcr.bazel.build
+   common --registry=https://raw.githubusercontent.com/emerge-lang/bazel-registry/tree/main
+   common --registry=https://bcr.bazel.build
    ```
 2. Add a new file `MODULE.bazel` with the following content:
     ```python
