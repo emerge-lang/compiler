@@ -15,7 +15,7 @@ def _emerge_module_internal_impl(ctx):
         src_dir = src_dir.files.to_list()[0]
 
     return ModuleInfo(
-        name = ctx.label.name,
+        name = ctx.attr.emerge_package_name,
         uses = depset(uses_modules, transitive = [m.uses for m in uses_modules]),
         source_directory = src_dir,
         source_files = ctx.files.srcs,
@@ -24,13 +24,14 @@ def _emerge_module_internal_impl(ctx):
 emerge_module_internal = rule(
     implementation = _emerge_module_internal_impl,
     attrs = {
+        "emerge_package_name": attr.string(mandatory = True),
         "srcs": attr.label_list(allow_files = [".em"], default = []),
         "source_directory": attr.label(allow_single_file = True, allow_rules = [], default = None),
         "uses": attr.label_list(allow_files = False, allow_rules = ["emerge_module_internal"], default = []),
     },
 )
 
-def emerge_module(name, source_directory, uses = [], **kwargs):
+def emerge_module(name, source_directory, uses = [], emerge_package_name = None, **kwargs):
     srcs = []
     if source_directory != "":
         srcs = native.glob([source_directory + "/**/*.em"], allow_empty = False)
@@ -40,5 +41,6 @@ def emerge_module(name, source_directory, uses = [], **kwargs):
         source_directory = native.package_relative_label(source_directory),
         srcs = srcs,
         uses = uses,
+        emerge_package_name = emerge_package_name or name,
         **kwargs
     )
