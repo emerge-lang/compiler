@@ -25,24 +25,25 @@ def _emerge_toolchain_on_linux_impl(ctx):
 emerge_toolchain_on_linux = rule(
     implementation = _emerge_toolchain_on_linux_impl,
     attrs = {
-        "version": attr.string(),
+        "version": attr.string(mandatory = True),
     },
 )
 
 def register_emerge_toolchains(version):
     emerge_toolchain_on_linux(
         name = "emerge_toolchain_on_linux",
+        version = version,
     )
 
     native.toolchain(
         name = "emerge_linux_toolchain",
-        #exec_compatible_with = [
-        #    "@platforms//os:linux",
-        #],
-        #target_compatible_with = [
-        #    "@platforms//os:linux",
-        #    "@platforms//cpu:x86_64",
-        #],
+        exec_compatible_with = [
+            "@platforms//os:linux",
+        ],
+        target_compatible_with = [
+            "@platforms//os:linux",
+            "@platforms//cpu:x86_64",
+        ],
         toolchain = "@rules_emerge//:emerge_toolchain_on_linux",
         toolchain_type = "@rules_emerge//:toolchain",
     )

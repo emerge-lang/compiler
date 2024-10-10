@@ -25,7 +25,6 @@ import io.github.tmarsteel.emerge.common.CanonicalElementName
 import org.apache.commons.io.input.BOMInputStream
 import java.nio.charset.Charset
 import java.nio.file.Files
-import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.util.stream.Collectors
 import kotlin.io.path.exists
@@ -56,7 +55,7 @@ class SourceSet(
 
             return Files.walk(sourceSetPath)
                 .parallel()
-                .filter { it.isRegularFile(LinkOption.NOFOLLOW_LINKS) }
+                .filter { it.isRegularFile() }
                 .filter { it.extension == SourceFile.EXTENSION }
                 .map { sourceFilePath ->
                     val content = BOMInputStream.builder()

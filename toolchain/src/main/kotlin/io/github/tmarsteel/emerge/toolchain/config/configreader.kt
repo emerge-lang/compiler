@@ -75,16 +75,16 @@ private object ConfigModule : SimpleModule("EmergeToolchainConfigs") {
 }
 
 fun <C : Any> Path.parseAsConfig(cclass: KClass<C>): C {
-    require(isAbsolute) { "config file path $this must be absolute" }
+    val selfAbsolute = this.toAbsolutePath()
     require(exists()) { "config file $this not found" }
     require(isRegularFile()) { "$this must be a regular file"}
     return try {
-        ScopedValue.callWhere(ConfigModule.pathsRelativeTo, this.parent) {
-            configObjectMapper.readValue(this.toFile(), cclass.java)
+        ScopedValue.callWhere(ConfigModule.pathsRelativeTo, selfAbsolute.parent) {
+            configObjectMapper.readValue(selfAbsolute.toFile(), cclass.java)
         }
     } catch (ex: JsonProcessingException) {
         throw ConfigParseException(
-            this,
+            selfAbsolute,
             cclass,
             ex.location.lineNr.toUInt(),
             ex.location.columnNr.toUInt(),
@@ -105,23 +105,44 @@ class ConfigParseException(
         val sourceSet = SourceSet(file.parent, CanonicalElementName.Package(listOf("__config")))
         val sourceFile = DiskSourceFile(sourceSet, file, file.readText())
         val span = Span(sourceFile, sourceLineNumber, sourceColumnNumber, sourceLineNumber, sourceColumnNumber, false)
-        val message = when (val localCause = cause) {
-            is MissingKotlinParameterException -> "Missing property ${localCause.pathReferenceInYAMLNotation}"
-            is UnrecognizedPropertyException -> "Unknown property ${localCause.pathReferenceInYAMLNotation}"
-            else -> localCause.message ?: "<no message>"
+        val pathRef: List<JsonMappingException.Reference>?
+        val message: String
+        when (val localCause = cause) {
+            is MissingKotlinParameterException -> {
+                pathRef = localCause.path.dropLast(1)
+                message = "Missing property ${localCause.path.last().fieldName}"
+            }
+            is UnrecognizedPropertyException -> {
+                pathRef = localCause.path
+                message = "Unknown property ${localCause.path.last().fieldName}"
+            }
+            is JsonMappingException -> {
+                pathRef = localCause.path
+                message = localCause.originalMessage
+            }
+            else -> {
+                message = localCause.message ?: "<no message>"
+                pathRef = null
+            }
         }
+        var fullMessage = "[ERROR] $message\n\n"
+        if (pathRef != null) {
+            fullMessage += "at ${pathRef.pathReferenceInYAMLNotation}\n"
+        }
+        fullMessage += "in ${illustrateSourceLocations(listOf(span))}\n"
+
         to.print(
-            message = "[ERROR] $message\n\nin ${illustrateSourceLocations(listOf(span))}\n",
+            message = fullMessage,
             whitespace = Whitespace.PRE,
             stderr = true,
         )
     }
 }
 
-private val JsonMappingException.pathReferenceInYAMLNotation: String get() {
+private val List<JsonMappingException.Reference>.pathReferenceInYAMLNotation: String get() {
     val sb = StringBuilder()
     var isFirst = true
-    for (element in path) {
+    for (element in this) {
         if (element.fieldName != null) {
             if (!isFirst) {
                 sb.append('.')
