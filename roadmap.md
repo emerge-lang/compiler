@@ -84,10 +84,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       * llvm patterns
       * debugging techniques
 11. user tooling
-    * installable packages that handle upgrades/multiple parallel versions, too
+    * ~~installable packages that handle upgrades/multiple parallel versions, too~~
       * windows
-      * debian
-    * CLI interface for the compiler
+      * ~~debian~~
+    * ~~CLI interface for the compiler~~
     * language server and VSCode plugin
 12. runtime checks for generic parameters
     * does that need to be enabled by the programmer? Could be e.g. `class Array<reflect T>` if necessary
