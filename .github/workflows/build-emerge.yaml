@@ -21,7 +21,8 @@ env:
   GLIBC_SOURCE_BALL_URL: "http://mirror.dogado.de/gnu/libc/glibc-2.38.tar.bz2"
   GCC_GIT_REF: "releases/gcc-14.1.0"
   LIBUNWIND_GIT_REF: "v1.8.1"
-  LLVM_VERSION: "18"
+  LLVM_MAJOR_VERSION: "18"
+  ZULU_JRE_URL: https://cdn.azul.com/zulu/bin/zulu21.36.17-ca-jre21.0.4-win_x64.zip
 
 jobs:
   build-glibc-x86_64:
@@ -117,7 +118,7 @@ jobs:
           ref: "${{ github.kotlin-ref || github.sha }}"
       - name: Set up JDK 21
         if: steps.cache-emerge-toolchain-maven.outputs.cache-hit != 'true'
-        uses: actions/setup-java@v4.0.0
+        uses: actions/setup-java@v4.4.0
         with:
           java-version-file: .java-version
           distribution: zulu
@@ -127,7 +128,7 @@ jobs:
         run: |
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
-          sudo ./llvm.sh "${{ env.LLVM_VERSION }}"
+          sudo ./llvm.sh "${{ env.LLVM_MAJOR_VERSION }}"
       - name: mvn clean verify
         if: steps.cache-emerge-toolchain-maven.outputs.cache-hit != 'true'
         run: mvn "-Demerge.llvm-tests.llvm-install-dir=/usr/lib/llvm-18" -B clean verify
@@ -136,7 +137,6 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       tarball-filename: "${{ steps.tarball.outputs.tarball_name }}"
-      deb-filename: "${{ steps.deb-package.outputs.deb_file_name }}"
     needs:
       - build-gcc-x86_64
       - build-glibc-x86_64
@@ -148,7 +148,7 @@ jobs:
         with:
           ref: "${{ inputs.ref || github.sha }}"
       - name: get C-runtime binaries from glibc
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v4.4.0
         with:
           path: |
             ${{ github.workspace }}/glibc-build/csu
@@ -156,21 +156,21 @@ jobs:
           key: glibc-x86_64-pc-linux-gnu-${{ env.GLIBC_SOURCE_BALL_URL }}
           fail-on-cache-miss: true
       - name: get C-runtime binaries from gcc
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v4.4.0
         with:
           path: |
             ${{ github.workspace }}/gcc-build/x86_64-pc-linux-gnu/libgcc
           key: gcc-x86_64-pc-linux-gnu-${{ env.GCC_GIT_REF }}
           fail-on-cache-miss: true
       - name: get libunwind binaries
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v4.4.0
         with:
           path: |
             ${{ github.workspace }}/libunwind-install/lib
           key: libunwind-x86_64-pc-linux-gnu-${{ env.LIBUNWIND_GIT_REF }}
           fail-on-cache-miss: true
       - name: get runnable toolchain jar
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v4.4.0
         with:
           path: |
             ${{ github.workspace }}/toolchain/target/toolchain.jar
@@ -226,7 +226,81 @@ jobs:
           echo "tarball_name=$TARBALL_NAME" >> "$GITHUB_OUTPUT"
           echo "tarball_path=${{ github.workspace }}/$TARBALL_NAME" >> "$GITHUB_OUTPUT"
       - name: archive tarball
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.4.3
         with:
           name: tarball
           path: "${{ steps.tarball.outputs.tarball_path }}"
+  llvm-build-for-windows:
+    uses: ./.github/workflows/build-llvm-windows.yaml
+  windows-distributables:
+    runs-on: windows-2022
+    needs:
+      - linux-distributables
+      - llvm-build-for-windows
+    steps:
+      - name: get tarball
+        uses: actions/download-artifact@v4.1.8
+        with:
+          run-id: ${{ needs.linux-distributables.run-id }}
+          name: tarball
+      - name: cache zulu jre
+        id: zulu-cache
+        uses: actions/cache@v4.1.0
+        with:
+          path: |
+            ${{ github.workspace }}/zulu-jre
+          key: "zulu-jre-${{ env.ZULU_JRE_URL }}"
+      - name: download zulu
+        if: steps.zulu-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          mkdir zulu-jre
+          Invoke-WebRequest "${{ env.ZULU_JRE_URL }}" -OutFile zulu-jre\archive.zip
+          Expand-Archive -Path zulu-jre\archive.zip -DestinationPath zulu-jre -Force -PassThru
+          
+          # the archive contains one directory with the full name of the JRE and version; this is noise not worth predicting
+          # instead, we can rename this directory to JRE, which conveniently is also the name the directory and its contents
+          # should have on users disks once installed
+          Rename-Item -Path zulu-jre/(Get-ChildItem zulu-jre)[0] jre
+          
+          # Zulu ships with some documentation; that's not needed
+          $files_to_remove = "Welcome.html"
+          foreach ($file in $files_to_remove) {
+            if (Test-Path zulu-jre/jre/$file) {
+              Remove-Item -Path zulu-jre/jre/$file    
+            }
+          }
+      - name: get LLVM binaries
+        uses: actions/download-artifact@v4.1.8
+        with:
+          run-id: "${{ needs.llvm-build-for-windows.run-id }}"
+          name: llvm-windows-x86_64
+      - name: create zip
+        shell: pwsh
+        run: |
+          New-Item -Type Directory -Name "archive-root"
+          
+          # first extract the linux tarball. It doesn't come with much linux-specific stuff, so we can reuse all the
+          # code for building it
+          Expand-Archive -Path "${{ needs.linux-distributables.outputs.tarball-filename }}" -DestinationPath "archive-root"
+          Remove-Item "archive-root/configure.sh" # this one is linux specific
+          
+          New-Item -Type Directory -Path ("archive-root", "llvm") -Name "bin"
+          # the LLVM distribution for windows builds THE WHOLE thing. This is needed for development.
+          # in actual use, the emerge compiler doesn't use nearly all of the LLVM tools. So there is a lot of
+          # disk and network transfer volume to be saved by only re-distributing the bare minimum
+          # TODO: how do we know "llvm-install" is the right source? This needs to be exported by the build-llvm-windows.yaml workflow
+          dir
+          Move-Item -Path "llvm-install/bin/ld.lld.exe" "archive-root/llvm/bin/ld.lld.exe"
+          Move-Item -Path "llvm-install/bin/LLVM-C.dll" "archive-root/llvm/bin/LLVM-C.dll"
+
+          # redistribute JRE
+          Move-Item -Path "zulu-jre/jre" "archive-root/jre"
+          
+          # wrap up
+          Get-ChildItem -Path "archive-root" | Compress-Archive -DestinationPath "emerge-toolchain.zip"
+      - name: archive zip
+        uses: actions/upload-artifact@v4.4.3
+        with:
+          name: windows-zip
+          path: "emerge-toolchain.zip"
