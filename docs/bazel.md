@@ -10,8 +10,21 @@ bazel documentation and sources quite a bunch. However, setting up a project by 
 
 ### 1. Install necessary software
 
+#### On Linux
+
 1. install the latest version of the emerge toolchain, see [the main readme](../readme.md).
 2. install bazelisk, a version management for bazel: https://github.com/bazelbuild/bazelisk
+
+#### On Windows
+
+All you need is bazelisk. I recommend getting it through [Chocolatey](https://chocolatey.org/); so you
+should be ready to with these three commands:
+
+```powershell
+win-get install chocolatey
+choco upgrade chocolatey
+choco install bazelisk
+```
 
 ### 2. Determine your project name, location, ...
 
