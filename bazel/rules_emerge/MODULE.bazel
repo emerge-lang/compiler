@@ -6,6 +6,23 @@ module(
 bazel_dep(name = "platforms", version = "0.0.10")
 bazel_dep(name = "bazel_skylib", version = "1.7.1")
 
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+# TODO! replace with http_archive
+new_local_repository = use_repo_rule("@bazel_tools//tools/build_defs/repo:local.bzl", "new_local_repository")
+
+new_local_repository(
+    name = "toolchain-windows",
+    build_file_content = """
+filegroup(
+    name = "all_files",
+    srcs = glob(["**/*.*"]),
+    visibility = ["//visibility:public"],
+)
+    """,
+    path = "F:\\CodingProjects\\emerge-lang\\bazel-dist-root",
+)
+
 register_toolchains(
     "//:all",
 )

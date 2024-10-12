@@ -54,6 +54,9 @@ def _emerge_binary_impl(ctx):
         outputs = [output_file],
         progress_message = "Compiling binary {}; {} emerge modules: {}".format(output_file.path, len(all_modules), [m.name for m in all_modules]),
         toolchain = Label("//:toolchain"),
+        # this is necessary so that io.github.tmarsteel.emerge.backend.llvm.ToolDiscoverer can find dependencies
+        # on the system. On linux this is use to find LLVM tools, and on windows even powershell
+        use_default_shell_env = True,
     )
     return DefaultInfo(files = depset([output_file]))
 
