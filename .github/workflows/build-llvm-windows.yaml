@@ -1,7 +1,7 @@
 # Copied from github.com/llvm/llvm-project Actions
 
 env:
-  LLVM_REF: llvmorg-19.1.1
+  LLVM_REF: llvmorg-18.1.8
 
 name: "Build LLVM for Windows"
 on:
@@ -61,6 +61,8 @@ jobs:
             -G "Ninja" \
             -S llvm \
             -B $LLVM_BUILD_PATH \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLLVM_BUILD_LLVM_C_DYLIB=ON \
             -DCMAKE_INSTALL_PREFIX=$LLVM_INSTALL_PATH \
             -DCMAKE_EXE_LINKER_FLAGS="/FORCE:MULTIPLE" \
             -DCMAKE_SHARED_LINKER_FLAGS="/FORCE:MULTIPLE" \
@@ -70,9 +72,7 @@ jobs:
             -DLLVM_INCLUDE_TESTS=OFF \
             -DPYTHON_EXECUTABLE="$(where python.exe | head -1)" \
             -DLLVM_ENABLE_ZSTD=OFF \
-            -DLLVM_ENABLE_PROJECTS="llvm;lld" \
-            -DLLVM_ENABLE_RUNTIMES=libunwind \
-            -DLIBUNWIND_ENABLE_SHARED=false
+            -DLLVM_ENABLE_PROJECTS="llvm;lld"
       - name: Build LLVM
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
