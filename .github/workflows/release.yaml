@@ -1,3 +1,11 @@
+# General flow:
+# 1. create a release/VERSION branch
+# 2. commit&push changed version numbers in the pom.xmls (sigh, but maven forces us to)
+# 3. build the binaries from that commit
+# 4. update the download-url and checksum of the windows binary in the bazel module
+# 5. commit
+# 6. merge back into main, tag that as the final release
+
 name: Create Release
 run-name: Release ${{ inputs.version }}
 on:
@@ -23,68 +31,103 @@ permissions:
   actions: read
 
 jobs:
-  tag-release:
+  prepare-build:
     runs-on: ubuntu-22.04
     outputs:
-      tag: "${{ steps.determine-tag.outputs.tag }}"
-      tag_commit_sha: "${{ steps.tag-release.outputs.tag_commit_sha }}"
+      tag: "${{ steps.determine-refs.outputs.tag }}"
+      release-branch: "${{ steps.determine-refs.outputs.branch }}"
+      commit-to-build: "${{ steps.update-versions.outputs.commit-to-build }}"
     steps:
       - name: checkout
         uses: actions/checkout@v4.2.0
         with:
           ref: ${{ inputs.from-branch }}
+          fetch-depth: 0
+          fetch-tags: 'true'
       - name: check for existing tag
-        id: determine-tag
+        id: determine-refs
         shell: bash
         run: |
           git fetch --tags
           RELEASE_TAG="v${{ inputs.version }}"
           echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
-          exists=false
           if [[ "$(git tag --list $RELEASE_TAG)" == "$RELEASE_TAG" ]]
           then
-            exists=true
+            echo "ERROR: the tag $RELEASE_TAG already exists, cannot release twice."
+            exit 1
           fi
-          echo "Tag exists: $exists"
-          echo "tag-exists=$exists" >> "$GITHUB_OUTPUT"
-      - name: create local release branch
-        if: steps.determine-tag.outputs.tag-exists == 'false'
-        run: |
+          
           git config user.name "${{ github.actor }}"
           git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
           RELEASE_BRANCH="release/${{ inputs.version }}"
-          echo "RELEASE_BRANCH=$RELEASE_BRANCH" >> "$GITHUB_ENV"
+          echo "branch=$RELEASE_BRANCH" >> "$GITHUB_OUTPUT"
           git checkout -b "$RELEASE_BRANCH"
+          git push --set-upstream origin "$RELEASE_BRANCH"
       - name: update versions in source
-        if: steps.determine-tag.outputs.tag-exists == 'false'
+        id: update-versions
         run: |
           mvn -B versions:set "-DnewVersion=${{ inputs.version }}" -DgenerateBackupPoms=false
           git add pom.xml
           git add "**/pom.xml"
-          git commit -m "Set version to ${{ inputs.version }}"
-      - name: tag release
-        id: tag-release
-        run: |
-          if [[ "${{ steps.determine-tag.outputs.tag-exists }}" == "true" ]]
-          then
-            echo "tag_commit_sha=$(git rev-parse ${{ steps.determine-tag.outputs.tag }})" >> "$GITHUB_OUTPUT"
-          else
-            git checkout "${{ github.event.repository.default_branch }}"
-            git merge --ff-only "$RELEASE_BRANCH"
-            git tag "${{ steps.determine-tag.outputs.tag }}"
-            git push
-            git push --tags
-            echo "tag_commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          fi
+          git commit -m "[RELEASE] Set version to ${{ inputs.version }}"
+          git remote -v
+          git push
+          echo "commit-to-build=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
   build-releasable-binaries:
     uses: ./.github/workflows/build-emerge.yaml
-    needs: tag-release
+    needs: prepare-build
     with:
-      kotlin-ref: "${{ needs.tag-release.outputs.tag }}"
+      kotlin-ref: "${{ needs.prepare-build.outputs.commit-to-build }}"
+  set-self-references:
+    runs-on: ubuntu-22.04
+    needs:
+      - prepare-build
+      - build-releasable-binaries
+    outputs:
+      windows-final-filename: "${{ steps.update-bazel.outputs.windows-final-filename }}"
+    steps:
+      - name: checkout release branch
+        uses: actions/checkout@v4.2.0
+        with:
+          ref: ${{ needs.prepare-build.outputs.release-branch }}
+          fetch-depth: 0
+          fetch-tags: 'true'
+      - name: configure git
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
+      - name: update bazel module
+        id: update-bazel
+        run: |
+          WINDOWS_FINAL_FILENAME="emerge-toolchain-windows-x86_64-${{ inputs.version }}.zip"
+          echo "windows-final-filename=$WINDOWS_FINAL_FILENAME" >> "$GITHUB_OUTPUT"
+          ESCAPED_REPOSITORY="$(echo '${{ github.repository }}' | sed 's/\//\\\//')"
+          sed \
+            --in-place \
+            --regexp-extended \
+            's/_WINDOWS_DOWNLOAD_URL\s*=\s*".+?"/_WINDOWS_DOWNLOAD_URL = "https:\/\/github.com\/'$ESCAPED_REPOSITORY'\/releases\/download\/${{ needs.prepare-build.outputs.tag }}\/'$WINDOWS_FINAL_FILENAME'"/' \
+            bazel/rules_emerge/MODULE.bazel
+          sed \
+            --in-place \
+            --regexp-extended \
+            's/_WINDOWS_SHA256\s*=\s*".+?"/_WINDOWS_SHA256 = "${{ needs.build-releasable-binaries.outputs.windows-zip-sha256 }}"/' \
+            bazel/rules_emerge/MODULE.bazel
+          
+          git add bazel/rules_emerge/MODULE.bazel
+          git commit -m "[RELEASE] Update windows archive reference in bazel/rules_emerge"
+          
+          # wrap up release branch
+          git checkout "${{ inputs.from-branch }}"
+          git merge --ff-only "${{ needs.prepare-build.outputs.release-branch }}"
+          git push
+          git branch -D "${{ needs.prepare-build.outputs.release-branch }}"
+          git push origin ":${{ needs.prepare-build.outputs.release-branch }}"
+          git tag "${{ needs.prepare-build.outputs.tag }}"
+          git push --tags
   deb-package:
     runs-on: ubuntu-24.04
     needs:
-      - tag-release
+      - prepare-build
       - build-releasable-binaries
     outputs:
       deb-filename: "${{ steps.deb-package.outputs.deb_file_name }}"
@@ -130,12 +173,14 @@ jobs:
         with:
           name: deb
           path: "${{ steps.deb-package.outputs.deb_file_path }}"
+
   create-release:
     runs-on: ubuntu-22.04
     needs:
-      - tag-release
+      - prepare-build
       - build-releasable-binaries
       - deb-package
+      - set-self-references
     steps:
       - name: download tarball
         uses: actions/download-artifact@v4.1.8
@@ -155,14 +200,22 @@ jobs:
         uses: actions/download-artifact@v4.1.8
         with:
           name: deb
+      - name: download windows archive
+        uses: actions/download-artifact@v4.1.8
+        with:
+          run-id: "${{ needs.build-releasable-binaries.run-id }}"
+          name: windows-zip
+      - name: rename windows zip for release
+        run: |
+          mv "${{ needs.build-releasable-binaries.outputs.windows-zip-filename }}" "${{ needs.set-self-references.outputs.windows-final-filename }}"
       - name: create release
         uses: softprops/action-gh-release@v2.0.8
         with:
-          tag_name: "${{ needs.tag-release.outputs.tag }}"
+          tag_name: "${{ needs.prepare-build.outputs.tag }}"
           name: "${{ inputs.version }}"
           fail_on_unmatched_files: true
-          target_commitish: "${{ needs.tag-release.outputs.tag_commit_sha }}"
           make_latest: "${{ inputs.make-latest }}"
           files: |
             ${{ steps.release-tarball.outputs.release_tarball_path }}
             ${{ github.workspace }}/${{ needs.deb-package.outputs.deb-filename }}
+            ${{ github.workspace }}/${{ needs.set-self-references.outputs.windows-final-filename }}

@@ -5,6 +5,7 @@ import java.nio.ByteBuffer
 import java.nio.file.FileSystems
 import java.nio.file.Path
 import java.nio.file.Paths
+import kotlin.io.path.exists
 
 class ToolNotFoundException(names: Array<out String>) : RuntimeException(run {
     val prefix = "The command ${names[0]} was not found on this machine"
@@ -79,21 +80,27 @@ private class WindowsToolDiscoverer : ToolDiscoverer {
     override fun discover(vararg commandNames: String): Path {
         return sequenceOf(*commandNames)
             .mapNotNull(this::findSingle)
-            .map(Paths::get)
             .firstOrNull()
             ?: throw ToolNotFoundException(commandNames)
     }
 
-    private fun findSingle(commandName: String): String? {
-        val process = ProcessBuilder()
-            .command("powershell", "-Command", "gcm $commandName | % { \$_.Source }")
+    private fun findSingle(commandName: String): Path? {
+        val commandPlusExeExtension = Paths.get(
+            if (commandName.lowercase().endsWith(".exe")) commandName else "$commandName.exe"
+        )
+        if (commandPlusExeExtension.exists()) {
+            return commandPlusExeExtension
+        }
+
+        return ProcessBuilder()
+            .command("powershell", "-Command", "Get-Command $commandName | % { \$_.Source }")
             .start()
-
-        process.waitFor()
-
-        return process.inputReader().lineSequence()
+            .also { it.waitFor() }
+            .inputReader()
+            .lineSequence()
             .filterNot { it.isBlank() }
             .firstOrNull()
+            ?.let(Paths::get)
     }
 }
 

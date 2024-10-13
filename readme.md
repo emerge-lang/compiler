@@ -57,8 +57,7 @@ sudo /opt/emerge-toolchain/$VERSION/configure.sh
 
 ### Windows
 
-There currently is no easy way to install into windows natively. Use WSL or go through the steps below
-to set up a development environment for the compiler.
+Nothing to do 🎉; the build tool bazel will handle downloading and managing compiler installations for you.
 
 ### Updating
 

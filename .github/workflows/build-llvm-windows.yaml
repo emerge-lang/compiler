@@ -1,7 +1,12 @@
 # Copied from github.com/llvm/llvm-project Actions
 
+env:
+  LLVM_REF: llvmorg-18.1.8
+
 name: "Build LLVM for Windows"
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  workflow_call:
 
 jobs:
   build-llvm-windows:
@@ -19,32 +24,45 @@ jobs:
             echo "Not running on an x86_64 machine, cannot build for x86_64!"
             exit 1
           }
+      - name: cache
+        id: cache
+        uses: actions/cache@v4.1.0
+        with:
+          path: |
+            ${{ env.LLVM_INSTALL_PATH }}
+          key: llvm-built-${{ env.LLVM_REF }}
       - name: Setup Windows
+        if: steps.cache.outputs.cache-hit != 'true'
         uses: llvm/actions/setup-windows@main
         with:
           arch: amd64
       - name: Fetch LLVM sources
+        if: steps.cache.outputs.cache-hit != 'true'
         uses: actions/checkout@v4
         with:
           repository: llvm/llvm-project
-          ref: llvmorg-18.1.5
+          ref: ${{ env.LLVM_REF }}
           fetch-depth: 2
       - name: Setup ccache
+        if: steps.cache.outputs.cache-hit != 'true'
         uses: hendrikmuhs/ccache-action@v1
         with:
           max-size: 500M
           variant: sccache
           key: precommit-windows
       - name: Configure LLVM
+        if: steps.cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           sed -i '/find_package(Git/d' llvm/cmake/modules/AddLLVM.cmake llvm/cmake/modules/VersionFromVCS.cmake
           sed -i '/Generating libLLVM is not supported on MSVC/d' llvm/tools/llvm-shlib/CMakeLists.txt
           sed -i 's/if (NOT Python3_EXECUTABLE/if (TRUE/g' clang/lib/Tooling/CMakeLists.txt
+          # most of these settings i got from javacpp-presets: https://github.com/bytedeco/javacpp-presets/blob/master/llvm/cppbuild.sh
           cmake \
             -G "Ninja" \
             -S llvm \
             -B $LLVM_BUILD_PATH \
+            -DLLVM_BUILD_LLVM_C_DYLIB=ON \
             -DCMAKE_INSTALL_PREFIX=$LLVM_INSTALL_PATH \
             -DCMAKE_EXE_LINKER_FLAGS="/FORCE:MULTIPLE" \
             -DCMAKE_SHARED_LINKER_FLAGS="/FORCE:MULTIPLE" \
@@ -54,10 +72,9 @@ jobs:
             -DLLVM_INCLUDE_TESTS=OFF \
             -DPYTHON_EXECUTABLE="$(where python.exe | head -1)" \
             -DLLVM_ENABLE_ZSTD=OFF \
-            -DLLVM_ENABLE_PROJECTS="llvm;lld" \
-            -DLLVM_ENABLE_RUNTIMES=libunwind \
-            -DLIBUNWIND_ENABLE_SHARED=false
+            -DLLVM_ENABLE_PROJECTS="llvm;lld"
       - name: Build LLVM
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           cd "${{ env.LLVM_BUILD_PATH }}"
           ninja
