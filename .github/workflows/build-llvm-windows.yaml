@@ -61,7 +61,6 @@ jobs:
             -G "Ninja" \
             -S llvm \
             -B $LLVM_BUILD_PATH \
-            -DCMAKE_BUILD_TYPE=Release \
             -DLLVM_BUILD_LLVM_C_DYLIB=ON \
             -DCMAKE_INSTALL_PREFIX=$LLVM_INSTALL_PATH \
             -DCMAKE_EXE_LINKER_FLAGS="/FORCE:MULTIPLE" \
