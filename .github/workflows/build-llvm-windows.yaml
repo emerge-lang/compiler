@@ -57,6 +57,7 @@ jobs:
           sed -i '/find_package(Git/d' llvm/cmake/modules/AddLLVM.cmake llvm/cmake/modules/VersionFromVCS.cmake
           sed -i '/Generating libLLVM is not supported on MSVC/d' llvm/tools/llvm-shlib/CMakeLists.txt
           sed -i 's/if (NOT Python3_EXECUTABLE/if (TRUE/g' clang/lib/Tooling/CMakeLists.txt
+          # most of these settings i got from javacpp-presets: https://github.com/bytedeco/javacpp-presets/blob/master/llvm/cppbuild.sh
           cmake \
             -G "Ninja" \
             -S llvm \

@@ -16,6 +16,12 @@ on:
       tarball-filename:
         description: "Name of the tarball inside the 'tarball' artifact."
         value: "${{ jobs.linux-distributables.outputs.tarball-filename }}"
+      windows-zip-filename:
+        description: "Name of the ZIP archive inside the 'windows-zip' artifact."
+        value: "emerge-toolchain.zip" # is used throughout this workflow, search&replace to change
+      windows-zip-sha256:
+        description: "SHA256 checksum of the ZIP archive inside the 'windows-zip' artifact."
+        value: "${{ jobs.windows-distributables.outputs.zip-sha256 }}"
 
 env:
   GLIBC_SOURCE_BALL_URL: "http://mirror.dogado.de/gnu/libc/glibc-2.38.tar.bz2"
@@ -238,68 +244,60 @@ jobs:
     needs:
       - linux-distributables
       - llvm-build-for-windows
+    outputs:
+      zip-sha256: "${{ steps.pack-zip.outputs.sha256 }}"
     steps:
       - name: get tarball
         uses: actions/download-artifact@v4.1.8
         with:
           run-id: ${{ needs.linux-distributables.run-id }}
           name: tarball
-      - name: cache zulu jre
-        id: zulu-cache
-        uses: actions/cache@v4.1.0
-        with:
-          path: |
-            ${{ github.workspace }}/zulu-jre
-          key: "zulu-jre-${{ env.ZULU_JRE_URL }}"
       - name: download zulu
-        if: steps.zulu-cache.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           mkdir zulu-jre
-          Invoke-WebRequest "${{ env.ZULU_JRE_URL }}" -OutFile zulu-jre\archive.zip
-          Expand-Archive -Path zulu-jre\archive.zip -DestinationPath zulu-jre -Force -PassThru
+          Invoke-WebRequest "${{ env.ZULU_JRE_URL }}" -OutFile zulu-archive.zip
+          Expand-Archive -Path zulu-archive.zip -DestinationPath zulu-jre -Force -PassThru
           
           # the archive contains one directory with the full name of the JRE and version; this is noise not worth predicting
           # instead, we can rename this directory to JRE, which conveniently is also the name the directory and its contents
           # should have on users disks once installed
-          Rename-Item -Path zulu-jre/(Get-ChildItem zulu-jre)[0] jre
-          
-          # Zulu ships with some documentation; that's not needed
-          $files_to_remove = "Welcome.html"
-          foreach ($file in $files_to_remove) {
-            if (Test-Path zulu-jre/jre/$file) {
-              Remove-Item -Path zulu-jre/jre/$file    
-            }
-          }
+          Rename-Item -Path (Get-ChildItem zulu-jre)[0] -NewName jre
       - name: get LLVM binaries
         uses: actions/download-artifact@v4.1.8
         with:
           run-id: "${{ needs.llvm-build-for-windows.run-id }}"
           name: llvm-windows-x86_64
-      - name: create zip
+          path: ${{ github.workspace }}/llvm-install
+      - name: prepare zip
         shell: pwsh
         run: |
           New-Item -Type Directory -Name "archive-root"
           
           # first extract the linux tarball. It doesn't come with much linux-specific stuff, so we can reuse all the
           # code for building it
-          Expand-Archive -Path "${{ needs.linux-distributables.outputs.tarball-filename }}" -DestinationPath "archive-root"
+          tar --directory archive-root -xf "${{ needs.linux-distributables.outputs.tarball-filename }}"
           Remove-Item "archive-root/configure.sh" # this one is linux specific
           
-          New-Item -Type Directory -Path ("archive-root", "llvm") -Name "bin"
+          New-Item -Type Directory -Path "archive-root/llvm" -Name "bin"
           # the LLVM distribution for windows builds THE WHOLE thing. This is needed for development.
           # in actual use, the emerge compiler doesn't use nearly all of the LLVM tools. So there is a lot of
           # disk and network transfer volume to be saved by only re-distributing the bare minimum
-          # TODO: how do we know "llvm-install" is the right source? This needs to be exported by the build-llvm-windows.yaml workflow
-          dir
           Move-Item -Path "llvm-install/bin/ld.lld.exe" "archive-root/llvm/bin/ld.lld.exe"
+          Move-Item -Path "llvm-install/bin/llc.exe" "archive-root/llvm/bin/llc.exe"
           Move-Item -Path "llvm-install/bin/LLVM-C.dll" "archive-root/llvm/bin/LLVM-C.dll"
+          # fix the reference to the LLVM installation directiory
+          (Get-Content archive-root/toolchain-config.yml) -replace '(?<=\s*llvm-installation-directory: ).+','llvm' | Set-Content archive-root/toolchain-config.yml
 
           # redistribute JRE
           Move-Item -Path "zulu-jre/jre" "archive-root/jre"
-          
-          # wrap up
+      - name: pack zip
+        id: pack-zip
+        shell: pwsh
+        run: |
           Get-ChildItem -Path "archive-root" | Compress-Archive -DestinationPath "emerge-toolchain.zip"
+          $hash = Get-FileHash -Algorithm SHA256 "emerge-toolchain.zip"
+          Add-Content -Path "$Env:GITHUB_OUTPUT" -Value "sha256=$hash"
       - name: archive zip
         uses: actions/upload-artifact@v4.4.3
         with:
