@@ -3,6 +3,12 @@ module(
     version = "0.1.0",
 )
 
+# these two lines are syntactically sensitive: the .github/workflows/release.yaml workflows will update these two variables
+# with the correct reference to the release artifacts on all new releases
+_WINDOWS_DOWNLOAD_URL = "https://github.com/emerge-lang/compiler/releases/download/v0.1.0/emerge-toolchain-windows-x86_64-0.1.0.zip"
+
+_WINDOWS_SHA256 = "738003723249C5818300815C5CA8576712271DDBDE918B5796ECA0C4A1D1FBC2"
+
 bazel_dep(name = "platforms", version = "0.0.10")
 bazel_dep(name = "bazel_skylib", version = "1.7.1")
 
@@ -17,7 +23,8 @@ filegroup(
     visibility = ["//visibility:public"],
 )
     """,
-    url = "file:C:\\Users\\tobia\\Downloads\\emerge\\emerge-toolchain.zip",
+    sha256 = _WINDOWS_SHA256,
+    url = _WINDOWS_DOWNLOAD_URL,
 )
 
 register_toolchains(

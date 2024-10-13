@@ -296,7 +296,7 @@ jobs:
         shell: pwsh
         run: |
           Get-ChildItem -Path "archive-root" | Compress-Archive -DestinationPath "emerge-toolchain.zip"
-          $hash = Get-FileHash -Algorithm SHA256 "emerge-toolchain.zip"
+          $hash = (Get-FileHash -Algorithm SHA256 "emerge-toolchain.zip").Hash
           Add-Content -Path "$Env:GITHUB_OUTPUT" -Value "sha256=$hash"
       - name: archive zip
         uses: actions/upload-artifact@v4.4.3
