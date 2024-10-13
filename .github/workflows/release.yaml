@@ -105,7 +105,7 @@ jobs:
           sed \
             --in-place \
             --regexp-extended \
-            's/_WINDOWS_DOWNLOAD_URL\s*=\s*".+?"/_WINDOWS_DOWNLOAD_URL = "https:\/\/github.com\/'$ESCAPED_REPOSITORY'\/compiler\/releases\/download\/${{ inputs.version }}\/${{ needs.prepare-build.outputs.tag }}\/'$WINDOWS_FINAL_FILENAME'"/' \
+            's/_WINDOWS_DOWNLOAD_URL\s*=\s*".+?"/_WINDOWS_DOWNLOAD_URL = "https:\/\/github.com\/'$ESCAPED_REPOSITORY'\/releases\/download\/${{ needs.prepare-build.outputs.tag }}\/'$WINDOWS_FINAL_FILENAME'"/' \
             bazel/rules_emerge/MODULE.bazel
           sed \
             --in-place \
