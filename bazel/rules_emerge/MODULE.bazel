@@ -5,7 +5,7 @@ module(
 
 # these two lines are syntactically sensitive: the .github/workflows/release.yaml workflows will update these two variables
 # with the correct reference to the release artifacts on all new releases
-_WINDOWS_DOWNLOAD_URL = "https://github.com/emerge-lang/compiler/compiler/releases/download/0.2.0-testrelease1/v0.2.0-testrelease1/emerge-toolchain-windows-x86_64-0.2.0-testrelease1.zip"
+_WINDOWS_DOWNLOAD_URL = "https://github.com/emerge-lang/compiler/releases/download/v0.2.0-testrelease2/emerge-toolchain-windows-x86_64-0.2.0-testrelease2.zip"
 
 _WINDOWS_SHA256 = "738003723249C5818300815C5CA8576712271DDBDE918B5796ECA0C4A1D1FBC2"
 
