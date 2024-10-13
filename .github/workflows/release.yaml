@@ -110,7 +110,7 @@ jobs:
           sed \
             --in-place \
             --regexp-extended \
-            's/_WINDOWS_SHA256\s*=\*".+?"/_WINDOWS_SHA256 = "${{ needs.build-releasable-binaries.outputs.windows-zip-sha256 }}"/' \
+            's/_WINDOWS_SHA256\s*=\s*".+?"/_WINDOWS_SHA256 = "${{ needs.build-releasable-binaries.outputs.windows-zip-sha256 }}"/' \
             bazel/rules_emerge/MODULE.bazel
           
           git add bazel/rules_emerge/MODULE.bazel
