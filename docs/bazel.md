@@ -43,6 +43,7 @@ choco install bazelisk
    ```
    common --registry=https://raw.githubusercontent.com/emerge-lang/bazel-registry/refs/heads/main
    common --registry=https://bcr.bazel.build
+   build --platforms=//:linux_x64
    ```
 2. Add a new file `MODULE.bazel` with the following content:
     ```python
@@ -68,8 +69,18 @@ choco install bazelisk
        name = "my_binary",                       # this name is only relevant for invoking bazel
        root_module = "//:com.acme.frobnicator",  # this tells bazel that your executable should contain the com.acme.frobnicator module
    )
+   
+   # this tells bazel to build for linux x86_64; this is needed because bazel would try to
+   # build for the OS+CPU you are running the build on.
+   platform(
+       name = "linux_x64",
+       constraint_values = [
+           "@platforms//os:linux",
+           "@platforms//cpu:x86_64",
+       ],
+   )
    ```
-4. Create the source directory and add some code
+4. Create the source directory
    ```bash
    mkdir src
    ```
@@ -126,8 +137,7 @@ INFO: 3 processes: 2 internal, 1 linux-sandbox.
 INFO: Build completed successfully, 3 total actions
 ````
 
-_If you get an error about a missing toolchian, you either didn't install the emerge toolchain properly or you are
-running the build on a platform other than Linux on an x86_64 CPU. In the latter case, see [Cross-Compilation](#Cross-compilation)._
+_If you get an error about a missing toolchian, double check whether you installed the emerge toolchain properly._
 
 You can see that bazel has put your compiled program at `bazel-bin/x86_64-pc-linux-gnu/runnable`. So now we can run it,
 and it should print "Hello, World!":
@@ -135,6 +145,8 @@ and it should print "Hello, World!":
 ```bash
 bazel-bin/x86_64-pc-linux-gnu/runnable
 ```
+
+*Note: you can't run that on Windows natively, as it's a linux executable. You can with [WSL][WSL] just fine, though :)*
 
 ## Multiple emerge modules
 
@@ -164,28 +176,34 @@ You can now refactor your code to move the core logic into the `lib` subdirector
 
 ## Cross-compilation
 
-Right now, the emerge compiler only supports compiling for `x86_64` on `linux`, so it's not like you have much
-of a choice.  But if you try to run the build e.g. on ARM, bazel will try to build your program for ARM by default. That's just
-how bazel works. To tell bazel to compile for x86_64+linux:
+*See also: https://bazel.build/concepts/platforms*
 
-1. declare a platform in your `BUILD` file
+Right now, the emerge compiler only supports compiling for `x86_64` on `linux`, so it's not like you have much
+of a choice.  But if other targets get supported, you can declare additional `platform`s:
+
+1. remove the default platform setting from `.bazelrc`  
+   *(if you set up the project using this guide, your .bazelrc contains a fixed `--platforms=` setting)*
+1. declare another platform in your `BUILD` file
    ```python
+   # !!! hypothetical - currently not supported!!
    platform(
-       name = "linux_x64",
+       name = "linux_aarch64",          
        constraint_values = [
            "@platforms//os:linux",
-           "@platforms//cpu:x86_64",
+           "@platforms//cpu:aarch64",
        ]
    )
    ```
-2. invoke bazel with `--platforms=//:linux_x64`:
+2. invoke bazel with the different platform:
    ```bash
-   bazelisk build //:my_binary --platforms=//:linux_x64
+   bazelisk build //:my_binary --platforms=//:linux_aarch64
    ```
 
-See also: https://bazel.build/concepts/platforms
-
 ## Accessing the C FFI
+
+**Use with extreme caution! The C FFI is not stable, let alone safe to use. It was never intended to be
+used outside of `emerge.platform`.**  
+**The C FFI may not be accessible in future releases!**
 
 To access the C FFI, you need to declare a dependency on the `emerge.ffi.c` module; otherwise, the emerge compiler
 will not allow you to access the C FFI specific data-types and functions:
@@ -214,3 +232,5 @@ emerge_module(
     ],
 )
 ```
+
+[WSL]: https://learn.microsoft.com/en-us/windows/wsl/install
