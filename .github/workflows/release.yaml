@@ -3,8 +3,11 @@
 # 2. commit&push changed version numbers in the pom.xmls (sigh, but maven forces us to)
 # 3. build the binaries from that commit
 # 4. update the download-url and checksum of the windows binary in the bazel module
-# 5. commit
-# 6. merge back into main, tag that as the final release
+# 5. commit&push
+# 6. create the release, also setting the tag on the release/VERSION branch
+# GitHub actions cannot go further:
+# * workflows cannot push to protected branches, and main needs to be a protected branch
+# * workflows cannot create pull requests, even if you set permissions: pull-requests: write
 
 name: Create Release
 run-name: Release ${{ inputs.version }}
@@ -78,13 +81,15 @@ jobs:
     needs: prepare-build
     with:
       kotlin-ref: "${{ needs.prepare-build.outputs.commit-to-build }}"
-  set-self-references:
+  stage2:
     runs-on: ubuntu-22.04
     needs:
       - prepare-build
       - build-releasable-binaries
     outputs:
       windows-final-filename: "${{ steps.update-bazel.outputs.windows-final-filename }}"
+    permissions:
+      contents: write
     steps:
       - name: checkout release branch
         uses: actions/checkout@v4.2.0
@@ -96,7 +101,7 @@ jobs:
         run: |
           git config user.name "${{ github.actor }}"
           git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
-      - name: update bazel module
+      - name: update bazel module in release branch
         id: update-bazel
         run: |
           WINDOWS_FINAL_FILENAME="emerge-toolchain-windows-x86_64-${{ inputs.version }}.zip"
@@ -115,15 +120,15 @@ jobs:
           
           git add bazel/rules_emerge/MODULE.bazel
           git commit -m "[RELEASE] Update windows archive reference in bazel/rules_emerge"
-          
-          # wrap up release branch
-          git checkout "${{ inputs.from-branch }}"
-          git merge --ff-only "${{ needs.prepare-build.outputs.release-branch }}"
           git push
-          git branch -D "${{ needs.prepare-build.outputs.release-branch }}"
-          git push origin ":${{ needs.prepare-build.outputs.release-branch }}"
+
           git tag "${{ needs.prepare-build.outputs.tag }}"
           git push --tags
+          
+          # i would love to actually merge the release/X branch back into main at this point
+          # but there is no way for the workflow to circumvent branch protection rules, even if a repository admin
+          # triggers the release workflow. So we have to hope for a FF merge
+          # anyhow, the tag is in place, the released commit is safe; so we can go ahead
   deb-package:
     runs-on: ubuntu-24.04
     needs:
@@ -180,7 +185,7 @@ jobs:
       - prepare-build
       - build-releasable-binaries
       - deb-package
-      - set-self-references
+      - stage2
     steps:
       - name: download tarball
         uses: actions/download-artifact@v4.1.8
@@ -207,7 +212,7 @@ jobs:
           name: windows-zip
       - name: rename windows zip for release
         run: |
-          mv "${{ needs.build-releasable-binaries.outputs.windows-zip-filename }}" "${{ needs.set-self-references.outputs.windows-final-filename }}"
+          mv "${{ needs.build-releasable-binaries.outputs.windows-zip-filename }}" "${{ needs.stage2.outputs.windows-final-filename }}"
       - name: create release
         uses: softprops/action-gh-release@v2.0.8
         with:
@@ -218,4 +223,4 @@ jobs:
           files: |
             ${{ steps.release-tarball.outputs.release_tarball_path }}
             ${{ github.workspace }}/${{ needs.deb-package.outputs.deb-filename }}
-            ${{ github.workspace }}/${{ needs.set-self-references.outputs.windows-final-filename }}
+            ${{ github.workspace }}/${{ needs.stage2.outputs.windows-final-filename }}
