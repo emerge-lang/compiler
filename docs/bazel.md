@@ -41,28 +41,32 @@ choco install bazelisk
 
 1. Add a new file `.bazelrc` with the following content:
    ```
-   common --registry=https://raw.githubusercontent.com/emerge-lang/bazel-registry/tree/main
+   common --registry=https://raw.githubusercontent.com/emerge-lang/bazel-registry/refs/heads/main
    common --registry=https://bcr.bazel.build
    ```
 2. Add a new file `MODULE.bazel` with the following content:
     ```python
     bazel_dep(
         name = "rules_emerge",
-        version = "0.1.0",       # !!! replace with the latest version of emerge
+        version = "0.2.0",       # !!! replace with the latest version of emerge
     )
     ```
 3. Add a new file `BUILD` with the following content:
-   ```
+   ```python
+   # imports
+   load("@rules_emerge//:binary.bzl", "emerge_binary")
+   load("@rules_emerge//:emerge_module.bzl", "emerge_module")
+   
    # this tells bazel that there is one emerge module in your project
    emerge_module(
-       name = "com.acme.frobnicator",     # !!! replace with your emerge package name
-       source_director = "src"            # this is where your source files will live, relative to the BUILD file
+       name = "com.acme.frobnicator",      # !!! replace with your emerge package name
+       source_directory = "src"            # this is where your source files will live, relative to the BUILD file
    )
    
    # this tells bazel to compile your emerge module to an executable
    emerge_binary(
-       name = "my_binary",                         # this name is only relevant for invoking bazel
-       root_module = ["//:com.acme.frobnicator"],  # this tells bazel that your executable should contain the com.acme.frobnicator module
+       name = "my_binary",                       # this name is only relevant for invoking bazel
+       root_module = "//:com.acme.frobnicator",  # this tells bazel that your executable should contain the com.acme.frobnicator module
    )
    ```
 4. Create the source directory and add some code
