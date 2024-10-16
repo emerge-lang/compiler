@@ -4,11 +4,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
 2. implement module dependencies and access checks
    1. ~~upgrade the compilers CLI interface to a configuration via a proper config format. NOT YAML! Maybe TOML, maybe PKL. Should have schema~~
    2. ~~implement dependencies between input modules/source sets~~
-       * stdlib depends on platform module provided by backend
-       * modules only have access to things in other modules that they explicitly depend on
+       * ~~stdlib depends on platform module provided by backend~~
+       * ~~modules only have access to things in other modules that they explicitly depend on~~
 3. extend OO model
-   1. class extends class will not be a thing! composition all the way. Probably needs some boilerplate-reduction
-      tools, like Kotlins `by`, but more powerful
+   1. implement `mixin`s
    2. add accessor-based member variables to interfaces
    3. ~~review the vtable approach: does looking for a prefix suffice to keep them small?~~
        * idea 1: put 1s into the bitwise hashes at different, non-harmonic frequencies to generate hard-to-clash patterns
@@ -42,20 +41,11 @@ This file describes the Items that are next on the TODO list. **This list is NOT
      slice. Slicing operations always capture the old slice, stopping the exclusive lifetime and settling the
      sub-slice to either `mut` or `const`
    * apply to standard library, especially IO functions
-6. for each loops over arrays
-   ```
-   for each item in iterable { /* ... */ }
-   // is actually
-   val temp1 = iterable.iterator() // or whatever was decided in step 19
-   while temp1.hasNext() {
-       val item = temp1.next()
-       /* ... */
-   }
-    
-   for each i in 0 .. 10 { /* ... */ }
-   // gets rewritten to
-   for i in 0.rangeTo(10) { /* ... */ }
-   ```
+6. isolate thread-unsafe global state
+   * standard IO. E.g. the `main` function could receive an optional parameter that carries with it fields
+     that hold stdin, stdout, stderr. At a later point, these can be sent to other workers/threads. That would
+     require a builtin that asserts a certain stack-variable is exclusive, but that doesn't seem impossible to provide.
+   * anything else to take care of?
 7. Stdlib basics
    * some good standard collections
    * ArrayList, LinkedList, (De)Queue, Stack, ...
@@ -65,9 +55,10 @@ This file describes the Items that are next on the TODO list. **This list is NOT
      * interpolation like in Kotlin instead of concatenation like in Java or D
      * make that work with the Printable interface. So e.g. a template "a ${x} b ${y} c" desugars to an
        memory-buffered printstream, with calls to put of "a ", x.printTo(...), " b ", y.printTo(...), " c"
-   * remote print and println functions and instead expose the emerge.platform.StandardOut and StandardError
-     variables
-     * add emerge.platform.StandardIn for good measure
+   * I/O facilities. These should be blocking-style for now. It's the simplets to implement. Plus: if emerge ever
+     adds async task orchestration, it will be either full-blown coroutines (all code is a coroutine, like in go)
+     or futures. Futures is a major rewrite of emerge code anyhow, but changing block IO to coroutine IO is transparent
+     to the emerge code.
 8. ALPHA TESTABLE MILESTONE; At this point, the language should be powerful enough to tackle advent of code challenges.
    Todo: actually try and solve some!
 9. integration tests!! Include emerge source code in this repository that tests the runtime and correct compilation.
@@ -84,11 +75,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       * llvm patterns
       * debugging techniques
 11. user tooling
-    * ~~installable packages that handle upgrades/multiple parallel versions, too~~
-      * windows
-      * ~~debian~~
-    * ~~CLI interface for the compiler~~
     * language server and VSCode plugin
+    * think about an assistant, 
 12. runtime checks for generic parameters
     * does that need to be enabled by the programmer? Could be e.g. `class Array<reflect T>` if necessary
     * how to represent at runtime?
@@ -102,13 +90,28 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       4. implement that isSubtypeOf check into the `is` and `as` operators. Afterwards, an `Array<String>`
          must not possibly be referenced as an `Array<S8>`
 13. Function types
-    1. `operator fun invoke`: `obj(param)` to `obj.invoke(param)`
-    2. Regular functions: `(T1, T2) -> R`
-    3. do we need functions with receiver? Or is receiver/self VS regular parameter just a syntax
-       thing on the declaration side?
-    4. deal with the higher-order function purity problem: do functions need to be generic on purity?
-    5. extend InvocationExpression
-    6. implement `objectRef.foo()` where `foo` is a property of a function type
+    1. add function types to the grammar and type system.
+       * do it like Kotlin where function types are syntax sugar for `FunctionN<...>`?
+         (`(A, B) -> C = emerge.core.Function2<A, B, C>`)
+    2. deal with the higher-order function purity problem: do functions need to be generic on purity?
+       * probably not. The compiler needs to implement parameteric side effects internally, but in the emerge language
+         we can probably void that complexity. The trick is: we have the language concept of `borrow` already. If a
+         function borrows a value of a function type, it HAS to invoke that function zero-or-more times during its own
+         execution, and cannot possibly invoke it later. So the side-effect only needs to be tracked during the invocation
+         of the higher-order function. Thus, we get a simple heuristic: 
+         if a function receives a parameter that is of a function type, and that parameter is borrowed: add a hidden
+         side-effect parameter to the function that is also applied to the parameter;
+         e.g. `fn foo(borrow a: () -> Unit)` gets an internal representation of `E fun foo<effect E>(borrow a: E () -> Unit)`
+    3. implement references to top-level functions
+    4. implement `foo()` where `foo` is an expression of a function type
+       * !! edge case: `objectRef.foo()` where `foo` is a property of a function type
+    5. implement lambda functions
+       * syntax idea
+         * single expression lambda: `fn (a, b) -> a + b`
+         * code-chunk lambda: `fn (a, b) -> { ... ; ... ; return x }`
+         * what about implicit `it` for single-parameter function types? `fn -> it.foo` and `fn { it.foo }`?
+    6. implement last-argument lambdas like in Kotlin?
+       * `fn a(p1: S32, p2: () -> Unit)` and invoke like `a(3) { /* lambda body */ }`
 14. functional-style collection operations (possible because the higher-order function purity problem is solved)
     1. start simple with forEach
     2. go on with filter, map, fold, ...
@@ -119,7 +122,6 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * for this, the logic to determine where reference counts are needed must move from the LLVM backend to
       the frontend; the frontend has the tools to deal with the complexity, the backend doesn't. Especially
       temporary values are BAD offenders
-17. some stdlib primitives for filesystem IO
 18. typealiases
 19. smart casts
 20. fix loophole in the typesystem: the `exclusive` modifier becomes incorrect in this code:
@@ -160,7 +162,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * there should be ready-made open-source Erlang-like channel implementations in C that the stdlib can
       use, making it feasible to implement
     * This complicates lambda literals that capture values by reference. Is it possible to copy these?
-      Or should lambda literals that capture references have `readout` mutability to prevent them from being
+      Or should lambda literals that capture references have `read` mutability to prevent them from being
       sent across threads? This is important to get a decent WorkerThread/ForkJoinPool API.
     * On the matter of ForkJoin/WorkerThread: this would necessitate a Futures API:
       ```
@@ -187,6 +189,8 @@ with algebraic data types to form Java-Like enums:
     typealias Enum = A | B | C
 
 Implementing interfaces is handy for modelling state external to the program:
+_!! how to prevent race conditions in the external resource when multiple emerge threads/actors are mutating
+the same atom?_
 
     atom StandardOut : PrintStream {
         override fn put(self: mut _, string: String) {
