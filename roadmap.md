@@ -55,9 +55,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
      * interpolation like in Kotlin instead of concatenation like in Java or D
      * make that work with the Printable interface. So e.g. a template "a ${x} b ${y} c" desugars to an
        memory-buffered printstream, with calls to put of "a ", x.printTo(...), " b ", y.printTo(...), " c"
-   * I/O facilities. These should be blocking-style for now. It's the simplets to implement. Plus: if emerge ever
+   * I/O facilities. These should be blocking-style for now. It's the simplest to implement. Plus: if emerge ever
      adds async task orchestration, it will be either full-blown coroutines (all code is a coroutine, like in go)
-     or futures. Futures is a major rewrite of emerge code anyhow, but changing block IO to coroutine IO is transparent
+     or futures. Futures is a major rewrite of emerge code anyhow, but changing blocking IO to coroutine IO is transparent
      to the emerge code.
 8. ALPHA TESTABLE MILESTONE; At this point, the language should be powerful enough to tackle advent of code challenges.
    Todo: actually try and solve some!
@@ -76,7 +76,12 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       * debugging techniques
 11. user tooling
     * language server and VSCode plugin
-    * think about an assistant, 
+    * think about an assistant, e.g. taking care of these tasks
+      * manage installed toolchain versions, at least on linux
+      * automate grunt work like
+        * setting up a new project including bazel build
+        * adding modules or dependencies to existing projects
+        * if emerge ecosystem/libraries are already a thing: manage dependencies
 12. runtime checks for generic parameters
     * does that need to be enabled by the programmer? Could be e.g. `class Array<reflect T>` if necessary
     * how to represent at runtime?
@@ -240,6 +245,61 @@ read class Weak<T> { }
 
 For `Weak`, this is a bit tricky. `read` is the middle ground between `const` and `mut`, so declaring a
 class as `read` doesn't say to which side it should gravitate. It might need to be `read|mut class Weak<T>`
+
+### API comparison tool
+
+A tool that can compare the source-code API of two modules. This can fulfill two use cases:
+
+#### Help with library versioning
+
+When releasing a new version of a library that is of the same major version as the previous release, automated tooling can
+assist in assuring backwards compatibility by ensuring the new version doesn't break any source-level APIs. This could work
+as a tool that can be given two versions of the same module and would output:
+
+```
+class ToolOutput {
+  breakingChanges: List<ApiChange> = init
+}
+
+interface ApiChange {
+	location: Span
+	message: String
+}
+// and then e.g.
+class TypeRemoved : ApiChange {
+	name: CanonicalElementName
+	override message = "Type ${name.simpleName} is no longer available."
+}
+
+// given
+class Span {
+	file: String = init
+	fromLine: S32 = init
+	fromColumn: S32 = init
+	toLine: S32 = init
+	toColumn: S32 = init
+}
+```
+
+So, to the user, it could be shown like this:
+
+```
+[ERROR] Breaking change in minor version release: Type com.foo.bar.Frobnicator is no longer available.
+
+in previous/src/Frobnicator.em:
+   9 |
+  10 | class Frobnicator {
+     |       ^^^^^^^^^^^
+  11 |
+```
+
+#### Assuring portability of emerge code
+
+The `emerge.platform` module already has it's API defined in [backend-api](backend-api/src/main/emerge/noop-backend-platform).
+To assure that code outside of `emerge.platform` remains portable, the build process of the compiler should assure
+that all implementations of `emerge.platform` expose the **exact same** API as the abstract module. This makes sure that
+all platforms implement the complete API, **plus** it makes it impossible for some emerge code to be tied to a specific
+platform because the platform is not allowed to expose APIs exclusive to itself.
 
 ### Invariants
 
