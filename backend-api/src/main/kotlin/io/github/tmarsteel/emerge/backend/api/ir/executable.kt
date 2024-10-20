@@ -80,10 +80,10 @@ interface IrAssignmentStatement : IrExecutable {
             val declaration: IrVariableDeclaration
             override val type: IrType get() = declaration.type
         }
-        interface ClassMemberVariable : Target {
+        interface ClassField : Target {
             val objectValue: IrTemporaryValueReference
-            val memberVariable: IrClass.MemberVariable
-            override val type: IrType get() = memberVariable.type
+            val field: IrClass.Field
+            override val type: IrType get() = this.field.type
         }
     }
 }
@@ -175,7 +175,7 @@ interface IrDeallocateObjectStatement : IrExecutable {
  * reference needs to be registered with the referred object.
  */
 interface IrRegisterWeakReferenceStatement : IrExecutable {
-    val referenceStoredIn: IrAssignmentStatement.Target.ClassMemberVariable
+    val referenceStoredIn: IrAssignmentStatement.Target.ClassField
     val referredObject: IrTemporaryValueReference
 }
 
@@ -184,7 +184,7 @@ interface IrRegisterWeakReferenceStatement : IrExecutable {
  * reference needs to be de-registered with the referred object.
  */
 interface IrUnregisterWeakReferenceStatement : IrExecutable {
-    val referenceStoredIn: IrAssignmentStatement.Target.ClassMemberVariable
+    val referenceStoredIn: IrAssignmentStatement.Target.ClassField
     val referredObject: IrTemporaryValueReference
 }
 

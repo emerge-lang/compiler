@@ -2,7 +2,7 @@ package io.github.tmarsteel.emerge.backend.llvm
 
 import com.google.common.collect.MapMaker
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
-import io.github.tmarsteel.emerge.backend.api.ir.IrClassMemberVariableAccessExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrClassFieldAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -46,10 +46,10 @@ internal sealed interface Autoboxer {
     val omitConstructorAndDestructor: Boolean
 
     /**
-     * to be invoked on the [Autoboxer] of the [IrClassMemberVariableAccessExpression.base]s type. If this function
+     * to be invoked on the [Autoboxer] of the [IrClassFieldAccessExpression.base]s type. If this function
      * returns `true` the [readAccess] must be rewritten using [rewriteAccessIntoTheBox].
      */
-    fun isAccessingIntoTheBox(context: EmergeLlvmContext, readAccess: IrClassMemberVariableAccessExpression): Boolean
+    fun isAccessingIntoTheBox(context: EmergeLlvmContext, readAccess: IrClassFieldAccessExpression): Boolean
 
     /**
      * @see isAccessingIntoTheBox
@@ -57,7 +57,7 @@ internal sealed interface Autoboxer {
      * @return the unboxed value
      */
     context(BasicBlockBuilder<EmergeLlvmContext, *>)
-    fun rewriteAccessIntoTheBox(readAccess: IrClassMemberVariableAccessExpression): LlvmValue<*>
+    fun rewriteAccessIntoTheBox(readAccess: IrClassFieldAccessExpression): LlvmValue<*>
 
     /**
      * Given a value of the type this autoboxer is responsible for should be stored in a reference of type [IrType].
@@ -106,11 +106,11 @@ internal sealed interface Autoboxer {
 
         override fun isAccessingIntoTheBox(
             context: EmergeLlvmContext,
-            readAccess: IrClassMemberVariableAccessExpression
+            readAccess: IrClassFieldAccessExpression
         ): Boolean = false
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
-        override fun rewriteAccessIntoTheBox(readAccess: IrClassMemberVariableAccessExpression): LlvmValue<*> {
+        override fun rewriteAccessIntoTheBox(readAccess: IrClassFieldAccessExpression): LlvmValue<*> {
             throw UnsupportedOperationException("cannot access into an unboxed type")
         }
 
@@ -141,7 +141,7 @@ internal sealed interface Autoboxer {
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
         override fun unbox(llvmValue: LlvmValue<*>): LlvmValue<*> {
             val boxedType = getBoxedType(context)
-            val valueHolderMember = boxedType.irClass.memberVariables.single { it.name == boxValueHoldingMemberVariableName }
+            val valueHolderMember = boxedType.irClass.fields.single()
             val valueAsBoxPtr = llvmValue.reinterpretAs(pointerTo(boxedType))
             return getelementptr(valueAsBoxPtr)
                 .member(valueHolderMember)
@@ -174,14 +174,14 @@ internal sealed interface Autoboxer {
 
         override fun isAccessingIntoTheBox(
             context: EmergeLlvmContext,
-            readAccess: IrClassMemberVariableAccessExpression
+            readAccess: IrClassFieldAccessExpression
         ): Boolean {
             check(readAccess.base.type.autoboxer === this)
-            return readAccess.memberVariable.name in memberVariableMappings
+            return readAccess.memberVariable?.name in memberVariableMappings
         }
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
-        override fun rewriteAccessIntoTheBox(readAccess: IrClassMemberVariableAccessExpression): LlvmValue<*> {
+        override fun rewriteAccessIntoTheBox(readAccess: IrClassFieldAccessExpression): LlvmValue<*> {
             val baseValue = readAccess.base.declaration.llvmValue
             check(baseValue.type is LlvmPointerType<*> && baseValue.type.pointed is TypeinfoType) {
                 "cannot rewrite this access, base value needs to be a pointer to typeinfo"
@@ -191,7 +191,7 @@ internal sealed interface Autoboxer {
 
             return getelementptr(baseValue)
                 .member {
-                    memberVariableMappings.getValue(readAccess.memberVariable.name).invoke(this) as LlvmStructType.Member<TypeinfoType, LlvmType>
+                    memberVariableMappings.getValue(readAccess.memberVariable!!.name).invoke(this) as LlvmStructType.Member<TypeinfoType, LlvmType>
                 }
                 .get()
                 .dereference()
@@ -240,6 +240,10 @@ internal sealed interface Autoboxer {
         override fun unbox(llvmValue: LlvmValue<*>): LlvmValue<*> {
             val boxedType = getBoxedType(context)
             val valueHolderMember = boxedType.irClass.memberVariables.single { it.name == "value" }
+                .readStrategy
+                .let { it as IrClass.MemberVariable.AccessStrategy.BareField }
+                .let { accessStrat -> boxedType.irClass.fields.single { it.id == accessStrat.fieldId } }
+
             val valueAsBoxPtr = llvmValue.reinterpretAs(pointerTo(boxedType))
             return getelementptr(valueAsBoxPtr)
                 .member(valueHolderMember)
@@ -271,14 +275,14 @@ internal sealed interface Autoboxer {
 
         override fun isAccessingIntoTheBox(
             context: EmergeLlvmContext,
-            readAccess: IrClassMemberVariableAccessExpression,
+            readAccess: IrClassFieldAccessExpression,
         ): Boolean {
             check(readAccess.base.type.autoboxer === this)
-            return readAccess.memberVariable.name == memberVariableNameToAccessUnboxedValue
+            return readAccess.memberVariable?.name == memberVariableNameToAccessUnboxedValue
         }
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
-        override fun rewriteAccessIntoTheBox(readAccess: IrClassMemberVariableAccessExpression): LlvmValue<*> {
+        override fun rewriteAccessIntoTheBox(readAccess: IrClassFieldAccessExpression): LlvmValue<*> {
             // currently this has to work for CPointer<T> only
 
             val resultAutoboxer = readAccess.evaluatesTo.autoboxer
@@ -297,7 +301,7 @@ internal sealed interface Autoboxer {
         fun getConstructorIntrinsic(context: EmergeLlvmContext, name: CanonicalElementName.Function): LlvmFunction<LlvmPointerType<EmergeClassType>> {
             return constructorByContext.computeIfAbsent(context) { _ ->
                 val emergeClazz = getBoxedType(context)
-                require(emergeClazz.irClass.memberVariables.size == 1)
+                require(emergeClazz.irClass.fields.size == 1)
                 val template = KotlinLlvmFunction.define<EmergeLlvmContext, LlvmPointerType<EmergeClassType>>(
                     name.toString(),
                     pointerTo(emergeClazz),
@@ -306,7 +310,7 @@ internal sealed interface Autoboxer {
 
                     body {
                         val heapAllocation = emergeClazz.allocateUninitializedDynamicObject(this)
-                        store(unboxedValue, getelementptr(heapAllocation).member(emergeClazz.irClass.memberVariables.single()).get())
+                        store(unboxedValue, getelementptr(heapAllocation).member(emergeClazz.irClass.fields.single()).get())
                         ret(heapAllocation)
                     }
                 }

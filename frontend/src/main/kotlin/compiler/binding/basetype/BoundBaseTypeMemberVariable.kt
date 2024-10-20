@@ -34,6 +34,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 class BoundBaseTypeMemberVariable(
     val context: ExecutionScopedCTContext,
     val declaration: BaseTypeMemberVariableDeclaration,
+    private val getTypeDef: () -> BoundBaseType,
 ) : BoundBaseTypeEntry<BaseTypeMemberDeclaration>, DefinitionWithVisibility {
     val name = declaration.name.value
     override val declaredAt = declaration.span
@@ -58,7 +59,6 @@ class BoundBaseTypeMemberVariable(
     val initializer: BoundExpression<*>? = boundEffectiveVariableDeclaration.initializerExpression
 
     val modifiedContext: ExecutionScopedCTContext get() = boundEffectiveVariableDeclaration.modifiedContext
-
 
     /**
      * The type of this member in the context of the hosting data structure. It still needs to
@@ -102,17 +102,37 @@ class BoundBaseTypeMemberVariable(
         return reportings
     }
 
+    lateinit var field: BaseTypeField
+        private set
+
+    /**
+     * Assures [field] is initialized. Must only be called after semantic analysis is successfully completed.
+     */
+    fun assureFieldAllocated() {
+        if (!this::field.isInitialized) {
+            field = getTypeDef().allocateField(this.type!!)
+        }
+    }
+
     override fun validateAccessFrom(location: Span): Collection<Reporting> {
         return visibility.validateAccessFrom(location, this)
     }
 
     override fun toStringForErrorMessage() = "member variable $name"
 
-    private val _backendIr by lazy { IrClassMemberVariableImplVariable(name, type!!.toBackendIr()) }
+    private val _backendIr by lazy {
+        IrClassMemberVariableImpl(name, type!!.toBackendIr(), field.id)
+    }
     fun toBackendIr(): IrClass.MemberVariable = _backendIr
 }
 
-private class IrClassMemberVariableImplVariable(
+private class IrClassMemberVariableImpl(
     override val name: String,
     override val type: IrType,
-) : IrClass.MemberVariable
+    private val fieldId: Int,
+) : IrClass.MemberVariable {
+    override val readStrategy = object : IrClass.MemberVariable.AccessStrategy.BareField {
+        override val fieldId: Int = this@IrClassMemberVariableImpl.fieldId
+    }
+    override val writeStrategy = readStrategy
+}

@@ -117,7 +117,7 @@ class VTableAlgorithmTest : FreeSpec({
                                     override val supportsDynamicDispatch = true
                                 })
                             }
-                        override val memberVariables = emptyList<IrClass.MemberVariable>()
+                        override val fields = emptyList<IrClass.Field>()
                         override val constructor = mockk<IrFunction>()
                         override val destructor = mockk<IrFunction>()
                     }
@@ -184,7 +184,7 @@ private abstract class MockCoreType(simpleName: String) : IrClass {
     )
     override val parameters = emptyList<IrBaseType.Parameter>()
     override val memberFunctions = emptyList<IrOverloadGroup<IrMemberFunction>>()
-    override val memberVariables = emptyList<IrClass.MemberVariable>()
+    override val fields = emptyList<IrClass.Field>()
     override val constructor: IrFunction = mockk()
     override val destructor: IrFunction = mockk()
 }

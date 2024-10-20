@@ -85,8 +85,13 @@ private fun BasicBlockBuilder<EmergeLlvmContext, *>.printEmergeString(
     printer: (LlvmValue<LlvmPointerType<*>>, LlvmValue<EmergeWordType>) -> Unit,
     stringPtr: LlvmValue<LlvmPointerType<out EmergeHeapAllocated>>,
 ) {
+    val utf8DataField = context.stringType.irClass.memberVariables
+        .single { it.name == "utf8Data" }
+        .let { it.readStrategy as IrClass.MemberVariable.AccessStrategy.BareField }
+        .let { readStrat -> context.stringType.irClass.fields.single { it.id == readStrat.fieldId } }
+
     val pointerToMessageDataArray = getelementptr(stringPtr.reinterpretAs(pointerTo(context.stringType)))
-        .member(context.stringType.irClass.memberVariables.single { it.name == "utf8Data" })
+        .member(utf8DataField)
         .get()
         .dereference()
         .reinterpretAs(pointerTo(EmergeS8ArrayType))

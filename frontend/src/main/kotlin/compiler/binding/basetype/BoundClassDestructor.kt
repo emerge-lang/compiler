@@ -17,7 +17,7 @@ import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
-import compiler.binding.expression.IrClassMemberVariableAccessExpressionImpl
+import compiler.binding.expression.IrClassFieldAccessExpressionImpl
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
@@ -146,9 +146,9 @@ class BoundClassDestructor(
                 selfTemporary,
                 classDef.memberVariables.single().let { holderMemberVar ->
                     val referredObjectTemporary = IrCreateTemporaryValueImpl(
-                        IrClassMemberVariableAccessExpressionImpl(
+                        IrClassFieldAccessExpressionImpl(
                             IrTemporaryValueReferenceImpl(selfTemporary),
-                            holderMemberVar.toBackendIr(),
+                            holderMemberVar.field.toBackendIr(),
                             holderMemberVar.type!!.toBackendIr(),
                         )
                     )
@@ -170,9 +170,9 @@ class BoundClassDestructor(
             selfTemporary,
             IrCodeChunkImpl(classDef.memberVariables.flatMap { memberVar ->
                 val memberTemporary = IrCreateTemporaryValueImpl(
-                    IrClassMemberVariableAccessExpressionImpl(
+                    IrClassFieldAccessExpressionImpl(
                         IrTemporaryValueReferenceImpl(selfTemporary),
-                        memberVar.toBackendIr(),
+                        memberVar.field.toBackendIr(),
                         memberVar.type!!.toBackendIr(),
                     )
                 )
@@ -216,9 +216,9 @@ private class IrUnregisterWeakReferenceStatementImpl(
     weakObjectTemporary: IrTemporaryValueReference,
     referredObjectTemporary: IrTemporaryValueReference,
 ) : IrUnregisterWeakReferenceStatement {
-    override val referenceStoredIn = object : IrAssignmentStatement.Target.ClassMemberVariable {
+    override val referenceStoredIn = object : IrAssignmentStatement.Target.ClassField {
         override val objectValue = weakObjectTemporary
-        override val memberVariable = holderMemberVariable.toBackendIr()
+        override val field = holderMemberVariable.field.toBackendIr()
     }
 
     override val referredObject = referredObjectTemporary

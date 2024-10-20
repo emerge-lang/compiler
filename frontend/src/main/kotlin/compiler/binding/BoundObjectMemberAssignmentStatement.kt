@@ -136,8 +136,8 @@ class BoundObjectMemberAssignmentStatement(
             toAssignRefIncrement,
             dropPreviousReferenceCode,
             IrAssignmentStatementImpl(
-                IrAssignmentStatementTargetClassMemberVariableImpl(
-                    targetExpression.member!!.toBackendIr(),
+                IrAssignmentStatementTargetClassFieldImpl(
+                    targetExpression.member!!.field.toBackendIr(),
                     IrTemporaryValueReferenceImpl(baseTemporary),
                 ),
                 IrTemporaryValueReferenceImpl(toAssignTemporary),
@@ -148,7 +148,7 @@ class BoundObjectMemberAssignmentStatement(
     }
 }
 
-internal class IrAssignmentStatementTargetClassMemberVariableImpl(
-    override val memberVariable: IrClass.MemberVariable,
+internal class IrAssignmentStatementTargetClassFieldImpl(
+    override val field: IrClass.Field,
     override val objectValue: IrTemporaryValueReference,
-) : IrAssignmentStatement.Target.ClassMemberVariable
+) : IrAssignmentStatement.Target.ClassField

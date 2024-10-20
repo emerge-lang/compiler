@@ -384,15 +384,14 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementSetterWithFallibleB
         val valueBoxAny by param(PointerToAnyEmergeValue)
         body {
             val boxType = getBoxType(context)
-            val valueMember = boxType.irClass.memberVariables.single()
-            check(valueMember.name == "value")
+            val valueMember = boxType.irClass.fields.single()
             check(context.getReferenceSiteType(valueMember.type) == arrayType.elementType)
 
             val valueBox = valueBoxAny.reinterpretAs(pointerTo(boxType))
 
             inlineFallibleBoundsCheck(self, index)
             val raw = getelementptr(valueBox)
-                .member(boxType.irClass.memberVariables.single())
+                .member(boxType.irClass.fields.single())
                 .get()
                 .dereference()
                 .reinterpretAs(arrayType.elementType)
@@ -422,15 +421,14 @@ private fun <Element : LlvmType> buildValueArrayBoxingElementSetterWithPanicBoun
         val valueBoxAny by param(PointerToAnyEmergeValue)
         body {
             val boxType = getBoxType(context)
-            val valueMember = boxType.irClass.memberVariables.single()
-            check(valueMember.name == "value")
+            val valueMember = boxType.irClass.fields.single()
             check(context.getReferenceSiteType(valueMember.type) == arrayType.elementType)
 
             val valueBox = valueBoxAny.reinterpretAs(pointerTo(boxType))
 
             inlinePanicBoundsCheck(self, index)
             val raw = getelementptr(valueBox)
-                .member(boxType.irClass.memberVariables.single())
+                .member(boxType.irClass.fields.single())
                 .get()
                 .dereference()
                 .reinterpretAs(arrayType.elementType)

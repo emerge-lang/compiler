@@ -20,10 +20,21 @@ package compiler.ast
 
 import compiler.InternalCompilerError
 import compiler.ast.AstSupertypeList.Companion.bindTo
-import compiler.ast.type.*
+import compiler.ast.type.TypeArgument
+import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeParameter
+import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundVisibility
-import compiler.binding.basetype.*
+import compiler.binding.basetype.BoundBaseType
+import compiler.binding.basetype.BoundBaseTypeEntry
+import compiler.binding.basetype.BoundBaseTypeMemberVariable
+import compiler.binding.basetype.BoundClassConstructor
+import compiler.binding.basetype.BoundClassDestructor
+import compiler.binding.basetype.BoundDeclaredBaseTypeMemberFunction
+import compiler.binding.basetype.BoundSupertypeDeclaration
+import compiler.binding.basetype.BoundSupertypeList
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableCTContext
@@ -73,7 +84,7 @@ class BaseTypeDeclaration(
         // the entries must retain their order, for semantic and linting reasons
         val boundEntries = entryDeclarations
             .map<BaseTypeEntryDeclaration, BoundBaseTypeEntry<*>> { entry -> when (entry) {
-                is BaseTypeMemberVariableDeclaration -> entry.bindTo(memberVariableInitializationContext)
+                is BaseTypeMemberVariableDeclaration -> entry.bindTo(memberVariableInitializationContext, typeDefAccessor)
                 is BaseTypeConstructorDeclaration -> {
                     entry.bindTo(fileContextWithTypeParams, boundTypeParameters, typeDefAccessor)
                 }
@@ -130,10 +141,11 @@ class BaseTypeMemberVariableDeclaration(
     override val span = variableDeclaration.declaredAt
     override val name = variableDeclaration.name
 
-    fun bindTo(context: ExecutionScopedCTContext): BoundBaseTypeMemberVariable {
+    fun bindTo(context: ExecutionScopedCTContext, getTypeDef: () -> BoundBaseType): BoundBaseTypeMemberVariable {
         return BoundBaseTypeMemberVariable(
             context,
             this,
+            getTypeDef,
         )
     }
 }

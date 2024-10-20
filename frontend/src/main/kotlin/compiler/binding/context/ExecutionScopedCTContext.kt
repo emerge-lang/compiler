@@ -7,10 +7,11 @@ import compiler.binding.BoundExecutable
 import compiler.binding.BoundLoop
 import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
-import compiler.binding.basetype.BoundBaseTypeMemberVariable
+import compiler.binding.basetype.BaseTypeField
 import compiler.binding.basetype.BoundMixinStatement
 import compiler.binding.context.effect.EphemeralStateClass
 import compiler.binding.context.effect.SideEffect
+import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import compiler.util.TakeWhileAndNextIterator.Companion.takeWhileAndNext
@@ -113,7 +114,7 @@ interface ExecutionScopedCTContext : CTContext {
      * `null` iff the mixin is not legal in this context. In that case, the reason has been added to [diagnosis]
      * by [registerMixin].
      */
-    fun registerMixin(mixinStatement: BoundMixinStatement, diagnosis: Diagnosis): BoundBaseTypeMemberVariable?
+    fun registerMixin(mixinStatement: BoundMixinStatement, diagnosis: Diagnosis): MixinRegistration?
 
     /**
      * @see [ExecutionScopedCTContext.repetitionRelativeToParent]
@@ -129,6 +130,19 @@ interface ExecutionScopedCTContext : CTContext {
         /** loop bodies that **can** be proven at compile time to execute at least once, e.g. do-while loop bodies */
         ONCE_OR_MORE(true),
         ;
+    }
+
+    interface MixinRegistration {
+        /**
+         * Sets the type of the mixed-in object. Can only be called once.
+         */
+        fun setType(type: BoundTypeReference)
+
+        /**
+         * To be called during IR generation. Must be called after [setType]
+         * @return the field where the mixin can store the reference to the mixed-in object.
+         */
+        fun obtainField(): BaseTypeField
     }
 }
 
@@ -321,7 +335,7 @@ open class MutableExecutionScopedCTContext protected constructor(
             ?.loopNode
     }
 
-    override fun registerMixin(mixinStatement: BoundMixinStatement, diagnosis: Diagnosis): BoundBaseTypeMemberVariable? {
+    override fun registerMixin(mixinStatement: BoundMixinStatement, diagnosis: Diagnosis): ExecutionScopedCTContext.MixinRegistration? {
         if (parentContext !is ExecutionScopedCTContext) {
             diagnosis.add(Reporting.mixinNotAllowed(mixinStatement))
             return null

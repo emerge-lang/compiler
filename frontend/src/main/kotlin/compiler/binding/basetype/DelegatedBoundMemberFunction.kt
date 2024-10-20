@@ -91,7 +91,7 @@ class DelegatedBoundMemberFunction(
     private val backendIr by lazy {
         IrDelegatingMemberFunctionImpl(
             inheritedFn.supertypeMemberFn.toBackendIr(),
-            delegatedTo!!.toBackendIr(),
+            delegatedTo!!.field.toBackendIr(),
             boundDelegationBody!!.toBackendIrStatement(),
         )
     }
@@ -105,7 +105,7 @@ class DelegatedBoundMemberFunction(
 
 private class IrDelegatingMemberFunctionImpl(
     override val superFunction: IrMemberFunction,
-    override val delegatesTo: IrClass.MemberVariable,
+    override val delegatesTo: IrClass.Field,
     override val body: IrCodeChunk,
 ) : IrDelegatingMemberFunction, IrMemberFunction by superFunction {
 }

@@ -9,8 +9,8 @@ import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
-import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Diagnosis
@@ -52,21 +52,13 @@ class BoundMixinStatement(
     /**
      * Initialized during [semanticAnalysisPhase2]
      */
-    var delegateMemberVariable: BoundBaseTypeMemberVariable? = null
-        private set
+    private var registration: ExecutionScopedCTContext.MixinRegistration? = null
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return seanHelper.phase2 {
             val reportings = expression.semanticAnalysisPhase2().toMutableSet()
             expression.type?.evaluateAssignabilityTo(expectedType, expression.declaration.span)?.let(reportings::add)
-            delegateMemberVariable = context.registerMixin(this, Diagnosis.addingTo(reportings))
-            delegateMemberVariable?.let { memberVar ->
-                reportings.addAll(memberVar.semanticAnalysisPhase1())
-                reportings.addAll(memberVar.semanticAnalysisPhase2())
-
-                val selfVar = context.resolveVariable("self", true)!!
-                modifiedContext.trackSideEffect(PartialObjectInitialization.Effect.WriteToMemberVariableEffect(selfVar, memberVar))
-            }
+            registration = context.registerMixin(this, Diagnosis.addingTo(reportings))
             expression.markEvaluationResultCaptured(TypeMutability.EXCLUSIVE)
             return@phase2 reportings
         }
@@ -79,7 +71,6 @@ class BoundMixinStatement(
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return seanHelper.phase3 {
             val reportings = expression.semanticAnalysisPhase3().toMutableSet()
-            delegateMemberVariable?.semanticAnalysisPhase3()?.let(reportings::addAll)
             return@phase3 reportings
         }
     }
@@ -93,7 +84,7 @@ class BoundMixinStatement(
     }
 
     override fun toBackendIrStatement(): IrExecutable {
-        // TODO
+
         return IrCodeChunkImpl(emptyList())
     }
 }

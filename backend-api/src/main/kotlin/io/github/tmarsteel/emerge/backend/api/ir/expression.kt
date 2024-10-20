@@ -185,9 +185,9 @@ interface IrDynamicDispatchFunctionInvocationExpression : IrInvocationExpression
     override val function: IrMemberFunction
 }
 
-interface IrClassMemberVariableAccessExpression : IrExpression {
+interface IrClassFieldAccessExpression : IrExpression {
     val base: IrTemporaryValueReference
-    val memberVariable: IrClass.MemberVariable
+    val field: IrClass.Field
 }
 
 interface IrVariableAccessExpression : IrExpression {

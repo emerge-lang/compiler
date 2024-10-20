@@ -24,7 +24,7 @@ internal fun EmergeLlvmContext.emergeStringLiteral(utf8Bytes: ByteArray): LlvmGl
     )
     val byteArrayGlobal = addGlobal(byteArrayConstant, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
     val stringLiteralConstant = stringType.buildStaticConstant(mapOf(
-        stringType.irClass.memberVariables.single() to byteArrayGlobal
+        stringType.irClass.fields.single() to byteArrayGlobal
     ))
     return addGlobal(stringLiteralConstant, LlvmThreadLocalMode.NOT_THREAD_LOCAL)
 }

@@ -10,7 +10,6 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundBaseType
-import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundMixinStatement
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
@@ -105,7 +104,7 @@ class SourceFileRootContext(
             override fun registerMixin(
                 mixinStatement: BoundMixinStatement,
                 diagnosis: Diagnosis
-            ): BoundBaseTypeMemberVariable? {
+            ): ExecutionScopedCTContext.MixinRegistration? {
                 diagnosis.add(Reporting.mixinNotAllowed(mixinStatement))
                 return null
             }

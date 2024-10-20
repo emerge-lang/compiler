@@ -34,7 +34,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
-import io.github.tmarsteel.emerge.backend.api.ir.IrClassMemberVariableAccessExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrClassFieldAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -139,9 +139,9 @@ class BoundMemberAccessExpression(
 
     override fun toBackendIrExpression(): IrExpression {
         val baseTemporary = IrCreateTemporaryValueImpl(valueExpression.toBackendIrExpression())
-        val memberTemporary = IrCreateTemporaryValueImpl(IrClassMemberVariableAccessExpressionImpl(
+        val memberTemporary = IrCreateTemporaryValueImpl(IrClassFieldAccessExpressionImpl(
             IrTemporaryValueReferenceImpl(baseTemporary),
-            member!!.toBackendIr(),
+            member!!.field.toBackendIr(),
             type!!.toBackendIr(),
         ))
 
@@ -158,8 +158,8 @@ class BoundMemberAccessExpression(
     }
 }
 
-internal class IrClassMemberVariableAccessExpressionImpl(
+internal class IrClassFieldAccessExpressionImpl(
     override val base: IrTemporaryValueReference,
-    override val memberVariable: IrClass.MemberVariable,
+    override val field: IrClass.Field,
     override val evaluatesTo: IrType,
-) : IrClassMemberVariableAccessExpression
+) : IrClassFieldAccessExpression

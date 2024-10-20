@@ -65,7 +65,7 @@ interface IrDelegatingMemberFunction : IrInheritedMemberFunction {
      * * be initialized to a non-null value during object construction
      * * refer to an object that implements the same supertype as [superFunction].`ownerBaseType`
      */
-    val delegatesTo: IrClass.MemberVariable
+    val delegatesTo: IrClass.Field
 }
 
 /**

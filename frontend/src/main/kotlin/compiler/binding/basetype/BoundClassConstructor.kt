@@ -19,7 +19,7 @@ import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundParameterList
 import compiler.binding.BoundVariable
 import compiler.binding.IrAssignmentStatementImpl
-import compiler.binding.IrAssignmentStatementTargetClassMemberVariableImpl
+import compiler.binding.IrAssignmentStatementTargetClassFieldImpl
 import compiler.binding.IrAssignmentStatementTargetVariableImpl
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
@@ -37,6 +37,7 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeParameter
+import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.handleCyclicInvocation
@@ -354,8 +355,8 @@ class BoundClassConstructor(
             )
             initIr.add(referencedObjTemporary)
             initIr.add(IrAssignmentStatementImpl(
-                IrAssignmentStatementTargetClassMemberVariableImpl(
-                    classDef.memberVariables.single().toBackendIr(),
+                IrAssignmentStatementTargetClassFieldImpl(
+                    classDef.memberVariables.single().field.toBackendIr(),
                     IrTemporaryValueReferenceImpl(selfTemporary)
                 ),
                 IrTemporaryValueReferenceImpl(referencedObjTemporary),
@@ -389,7 +390,7 @@ class BoundClassConstructor(
     override fun toBackendIr(): IrFunction = backendIr
 
     private inner class ConstructorFunctionRootContext(fileContextWithTypeParameters: CTContext) : MutableExecutionScopedCTContext(fileContextWithTypeParameters, true, true, ExecutionScopedCTContext.Repetition.EXACTLY_ONCE) {
-        override fun registerMixin(mixinStatement: BoundMixinStatement, diagnosis: Diagnosis): BoundBaseTypeMemberVariable {
+        override fun registerMixin(mixinStatement: BoundMixinStatement, diagnosis: Diagnosis): ExecutionScopedCTContext.MixinRegistration {
             when (val repetition = mixinStatement.context.getRepetitionBehaviorRelativeTo(this)) {
                 ExecutionScopedCTContext.Repetition.EXACTLY_ONCE -> {
                     // all good
@@ -397,7 +398,23 @@ class BoundClassConstructor(
                 else -> diagnosis.add(Reporting.illegalMixinRepetition(mixinStatement, repetition))
             }
 
-            return classDef.registerMixin(mixinStatement)
+            return object : ExecutionScopedCTContext.MixinRegistration {
+                private lateinit var type: BoundTypeReference
+                override fun setType(type: BoundTypeReference) {
+                    check(!this::type.isInitialized)
+                    this.type = type
+                }
+
+                private lateinit var field: BaseTypeField
+                override fun obtainField(): BaseTypeField {
+                    check(this::type.isInitialized)
+                    if (!this::field.isInitialized) {
+                        field = classDef.allocateField(type)
+                    }
+
+                    return field
+                }
+            }
         }
     }
 }
@@ -439,9 +456,9 @@ private class IrRegisterWeakReferenceStatementImpl(
     weakObjectTemporary: IrTemporaryValueReference,
     referredObjectTemporary: IrTemporaryValueReference,
 ) : IrRegisterWeakReferenceStatement {
-    override val referenceStoredIn = object : IrAssignmentStatement.Target.ClassMemberVariable {
+    override val referenceStoredIn = object : IrAssignmentStatement.Target.ClassField {
         override val objectValue = weakObjectTemporary
-        override val memberVariable = holderMemberVariable.toBackendIr()
+        override val field = holderMemberVariable.field.toBackendIr()
     }
 
     override val referredObject = referredObjectTemporary

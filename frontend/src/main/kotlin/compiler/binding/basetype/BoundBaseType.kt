@@ -20,18 +20,15 @@ package compiler.binding.basetype
 
 import compiler.InternalCompilerError
 import compiler.ast.AstCodeChunk
-import compiler.ast.AstVisibility
 import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
-import compiler.ast.BaseTypeMemberVariableDeclaration
-import compiler.ast.VariableDeclaration
 import compiler.ast.type.TypeReference
 import compiler.binding.*
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
+import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
-import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Span
@@ -73,27 +70,6 @@ class BoundBaseType(
     val declaredDestructors: Sequence<BoundClassDestructor> = entries.asSequence().filterIsInstance<BoundClassDestructor>()
     private val _mixins = LinkedHashSet<BoundMixinStatement>()
     val mixins: Set<BoundMixinStatement> = _mixins
-
-    fun registerMixin(mixin: BoundMixinStatement): BoundBaseTypeMemberVariable {
-        if (!_mixins.add(mixin)) {
-            throw InternalCompilerError("Mixin ${mixin.declaration} added to class twice")
-        }
-        val location = mixin.declaration.span.deriveGenerated()
-        val memberVariable = BaseTypeMemberVariableDeclaration(
-            VariableDeclaration(
-                location,
-                AstVisibility.Private(KeywordToken(Keyword.PRIVATE, span= location)),
-                null,
-                null,
-                IdentifierToken(mixin.context.findInternalVariableName("mixin"), location),
-                TypeReference(IdentifierToken("Any", location)),
-                null,
-            )
-        ).bindTo(mixin.context)
-        _memberVariables.add(memberVariable)
-
-        return memberVariable
-    }
 
     /**
      * Always `null` if [Kind.hasCtorsAndDtors] is `false`. If `true`, is initialized in
@@ -320,7 +296,29 @@ class BoundBaseType(
         }
     }
 
-    private val backendIr by lazy { kind.toBackendIr(this) }
+    private val _fields: MutableList<BaseTypeField> = ArrayList(memberVariables.size + mixins.size)
+    val fields: List<BaseTypeField> = _fields
+
+    /**
+     * allocate a field of type [type] in instances of this [BoundBaseType].
+     *
+     * **must be called after semantic analysis is done, ideally while generating IR.**
+     */
+    fun allocateField(type: BoundTypeReference): BaseTypeField {
+        seanHelper.requirePhase3Done()
+
+        val field = BaseTypeField(_fields.size, type)
+        _fields.add(field)
+
+        return field
+    }
+
+    private val backendIr by lazy {
+        _memberVariables.forEach {
+            it.assureFieldAllocated()
+        }
+        kind.toBackendIr(this)
+    }
     fun toBackendIr(): IrBaseType = backendIr
 
     override fun toString() = "${kind.name.lowercase()} $canonicalName"
@@ -490,6 +488,7 @@ private class IrClassImpl(
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
     override val supertypes: Set<IrInterface> get() = typeDef.superTypes.baseTypes.map { it.toBackendIr() as IrInterface }.toSet()
     override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()
+    override val fields by lazy { typeDef.fields.map { it.toBackendIr() } }
     override val memberVariables by lazy { typeDef.memberVariables.map { it.toBackendIr() } }
     override val memberFunctions by lazy { typeDef.memberFunctions.map { it.toBackendIr() as IrOverloadGroup<IrMemberFunction> } }
     override val constructor by lazy { typeDef.constructor!!.toBackendIr() }
