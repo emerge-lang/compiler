@@ -17,8 +17,8 @@ This file describes the Items that are next on the TODO list. **This list is NOT
          sequence from the hashes can be chosen, not just prefixes.
        * TEST, TEST, TEST. Unit test the shit out of the algorithm. More to proof the concept, less to
          test the implementation.
-   4. deal with the wrapper mutability problem: do types need to be generic on mutability?
-   5. algebraic data types
+   3. deal with the wrapper mutability problem: do types need to be generic on mutability?
+   4. algebraic data types
       1. union type: `TypeA | TypeB | TypeC`
       2. conjunction type: `TypeA & TypeB & TypeC`
 4. general iterable types
@@ -127,25 +127,25 @@ This file describes the Items that are next on the TODO list. **This list is NOT
     * for this, the logic to determine where reference counts are needed must move from the LLVM backend to
       the frontend; the frontend has the tools to deal with the complexity, the backend doesn't. Especially
       temporary values are BAD offenders
-18. typealiases
-19. smart casts
-20. fix loophole in the typesystem: the `exclusive` modifier becomes incorrect in this code:
+17. typealiases
+18. smart casts
+19. fix loophole in the typesystem: the `exclusive` modifier becomes incorrect in this code:
     ```
     class Foo {}
     arr = Array.new::<exclusive Foo>(20, Foo()) // compiler doesn't complain, but should
     v: exclusive Foo = arr[0] // compiler doesn't complain here, either
     ```
-21. optional parameters
+20. optional parameters
     * parameter with default value is optional
     * affects overload validation and resolution
     * default value should be evaluated on the caller side because it allows to keep the
       ABI calling conventions
       * as a consequence, only the initial declaration of a function can declare default values,
         overrides cannot
-22. named arguments
+21. named arguments
     * allow to change the order of arguments? Its important to keep the evaluation order on the
       calling side to match the order of the arguments as passed, not as declared
-23. threading
+22. threading
     The whole shtick of the explicit-mutability types is to simplify multithreading. Avoiding the
     complexity of having a `shared` mutability like D allows to infer some properties necessary for
     multithreading:
