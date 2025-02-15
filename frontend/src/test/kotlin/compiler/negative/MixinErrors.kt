@@ -1,8 +1,10 @@
 package compiler.compiler.negative
 
 import compiler.ast.type.TypeMutability
+import compiler.reportings.AbstractInheritedFunctionNotImplementedReporting
 import compiler.reportings.MixinNotAllowedReporting
 import compiler.reportings.ObjectUsedBeforeMixinInitializationReporting
+import compiler.reportings.UnusedMixinReporting
 import compiler.reportings.ValueNotAssignableReporting
 import compiler.reportings.VariableUsedAfterLifetimeReporting
 import io.kotest.core.spec.style.FreeSpec
@@ -109,7 +111,8 @@ class MixinErrors : FreeSpec({
 
     "indirect inheritance" - {
         "mixin can handle indirectly inherited fn" {
-            validateModule("""
+            validateModule(
+                """
                 interface A {
                     fn test(self) -> S32
                 }
@@ -120,8 +123,50 @@ class MixinErrors : FreeSpec({
                         mixin provideSomeB()
                     }
                 }
-            """.trimIndent())
+            """.trimIndent()
+            )
                 .shouldHaveNoDiagnostics()
+        }
+    }
+
+    "unused mixing" - {
+        "no applicable type" {
+            validateModule("""
+                interface A {
+                    fn test(self) -> S32
+                }
+                class M {
+                    intrinsic fn bla(self) -> Bool
+                }
+                
+                class Test : A {
+                    constructor {
+                        mixin M()
+                    }
+                }
+            """.trimIndent())
+                .ignore<AbstractInheritedFunctionNotImplementedReporting>()
+                .shouldReport<UnusedMixinReporting>()
+        }
+
+        "override present" {
+            validateModule("""
+                interface A {
+                    fn test(self) -> S32
+                }
+                class M : A {
+                    fn test(self) -> S32 = 3
+                }
+                
+                class Test : A {
+                    constructor {
+                        mixin M()
+                    }
+                    
+                    override fn test(self) -> S32 = 1
+                }
+            """.trimIndent())
+                .shouldReport<UnusedMixinReporting>()
         }
     }
 })

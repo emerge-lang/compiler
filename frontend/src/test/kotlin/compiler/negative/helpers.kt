@@ -201,6 +201,10 @@ fun haveNoDiagnostics(): Matcher<Pair<SoftwareContext, Collection<Reporting>>> =
     }
 }
 
+inline fun <reified T : Reporting> Pair<SoftwareContext, Collection<Reporting>>.ignore(): Pair<SoftwareContext, Collection<Reporting>> {
+    return Pair(first, second.filter { it !is T })
+}
+
 fun Pair<SoftwareContext, Collection<Reporting>>.moduleBackendIrAssumingNoErrors(moduleName: String = "testmodule"): IrModule {
     check(second.none { it.level == Reporting.Level.ERROR })
     return first.toBackendIr().modules.single { it.name == CanonicalElementName.Package(listOf("testmodule")) }

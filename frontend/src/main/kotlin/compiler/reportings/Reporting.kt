@@ -487,6 +487,9 @@ abstract class Reporting internal constructor(
         fun illegalMixinRepetition(mixin: BoundMixinStatement, repetition: ExecutionScopedCTContext.Repetition)
             = IllegalMixinRepetitionReporting(mixin.declaration, repetition)
 
+        fun unusedMixin(mixin: BoundMixinStatement)
+            = UnusedMixinReporting(mixin.declaration)
+
         fun multipleClassDestructors(additionalDtors: Collection<BaseTypeDestructorDeclaration>)
             = MultipleClassDestructorsReporting(additionalDtors)
 

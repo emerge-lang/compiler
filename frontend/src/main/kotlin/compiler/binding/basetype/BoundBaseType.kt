@@ -311,6 +311,13 @@ class BoundBaseType(
                         mixinImplementations[inheritedFn] = responsibleMixin
                     }
                 }
+
+                val usedMixins = mixinImplementations.values.toSet()
+                mixins
+                    .filter { it !in usedMixins }
+                    .forEach {
+                        reportings.add(Reporting.unusedMixin(it))
+                    }
             } else {
                 // if there are constructors, there could be mixins. But in this branch, they're not considered
                 // if that is the case, there's a fundamental bug and the chances for miscompilation are huge
