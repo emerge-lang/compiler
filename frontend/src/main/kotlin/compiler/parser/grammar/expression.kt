@@ -19,13 +19,50 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
-import compiler.ast.*
-import compiler.ast.expression.*
+import compiler.ast.AstBreakExpression
+import compiler.ast.AstCodeChunk
+import compiler.ast.AstContinueExpression
+import compiler.ast.AstSemanticOperator
+import compiler.ast.AstThrowExpression
+import compiler.ast.Executable
+import compiler.ast.IfExpression
+import compiler.ast.ReturnExpression
+import compiler.ast.TypeArgumentBundle
+import compiler.ast.expression.ArrayLiteralExpression
+import compiler.ast.expression.AstCatchBlockExpression
+import compiler.ast.expression.AstReflectExpression
+import compiler.ast.expression.AstTryCatchExpression
+import compiler.ast.expression.BooleanLiteralExpression
+import compiler.ast.expression.IdentifierExpression
+import compiler.ast.expression.NullLiteralExpression
+import compiler.ast.expression.NumericLiteralExpression
+import compiler.ast.expression.ParenthesisedExpression
+import compiler.ast.expression.StringLiteralExpression
+import compiler.ast.expression.UnaryExpression
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
-import compiler.lexer.*
-import compiler.lexer.Keyword.*
-import compiler.parser.*
+import compiler.lexer.IdentifierToken
+import compiler.lexer.Keyword
+import compiler.lexer.Keyword.CATCH
+import compiler.lexer.Keyword.CONTINUE
+import compiler.lexer.Keyword.ELSE
+import compiler.lexer.Keyword.IF
+import compiler.lexer.Keyword.REFLECT
+import compiler.lexer.Keyword.TRY
+import compiler.lexer.KeywordToken
+import compiler.lexer.NumericLiteralToken
+import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
+import compiler.lexer.Span
+import compiler.lexer.StringLiteralContentToken
+import compiler.parser.BinaryExpressionPostfix
+import compiler.parser.CastExpressionPostfix
+import compiler.parser.ExpressionPostfix
+import compiler.parser.IndexAccessExpressionPostfix
+import compiler.parser.InstanceOfExpressionPostfix
+import compiler.parser.InvocationExpressionPostfix
+import compiler.parser.MemberAccessExpressionPostfix
+import compiler.parser.NotNullExpressionPostfix
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.mapResult
@@ -222,7 +259,7 @@ val BreakStatement = sequence("break statement") {
     }
 
 val ContinueStatement = sequence("continue statement") {
-    keyword(Keyword.CONTINUE)
+    keyword(CONTINUE)
 }
     .astTransformation { tokens ->
         AstContinueExpression(tokens.next()!! as KeywordToken)
@@ -237,27 +274,23 @@ val BracedCodeOrSingleStatement = eitherOf("curly braced code or single statemen
     ref(Expression)
 }
     .astTransformation { tokens ->
-        var next: Any? = tokens.next()
+        val firstToken = tokens.next()
 
-        if (next is Executable) {
-            return@astTransformation next
+        if (firstToken is Executable) {
+            return@astTransformation firstToken
         }
 
-        if (next != OperatorToken(Operator.CBRACE_OPEN)) {
-            throw InternalCompilerError("Unexpected $next, expecting ${Operator.CBRACE_OPEN} or executable")
+        val cBraceOpenToken = firstToken as OperatorToken
+        check(cBraceOpenToken.operator == Operator.CBRACE_OPEN)
+        val chunk = tokens.next() as AstCodeChunk
+        val cBraceCloseToken = tokens.next() as OperatorToken
+        check(cBraceCloseToken.operator == Operator.CBRACE_CLOSE)
+
+        if (chunk.span == Span.UNKNOWN) {
+            return@astTransformation AstCodeChunk(chunk.statements, cBraceOpenToken.span .. cBraceCloseToken.span)
         }
 
-        next = tokens.next()
-
-        if (next == OperatorToken(Operator.CBRACE_CLOSE)) {
-            return@astTransformation AstCodeChunk(emptyList())
-        }
-
-        if (next !is AstCodeChunk) {
-            throw InternalCompilerError("Unexpected $next, expecting code or ${Operator.CBRACE_CLOSE}")
-        }
-
-        return@astTransformation next
+        return@astTransformation chunk
     }
 
 val IfExpression = sequence("if-expression") {

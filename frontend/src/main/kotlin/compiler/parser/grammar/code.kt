@@ -142,12 +142,8 @@ val LineOfCode = sequence {
     .astTransformation { tokens -> tokens.next() as Statement }
 
 val CodeChunk: Rule<AstCodeChunk> = sequence("a chunk of code") {
-    optional {
+    repeating {
         ref(LineOfCode)
-
-        repeating {
-            ref(LineOfCode)
-        }
     }
 }
     .astTransformation { tokens ->
