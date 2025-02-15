@@ -257,5 +257,44 @@ class MixinErrors : FreeSpec({
             """.trimIndent())
                 .shouldReport<IllegalMixinRepetitionReporting>()
         }
+
+        "in try" {
+            validateModule("""
+                interface I {
+                    fn test(self) -> S32
+                }
+                intrinsic fn provideSomeI() -> exclusive I
+                class Bar : I {
+                    constructor {
+                        try {
+                            mixin provideSomeI()
+                        }
+                        catch e {}
+                    }
+                }
+            """.trimIndent())
+                .shouldReport<IllegalMixinRepetitionReporting>()
+        }
+
+        "in catch" {
+            validateModule("""
+                interface I {
+                    fn test(self) -> S32
+                }
+                intrinsic fn provideSomeI() -> exclusive I
+                fn doSomethingRisky() -> Bool = true
+                class Bar : I {
+                    constructor {
+                        try {
+                            doSomethingRisky()
+                        }
+                        catch e {
+                            mixin provideSomeI()
+                        }
+                    }
+                }
+            """.trimIndent())
+                .shouldReport<IllegalMixinRepetitionReporting>()
+        }
     }
 })

@@ -458,7 +458,7 @@ class ExceptionHandlingExecutionScopedCTContext(
     parent,
     isScopeBoundary = true,
     isFunctionRoot = false,
-    ExecutionScopedCTContext.Repetition.ZERO_OR_MORE,
+    ExecutionScopedCTContext.Repetition.MAYBE,
 ) {
     override val isExceptionHandler = true
 }

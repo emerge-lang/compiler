@@ -29,7 +29,7 @@ class AstTryCatchExpression(
             context,
             this,
             boundFallibleCode,
-            catchBlock.bindTo(MutableExecutionScopedCTContext.deriveNewScopeFrom(context)),
+            catchBlock.bindTo(MutableExecutionScopedCTContext.deriveNewScopeFrom(context, ExecutionScopedCTContext.Repetition.MAYBE)),
         )
     }
 }
