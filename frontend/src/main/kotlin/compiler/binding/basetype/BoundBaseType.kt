@@ -171,6 +171,17 @@ class BoundBaseType(
                 }
             }
 
+            if (!kind.allowMemberFunctionImplementations) {
+                entries
+                    .asSequence()
+                    .filterIsInstance<BoundDeclaredBaseTypeMemberFunction>()
+                    .filter { it.declaresReceiver }
+                    .filter { it.body != null }
+                    .forEach {
+                        reportings.add(Reporting.memberFunctionImplementedOnInterface(it))
+                    }
+            }
+
             lintSean1(reportings)
 
             if (superTypes.hasCyclicInheritance) {
@@ -368,24 +379,23 @@ class BoundBaseType(
         val namePlural: String,
         val hasCtorsAndDtors: Boolean,
         val allowsMemberVariables: Boolean,
-        val memberFunctionsAbstractByDefault: Boolean,
-        val memberFunctionsVirtualByDefault: Boolean,
+        val allowMemberFunctionImplementations: Boolean,
     ) {
         CLASS(
             "classes",
             hasCtorsAndDtors = true,
             allowsMemberVariables = true,
-            memberFunctionsAbstractByDefault = false,
-            memberFunctionsVirtualByDefault = false,
+            allowMemberFunctionImplementations = true,
         ),
         INTERFACE(
             "interfaces",
             hasCtorsAndDtors = false,
             allowsMemberVariables = false,
-            memberFunctionsAbstractByDefault = true,
-            memberFunctionsVirtualByDefault = true,
+            allowMemberFunctionImplementations = false,
         ),
         ;
+
+        val memberFunctionsAbstractByDefault: Boolean = !allowMemberFunctionImplementations
 
         fun toBackendIr(typeDef: BoundBaseType): IrBaseType = when(this) {
             CLASS -> IrClassImpl(typeDef)

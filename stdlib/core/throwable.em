@@ -20,33 +20,13 @@ export interface Throwable : Printable {
     // TODO: make into virtual property
     // TODO: return type Iterable<...>
     export nothrow fn getStackTrace(self) -> const ArrayList<StackTraceElement>?
-
-    export override fn printTo(self, borrow target: mut PrintStream) {
-        target.put(self.reflectType().canonicalName)
-        target.put(": ")
-        target.put(self.getMessage() ?: "<no message>")
-        target.putEndOfLine()
-        
-        stackTrace = self.getStackTrace()
-        if isNull(stackTrace) {
-            target.put("  ! stack trace not set")
-            return
-        }
-        var i = 0 as UWord
-        while i < stackTrace!!.size() {
-            target.put("  at ")
-            stackTrace!![i].printTo(target)
-            target.putEndOfLine()
-            set i = i + 1
-        }
-    }
 }
 export interface Error : Throwable {}
 
 // implements boilerplate code for all Throwables; intended to be used
 // as a delegation implementation in Throwables.
 // implements Error so it can be used in both Error and Exception classes
-export class ThrowableTrait : Error {
+export class ThrowableTrait : Error, Printable {
 	message: String? = init
 
     private var stackTrace: const ArrayList<StackTraceElement>? = null
@@ -60,6 +40,26 @@ export class ThrowableTrait : Error {
     }
 
     export override nothrow fn getMessage(self) = self.message
+
+    export override fn printTo(self, borrow target: mut PrintStream) {
+        target.put(self.reflectType().canonicalName)
+        target.put(": ")
+        target.put(self.getMessage() ?: "<no message>")
+        target.putEndOfLine()
+
+        stackTrace = self.getStackTrace()
+        if isNull(stackTrace) {
+            target.put("  ! stack trace not set")
+            return
+        }
+        var i = 0 as UWord
+        while i < stackTrace!!.size() {
+            target.put("  at ")
+            stackTrace!![i].printTo(target)
+            target.putEndOfLine()
+            set i = i + 1
+        }
+    }
 }
 
 export class StackTraceElement : Printable {

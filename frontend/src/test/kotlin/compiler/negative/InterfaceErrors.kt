@@ -6,6 +6,7 @@ import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.basetype.BoundClassDestructor
 import compiler.reportings.CyclicInheritanceReporting
 import compiler.reportings.EntryNotAllowedInBaseTypeReporting
+import compiler.reportings.MemberFunctionImplOnInterfaceReporting
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -48,6 +49,26 @@ class InterfaceErrors : FreeSpec({
                 it.typeKind shouldBe BoundBaseType.Kind.INTERFACE
                 it.violatingEntry should beInstanceOf<BoundBaseTypeMemberVariable>()
             }
+    }
+
+    "member function implementations are not allowed" - {
+        "actual virtual member function" {
+            validateModule("""
+                interface Foo {
+                    fn bar(self: _) -> S32 = 42
+                }
+            """.trimIndent())
+                .shouldReport<MemberFunctionImplOnInterfaceReporting>()
+        }
+
+        "static function without self argument" {
+            validateModule("""
+                interface Foo {
+                    fn bar(bla: Any) -> S32 = 42
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
     }
 
     "cyclic inheritance" - {

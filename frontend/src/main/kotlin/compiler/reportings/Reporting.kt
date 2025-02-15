@@ -43,6 +43,7 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeEntry
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
+import compiler.binding.basetype.BoundDeclaredBaseTypeMemberFunction
 import compiler.binding.basetype.BoundMixinStatement
 import compiler.binding.basetype.BoundSupertypeDeclaration
 import compiler.binding.basetype.InheritedBoundMemberFunction
@@ -226,6 +227,9 @@ abstract class Reporting internal constructor(
 
         fun staticFunctionDeclaredOverride(function: BoundDeclaredFunction)
             = StaticFunctionDeclaredOverrideReporting(function.attributes.firstOverrideAttribute!!)
+
+        fun memberFunctionImplementedOnInterface(function: BoundDeclaredBaseTypeMemberFunction)
+            = MemberFunctionImplOnInterfaceReporting(function.body!!.declaration.span)
 
         fun abstractInheritedFunctionNotImplemented(implementingType: BoundBaseType, functionToImplement: BoundMemberFunction)
             = AbstractInheritedFunctionNotImplementedReporting(implementingType, functionToImplement)

@@ -95,7 +95,7 @@ class VariableErrors : FreeSpec({
         "cannot assign to not-null assertion" {
             validateModule("""
                 fn foo() {
-                    x: I32? = null
+                    x: S32? = null
                     set x!! = 3
                 }
             """.trimIndent())
