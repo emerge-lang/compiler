@@ -11,7 +11,7 @@ import compiler.binding.context.effect.PartialObjectInitialization.State
  * The analysis happens during [SemanticallyAnalyzable.semanticAnalysisPhase2]; **the [State] is not meaningful
  * before [SemanticallyAnalyzable.semanticAnalysisPhase3]!**
  */
-object PartialObjectInitialization : EphemeralStateClass<BoundVariable, PartialObjectInitialization.State, PartialObjectInitialization.Effect> {
+object PartialObjectInitialization : EphemeralStateClass<BoundVariable, State, PartialObjectInitialization.Effect> {
     override fun getInitialState(subject: BoundVariable) = State.INITIAL
     override fun fold(state: State, effect: Effect) = state.fold(effect)
     override fun combineMaybe(state: State, advancedMaybe: State) = state.combineMaybe(advancedMaybe)
@@ -20,6 +20,7 @@ object PartialObjectInitialization : EphemeralStateClass<BoundVariable, PartialO
     class State(
         private val knownMemberStates: Map<String, VariableInitialization.State>,
         private val initializedMixins: Set<BoundMixinStatement>,
+        private val assumeMixinsUninitialized: Boolean,
     ) {
         fun fold(effect: Effect): State = when (effect) {
             is Effect.MarkObjectAsEntirelyUninitializedEffect -> {
@@ -29,6 +30,7 @@ object PartialObjectInitialization : EphemeralStateClass<BoundVariable, PartialO
                 State(
                     effect.classDef.memberVariables.associate { it.name to VariableInitialization.State.NOT_INITIALIZED },
                     initializedMixins,
+                    true,
                 )
             }
             is Effect.WriteToMemberVariableEffect -> State(
@@ -36,10 +38,12 @@ object PartialObjectInitialization : EphemeralStateClass<BoundVariable, PartialO
                     effect.member.name to VariableInitialization.State.INITIALIZED
                 ),
                 initializedMixins,
+                assumeMixinsUninitialized,
             )
             is Effect.MixinInitialized -> State(
                 knownMemberStates,
                 initializedMixins + effect.mixin,
+                assumeMixinsUninitialized,
             )
         }
 
@@ -55,7 +59,7 @@ object PartialObjectInitialization : EphemeralStateClass<BoundVariable, PartialO
                 }
             }
             val newMixinData = mixinStateCombinator(this.initializedMixins, other.initializedMixins)
-            return State(newFieldData, newMixinData)
+            return State(newFieldData, newMixinData, this.assumeMixinsUninitialized || other.assumeMixinsUninitialized)
         }
 
         fun combineMaybe(advancedMaybe: State) = combineEach(advancedMaybe, VariableInitialization::combineMaybe, { before, _ -> before })
@@ -75,13 +79,21 @@ object PartialObjectInitialization : EphemeralStateClass<BoundVariable, PartialO
 
         fun getUninitializedMixins(classDef: BoundBaseType): Set<BoundMixinStatement> {
             val allMixins = classDef.constructor?.mixins ?: return emptySet()
+
+            if (!assumeMixinsUninitialized && initializedMixins.isEmpty()) {
+                // this happens when [MarkObjectAsEntirelyUninitializedEffect] wasn't called, which is the case
+                // for ALL objects instead of the `self` in constructors. Those can safely be assumed to be completely
+                // initialized, hence there are NO uninitialized mixins
+                return emptySet()
+            }
+
             return allMixins.toMutableSet().apply {
                 removeAll(initializedMixins)
             }
         }
 
         companion object {
-            val INITIAL = State(emptyMap(), emptySet())
+            val INITIAL = State(emptyMap(), emptySet(), false)
         }
     }
 
