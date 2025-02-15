@@ -29,6 +29,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.binding.type.isAssignableTo
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Span
@@ -68,8 +69,6 @@ class BoundBaseType(
     val memberVariables: List<BoundBaseTypeMemberVariable> = _memberVariables
     val declaredConstructors: Sequence<BoundClassConstructor> = entries.asSequence().filterIsInstance<BoundClassConstructor>()
     val declaredDestructors: Sequence<BoundClassDestructor> = entries.asSequence().filterIsInstance<BoundClassDestructor>()
-    private val _mixins = LinkedHashSet<BoundMixinStatement>()
-    val mixins: Set<BoundMixinStatement> = _mixins
 
     /**
      * Always `null` if [Kind.hasCtorsAndDtors] is `false`. If `true`, is initialized in
@@ -105,6 +104,25 @@ class BoundBaseType(
 
         return allMemberFunctionOverloadSetsByName.getOrDefault(name, emptySet())
             .filter { it.canonicalName.simpleName == name }
+    }
+
+    /**
+     * updates [allMemberFunctionOverloadSetsByName] given all the member functions of this base type.
+     */
+    private fun updateAllMemberFunctions(allMemberFunctions: Iterable<BoundMemberFunction>) {
+        allMemberFunctionOverloadSetsByName = allMemberFunctions
+            .groupBy { Pair(it.name, it.parameters.parameters.size) }
+            .map { (nameAndParamCount, overloads) ->
+                BoundOverloadSet(
+                    CanonicalElementName.Function(
+                        this@BoundBaseType.canonicalName,
+                        nameAndParamCount.first,
+                    ),
+                    nameAndParamCount.second,
+                    overloads,
+                )
+            }
+            .groupBy { it.canonicalName.simpleName }
     }
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
@@ -198,19 +216,7 @@ class BoundBaseType(
                 .filter { it !in overriddenInheritedFunctions }
                 .forEach(allMemberFunctions::add)
 
-            allMemberFunctionOverloadSetsByName = allMemberFunctions
-                .groupBy { Pair(it.name, it.parameters.parameters.size) }
-                .map { (nameAndParamCount, overloads) ->
-                    BoundOverloadSet(
-                        CanonicalElementName.Function(
-                            this@BoundBaseType.canonicalName,
-                            nameAndParamCount.first,
-                        ),
-                        nameAndParamCount.second,
-                        overloads,
-                    )
-                }
-                .groupBy { it.canonicalName.simpleName }
+            updateAllMemberFunctions(allMemberFunctions)
 
             allMemberFunctionOverloadSetsByName.values.forEach { overloadSets ->
                 overloadSets.forEach { overloadSet ->
@@ -275,18 +281,41 @@ class BoundBaseType(
                     .flatMap { it.overrides ?: emptyList() }
                     .toCollection(Collections.newSetFromMap(IdentityHashMap()))
 
-                superTypes.inheritedMemberFunctions
-                    .asSequence()
-                    .filter { it.isAbstract }
-                    .filter { it !in overriddenSuperFns }
-                    .filter { abstractFn ->
-                        val declaredOn = abstractFn.supertypeMemberFn.declaredOnType.baseReference
-                        val isMixedIn = mixins.any { mixin -> mixin.expression.type?.hasSameBaseTypeAs(declaredOn) ?: true }
-                        return@filter !isMixedIn
+                val mixinImplementations = IdentityHashMap<InheritedBoundMemberFunction, BoundMixinStatement>()
+                val mixins = constructor?.mixins ?: emptySet()
+                for (inheritedFn in superTypes.inheritedMemberFunctions) {
+                    if (!inheritedFn.isAbstract) {
+                        continue
                     }
-                    .forEach {
-                        reportings.add(Reporting.abstractInheritedFunctionNotImplemented(this, it))
+                    if (inheritedFn in overriddenSuperFns) {
+                        continue
                     }
+
+                    var originallyInheritedFrom = inheritedFn.declaredOnType
+                    var pivot: InheritedBoundMemberFunction? = inheritedFn
+                    while (pivot != null) {
+                        originallyInheritedFrom = pivot.declaredOnType
+                        pivot = pivot.supertypeMemberFn as? InheritedBoundMemberFunction
+                    }
+
+                    val responsibleMixin = mixins
+                        .firstOrNull { mixin ->
+                            val type = mixin.type ?: return@firstOrNull false
+                            type.isAssignableTo(originallyInheritedFrom.baseReference)
+                        }
+
+                    if (responsibleMixin == null) {
+                        reportings.add(Reporting.abstractInheritedFunctionNotImplemented(this, inheritedFn))
+                    } else {
+                        check(inheritedFn !in mixinImplementations)
+                        mixinImplementations[inheritedFn] = responsibleMixin
+                    }
+                }
+            } else {
+                // if there are constructors, there could be mixins. But in this branch, they're not considered
+                // if that is the case, there's a fundamental bug and the chances for miscompilation are huge
+                check(!kind.hasCtorsAndDtors)
+                check(constructor == null)
             }
 
             return@phase3 reportings
@@ -307,7 +336,7 @@ class BoundBaseType(
         }
     }
 
-    private val _fields: MutableList<BaseTypeField> = ArrayList(memberVariables.size + mixins.size)
+    private val _fields: MutableList<BaseTypeField> = ArrayList(memberVariables.size)
     val fields: List<BaseTypeField> = _fields
 
     /**
@@ -335,7 +364,7 @@ class BoundBaseType(
     override fun toString() = "${kind.name.lowercase()} $canonicalName"
 
     /**
-     * True iff this is one of the core scalar types of the language:
+     * True iff this is one of the core numeric types of the language:
      * * all the numeric types, ints and floats
      */
     val isCoreNumericType: Boolean

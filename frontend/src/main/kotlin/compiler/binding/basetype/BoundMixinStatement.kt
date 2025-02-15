@@ -54,11 +54,16 @@ class BoundMixinStatement(
      */
     private var registration: ExecutionScopedCTContext.MixinRegistration? = null
 
+    /**
+     * the type of this mixin, initialized during [semanticAnalysisPhase2]
+     */
+    val type: BoundTypeReference? get() = expression.type
+
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return seanHelper.phase2 {
             val reportings = expression.semanticAnalysisPhase2().toMutableSet()
             expression.type?.evaluateAssignabilityTo(expectedType, expression.declaration.span)?.let(reportings::add)
-            registration = context.registerMixin(this, Diagnosis.addingTo(reportings))
+            registration = context.registerMixin(this, expression.type ?: context.swCtx.any.baseReference, Diagnosis.addingTo(reportings))
             expression.markEvaluationResultCaptured(TypeMutability.EXCLUSIVE)
             return@phase2 reportings
         }

@@ -103,6 +103,7 @@ class SourceFileRootContext(
 
             override fun registerMixin(
                 mixinStatement: BoundMixinStatement,
+                type: BoundTypeReference,
                 diagnosis: Diagnosis
             ): ExecutionScopedCTContext.MixinRegistration? {
                 diagnosis.add(Reporting.mixinNotAllowed(mixinStatement))

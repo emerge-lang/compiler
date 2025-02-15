@@ -100,6 +100,14 @@ class BoundClassConstructor(
     override val attributes = BoundFunctionAttributeList(fileContextWithTypeParameters, { this }, declaration.attributes)
     override val allTypeParameters = declaredTypeParameters
 
+    /**
+     * it is crucial that this collection sticks to the insertion order for the semantics of which mixin will implement
+     * what supertypes. Kotlin 1.9 cannot deal with Java 21s SequencedSet, but maybe Kotlin 2 will
+     */
+    private val _mixins = mutableSetOf<BoundMixinStatement>()
+    /** the mixins, in the order declared in the constructor */
+    val mixins: Set<BoundMixinStatement> = _mixins
+
     override val returnType by lazy {
         constructorFunctionRootContext.resolveType(
             TypeReference(
@@ -390,7 +398,9 @@ class BoundClassConstructor(
     override fun toBackendIr(): IrFunction = backendIr
 
     private inner class ConstructorFunctionRootContext(fileContextWithTypeParameters: CTContext) : MutableExecutionScopedCTContext(fileContextWithTypeParameters, true, true, ExecutionScopedCTContext.Repetition.EXACTLY_ONCE) {
-        override fun registerMixin(mixinStatement: BoundMixinStatement, diagnosis: Diagnosis): ExecutionScopedCTContext.MixinRegistration {
+        override fun registerMixin(mixinStatement: BoundMixinStatement, type: BoundTypeReference, diagnosis: Diagnosis): ExecutionScopedCTContext.MixinRegistration {
+            _mixins.add(mixinStatement)
+
             when (val repetition = mixinStatement.context.getRepetitionBehaviorRelativeTo(this)) {
                 ExecutionScopedCTContext.Repetition.EXACTLY_ONCE -> {
                     // all good
@@ -399,15 +409,8 @@ class BoundClassConstructor(
             }
 
             return object : ExecutionScopedCTContext.MixinRegistration {
-                private lateinit var type: BoundTypeReference
-                override fun setType(type: BoundTypeReference) {
-                    check(!this::type.isInitialized)
-                    this.type = type
-                }
-
                 private lateinit var field: BaseTypeField
                 override fun obtainField(): BaseTypeField {
-                    check(this::type.isInitialized)
                     if (!this::field.isInitialized) {
                         field = classDef.allocateField(type)
                     }

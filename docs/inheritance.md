@@ -5,12 +5,11 @@ Emerge supports OOP style objects, interfaces and classes. Multiple inheritance 
 The following constraints are placed on emerge programs:
 
 * objects can only be created from a pre-defined `class`
-* one class can inherit from (= implement) n `interface`s
+* one class can inherit from (= implement) many `interface`s
 * classes can not inherit from/extend other classes
-* interfaces can inherit from n other interfaces
+* interfaces can inherit from many other interfaces
 * the graph of inheritance must be a tree/acyclic.
 * interfaces cannot declare implementations for member functions
-  (this is currently possible, but will be removed as soon as mixins are stable)
 
 ## Mixins
 
@@ -22,7 +21,7 @@ The important difference between mixin-based delegation and traditional multiple
 value of the `self` pointer in mixed-in functions. It points to the mixed-in object, not to the object
 that defines the mixin. This simplifies mixins from a complex semantic construct to pure syntax sugar.
 If the behavior of a mixed-in function should vary per host object, this variance needs to be explicitly
-passed to the mixed-in object e.g. as a lambda function. This way, the multiple-inheritance "magic" is
+passed to the mixed-in object e.g. as a lambda function. This way, the inheritance "magic" is
 forced to be visible.
 
 Given
@@ -64,7 +63,7 @@ The set of member functions that an `interface I` defines is those inherited fro
 those declared in the interface declaration. An interface can `override` functions from a parent interface
 to refine the signature of certain functions. LSP applies, of course.
 
-The set of inherited member functions for a `class A` is the set of member functions defined or inherited from all its
+The set of inherited member functions for a `class A` is the set of member functions inherited from all its
 supertypes. Member functions are unique by their signature only. Diamond problems have to be resolved by the
 programmer in the declaration of `class A`.
 

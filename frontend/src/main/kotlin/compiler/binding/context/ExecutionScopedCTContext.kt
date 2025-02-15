@@ -110,11 +110,12 @@ interface ExecutionScopedCTContext : CTContext {
     /**
      * Intended to be called solely by [BoundMixinStatement] during [SemanticallyAnalyzable.semanticAnalysisPhase2].
      * Registers this mixin in the parent class context.
+     * @param type the type of the mixed-in object
      * @return the backing field in which to store the reference to the delegate during the objects lifetime.
      * `null` iff the mixin is not legal in this context. In that case, the reason has been added to [diagnosis]
      * by [registerMixin].
      */
-    fun registerMixin(mixinStatement: BoundMixinStatement, diagnosis: Diagnosis): MixinRegistration?
+    fun registerMixin(mixinStatement: BoundMixinStatement, type: BoundTypeReference, diagnosis: Diagnosis): MixinRegistration?
 
     /**
      * @see [ExecutionScopedCTContext.repetitionRelativeToParent]
@@ -134,12 +135,7 @@ interface ExecutionScopedCTContext : CTContext {
 
     interface MixinRegistration {
         /**
-         * Sets the type of the mixed-in object. Can only be called once.
-         */
-        fun setType(type: BoundTypeReference)
-
-        /**
-         * To be called during IR generation. Must be called after [setType]
+         * To be called during IR generation.
          * @return the field where the mixin can store the reference to the mixed-in object.
          */
         fun obtainField(): BaseTypeField
@@ -335,13 +331,13 @@ open class MutableExecutionScopedCTContext protected constructor(
             ?.loopNode
     }
 
-    override fun registerMixin(mixinStatement: BoundMixinStatement, diagnosis: Diagnosis): ExecutionScopedCTContext.MixinRegistration? {
+    override fun registerMixin(mixinStatement: BoundMixinStatement, type: BoundTypeReference, diagnosis: Diagnosis): ExecutionScopedCTContext.MixinRegistration? {
         if (parentContext !is ExecutionScopedCTContext) {
             diagnosis.add(Reporting.mixinNotAllowed(mixinStatement))
             return null
         }
 
-        return parentContext.registerMixin(mixinStatement, diagnosis)
+        return parentContext.registerMixin(mixinStatement, type, diagnosis)
     }
 
     override fun toString(): String {

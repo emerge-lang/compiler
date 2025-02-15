@@ -106,4 +106,22 @@ class MixinErrors : FreeSpec({
         """.trimIndent())
             .shouldReport<ObjectUsedBeforeMixinInitializationReporting>()
     }
+
+    "indirect inheritance" - {
+        "mixin can handle indirectly inherited fn" {
+            validateModule("""
+                interface A {
+                    fn test(self) -> S32
+                }
+                interface B : A { }
+                intrinsic fn provideSomeB() -> exclusive B
+                class C : B {
+                    constructor {
+                        mixin provideSomeB()
+                    }
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+    }
 })

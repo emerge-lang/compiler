@@ -199,19 +199,6 @@ class ClassErrors : FreeSpec({
                 """.trimIndent())
                     .shouldReport<AbstractInheritedFunctionNotImplementedReporting>()
             }
-
-            "first degree of inheritance implements abstract method from second degree" {
-                validateModule("""
-                    interface Animal {
-                        fn makeSound(self)
-                    }
-                    interface QuadraPede : Animal {
-                        override fn makeSound(self) {}
-                    }
-                    class Dog : QuadraPede {}
-                """.trimIndent())
-                    .shouldHaveNoDiagnostics()
-            }
         }
 
         "overriding X nothrow" - {

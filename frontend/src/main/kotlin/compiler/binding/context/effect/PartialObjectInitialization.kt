@@ -74,7 +74,8 @@ object PartialObjectInitialization : EphemeralStateClass<BoundVariable, PartialO
         }
 
         fun getUninitializedMixins(classDef: BoundBaseType): Set<BoundMixinStatement> {
-            return classDef.mixins.toMutableSet().apply {
+            val allMixins = classDef.constructor?.mixins ?: return emptySet()
+            return allMixins.toMutableSet().apply {
                 removeAll(initializedMixins)
             }
         }
