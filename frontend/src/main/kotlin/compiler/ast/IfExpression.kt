@@ -42,10 +42,12 @@ class IfExpression (
             this,
             boundCondition,
             thenCodeAsChunk.bindTo(MutableExecutionScopedCTContext.deriveNewScopeFrom(
-                boundCondition.modifiedContext
+                boundCondition.modifiedContext,
+                ExecutionScopedCTContext.Repetition.MAYBE,
             )),
             elseCodeAsChunk?.bindTo(MutableExecutionScopedCTContext.deriveNewScopeFrom(
-                contextBeforeCondition
+                contextBeforeCondition,
+                ExecutionScopedCTContext.Repetition.MAYBE,
             )),
         )
     }

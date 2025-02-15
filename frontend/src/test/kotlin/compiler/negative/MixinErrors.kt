@@ -1,14 +1,18 @@
 package compiler.compiler.negative
 
 import compiler.ast.type.TypeMutability
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.reportings.AbstractInheritedFunctionNotImplementedReporting
+import compiler.reportings.IllegalMixinRepetitionReporting
 import compiler.reportings.MixinNotAllowedReporting
 import compiler.reportings.ObjectUsedBeforeMixinInitializationReporting
 import compiler.reportings.UnusedMixinReporting
 import compiler.reportings.ValueNotAssignableReporting
 import compiler.reportings.VariableUsedAfterLifetimeReporting
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.inspectors.forExactly
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class MixinErrors : FreeSpec({
     "mixin in top level fn" {
@@ -167,6 +171,91 @@ class MixinErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldReport<UnusedMixinReporting>()
+        }
+    }
+
+    "illegal mixin repetition" - {
+        "only in then-branch of if" {
+            validateModule("""
+                interface I {
+                    fn test(self) -> S32
+                }
+                intrinsic fn provideSomeI() -> exclusive I
+                intrinsic fn flipCoin() -> Bool
+                class Bar : I {
+                    constructor {
+                        if flipCoin() {
+                            mixin provideSomeI()
+                        } else {
+                            
+                        }
+                    }
+                }
+            """.trimIndent())
+                .shouldReport<IllegalMixinRepetitionReporting>()
+        }
+
+        "only in else-branch of if" {
+            validateModule("""
+                interface I {
+                    fn test(self) -> S32
+                }
+                intrinsic fn provideSomeI() -> exclusive I
+                intrinsic fn flipCoin() -> Bool
+                class Bar : I {
+                    constructor {
+                        if flipCoin() {
+                            
+                        } else {
+                            mixin provideSomeI()
+                        }
+                    }
+                }
+            """.trimIndent())
+                .shouldReport<IllegalMixinRepetitionReporting>()
+        }
+
+        "in two branches of if" {
+            validateModule("""
+                interface I {
+                    fn test(self) -> S32
+                }
+                intrinsic fn provideSomeI() -> exclusive I
+                intrinsic fn flipCoin() -> Boolean
+                class Bar : I {
+                    constructor {
+                        mixedIn = provideSomeI()
+                        if flipCoin() {
+                            mixin mixedIn                            
+                        } else {
+                            mixin mixedIn
+                        }
+                    }
+                }
+            """.trimIndent())
+                .second
+                .forExactly(2) {
+                    it.shouldBeInstanceOf<IllegalMixinRepetitionReporting>()
+                    it.repetition shouldBe ExecutionScopedCTContext.Repetition.MAYBE
+                }
+        }
+
+        "in while" {
+            validateModule("""
+                interface I {
+                    fn test(self) -> S32
+                }
+                intrinsic fn provideSomeI() -> exclusive I
+                intrinsic fn flipCoin() -> Boolean
+                class Bar : I {
+                    constructor {
+                        while (flipCoin()) {
+                            mixin provideSomeI()
+                        }
+                    }
+                }
+            """.trimIndent())
+                .shouldReport<IllegalMixinRepetitionReporting>()
         }
     }
 })

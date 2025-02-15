@@ -123,13 +123,16 @@ interface ExecutionScopedCTContext : CTContext {
     enum class Repetition(
         /** whether code in this context could execut more than once */
         val mayRepeat: Boolean,
+        val isGuaranteedOnce: Boolean,
     ) {
         /** for simple, linear code inside a function */
-        EXACTLY_ONCE(false),
+        EXACTLY_ONCE(false, true),
+        /** for branches of IF */
+        MAYBE(false, false),
         /** loop bodies that cannot be proven at compile time to execute at least once */
-        ZERO_OR_MORE(true),
+        ZERO_OR_MORE(true, false),
         /** loop bodies that **can** be proven at compile time to execute at least once, e.g. do-while loop bodies */
-        ONCE_OR_MORE(true),
+        ONCE_OR_MORE(true, true),
         ;
     }
 
@@ -310,13 +313,21 @@ open class MutableExecutionScopedCTContext protected constructor(
             .fold(ExecutionScopedCTContext.Repetition.EXACTLY_ONCE) { carry, repetition ->
                 when (carry) {
                     ExecutionScopedCTContext.Repetition.EXACTLY_ONCE -> repetition
+                    ExecutionScopedCTContext.Repetition.MAYBE -> when(repetition) {
+                        ExecutionScopedCTContext.Repetition.EXACTLY_ONCE -> ExecutionScopedCTContext.Repetition.MAYBE
+                        ExecutionScopedCTContext.Repetition.MAYBE -> ExecutionScopedCTContext.Repetition.MAYBE
+                        ExecutionScopedCTContext.Repetition.ZERO_OR_MORE -> ExecutionScopedCTContext.Repetition.ZERO_OR_MORE
+                        ExecutionScopedCTContext.Repetition.ONCE_OR_MORE -> ExecutionScopedCTContext.Repetition.ZERO_OR_MORE
+                    }
                     ExecutionScopedCTContext.Repetition.ONCE_OR_MORE -> when(repetition) {
                         ExecutionScopedCTContext.Repetition.EXACTLY_ONCE -> carry
+                        ExecutionScopedCTContext.Repetition.MAYBE -> ExecutionScopedCTContext.Repetition.ZERO_OR_MORE
                         ExecutionScopedCTContext.Repetition.ONCE_OR_MORE -> ExecutionScopedCTContext.Repetition.ONCE_OR_MORE
                         ExecutionScopedCTContext.Repetition.ZERO_OR_MORE -> ExecutionScopedCTContext.Repetition.ZERO_OR_MORE
                     }
                     ExecutionScopedCTContext.Repetition.ZERO_OR_MORE -> when(repetition) {
                         ExecutionScopedCTContext.Repetition.EXACTLY_ONCE -> carry
+                        ExecutionScopedCTContext.Repetition.MAYBE -> ExecutionScopedCTContext.Repetition.ZERO_OR_MORE
                         ExecutionScopedCTContext.Repetition.ONCE_OR_MORE -> ExecutionScopedCTContext.Repetition.ZERO_OR_MORE
                         ExecutionScopedCTContext.Repetition.ZERO_OR_MORE -> ExecutionScopedCTContext.Repetition.ZERO_OR_MORE
                     }
