@@ -73,9 +73,19 @@ class BoundMixinStatement(
         expression.setExpectedReturnType(type)
     }
 
+    private var used = false
+    fun assignToFunction(fnNeedingMixin: PossiblyMixedInBoundMemberFunction) {
+        seanHelper.requirePhase2Done()
+        fnNeedingMixin.assignMixin(registration!!)
+        used = true
+    }
+
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
         return seanHelper.phase3 {
             val reportings = expression.semanticAnalysisPhase3().toMutableSet()
+            if (!used) {
+                reportings.add(Reporting.unusedMixin(this))
+            }
             return@phase3 reportings
         }
     }
@@ -86,11 +96,6 @@ class BoundMixinStatement(
 
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
         return expression.findWritesBeyond(boundary)
-    }
-
-    fun assignToFunction(fnNeedingMixin: PossiblyMixedInBoundMemberFunction) {
-        seanHelper.requirePhase2Done()
-        fnNeedingMixin.assignMixin(registration!!)
     }
 
     override fun toBackendIrStatement(): IrExecutable {

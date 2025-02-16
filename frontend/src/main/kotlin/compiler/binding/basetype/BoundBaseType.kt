@@ -256,8 +256,6 @@ class BoundBaseType(
                 return@phase3 emptySet()
             }
 
-            val reportings = entries.flatMap { it.semanticAnalysisPhase3() }.toMutableList()
-
             if (!kind.memberFunctionsAbstractByDefault) {
                 val memberFunctionsNeedingMixin = allMemberFunctionOverloadSetsByName.values
                     .flatten()
@@ -265,7 +263,6 @@ class BoundBaseType(
                     .filterIsInstance<PossiblyMixedInBoundMemberFunction>()
 
                 val mixins = constructor?.mixins ?: emptySet()
-                val usedMixins = Collections.newSetFromMap<BoundMixinStatement>(IdentityHashMap())
                 for (fnNeedingMixin in memberFunctionsNeedingMixin) {
                     var originallyInheritedFrom = fnNeedingMixin.declaredOnType
                     var pivot: InheritedBoundMemberFunction? = fnNeedingMixin.inheritedFn
@@ -279,18 +276,8 @@ class BoundBaseType(
                             val type = mixin.type ?: return@firstOrNull false
                             type.isAssignableTo(originallyInheritedFrom.baseReference)
                         }
-                        ?.let { responsibleMixin ->
-                            responsibleMixin.assignToFunction(fnNeedingMixin)
-                            usedMixins.add(responsibleMixin)
-                        }
+                        ?.assignToFunction(fnNeedingMixin)
                 }
-
-                mixins
-                    .asSequence()
-                    .filter { it !in usedMixins }
-                    .forEach {
-                        reportings.add(Reporting.unusedMixin(it))
-                    }
             } else {
                 // if there are constructors, there could be mixins. But in this branch, they're not considered
                 // if that is the case, there's a fundamental bug and the chances for miscompilation are huge
@@ -298,6 +285,7 @@ class BoundBaseType(
                 check(constructor == null)
             }
 
+            val reportings = mutableListOf<Reporting>()
             typeParameters?.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
             reportings.addAll(superTypes.semanticAnalysisPhase3())
             entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase3).forEach(reportings::addAll)
