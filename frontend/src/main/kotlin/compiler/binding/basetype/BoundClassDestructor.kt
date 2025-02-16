@@ -32,7 +32,9 @@ import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
+import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrDeallocateObjectStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -136,6 +138,16 @@ class BoundClassDestructor(
         throw InternalCompilerError("Access checks on destructors are not supposed to happen")
     }
 
+    private val additionalCode = mutableListOf<DestructorCodeGenerator>()
+
+    /**
+     * The given action will be executed after the regular destruction process of the class.
+     * @param generateAction first parameter: a temporary holding a reference to the object being destructured (self)
+     */
+    fun addDestructingAction(action: DestructorCodeGenerator) {
+        additionalCode.add(action)
+    }
+
     private val backendIr by lazy {
         val selfTemporary = IrCreateTemporaryValueImpl(
             IrVariableAccessExpressionImpl(parameters.parameters.single().backendIrDeclaration)
@@ -165,6 +177,7 @@ class BoundClassDestructor(
             )))
         }
 
+        val additionalCode = additionalCode.map { gen -> gen(selfTemporary) }
         val destructorCode = IrCodeChunkImpl(listOfNotNull(
             userDefinedCode.toBackendIrStatement(),
             selfTemporary,
@@ -181,6 +194,7 @@ class BoundClassDestructor(
                     IrDropStrongReferenceStatementImpl(memberTemporary),
                 )
             }),
+        ) + additionalCode + listOf(
             IrDeallocateObjectStatementImpl(IrTemporaryValueReferenceImpl(selfTemporary)),
         ))
 
@@ -190,6 +204,8 @@ class BoundClassDestructor(
         return backendIr
     }
 }
+
+typealias DestructorCodeGenerator = (self: IrCreateTemporaryValue) -> IrExecutable
 
 private class IrDestructorImpl(
     val dtor: BoundClassDestructor,

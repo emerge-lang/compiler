@@ -1,5 +1,6 @@
 package compiler.binding.basetype
 
+import compiler.InternalCompilerError
 import compiler.ast.AssignmentStatement
 import compiler.ast.AstCodeChunk
 import compiler.ast.BaseTypeConstructorDeclaration
@@ -416,6 +417,11 @@ class BoundClassConstructor(
                     }
 
                     return field
+                }
+
+                override fun addDestructingAction(action: DestructorCodeGenerator) {
+                    val dtor = classDef.destructor ?: throw InternalCompilerError("Destructor hasn't been initialized yet")
+                    dtor.addDestructingAction(action)
                 }
             }
         }

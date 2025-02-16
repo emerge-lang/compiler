@@ -15,14 +15,17 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.IrClassFieldAccessExpressionImpl
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
 class BoundMixinStatement(
@@ -71,6 +74,7 @@ class BoundMixinStatement(
             val reportings = expression.semanticAnalysisPhase2().toMutableSet()
             expression.type?.evaluateAssignabilityTo(expectedType, expression.declaration.span)?.let(reportings::add)
             registration = context.registerMixin(this, expression.type ?: context.swCtx.any.baseReference, Diagnosis.addingTo(reportings))
+            registration!!.addDestructingAction(this::generateDestructorCode)
             expression.markEvaluationResultCaptured(TypeMutability.EXCLUSIVE)
             return@phase2 reportings
         }
@@ -111,10 +115,10 @@ class BoundMixinStatement(
         val selfValueTemporary = IrCreateTemporaryValueImpl(IrVariableAccessExpressionImpl(selfVariable.backendIrDeclaration))
         val mixinValueTemporary = IrCreateTemporaryValueImpl(expression.toBackendIrExpression())
 
-        return IrCodeChunkImpl(listOf(
+        return IrCodeChunkImpl(listOfNotNull(
             selfValueTemporary,
             mixinValueTemporary,
-            IrCreateStrongReferenceStatementImpl(mixinValueTemporary),
+            IrCreateStrongReferenceStatementImpl(mixinValueTemporary).takeUnless { expression.isEvaluationResultReferenceCounted },
             IrAssignmentStatementImpl(
                 IrAssignmentStatementTargetClassFieldImpl(
                     registration!!.obtainField().toBackendIr(),
@@ -124,6 +128,18 @@ class BoundMixinStatement(
             ),
         ))
 
-        // TODO: destruct mixed in object in dtor!!
+        // the destructuring code is added in sean2
+    }
+
+    private fun generateDestructorCode(self: IrCreateTemporaryValue): IrExecutable {
+        val mixinValue = IrCreateTemporaryValueImpl(IrClassFieldAccessExpressionImpl(
+            IrTemporaryValueReferenceImpl(self),
+            registration!!.obtainField().toBackendIr(),
+            expression.type!!.toBackendIr(),
+        ))
+        return IrCodeChunkImpl(listOf(
+            mixinValue,
+            IrDropStrongReferenceStatementImpl(mixinValue),
+        ))
     }
 }

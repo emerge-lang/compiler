@@ -9,6 +9,7 @@ import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.basetype.BaseTypeField
 import compiler.binding.basetype.BoundMixinStatement
+import compiler.binding.basetype.DestructorCodeGenerator
 import compiler.binding.context.effect.EphemeralStateClass
 import compiler.binding.context.effect.SideEffect
 import compiler.binding.type.BoundTypeReference
@@ -142,6 +143,8 @@ interface ExecutionScopedCTContext : CTContext {
          * @return the field where the mixin can store the reference to the mixed-in object.
          */
         fun obtainField(): BaseTypeField
+
+        fun addDestructingAction(action: DestructorCodeGenerator)
     }
 }
 
