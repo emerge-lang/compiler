@@ -37,6 +37,7 @@ class BoundDeclaredBaseTypeMemberFunction(
     private val seanHelper = SeanHelper()
 
     override val declaredOnType by lazy(getTypeDef)
+    override val ownerBaseType by lazy(getTypeDef)
     override val canonicalName by lazy {
         CanonicalElementName.Function(
             declaredOnType.canonicalName,

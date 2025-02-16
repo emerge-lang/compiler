@@ -133,7 +133,7 @@ class MixinErrors : FreeSpec({
         }
     }
 
-    "unused mixing" - {
+    "unused mixin" - {
         "no applicable type" {
             validateModule("""
                 interface A {

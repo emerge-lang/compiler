@@ -106,25 +106,6 @@ class BoundBaseType(
             .filter { it.canonicalName.simpleName == name }
     }
 
-    /**
-     * updates [allMemberFunctionOverloadSetsByName] given all the member functions of this base type.
-     */
-    private fun updateAllMemberFunctions(allMemberFunctions: Iterable<BoundMemberFunction>) {
-        allMemberFunctionOverloadSetsByName = allMemberFunctions
-            .groupBy { Pair(it.name, it.parameters.parameters.size) }
-            .map { (nameAndParamCount, overloads) ->
-                BoundOverloadSet(
-                    CanonicalElementName.Function(
-                        this@BoundBaseType.canonicalName,
-                        nameAndParamCount.first,
-                    ),
-                    nameAndParamCount.second,
-                    overloads,
-                )
-            }
-            .groupBy { it.canonicalName.simpleName }
-    }
-
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return seanHelper.phase1 {
             val reportings = mutableSetOf<Reporting>()
@@ -214,9 +195,24 @@ class BoundBaseType(
             }
             superTypes.inheritedMemberFunctions.asSequence()
                 .filter { it !in overriddenInheritedFunctions }
+                .map {
+                    if (kind.memberFunctionsAbstractByDefault) it else PossiblyMixedInBoundMemberFunction(this, it)
+                }
                 .forEach(allMemberFunctions::add)
 
-            updateAllMemberFunctions(allMemberFunctions)
+            allMemberFunctionOverloadSetsByName = allMemberFunctions
+                .groupBy { Pair(it.name, it.parameters.parameters.size) }
+                .map { (nameAndParamCount, overloads) ->
+                    BoundOverloadSet(
+                        CanonicalElementName.Function(
+                            this@BoundBaseType.canonicalName,
+                            nameAndParamCount.first,
+                        ),
+                        nameAndParamCount.second,
+                        overloads,
+                    )
+                }
+                .groupBy { it.canonicalName.simpleName }
 
             allMemberFunctionOverloadSetsByName.values.forEach { overloadSets ->
                 overloadSets.forEach { overloadSet ->
@@ -262,58 +258,35 @@ class BoundBaseType(
 
             val reportings = entries.flatMap { it.semanticAnalysisPhase3() }.toMutableList()
 
-            typeParameters?.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
-            reportings.addAll(superTypes.semanticAnalysisPhase3())
-            entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase3).forEach(reportings::addAll)
-            constructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
-            destructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
-
-            allMemberFunctionOverloadSetsByName.values.forEach { overloadSets ->
-                overloadSets.forEach {
-                    reportings.addAll(it.semanticAnalysisPhase3())
-                }
-            }
-
             if (!kind.memberFunctionsAbstractByDefault) {
-                val overriddenSuperFns = memberFunctions
-                    .asSequence()
+                val memberFunctionsNeedingMixin = allMemberFunctionOverloadSetsByName.values
+                    .flatten()
                     .flatMap { it.overloads }
-                    .flatMap { it.overrides ?: emptyList() }
-                    .toCollection(Collections.newSetFromMap(IdentityHashMap()))
+                    .filterIsInstance<PossiblyMixedInBoundMemberFunction>()
 
-                val mixinImplementations = IdentityHashMap<InheritedBoundMemberFunction, BoundMixinStatement>()
                 val mixins = constructor?.mixins ?: emptySet()
-                for (inheritedFn in superTypes.inheritedMemberFunctions) {
-                    if (!inheritedFn.isAbstract) {
-                        continue
-                    }
-                    if (inheritedFn in overriddenSuperFns) {
-                        continue
-                    }
-
-                    var originallyInheritedFrom = inheritedFn.declaredOnType
-                    var pivot: InheritedBoundMemberFunction? = inheritedFn
+                val usedMixins = Collections.newSetFromMap<BoundMixinStatement>(IdentityHashMap())
+                for (fnNeedingMixin in memberFunctionsNeedingMixin) {
+                    var originallyInheritedFrom = fnNeedingMixin.declaredOnType
+                    var pivot: InheritedBoundMemberFunction? = fnNeedingMixin.inheritedFn
                     while (pivot != null) {
                         originallyInheritedFrom = pivot.declaredOnType
                         pivot = pivot.supertypeMemberFn as? InheritedBoundMemberFunction
                     }
 
-                    val responsibleMixin = mixins
+                    mixins
                         .firstOrNull { mixin ->
                             val type = mixin.type ?: return@firstOrNull false
                             type.isAssignableTo(originallyInheritedFrom.baseReference)
                         }
-
-                    if (responsibleMixin == null) {
-                        reportings.add(Reporting.abstractInheritedFunctionNotImplemented(this, inheritedFn))
-                    } else {
-                        check(inheritedFn !in mixinImplementations)
-                        mixinImplementations[inheritedFn] = responsibleMixin
-                    }
+                        ?.let { responsibleMixin ->
+                            responsibleMixin.assignToFunction(fnNeedingMixin)
+                            usedMixins.add(responsibleMixin)
+                        }
                 }
 
-                val usedMixins = mixinImplementations.values.toSet()
                 mixins
+                    .asSequence()
                     .filter { it !in usedMixins }
                     .forEach {
                         reportings.add(Reporting.unusedMixin(it))
@@ -324,6 +297,18 @@ class BoundBaseType(
                 check(!kind.hasCtorsAndDtors)
                 check(constructor == null)
             }
+
+            typeParameters?.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
+            reportings.addAll(superTypes.semanticAnalysisPhase3())
+            entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase3).forEach(reportings::addAll)
+            constructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
+            destructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
+
+            allMemberFunctionOverloadSetsByName.values
+                .flatten()
+                .flatMap { it.overloads }
+                .flatMap { it.semanticAnalysisPhase3() }
+                .let(reportings::addAll)
 
             return@phase3 reportings
         }

@@ -47,6 +47,7 @@ import compiler.binding.basetype.BoundDeclaredBaseTypeMemberFunction
 import compiler.binding.basetype.BoundMixinStatement
 import compiler.binding.basetype.BoundSupertypeDeclaration
 import compiler.binding.basetype.InheritedBoundMemberFunction
+import compiler.binding.basetype.PossiblyMixedInBoundMemberFunction
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.effect.VariableLifetime
 import compiler.binding.expression.*
@@ -247,10 +248,9 @@ abstract class Reporting internal constructor(
                 return baseReporting
             }
 
-            val sampleMemberFn = allMemberFns.first()
-            val subtype = (sampleMemberFn as? InheritedBoundMemberFunction)?.subtype ?: sampleMemberFn.declaredOnType
+            val subtype = allMemberFns.first().ownerBaseType
 
-            val onlyInheritedOverloads = allMemberFns.filterIsInstance<InheritedBoundMemberFunction>()
+            val onlyInheritedOverloads = allMemberFns.filter { it is InheritedBoundMemberFunction || it is PossiblyMixedInBoundMemberFunction }
             if (onlyInheritedOverloads.isEmpty() || BoundOverloadSet.areOverloadsDisjoint(onlyInheritedOverloads)) {
                 // the member functions declared in the subtype clearly have an effect on the ambiguity of the overload-set
                 return baseReporting

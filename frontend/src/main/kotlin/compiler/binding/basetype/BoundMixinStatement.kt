@@ -88,8 +88,12 @@ class BoundMixinStatement(
         return expression.findWritesBeyond(boundary)
     }
 
-    override fun toBackendIrStatement(): IrExecutable {
+    fun assignToFunction(fnNeedingMixin: PossiblyMixedInBoundMemberFunction) {
+        seanHelper.requirePhase2Done()
+        fnNeedingMixin.assignMixin(registration!!)
+    }
 
+    override fun toBackendIrStatement(): IrExecutable {
         return IrCodeChunkImpl(emptyList())
     }
 }
