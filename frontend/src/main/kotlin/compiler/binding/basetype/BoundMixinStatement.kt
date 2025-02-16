@@ -1,10 +1,13 @@
 package compiler.binding.basetype
 
+import compiler.InternalCompilerError
 import compiler.ast.AstMixinStatement
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundStatement
+import compiler.binding.IrAssignmentStatementImpl
+import compiler.binding.IrAssignmentStatementTargetClassFieldImpl
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
@@ -12,6 +15,10 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.IrVariableAccessExpressionImpl
+import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
+import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
+import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
@@ -99,6 +106,24 @@ class BoundMixinStatement(
     }
 
     override fun toBackendIrStatement(): IrExecutable {
-        return IrCodeChunkImpl(emptyList())
+        val selfVariable = context.resolveVariable("self", true)
+            ?: throw InternalCompilerError("Couldn't find a self value to generate IR for mixin at ${declaration.span}")
+        val selfValueTemporary = IrCreateTemporaryValueImpl(IrVariableAccessExpressionImpl(selfVariable.backendIrDeclaration))
+        val mixinValueTemporary = IrCreateTemporaryValueImpl(expression.toBackendIrExpression())
+
+        return IrCodeChunkImpl(listOf(
+            selfValueTemporary,
+            mixinValueTemporary,
+            IrCreateStrongReferenceStatementImpl(mixinValueTemporary),
+            IrAssignmentStatementImpl(
+                IrAssignmentStatementTargetClassFieldImpl(
+                    registration!!.obtainField().toBackendIr(),
+                    IrTemporaryValueReferenceImpl(selfValueTemporary),
+                ),
+                IrTemporaryValueReferenceImpl(mixinValueTemporary),
+            ),
+        ))
+
+        // TODO: destruct mixed in object in dtor!!
     }
 }
