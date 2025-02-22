@@ -72,8 +72,6 @@ class PossiblyMixedInBoundMemberFunction(
             )
         )
 
-        // TODO: static dispatch for mixins where the concrete type is known
-
         val parameterTemporaries = parametersIr.drop(1).map { paramIr ->
             IrCreateTemporaryValueImpl(IrVariableAccessExpressionImpl(paramIr))
         }

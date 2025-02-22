@@ -181,6 +181,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       val futureVal: Future<S32> = forkJoinPool.submit({ doExpensiveComputation() })
       ```
       Which brings the important question to the table: Push-Based or Pull-Based futures?
+23. various optimizations collected over time
+    * static dispatch for mixed-in functions when the concrete type of the mixed-in object is known
+      at compile time
 
 -----
 
