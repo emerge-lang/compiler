@@ -73,8 +73,9 @@ class BoundMixinStatement(
         return seanHelper.phase2 {
             val reportings = expression.semanticAnalysisPhase2().toMutableSet()
             expression.type?.evaluateAssignabilityTo(expectedType, expression.declaration.span)?.let(reportings::add)
-            registration = context.registerMixin(this, expression.type ?: context.swCtx.any.baseReference, Diagnosis.addingTo(reportings))
-            registration!!.addDestructingAction(this::generateDestructorCode)
+            registration = context.registerMixin(this, expression.type ?: context.swCtx.any.baseReference, Diagnosis.addingTo(reportings))?.also {
+                it.addDestructingAction(this::generateDestructorCode)
+            }
             expression.markEvaluationResultCaptured(TypeMutability.EXCLUSIVE)
             return@phase2 reportings
         }
