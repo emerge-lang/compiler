@@ -24,7 +24,7 @@ on:
         value: "${{ jobs.windows-distributables.outputs.zip-sha256 }}"
 
 env:
-  GLIBC_SOURCE_BALL_URL: "http://mirror.dogado.de/gnu/libc/glibc-2.41.tar.bz2"
+  GLIBC_SOURCE_BALL_URL: "https://mirror.dogado.de/gnu/libc/glibc-2.41.tar.bz2"
   GCC_GIT_REF: "releases/gcc-14.1.0"
   LIBUNWIND_GIT_REF: "v1.8.1"
   LLVM_MAJOR_VERSION: "18"
