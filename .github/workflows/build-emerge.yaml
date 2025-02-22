@@ -24,7 +24,7 @@ on:
         value: "${{ jobs.windows-distributables.outputs.zip-sha256 }}"
 
 env:
-  GLIBC_SOURCE_BALL_URL: "http://mirror.dogado.de/gnu/libc/glibc-2.38.tar.bz2"
+  GLIBC_SOURCE_BALL_URL: "http://mirror.dogado.de/gnu/libc/glibc-2.41.tar.bz2"
   GCC_GIT_REF: "releases/gcc-14.1.0"
   LIBUNWIND_GIT_REF: "v1.8.1"
   LLVM_MAJOR_VERSION: "18"
@@ -47,7 +47,7 @@ jobs:
         run: |
           sudo apt-get install bison
           curl "$GLIBC_SOURCE_BALL_URL" | tar --bzip2 --extract
-          mv glibc-2.38 glibc-source
+          mv glibc-2.41 glibc-source
           mkdir glibc-build
           cd glibc-build
           $GITHUB_WORKSPACE/glibc-source/configure --host=x86_64-pc-linux-gnu --target=x86_64-pc-linux-gnu --prefix=$GITHUB_WORKSPACE/glibc-install
