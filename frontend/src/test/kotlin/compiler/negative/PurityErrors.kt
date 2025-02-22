@@ -91,20 +91,57 @@ class PurityErrors : FreeSpec({
                 .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
         }
 
-        "by calling a function that takes a mutable parameter" {
-            validateModule("""
-                class H {
-                    var i = 0
-                }
-                var x = H()
-                fn pureMutate(p: mut H) {
-                    set p.i = 1
-                }
-                read fn test() {
-                    pureMutate(x)
-                }
-            """.trimIndent())
-                .shouldReport<MutableUsageOfStateOutsideOfPurityBoundaryReporting>()
+        "by calling a function that takes a mutable parameter" - {
+            "global variable as parameter to simple function" {
+                validateModule("""
+                    class H {
+                        var i = 0
+                    }
+                    x: mut _ = H()
+                    fn pureMutate(p: mut H) {
+                        set p.i = 1
+                    }
+                    read fn test() {
+                        pureMutate(x)
+                    }
+                """.trimIndent())
+                    .shouldReport<MutableUsageOfStateOutsideOfPurityBoundaryReporting>()
+            }
+
+            "global variable as self-parameter to member function" {
+                validateModule("""
+                    class H {
+                        var i = 0
+                        fn pureMutate(self: mut H) {
+                            set self.i = 1
+                        }
+                    }
+                    x: mut _ = H()
+                    read fn test() {
+                        x.pureMutate()
+                    }
+                """.trimIndent())
+                    .shouldReport<MutableUsageOfStateOutsideOfPurityBoundaryReporting>()
+            }
+
+            "global variable as non-self parameter to member function" {
+                validateModule("""
+                    class H {
+                        var i = 0
+                    }
+                    class K {
+                        fn pureMutate(self, p: mut H) {
+                            set p.i = 1
+                        }
+                    }
+                    x: mut _ = H()
+                    read fn test() {
+                        k = K()
+                        k.pureMutate(x)
+                    }
+                """.trimIndent())
+                    .shouldReport<MutableUsageOfStateOutsideOfPurityBoundaryReporting>()
+            }
         }
     }
 
