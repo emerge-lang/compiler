@@ -130,7 +130,7 @@ class BoundReturnExpression(
                 ),
                 null,
                 emptyList(),
-                declaration.returnKeyword.span,
+                declaration.returnKeyword.span.deriveGenerated(),
             )
             val bound = ast.bindTo(context)
             checkNoDiagnostics(bound.semanticAnalysisPhase1())
