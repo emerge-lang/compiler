@@ -416,6 +416,16 @@ class VariableErrors : FreeSpec({
                     it.additionalDeclaration.name.value shouldBe "a"
                 }
         }
+
+        "generated constructor parameter shadowing global - ALLOWED" {
+            validateModule("""
+                x = 2
+                class A {
+                    x: String = init
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
     }
 
     "scoping" - {
