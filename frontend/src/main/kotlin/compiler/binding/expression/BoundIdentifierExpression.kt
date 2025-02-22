@@ -248,7 +248,11 @@ class BoundIdentifierExpression(
         }
 
         override val isCompileTimeConstant: Boolean
-            get() = !variable.isReAssignable && variable.initializerExpression?.isCompileTimeConstant == true
+            get() {
+                val isInitializedToCompileTimeConstant = variable.initializerExpression?.isCompileTimeConstant == true
+                val typeIsImmutable = (variable.typeAtDeclarationTime?.mutability ?: TypeMutability.IMMUTABLE) == TypeMutability.IMMUTABLE
+                return !variable.isReAssignable && isInitializedToCompileTimeConstant && typeIsImmutable
+            }
     }
     inner class ReferringType(val reference: BoundTypeReference) : Referral {
         override val span = declaration.span

@@ -92,7 +92,6 @@ class PurityErrors : FreeSpec({
         }
 
         "by calling a function that takes a mutable parameter" - {
-            // somehow, these tests pass when the mutated object is declared with var x = ... instead of x: mut _ = ...
             "global variable as parameter to simple function" {
                 validateModule("""
                     class H {
