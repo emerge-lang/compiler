@@ -449,7 +449,7 @@ export class ArrayIndexOutOfBoundsError : Error {
     export invalidIndex: UWord = init
     
     export constructor {
-        mixin ThrowableTrait(null) as Error
+        mixin ThrowableTrait(null)
     }
 }
 

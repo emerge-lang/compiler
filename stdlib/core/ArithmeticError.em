@@ -8,6 +8,6 @@ export class ArithmeticError : Error {
     private message: String = init
     
     constructor {
-        mixin ThrowableTrait(self.message) as Error
+        mixin ThrowableTrait(self.message)
     }
 }
