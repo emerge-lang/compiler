@@ -42,7 +42,7 @@ open class MutableCTContext(
     /**
      * The context this one is derived off of
      */
-    private val parentContext: CTContext,
+    internal val parentContext: CTContext,
     overrideVisibility: BoundVisibility? = null
 ) : CTContext {
     override val visibility: BoundVisibility = overrideVisibility ?: parentContext.visibility

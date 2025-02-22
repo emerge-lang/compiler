@@ -119,7 +119,7 @@ interface ExecutionScopedCTContext : CTContext {
 }
 
 open class MutableExecutionScopedCTContext protected constructor(
-    val parentContext: CTContext,
+    parentContext: CTContext,
     final override val isScopeBoundary: Boolean,
     final override val isFunctionRoot: Boolean,
     override val repetitionRelativeToParent: ExecutionScopedCTContext.Repetition,
@@ -132,7 +132,7 @@ open class MutableExecutionScopedCTContext protected constructor(
 
     private val hierarchy: Sequence<CTContext> = generateSequence(this as CTContext) {
         when (it) {
-            is MutableExecutionScopedCTContext -> it.parentContext
+            is MutableCTContext -> it.parentContext
             is SingleBranchJoinExecutionScopedCTContext -> it.beforeBranch
             is MultiBranchJoinExecutionScopedCTContext -> it.beforeBranch
             else -> null

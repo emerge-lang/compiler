@@ -10,7 +10,6 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.reportings.Reporting
-import compiler.util.checkNoDiagnostics
 import io.github.tmarsteel.emerge.backend.api.ir.IrFullyInheritedMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -79,18 +78,18 @@ class InheritedBoundMemberFunction(
 
     // semantic analysis not needed here
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        checkNoDiagnostics(parameters.semanticAnalysisPhase1())
-        checkNoDiagnostics(parameters.parameters.flatMap { it.semanticAnalysisPhase1() })
+        parameters.semanticAnalysisPhase1()
+        parameters.parameters.flatMap { it.semanticAnalysisPhase1() }
         return emptySet()
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        checkNoDiagnostics(parameters.parameters.flatMap { it.semanticAnalysisPhase2() })
+        parameters.parameters.flatMap { it.semanticAnalysisPhase2() }
         return emptySet()
     }
 
     override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        checkNoDiagnostics(parameters.parameters.flatMap { it.semanticAnalysisPhase3() })
+        parameters.parameters.flatMap { it.semanticAnalysisPhase3() }
         return emptySet()
     }
 

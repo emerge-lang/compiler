@@ -9,7 +9,12 @@ import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
-import compiler.binding.*
+import compiler.binding.BoundCodeChunk
+import compiler.binding.BoundFunction
+import compiler.binding.BoundFunctionAttributeList
+import compiler.binding.IrCodeChunkImpl
+import compiler.binding.SeanHelper
+import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.IrClassMemberVariableAccessExpressionImpl
@@ -25,7 +30,13 @@ import compiler.lexer.KeywordToken
 import compiler.lexer.Span
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.ir.*
+import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
+import io.github.tmarsteel.emerge.backend.api.ir.IrDeallocateObjectStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrUnregisterWeakReferenceStatement
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class BoundClassDestructor(
@@ -81,9 +92,7 @@ class BoundClassDestructor(
                 null,
             )
         ))
-        astParameterList.bindTo(destructorFunctionRootContext).also {
-            check(it.semanticAnalysisPhase1().isEmpty())
-        }
+        astParameterList.bindTo(destructorFunctionRootContext)
     }
 
     val userDefinedCode: BoundCodeChunk by lazy {
@@ -97,13 +106,18 @@ class BoundClassDestructor(
 
     override fun semanticAnalysisPhase1(): Collection<Reporting> {
         return seanHelper.phase1 {
-            userDefinedCode.semanticAnalysisPhase1()
+            val reportings = mutableListOf<Reporting>()
+            reportings.addAll(userDefinedCode.semanticAnalysisPhase1())
+            reportings.addAll(parameters.semanticAnalysisPhase1())
+            reportings
         }
     }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return seanHelper.phase2 {
-            val reportings = userDefinedCode.semanticAnalysisPhase2()
+            val reportings = mutableListOf<Reporting>()
+            reportings.addAll(userDefinedCode.semanticAnalysisPhase2())
+
             userDefinedCode.setNothrow(NothrowViolationReporting.SideEffectBoundary.Function(this))
             return@phase2 reportings
         }

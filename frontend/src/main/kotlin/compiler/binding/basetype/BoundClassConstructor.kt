@@ -1,13 +1,29 @@
 package compiler.binding.basetype
 
-import compiler.ast.*
+import compiler.ast.AssignmentStatement
+import compiler.ast.AstCodeChunk
+import compiler.ast.BaseTypeConstructorDeclaration
+import compiler.ast.ParameterList
+import compiler.ast.VariableDeclaration
+import compiler.ast.VariableOwnership
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
-import compiler.binding.*
+import compiler.binding.BoundCodeChunk
+import compiler.binding.BoundExecutable
+import compiler.binding.BoundFunction
+import compiler.binding.BoundFunctionAttributeList
+import compiler.binding.BoundParameterList
+import compiler.binding.BoundVariable
+import compiler.binding.IrAssignmentStatementImpl
+import compiler.binding.IrAssignmentStatementTargetClassMemberVariableImpl
+import compiler.binding.IrAssignmentStatementTargetVariableImpl
+import compiler.binding.IrCodeChunkImpl
+import compiler.binding.SeanHelper
+import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -23,10 +39,26 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.handleCyclicInvocation
-import compiler.lexer.*
+import compiler.lexer.IdentifierToken
+import compiler.lexer.Keyword
+import compiler.lexer.KeywordToken
+import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
+import compiler.lexer.Span
 import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
 import compiler.reportings.Reporting
-import io.github.tmarsteel.emerge.backend.api.ir.*
+import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrClass
+import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
+import io.github.tmarsteel.emerge.backend.api.ir.IrConstructor
+import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
+import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrRegisterWeakReferenceStatement
+import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
+import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
+import io.github.tmarsteel.emerge.backend.api.ir.independentToString
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 /**
@@ -130,9 +162,7 @@ class BoundClassConstructor(
             }
 
         val astParameterList = ParameterList(astParameters)
-        BoundParameterList(contextWithSelfVar, astParameterList, astParameterList.parameters.map { it.bindToAsConstructorParameter(contextWithSelfVar) }).also {
-            check(it.semanticAnalysisPhase1().isEmpty())
-        }
+        BoundParameterList(contextWithSelfVar, astParameterList, astParameterList.parameters.map { it.bindToAsConstructorParameter(contextWithSelfVar) })
     }
 
     private val boundMemberVariableInitCodeFromCtorParams: BoundCodeChunk by lazy {
@@ -192,6 +222,7 @@ class BoundClassConstructor(
 
             reportings.addAll(attributes.semanticAnalysisPhase1())
             reportings.addAll(selfVariableForInitCode.semanticAnalysisPhase1())
+            reportings.addAll(parameters.semanticAnalysisPhase1())
             reportings.addAll(boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase1())
             reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase1())
             additionalInitCode.semanticAnalysisPhase1().let(reportings::addAll)
@@ -221,6 +252,7 @@ class BoundClassConstructor(
                 }
 
             reportings.addAll(attributes.semanticAnalysisPhase2())
+            reportings.addAll(parameters.parameters.flatMap { it.semanticAnalysisPhase2() })
             reportings.addAll(boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase2())
             reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase2())
             reportings.addAll(additionalInitCode.semanticAnalysisPhase2())
@@ -256,6 +288,7 @@ class BoundClassConstructor(
 
             reportings.addAll(attributes.semanticAnalysisPhase3())
             reportings.addAll(selfVariableForInitCode.semanticAnalysisPhase3())
+            reportings.addAll(parameters.parameters.flatMap { it.semanticAnalysisPhase3() })
             reportings.addAll(boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase3())
             reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase3())
             reportings.addAll(additionalInitCode.semanticAnalysisPhase3())

@@ -113,6 +113,7 @@ class BoundVariable(
 
             context.resolveVariable(this.name)
                 ?.takeUnless { it === this }
+                ?.takeUnless { shadowed -> this.kind.allowsShadowingGlobals && shadowed.isGlobal }
                 ?.let { firstDeclarationOfVariable ->
                     reportings.add(
                         Reporting.variableDeclaredMoreThanOnce(
@@ -351,6 +352,7 @@ class BoundVariable(
         val isInitializedByDefault: Boolean,
         val allowsVisibility: Boolean,
         val runInitializerInSubScope: Boolean,
+        val allowsShadowingGlobals: Boolean = false,
     ) {
         LOCAL_VARIABLE(
             implicitMutabilityWhenNotReAssignable = TypeMutability.IMMUTABLE,
@@ -369,6 +371,10 @@ class BoundVariable(
             isInitializedByDefault = false,
             allowsVisibility = true,
             runInitializerInSubScope = false,
+            /* class members cannot be in name conflict with global variables because access to them is always
+               qualified by a member-access expression, either through self or another variable name.
+             */
+            allowsShadowingGlobals = true,
         ),
         GLOBAL_VARIABLE(
             TypeMutability.IMMUTABLE,
@@ -400,6 +406,10 @@ class BoundVariable(
             PARAMETER.isInitializedByDefault,
             PARAMETER.allowsVisibility,
             PARAMETER.runInitializerInSubScope,
+            /* see the reasoning for allowShadowingGloblas on member variables;
+               this is because constructor parameters are named like the class members they take init values for.
+             */
+            allowsShadowingGlobals = true,
         )
         ;
 

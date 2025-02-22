@@ -26,6 +26,7 @@ import compiler.reportings.SuperFunctionForOverrideNotFoundReporting
 import compiler.reportings.TypeArgumentOutOfBoundsReporting
 import compiler.reportings.TypeParameterNameConflictReporting
 import compiler.reportings.UndeclaredOverrideReporting
+import compiler.reportings.UndefinedIdentifierReporting
 import compiler.reportings.UnknownTypeReporting
 import compiler.reportings.UseOfUninitializedClassMemberVariableReporting
 import compiler.reportings.ValueNotAssignableReporting
@@ -535,6 +536,21 @@ class ClassErrors : FreeSpec({
                 """.trimIndent())
                     .shouldReport<ConstructorDeclaredModifyingReporting>()
             }
+        }
+
+        "cannot access generated parameters for init-variables" {
+            validateModule("""
+                class A {
+                    x: String = init
+                    y: String
+                    constructor {
+                        set self.y = x
+                    }
+                }
+            """.trimIndent())
+                .shouldReport<UndefinedIdentifierReporting> {
+                    it.expr.value shouldBe "x"
+                }
         }
     }
 
