@@ -113,6 +113,8 @@ private class IrDelegatingMemberFunctionImpl(
     override val body: IrCodeChunk,
 ) : IrDelegatingMemberFunction, IrMemberFunction by inheritedFn {
     override val superFunction = inheritedFn.superFunction
+    override val supportsDynamicDispatch = true
+    override val overrides = setOf(inheritedFn)
 }
 
 private class IrDelegatedMethodParameter(
