@@ -106,7 +106,8 @@ class BoundBaseTypeMemberVariable(
         private set
 
     /**
-     * Assures [field] is initialized. Must only be called after semantic analysis is successfully completed.
+     * Assures [field] is initialized. Must only be called after semantic analysis is successfully completed,
+     * but before generating any IR.
      */
     fun assureFieldAllocated() {
         if (!this::field.isInitialized) {

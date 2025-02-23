@@ -322,7 +322,7 @@ class BoundBaseType(
     /**
      * allocate a field of type [type] in instances of this [BoundBaseType].
      *
-     * **must be called after semantic analysis is done, ideally while generating IR.**
+     * **must be called before semantic analysis is done, latest before generating IR.**
      */
     fun allocateField(type: BoundTypeReference): BaseTypeField {
         seanHelper.requirePhase3Done()
