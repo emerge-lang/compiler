@@ -122,18 +122,17 @@ interface ExecutionScopedCTContext : CTContext {
      * @see [ExecutionScopedCTContext.repetitionRelativeToParent]
      */
     enum class Repetition(
-        /** whether code in this context could execut more than once */
+        /** whether code in this context could execute more than once */
         val mayRepeat: Boolean,
-        val isGuaranteedOnce: Boolean,
     ) {
         /** for simple, linear code inside a function */
-        EXACTLY_ONCE(false, true),
+        EXACTLY_ONCE(false),
         /** for branches of IF */
-        MAYBE(false, false),
+        MAYBE(false),
         /** loop bodies that cannot be proven at compile time to execute at least once */
-        ZERO_OR_MORE(true, false),
+        ZERO_OR_MORE(true),
         /** loop bodies that **can** be proven at compile time to execute at least once, e.g. do-while loop bodies */
-        ONCE_OR_MORE(true, true),
+        ONCE_OR_MORE(true),
         ;
     }
 
