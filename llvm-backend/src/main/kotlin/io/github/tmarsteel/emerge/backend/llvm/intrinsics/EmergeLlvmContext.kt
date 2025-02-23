@@ -306,6 +306,22 @@ class EmergeLlvmContext(
     ): LlvmFunction<*>? {
         fn.llvmRef?.let { return it }
 
+        val llvmParameterTypes = fn.parameters.map { getReferenceSiteType(it.type) }
+        val coreReturnValueLlvmType = returnTypeOverride ?: when {
+            fn.returnType.isUnit -> LlvmVoidType
+            !fn.returnType.isNullable && (fn.returnType as? IrSimpleType)?.baseType?.isNothing == true -> LlvmVoidType
+            else  -> getReferenceSiteType(fn.returnType)
+        }
+        val returnLlvmType = if (fn.hasNothrowAbi) coreReturnValueLlvmType else EmergeFallibleCallResult(coreReturnValueLlvmType)
+        val functionType = LlvmFunctionType(
+            returnLlvmType,
+            llvmParameterTypes,
+        )
+
+        if (fn is IrMemberFunction) {
+            fn.llvmFunctionType = functionType
+        }
+
         if (fn is IrFullyInheritedMemberFunction) {
             check(returnTypeOverride == null) {
                 "cannot override return type on fully inherited function ${fn.canonicalName}"
@@ -317,14 +333,6 @@ class EmergeLlvmContext(
             llvmFn?.let { fn.llvmRef = it }
             return llvmFn
         }
-
-        val llvmParameterTypes = fn.parameters.map { getReferenceSiteType(it.type) }
-        val coreReturnValueLlvmType = returnTypeOverride ?: when {
-            fn.returnType.isUnit -> LlvmVoidType
-            !fn.returnType.isNullable && (fn.returnType as? IrSimpleType)?.baseType?.isNothing == true -> LlvmVoidType
-            else  -> getReferenceSiteType(fn.returnType)
-        }
-        val returnLlvmType = if (fn.hasNothrowAbi) coreReturnValueLlvmType else EmergeFallibleCallResult(coreReturnValueLlvmType)
 
         getInstrinsic(fn)?.let { intrinsic ->
             assert(llvmParameterTypes.size == intrinsic.type.parameterTypes.size)
@@ -342,17 +350,11 @@ class EmergeLlvmContext(
             return intrinsic
         }
 
-        val functionType = LlvmFunctionType(
-            returnLlvmType,
-            llvmParameterTypes,
-        )
-        if (fn is IrMemberFunction) {
-            fn.llvmFunctionType = functionType
-            if (fn.body == null) {
-                // abstract member fn is not relevant to LLVM
-                return null
-            }
+        if (fn is IrMemberFunction && fn.body == null) {
+            // abstract member fn is not relevant to LLVM
+            return null
         }
+
         if (symbolNameOverride != null) {
             fn.llvmName = symbolNameOverride
         }

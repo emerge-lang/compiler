@@ -27,18 +27,13 @@ import compiler.lexer.Span
  * A piece of executable code
  */
 class AstCodeChunk(
-    val statements: List<Statement>
+    val statements: List<Statement>,
+    override val span: Span,
 ) : Expression {
-    override val span: Span = statements.firstOrNull()?.span ?: Span.UNKNOWN
-
-    /*
-    fun bindTo(context: CTContext): BoundCodeChunk {
-        val initialContext = context as? ExecutionScopedCTContext ?: throw InternalCompilerError("Can this ever happen? If yes: easy fix right here")
-        val boundStatements = statements.chain(initialContext).toList()
-        return BoundCodeChunk(context, this, boundStatements)
-    }
-     */
-
+    constructor(statements: List<Statement>) : this(
+        statements,
+        if (statements.isEmpty()) Span.UNKNOWN else statements.first().span .. statements.last().span,
+    )
     override fun bindTo(context: ExecutionScopedCTContext): BoundCodeChunk {
         val boundStatements = statements.chain(context).toList()
         return BoundCodeChunk(context, this, boundStatements)

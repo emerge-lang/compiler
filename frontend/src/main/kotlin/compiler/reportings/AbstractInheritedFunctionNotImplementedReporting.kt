@@ -1,5 +1,7 @@
 package compiler.reportings
 
+import compiler.ast.VariableOwnership
+import compiler.ast.type.TypeMutability
 import compiler.binding.BoundMemberFunction
 import compiler.binding.basetype.BoundBaseType
 import compiler.lexer.Keyword
@@ -9,33 +11,10 @@ class AbstractInheritedFunctionNotImplementedReporting(
     val functionToImplement: BoundMemberFunction,
 ) : Reporting(
     Level.ERROR,
-    run {
-        var signature = ""
-        if (functionToImplement.declaredTypeParameters.isNotEmpty()) {
-            signature += functionToImplement.declaredTypeParameters.joinToString(
-                prefix = "<",
-                separator = ", ",
-                postfix = ">",
-            )
-        }
-        signature += "("
-        var parameterTypesForSignature = functionToImplement.parameterTypes
-        if (functionToImplement.declaresReceiver) {
-            signature += "self"
-            parameterTypesForSignature = parameterTypesForSignature.drop(1)
-            if (parameterTypesForSignature.isNotEmpty()) {
-                signature += ", "
-            }
-        }
-        signature += parameterTypesForSignature.joinToString(separator = ", ")
-        signature += ") -> "
-        signature += functionToImplement.returnType.toString()
-
-        """
-            Class ${implementingType.simpleName} must implement abstract function ${functionToImplement.name} inherited from ${functionToImplement.declaredOnType.canonicalName}. Implement this member function:
-            ${Keyword.FUNCTION.text} ${functionToImplement.name}$signature
-        """.trimIndent()
-    },
+    """
+        Class ${implementingType.simpleName} must implement abstract function ${functionToImplement.name} inherited from ${functionToImplement.declaredOnType.canonicalName}. Implement this member function:
+        ${functionToImplement.synopsis}
+    """.trimIndent(),
     implementingType.declaration.declaredAt,
 ) {
     override fun equals(other: Any?): Boolean {
@@ -55,4 +34,44 @@ class AbstractInheritedFunctionNotImplementedReporting(
         result = 31 * result + System.identityHashCode(functionToImplement)
         return result
     }
+}
+
+private val BoundMemberFunction.synopsis: String get() {
+    var signature = ""
+    if (this.declaredTypeParameters.isNotEmpty()) {
+        signature += this.declaredTypeParameters.joinToString(
+            prefix = "<",
+            separator = ", ",
+            postfix = ">",
+        )
+    }
+    signature += "("
+    var parameterTypesForSignature = this.parameterTypes
+    if (this.declaresReceiver) {
+        val selfParam = this.parameters.declaredReceiver!!
+        if (selfParam.ownershipAtDeclarationTime != VariableOwnership.BORROWED) {
+            signature += selfParam.ownershipAtDeclarationTime.name.lowercase()
+            signature += " "
+        }
+        signature += "self"
+        val mutability = selfParam.typeAtDeclarationTime?.mutability
+        if (mutability != null && mutability != TypeMutability.READONLY) {
+            signature += ": "
+            signature += mutability.keyword.text
+            signature += " _"
+        }
+        parameterTypesForSignature = parameterTypesForSignature.drop(1)
+        if (parameterTypesForSignature.isNotEmpty()) {
+            signature += ", "
+        }
+    }
+    signature += parameterTypesForSignature.joinToString(separator = ", ")
+    signature += ") -> "
+    signature += this.returnType.toString()
+
+    // the nothrow attribute is the only one that is contagious/is forced on overriding functions;
+    // the others are mostly optional or not straightforward. This keeps things simple while still sufficiently informative
+    val nothrowText = if (this.attributes.isDeclaredNothrow) Keyword.NOTHROW.text + " " else ""
+
+    return "${nothrowText}${Keyword.FUNCTION.text} ${name}$signature"
 }

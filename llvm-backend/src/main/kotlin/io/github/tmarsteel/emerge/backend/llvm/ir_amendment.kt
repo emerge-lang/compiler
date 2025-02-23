@@ -2,6 +2,7 @@ package io.github.tmarsteel.emerge.backend.llvm
 
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
+import io.github.tmarsteel.emerge.backend.api.ir.IrClassFieldAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
 import io.github.tmarsteel.emerge.backend.api.ir.IrLoop
@@ -11,6 +12,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmBooleanType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
@@ -70,7 +72,7 @@ internal val IrBaseType.isNothing by tackLazyVal { canonicalName.toString() == "
 internal var IrClass.rawLlvmRef: LlvmTypeRef? by tackState { null }
 internal val IrClass.llvmName: String get() = this.canonicalName.toString()
 internal var IrClass.llvmType: EmergeClassType by tackLateInitState()
-internal var IrClass.MemberVariable.indexInLlvmStruct: Int? by tackState { null }
+internal var IrClass.Field.indexInLlvmStruct: Int? by tackState { null }
 
 internal val IrInterface.typeinfoHolder: EmergeInterfaceTypeinfoHolder by tackLazyVal {
     EmergeInterfaceTypeinfoHolder(this)
@@ -96,7 +98,7 @@ internal val IrBaseType.allDistinctSupertypesExceptAny: Set<IrInterface> by tack
 /**
  * True only for the member `pointed` of `emerge.ffi.c.CPointer`
  */
-internal var IrClass.MemberVariable.isCPointerPointed: Boolean by tackState { false }
+internal var IrClass.Field.isCPointerPointed: Boolean by tackState { false }
 
 internal var IrFunction.llvmRef: LlvmFunction<LlvmType>? by tackState { null }
 internal var IrFunction.bodyDefined: Boolean by tackState { false }
@@ -133,6 +135,24 @@ internal val IrFunction.hasNothrowAbi: Boolean by tackLazyVal {
 
 internal var IrLoop.emitBreak: (() -> BasicBlockBuilder.Termination)? by tackState { null }
 internal var IrLoop.emitContinue: (() -> BasicBlockBuilder.Termination)? by tackState { null }
+
+internal val IrClassFieldAccessExpression.baseBaseType: IrBaseType by tackLazyVal {
+    base.type.findSimpleTypeBound().baseType
+}
+internal val IrClassFieldAccessExpression.memberVariable: IrClass.MemberVariable? by tackLazyVal {
+    val localBaseBaseType = baseBaseType
+    if (localBaseBaseType !is IrClass) {
+        return@tackLazyVal null
+    }
+
+    localBaseBaseType.memberVariables.find {
+        val readStrat = it.readStrategy
+        if (readStrat !is IrClass.MemberVariable.AccessStrategy.BareField) {
+            return@find false
+        }
+        readStrat.fieldId == field.id
+    }
+}
 
 internal val IrSoftwareContext.packagesSeq: Sequence<IrPackage> get() = modules.asSequence()
     .flatMap { it.packages }

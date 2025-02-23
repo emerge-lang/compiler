@@ -36,7 +36,7 @@ abstract class BoundDeclaredFunction(
     final override val attributes: BoundFunctionAttributeList,
     final override val declaredTypeParameters: List<BoundTypeParameter>,
     final override val parameters: BoundParameterList,
-    protected val body: Body?,
+    val body: Body?,
 ) : BoundFunction {
     final override val declaredAt = declaration.declaredAt
     final override val name: String = declaration.name.value

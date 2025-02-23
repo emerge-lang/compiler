@@ -27,8 +27,8 @@ import java.util.stream.Collectors.toMap
 
 /**
  * This class is supposed to prove that the vtable algorithm is suitable for real-world use. C++ doesn't have issues
- * there because it has one vtable per virtual type (which complicates casts extremely). Emerge only has one vtable
- * per concrete type and needs to fit an arbitrary number of virtual types onto the same concrete type.
+ * there because every object has one vtable *per* virtual type (which complicates casts extremely). Emerge only has
+ * one vtable per concrete type and needs to fit an arbitrary number of virtual types onto the same concrete type.
  */
 class VTableAlgorithmTest : FreeSpec({
     val packageName = CanonicalElementName.Package(listOf("vtabletest", randomIdentifier(10)))
@@ -117,9 +117,10 @@ class VTableAlgorithmTest : FreeSpec({
                                     override val supportsDynamicDispatch = true
                                 })
                             }
-                        override val memberVariables = emptyList<IrClass.MemberVariable>()
+                        override val fields = emptyList<IrClass.Field>()
                         override val constructor = mockk<IrFunction>()
                         override val destructor = mockk<IrFunction>()
+                        override val memberVariables = emptyList<IrClass.MemberVariable>()
                     }
 
                     val irSoftwareContext = mockk<IrSoftwareContext> {
@@ -185,6 +186,7 @@ private abstract class MockCoreType(simpleName: String) : IrClass {
     override val parameters = emptyList<IrBaseType.Parameter>()
     override val memberFunctions = emptyList<IrOverloadGroup<IrMemberFunction>>()
     override val memberVariables = emptyList<IrClass.MemberVariable>()
+    override val fields = emptyList<IrClass.Field>()
     override val constructor: IrFunction = mockk()
     override val destructor: IrFunction = mockk()
 }

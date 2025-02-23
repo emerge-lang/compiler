@@ -10,13 +10,15 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.reportings.Reporting
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrFullyInheritedMemberFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrInheritedMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class InheritedBoundMemberFunction(
     val supertypeMemberFn: BoundMemberFunction,
-    val subtype: BoundBaseType,
+    override val ownerBaseType: BoundBaseType,
 ) : BoundMemberFunction by supertypeMemberFn {
     init {
         check(supertypeMemberFn.declaresReceiver) {
@@ -26,11 +28,11 @@ class InheritedBoundMemberFunction(
 
     private val rawSuperFnContext = supertypeMemberFn.context as? ExecutionScopedCTContext
         ?: MutableExecutionScopedCTContext.functionRootIn(supertypeMemberFn.context)
-    override val context = subtype.context
+    override val context = ownerBaseType.context
     private val functionContext = object : ExecutionScopedCTContext by rawSuperFnContext {
         override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
-            if (ref.simpleName == subtype.simpleName) {
-                return subtype.context.resolveType(ref, fromOwnFileOnly)
+            if (ref.simpleName == ownerBaseType.simpleName) {
+                return ownerBaseType.context.resolveType(ref, fromOwnFileOnly)
             }
 
             return rawSuperFnContext.resolveType(ref, fromOwnFileOnly)
@@ -38,7 +40,7 @@ class InheritedBoundMemberFunction(
     }
 
     override val canonicalName = CanonicalElementName.Function(
-        subtype.canonicalName,
+        ownerBaseType.canonicalName,
         supertypeMemberFn.name,
     )
 
@@ -46,24 +48,24 @@ class InheritedBoundMemberFunction(
     override val declaredOnType get()= supertypeMemberFn.declaredOnType
 
     override val receiverType: BoundTypeReference get() {
-        check(subtype.typeParameters.isNullOrEmpty()) {
+        check(ownerBaseType.typeParameters.isNullOrEmpty()) {
             "Not supported yet"
         }
-        return subtype.baseReference
+        return ownerBaseType.baseReference
     }
 
     private val narrowedReceiverParameter: VariableDeclaration = run {
         val inheritedReceiverParameter = supertypeMemberFn.parameters.declaredReceiver!!
         // it is important that this location comes from the subtype
         // this is necessary so the access checks pass on module-private or less visible subtypes
-        val sourceLocation = subtype.declaration.declaredAt.deriveGenerated()
+        val sourceLocation = ownerBaseType.declaration.declaredAt.deriveGenerated()
         VariableDeclaration(
             sourceLocation,
             null,
             null,
             inheritedReceiverParameter.declaration.ownership,
             inheritedReceiverParameter.declaration.name,
-            TypeReference(subtype.simpleName, declaringNameToken = IdentifierToken(subtype.simpleName, sourceLocation)),
+            TypeReference(ownerBaseType.simpleName, declaringNameToken = IdentifierToken(ownerBaseType.simpleName, sourceLocation), mutability = inheritedReceiverParameter.typeAtDeclarationTime?.mutability),
             null,
         )
     }
@@ -94,9 +96,13 @@ class InheritedBoundMemberFunction(
     }
 
     private val backendIr by lazy {
-        IrFullyInheritedMemberFunctionImpl(supertypeMemberFn.toBackendIr(), canonicalName)
+        IrFullyInheritedMemberFunctionImpl(
+            { ownerBaseType.toBackendIr() },
+            supertypeMemberFn.toBackendIr(),
+            canonicalName
+        )
     }
-    override fun toBackendIr(): IrMemberFunction = backendIr
+    override fun toBackendIr(): IrInheritedMemberFunction = backendIr
 
     override fun toString(): String {
         return "$canonicalName(${parameters.parameters.joinToString(separator = ", ", transform = { it.typeAtDeclarationTime.toString() })}) -> $returnType"
@@ -104,6 +110,9 @@ class InheritedBoundMemberFunction(
 }
 
 private class IrFullyInheritedMemberFunctionImpl(
+    private val getInheritingBaseType: () -> IrBaseType,
     override val superFunction: IrMemberFunction,
     override val canonicalName: CanonicalElementName.Function,
-) : IrFullyInheritedMemberFunction, IrMemberFunction by superFunction
+) : IrFullyInheritedMemberFunction, IrMemberFunction by superFunction {
+    override val ownerBaseType: IrBaseType get() = getInheritingBaseType()
+}

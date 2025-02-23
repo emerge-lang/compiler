@@ -44,6 +44,7 @@ import compiler.ast.type.TypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.Keyword.CATCH
+import compiler.lexer.Keyword.CONTINUE
 import compiler.lexer.Keyword.ELSE
 import compiler.lexer.Keyword.IF
 import compiler.lexer.Keyword.REFLECT
@@ -52,6 +53,7 @@ import compiler.lexer.KeywordToken
 import compiler.lexer.NumericLiteralToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
+import compiler.lexer.Span
 import compiler.lexer.StringLiteralContentToken
 import compiler.parser.BinaryExpressionPostfix
 import compiler.parser.CastExpressionPostfix
@@ -257,7 +259,7 @@ val BreakStatement = sequence("break statement") {
     }
 
 val ContinueStatement = sequence("continue statement") {
-    keyword(Keyword.CONTINUE)
+    keyword(CONTINUE)
 }
     .astTransformation { tokens ->
         AstContinueExpression(tokens.next()!! as KeywordToken)
@@ -272,27 +274,23 @@ val BracedCodeOrSingleStatement = eitherOf("curly braced code or single statemen
     ref(Expression)
 }
     .astTransformation { tokens ->
-        var next: Any? = tokens.next()
+        val firstToken = tokens.next()
 
-        if (next is Executable) {
-            return@astTransformation next
+        if (firstToken is Executable) {
+            return@astTransformation firstToken
         }
 
-        if (next != OperatorToken(Operator.CBRACE_OPEN)) {
-            throw InternalCompilerError("Unexpected $next, expecting ${Operator.CBRACE_OPEN} or executable")
+        val cBraceOpenToken = firstToken as OperatorToken
+        check(cBraceOpenToken.operator == Operator.CBRACE_OPEN)
+        val chunk = tokens.next() as AstCodeChunk
+        val cBraceCloseToken = tokens.next() as OperatorToken
+        check(cBraceCloseToken.operator == Operator.CBRACE_CLOSE)
+
+        if (chunk.span == Span.UNKNOWN) {
+            return@astTransformation AstCodeChunk(chunk.statements, cBraceOpenToken.span .. cBraceCloseToken.span)
         }
 
-        next = tokens.next()
-
-        if (next == OperatorToken(Operator.CBRACE_CLOSE)) {
-            return@astTransformation AstCodeChunk(emptyList())
-        }
-
-        if (next !is AstCodeChunk) {
-            throw InternalCompilerError("Unexpected $next, expecting code or ${Operator.CBRACE_CLOSE}")
-        }
-
-        return@astTransformation next
+        return@astTransformation chunk
     }
 
 val IfExpression = sequence("if-expression") {
@@ -470,9 +468,7 @@ val ExpressionPostfixCast = sequence("cast") {
     }
 
 val ExpressionPostfixInstanceOf = sequence("instance-of") {
-    eitherOf {
-        keyword(Keyword.INSTANCEOF)
-    }
+    keyword(Keyword.INSTANCEOF)
     ref(Type)
 }
     .astTransformation { tokens ->
@@ -513,10 +509,8 @@ val BinaryOperator = eitherOf {
     }
 
 val ExpressionPostfixBinaryOperation = sequence("binary expression") {
-    repeatingAtLeastOnce {
-        ref(BinaryOperator)
-        ref(ExpressionExcludingBinaryPostfix)
-    }
+    ref(BinaryOperator)
+    ref(ExpressionExcludingBinaryPostfix)
 }
     .astTransformation { tokens ->
         BinaryExpressionPostfix(tokens.remainingToList())
@@ -538,8 +532,24 @@ val ExpressionPostfix = eitherOf {
     .mapResult { it as ExpressionPostfix<AstExpression> }
 
 private fun astTransformOneExpressionWithOptionalPostfixes(tokens: TransactionalSequence<Any, *>): AstExpression {
-    val expression = tokens.next()!! as AstExpression
-    return tokens
-        .remainingToList()
-        .fold(expression) { expr, postfix -> (postfix as ExpressionPostfix<*>).modify(expr) }
+    var expression = tokens.next()!! as AstExpression
+
+    // we have to find runs of BinaryOperationPostfix to correctly account for operator precedence
+    tokens@while (tokens.hasNext()) {
+        val postfix = tokens.next() as ExpressionPostfix<*>
+        if (postfix !is BinaryExpressionPostfix) {
+            expression = postfix.modify(expression)
+            continue@tokens
+        }
+
+        val binaryPostfixes = ArrayList<BinaryExpressionPostfix>()
+        binaryPostfixes.add(postfix)
+        while (tokens.peek() is BinaryExpressionPostfix) {
+            binaryPostfixes.add(tokens.next() as BinaryExpressionPostfix)
+        }
+
+        expression = BinaryExpressionPostfix.buildBinaryExpression(expression, binaryPostfixes)
+    }
+
+    return expression
 }

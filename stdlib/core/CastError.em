@@ -5,15 +5,9 @@ import emerge.platform.collectStackTrace
 import emerge.std.collections.ArrayList
 
 class CastError : Error {
-    private var stackTrace: const ArrayList<StackTraceElement>? = null
-
-    export override read fn fillStackTrace(self: mut _) {
-        set self.stackTrace = self.stackTrace ?: collectStackTrace(2 as U32, false)
+    constructor {
+        // cannot use cast here because that would create an infinite loop in the compiler; and even if not,
+        // it would "risk" creating an infinite loop at runtime when a CastError cannot be created due to a CastError
+        mixin ThrowableTrait("The cast failed; the value is not of the expected type.")
     }
-
-    export override nothrow fn getStackTrace(self) -> const ArrayList<StackTraceElement>? {
-        return self.stackTrace
-    }
-
-    export override nothrow fn getMessage(self) = "The cast failed; the value is not of the expected type."
 }

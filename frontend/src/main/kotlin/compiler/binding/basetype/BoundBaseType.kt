@@ -27,7 +27,9 @@ import compiler.ast.type.TypeReference
 import compiler.binding.*
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
+import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.binding.type.isAssignableTo
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Span
@@ -63,7 +65,8 @@ class BoundBaseType(
             if (typeParameters.isNullOrEmpty()) null else throw InternalCompilerError("cannot use baseReference on types with parameters")
         )
 
-    val memberVariables: List<BoundBaseTypeMemberVariable> = entries.filterIsInstance<BoundBaseTypeMemberVariable>()
+    private val _memberVariables: MutableList<BoundBaseTypeMemberVariable> = entries.filterIsInstance<BoundBaseTypeMemberVariable>().toMutableList()
+    val memberVariables: List<BoundBaseTypeMemberVariable> = _memberVariables
     val declaredConstructors: Sequence<BoundClassConstructor> = entries.asSequence().filterIsInstance<BoundClassConstructor>()
     val declaredDestructors: Sequence<BoundClassDestructor> = entries.asSequence().filterIsInstance<BoundClassDestructor>()
 
@@ -114,11 +117,11 @@ class BoundBaseType(
                 reportings.addAll(it.semanticAnalysisPhase1())
             }
 
-            memberVariables.duplicatesBy(BoundBaseTypeMemberVariable::name).forEach { (_, dupMembers) ->
+            _memberVariables.duplicatesBy(BoundBaseTypeMemberVariable::name).forEach { (_, dupMembers) ->
                 reportings.add(Reporting.duplicateBaseTypeMembers(this, dupMembers))
             }
             if (!kind.allowsMemberVariables) {
-                memberVariables.forEach {
+                _memberVariables.forEach {
                     reportings.add(Reporting.entryNotAllowedOnBaseType(this, it))
                 }
             }
@@ -167,6 +170,17 @@ class BoundBaseType(
                 }
             }
 
+            if (!kind.allowMemberFunctionImplementations) {
+                entries
+                    .asSequence()
+                    .filterIsInstance<BoundDeclaredBaseTypeMemberFunction>()
+                    .filter { it.declaresReceiver }
+                    .filter { it.body != null }
+                    .forEach {
+                        reportings.add(Reporting.memberFunctionImplementedOnInterface(it))
+                    }
+            }
+
             lintSean1(reportings)
 
             if (superTypes.hasCyclicInheritance) {
@@ -181,6 +195,9 @@ class BoundBaseType(
             }
             superTypes.inheritedMemberFunctions.asSequence()
                 .filter { it !in overriddenInheritedFunctions }
+                .map {
+                    if (kind.memberFunctionsAbstractByDefault) it else PossiblyMixedInBoundMemberFunction(this, it)
+                }
                 .forEach(allMemberFunctions::add)
 
             allMemberFunctionOverloadSetsByName = allMemberFunctions
@@ -207,7 +224,7 @@ class BoundBaseType(
         }
     }
 
-    fun resolveMemberVariable(name: String): BoundBaseTypeMemberVariable? = memberVariables.find { it.name == name }
+    fun resolveMemberVariable(name: String): BoundBaseTypeMemberVariable? = _memberVariables.find { it.name == name }
 
     override fun semanticAnalysisPhase2(): Collection<Reporting> {
         return seanHelper.phase2 {
@@ -239,35 +256,47 @@ class BoundBaseType(
                 return@phase3 emptySet()
             }
 
-            val reportings = entries.flatMap { it.semanticAnalysisPhase3() }.toMutableList()
+            if (!kind.memberFunctionsAbstractByDefault) {
+                val memberFunctionsNeedingMixin = allMemberFunctionOverloadSetsByName.values
+                    .flatten()
+                    .flatMap { it.overloads }
+                    .filterIsInstance<PossiblyMixedInBoundMemberFunction>()
 
+                val mixins = constructor?.mixins ?: emptySet()
+                for (fnNeedingMixin in memberFunctionsNeedingMixin) {
+                    var originallyInheritedFrom = fnNeedingMixin.declaredOnType
+                    var pivot: InheritedBoundMemberFunction? = fnNeedingMixin.inheritedFn
+                    while (pivot != null) {
+                        originallyInheritedFrom = pivot.declaredOnType
+                        pivot = pivot.supertypeMemberFn as? InheritedBoundMemberFunction
+                    }
+
+                    mixins
+                        .firstOrNull { mixin ->
+                            val type = mixin.type ?: return@firstOrNull false
+                            type.isAssignableTo(originallyInheritedFrom.baseReference)
+                        }
+                        ?.assignToFunction(fnNeedingMixin)
+                }
+            } else {
+                // if there are constructors, there could be mixins. But in this branch, they're not considered
+                // if that is the case, there's a fundamental bug and the chances for miscompilation are huge
+                check(!kind.hasCtorsAndDtors)
+                check(constructor == null)
+            }
+
+            val reportings = mutableListOf<Reporting>()
             typeParameters?.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
             reportings.addAll(superTypes.semanticAnalysisPhase3())
             entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase3).forEach(reportings::addAll)
             constructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
             destructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
 
-            allMemberFunctionOverloadSetsByName.values.forEach { overloadSets ->
-                overloadSets.forEach {
-                    reportings.addAll(it.semanticAnalysisPhase3())
-                }
-            }
-
-            if (!kind.memberFunctionsAbstractByDefault) {
-                val overriddenSuperFns = memberFunctions
-                    .asSequence()
-                    .flatMap { it.overloads }
-                    .flatMap { it.overrides ?: emptyList() }
-                    .toCollection(Collections.newSetFromMap(IdentityHashMap()))
-
-                superTypes.inheritedMemberFunctions
-                    .filter { it.isAbstract }
-                    .forEach { abstractSuperFn ->
-                        if (abstractSuperFn !in overriddenSuperFns) {
-                            reportings.add(Reporting.abstractInheritedFunctionNotImplemented(this, abstractSuperFn))
-                        }
-                    }
-            }
+            allMemberFunctionOverloadSetsByName.values
+                .flatten()
+                .flatMap { it.overloads }
+                .flatMap { it.semanticAnalysisPhase3() }
+                .let(reportings::addAll)
 
             return@phase3 reportings
         }
@@ -287,13 +316,35 @@ class BoundBaseType(
         }
     }
 
-    private val backendIr by lazy { kind.toBackendIr(this) }
+    private val _fields: MutableList<BaseTypeField> = ArrayList(memberVariables.size)
+    val fields: List<BaseTypeField> = _fields
+
+    /**
+     * allocate a field of type [type] in instances of this [BoundBaseType].
+     *
+     * **must be called before semantic analysis is done, latest before generating IR.**
+     */
+    fun allocateField(type: BoundTypeReference): BaseTypeField {
+        seanHelper.requirePhase3Done()
+
+        val field = BaseTypeField(_fields.size, type)
+        _fields.add(field)
+
+        return field
+    }
+
+    private val backendIr by lazy {
+        _memberVariables.forEach {
+            it.assureFieldAllocated()
+        }
+        kind.toBackendIr(this)
+    }
     fun toBackendIr(): IrBaseType = backendIr
 
     override fun toString() = "${kind.name.lowercase()} $canonicalName"
 
     /**
-     * True iff this is one of the core scalar types of the language:
+     * True iff this is one of the core numeric types of the language:
      * * all the numeric types, ints and floats
      */
     val isCoreNumericType: Boolean
@@ -337,24 +388,23 @@ class BoundBaseType(
         val namePlural: String,
         val hasCtorsAndDtors: Boolean,
         val allowsMemberVariables: Boolean,
-        val memberFunctionsAbstractByDefault: Boolean,
-        val memberFunctionsVirtualByDefault: Boolean,
+        val allowMemberFunctionImplementations: Boolean,
     ) {
         CLASS(
             "classes",
             hasCtorsAndDtors = true,
             allowsMemberVariables = true,
-            memberFunctionsAbstractByDefault = false,
-            memberFunctionsVirtualByDefault = false,
+            allowMemberFunctionImplementations = true,
         ),
         INTERFACE(
             "interfaces",
             hasCtorsAndDtors = false,
             allowsMemberVariables = false,
-            memberFunctionsAbstractByDefault = true,
-            memberFunctionsVirtualByDefault = true,
+            allowMemberFunctionImplementations = false,
         ),
         ;
+
+        val memberFunctionsAbstractByDefault: Boolean = !allowMemberFunctionImplementations
 
         fun toBackendIr(typeDef: BoundBaseType): IrBaseType = when(this) {
             CLASS -> IrClassImpl(typeDef)
@@ -457,6 +507,7 @@ private class IrClassImpl(
     override val canonicalName: CanonicalElementName.BaseType = typeDef.canonicalName
     override val supertypes: Set<IrInterface> get() = typeDef.superTypes.baseTypes.map { it.toBackendIr() as IrInterface }.toSet()
     override val parameters = typeDef.typeParameters?.map { it.toBackendIr() } ?: emptyList()
+    override val fields by lazy { typeDef.fields.map { it.toBackendIr() } }
     override val memberVariables by lazy { typeDef.memberVariables.map { it.toBackendIr() } }
     override val memberFunctions by lazy { typeDef.memberFunctions.map { it.toBackendIr() as IrOverloadGroup<IrMemberFunction> } }
     override val constructor by lazy { typeDef.constructor!!.toBackendIr() }

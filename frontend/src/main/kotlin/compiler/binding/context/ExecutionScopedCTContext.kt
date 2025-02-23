@@ -6,8 +6,15 @@ import compiler.ast.Statement.Companion.chain
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundLoop
 import compiler.binding.BoundVariable
+import compiler.binding.SemanticallyAnalyzable
+import compiler.binding.basetype.BaseTypeField
+import compiler.binding.basetype.BoundMixinStatement
+import compiler.binding.basetype.DestructorCodeGenerator
 import compiler.binding.context.effect.EphemeralStateClass
 import compiler.binding.context.effect.SideEffect
+import compiler.binding.type.BoundTypeReference
+import compiler.reportings.Diagnosis
+import compiler.reportings.Reporting
 import compiler.util.TakeWhileAndNextIterator.Companion.takeWhileAndNext
 import compiler.util.takeWhileIsInstance
 import java.util.IdentityHashMap
@@ -102,19 +109,41 @@ interface ExecutionScopedCTContext : CTContext {
     fun getFunctionDeferredCode(): Sequence<BoundExecutable<*>>
 
     /**
+     * Intended to be called solely by [BoundMixinStatement] during [SemanticallyAnalyzable.semanticAnalysisPhase2].
+     * Registers this mixin in the parent class context.
+     * @param type the type of the mixed-in object
+     * @return the backing field in which to store the reference to the delegate during the objects lifetime.
+     * `null` iff the mixin is not legal in this context. In that case, the reason has been added to [diagnosis]
+     * by [registerMixin].
+     */
+    fun registerMixin(mixinStatement: BoundMixinStatement, type: BoundTypeReference, diagnosis: Diagnosis): MixinRegistration?
+
+    /**
      * @see [ExecutionScopedCTContext.repetitionRelativeToParent]
      */
     enum class Repetition(
-        /** whether code in this context could execut more than once */
+        /** whether code in this context could execute more than once */
         val mayRepeat: Boolean,
     ) {
         /** for simple, linear code inside a function */
         EXACTLY_ONCE(false),
+        /** for branches of IF */
+        MAYBE(false),
         /** loop bodies that cannot be proven at compile time to execute at least once */
         ZERO_OR_MORE(true),
         /** loop bodies that **can** be proven at compile time to execute at least once, e.g. do-while loop bodies */
         ONCE_OR_MORE(true),
         ;
+    }
+
+    interface MixinRegistration {
+        /**
+         * To be called during IR generation.
+         * @return the field where the mixin can store the reference to the mixed-in object.
+         */
+        fun obtainField(): BaseTypeField
+
+        fun addDestructingAction(action: DestructorCodeGenerator)
     }
 }
 
@@ -286,13 +315,21 @@ open class MutableExecutionScopedCTContext protected constructor(
             .fold(ExecutionScopedCTContext.Repetition.EXACTLY_ONCE) { carry, repetition ->
                 when (carry) {
                     ExecutionScopedCTContext.Repetition.EXACTLY_ONCE -> repetition
+                    ExecutionScopedCTContext.Repetition.MAYBE -> when(repetition) {
+                        ExecutionScopedCTContext.Repetition.EXACTLY_ONCE -> ExecutionScopedCTContext.Repetition.MAYBE
+                        ExecutionScopedCTContext.Repetition.MAYBE -> ExecutionScopedCTContext.Repetition.MAYBE
+                        ExecutionScopedCTContext.Repetition.ZERO_OR_MORE -> ExecutionScopedCTContext.Repetition.ZERO_OR_MORE
+                        ExecutionScopedCTContext.Repetition.ONCE_OR_MORE -> ExecutionScopedCTContext.Repetition.ZERO_OR_MORE
+                    }
                     ExecutionScopedCTContext.Repetition.ONCE_OR_MORE -> when(repetition) {
                         ExecutionScopedCTContext.Repetition.EXACTLY_ONCE -> carry
+                        ExecutionScopedCTContext.Repetition.MAYBE -> ExecutionScopedCTContext.Repetition.ZERO_OR_MORE
                         ExecutionScopedCTContext.Repetition.ONCE_OR_MORE -> ExecutionScopedCTContext.Repetition.ONCE_OR_MORE
                         ExecutionScopedCTContext.Repetition.ZERO_OR_MORE -> ExecutionScopedCTContext.Repetition.ZERO_OR_MORE
                     }
                     ExecutionScopedCTContext.Repetition.ZERO_OR_MORE -> when(repetition) {
                         ExecutionScopedCTContext.Repetition.EXACTLY_ONCE -> carry
+                        ExecutionScopedCTContext.Repetition.MAYBE -> ExecutionScopedCTContext.Repetition.ZERO_OR_MORE
                         ExecutionScopedCTContext.Repetition.ONCE_OR_MORE -> ExecutionScopedCTContext.Repetition.ZERO_OR_MORE
                         ExecutionScopedCTContext.Repetition.ZERO_OR_MORE -> ExecutionScopedCTContext.Repetition.ZERO_OR_MORE
                     }
@@ -305,6 +342,15 @@ open class MutableExecutionScopedCTContext protected constructor(
             .filterIsInstance<LoopExecutionScopedCTContext<*>>()
             .firstOrNull()
             ?.loopNode
+    }
+
+    override fun registerMixin(mixinStatement: BoundMixinStatement, type: BoundTypeReference, diagnosis: Diagnosis): ExecutionScopedCTContext.MixinRegistration? {
+        if (parentContext !is ExecutionScopedCTContext) {
+            diagnosis.add(Reporting.mixinNotAllowed(mixinStatement))
+            return null
+        }
+
+        return parentContext.registerMixin(mixinStatement, type, diagnosis)
     }
 
     override fun toString(): String {
@@ -414,7 +460,7 @@ class ExceptionHandlingExecutionScopedCTContext(
     parent,
     isScopeBoundary = true,
     isFunctionRoot = false,
-    ExecutionScopedCTContext.Repetition.ZERO_OR_MORE,
+    ExecutionScopedCTContext.Repetition.MAYBE,
 ) {
     override val isExceptionHandler = true
 }

@@ -5,16 +5,33 @@ import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
-import io.github.tmarsteel.emerge.backend.llvm.*
+import io.github.tmarsteel.emerge.backend.llvm.allDistinctSupertypesExceptAny
+import io.github.tmarsteel.emerge.backend.llvm.associateErrorOnDuplicate
 import io.github.tmarsteel.emerge.backend.llvm.codegen.emergeStringLiteral
 import io.github.tmarsteel.emerge.backend.llvm.codegen.findSimpleTypeBound
-import io.github.tmarsteel.emerge.backend.llvm.dsl.*
+import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
+import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep
 import io.github.tmarsteel.emerge.backend.llvm.dsl.GetElementPointerStep.Companion.member
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmConstant
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmContext
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunction
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmGlobal
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmPointerType.Companion.pointerTo
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmValue
+import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmVoidType
+import io.github.tmarsteel.emerge.backend.llvm.dsl.buildConstantIn
+import io.github.tmarsteel.emerge.backend.llvm.dsl.i32
+import io.github.tmarsteel.emerge.backend.llvm.indexInLlvmStruct
+import io.github.tmarsteel.emerge.backend.llvm.isCPointerPointed
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmThreadLocalMode
 import io.github.tmarsteel.emerge.backend.llvm.jna.LlvmTypeRef
 import io.github.tmarsteel.emerge.backend.llvm.jna.NativePointerArray
+import io.github.tmarsteel.emerge.backend.llvm.llvmRef
+import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
+import io.github.tmarsteel.emerge.backend.llvm.typeinfoHolder
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 internal class EmergeClassType private constructor(
@@ -41,7 +58,7 @@ internal class EmergeClassType private constructor(
         }
 
         // boxing types have only one field, holding the boxed value. We use the name of that
-        return irClass.memberVariables.single().type.findSimpleTypeBound().baseType.canonicalName
+        return irClass.fields.single().type.findSimpleTypeBound().baseType.canonicalName
     }
 
     private val typeinfoProvider by lazy {
@@ -110,9 +127,9 @@ internal class EmergeClassType private constructor(
      * Initializes all fields as per [fieldValues], **entirely ignoring any initializer expressions or constructors
      * defined in the emerge source**.
      */
-    fun buildStaticConstant(fieldValues: Map<IrClass.MemberVariable, LlvmConstant<*>>): LlvmConstant<EmergeClassType> {
-        fieldValues.keys.firstOrNull { it !in irClass.memberVariables }?.also {
-            throw CodeGenerationException("${it.name} is not a member variable of ${irClass.canonicalName}")
+    fun buildStaticConstant(fieldValues: Map<IrClass.Field, LlvmConstant<*>>): LlvmConstant<EmergeClassType> {
+        fieldValues.keys.firstOrNull { it !in irClass.fields }?.also {
+            throw CodeGenerationException("Field #${it.id} is not a member of ${irClass.canonicalName}")
         }
 
         assureLlvmStructMembersDefined()
@@ -123,13 +140,13 @@ internal class EmergeClassType private constructor(
             setValue(EmergeHeapAllocatedValueBaseType.typeinfo, typeinfo.static)
             setNull(EmergeHeapAllocatedValueBaseType.weakReferenceCollection)
         }
-        val fieldValueConstants = irClass.memberVariables
+        val fieldValueConstants = irClass.fields
             .sortedBy { it.indexInLlvmStruct }
-            .map { irMember ->
-                val fieldValue = fieldValues[irMember] ?: throw CodeGenerationException("Missing a value for field ${irMember.name}")
-                val fieldType = context.getReferenceSiteType(irMember.type)
+            .map { irField ->
+                val fieldValue = fieldValues[irField] ?: throw CodeGenerationException("Missing a value for field #${irField.id}")
+                val fieldType = context.getReferenceSiteType(irField.type)
                 check(fieldValue.type.isAssignableTo(fieldType)) {
-                    "Value for field ${irMember.name} is of type ${fieldValue.type}, which is not assignable to the type of the field $fieldType"
+                    "Value for field #${irField.id} is of type ${fieldValue.type}, which is not assignable to the type of the field $fieldType"
                 }
                 fieldValue
             }
@@ -155,11 +172,11 @@ internal class EmergeClassType private constructor(
             EmergeHeapAllocatedValueBaseType
         ).map { it.getRawInContext(context) }
 
-        irClass.memberVariables.forEachIndexed { index, member ->
+        irClass.fields.forEachIndexed { index, member ->
             member.indexInLlvmStruct = baseElements.size + index
         }
 
-        val emergeMemberTypesRaw = irClass.memberVariables.map { context.getReferenceSiteType(it.type).getRawInContext(context) }
+        val emergeMemberTypesRaw = irClass.fields.map { context.getReferenceSiteType(it.type).getRawInContext(context) }
         NativePointerArray.fromJavaPointers(baseElements + emergeMemberTypesRaw).use { llvmMemberTypesRaw ->
             Llvm.LLVMStructSetBody(structRef, llvmMemberTypesRaw, llvmMemberTypesRaw.length, 0)
         }
@@ -199,13 +216,13 @@ internal class EmergeClassType private constructor(
         }
 
         context(BasicBlockBuilder<EmergeLlvmContext, *>)
-        fun GetElementPointerStep<EmergeClassType>.member(memberVariable: IrClass.MemberVariable): GetElementPointerStep<LlvmType> {
-            if (memberVariable.isCPointerPointed) {
+        fun GetElementPointerStep<EmergeClassType>.member(field: IrClass.Field): GetElementPointerStep<LlvmType> {
+            if (field.isCPointerPointed) {
                 return this as GetElementPointerStep<LlvmType>
             }
 
-            check(memberVariable in this@member.pointeeType.irClass.memberVariables)
-            return stepUnsafe(context.i32(memberVariable.indexInLlvmStruct!!), context.getReferenceSiteType(memberVariable.type))
+            check(field in this@member.pointeeType.irClass.fields)
+            return stepUnsafe(context.i32(field.indexInLlvmStruct!!), context.getReferenceSiteType(field.type))
         }
     }
 }

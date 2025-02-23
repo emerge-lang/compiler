@@ -43,8 +43,12 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeEntry
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
+import compiler.binding.basetype.BoundDeclaredBaseTypeMemberFunction
+import compiler.binding.basetype.BoundMixinStatement
 import compiler.binding.basetype.BoundSupertypeDeclaration
 import compiler.binding.basetype.InheritedBoundMemberFunction
+import compiler.binding.basetype.PossiblyMixedInBoundMemberFunction
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.effect.VariableLifetime
 import compiler.binding.expression.*
 import compiler.binding.type.BoundTypeArgument
@@ -61,7 +65,6 @@ import java.math.BigInteger
 
 /**
  * TODO: rename to Diagnostic
- * TODO: replace the mutableSetOf(), addAll return shit with something actually efficient
  */
 abstract class Reporting internal constructor(
     val level: Level,
@@ -226,6 +229,9 @@ abstract class Reporting internal constructor(
         fun staticFunctionDeclaredOverride(function: BoundDeclaredFunction)
             = StaticFunctionDeclaredOverrideReporting(function.attributes.firstOverrideAttribute!!)
 
+        fun memberFunctionImplementedOnInterface(function: BoundDeclaredBaseTypeMemberFunction)
+            = MemberFunctionImplOnInterfaceReporting(function.body!!.declaration.span)
+
         fun abstractInheritedFunctionNotImplemented(implementingType: BoundBaseType, functionToImplement: BoundMemberFunction)
             = AbstractInheritedFunctionNotImplementedReporting(implementingType, functionToImplement)
 
@@ -242,10 +248,9 @@ abstract class Reporting internal constructor(
                 return baseReporting
             }
 
-            val sampleMemberFn = allMemberFns.first()
-            val subtype = (sampleMemberFn as? InheritedBoundMemberFunction)?.subtype ?: sampleMemberFn.declaredOnType
+            val subtype = allMemberFns.first().ownerBaseType
 
-            val onlyInheritedOverloads = allMemberFns.filterIsInstance<InheritedBoundMemberFunction>()
+            val onlyInheritedOverloads = allMemberFns.filter { it is InheritedBoundMemberFunction || it is PossiblyMixedInBoundMemberFunction }
             if (onlyInheritedOverloads.isEmpty() || BoundOverloadSet.areOverloadsDisjoint(onlyInheritedOverloads)) {
                 // the member functions declared in the subtype clearly have an effect on the ambiguity of the overload-set
                 return baseReporting
@@ -341,12 +346,15 @@ abstract class Reporting internal constructor(
         fun externalMemberFunction(function: BoundDeclaredFunction)
             = ExternalMemberFunctionReporting(function.declaration, function.attributes.externalAttribute!!.attributeName)
 
-        fun objectNotFullyInitialized(uninitializedMembers: Collection<BoundBaseTypeMemberVariable>, usedAt: Span): ObjectNotFullyInitializedReporting {
-            return ObjectNotFullyInitializedReporting(
+        fun notAllMemberVariablesInitialized(uninitializedMembers: Collection<BoundBaseTypeMemberVariable>, usedAt: Span): NotAllMemberVariablesInitializedReporting {
+            return NotAllMemberVariablesInitializedReporting(
                 uninitializedMembers.map { it.declaration },
                 usedAt
             )
         }
+
+        fun notAllMixinsInitialized(uninitializedMixins: Collection<BoundMixinStatement>, usedAt: Span)
+            = ObjectUsedBeforeMixinInitializationReporting(uninitializedMixins.minBy { it.declaration.span.fromLineNumber }.declaration, usedAt)
 
         fun useOfUninitializedMember(access: BoundMemberAccessExpression) = UseOfUninitializedClassMemberVariableReporting(
             access.member!!.declaration,
@@ -461,9 +469,6 @@ abstract class Reporting internal constructor(
         fun duplicateBaseTypeMembers(typeDef: BoundBaseType, duplicateMembers: Set<BoundBaseTypeMemberVariable>) =
             DuplicateBaseTypeMemberReporting(typeDef, duplicateMembers)
 
-        fun assignmentUsedAsExpression(assignment: BoundAssignmentStatement)
-            = AssignmenUsedAsExpressionReporting(assignment.declaration)
-
         fun mutationInCondition(mutation: BoundExecutable<*>)
             = MutationInConditionReporting(mutation.declaration)
 
@@ -475,6 +480,15 @@ abstract class Reporting internal constructor(
 
         fun multipleClassConstructors(additionalCtors: Collection<BaseTypeConstructorDeclaration>)
             = MultipleClassConstructorsReporting(additionalCtors)
+
+        fun mixinNotAllowed(mixin: BoundMixinStatement)
+            = MixinNotAllowedReporting(mixin.declaration)
+
+        fun illegalMixinRepetition(mixin: BoundMixinStatement, repetition: ExecutionScopedCTContext.Repetition)
+            = IllegalMixinRepetitionReporting(mixin.declaration, repetition)
+
+        fun unusedMixin(mixin: BoundMixinStatement)
+            = UnusedMixinReporting(mixin.declaration)
 
         fun multipleClassDestructors(additionalDtors: Collection<BaseTypeDestructorDeclaration>)
             = MultipleClassDestructorsReporting(additionalDtors)

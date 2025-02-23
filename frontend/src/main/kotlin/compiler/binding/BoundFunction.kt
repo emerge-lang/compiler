@@ -101,7 +101,17 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
 }
 
 interface BoundMemberFunction : BoundFunction {
+    /**
+     * the [BoundBaseType] that declared this function. If `interface A` declares function `foo`
+     * and interface `B` extends `A` without overriding `foo`, [declaredOnType] for `B::foo` will be `A`.
+     */
     val declaredOnType: BoundBaseType
+
+    /**
+     * the [BoundBaseType] that owns this function. If `interface A` declares function `foo`
+     * and interface `B` extends `A` without overriding `foo`, [ownerBaseType] for `B::foo` will be `B`.
+     */
+    val ownerBaseType: BoundBaseType
 
     val isVirtual: Boolean
 

@@ -8,7 +8,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrBooleanLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrBreakStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCatchExceptionStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
-import io.github.tmarsteel.emerge.backend.api.ir.IrClassMemberVariableAccessExpression
+import io.github.tmarsteel.emerge.backend.api.ir.IrClassFieldAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrConditionalBranch
 import io.github.tmarsteel.emerge.backend.api.ir.IrContinueStatement
@@ -56,6 +56,7 @@ import io.github.tmarsteel.emerge.backend.llvm.IrSimpleTypeImpl
 import io.github.tmarsteel.emerge.backend.llvm.StateTackDelegate
 import io.github.tmarsteel.emerge.backend.llvm.allDistinctSupertypesExceptAny
 import io.github.tmarsteel.emerge.backend.llvm.autoboxer
+import io.github.tmarsteel.emerge.backend.llvm.baseBaseType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction
 import io.github.tmarsteel.emerge.backend.llvm.dsl.KotlinLlvmFunction.Companion.callIntrinsic
@@ -120,6 +121,7 @@ import io.github.tmarsteel.emerge.backend.llvm.llvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.llvmName
 import io.github.tmarsteel.emerge.backend.llvm.llvmRef
 import io.github.tmarsteel.emerge.backend.llvm.llvmType
+import io.github.tmarsteel.emerge.backend.llvm.memberVariable
 import io.github.tmarsteel.emerge.backend.llvm.signatureHashes
 import io.github.tmarsteel.emerge.backend.llvm.tackLateInitState
 import io.github.tmarsteel.emerge.backend.llvm.tackState
@@ -169,7 +171,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         is IrRegisterWeakReferenceStatement -> {
             requireNotAutoboxed(code.referredObject, "registering weak references")
             callIntrinsic(registerWeakReference, listOf(
-                getPointerToStructMember(code.referenceStoredIn.objectValue.declaration.llvmValue, code.referenceStoredIn.memberVariable),
+                getPointerToStructMember(code.referenceStoredIn.objectValue.declaration.llvmValue, code.referenceStoredIn.field),
                 code.referredObject.declaration.llvmValue,
             ))
             return ExecutableResult.ExecutionOngoing
@@ -177,7 +179,7 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
         is IrUnregisterWeakReferenceStatement -> {
             requireNotAutoboxed(code.referredObject, "unregistering weak references")
             callIntrinsic(unregisterWeakReference, listOf(
-                getPointerToStructMember(code.referenceStoredIn.objectValue.declaration.llvmValue, code.referenceStoredIn.memberVariable),
+                getPointerToStructMember(code.referenceStoredIn.objectValue.declaration.llvmValue, code.referenceStoredIn.field),
                 code.referredObject.declaration.llvmValue,
             ))
             return ExecutableResult.ExecutionOngoing
@@ -288,9 +290,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitCode(
                 is IrAssignmentStatement.Target.Variable -> {
                     localTarget.declaration.emitWrite!!(this, valueForAssignment)
                 }
-                is IrAssignmentStatement.Target.ClassMemberVariable -> {
+                is IrAssignmentStatement.Target.ClassField -> {
                     // TODO: autoboxing
-                    val memberPointer = getPointerToStructMember(localTarget.objectValue.declaration.llvmValue, localTarget.memberVariable)
+                    val memberPointer = getPointerToStructMember(localTarget.objectValue.declaration.llvmValue, localTarget.field)
                     store(valueForAssignment, memberPointer)
                 }
             }
@@ -471,9 +473,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
                 context.emergeStringLiteral(expression.utf8Bytes)
             )
         }
-        is IrClassMemberVariableAccessExpression -> {
-            if (expression.base.type.findSimpleTypeBound().baseType.canonicalName.toString() == "emerge.core.Array") {
-                if (expression.memberVariable.name == "size") {
+        is IrClassFieldAccessExpression -> {
+            if (expression.baseBaseType.canonicalName.toString() == "emerge.core.Array") {
+                if (expression.memberVariable?.name == "size") {
                     val memberValue = callIntrinsic(arraySize, listOf(expression.base.declaration.llvmValue))
                     return ExpressionResult.Value(
                         autoBoxOrUnbox(memberValue, IrSimpleTypeImpl(context.rawUWordClazz, IrTypeMutability.IMMUTABLE, false), expression.evaluatesTo)
@@ -490,9 +492,9 @@ internal fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.emitExpressionCode(
             val memberPointer = getPointerToStructMember(
                 expression.base.declaration.llvmValue
                     .reinterpretAs(context.getReferenceSiteType(expression.base.type)),
-                expression.memberVariable,
+                expression.field,
             )
-            val memberValue = autoBoxOrUnbox(memberPointer.dereference(), expression.memberVariable.type, expression.evaluatesTo)
+            val memberValue = autoBoxOrUnbox(memberPointer.dereference(), expression.field.type, expression.evaluatesTo)
             return ExpressionResult.Value(memberValue)
         }
         is IrAllocateObjectExpression -> {
@@ -887,7 +889,7 @@ internal var IrCreateTemporaryValue.llvmValue: LlvmValue<LlvmType> by tackLateIn
 
 private fun BasicBlockBuilder<EmergeLlvmContext, LlvmType>.getPointerToStructMember(
     structPointer: LlvmValue<*>,
-    member: IrClass.MemberVariable
+    member: IrClass.Field
 ): LlvmValue<LlvmPointerType<LlvmType>> {
     check(structPointer.type is LlvmPointerType<*>)
     @Suppress("UNCHECKED_CAST")

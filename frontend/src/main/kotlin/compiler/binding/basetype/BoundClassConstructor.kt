@@ -1,5 +1,6 @@
 package compiler.binding.basetype
 
+import compiler.InternalCompilerError
 import compiler.ast.AssignmentStatement
 import compiler.ast.AstCodeChunk
 import compiler.ast.BaseTypeConstructorDeclaration
@@ -19,13 +20,14 @@ import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundParameterList
 import compiler.binding.BoundVariable
 import compiler.binding.IrAssignmentStatementImpl
-import compiler.binding.IrAssignmentStatementTargetClassMemberVariableImpl
+import compiler.binding.IrAssignmentStatementTargetClassFieldImpl
 import compiler.binding.IrAssignmentStatementTargetVariableImpl
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.context.CTContext
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
@@ -36,6 +38,7 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeParameter
+import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.handleCyclicInvocation
@@ -46,6 +49,7 @@ import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.Span
 import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
@@ -87,7 +91,7 @@ class BoundClassConstructor(
         - contextWithSelfVar
             - contextWithParameters
      */
-    private val constructorFunctionRootContext = MutableExecutionScopedCTContext.functionRootIn(fileContextWithTypeParameters)
+    private val constructorFunctionRootContext = ConstructorFunctionRootContext(fileContextWithTypeParameters)
     override val context = fileContextWithTypeParameters
 
     override val declaredAt get() = declaration.span
@@ -96,6 +100,14 @@ class BoundClassConstructor(
     override val name get() = classDef.simpleName
     override val attributes = BoundFunctionAttributeList(fileContextWithTypeParameters, { this }, declaration.attributes)
     override val allTypeParameters = declaredTypeParameters
+
+    /**
+     * it is crucial that this collection sticks to the insertion order for the semantics of which mixin will implement
+     * what supertypes. Kotlin 1.9 cannot deal with Java 21s SequencedSet, but maybe Kotlin 2 will
+     */
+    private val _mixins = mutableSetOf<BoundMixinStatement>()
+    /** the mixins, in the order declared in the constructor */
+    val mixins: Set<BoundMixinStatement> = _mixins
 
     override val returnType by lazy {
         constructorFunctionRootContext.resolveType(
@@ -352,8 +364,8 @@ class BoundClassConstructor(
             )
             initIr.add(referencedObjTemporary)
             initIr.add(IrAssignmentStatementImpl(
-                IrAssignmentStatementTargetClassMemberVariableImpl(
-                    classDef.memberVariables.single().toBackendIr(),
+                IrAssignmentStatementTargetClassFieldImpl(
+                    classDef.memberVariables.single().field.toBackendIr(),
                     IrTemporaryValueReferenceImpl(selfTemporary)
                 ),
                 IrTemporaryValueReferenceImpl(referencedObjTemporary),
@@ -383,7 +395,37 @@ class BoundClassConstructor(
             IrCodeChunkImpl(initIr),
         )
     }
+
     override fun toBackendIr(): IrFunction = backendIr
+
+    private inner class ConstructorFunctionRootContext(fileContextWithTypeParameters: CTContext) : MutableExecutionScopedCTContext(fileContextWithTypeParameters, true, true, ExecutionScopedCTContext.Repetition.EXACTLY_ONCE) {
+        override fun registerMixin(mixinStatement: BoundMixinStatement, type: BoundTypeReference, diagnosis: Diagnosis): ExecutionScopedCTContext.MixinRegistration {
+            _mixins.add(mixinStatement)
+
+            when (val repetition = mixinStatement.context.getRepetitionBehaviorRelativeTo(this)) {
+                ExecutionScopedCTContext.Repetition.EXACTLY_ONCE -> {
+                    // all good
+                }
+                else -> diagnosis.add(Reporting.illegalMixinRepetition(mixinStatement, repetition))
+            }
+
+            return object : ExecutionScopedCTContext.MixinRegistration {
+                private lateinit var field: BaseTypeField
+                override fun obtainField(): BaseTypeField {
+                    if (!this::field.isInitialized) {
+                        field = classDef.allocateField(type)
+                    }
+
+                    return field
+                }
+
+                override fun addDestructingAction(action: DestructorCodeGenerator) {
+                    val dtor = classDef.destructor ?: throw InternalCompilerError("Destructor hasn't been initialized yet")
+                    dtor.addDestructingAction(action)
+                }
+            }
+        }
+    }
 }
 
 private class IrClassSimpleType(
@@ -423,9 +465,9 @@ private class IrRegisterWeakReferenceStatementImpl(
     weakObjectTemporary: IrTemporaryValueReference,
     referredObjectTemporary: IrTemporaryValueReference,
 ) : IrRegisterWeakReferenceStatement {
-    override val referenceStoredIn = object : IrAssignmentStatement.Target.ClassMemberVariable {
+    override val referenceStoredIn = object : IrAssignmentStatement.Target.ClassField {
         override val objectValue = weakObjectTemporary
-        override val memberVariable = holderMemberVariable.toBackendIr()
+        override val field = holderMemberVariable.field.toBackendIr()
     }
 
     override val referredObject = referredObjectTemporary
