@@ -107,16 +107,41 @@ jobs:
           WINDOWS_FINAL_FILENAME="emerge-toolchain-windows-x86_64-${{ inputs.version }}.zip"
           echo "windows-final-filename=$WINDOWS_FINAL_FILENAME" >> "$GITHUB_OUTPUT"
           ESCAPED_REPOSITORY="$(echo '${{ github.repository }}' | sed 's/\//\\\//')"
+          filehashBeforeVersion="$(sha256sum bazel/rules_emerge/MODULE.bazel)"
+          sed \
+            --in-place \
+            --regexp-extended \
+            -z \
+            's/(module\(\s*name\s*=\s*"rules_emerge",\s*version\s*=\s*")[0-9.]+"/\1${{ inputs.version }}"/' \
+            bazel/rules_emerge/MODULE.bazel
+          filehashBeforeWindowsUrl="$(sha256sum bazel/rules_emerge/MODULE.bazel)"
+          if [[ "$filehashBeforeVersion" == "$filehashBeforeWindowsUrl" ]]
+          then
+            echo "Could not change the version in MODULE.bazel"
+            exit 1
+          fi
           sed \
             --in-place \
             --regexp-extended \
             's/_WINDOWS_DOWNLOAD_URL\s*=\s*".+?"/_WINDOWS_DOWNLOAD_URL = "https:\/\/github.com\/'$ESCAPED_REPOSITORY'\/releases\/download\/${{ needs.prepare-build.outputs.tag }}\/'$WINDOWS_FINAL_FILENAME'"/' \
             bazel/rules_emerge/MODULE.bazel
+          filehashBeforeWindowsChecksum="$(sha256sum bazel/rules_emerge/MODULE.bazel)"
+          if [[ "$filehashBeforeWindowsUrl" == "$filehashBeforeWindowsChecksum" ]]
+          then
+            echo "Could not change the Windows download URL in MODULE.bazel"
+            exit 1
+          fi
           sed \
             --in-place \
             --regexp-extended \
             's/_WINDOWS_SHA256\s*=\s*".+?"/_WINDOWS_SHA256 = "${{ needs.build-releasable-binaries.outputs.windows-zip-sha256 }}"/' \
             bazel/rules_emerge/MODULE.bazel
+          filehashAfterWindowsChecksum="$(sha256sum bazel/rules_emerge/MODULE.bazel)"
+          if [[ "$filehashAfterWindowsChecksum" == "$filehashBeforeWindowsChecksum" ]]
+          then
+            echo "Could not change the Windows checksum in MODULE.bazel"
+            exit 1
+          fi
           
           git add bazel/rules_emerge/MODULE.bazel
           git commit -m "[RELEASE] Update windows archive reference in bazel/rules_emerge"
