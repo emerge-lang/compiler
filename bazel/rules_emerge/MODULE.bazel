@@ -1,6 +1,6 @@
 module(
     name = "rules_emerge",
-    version = "0.1.0",
+    version = "0.3.0",
 )
 
 # these two lines are syntactically sensitive: the .github/workflows/release.yaml workflows will update these two variables
