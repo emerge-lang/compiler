@@ -7,9 +7,9 @@ This file describes the Items that are next on the TODO list. **This list is NOT
        * ~~stdlib depends on platform module provided by backend~~
        * ~~modules only have access to things in other modules that they explicitly depend on~~
 3. extend OO model
-   1. implement `mixin`s
+   1. ~~implement `mixin`s~~
    2. refactor diagnosis
-      1. use Diagnosis instead of Collection<Reporting>
+      1. use Diagnosis instead of ˋCollection of Reportingˋ
       2. rename Reporting to Finding? A diagnosis lists findings; the compiler diagnoses the input code
       3. handle errors in generated code: hide them from the user as long as there are errors in user-provided
          code. Only stop compilation with blame in the compiler if the ONLY problems that are found are in
