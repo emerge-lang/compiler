@@ -81,14 +81,88 @@ class PurityErrors : FreeSpec({
     }
 
     "mutating outside of a pure context" - {
-        "by variable assignment" {
-            validateModule("""
+        "by assignment" - {
+            "global variable directly" {
+                validateModule("""
+                    var x = 1
+                    pure fn a() {
+                        set x = 2
+                    }
+                """.trimIndent())
+                    .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
+            }
+
+            "property of a global variable" {
+                validateModule("""
+                    class Box {
+                        var foo: const String = init
+                    }
+                    x: mut Box = Box("a")
+                    fn test() {
+                        set x.foo = "b"
+                    }
+                """.trimIndent())
+                    .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
+            }
+
+            "nested property of a global variable" {
+                validateModule("""
+                    class Box {
+                        var foo: const String = init
+                    }
+                    class G {
+                        var box = Box("a")
+                    }
+                    x: mut G = G()
+                    fn test() {
+                        set x.box.foo = "b"
+                    }
+                """.trimIndent())
+                    .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
+            }
+        }
+    }
+
+    "mutation outside of a read context" - {
+        "by assignment" - {
+            "global variable directly" {
+                validateModule("""
                 var x = 1
-                pure fn a() {
+                read fn a() {
                     set x = 2
                 }
             """.trimIndent())
-                .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
+                    .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
+            }
+
+            "property of a global variable" {
+                validateModule("""
+                    class Box {
+                        var foo: const String = init
+                    }
+                    x: mut Box = Box("a")
+                    read fn test() {
+                        set x.foo = "b"
+                    }
+                """.trimIndent())
+                    .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
+            }
+
+            "nested property of a global variable" {
+                validateModule("""
+                    class Box {
+                        var foo: const String = init
+                    }
+                    class G {
+                        var box = Box("a")
+                    }
+                    x: mut G = G()
+                    read fn test() {
+                        set x.box.foo = "b"
+                    }
+                """.trimIndent())
+                    .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
+            }
         }
 
         "by calling a function that takes a mutable parameter" - {
@@ -142,16 +216,25 @@ class PurityErrors : FreeSpec({
                 """.trimIndent())
                     .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
             }
-        }
-    }
 
-    "mutation outside of a read context" {
-        validateModule("""
-            var x = 1
-            read fn a() {
-                set x = 2
+            "passing a property of a global variable to a mutating function" {
+                validateModule("""
+                    class Box {
+                        var foo: const String = init
+                    }
+                    class G {
+                        var box = Box("a")
+                    }
+                    fn mutate(p: mut Box) {
+                        set p.foo = "b"
+                    }
+                    x: mut G = G()
+                    read fn test() {
+                        mutate(x.box)
+                    }
+                """.trimIndent())
+                    .shouldReport<MutableUsageOfStateOutsideOfPurityBoundaryReporting>()
             }
-        """.trimIndent())
-            .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
+        }
     }
 })
