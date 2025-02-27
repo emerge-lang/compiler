@@ -7,6 +7,7 @@ import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.SourceFile
 import compiler.lexer.Span
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
@@ -23,7 +24,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
      * **WARNING:** You very likely do not want to use this method, but [DefinitionWithVisibility.validateAccessFrom]
      * instead.
      */
-    abstract fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility): Collection<Reporting>
+    abstract fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility, diagnosis: Diagnosis)
 
     abstract fun isStrictlyBroaderThan(other: BoundVisibility): Boolean
     abstract fun isPossiblyBroaderThan(other: BoundVisibility): Boolean
@@ -38,29 +39,25 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
         return this
     }
 
-    override fun semanticAnalysisPhase1() = emptySet<Reporting>()
-    override fun semanticAnalysisPhase2() = emptySet<Reporting>()
-    override fun semanticAnalysisPhase3() = emptySet<Reporting>()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) = Unit
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
 
     /**
      * Assuming `this` visibility appears on [element], validates.
      */
-    open fun validateOnElement(element: DefinitionWithVisibility): Collection<Reporting> {
+    open fun validateOnElement(element: DefinitionWithVisibility, diagnosis: Diagnosis) {
         if (this.isStrictlyBroaderThan(context.visibility)) {
-            return setOf(Reporting.visibilityShadowed(element, context.visibility))
+            diagnosis.add(Reporting.visibilityShadowed(element, context.visibility))
         }
-
-        return emptySet()
     }
 
     class FileScope(override val context: CTContext, override val astNode: AstVisibility) : BoundVisibility() {
         val lexerFile: SourceFile get() = context.sourceFile.lexerFile
-        override fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility): Collection<Reporting> {
-            if (lexerFile == accessAt.sourceFile) {
-                return emptySet()
+        override fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility, diagnosis: Diagnosis) {
+            if (lexerFile != accessAt.sourceFile) {
+                diagnosis.add(Reporting.elementNotAccessible(subject, this, accessAt))
             }
-
-            return setOf(Reporting.elementNotAccessible(subject, this, accessAt))
         }
 
         override fun isStrictlyBroaderThan(other: BoundVisibility) = false
@@ -98,29 +95,27 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
         override val astNode: AstVisibility,
         val isDefault: Boolean,
     ) : BoundVisibility() {
-        override fun semanticAnalysisPhase1(): Set<Reporting> {
+        override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
             val owningModule = context.moduleContext.moduleName
             if (owningModule != packageName && owningModule.containsOrEquals(packageName)) {
-                return setOf(Reporting.visibilityTooBroad(owningModule, this))
+                diagnosis.add(Reporting.visibilityTooBroad(owningModule, this))
             }
-
-            return emptySet()
         }
 
-        override fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility): Collection<Reporting> {
+        override fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility, diagnosis: Diagnosis) {
             if (packageName.containsOrEquals(accessAt.sourceFile.packageName)) {
-                return validateCrossModuleAccess(context, accessAt, subject)
+                validateCrossModuleAccess(context, accessAt, subject, diagnosis)
+            } else {
+                diagnosis.add(Reporting.elementNotAccessible(subject, this, accessAt))
             }
-
-            return setOf(Reporting.elementNotAccessible(subject, this, accessAt))
         }
 
-        override fun validateOnElement(element: DefinitionWithVisibility): Collection<Reporting> {
+        override fun validateOnElement(element: DefinitionWithVisibility, diagnosis: Diagnosis) {
             if (isDefault) {
-                return emptySet()
+                return
             }
 
-            return super.validateOnElement(element)
+            return super.validateOnElement(element, diagnosis)
         }
 
         override fun isStrictlyBroaderThan(other: BoundVisibility) = when(other) {
@@ -161,8 +156,8 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
         override val context: CTContext,
         override val astNode: AstVisibility,
     ) : BoundVisibility() {
-        override fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility): Collection<Reporting> {
-            return validateCrossModuleAccess(context, accessAt, subject)
+        override fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility, diagnosis: Diagnosis) {
+            validateCrossModuleAccess(context, accessAt, subject, diagnosis)
         }
 
         override fun isStrictlyBroaderThan(other: BoundVisibility) = when (other) {
@@ -200,26 +195,26 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
     }
 }
 
-private fun validateCrossModuleAccess(contextOfAccessedElement: CTContext, accessAt: Span, subject: DefinitionWithVisibility): Collection<Reporting> {
+private fun validateCrossModuleAccess(contextOfAccessedElement: CTContext, accessAt: Span, subject: DefinitionWithVisibility, diagnosis: Diagnosis) {
     val moduleOfAccessedElement = contextOfAccessedElement.moduleContext
     val moduleOfAccess = contextOfAccessedElement.swCtx.getModuleOfPackage(accessAt.sourceFile.packageName)
     if (moduleOfAccess == moduleOfAccessedElement) {
-        return emptySet()
+        return
     }
 
     // always allow accessing emerge.std and emerge.core
     if (moduleOfAccessedElement.moduleName in DEFAULT_IMPORT_PACKAGES || DEFAULT_IMPORT_PACKAGES.any { it.containsOrEquals(moduleOfAccessedElement.moduleName) }) {
-        return emptySet()
+        return
     }
 
     // always allow accessing emerge.platform
     if (EmergeConstants.PLATFORM_MODULE_NAME.containsOrEquals(moduleOfAccessedElement.moduleName)) {
-        return emptySet()
+        return
     }
 
     if (moduleOfAccessedElement.moduleName in moduleOfAccess.explicitlyDependsOnModules) {
-        return emptySet()
+        return
     }
 
-    return setOf(Reporting.missingModuleDependency(subject, accessAt, moduleOfAccessedElement.moduleName, moduleOfAccess.moduleName))
+    diagnosis.add(Reporting.missingModuleDependency(subject, accessAt, moduleOfAccessedElement.moduleName, moduleOfAccess.moduleName))
 }

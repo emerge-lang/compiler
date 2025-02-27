@@ -28,8 +28,8 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Span
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
@@ -106,35 +106,28 @@ class BoundClassDestructor(
 
     private val seanHelper = SeanHelper()
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            val reportings = mutableListOf<Reporting>()
-            reportings.addAll(userDefinedCode.semanticAnalysisPhase1())
-            reportings.addAll(parameters.semanticAnalysisPhase1())
-            reportings
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
+            userDefinedCode.semanticAnalysisPhase1(diagnosis)
+            parameters.semanticAnalysisPhase1(diagnosis)
         }
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            val reportings = mutableListOf<Reporting>()
-            reportings.addAll(userDefinedCode.semanticAnalysisPhase2())
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
+            userDefinedCode.semanticAnalysisPhase2(diagnosis)
 
             userDefinedCode.setNothrow(NothrowViolationReporting.SideEffectBoundary.Function(this))
-            return@phase2 reportings
         }
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            val reportings = mutableListOf<Reporting>()
-            reportings.addAll(userDefinedCode.semanticAnalysisPhase3())
-
-            return@phase3 reportings
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
+            userDefinedCode.semanticAnalysisPhase3(diagnosis)
         }
     }
 
-    override fun validateAccessFrom(location: Span): Collection<Reporting> {
+    override fun validateAccessFrom(location: Span, diagnosis: Diagnosis) {
         throw InternalCompilerError("Access checks on destructors are not supposed to happen")
     }
 

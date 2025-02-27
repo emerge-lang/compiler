@@ -422,28 +422,44 @@ abstract class Reporting internal constructor(
         fun continueOutsideOfLoop(continueStatement: BoundContinueExpression)
             = ContinueOutsideOfLoopReporting(continueStatement.declaration)
 
-        fun purityViolations(readingViolations: Collection<BoundExpression<*>>, writingViolations: Collection<BoundExecutable<*>>, context: BoundFunction): Collection<Reporting> {
+        fun purityViolations(
+            readingViolations: Collection<BoundExpression<*>>,
+            writingViolations: Collection<BoundExecutable<*>>,
+            context: BoundFunction,
+            diagnosis: Diagnosis,
+        ) {
             val boundary = PurityViolationReporting.SideEffectBoundary.Function(context)
-            val readingReportings = readingViolations.map { readingPurityViolationToReporting(it, boundary) }
-            val writingReportings = writingViolations.asSequence()
+            readingViolations
+                .map { readingPurityViolationToReporting(it, boundary) }
+                .forEach(diagnosis::add)
+            writingViolations.asSequence()
                 .filter { it !in readingViolations }
                 .map { modifyingPurityViolationToReporting(it, boundary) }
-
-            return readingReportings + writingReportings
+                .forEach(diagnosis::add)
         }
 
-        fun purityViolations(readingViolations: Collection<BoundExpression<*>>, writingViolations: Collection<BoundExecutable<*>>, context: BoundBaseTypeMemberVariable): Collection<Reporting> {
+        fun purityViolations(
+            readingViolations: Collection<BoundExpression<*>>,
+            writingViolations: Collection<BoundExecutable<*>>,
+            context: BoundBaseTypeMemberVariable,
+            diagnosis: Diagnosis,
+        ) {
             val boundary = PurityViolationReporting.SideEffectBoundary.ClassMemberInitializer(context)
-            val readingReportings = readingViolations.map { readingPurityViolationToReporting(it, boundary) }
-            val writingReportings = writingViolations.asSequence()
+            readingViolations
+                .map { readingPurityViolationToReporting(it, boundary) }
+                .forEach(diagnosis::add)
+            writingViolations.asSequence()
                 .filter { it !in readingViolations }
                 .map { modifyingPurityViolationToReporting(it, boundary) }
-
-            return readingReportings + writingReportings
+                .forEach(diagnosis::add)
         }
 
-        fun readonlyViolations(writingViolations: Collection<BoundExecutable<*>>, readonlyFunction: BoundFunction): Collection<Reporting> {
-            return purityViolations(emptySet(), writingViolations, readonlyFunction)
+        fun readonlyViolations(
+            writingViolations: Collection<BoundExecutable<*>>,
+            readonlyFunction: BoundFunction,
+            diagnosis: Diagnosis,
+        ) {
+            return purityViolations(emptySet(), writingViolations, readonlyFunction, diagnosis)
         }
 
         fun missingReturnValue(returnStatement: BoundReturnExpression, expectedType: BoundTypeReference) = MissingReturnValueReporting(

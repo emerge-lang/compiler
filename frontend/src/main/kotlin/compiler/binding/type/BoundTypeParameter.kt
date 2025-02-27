@@ -34,26 +34,25 @@ data class BoundTypeParameter(
         _modifiedContext.addTypeParameter(this)
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         context.resolveType(TypeReference(name))
             .takeUnless { it is UnresolvedType }
             ?.let { preExistingType ->
-                reportings.add(Reporting.typeParameterNameConflict(preExistingType, this))
+                diagnosis.add(Reporting.typeParameterNameConflict(preExistingType, this))
             }
         bound = astNode.bound?.let(context::resolveType) ?: context.swCtx.typeParameterDefaultBound
         return reportings
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return bound.validate(TypeUseSite.Irrelevant(astNode.name.span, this))
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return emptySet()
     }
 
-    override fun validateAccessFrom(location: Span): Collection<Reporting> {
+    override fun validateAccessFrom(location: Span, diagnosis: Diagnosis) {
         throw InternalCompilerError("This should not ever matter")
     }
 

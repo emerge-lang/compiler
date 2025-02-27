@@ -5,6 +5,7 @@ import compiler.ast.AstVisibility
 import compiler.binding.context.CTContext
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import compiler.util.twoElementPermutationsUnordered
 
@@ -53,11 +54,10 @@ class BoundFunctionAttributeList(
     }
 
     private val seanHelper = SeanHelper()
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            val reportings = mutableListOf<Reporting>()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
             if (firstPureAttribute != null) {
-                reportings.add(Reporting.inefficientAttributes(
+                diagnosis.add(Reporting.inefficientAttributes(
                     "The attribute \"pure\" is superfluous, functions are pure by default.",
                     listOf(firstPureAttribute),
                 ))
@@ -66,7 +66,7 @@ class BoundFunctionAttributeList(
             attributes.groupBy { it }.values
                 .filter { it.size > 1 }
                 .forEach { attrs ->
-                    reportings.add(Reporting.inefficientAttributes(
+                    diagnosis.add(Reporting.inefficientAttributes(
                         "These attributes are redundant",
                         attrs,
                     ))
@@ -75,31 +75,29 @@ class BoundFunctionAttributeList(
             attributes.twoElementPermutationsUnordered()
                 .filter { (a, b) -> conflictsWith(a, b) }
                 .forEach { (a, b) ->
-                    reportings.add(Reporting.conflictingModifiers(listOf(a, b)))
+                    diagnosis.add(Reporting.conflictingModifiers(listOf(a, b)))
                 }
 
             attributes
                 .filterIsInstance<AstFunctionAttribute.External>()
                 .filter { it.ffiName.value !in SUPPORTED_EXTERNAL_CALLING_CONVENTIONS }
                 .forEach {
-                    reportings.add(Reporting.unsupportedCallingConvention(it, SUPPORTED_EXTERNAL_CALLING_CONVENTIONS))
+                    diagnosis.add(Reporting.unsupportedCallingConvention(it, SUPPORTED_EXTERNAL_CALLING_CONVENTIONS))
                 }
 
             if (attributes.any { it is AstFunctionAttribute.External } && attributes.none { it is AstFunctionAttribute.Nothrow }) {
                 // this should never occur on ctors or dtors
                 val fn = getFunction() as BoundDeclaredFunction
-                reportings.add(Reporting.functionIsMissingDeclaredAttribute(
+                diagnosis.add(Reporting.functionIsMissingDeclaredAttribute(
                     fn,
                     AstFunctionAttribute.Nothrow(KeywordToken(Keyword.NOTHROW)),
                     "is declared external; external functions cannot throw exceptions."
                 ))
             }
-
-            return@phase1 reportings
         }
     }
-    override fun semanticAnalysisPhase2() = emptyList<Reporting>()
-    override fun semanticAnalysisPhase3() = emptyList<Reporting>()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
 
     /**
      * Whether this function is pure as per its declaration. Functions are pure by default, so this is the case

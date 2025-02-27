@@ -50,12 +50,11 @@ class BoundMixinStatement(
             .withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            val reportings = expression.semanticAnalysisPhase1()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
+            expression.semanticAnalysisPhase1(diagnosis)
             expression.markEvaluationResultUsed()
             expression.setExpectedEvaluationResultType(expectedType)
-            return@phase1 reportings
         }
     }
 
@@ -69,15 +68,14 @@ class BoundMixinStatement(
      */
     val type: BoundTypeReference? get() = expression.type
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            val reportings = expression.semanticAnalysisPhase2().toMutableSet()
-            expression.type?.evaluateAssignabilityTo(expectedType, expression.declaration.span)?.let(reportings::add)
-            registration = context.registerMixin(this, expression.type ?: context.swCtx.any.baseReference, Diagnosis.addingTo(reportings))?.also {
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
+            expression.semanticAnalysisPhase2(diagnosis)
+            expression.type?.evaluateAssignabilityTo(expectedType, expression.declaration.span)?.let(diagnosis::add)
+            registration = context.registerMixin(this, expression.type ?: context.swCtx.any.baseReference, diagnosis)?.also {
                 it.addDestructingAction(this::generateDestructorCode)
             }
             expression.markEvaluationResultCaptured(TypeMutability.EXCLUSIVE)
-            return@phase2 reportings
         }
     }
 
@@ -92,13 +90,12 @@ class BoundMixinStatement(
         used = true
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            val reportings = expression.semanticAnalysisPhase3().toMutableSet()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
+            expression.semanticAnalysisPhase3(diagnosis)
             if (!used) {
-                reportings.add(Reporting.unusedMixin(this))
+                diagnosis.add(Reporting.unusedMixin(this))
             }
-            return@phase3 reportings
         }
     }
 

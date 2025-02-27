@@ -1,82 +1,73 @@
 package compiler.binding
 
 import compiler.InternalCompilerError
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnosis
 
 /**
  * Sean is short for SEmantic ANalysis
  */
 class SeanHelper {
-    private lateinit var phase1Results: Collection<Reporting>
-    var phase1HadErrors = false
-        get() {
-            requirePhase1Done()
-            return field
-        }
-        private set
+    private lateinit var phase1Results: Diagnosis.Recorded
+    val phase1HadErrors: Boolean
+        get() = requirePhase1Done().hasErrors
 
-    private lateinit var phase2Results: Collection<Reporting>
-    var phase2HadErrors = false
-        get() {
-            requirePhase2Done()
-            return field
-        }
-        private set
+    private lateinit var phase2Results: Diagnosis.Recorded
+    val phase2HadErrors: Boolean
+        get() = requirePhase2Done().hasErrors
 
-    private lateinit var phase3Results: Collection<Reporting>
-    var phase3HadErrors = false
-        get() {
-            requirePhase3Done()
-            return field
-        }
-        private set
+    private lateinit var phase3Results: Diagnosis.Recorded
+    val phase3HadErrors: Boolean
+        get() = requirePhase3Done().hasErrors
 
-    fun phase1(impl: () -> Collection<Reporting>): Collection<Reporting> {
+    fun phase1(diagnosis: Diagnosis, impl: (Diagnosis) -> Unit) {
         if (this::phase1Results.isInitialized) {
-            return this.phase1Results
+            this.phase1Results.replayOnto(diagnosis)
+            return
         }
 
-        val results = impl()
-        phase1Results = results
-        phase1HadErrors = results.any { it.level >= Reporting.Level.ERROR }
-        return results
+        diagnosis.record().use { diagnosisRecording ->
+            impl(diagnosis)
+            phase1Results = diagnosisRecording.complete()
+        }
     }
 
-    fun phase2(impl: () -> Collection<Reporting>): Collection<Reporting> {
+    fun phase2(diagnosis: Diagnosis, impl: (Diagnosis) -> Unit) {
         requirePhase1Done()
 
         if (this::phase2Results.isInitialized) {
-            return this.phase2Results
+            this.phase2Results.replayOnto(diagnosis)
+            return
         }
 
-        val results = impl()
-        phase2Results = results
-        phase2HadErrors = results.any { it.level >= Reporting.Level.ERROR }
-        return results
+        diagnosis.record().use { diagnosisRecording ->
+            impl(diagnosis)
+            phase2Results = diagnosisRecording.complete()
+        }
     }
 
     /**
      * @param runIfErrorsPreviously if `false` and [phase1] or [phase2] returned errors, this function
      * will return an empty collection without invoking [impl]. [phase3] will also not be marked completed then.
      */
-    fun phase3(runIfErrorsPreviously: Boolean = true, impl: () -> Collection<Reporting>): Collection<Reporting> {
+    fun phase3(diagnosis: Diagnosis, runIfErrorsPreviously: Boolean = true, impl: (Diagnosis) -> Unit) {
         requirePhase2Done()
 
         if (this::phase3Results.isInitialized) {
-            return this.phase3Results
+            this.phase3Results.replayOnto(diagnosis)
+            return
         }
 
         if (!runIfErrorsPreviously && (phase1HadErrors || phase2HadErrors)) {
-            return emptySet()
+            return
         }
 
-        val results = impl()
-        phase3Results = results
-        phase3HadErrors = results.any { it.level >= Reporting.Level.ERROR }
-        return results
+        diagnosis.record().use { diagnosisRecording ->
+            impl(diagnosis)
+            phase3Results = diagnosisRecording.complete()
+        }
     }
 
-    fun requirePhase1Done(): Collection<Reporting> {
+    fun requirePhase1Done(): Diagnosis.Recorded {
         if (!this::phase1Results.isInitialized) {
             throw InternalCompilerError("Semantic analysis phase 1 is required but hasn't been done yet.")
         }
@@ -90,7 +81,7 @@ class SeanHelper {
         }
     }
 
-    fun requirePhase2Done(): Collection<Reporting> {
+    fun requirePhase2Done(): Diagnosis.Recorded {
         requirePhase1Done()
 
         if (!this::phase2Results.isInitialized) {
@@ -106,7 +97,7 @@ class SeanHelper {
         }
     }
 
-    fun requirePhase3Done(): Collection<Reporting> {
+    fun requirePhase3Done(): Diagnosis.Recorded {
         requirePhase2Done()
 
         if (!this::phase3Results.isInitialized) {

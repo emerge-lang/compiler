@@ -11,7 +11,6 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTryCatchExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -49,11 +48,10 @@ class BoundTryCatchExpression(
 
     private val seanHelper = SeanHelper()
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            val reportings = mutableSetOf<Reporting>()
-            reportings.addAll(fallibleCode.semanticAnalysisPhase1())
-            reportings.addAll(catchBlock.semanticAnalysisPhase1())
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
+            fallibleCode.semanticAnalysisPhase1(diagnosis)
+            catchBlock.semanticAnalysisPhase1(diagnosis)
 
             return@phase1 reportings
         }
@@ -69,11 +67,10 @@ class BoundTryCatchExpression(
         catchBlock.markEvaluationResultUsed()
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            val reportings = mutableSetOf<Reporting>()
-            reportings.addAll(fallibleCode.semanticAnalysisPhase2())
-            reportings.addAll(catchBlock.semanticAnalysisPhase2())
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
+            fallibleCode.semanticAnalysisPhase2(diagnosis)
+            catchBlock.semanticAnalysisPhase2(diagnosis)
 
             return@phase2 reportings
         }
@@ -103,11 +100,10 @@ class BoundTryCatchExpression(
         catchBlock.markEvaluationResultCaptured(withMutability)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            val reportings = mutableSetOf<Reporting>()
-            reportings.addAll(fallibleCode.semanticAnalysisPhase3())
-            reportings.addAll(catchBlock.semanticAnalysisPhase3())
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
+            fallibleCode.semanticAnalysisPhase3(diagnosis)
+            catchBlock.semanticAnalysisPhase3(diagnosis)
 
             return@phase3 reportings
         }

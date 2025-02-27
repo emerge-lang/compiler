@@ -18,8 +18,8 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUnification
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrInvocationExpression
@@ -50,16 +50,13 @@ class BoundArrayLiteralExpression(
         context.swCtx.array
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return elements.flatMap { it.semanticAnalysisPhase1() }
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return elements.forEach { it.semanticAnalysisPhase1(diagnosis) }
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         elements.forEach { it.markEvaluationResultUsed() }
-
-        val reportings = elements
-            .flatMap { it.semanticAnalysisPhase2() }
-            .toMutableSet()
+        elements.forEach { it.semanticAnalysisPhase2(diagnosis) }
 
         val elementType: BoundTypeReference
         if (expectedElementType != null) {
@@ -67,7 +64,7 @@ class BoundArrayLiteralExpression(
             elements.forEach { element ->
                 element.type?.let {
                     val unification = elementType.unify(it, element.declaration.span, TypeUnification.EMPTY)
-                    reportings.addAll(unification.reportings)
+                    unification.reportings.forEach(diagnosis::add)
                 }
             }
         } else {
@@ -90,16 +87,14 @@ class BoundArrayLiteralExpression(
         expectedEvaluationResultType?.let {
             type = type?.withMutability(it.mutability)
         }
-
-        return reportings
     }
 
     override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
         elements.forEach { it.setNothrow(boundary) }
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return elements.flatMap { it.semanticAnalysisPhase3() }
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return elements.forEach { it.semanticAnalysisPhase3(diagnosis) }
     }
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {

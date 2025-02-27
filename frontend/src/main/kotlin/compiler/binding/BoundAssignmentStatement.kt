@@ -11,8 +11,8 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.IrGenericTypeReferenceImpl
 import compiler.binding.type.IrParameterizedTypeImpl
 import compiler.binding.type.IrSimpleTypeImpl
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
@@ -37,50 +37,44 @@ abstract class BoundAssignmentStatement(
 
     private val seanHelper = SeanHelper()
 
-    final override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            val reportings = mutableListOf<Reporting>()
-            reportings.addAll(toAssignExpression.semanticAnalysisPhase1())
-            reportings.addAll(additionalSemanticAnalysisPhase1())
-
-            reportings
+    final override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
+            toAssignExpression.semanticAnalysisPhase1(diagnosis)
+            additionalSemanticAnalysisPhase1(diagnosis)
         }
     }
 
-    protected abstract fun additionalSemanticAnalysisPhase1(): Collection<Reporting>
+    protected abstract fun additionalSemanticAnalysisPhase1(diagnosis: Diagnosis)
 
     /**
      * does [SemanticallyAnalyzable.semanticAnalysisPhase2] only on the target of the assignment
      * with the goal of making [assignmentTargetType] available.
      */
-    protected abstract fun assignmentTargetSemanticAnalysisPhase2(): Collection<Reporting>
+    protected abstract fun assignmentTargetSemanticAnalysisPhase2(diagnosis: Diagnosis)
 
     /**
      * the type of the assignment target; if available, must be set after [assignmentTargetSemanticAnalysisPhase2]
      */
     protected abstract val assignmentTargetType: BoundTypeReference?
 
-    abstract fun additionalSemanticAnalysisPhase2(): Collection<Reporting>
+    abstract fun additionalSemanticAnalysisPhase2(diagnosis: Diagnosis)
 
-    final override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
+    final override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
             toAssignExpression.markEvaluationResultUsed()
 
-            val reportings = mutableListOf<Reporting>()
-            reportings.addAll(assignmentTargetSemanticAnalysisPhase2())
+            assignmentTargetSemanticAnalysisPhase2(diagnosis)
             assignmentTargetType?.let(toAssignExpression::setExpectedEvaluationResultType)
 
-            reportings.addAll(toAssignExpression.semanticAnalysisPhase2())
-            reportings.addAll(additionalSemanticAnalysisPhase2())
+            toAssignExpression.semanticAnalysisPhase2(diagnosis)
+            additionalSemanticAnalysisPhase2(diagnosis)
 
             toAssignExpression.type?.also { assignedType ->
                 assignmentTargetType?.also { targetType ->
                     assignedType.evaluateAssignabilityTo(targetType, toAssignExpression.declaration.span)
-                        ?.let(reportings::add)
+                        ?.let(diagnosis::add)
                 }
             }
-
-            reportings
         }
     }
 
@@ -97,19 +91,16 @@ abstract class BoundAssignmentStatement(
         setTargetNothrow(boundary)
     }
 
-    final override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            val reportings = mutableSetOf<Reporting>()
+    final override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
             toAssignExpression.markEvaluationResultCaptured(assignmentTargetType?.mutability ?: TypeMutability.READONLY)
 
-            reportings.addAll(toAssignExpression.semanticAnalysisPhase3())
-            reportings.addAll(additionalSemanticAnalysisPhase3())
-
-            reportings
+            toAssignExpression.semanticAnalysisPhase3(diagnosis)
+            additionalSemanticAnalysisPhase3(diagnosis)
         }
     }
 
-    protected abstract fun additionalSemanticAnalysisPhase3(): Collection<Reporting>
+    protected abstract fun additionalSemanticAnalysisPhase3(diagnosis: Diagnosis)
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
         return toAssignExpression.findReadsBeyond(boundary)

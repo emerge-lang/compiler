@@ -29,7 +29,7 @@ class BoundReflectExpression(
 
     private lateinit var typeToReflectOn: BoundTypeReference
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         typeToReflectOn = context.resolveType(declaration.type)
         return typeToReflectOn.validate(TypeUseSite.Irrelevant(
             declaration.span,
@@ -37,18 +37,17 @@ class BoundReflectExpression(
         ))
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return emptySet()
     }
 
     private var baseTypeToReflectOn: BoundBaseType? = null
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         if (typeToReflectOn is RootResolvedTypeReference) {
             baseTypeToReflectOn = (typeToReflectOn as RootResolvedTypeReference).baseType
         } else if (typeToReflectOn !is UnresolvedType) {
-            reportings.add(Reporting.unsupportedReflection(typeToReflectOn))
+            diagnosis.add(Reporting.unsupportedReflection(typeToReflectOn))
         }
 
         return reportings

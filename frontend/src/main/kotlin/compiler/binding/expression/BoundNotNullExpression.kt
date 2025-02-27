@@ -57,7 +57,7 @@ class BoundNotNullExpression(
     override val throwBehavior get() = nullableExpression.throwBehavior
     override val returnBehavior get() = nullableExpression.returnBehavior
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return nullableExpression.semanticAnalysisPhase1()
     }
 
@@ -68,7 +68,7 @@ class BoundNotNullExpression(
         nullableExpression.setExpectedEvaluationResultType(type.withCombinedNullability(TypeReference.Nullability.NULLABLE))
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         nullableExpression.markEvaluationResultUsed()
         val reportings = nullableExpression.semanticAnalysisPhase2()
         type = nullableExpression.type?.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
@@ -86,16 +86,16 @@ class BoundNotNullExpression(
         nonNullResultUsed = true
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         // this expression duplicates the reference. That doesn't prove a capture, but it would easily allow for one,
         // so it has to be treated as such.
         // defaulting to readonly is okay because: that only happens if the nullableExpression couldn't determine its
         // result type. That in and of itself must produce an ERROR-level diagnostic, stopping compilation in any case.
         nullableExpression.markEvaluationResultCaptured(type?.mutability ?: TypeMutability.READONLY)
 
-        val reportings = nullableExpression.semanticAnalysisPhase3().toMutableList()
+        nullableExpression.semanticAnalysisPhase3(diagnosis)
         nothrowBoundary?.let { nothrowBoundary ->
-            reportings.add(Reporting.nothrowViolatingNotNullAssertion(this, nothrowBoundary))
+            diagnosis.add(Reporting.nothrowViolatingNotNullAssertion(this, nothrowBoundary))
         }
         return reportings
     }

@@ -18,18 +18,17 @@ class BoundContinueExpression(
 
     private var parentLoop: BoundLoop<*>? = null
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
 
         parentLoop = context.getParentLoop()
         if (parentLoop == null) {
-            reportings.add(Reporting.continueOutsideOfLoop(this))
+            diagnosis.add(Reporting.continueOutsideOfLoop(this))
         }
 
         return reportings
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return emptySet()
     }
 
@@ -37,7 +36,7 @@ class BoundContinueExpression(
         // nothing to do
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return emptySet()
     }
 

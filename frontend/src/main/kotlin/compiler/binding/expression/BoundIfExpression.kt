@@ -34,7 +34,6 @@ import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrConditionalBranch
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -63,7 +62,7 @@ class BoundIfExpression(
     override var type: BoundTypeReference? = null
         private set
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         type = context.swCtx.unit.baseReference
 
         var reportings = condition.semanticAnalysisPhase1() + thenCode.semanticAnalysisPhase1()
@@ -88,7 +87,7 @@ class BoundIfExpression(
         isInExpressionContext = true
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         var reportings = condition.semanticAnalysisPhase2() + thenCode.semanticAnalysisPhase2()
 
         val elseCodeReportings = elseCode?.semanticAnalysisPhase2()
@@ -120,14 +119,13 @@ class BoundIfExpression(
         elseCode?.setNothrow(boundary)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
 
-        reportings.addAll(condition.semanticAnalysisPhase3())
-        reportings.addAll(thenCode.semanticAnalysisPhase3())
+        condition.semanticAnalysisPhase3(diagnosis)
+        thenCode.semanticAnalysisPhase3(diagnosis)
 
         if (elseCode != null) {
-            reportings.addAll(elseCode.semanticAnalysisPhase3())
+            elseCode.semanticAnalysisPhase3(diagnosis)
         }
 
         return reportings

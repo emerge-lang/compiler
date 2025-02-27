@@ -65,11 +65,11 @@ class BoundReturnExpression(
         else -> SideEffectPrediction.GUARANTEED
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return expression?.semanticAnalysisPhase1() ?: emptySet()
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         expression?.markEvaluationResultUsed()
         return expression?.semanticAnalysisPhase2() ?: emptySet()
     }
@@ -78,8 +78,7 @@ class BoundReturnExpression(
         expression?.setNothrow(boundary)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         val expectedReturnType = this.expectedReturnType
         expression?.markEvaluationResultCaptured(expectedReturnType?.mutability ?: TypeMutability.READONLY)
         expression?.semanticAnalysisPhase3()?.let(reportings::addAll)
@@ -101,7 +100,7 @@ class BoundReturnExpression(
         }
 
         if (expectedReturnType is RootResolvedTypeReference && expectedReturnType.baseType != context.swCtx.unit && expression == null) {
-            reportings.add(Reporting.missingReturnValue(this, expectedReturnType))
+            diagnosis.add(Reporting.missingReturnValue(this, expectedReturnType))
         }
 
         return reportings

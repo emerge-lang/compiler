@@ -31,19 +31,18 @@ class BoundThrowExpression(
 
     private val seanHelper = SeanHelper()
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
             throwableExpression.semanticAnalysisPhase1()
         }
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            val reportings = mutableListOf<Reporting>()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
 
             val expectedType = context.swCtx.throwable.baseReference.withMutability(TypeMutability.READONLY)
             throwableExpression.setExpectedEvaluationResultType(expectedType)
-            reportings.addAll(throwableExpression.semanticAnalysisPhase2())
+            throwableExpression.semanticAnalysisPhase2(diagnosis)
             throwableExpression.type
                 ?.evaluateAssignabilityTo(expectedType, throwableExpression.declaration.span)
                 ?.let(reportings::add)
@@ -58,12 +57,11 @@ class BoundThrowExpression(
         this.throwableExpression.setNothrow(boundary)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            val reportings = mutableListOf<Reporting>()
-            reportings.addAll(throwableExpression.semanticAnalysisPhase3())
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
+            throwableExpression.semanticAnalysisPhase3(diagnosis)
             nothrowBoundary?.let { nothrowBoundary ->
-                reportings.add(Reporting.throwStatementInNothrowContext(this, nothrowBoundary))
+                diagnosis.add(Reporting.throwStatementInNothrowContext(this, nothrowBoundary))
             }
 
             return@phase3 reportings

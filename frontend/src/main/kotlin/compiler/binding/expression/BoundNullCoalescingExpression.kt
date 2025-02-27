@@ -45,10 +45,9 @@ class BoundNullCoalescingExpression(
         alternativeExpression.setNothrow(boundary)
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        reportings.addAll(nullableExpression.semanticAnalysisPhase1())
-        reportings.addAll(alternativeExpression.semanticAnalysisPhase1())
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        nullableExpression.semanticAnalysisPhase1(diagnosis)
+        alternativeExpression.semanticAnalysisPhase1(diagnosis)
 
         // it will be null-checked in any case
         nullableExpression.markEvaluationResultUsed()
@@ -73,10 +72,9 @@ class BoundNullCoalescingExpression(
     override var type: BoundTypeReference? = null
         private set
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        reportings.addAll(nullableExpression.semanticAnalysisPhase2())
-        reportings.addAll(alternativeExpression.semanticAnalysisPhase2())
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        nullableExpression.semanticAnalysisPhase2(diagnosis)
+        alternativeExpression.semanticAnalysisPhase2(diagnosis)
 
         val notNullableType = nullableExpression.type?.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
             ?: context.swCtx.bottomTypeRef
@@ -84,7 +82,7 @@ class BoundNullCoalescingExpression(
         this.type = alternateType?.closestCommonSupertypeWith(notNullableType) ?: notNullableType
 
         if (nullableExpression.type?.isNullable == false) {
-            reportings.add(Reporting.nullCheckOnNonNullableValue(nullableExpression))
+            diagnosis.add(Reporting.nullCheckOnNonNullableValue(nullableExpression))
         }
 
         return reportings
@@ -100,10 +98,9 @@ class BoundNullCoalescingExpression(
         alternativeExpression.setExpectedReturnType(type)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        reportings.addAll(nullableExpression.semanticAnalysisPhase3())
-        reportings.addAll(alternativeExpression.semanticAnalysisPhase3())
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        nullableExpression.semanticAnalysisPhase3(diagnosis)
+        alternativeExpression.semanticAnalysisPhase3(diagnosis)
         return reportings
     }
 

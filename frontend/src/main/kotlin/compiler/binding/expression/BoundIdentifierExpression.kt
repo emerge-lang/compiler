@@ -63,8 +63,7 @@ class BoundIdentifierExpression(
     private val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(context)
     override val modifiedContext: ExecutionScopedCTContext = _modifiedContext
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
 
         // attempt variable
         val variable = context.resolveVariable(identifier)
@@ -77,7 +76,7 @@ class BoundIdentifierExpression(
             ).takeUnless { it is UnresolvedType }
 
             if (type == null) {
-                reportings.add(Reporting.undefinedIdentifier(declaration.identifier))
+                diagnosis.add(Reporting.undefinedIdentifier(declaration.identifier))
             } else {
                 referral = ReferringType(type)
             }
@@ -101,13 +100,12 @@ class BoundIdentifierExpression(
     override val isEvaluationResultAnchored get() = referral?.isEvaluationResultAnchored ?: false
     override val isCompileTimeConstant get() = referral?.isCompileTimeConstant ?: false
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         referral?.semanticAnalysisPhase2()?.let(reportings::addAll)
         return reportings
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return referral?.semanticAnalysisPhase3() ?: emptySet()
     }
 
@@ -131,9 +129,9 @@ class BoundIdentifierExpression(
     sealed interface Referral : SemanticallyAnalyzable {
         val span: Span
 
-        override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
-        override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
-        override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
+        override fun semanticAnalysisPhase1(diagnosis: Diagnosis) = emptySet()
+        override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = emptySet()
+        override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = emptySet()
 
         /** @see BoundExpression.findReadsBeyond */
         fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>>
@@ -170,12 +168,11 @@ class BoundIdentifierExpression(
             thisUsageCapturesWithMutability = withMutability
         }
 
-        override fun semanticAnalysisPhase2(): Collection<Reporting> {
+        override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
             return variable.semanticAnalysisPhase2()
         }
 
-        override fun semanticAnalysisPhase3(): Collection<Reporting> {
-            val reportings = mutableListOf<Reporting>()
+        override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
 
             val initializationState = variable.getInitializationStateInContext(context)
             if (usageContext.requiresInitialization) {
@@ -198,13 +195,13 @@ class BoundIdentifierExpression(
                             partialState.getUninitializedMembers(baseType)
                                 .takeUnless { it.isEmpty() }
                                 ?.let {
-                                    reportings.add(Reporting.notAllMemberVariablesInitialized(it, declaration.span))
+                                    diagnosis.add(Reporting.notAllMemberVariablesInitialized(it, declaration.span))
                                 }
 
                             partialState.getUninitializedMixins(baseType)
                                 .takeUnless { it.isEmpty() }
                                 ?.let {
-                                    reportings.add(Reporting.notAllMixinsInitialized(it, declaration.span))
+                                    diagnosis.add(Reporting.notAllMixinsInitialized(it, declaration.span))
                                 }
                         }
                 }
@@ -212,7 +209,7 @@ class BoundIdentifierExpression(
 
             thisUsageCapturesWithMutability?.let { capturedWithMutability ->
                 if (variable.ownershipAtDeclarationTime == VariableOwnership.BORROWED) {
-                    reportings.add(Reporting.borrowedVariableCaptured(variable, this@BoundIdentifierExpression))
+                    diagnosis.add(Reporting.borrowedVariableCaptured(variable, this@BoundIdentifierExpression))
                 } else {
                     _modifiedContext.trackSideEffect(
                         VariableLifetime.Effect.ValueCaptured(

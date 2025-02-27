@@ -4,6 +4,7 @@ import compiler.ast.Expression
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.isAssignableTo
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 
 class BoundCondition(
@@ -11,23 +12,19 @@ class BoundCondition(
 ) : BoundExpression<Expression> by expression {
     override val type: BoundTypeReference get() = context.swCtx.bool.baseReference
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = expression.semanticAnalysisPhase2().toMutableList()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        expression.semanticAnalysisPhase2(diagnosis)
 
         if (expression.type?.isAssignableTo(context.swCtx.bool.baseReference) == false) {
-            reportings.add(Reporting.conditionIsNotBoolean(expression))
+            diagnosis.add(Reporting.conditionIsNotBoolean(expression))
         }
-
-        return reportings
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = expression.semanticAnalysisPhase3().toMutableList()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        expression.semanticAnalysisPhase3(diagnosis)
 
         expression.findWritesBeyond(context)
             .map(Reporting::mutationInCondition)
-            .forEach(reportings::add)
-
-        return reportings
+            .forEach(diagnosis::add)
     }
 }

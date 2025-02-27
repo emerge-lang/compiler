@@ -226,29 +226,25 @@ class BoundClassConstructor(
 
     private val seanHelper = SeanHelper()
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            val reportings = mutableListOf<Reporting>()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
             // this has to be done first to make sure the type parameters are registered in the ctor function context
-            declaredTypeParameters.map { it.semanticAnalysisPhase1() }.forEach(reportings::addAll)
+            declaredTypeParameters.forEach { it.semanticAnalysisPhase1(diagnosis) }
 
-            reportings.addAll(attributes.semanticAnalysisPhase1())
-            reportings.addAll(selfVariableForInitCode.semanticAnalysisPhase1())
-            reportings.addAll(parameters.semanticAnalysisPhase1())
-            reportings.addAll(boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase1())
-            reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase1())
-            additionalInitCode.semanticAnalysisPhase1().let(reportings::addAll)
-
-            reportings
+            attributes.semanticAnalysisPhase1(diagnosis)
+            selfVariableForInitCode.semanticAnalysisPhase1(diagnosis)
+            parameters.semanticAnalysisPhase1(diagnosis)
+            boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase1(diagnosis)
+            boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase1(diagnosis)
+            additionalInitCode.semanticAnalysisPhase1(diagnosis)
         }
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            val reportings = mutableListOf<Reporting>()
-            declaredTypeParameters.map { it.semanticAnalysisPhase2() }.forEach(reportings::addAll)
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
+            declaredTypeParameters.forEach { it.semanticAnalysisPhase2(diagnosis) }
 
-            reportings.addAll(selfVariableForInitCode.semanticAnalysisPhase2())
+            selfVariableForInitCode.semanticAnalysisPhase2(diagnosis)
             contextWithSelfVar.trackSideEffect(PartialObjectInitialization.Effect.MarkObjectAsEntirelyUninitializedEffect(selfVariableForInitCode, classDef))
 
             /**
@@ -263,17 +259,15 @@ class BoundClassConstructor(
                     contextAfterInitFromCtorParams.trackSideEffect(PartialObjectInitialization.Effect.WriteToMemberVariableEffect(selfVariableForInitCode, it))
                 }
 
-            reportings.addAll(attributes.semanticAnalysisPhase2())
-            reportings.addAll(parameters.parameters.flatMap { it.semanticAnalysisPhase2() })
-            reportings.addAll(boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase2())
-            reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase2())
-            reportings.addAll(additionalInitCode.semanticAnalysisPhase2())
+            attributes.semanticAnalysisPhase2(diagnosis)
+            parameters.parameters.forEach { it.semanticAnalysisPhase2(diagnosis) }
+            boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase2(diagnosis)
+            boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase2(diagnosis)
+            additionalInitCode.semanticAnalysisPhase2(diagnosis)
 
             if (attributes.isDeclaredNothrow) {
-                reportings.add(Reporting.constructorDeclaredNothrow(this))
+                diagnosis.add(Reporting.constructorDeclaredNothrow(this))
             }
-
-            reportings
         }
     }
 
@@ -293,17 +287,16 @@ class BoundClassConstructor(
         ).reduceSequentialExecution()
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            val reportings = mutableListOf<Reporting>()
-            declaredTypeParameters.map { it.semanticAnalysisPhase2() }.forEach(reportings::addAll)
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
+            declaredTypeParameters.forEach { it.semanticAnalysisPhase2(diagnosis) }
 
-            reportings.addAll(attributes.semanticAnalysisPhase3())
-            reportings.addAll(selfVariableForInitCode.semanticAnalysisPhase3())
-            reportings.addAll(parameters.parameters.flatMap { it.semanticAnalysisPhase3() })
-            reportings.addAll(boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase3())
-            reportings.addAll(boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase3())
-            reportings.addAll(additionalInitCode.semanticAnalysisPhase3())
+            attributes.semanticAnalysisPhase3(diagnosis)
+            selfVariableForInitCode.semanticAnalysisPhase3(diagnosis)
+            parameters.parameters.forEach { it.semanticAnalysisPhase3(diagnosis) }
+            boundMemberVariableInitCodeFromCtorParams.semanticAnalysisPhase3(diagnosis)
+            boundMemberVariableInitCodeFromExpression.semanticAnalysisPhase3(diagnosis)
+            additionalInitCode.semanticAnalysisPhase3(diagnosis)
 
             if (BoundFunction.Purity.READONLY.contains(this.purity)) {
                 val statementsWritingBeyondConstructorContext: Collection<BoundExecutable<*>> = handleCyclicInvocation(
@@ -325,29 +318,32 @@ class BoundClassConstructor(
                         onCycle = ::emptySet,
                     )
 
-                    reportings.addAll(Reporting.purityViolations(statementsReadingBeyondConstructorContext, statementsWritingBeyondConstructorContext, this))
+                    Reporting.purityViolations(
+                        statementsReadingBeyondConstructorContext,
+                        statementsWritingBeyondConstructorContext,
+                        this,
+                        diagnosis
+                    )
                 } else {
-                    reportings.addAll(Reporting.readonlyViolations(statementsWritingBeyondConstructorContext, this))
+                    Reporting.readonlyViolations(statementsWritingBeyondConstructorContext, this, diagnosis)
                 }
             }
 
             if (purity.contains(BoundFunction.Purity.MODIFYING)) {
-                reportings.add(Reporting.constructorDeclaredAsModifying(this))
+                diagnosis.add(Reporting.constructorDeclaredAsModifying(this))
             }
 
             val partialInitState = additionalInitCode.modifiedContext.getEphemeralState(PartialObjectInitialization, selfVariableForInitCode)
             classDef.memberVariables
                 .filter { partialInitState.getMemberInitializationState(it) != VariableInitialization.State.INITIALIZED }
                 .forEach {
-                    reportings.add(ClassMemberVariableNotInitializedDuringObjectConstructionReporting(it.declaration))
+                    diagnosis.add(ClassMemberVariableNotInitializedDuringObjectConstructionReporting(it.declaration))
                 }
-
-            reportings
         }
     }
 
-    override fun validateAccessFrom(location: Span): Collection<Reporting> {
-        return attributes.visibility.validateAccessFrom(location, this)
+    override fun validateAccessFrom(location: Span, diagnosis: Diagnosis) {
+        attributes.visibility.validateAccessFrom(location, this, diagnosis)
     }
 
     private val backendIr by lazy {

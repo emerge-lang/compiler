@@ -14,6 +14,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -45,10 +46,9 @@ class BoundInstanceOfExpression(
     var typeToCheck: BoundBaseType? = null
         private set
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
 
-        reportings.addAll(expressionToCheck.semanticAnalysisPhase1())
+        expressionToCheck.semanticAnalysisPhase1(diagnosis)
 
         val fullTypeToCheck = context.resolveType(declaration.typeToCheck)
         reportings.addAll(fullTypeToCheck.validate(TypeUseSite.Irrelevant(declaration.operator.span, null)))
@@ -62,11 +62,11 @@ class BoundInstanceOfExpression(
         // nothing to do, always evaluates to bool
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return expressionToCheck.semanticAnalysisPhase2()
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return expressionToCheck.semanticAnalysisPhase3()
     }
 
@@ -82,14 +82,14 @@ class BoundInstanceOfExpression(
     }
 }
 
-internal fun validateTypeCheck(node: BoundExpression<*>, fullTypeToCheck: BoundTypeReference, reportings: MutableCollection<Reporting>): BoundBaseType? {
+internal fun validateTypeCheck(node: BoundExpression<*>, fullTypeToCheck: BoundTypeReference, diagnosis: Diagnosis): BoundBaseType? {
     if (fullTypeToCheck is RootResolvedTypeReference) {
         return fullTypeToCheck.baseType
         // TODO: warn about unchecked type arguments!!
     }
 
     if (fullTypeToCheck !is UnresolvedType) {
-        reportings.add(Reporting.typeCheckOnVolatileTypeParameter(node, fullTypeToCheck))
+        diagnosis.add(Reporting.typeCheckOnVolatileTypeParameter(node, fullTypeToCheck))
     }
 
     return null

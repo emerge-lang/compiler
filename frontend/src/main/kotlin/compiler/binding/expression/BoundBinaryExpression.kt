@@ -23,6 +23,7 @@ import compiler.ast.expression.BinaryExpression
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.reportings.Diagnosis
 import compiler.reportings.FunctionMissingModifierReporting
 import compiler.reportings.Reporting
 import compiler.reportings.UnresolvableFunctionOverloadReporting
@@ -41,27 +42,22 @@ class BoundBinaryExpression(
         hiddenInvocation.setExpectedEvaluationResultType(type)
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
-        hiddenInvocation.semanticAnalysisPhase2()
-            .map { hiddenReporting ->
-                if (hiddenReporting !is UnresolvableFunctionOverloadReporting || hiddenReporting.functionNameReference != hiddenInvocation.functionNameToken) {
-                    return@map hiddenReporting
-                }
-
-                Reporting.operatorNotDeclared(
-                    "Binary operator ${declaration.operator.name} (function ${hiddenInvocation.functionNameToken.value}) not declared for type ${hiddenReporting.receiverType ?: "<unknown>"}",
-                    declaration,
-                )
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        hiddenInvocation.semanticAnalysisPhase2(diagnosis.mapping { hiddenReporting ->
+            if (hiddenReporting !is UnresolvableFunctionOverloadReporting || hiddenReporting.functionNameReference != hiddenInvocation.functionNameToken) {
+                return@mapping hiddenReporting
             }
-            .let(reportings::addAll)
+
+            Reporting.operatorNotDeclared(
+                "Binary operator ${declaration.operator.name} (function ${hiddenInvocation.functionNameToken.value}) not declared for type ${hiddenReporting.receiverType ?: "<unknown>"}",
+                declaration,
+            )
+        })
 
         FunctionMissingModifierReporting.requireOperatorModifier(
             hiddenInvocation,
             this,
-            reportings,
+            diagnosis,
         )
-
-        return reportings
     }
 }

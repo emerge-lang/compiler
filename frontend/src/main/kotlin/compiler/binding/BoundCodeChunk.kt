@@ -32,6 +32,7 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.handleCyclicInvocation
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -89,18 +90,17 @@ class BoundCodeChunk(
     }
 
     private val seanHelper = SeanHelper()
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            statements.flatMap { it.semanticAnalysisPhase1() }
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
+            statements.forEach { it.semanticAnalysisPhase1(diagnosis) }
         }
     }
 
     private lateinit var deferredCode: List<BoundExecutable<*>>
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            val reportings = mutableSetOf<Reporting>()
-            statements.map(BoundExecutable<*>::semanticAnalysisPhase2).forEach(reportings::addAll)
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
+            statements.forEach { it.semanticAnalysisPhase2(diagnosis) }
 
             if (lastStatementAsExpression != null) {
                 type = lastStatementAsExpression.type
@@ -111,14 +111,12 @@ class BoundCodeChunk(
                 } else if (isInExpressionContext) {
                     // the type is still unit, technically. However, this will trigger a confusing error message
                     // using the bottom type hides that error, and this becomes the more understandable alternative
-                    reportings.add(Reporting.implicitlyEvaluatingAStatement(statements.lastOrNull() ?: this))
+                    diagnosis.add(Reporting.implicitlyEvaluatingAStatement(statements.lastOrNull() ?: this))
                     type = context.swCtx.bottomTypeRef
                 } else {
                     type = context.swCtx.unit.baseReference
                 }
             }
-
-            return@phase2 reportings
         }
     }
 
@@ -131,20 +129,17 @@ class BoundCodeChunk(
         statements.forEach { it.setNothrow(boundary) }
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            val reportings = mutableListOf<Reporting>()
-            statements.flatMap { it.semanticAnalysisPhase3() }.forEach(reportings::add)
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
+            statements.forEach { it.semanticAnalysisPhase3(diagnosis) }
 
             deferredCode = modifiedContext.getScopeLocalDeferredCode().toList()
-            deferredCode.flatMap { it.semanticAnalysisPhase1() }.forEach(reportings::add)
-            deferredCode.flatMap { it.semanticAnalysisPhase2() }.forEach(reportings::add)
+            deferredCode.forEach { it.semanticAnalysisPhase1(diagnosis) }
+            deferredCode.forEach { it.semanticAnalysisPhase2(diagnosis) }
             nothrowBoundary?.let { nothrowBoundary ->
                 deferredCode.forEach { it.setNothrow(nothrowBoundary) }
             }
-            deferredCode.flatMap { it.semanticAnalysisPhase3() }.forEach(reportings::add)
-
-            return@phase3 reportings
+            deferredCode.forEach { it.semanticAnalysisPhase3(diagnosis) }
         }
     }
 

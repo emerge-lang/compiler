@@ -27,6 +27,7 @@ import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.lexer.Span
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -69,37 +70,32 @@ class BoundBaseTypeMemberVariable(
      */
     val type: BoundTypeReference? get() = boundEffectiveVariableDeclaration.typeAtDeclarationTime
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        reportings.addAll(boundEffectiveVariableDeclaration.semanticAnalysisPhase1())
-        reportings.addAll(visibility.validateOnElement(this))
-        return reportings
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        boundEffectiveVariableDeclaration.semanticAnalysisPhase1(diagnosis)
+        visibility.validateOnElement(this, diagnosis)
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = boundEffectiveVariableDeclaration.semanticAnalysisPhase2().toMutableList()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        boundEffectiveVariableDeclaration.semanticAnalysisPhase2(diagnosis)
         val typeUseSite = if (declaration.variableDeclaration.isReAssignable) {
             TypeUseSite.InvariantUsage(declaration.variableDeclaration.type?.span ?: declaration.span, this)
         } else {
             TypeUseSite.OutUsage(declaration.variableDeclaration.type?.span ?: declaration.span, this)
         }
-        type?.validate(typeUseSite)?.let(reportings::addAll)
-        return reportings
+        type?.validate(typeUseSite, diagnosis)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        reportings.addAll(boundEffectiveVariableDeclaration.semanticAnalysisPhase3())
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        boundEffectiveVariableDeclaration.semanticAnalysisPhase3(diagnosis)
 
         if (boundEffectiveVariableDeclaration.initializerExpression != null) {
-            reportings.addAll(Reporting.purityViolations(
+            Reporting.purityViolations(
                 boundEffectiveVariableDeclaration.initializerExpression.findReadsBeyond(context),
                 boundEffectiveVariableDeclaration.initializerExpression.findWritesBeyond(context),
                 this,
-            ))
+                diagnosis,
+            )
         }
-
-        return reportings
     }
 
     lateinit var field: BaseTypeField
@@ -115,8 +111,8 @@ class BoundBaseTypeMemberVariable(
         }
     }
 
-    override fun validateAccessFrom(location: Span): Collection<Reporting> {
-        return visibility.validateAccessFrom(location, this)
+    override fun validateAccessFrom(location: Span, diagnosis: Diagnosis) {
+        visibility.validateAccessFrom(location, this, diagnosis)
     }
 
     override fun toStringForErrorMessage() = "member variable $name"

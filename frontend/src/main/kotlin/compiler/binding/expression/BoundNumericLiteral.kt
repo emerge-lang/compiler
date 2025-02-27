@@ -51,13 +51,12 @@ open class BoundNumericLiteral(
     override val throwBehavior = SideEffectPrediction.NEVER
     override val returnBehavior = SideEffectPrediction.NEVER
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         reportings.addAll(bindTimeReportings)
         return reportings
     }
-    override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
-    override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = emptySet()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = emptySet()
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
     override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {}
@@ -107,8 +106,7 @@ class BoundIntegerLiteral(
     override lateinit var type: RootResolvedTypeReference
     private lateinit var valueCoercedToRange: BigInteger
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         type = (expectedNumericType ?: context.swCtx.s32).baseReference
         val typeRange = when (type.baseType) {
             context.swCtx.s8 -> CoreTypes.S8_RANGE
@@ -138,10 +136,10 @@ class BoundIntegerLiteral(
                         .and(allOnesOfTypeBitLength) // emulate overflow
                         .negate()
                 } else {
-                    reportings.add(Reporting.integerLiteralOutOfRange(declaration, type.baseType, typeRange))
+                    diagnosis.add(Reporting.integerLiteralOutOfRange(declaration, type.baseType, typeRange))
                 }
             } else {
-                reportings.add(Reporting.integerLiteralOutOfRange(declaration, type.baseType, typeRange))
+                diagnosis.add(Reporting.integerLiteralOutOfRange(declaration, type.baseType, typeRange))
             }
         }
 

@@ -4,6 +4,7 @@ import compiler.ast.AstBreakExpression
 import compiler.binding.BoundLoop
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBreakStatement
@@ -18,27 +19,22 @@ class BoundBreakExpression(
 
     private var parentLoop: BoundLoop<*>? = null
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
 
         parentLoop = context.getParentLoop()
         if (parentLoop == null) {
-            reportings.add(Reporting.breakOutsideOfLoop(this))
+            diagnosis.add(Reporting.breakOutsideOfLoop(this))
         }
-
-        return reportings
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return emptySet()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
     }
 
     override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
         // nothing to do
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return emptySet()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
     }
 
     private inner class IrBreakStatementImpl : IrBreakStatement {

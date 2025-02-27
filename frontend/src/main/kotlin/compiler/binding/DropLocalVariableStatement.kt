@@ -6,8 +6,8 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
 class DropLocalVariableStatement(
@@ -32,8 +32,8 @@ class DropLocalVariableStatement(
             ))
         }
 
-        override fun semanticAnalysisPhase1(): Collection<Reporting> = emptyList()
-        override fun semanticAnalysisPhase2(): Collection<Reporting> = emptyList()
-        override fun semanticAnalysisPhase3(): Collection<Reporting> = emptyList()
+        override fun semanticAnalysisPhase1(diagnosis: Diagnosis) = Unit
+        override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
+        override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
     }
 }

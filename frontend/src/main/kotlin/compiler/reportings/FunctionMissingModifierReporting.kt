@@ -20,11 +20,11 @@ data class FunctionMissingModifierReporting(
         fun requireOperatorModifier(
             subject: BoundInvocationExpression,
             requirer: BoundExecutable<*>,
-            reportings: MutableCollection<in Reporting>,
+            diagnosis: Diagnosis,
         ) {
             val operatorFn = subject.functionToInvoke ?: return
             if (!operatorFn.attributes.isDeclaredOperator) {
-                reportings.add(
+                diagnosis.add(
                     Reporting.functionIsMissingAttribute(
                         operatorFn,
                         requirer.declaration,

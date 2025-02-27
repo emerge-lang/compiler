@@ -14,7 +14,6 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
@@ -49,11 +48,10 @@ class BoundCatchBlockExpression(
 
     val seanHelper = SeanHelper()
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            val reportings = mutableSetOf<Reporting>()
-            reportings.addAll(throwableVariable.semanticAnalysisPhase1())
-            reportings.addAll(catchCode.semanticAnalysisPhase1())
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
+            throwableVariable.semanticAnalysisPhase1(diagnosis)
+            catchCode.semanticAnalysisPhase1(diagnosis)
 
             // this is done by the backend
             contextOfCatchCode.trackSideEffect(
@@ -72,11 +70,10 @@ class BoundCatchBlockExpression(
 
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            val reportings = mutableSetOf<Reporting>()
-            reportings.addAll(throwableVariable.semanticAnalysisPhase2())
-            reportings.addAll(catchCode.semanticAnalysisPhase2())
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
+            throwableVariable.semanticAnalysisPhase2(diagnosis)
+            catchCode.semanticAnalysisPhase2(diagnosis)
             return@phase2 reportings
         }
     }
@@ -103,11 +100,10 @@ class BoundCatchBlockExpression(
         catchCode.markEvaluationResultCaptured(withMutability)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            val reportings = mutableSetOf<Reporting>()
-            reportings.addAll(throwableVariable.semanticAnalysisPhase3())
-            reportings.addAll(catchCode.semanticAnalysisPhase3())
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
+            throwableVariable.semanticAnalysisPhase3(diagnosis)
+            catchCode.semanticAnalysisPhase3(diagnosis)
             return@phase3 reportings
         }
     }

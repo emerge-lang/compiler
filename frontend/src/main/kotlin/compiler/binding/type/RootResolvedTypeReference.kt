@@ -82,14 +82,13 @@ class RootResolvedTypeReference private constructor(
     }
 
     override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
 
         arguments?.forEach { reportings.addAll(it.validate(forUsage.deriveIrrelevant())) }
         reportings.addAll(inherentTypeBindings.reportings)
         reportings.addAll(baseType.validateAccessFrom(forUsage.usageLocation))
         forUsage.exposedBy?.let { exposer ->
             if (exposer.visibility.isPossiblyBroaderThan(baseType.visibility)) {
-                reportings.add(Reporting.hiddenTypeExposed(baseType, exposer, span ?: Span.UNKNOWN))
+                diagnosis.add(Reporting.hiddenTypeExposed(baseType, exposer, span ?: Span.UNKNOWN))
             }
         }
 

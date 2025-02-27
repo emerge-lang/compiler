@@ -18,6 +18,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.lexer.Span
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import compiler.reportings.ReturnTypeMismatchReporting
@@ -65,14 +66,13 @@ abstract class BoundDeclaredFunction(
 
     private val seanHelper = SeanHelper()
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            val reportings = mutableSetOf<Reporting>()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
 
-            reportings.addAll(attributes.semanticAnalysisPhase1())
+            attributes.semanticAnalysisPhase1(diagnosis)
 
-            declaredTypeParameters.map(BoundTypeParameter::semanticAnalysisPhase1).forEach(reportings::addAll)
-            reportings.addAll(parameters.semanticAnalysisPhase1())
+            declaredTypeParameters.forEach { it.semanticAnalysisPhase1(diagnosis) }
+            parameters.semanticAnalysisPhase1(diagnosis)
 
             if (declaration.parsedReturnType != null) {
                 returnType = context.resolveType(declaration.parsedReturnType)
@@ -81,23 +81,19 @@ abstract class BoundDeclaredFunction(
                 }
             }
 
-            this.body?.semanticAnalysisPhase1()?.let(reportings::addAll)
+            this.body?.semanticAnalysisPhase1(diagnosis)
 
             returnType?.let {
                 body?.setExpectedReturnType(it)
             }
-
-            return@phase1 reportings
         }
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            val reportings = mutableSetOf<Reporting>()
-
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
             handleCyclicInvocation(
                 context = this,
-                action = { this.body?.semanticAnalysisPhase2()?.let(reportings::addAll) },
+                action = { this.body?.semanticAnalysisPhase2(diagnosis) },
                 onCycle = {
                     Reporting.typeDeductionError(
                         "Cannot infer the return type of function $name because the type inference is cyclic here. Specify the type of one element explicitly.",
@@ -116,10 +112,10 @@ abstract class BoundDeclaredFunction(
             }
 
             receiverType?.let {
-                it.validate(TypeUseSite.InUsage(it.span, this)).let(reportings::addAll)
+                it.validate(TypeUseSite.InUsage(it.span, this), diagnosis)
             }
             parameterTypes.forEach {
-                it?.validate(TypeUseSite.InUsage(it.span, this))?.let(reportings::addAll)
+                it?.validate(TypeUseSite.InUsage(it.span, this), diagnosis)
             }
             returnType?.let {
                 val returnTypeUseSite = TypeUseSite.OutUsage(
@@ -127,31 +123,27 @@ abstract class BoundDeclaredFunction(
                         ?: this.declaredAt,
                     this,
                 )
-                reportings.addAll(it.validate(returnTypeUseSite))
+                it.validate(returnTypeUseSite, diagnosis)
             }
             declaredTypeParameters.forEach {
-                reportings.addAll(it.semanticAnalysisPhase2())
+                it.semanticAnalysisPhase2(diagnosis)
                 if (it.variance != TypeVariance.UNSPECIFIED) {
-                    reportings.add(Reporting.varianceOnFunctionTypeParameter(it))
+                    diagnosis.add(Reporting.varianceOnFunctionTypeParameter(it))
                 }
             }
-            body?.semanticAnalysisPhase2()?.let(reportings::addAll)
+            body?.semanticAnalysisPhase2(diagnosis)
             if (attributes.isDeclaredNothrow) {
                 body?.setNothrow(NothrowViolationReporting.SideEffectBoundary.Function(this))
             }
-
-            return@phase2 reportings
         }
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            val reportings = mutableSetOf<Reporting>()
-
-            declaredTypeParameters.map(BoundTypeParameter::semanticAnalysisPhase3).forEach(reportings::addAll)
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
+            declaredTypeParameters.forEach { it.semanticAnalysisPhase3(diagnosis) }
 
             if (body != null) {
-                reportings += body.semanticAnalysisPhase3()
+                body.semanticAnalysisPhase3(diagnosis)
 
                 if (BoundFunction.Purity.READONLY.contains(this.purity)) {
                     val statementsWritingBeyondFunctionContext = handleCyclicInvocation(
@@ -166,9 +158,9 @@ abstract class BoundDeclaredFunction(
                             action = { body.findReadsBeyond(context) },
                             onCycle = ::emptySet,
                         )
-                        reportings.addAll(Reporting.purityViolations(statementsReadingBeyondFunctionContext, statementsWritingBeyondFunctionContext, this))
+                        Reporting.purityViolations(statementsReadingBeyondFunctionContext, statementsWritingBeyondFunctionContext, this, diagnosis)
                     } else {
-                        reportings.addAll(Reporting.readonlyViolations(statementsWritingBeyondFunctionContext, this))
+                        Reporting.readonlyViolations(statementsWritingBeyondFunctionContext, this, diagnosis)
                     }
                 }
 
@@ -182,18 +174,16 @@ abstract class BoundDeclaredFunction(
                     if (localReturnType == null || this.body !is Body.SingleExpression) {
                         val isImplicitUnitReturn = localReturnType is RootResolvedTypeReference && localReturnType.baseType == context.swCtx.unit
                         if (!isImplicitUnitReturn) {
-                            reportings.add(Reporting.uncertainTermination(this))
+                            diagnosis.add(Reporting.uncertainTermination(this))
                         }
                     }
                 }
             }
-
-            return@phase3 reportings
         }
     }
 
-    override fun validateAccessFrom(location: Span): Collection<Reporting> {
-        return attributes.visibility.validateAccessFrom(location, this)
+    override fun validateAccessFrom(location: Span, diagnosis: Diagnosis) {
+        return attributes.visibility.validateAccessFrom(location, this, diagnosis)
     }
 
     // refcounting for parameters
@@ -238,24 +228,20 @@ abstract class BoundDeclaredFunction(
                 expression.setExpectedEvaluationResultType(type)
             }
 
-            override fun semanticAnalysisPhase1(): Collection<Reporting> {
-                val reportings = expression.semanticAnalysisPhase1()
+            override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+                expression.semanticAnalysisPhase1(diagnosis)
                 expression.markEvaluationResultUsed()
-                return reportings
             }
 
-            override fun semanticAnalysisPhase3(): Collection<Reporting> {
-                val reportings = mutableListOf<Reporting>()
-                reportings.addAll(expression.semanticAnalysisPhase3())
+            override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+                expression.semanticAnalysisPhase3(diagnosis)
                 expectedReturnType?.let { declaredReturnType ->
                     expression.type?.let { actualReturnType ->
                         actualReturnType.evaluateAssignabilityTo(declaredReturnType, expression.declaration.span)
                             ?.let(::ReturnTypeMismatchReporting)
-                            ?.let(reportings::add)
+                            ?.let(diagnosis::add)
                     }
                 }
-
-                return reportings
             }
 
             override fun toBackendIr(): IrCodeChunk {

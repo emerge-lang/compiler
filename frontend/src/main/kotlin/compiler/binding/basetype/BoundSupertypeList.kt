@@ -6,6 +6,7 @@ import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.handleCyclicInvocation
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 
 class BoundSupertypeList(
@@ -26,10 +27,9 @@ class BoundSupertypeList(
      */
     var hasCyclicInheritance: Boolean = false
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            val reportings = mutableListOf<Reporting>()
-            clauses.flatMap { it.semanticAnalysisPhase1() }.forEach(reportings::add)
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
+            clauses.forEach { it.semanticAnalysisPhase1(diagnosis) }
             baseTypes = clauses.mapNotNull { it.resolvedReference?.baseType }
 
             // all types that don't declare supertype, except Any itself, inherit from Any implicitly
@@ -41,24 +41,22 @@ class BoundSupertypeList(
             val distinctSupertypes = ArrayList<RootResolvedTypeReference>(clauses.size)
             for (clause in clauses) {
                 val resolvedReference = clause.resolvedReference ?: continue
-                val cyclicReportings = handleCyclicInvocation(
+                handleCyclicInvocation(
                     context = this,
                     action = {
-                        resolvedReference.baseType.semanticAnalysisPhase1()
-                        emptyList()
+                        resolvedReference.baseType.semanticAnalysisPhase1(diagnosis)
                     },
                     onCycle = {
-                        listOf(Reporting.cyclicInheritance(typeDef, clause))
+                        diagnosis.add(Reporting.cyclicInheritance(typeDef, clause))
+                        hasCyclicInheritance = true
                     }
                 )
-                if (cyclicReportings.isNotEmpty()) {
-                    reportings.addAll(cyclicReportings)
-                    hasCyclicInheritance = true
+                if (hasCyclicInheritance) {
                     continue
                 }
 
                 if (!distinctSuperBaseTypes.add(resolvedReference.baseType)) {
-                    reportings.add(Reporting.duplicateSupertype(clause.astNode))
+                    diagnosis.add(Reporting.duplicateSupertype(clause.astNode))
                 } else {
                     distinctSupertypes.add(resolvedReference)
                 }
@@ -73,10 +71,8 @@ class BoundSupertypeList(
                 .toList()
 
             inheritedMemberFunctions.forEach {
-                reportings.addAll(it.semanticAnalysisPhase1())
+                it.semanticAnalysisPhase1(diagnosis)
             }
-
-            return@phase1 reportings
         }
     }
 
@@ -89,29 +85,22 @@ class BoundSupertypeList(
     lateinit var inheritedMemberFunctions: List<InheritedBoundMemberFunction>
         private set
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            val reportings = mutableListOf<Reporting>()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
             clauses.forEach {
-                reportings.addAll(it.semanticAnalysisPhase2())
+                it.semanticAnalysisPhase2(diagnosis)
             }
 
             inheritedMemberFunctions.forEach {
-                reportings.addAll(it.semanticAnalysisPhase2())
+                it.semanticAnalysisPhase2(diagnosis)
             }
-
-            return@phase2 reportings
         }
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            val reportings = mutableListOf<Reporting>()
-
-            clauses.flatMap { it.semanticAnalysisPhase3() }.forEach(reportings::add)
-            inheritedMemberFunctions.flatMap { it.semanticAnalysisPhase3() }.forEach(reportings::add)
-
-            return@phase3 reportings
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
+            clauses.forEach { it.semanticAnalysisPhase3(diagnosis) }
+            inheritedMemberFunctions.forEach { it.semanticAnalysisPhase3(diagnosis) }
         }
     }
 }

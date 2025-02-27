@@ -11,8 +11,8 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrLoopImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBreakStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrLoop
 
@@ -37,23 +37,17 @@ class BoundWhileLoop(
 
     private val seanHelper = SeanHelper()
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            val reportings = mutableListOf<Reporting>()
-            reportings.addAll(condition.semanticAnalysisPhase1())
-            reportings.addAll(body.semanticAnalysisPhase1())
-
-            return@phase1 reportings
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
+            condition.semanticAnalysisPhase1(diagnosis)
+            body.semanticAnalysisPhase1(diagnosis)
         }
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            val reportings = mutableListOf<Reporting>()
-            reportings.addAll(condition.semanticAnalysisPhase2())
-            reportings.addAll(body.semanticAnalysisPhase2())
-
-            return@phase2 reportings
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
+            condition.semanticAnalysisPhase2(diagnosis)
+            body.semanticAnalysisPhase2(diagnosis)
         }
     }
 
@@ -62,13 +56,10 @@ class BoundWhileLoop(
         body.setExpectedReturnType(type)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            val reportings = mutableListOf<Reporting>()
-            reportings.addAll(condition.semanticAnalysisPhase3())
-            reportings.addAll(body.semanticAnalysisPhase3())
-
-            return@phase3 reportings
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
+            condition.semanticAnalysisPhase3(diagnosis)
+            body.semanticAnalysisPhase3(diagnosis)
         }
     }
 

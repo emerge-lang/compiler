@@ -8,6 +8,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 
 /**
@@ -33,34 +34,30 @@ class BoundSupertypeDeclaration(
         }
         private set
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            val reportings = mutableListOf<Reporting>()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
 
             unfilteredResolved = subtypeContext.resolveType(astNode)
             if (unfilteredResolved is RootResolvedTypeReference) {
                 resolvedReference = unfilteredResolved as RootResolvedTypeReference
             } else if (unfilteredResolved !is UnresolvedType) {
-                reportings.add(Reporting.illegalSupertype(astNode, "can only inherit from interfaces"))
+                diagnosis.add(Reporting.illegalSupertype(astNode, "can only inherit from interfaces"))
             }
-
-            return@phase1 reportings
         }
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            resolvedReference?.baseType?.semanticAnalysisPhase2()
-            unfilteredResolved.validate(TypeUseSite.Irrelevant(astNode.span, getTypeDef()))
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
+            resolvedReference?.baseType?.semanticAnalysisPhase2(diagnosis)
+            unfilteredResolved.validate(TypeUseSite.Irrelevant(astNode.span, getTypeDef()), diagnosis)
         }
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            val reportings = mutableListOf<Reporting>()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
 
             if (!astNode.arguments.isNullOrEmpty()) {
-                reportings.add(
+                diagnosis.add(
                     Reporting.illegalSupertype(
                         astNode,
                         "inheriting from generic types is currently not supported"
@@ -68,16 +65,14 @@ class BoundSupertypeDeclaration(
                 )
             }
 
-            val localResolvedReference = resolvedReference ?: return@phase3 reportings
+            val localResolvedReference = resolvedReference ?: return@phase3
             if (localResolvedReference.baseType === subtypeContext.swCtx.unit) {
-                return@phase3 reportings
+                return@phase3
             }
 
             if (localResolvedReference.baseType.kind != BoundBaseType.Kind.INTERFACE) {
-                reportings.add(Reporting.illegalSupertype(astNode, "can only inherit from interfaces"))
+                diagnosis.add(Reporting.illegalSupertype(astNode, "can only inherit from interfaces"))
             }
-
-            return@phase3 reportings
         }
     }
 }

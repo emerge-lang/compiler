@@ -10,6 +10,7 @@ import compiler.binding.expression.IrReturnStatementImpl
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -35,22 +36,21 @@ class PossiblyMixedInBoundMemberFunction(
         this.mixinRegistration = mixinRegistration
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return inheritedFn.semanticAnalysisPhase1()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        inheritedFn.semanticAnalysisPhase1(diagnosis)
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return inheritedFn.semanticAnalysisPhase2()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        inheritedFn.semanticAnalysisPhase2(diagnosis)
     }
 
     override val overrides: Set<InheritedBoundMemberFunction> = setOf(inheritedFn)
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = inheritedFn.semanticAnalysisPhase3().toMutableSet()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        inheritedFn.semanticAnalysisPhase3(diagnosis)
         if (mixinRegistration == null) {
-            reportings.add(Reporting.abstractInheritedFunctionNotImplemented(ownerBaseType, inheritedFn.supertypeMemberFn))
+            diagnosis.add(Reporting.abstractInheritedFunctionNotImplemented(ownerBaseType, inheritedFn.supertypeMemberFn))
         }
-        return reportings
     }
 
     private val backendIr by lazy {

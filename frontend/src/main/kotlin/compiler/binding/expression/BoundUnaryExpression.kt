@@ -40,8 +40,7 @@ class BoundUnaryExpression(
         hiddenInvocation.setExpectedEvaluationResultType(type)
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         hiddenInvocation.semanticAnalysisPhase2()
             .map { hiddenReporting ->
                 if (hiddenReporting !is UnresolvableFunctionOverloadReporting) {

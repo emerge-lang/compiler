@@ -4,6 +4,7 @@ import compiler.ast.ImportDeclaration
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.PackageContext
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
@@ -66,39 +67,38 @@ class BoundImportDeclaration(
         is ResolutionResult.Erroneous -> null
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return (resolutionResult as? ResolutionResult.Erroneous)?.errors ?: emptySet()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        (resolutionResult as? ResolutionResult.Erroneous)?.errors?.forEach(diagnosis::add)
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         val lastIdentifierAt = declaration.identifiers.last().span
-        val reportings = mutableListOf<Reporting>()
         when (val result = resolutionResult) {
             is ResolutionResult.Variable -> {
                 if (result.variable.kind.allowsVisibility) {
-                    reportings.addAll(result.variable.visibility.validateAccessFrom(lastIdentifierAt, result.variable))
+                    result.variable.visibility.validateAccessFrom(lastIdentifierAt, result.variable, diagnosis)
                 }
             }
             is ResolutionResult.OverloadSets -> {
-                val allImplsSeq = result.sets.asSequence().flatMap { it.overloads }
-                val noneAccessible = allImplsSeq.none { it.attributes.visibility.validateAccessFrom(lastIdentifierAt, it).isEmpty() }
-
+                val accessDiagnosis = result.sets.asSequence()
+                    .flatMap { it.overloads }
+                    .map {
+                        val subDiagnosis = Diagnosis.newDiagnosis()
+                        it.attributes.visibility.validateAccessFrom(lastIdentifierAt, it, subDiagnosis)
+                        subDiagnosis
+                    }
+                val noneAccessible = accessDiagnosis.all { it.hasErrors }
                 if (noneAccessible) {
-                    val sampleReportings = allImplsSeq
-                        .map { it.validateAccessFrom(lastIdentifierAt) }
-                        .filter { it.isNotEmpty() }
-                        .first()
-                    reportings.addAll(sampleReportings)
+                    accessDiagnosis.filter { it.hasErrors }.first().let(diagnosis::incorporate)
                 }
             }
             is ResolutionResult.BaseType -> {
-                reportings.addAll(result.baseType.validateAccessFrom(lastIdentifierAt))
+                result.baseType.validateAccessFrom(lastIdentifierAt, diagnosis)
             }
             else -> { /* nothing to do */ }
         }
-        return reportings
     }
 
     private sealed interface ResolutionResult {

@@ -17,6 +17,7 @@ import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -49,18 +50,17 @@ class BoundCastExpression(
     private var baseTypeToCheck: BoundBaseType? = null
     private val isTypedNumericLiteral get() = value is BoundNumericLiteral
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
 
-        reportings.addAll(value.semanticAnalysisPhase1())
+        value.semanticAnalysisPhase1(diagnosis)
 
         val type = context.resolveType(declaration.toType)
         this.type = type
         if (safeCast) {
             this.type = this.type.withCombinedNullability(TypeReference.Nullability.NULLABLE)
         }
-        reportings.addAll(type.validate(TypeUseSite.Irrelevant(declaration.span, null)))
-        baseTypeToCheck = validateTypeCheck(this, type, reportings)
+        type.validate(TypeUseSite.Irrelevant(declaration.span, null), diagnosis)
+        baseTypeToCheck = validateTypeCheck(this, type, diagnosis)
 
         if (isTypedNumericLiteral) {
             // there is no suffix type notation for numeric literals; instead casting should do that
@@ -69,8 +69,6 @@ class BoundCastExpression(
         }
 
         value.markEvaluationResultUsed()
-
-        return reportings
     }
 
     override fun markEvaluationResultUsed() {
@@ -83,16 +81,14 @@ class BoundCastExpression(
         expectedMutability = type.mutability
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = value.semanticAnalysisPhase2().toMutableSet()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        value.semanticAnalysisPhase2(diagnosis)
         val valueType = value.type
         val expectedMutability = this.expectedMutability
         if (valueType != null && declaration.toType.mutability == null && expectedMutability != null && valueType.mutability.isAssignableTo(expectedMutability)) {
             // user didn't specify mutability but the value fits what is expected in the context; allow this cross-talk across the cast boundary
             this.type = type.withMutability(expectedMutability)
         }
-
-        return reportings
     }
 
     private var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
@@ -114,17 +110,11 @@ class BoundCastExpression(
         })
     }
 
-
-
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-
-        reportings.addAll(value.semanticAnalysisPhase3())
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        value.semanticAnalysisPhase3(diagnosis)
         if (nothrowBoundary != null && !isTypedNumericLiteral) {
-            reportings.add(Reporting.nothrowViolatingCast(this, nothrowBoundary!!))
+            diagnosis.add(Reporting.nothrowViolatingCast(this, nothrowBoundary!!))
         }
-
-        return reportings
     }
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {

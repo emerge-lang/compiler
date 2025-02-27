@@ -25,7 +25,6 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -46,9 +45,9 @@ class BoundNullLiteralExpression(
     override val throwBehavior = SideEffectPrediction.NEVER
     override val returnBehavior = SideEffectPrediction.NEVER
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
-    override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
-    override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) = emptySet()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = emptySet()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = emptySet()
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()

@@ -22,8 +22,8 @@ import compiler.ast.expression.BooleanLiteralExpression
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBooleanLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -46,9 +46,9 @@ class BoundBooleanLiteralExpression(
         // nothing to do
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
-    override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
-    override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) = Unit
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
 
     override val isEvaluationResultReferenceCounted = false
     override val isEvaluationResultAnchored = true

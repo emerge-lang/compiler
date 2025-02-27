@@ -62,31 +62,29 @@ class BoundMemberAccessExpression(
     override val throwBehavior get() = valueExpression.throwBehavior
     override val returnBehavior get() = valueExpression.returnBehavior
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         val reportings = valueExpression.semanticAnalysisPhase1()
         valueExpression.markEvaluationResultUsed()
         return reportings
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         // partially uninitialized is okay as this class verifies that itself
         (valueExpression as? BoundIdentifierExpression)?.allowPartiallyUninitializedValue()
-
-        val reportings = mutableSetOf<Reporting>()
-        reportings.addAll(valueExpression.semanticAnalysisPhase2())
+        valueExpression.semanticAnalysisPhase2(diagnosis)
 
         val valueType = valueExpression.type
         if (valueType != null) {
             if (valueType.isNullable && !isNullSafeAccess) {
-                reportings.add(Reporting.unsafeObjectTraversal(valueExpression, declaration.accessOperatorToken))
+                diagnosis.add(Reporting.unsafeObjectTraversal(valueExpression, declaration.accessOperatorToken))
             }
             else if (!valueType.isNullable && isNullSafeAccess) {
-                reportings.add(Reporting.superfluousSafeObjectTraversal(valueExpression, declaration.accessOperatorToken))
+                diagnosis.add(Reporting.superfluousSafeObjectTraversal(valueExpression, declaration.accessOperatorToken))
             }
 
             val member = valueType.findMemberVariable(memberName)
             if (member == null) {
-                reportings.add(Reporting.unresolvableMemberVariable(this, valueType))
+                diagnosis.add(Reporting.unresolvableMemberVariable(this, valueType))
             } else {
                 this.member = member
                 this.type = member.type?.instantiateAllParameters(valueType.inherentTypeBindings)
@@ -97,7 +95,7 @@ class BoundMemberAccessExpression(
                     } ?: true
 
                     if (!isInitialized) {
-                        reportings.add(Reporting.useOfUninitializedMember(this))
+                        diagnosis.add(Reporting.useOfUninitializedMember(this))
                     }
                 }
             }
@@ -110,9 +108,8 @@ class BoundMemberAccessExpression(
         valueExpression.setNothrow(boundary)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        reportings.addAll(valueExpression.semanticAnalysisPhase3())
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        valueExpression.semanticAnalysisPhase3(diagnosis)
         member?.let { resolvedMember ->
             reportings.addAll(
                 resolvedMember.validateAccessFrom(declaration.memberName.span)

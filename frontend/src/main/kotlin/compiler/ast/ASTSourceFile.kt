@@ -26,6 +26,7 @@ import compiler.binding.context.SourceFile
 import compiler.binding.context.SourceFileRootContext
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
@@ -54,12 +55,9 @@ class ASTSourceFile(
 
     val baseTypes: MutableList<BaseTypeDeclaration> = mutableListOf()
 
-    private var parseTimeReportings: MutableList<Reporting>? = null
+    private var parseTimeDiagnosis = Diagnosis.newDiagnosis()
     fun addParseTimeReporting(reporting: Reporting) {
-        if (parseTimeReportings == null) {
-            parseTimeReportings = ArrayList()
-        }
-        parseTimeReportings!!.add(reporting)
+        parseTimeDiagnosis.add(reporting)
     }
 
     /**
@@ -70,17 +68,15 @@ class ASTSourceFile(
         val packageContext = context.softwareContext.getPackage(expectedPackageName)
             ?: throw InternalCompilerError("Cannot bind source file in $expectedPackageName because its module hasn't been registered with the software-context yet.")
         val fileContext = SourceFileRootContext(packageContext)
-        val reportings = mutableSetOf<Reporting>()
-        parseTimeReportings?.let(reportings::addAll)
 
         bindImportsInto(fileContext)
         bindFunctionsInto(fileContext)
         bindBaseTypesInto(fileContext)
-        bindVariablesInto(fileContext, reportings)
+        bindVariablesInto(fileContext, parseTimeDiagnosis)
 
         selfDeclaration?.packageName?.let { declaredPackageName ->
             if (declaredPackageName.names.map { it.value } != expectedPackageName.components) {
-                reportings.add(Reporting.incorrectPackageDeclaration(declaredPackageName, expectedPackageName))
+                parseTimeDiagnosis.add(Reporting.incorrectPackageDeclaration(declaredPackageName, expectedPackageName))
             }
         }
 
@@ -88,7 +84,7 @@ class ASTSourceFile(
             lexerFile,
             selfDeclaration?.packageName?.names?.map(IdentifierToken::value)?.let(CanonicalElementName::Package) ?: expectedPackageName,
             fileContext,
-            reportings
+            parseTimeDiagnosis
         )
     }
 
@@ -123,7 +119,7 @@ class ASTSourceFile(
         baseTypes.forEach(fileContext::addBaseType)
     }
 
-    private fun bindVariablesInto(fileContext: SourceFileRootContext, reportings: MutableCollection<Reporting>) {
+    private fun bindVariablesInto(fileContext: SourceFileRootContext, diagnosis: Diagnosis) {
         val initializerContext = MutableExecutionScopedCTContext.functionRootIn(fileContext)
 
         for (globalVariable in globalVariables) {
@@ -134,7 +130,7 @@ class ASTSourceFile(
             }
             else {
                 // variable double-declared
-                reportings.add(Reporting.variableDeclaredMoreThanOnce(existingVariable.declaration, globalVariable))
+                diagnosis.add(Reporting.variableDeclaredMoreThanOnce(existingVariable.declaration, globalVariable))
             }
         }
     }

@@ -26,6 +26,7 @@ import compiler.binding.BoundParameter
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.lexer.Span
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import compiler.reportings.ValueNotAssignableReporting
 import compiler.util.twoElementPermutationsUnordered
@@ -68,7 +69,7 @@ sealed interface BoundTypeReference {
      *
      * @return Any reportings on the validated code
      */
-    fun validate(forUsage: TypeUseSite): Collection<Reporting>
+    fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis)
 
     /**
      * Determines whether a value of type `this` can be assigned to a variable

@@ -1,6 +1,6 @@
 package compiler.binding
 
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnosis
 
 interface SemanticallyAnalyzable {
     /**
@@ -10,7 +10,7 @@ interface SemanticallyAnalyzable {
      * * casts
      * * explicit generics
      */
-    fun semanticAnalysisPhase1(): Collection<Reporting>
+    fun semanticAnalysisPhase1(diagnosis: Diagnosis)
 
     /**
      * This method does currently not affect any expression. In the future, these expressions will make
@@ -18,11 +18,11 @@ interface SemanticallyAnalyzable {
      * * constructor invocations
      * * method references (both static ones and such with a context)
      */
-    fun semanticAnalysisPhase2(): Collection<Reporting>
+    fun semanticAnalysisPhase2(diagnosis: Diagnosis)
 
     /**
      * Any semantics that rely on full type information being present (e.g. visibility checking) is done
      * in this method.
      */
-    fun semanticAnalysisPhase3(): Collection<Reporting>
+    fun semanticAnalysisPhase3(diagnosis: Diagnosis)
 }
