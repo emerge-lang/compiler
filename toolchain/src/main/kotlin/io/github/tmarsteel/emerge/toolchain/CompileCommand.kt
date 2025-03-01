@@ -10,6 +10,7 @@ import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.choice
 import compiler.InternalCompilerError
 import compiler.binding.context.SoftwareContext
+import compiler.diagnostic.CompilerGeneratedInvalidCodeDiagnostic
 import compiler.lexer.SourceSet
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
@@ -88,20 +89,22 @@ object CompileCommand : CliktCommand() {
             )
         }
 
-        val diagnosis = ProcessOnTheGoDiagnosis {
+        val semanticCompleteAt: Instant
+        ProcessOnTheGoDiagnosis {
             if (it.severity > Diagnostic.Severity.CONSECUTIVE) {
                 echo(it)
             }
-        }
-        swCtx.doSemanticAnalysis(diagnosis)
-        val semanticCompleteAt = measureClock.instant()
+        }.use { diagnosis ->
+            swCtx.doSemanticAnalysis(diagnosis)
+            semanticCompleteAt = measureClock.instant()
 
-        if (diagnosis.nErrors > 0uL) {
-            throw PrintMessage(
-                "The provided program is not valid",
-                statusCode = 1,
-                printError = true,
-            )
+            if (diagnosis.nErrors > 0uL) {
+                throw PrintMessage(
+                    "The provided program is not valid",
+                    statusCode = 1,
+                    printError = true,
+                )
+            }
         }
 
         val irSwCtx = swCtx.toBackendIr()
@@ -147,22 +150,49 @@ private fun elapsedBetween(start: Instant, end: Instant): String {
         .replace(".000", "")
 }
 
-private class ProcessOnTheGoDiagnosis(private val process: (Diagnostic) -> Unit) : Diagnosis {
+private class ProcessOnTheGoDiagnosis(private val process: (Diagnostic) -> Unit) : Diagnosis, AutoCloseable {
     private val seen = HashSet<Diagnostic>()
+    private val errorsInGeneratedCode = HashSet<Diagnostic>()
     override var nErrors: ULong = 0uL
         private set
 
+    private var hasErrorInUserSuppliedCode = false
+    private var closed = false
+
     override fun add(finding: Diagnostic) {
+        check(!closed)
         if (finding.severity >= Diagnostic.Severity.ERROR) {
             nErrors++
+            if (!finding.span.generated) {
+                hasErrorInUserSuppliedCode = true
+            }
         }
 
-        if (seen.add(finding)) {
-            process(finding)
+        if (finding.span.generated) {
+            if (finding.severity >= Diagnostic.Severity.ERROR) {
+                errorsInGeneratedCode.add(finding)
+            }
+        } else {
+            if (seen.add(finding)) {
+                process(finding)
+            }
         }
     }
 
     override fun hasSameDrainAs(other: Diagnosis): Boolean {
         return other === this || other.hasSameDrainAs(this)
+    }
+
+    override fun close() {
+        if (closed) {
+            return
+        }
+
+        closed = true
+
+        if (!hasErrorInUserSuppliedCode && nErrors > 0uL) {
+            process(CompilerGeneratedInvalidCodeDiagnostic())
+            errorsInGeneratedCode.forEach(process)
+        }
     }
 }
