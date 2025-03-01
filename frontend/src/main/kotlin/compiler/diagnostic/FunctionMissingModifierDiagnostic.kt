@@ -10,7 +10,7 @@ data class FunctionMissingModifierDiagnostic(
     val usageRequiringModifier: Executable,
     val missingAttribute: String,
 ) : Diagnostic(
-    Diagnostic.Level.ERROR,
+    Diagnostic.Severity.ERROR,
     "Missing modifier \"${missingAttribute}\" on function ${function.canonicalName}",
     usageRequiringModifier.span,
 ) {

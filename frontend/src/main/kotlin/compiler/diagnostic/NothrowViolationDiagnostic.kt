@@ -12,15 +12,15 @@ import compiler.lexer.Operator
 import compiler.lexer.Span
 
 open class NothrowViolationDiagnostic(
-    level: Level,
+    severity: Severity,
     message: String,
     sourceLocation: Span,
-) : Diagnostic(level, message, sourceLocation) {
+) : Diagnostic(severity, message, sourceLocation) {
     class NotNullAssertion(
         val assertion: NotNullExpression,
         val boundary: SideEffectBoundary,
     ) : NothrowViolationDiagnostic(
-        Level.ERROR,
+        Severity.ERROR,
         "Cannot use !! in in nothrow $boundary; it can throw a NullPointerError",
         assertion.notNullOperator.span,
     )
@@ -29,7 +29,7 @@ open class NothrowViolationDiagnostic(
         val invocation: BoundInvocationExpression,
         val boundary: SideEffectBoundary,
     ) : NothrowViolationDiagnostic(
-        Level.ERROR,
+        Severity.ERROR,
         "Cannot invoke possibly-throwing function ${invocation.functionToInvoke!!.canonicalName} in nothrow $boundary",
         invocation.declaration.span,
     )
@@ -38,7 +38,7 @@ open class NothrowViolationDiagnostic(
         val statement: AstThrowExpression,
         val boundary: SideEffectBoundary,
     ) : NothrowViolationDiagnostic(
-        Level.ERROR,
+        Severity.ERROR,
         "Cannot throw from nothrow $boundary",
         statement.span,
     )
@@ -47,7 +47,7 @@ open class NothrowViolationDiagnostic(
         val castExpression: AstCastExpression,
         val boundary: SideEffectBoundary,
     ) : NothrowViolationDiagnostic(
-        Level.ERROR,
+        Severity.ERROR,
         "Cannot force-cast in nothrow $boundary; casts can always throw a CastError. Use ${Keyword.AS.text}${Operator.QUESTION_MARK.text} or ${Keyword.INSTANCEOF.text} in an ${Keyword.IF.text}-expression instead.",
         castExpression.asToken.span,
     )

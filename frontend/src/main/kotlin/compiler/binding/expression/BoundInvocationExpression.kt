@@ -261,7 +261,7 @@ class BoundInvocationExpression(
                     // if there is only a single candidate, the errors found in validating are 100% applicable to be shown to the user
                     singleEval.unification.diagnostics
                         .also {
-                            check(it.any { it.level >= Diagnostic.Level.ERROR }) {
+                            check(it.any { it.severity >= Diagnostic.Severity.ERROR }) {
                                 "Cannot choose overload to invoke, but evaluation of single overload candidate didn't yield any error -- what?"
                             }
                         }
@@ -520,7 +520,7 @@ private data class OverloadCandidateEvaluation(
     val returnType: BoundTypeReference?,
     val indicesOfErroneousParameters: Collection<Int>,
 ) {
-    val hasErrors = unification.diagnostics.any { it.level >= Diagnostic.Level.ERROR }
+    val hasErrors = unification.diagnostics.any { it.severity >= Diagnostic.Severity.ERROR }
 }
 
 private fun Collection<OverloadCandidateEvaluation>.indicesOfDisjointlyTypedParameters(): Sequence<Int> {

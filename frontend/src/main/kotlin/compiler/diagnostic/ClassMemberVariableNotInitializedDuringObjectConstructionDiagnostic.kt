@@ -5,7 +5,7 @@ import compiler.ast.BaseTypeMemberVariableDeclaration
 class ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic(
     val memberDeclaration: BaseTypeMemberVariableDeclaration
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Member variable ${memberDeclaration.name.value} is not guaranteed to be initialized during object construction",
     memberDeclaration.span,
 ) {

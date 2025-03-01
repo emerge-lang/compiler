@@ -24,4 +24,4 @@ import compiler.lexer.Span
 class TypeDeductionErrorDiagnostic(
     message: String,
     location: Span
-) : Diagnostic(Level.ERROR, message, location)
+) : Diagnostic(Severity.ERROR, message, location)

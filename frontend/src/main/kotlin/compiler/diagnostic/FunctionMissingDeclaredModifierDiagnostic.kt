@@ -8,7 +8,7 @@ class FunctionMissingDeclaredModifierDiagnostic(
     val attribute: AstFunctionAttribute,
     reason: String,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Function ${fn.name.value} must have the ${attribute.attributeName.keyword.text} attribute: $reason",
     fn.name.span,
 ) {

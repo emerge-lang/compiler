@@ -25,7 +25,7 @@ import compiler.binding.BoundDeclaredFunction
  * (returnType != Unit).
  */
 class UncertainTerminationDiagnostic(val function: BoundDeclaredFunction) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Function ${function.canonicalName} does not terminate (return or throw) on all possible execution paths.",
     function.declaredAt
 ) {

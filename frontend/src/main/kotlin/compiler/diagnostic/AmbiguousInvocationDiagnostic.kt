@@ -7,7 +7,7 @@ class AmbiguousInvocationDiagnostic(
     val invocation: InvocationExpression,
     val candidates: List<BoundFunction>,
 ) : Diagnostic(
-    Diagnostic.Level.ERROR,
+    Diagnostic.Severity.ERROR,
     "Multiple overloads of ${candidates.first().name} apply to this invocation. Disambiguate by casting parameters explicitly.",
     invocation.span,
 ) {

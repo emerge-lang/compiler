@@ -7,7 +7,7 @@ class IllegalSupertypeDiagnostic(
     val supertype: TypeReference,
     reason: String,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Cannot inherit from this type: $reason",
     supertype.span ?: Span.UNKNOWN,
 ) {

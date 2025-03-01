@@ -7,7 +7,7 @@ class MissingTypeArgumentDiagnostic(
     val parameter: TypeParameter,
     span: Span,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "No argument supplied for type parameter ${parameter.name.value}",
     span,
 ) {

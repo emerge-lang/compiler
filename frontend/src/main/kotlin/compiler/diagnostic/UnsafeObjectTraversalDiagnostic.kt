@@ -29,7 +29,7 @@ data class UnsafeObjectTraversalDiagnostic(
     val nullableExpression: BoundExpression<*>,
     val faultyAccessOperator: OperatorToken
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Receiver expression could evaluate to null (type is ${nullableExpression.type}). " +
         "Assert non null (operator ${Operator.NOTNULL.text}) or use the safe object traversal operator ${Operator.SAFEDOT.text}",
     faultyAccessOperator.span,

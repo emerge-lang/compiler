@@ -12,7 +12,7 @@ class EntryNotAllowedInBaseTypeDiagnostic(
     val typeKind: BoundBaseType.Kind,
     val violatingEntry: BoundBaseTypeEntry<*>,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     run {
         val entryDesc = when (violatingEntry) {
             is BoundClassConstructor -> "constructors"

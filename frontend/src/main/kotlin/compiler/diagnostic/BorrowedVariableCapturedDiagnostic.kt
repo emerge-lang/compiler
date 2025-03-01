@@ -7,7 +7,7 @@ class BorrowedVariableCapturedDiagnostic(
     val variable: VariableDeclaration,
     captureAt: Span,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Cannot capture a borrowed value",
     captureAt,
 ) {

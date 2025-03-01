@@ -9,7 +9,7 @@ data class OverrideRestrictsVisibilityDiagnostic(
     val override: BoundMemberFunction,
     val superFunction: BoundMemberFunction,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "The visibility of overrides must be the same or broader than that of the overridden function.",
     override.declaredAt,
 ) {

@@ -195,7 +195,7 @@ object FailOnErrorDiagnosis : Diagnosis {
     override val nErrors = 0uL
 
     override fun add(finding: Diagnostic) {
-        if (finding.level >= Diagnostic.Level.ERROR) {
+        if (finding.severity >= Diagnostic.Severity.ERROR) {
             fail("Expected no errors, but got this:\n$finding")
         }
     }
@@ -215,7 +215,7 @@ fun haveNoDiagnostics(): Matcher<Pair<SoftwareContext, Collection<Diagnostic>>> 
         return object : MatcherResult {
             override fun failureMessage() = run {
                 val byLevel = value.second
-                    .groupBy { it.level.name.lowercase() }
+                    .groupBy { it.severity.name.lowercase() }
                     .entries
                     .joinToString { (level, reportings) -> "${reportings.size} ${level}s" }
                 "there should not be any diagnostics, but found $byLevel"
@@ -231,7 +231,7 @@ inline fun <reified T : Diagnostic> Pair<SoftwareContext, Collection<Diagnostic>
 }
 
 fun Pair<SoftwareContext, Collection<Diagnostic>>.moduleBackendIrAssumingNoErrors(moduleName: String = "testmodule"): IrModule {
-    check(second.none { it.level == Diagnostic.Level.ERROR })
+    check(second.none { it.severity == Diagnostic.Severity.ERROR })
     return first.toBackendIr().modules.single { it.name == CanonicalElementName.Package(listOf("testmodule")) }
 }
 

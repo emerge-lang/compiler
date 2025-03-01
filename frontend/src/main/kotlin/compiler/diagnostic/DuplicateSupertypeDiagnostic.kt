@@ -6,7 +6,7 @@ import compiler.lexer.Span
 class DuplicateSupertypeDiagnostic(
     val supertype: TypeReference,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Can inherit from ${supertype.simpleName} only once",
     supertype.span ?: Span.UNKNOWN,
 ) {

@@ -5,7 +5,7 @@ import compiler.lexer.Token
 class ExplicitOwnershipNotAllowedDiagnostic(
     val token: Token,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Declaring an ownership mode is only allowed on parameters, not on variables",
     token.span,
 ) {

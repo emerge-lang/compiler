@@ -24,7 +24,7 @@ data class MultipleParameterDeclarationsDiagnostic(
     val firstDeclaration: VariableDeclaration,
     val additionalDeclaration: VariableDeclaration
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Parameter ${additionalDeclaration.name.value} has already been declared in ${firstDeclaration.span.fileLineColumnText}",
     additionalDeclaration.declaredAt
 ) {

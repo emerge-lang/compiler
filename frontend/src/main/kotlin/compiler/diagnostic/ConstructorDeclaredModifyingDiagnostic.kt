@@ -7,7 +7,7 @@ class ConstructorDeclaredModifyingDiagnostic(
     val constructor: BoundClassConstructor,
     val modifyingKeyword: Token,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Constructors my not modify global state",
     modifyingKeyword.span,
 ) {

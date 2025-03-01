@@ -5,7 +5,7 @@ import compiler.ast.BaseTypeDestructorDeclaration
 data class MultipleClassDestructorsDiagnostic(
     val additionalDestructors: Collection<BaseTypeDestructorDeclaration>,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Classes can have only one destructor. These must be removed",
     additionalDestructors.first().span,
 ) {

@@ -7,7 +7,7 @@ import compiler.ast.Expression
 data class ImplicitlyEvaluatedStatementDiagnostic(
     val statement: Executable,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "A value must be given here (implicit evaluation)",
     statement.span,
 ) {

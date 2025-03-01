@@ -6,7 +6,7 @@ import compiler.lexer.Span
 class TypeArgumentVarianceSuperfluousDiagnostic(
     val argument: BoundTypeArgument,
 ) : Diagnostic(
-    Level.WARNING,
+    Severity.WARNING,
     "Superfluous variance on type argument. The parameter is already declared as ${argument.variance.name.lowercase()}",
     argument.span ?: Span.UNKNOWN,
 ) {

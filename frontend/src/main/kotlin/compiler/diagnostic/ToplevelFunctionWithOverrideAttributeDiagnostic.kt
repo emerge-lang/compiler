@@ -5,7 +5,7 @@ import compiler.lexer.Token
 class ToplevelFunctionWithOverrideAttributeDiagnostic(
     val overrideKeyword: Token,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Top-level functions cannot override (the concept of overriding only applies in interfaces and classes)",
     overrideKeyword.span,
 ) {

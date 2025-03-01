@@ -5,7 +5,7 @@ import compiler.ast.type.TypeParameter
 class VarianceOnFunctionTypeParameterDiagnostic(
     val parameter: TypeParameter,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Type parameters on functions cannot have variance",
     parameter.name.span,
 ) {

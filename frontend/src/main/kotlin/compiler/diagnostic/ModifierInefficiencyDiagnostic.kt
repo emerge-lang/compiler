@@ -26,7 +26,7 @@ import compiler.ast.AstFunctionAttribute
  * * state a fact that is assured by other means (e.g. abstract functions in interfaces)
  */
 class ModifierInefficiencyDiagnostic(message: String, attributes: Collection<AstFunctionAttribute>) : MultiFunctionAttributeDiagnostic(
-    Level.INFO,
+    Severity.INFO,
     message,
     attributes,
 )

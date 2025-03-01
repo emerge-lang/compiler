@@ -6,7 +6,7 @@ import compiler.ast.FunctionDeclaration
 class SuperFunctionForOverrideNotFoundDiagnostic(
     val overridingFunction: FunctionDeclaration,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Function ${overridingFunction.name.value} doesn't override anything. The types of an overriding function must match exactly.",
     overridingFunction.attributes.first { it is AstFunctionAttribute.Override }.sourceLocation,
 ) {

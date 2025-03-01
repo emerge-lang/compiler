@@ -24,7 +24,7 @@ import compiler.lexer.IdentifierToken
  * Reported when the identifier [expr] is used but it is not defined at that point.
  */
 class UndefinedIdentifierDiagnostic(val expr: IdentifierToken, messageOverride: String? = null) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     messageOverride ?: "${expr.value} is not defined",
     expr.span
 ) {

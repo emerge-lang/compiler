@@ -6,7 +6,7 @@ class ParsingMismatchDiagnostic(
     val expectedAlternatives: Collection<String>,
     val actual: Token,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "<mismatch>",
     actual.span
 ) {

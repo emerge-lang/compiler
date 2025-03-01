@@ -5,7 +5,7 @@ import compiler.binding.BoundOverloadSet
 class InconsistentReceiverPresenceInOverloadSetDiagnostic(
     val overloadSet: BoundOverloadSet<*>,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Receiver presence is inconsistent in ${overloadSet.canonicalName}. All functions in an overload-set must either declare a receiver or not declare one.",
     overloadSet.overloads.first().declaredAt,
 ) {

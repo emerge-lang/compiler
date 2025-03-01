@@ -64,18 +64,18 @@ import textutils.indentByFromSecondLine
 import java.math.BigInteger
 
 abstract class Diagnostic internal constructor(
-    val level: Level,
+    val severity: Severity,
     open val message: String,
     val span: Span
 ) : Comparable<Diagnostic>
 {
     override fun compareTo(other: Diagnostic): Int {
-        return level.compareTo(other.level)
+        return severity.compareTo(other.severity)
     }
 
     fun toException(): ReportingException = ReportingException(this)
 
-    protected val levelAndMessage: String get() = "($level) $message".indentByFromSecondLine(2)
+    protected val levelAndMessage: String get() = "($severity) $message".indentByFromSecondLine(2)
 
     /**
      * TODO: currently, all subclasses must override this with super.toString(), because `data` is needed to detect double-reporting the same problem
@@ -99,7 +99,7 @@ abstract class Diagnostic internal constructor(
     }
 
 
-    enum class Level(val level: Int) {
+    enum class Severity(val level: Int) {
         CONSECUTIVE(0),
         INFO(10),
         WARNING(20),

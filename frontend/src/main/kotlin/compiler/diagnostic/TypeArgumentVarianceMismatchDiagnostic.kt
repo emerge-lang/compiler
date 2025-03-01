@@ -8,7 +8,7 @@ class TypeArgumentVarianceMismatchDiagnostic(
     val parameter: TypeParameter,
     val argument: BoundTypeArgument,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "The variance in the type argument conflicts with the variance on the declaration of ${parameter.name.span} (declared as ${parameter.variance.name.lowercase()})",
     argument.span ?: Span.UNKNOWN,
 ) {

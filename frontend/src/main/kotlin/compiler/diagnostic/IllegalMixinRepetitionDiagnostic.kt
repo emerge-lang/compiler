@@ -8,7 +8,7 @@ class IllegalMixinRepetitionDiagnostic(
     val mixinStatement: AstMixinStatement,
     val repetition: ExecutionScopedCTContext.Repetition,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     run {
         val repetitionText = when (repetition) {
             ExecutionScopedCTContext.Repetition.MAYBE,

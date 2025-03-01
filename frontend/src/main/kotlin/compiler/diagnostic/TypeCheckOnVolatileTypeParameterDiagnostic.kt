@@ -5,7 +5,7 @@ import compiler.lexer.Span
 class TypeCheckOnVolatileTypeParameterDiagnostic(
     val typeLocation: Span,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Instance-of checks are only supported on named types.",
     typeLocation,
 )

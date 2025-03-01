@@ -61,7 +61,7 @@ fun <Item : Any> matchAgainst(tokens: Array<Token>, rule: Rule<Item>): MatchingR
 }
 
 private val parseErrorComparator: Comparator<ParsingMismatchDiagnostic> =
-    compareBy<ParsingMismatchDiagnostic> { it.level }
+    compareBy<ParsingMismatchDiagnostic> { it.severity }
         .thenBy { it.span.fromLineNumber }
         .thenBy { it.span.fromColumnNumber }
 

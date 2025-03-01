@@ -89,7 +89,7 @@ object CompileCommand : CliktCommand() {
         }
 
         val diagnosis = ProcessOnTheGoDiagnosis {
-            if (it.level > Diagnostic.Level.CONSECUTIVE) {
+            if (it.severity > Diagnostic.Severity.CONSECUTIVE) {
                 echo(it)
             }
         }
@@ -136,7 +136,7 @@ fun main(args: Array<String>) {
 }
 
 private val Iterable<Diagnostic>.containsErrors
-    get() = map(Diagnostic::level).any { it.level >= Diagnostic.Level.ERROR.level }
+    get() = map(Diagnostic::severity).any { it.level >= Diagnostic.Severity.ERROR.level }
 
 private fun elapsedBetween(start: Instant, end: Instant): String {
     val duration = Duration.between(start, end).toKotlinDuration()
@@ -153,7 +153,7 @@ private class ProcessOnTheGoDiagnosis(private val process: (Diagnostic) -> Unit)
         private set
 
     override fun add(finding: Diagnostic) {
-        if (finding.level >= Diagnostic.Level.ERROR) {
+        if (finding.severity >= Diagnostic.Severity.ERROR) {
             nErrors++
         }
 

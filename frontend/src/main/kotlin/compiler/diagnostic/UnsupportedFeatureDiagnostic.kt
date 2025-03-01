@@ -21,4 +21,4 @@ package compiler.diagnostic
 import compiler.lexer.Span
 
 /** Used when input source code uses a feature that is not fully supported by the compiler */
-class UnsupportedFeatureDiagnostic(message: String, location: Span) : Diagnostic(Level.ERROR, message, location)
+class UnsupportedFeatureDiagnostic(message: String, location: Span) : Diagnostic(Severity.ERROR, message, location)

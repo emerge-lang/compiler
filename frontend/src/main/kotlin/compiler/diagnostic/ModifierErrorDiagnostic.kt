@@ -28,4 +28,4 @@ import compiler.lexer.Span
 class ModifierErrorDiagnostic(
     message: String,
     location: Span
-) : Diagnostic(Level.ERROR, message, location)
+) : Diagnostic(Severity.ERROR, message, location)

@@ -5,7 +5,7 @@ import compiler.binding.BoundOverloadSet
 class OverloadSetHasNoDisjointParameterDiagnostic(
     val overloadSet: BoundOverloadSet<*>,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "This overload-set is ambiguous. The types of least one parameter must be disjoint, this set has none.",
     overloadSet.overloads.first().declaredAt,
 ) {

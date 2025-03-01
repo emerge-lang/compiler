@@ -8,7 +8,7 @@ class IncompatibleReturnTypeOnOverrideDiagnostic(
     val superFunction: InheritedBoundMemberFunction,
     private val base: ValueNotAssignableDiagnostic,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "The return type of this override is not a subtype the overridden functions return type: ${base.reason}",
     base.span,
 ) {

@@ -7,7 +7,7 @@ class NotAllMemberVariablesInitializedDiagnostic(
     val uninitializedMembers: Collection<BaseTypeMemberVariableDeclaration>,
     span: Span,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     run {
         val memberList = uninitializedMembers.joinToString(transform = { "- ${it.name.value}" }, separator = "\n")
         "The object is not fully initialized yet. These member variables must be initialized before the object can be used regularly:\n$memberList"

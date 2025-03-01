@@ -7,7 +7,7 @@ data class UnresolvablePackageNameDiagnostic(
     val name: CanonicalElementName.Package,
     val location: Span
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Package $name could not be found",
     location,
 ) {

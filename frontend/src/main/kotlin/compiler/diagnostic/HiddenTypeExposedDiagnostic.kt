@@ -9,7 +9,7 @@ class HiddenTypeExposedDiagnostic(
     val exposedBy: DefinitionWithVisibility,
     exposedAt: Span,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     run {
         val typeName = type.simpleName
         val exposedByStr = exposedBy.toStringForErrorMessage()

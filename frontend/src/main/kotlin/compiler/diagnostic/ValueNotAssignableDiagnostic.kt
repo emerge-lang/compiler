@@ -40,7 +40,7 @@ open class ValueNotAssignableDiagnostic(
 
     assignmentLocation: Span
 ) : Diagnostic(
-    if (targetType is UnresolvedType || sourceType is UnresolvedType) Level.CONSECUTIVE else Level.ERROR,
+    if (targetType is UnresolvedType || sourceType is UnresolvedType) Severity.CONSECUTIVE else Severity.ERROR,
     "Type mismatch: $reason",
     assignmentLocation
 ) {

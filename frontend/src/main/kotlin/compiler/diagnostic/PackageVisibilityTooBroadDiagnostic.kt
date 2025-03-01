@@ -8,7 +8,7 @@ class PackageVisibilityTooBroadDiagnostic(
     val declaredPackageVisibility: CanonicalElementName.Package,
     span: Span,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Visibility can only be limited inside the module. Outside visibility must be export.\n"
             + "Cannot broaden visibility to package $declaredPackageVisibility outside of the own module $owningModule",
     span,

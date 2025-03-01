@@ -5,7 +5,7 @@ import compiler.ast.AstBreakExpression
 class BreakOutsideOfLoopDiagnostic(
     val breakStatement: AstBreakExpression,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Break statements must appear inside loops, this one is not in any loop.",
     breakStatement.span,
 ) {

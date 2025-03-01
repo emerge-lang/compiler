@@ -3,10 +3,10 @@ package compiler.diagnostic
 import compiler.ast.AstFunctionAttribute
 
 abstract class MultiFunctionAttributeDiagnostic(
-    level: Level,
+    severity: Severity,
     message: String,
     val attributes: Collection<AstFunctionAttribute>,
-) : Diagnostic(level, message, attributes.first().sourceLocation) {
+) : Diagnostic(severity, message, attributes.first().sourceLocation) {
     private val sourceLocations = attributes.map { it.sourceLocation }.toSet()
 
     init {

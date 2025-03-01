@@ -5,7 +5,7 @@ import compiler.ast.AstContinueExpression
 class ContinueOutsideOfLoopDiagnostic(
     val breakStatement: AstContinueExpression,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Continue statements must appear inside loops, this one is not in any loop.",
     breakStatement.span,
 ) {

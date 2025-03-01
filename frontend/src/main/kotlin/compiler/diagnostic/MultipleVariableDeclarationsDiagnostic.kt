@@ -28,7 +28,7 @@ data class MultipleVariableDeclarationsDiagnostic(
     val originalDeclaration: VariableDeclaration,
     val additionalDeclaration: VariableDeclaration
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     run {
         var msg = "Variable ${additionalDeclaration.name.value} has already been declared."
         if (originalDeclaration.isReAssignable) {

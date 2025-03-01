@@ -30,7 +30,7 @@ import compiler.binding.expression.BoundInvocationExpression
 abstract class PurityViolationDiagnostic protected constructor(
     val violation: BoundStatement<*>,
     message: String
-) : Diagnostic(Level.ERROR, message, violation.declaration.span) {
+) : Diagnostic(Severity.ERROR, message, violation.declaration.span) {
     sealed class SideEffectBoundary(
         val asString: String,
         /**

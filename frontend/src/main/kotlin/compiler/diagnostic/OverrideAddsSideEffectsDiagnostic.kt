@@ -8,7 +8,7 @@ data class OverrideAddsSideEffectsDiagnostic(
     val override: BoundMemberFunction,
     val superFunction: BoundMemberFunction,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "The purity of overrides must be compatible with that of the overridden function. ${override.purity} is not a subset of ${superFunction.purity}",
     override.declaredAt,
 ) {

@@ -7,7 +7,7 @@ class ExtendingOwnershipOverrideDiagnostic(
     val override: BoundParameter,
     val superParameter: BoundParameter,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Cannot extend ownership of parameter ${override.name}",
     override.declaration.span,
 ) {

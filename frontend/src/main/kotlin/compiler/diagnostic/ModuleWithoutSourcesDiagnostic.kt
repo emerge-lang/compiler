@@ -8,7 +8,7 @@ class ModuleWithoutSourcesDiagnostic(
     val moduleName: CanonicalElementName.Package,
     val srcDir: Path,
 ) : Diagnostic(
-    Diagnostic.Level.WARNING,
+    Diagnostic.Severity.WARNING,
     "Found no source files for module $moduleName in $srcDir",
     Span.UNKNOWN,
 )

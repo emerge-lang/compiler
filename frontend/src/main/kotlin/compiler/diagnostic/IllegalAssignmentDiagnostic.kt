@@ -24,7 +24,7 @@ class IllegalAssignmentDiagnostic(
     message: String,
     val statement: BoundAssignmentStatement,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     message,
     statement.declaration.assignmentOperatorToken.span,
 )

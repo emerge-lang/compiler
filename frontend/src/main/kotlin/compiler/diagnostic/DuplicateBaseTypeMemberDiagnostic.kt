@@ -25,7 +25,7 @@ class DuplicateBaseTypeMemberDiagnostic(
     val typeDef: BoundBaseType,
     val duplicates: Set<BoundBaseTypeMemberVariable>
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Member ${duplicates.iterator().next().name} declared multiple times",
     typeDef.declaration.declaredAt,
 ) {

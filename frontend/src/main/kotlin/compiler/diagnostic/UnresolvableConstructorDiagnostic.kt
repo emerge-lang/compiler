@@ -8,7 +8,7 @@ class UnresolvableConstructorDiagnostic(
     val parameterTypes: List<BoundTypeReference?>,
     val functionsWithSameNameAvailable: Boolean,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     run {
         var message = "Type ${typeName.value} does not have a constructor for types ${parameterTypes.typeTupleToString()}."
         if (functionsWithSameNameAvailable) {

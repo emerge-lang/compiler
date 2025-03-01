@@ -7,7 +7,7 @@ class ExternalMemberFunctionDiagnostic(
     val memberFunction: FunctionDeclaration,
     val externalKeyword: Token,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Member functions cannot be external; declare ${memberFunction.name.value} as a top-level function instead.",
     externalKeyword.span,
 )

@@ -7,7 +7,7 @@ data class UseOfUninitializedClassMemberVariableDiagnostic(
     val member: BaseTypeMemberVariableDeclaration,
     val usedAt: Span,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     run {
         if (member.variableDeclaration.isReAssignable) {
             "Member variable ${member.name.value} might not have been initialized yet"

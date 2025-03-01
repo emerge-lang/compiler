@@ -11,7 +11,7 @@ class TypeParameterNameConflictDiagnostic(
     val originalType: BoundTypeReference,
     val conflicting: BoundTypeParameter,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     run {
         "A type with name ${conflicting.name} is already defined in this context"
     },

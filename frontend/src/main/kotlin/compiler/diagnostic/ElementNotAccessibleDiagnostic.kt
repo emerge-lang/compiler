@@ -9,7 +9,7 @@ class ElementNotAccessibleDiagnostic(
     val visibility: BoundVisibility,
     val accessAt: Span
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     run {
         "${element.toStringForErrorMessage()} is $visibility, cannot be accessed from ${accessAt.sourceFile.packageName}"
     },

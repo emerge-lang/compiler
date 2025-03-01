@@ -5,7 +5,7 @@ import compiler.ast.AssignmentStatement
 class AssignmenUsedAsExpressionDiagnostic(
     val assignment: AssignmentStatement,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Assignments are not expressions.",
     assignment.assignmentOperatorToken.span,
 )

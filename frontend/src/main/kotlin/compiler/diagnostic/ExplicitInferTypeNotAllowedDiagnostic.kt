@@ -6,7 +6,7 @@ import compiler.lexer.Span
 data class ExplicitInferTypeNotAllowedDiagnostic(
     val reference: TypeReference,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Inferring the type is not allowed or possible here",
     reference.span ?: Span.UNKNOWN,
 ) {

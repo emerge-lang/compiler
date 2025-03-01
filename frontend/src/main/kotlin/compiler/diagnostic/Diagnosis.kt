@@ -20,7 +20,7 @@ interface Diagnosis {
             override val nErrors = 0uL
 
             override fun add(finding: Diagnostic) {
-                if (finding.level >= Diagnostic.Level.ERROR) {
+                if (finding.severity >= Diagnostic.Severity.ERROR) {
                     throw InternalCompilerError("Generated code produced an error finding:\n$finding")
                 }
             }
@@ -36,7 +36,7 @@ class CollectingDiagnosis : Diagnosis {
     private val storage = ArrayList<Diagnostic>()
 
     override val nErrors: ULong
-        get() = storage.count { it.level >= Diagnostic.Level.ERROR }.toULong()
+        get() = storage.count { it.severity >= Diagnostic.Severity.ERROR }.toULong()
 
     override fun add(finding: Diagnostic) {
         storage.add(finding)

@@ -8,7 +8,7 @@ class ForbiddenCastDiagnostic(
     reason: String,
     span: Span,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     reason,
     span,
 ) {

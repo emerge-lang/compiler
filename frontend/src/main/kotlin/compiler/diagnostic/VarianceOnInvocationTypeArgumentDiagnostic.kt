@@ -6,7 +6,7 @@ import compiler.lexer.Span
 class VarianceOnInvocationTypeArgumentDiagnostic(
     val argument: TypeArgument,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Type parameters on invocations cannot have variance",
     argument.span ?: Span.UNKNOWN,
 ) {

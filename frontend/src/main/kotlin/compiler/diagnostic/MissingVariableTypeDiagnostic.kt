@@ -25,7 +25,7 @@ data class MissingVariableTypeDiagnostic(
     val parameter: VariableDeclaration,
     val kind: BoundVariable.Kind,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "The type of $kind ${parameter.name.value} must be explicitly declared.",
     parameter.span
 ) {

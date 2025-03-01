@@ -29,4 +29,4 @@ import compiler.lexer.Span
 class ConsecutiveFaultDiagnostic(
     message: String,
     span: Span = Span.UNKNOWN
-) : Diagnostic(Level.CONSECUTIVE, message, span)
+) : Diagnostic(Severity.CONSECUTIVE, message, span)

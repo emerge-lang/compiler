@@ -7,7 +7,7 @@ data class OverrideDropsNothrowDiagnostic(
     val override: BoundMemberFunction,
     val superFunction: BoundMemberFunction,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Function ${override.canonicalName} must be declared ${Keyword.NOTHROW.text}, because it is overriding a function that is also declared nothrow.",
     override.declaredAt,
 ) {

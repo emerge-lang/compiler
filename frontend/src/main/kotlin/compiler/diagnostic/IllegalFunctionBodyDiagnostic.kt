@@ -22,7 +22,7 @@ import compiler.ast.FunctionDeclaration
 
 /** Reported when a body is declared for a that must not have one. */
 data class IllegalFunctionBodyDiagnostic(val function: FunctionDeclaration) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Function ${function.name.value} is declared as ${function.attributes.first { it.impliesNoBody }::class.simpleName!!.lowercase()} and therefore cannot declare a function body.",
     function.declaredAt
 ) {

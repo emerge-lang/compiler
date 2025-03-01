@@ -10,7 +10,7 @@ class AbstractInheritedFunctionNotImplementedDiagnostic(
     val implementingType: BoundBaseType,
     val functionToImplement: BoundMemberFunction,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     """
         Class ${implementingType.simpleName} must implement abstract function ${functionToImplement.name} inherited from ${functionToImplement.declaredOnType.canonicalName}. Implement this member function:
         ${functionToImplement.synopsis}

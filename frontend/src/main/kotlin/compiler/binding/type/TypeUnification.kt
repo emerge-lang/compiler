@@ -27,7 +27,7 @@ interface TypeUnification {
 
     fun getErrorsNotIn(previous: TypeUnification): Sequence<Diagnostic> {
         return diagnostics.asSequence()
-            .filter { it.level >= Diagnostic.Level.ERROR }
+            .filter { it.severity >= Diagnostic.Severity.ERROR }
             .filter { it !in previous.diagnostics }
     }
 
@@ -147,7 +147,7 @@ private class DefaultTypeUnification private constructor(
             separator = ", ",
             postfix = "]",
         )
-        val nErrors = diagnostics.count { it.level >= Diagnostic.Level.ERROR }
+        val nErrors = diagnostics.count { it.severity >= Diagnostic.Severity.ERROR }
 
         return "$bindingsStr Errors:$nErrors"
     }

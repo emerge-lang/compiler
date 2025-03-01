@@ -21,4 +21,4 @@ package compiler.diagnostic
 import compiler.lexer.Span
 
 /** Used for all parser errors */
-class ParsingErrorDiagnostic(message: String, location: Span) : Diagnostic(Level.ERROR, message, location)
+class ParsingErrorDiagnostic(message: String, location: Span) : Diagnostic(Severity.ERROR, message, location)

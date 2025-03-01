@@ -22,7 +22,7 @@ import compiler.binding.expression.BoundExpression
 import compiler.lexer.OperatorToken
 
 class SuperfluousSafeObjectTraversal(val nonNullExpression: BoundExpression<*>, val superfluousSafeOperator: OperatorToken) : Diagnostic(
-    Level.INFO,
+    Severity.INFO,
     "Null-safe object traversal is superfluous here; the receiver expression cannot evaluate to null",
     superfluousSafeOperator.span
 )

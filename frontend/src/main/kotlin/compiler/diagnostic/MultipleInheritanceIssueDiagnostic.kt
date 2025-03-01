@@ -8,7 +8,7 @@ class MultipleInheritanceIssueDiagnostic(
     val contributingSuperTypes: Collection<BoundBaseType>,
     val conflictOnSubType: BoundBaseType,
 ) : Diagnostic(
-    base.level,
+    base.severity,
     run {
         val supertypeList = contributingSuperTypes.joinToString(
             transform = { it.canonicalName.simpleName },

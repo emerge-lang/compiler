@@ -23,7 +23,7 @@ package compiler.diagnostic
  * is expected and the types are not compatible.
  */
 class ReturnTypeMismatchDiagnostic(private val base: ValueNotAssignableDiagnostic) : Diagnostic(
-    base.level,
+    base.severity,
     base.message,
     base.span,
 ) {

@@ -6,7 +6,7 @@ import compiler.lexer.Span
 data class ExplicitInferTypeWithArgumentsDiagnostic(
     val reference: TypeReference,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Type arguments cannot be specified for types that should be inferred.",
     reference.span ?: Span.UNKNOWN,
 ) {

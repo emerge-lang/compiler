@@ -8,7 +8,7 @@ class CyclicInheritanceDiagnostic(
     onType: BaseTypeDeclaration,
     involvingSupertype: BoundSupertypeDeclaration,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Type ${onType.name.value} inheriting from ${involvingSupertype.resolvedReference!!.baseType.canonicalName} creates a cycle in the type hierarchy. That is not allowed.",
     involvingSupertype.astNode.span ?: Span.UNKNOWN,
 ) {

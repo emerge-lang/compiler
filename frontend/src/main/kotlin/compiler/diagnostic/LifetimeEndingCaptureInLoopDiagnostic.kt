@@ -7,7 +7,7 @@ class LifetimeEndingCaptureInLoopDiagnostic(
     val variable: VariableDeclaration,
     val captureAt: Span,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "This usage captures variable ${variable.name.value}, ending its lifetime. This code can execute more than once, but the lifetime can only be ended once.",
     captureAt,
 ) {

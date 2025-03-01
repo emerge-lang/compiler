@@ -25,7 +25,7 @@ class ErroneousLiteralExpressionDiagnostic(
     message: String,
     span: Span
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     message,
     span
 )

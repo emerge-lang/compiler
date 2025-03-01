@@ -24,7 +24,7 @@ import compiler.ast.FunctionDeclaration
  * Reported when a function declaration is missing a body when it should have one.
  */
 class MissingFunctionBodyDiagnostic(val function: FunctionDeclaration) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Function ${function.name.value} must either be declared intrinsic, external or have a function body.",
     function.declaredAt
 )

@@ -22,7 +22,7 @@ import compiler.ast.type.TypeReference
 import compiler.lexer.Span
 
 class UnknownTypeDiagnostic(val erroneousReference: TypeReference) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Cannot resolve type ${erroneousReference.simpleName}",
     if (erroneousReference.declaringNameToken == null) Span.UNKNOWN else erroneousReference.declaringNameToken.span
 ) {

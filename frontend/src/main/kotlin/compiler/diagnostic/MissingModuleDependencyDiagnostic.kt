@@ -10,7 +10,7 @@ class MissingModuleDependencyDiagnostic(
     val moduleOfAccessedElement: CanonicalElementName.Package,
     val moduleOfAccess: CanonicalElementName.Package,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Module $moduleOfAccess cannot access ${element.toStringForErrorMessage()} because it doesn't declare a dependency on module $moduleOfAccessedElement. Declare that dependency (this should be done by your build tool, really).",
     accessAt,
 ) {

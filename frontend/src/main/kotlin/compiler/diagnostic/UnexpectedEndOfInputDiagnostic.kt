@@ -21,7 +21,7 @@ package compiler.diagnostic
 import compiler.lexer.Span
 
 class UnexpectedEndOfInputDiagnostic(location: Span, expected: String) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Unexpected end of input, expected $expected",
     location
 )

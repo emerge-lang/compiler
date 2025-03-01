@@ -7,7 +7,7 @@ class UnsupportedTypeUsageVarianceDiagnostic(
     val useSite: TypeUseSite,
     val erroneousVariance: TypeVariance,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Cannot use an ${erroneousVariance.description} type in an ${useSite.varianceDescription} location",
     useSite.usageLocation,
 ) {

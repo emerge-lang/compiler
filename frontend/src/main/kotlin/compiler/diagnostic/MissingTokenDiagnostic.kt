@@ -27,4 +27,4 @@ import compiler.lexer.Token
 class MissingTokenDiagnostic(
     val expected: Token,
     span: Span
-) : Diagnostic(Level.ERROR, "Unexpected EOI, expecting ${expected.toStringWithoutLocation()}", span)
+) : Diagnostic(Severity.ERROR, "Unexpected EOI, expecting ${expected.toStringWithoutLocation()}", span)

@@ -7,7 +7,7 @@ class UnconventionalTypeNameDiagnostic(
     val typename: IdentifierToken,
     val violatedConvention: ViolatedConvention,
 ) : Diagnostic(
-    Level.WARNING,
+    Severity.WARNING,
     violatedConvention.message,
     violatedConvention.transformLocation(typename.span)
 ) {

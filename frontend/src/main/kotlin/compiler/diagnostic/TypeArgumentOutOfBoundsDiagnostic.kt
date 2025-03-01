@@ -9,7 +9,7 @@ class TypeArgumentOutOfBoundsDiagnostic(
     val argument: BoundTypeArgument,
     val reason: String,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Argument for type parameter ${parameter.name.value} is not within the bound: $reason",
     argument.span ?: Span.UNKNOWN,
 ) {

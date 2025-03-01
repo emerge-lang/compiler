@@ -228,7 +228,7 @@ class FunctionErrors : FreeSpec({
                     }
                     interface Innocent : Problematic {}
                 """.trimIndent())
-                results.second.count { it.level >= Diagnostic.Level.ERROR } shouldBe 1
+                results.second.count { it.severity >= Diagnostic.Severity.ERROR } shouldBe 1
                 results.shouldReport<OverloadSetHasNoDisjointParameterDiagnostic>()
             }
         }

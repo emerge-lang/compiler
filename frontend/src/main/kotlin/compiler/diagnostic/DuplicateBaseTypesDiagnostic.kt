@@ -7,7 +7,7 @@ class DuplicateBaseTypesDiagnostic(
     val packageName: CanonicalElementName.Package,
     val duplicates: List<BaseTypeDeclaration>,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Package $packageName declares multiple types with name ${duplicates.first().name.value}",
     duplicates.first().declaredAt,
 ) {

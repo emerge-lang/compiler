@@ -10,7 +10,7 @@ class VariableUsedAfterLifetimeDiagnostic private constructor(
     val lifetimeEndedMaybe: Boolean,
     private val endedPhrase: String,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "Cannot use variable ${variable.name.value} after its lifetime $endedPhrase",
     usageAt,
 ) {

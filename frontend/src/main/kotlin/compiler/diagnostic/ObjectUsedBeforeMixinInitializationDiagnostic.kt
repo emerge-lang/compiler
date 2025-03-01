@@ -7,7 +7,7 @@ class ObjectUsedBeforeMixinInitializationDiagnostic(
     val uninitializedMixin: AstMixinStatement,
     objectUsedAt: Span,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     "The object is not fully initialized yet. A mixin must still be initialized.",
     objectUsedAt,
 ) {

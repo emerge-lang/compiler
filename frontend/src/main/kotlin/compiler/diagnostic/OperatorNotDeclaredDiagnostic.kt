@@ -21,7 +21,7 @@ package compiler.diagnostic
 import compiler.ast.Expression
 
 class OperatorNotDeclaredDiagnostic(message: String, val expression: Expression) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     message,
     expression.span
 ) {

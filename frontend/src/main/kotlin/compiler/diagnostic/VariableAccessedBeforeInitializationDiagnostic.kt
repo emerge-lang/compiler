@@ -8,7 +8,7 @@ data class VariableAccessedBeforeInitializationDiagnostic(
     val access: IdentifierExpression,
     val maybeInitialized: Boolean,
 ) : Diagnostic(
-    Level.ERROR,
+    Severity.ERROR,
     if (maybeInitialized) {
         "Variable ${declaration.name.value} may not have been initialized yet. Make sure to initialize it before use."
     } else {

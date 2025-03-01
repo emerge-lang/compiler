@@ -7,7 +7,7 @@ class ShadowedVisibilityDiagnostic(
     val element: DefinitionWithVisibility,
     val contextVisibility: BoundVisibility,
 ) : Diagnostic(
-    Level.WARNING,
+    Severity.WARNING,
     "This visibility has no effect because the enclosing context is $contextVisibility",
     element.visibility.astNode.sourceLocation,
 ) {
