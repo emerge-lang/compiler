@@ -14,6 +14,7 @@ import compiler.lexer.SourceSet
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
 import compiler.parser.grammar.rule.MatchingResult
+import compiler.reportings.Diagnosis
 import compiler.reportings.ModuleWithoutSourcesReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
@@ -87,14 +88,15 @@ object CompileCommand : CliktCommand() {
             )
         }
 
-        val semanticResults = swCtx.doSemanticAnalysis()
+        val diagnosis = ProcessOnTheGoDiagnosis {
+            if (it.level > Reporting.Level.CONSECUTIVE) {
+                echo(it)
+            }
+        }
+        swCtx.doSemanticAnalysis(diagnosis)
         val semanticCompleteAt = measureClock.instant()
 
-        semanticResults
-            .filter { it.level > Reporting.Level.CONSECUTIVE }
-            .forEach(this::echo)
-
-        if (semanticResults.any { it.level >= Reporting.Level.ERROR}) {
+        if (diagnosis.nErrors > 0uL) {
             throw PrintMessage(
                 "The provided program is not valid",
                 statusCode = 1,
@@ -143,4 +145,24 @@ private fun elapsedBetween(start: Instant, end: Instant): String {
     return duration.toString()
         .replace(Regex("(?<=\\.\\d{3})\\d+"), "")
         .replace(".000", "")
+}
+
+private class ProcessOnTheGoDiagnosis(private val process: (Reporting) -> Unit) : Diagnosis {
+    private val seen = HashSet<Reporting>()
+    override var nErrors: ULong = 0uL
+        private set
+
+    override fun add(finding: Reporting) {
+        if (finding.level >= Reporting.Level.ERROR) {
+            nErrors++
+        }
+
+        if (seen.add(finding)) {
+            process(finding)
+        }
+    }
+
+    override fun hasSameDrainAs(other: Diagnosis): Boolean {
+        return other === this || other.hasSameDrainAs(this)
+    }
 }
