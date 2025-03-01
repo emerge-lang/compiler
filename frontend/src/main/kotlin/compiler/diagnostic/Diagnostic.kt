@@ -110,9 +110,6 @@ abstract class Diagnostic internal constructor(
         fun consecutive(message: String, span: Span = Span.UNKNOWN)
             = ConsecutiveFaultDiagnostic(message, span)
 
-        fun unexpectedEOI(expected: String, erroneousLocation: Span)
-            = UnexpectedEndOfInputDiagnostic(erroneousLocation, expected)
-
         fun unknownType(erroneousRef: TypeReference)
             = UnknownTypeDiagnostic(erroneousRef)
 
