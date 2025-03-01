@@ -422,46 +422,6 @@ abstract class Reporting internal constructor(
         fun continueOutsideOfLoop(continueStatement: BoundContinueExpression)
             = ContinueOutsideOfLoopReporting(continueStatement.declaration)
 
-        fun purityViolations(
-            readingViolations: Collection<BoundExpression<*>>,
-            writingViolations: Collection<BoundExecutable<*>>,
-            context: BoundFunction,
-            diagnosis: Diagnosis,
-        ) {
-            val boundary = PurityViolationReporting.SideEffectBoundary.Function(context)
-            readingViolations
-                .map { readingPurityViolationToReporting(it, boundary) }
-                .forEach(diagnosis::add)
-            writingViolations.asSequence()
-                .filter { it !in readingViolations }
-                .map { modifyingPurityViolationToReporting(it, boundary) }
-                .forEach(diagnosis::add)
-        }
-
-        fun purityViolations(
-            readingViolations: Collection<BoundExpression<*>>,
-            writingViolations: Collection<BoundExecutable<*>>,
-            context: BoundBaseTypeMemberVariable,
-            diagnosis: Diagnosis,
-        ) {
-            val boundary = PurityViolationReporting.SideEffectBoundary.ClassMemberInitializer(context)
-            readingViolations
-                .map { readingPurityViolationToReporting(it, boundary) }
-                .forEach(diagnosis::add)
-            writingViolations.asSequence()
-                .filter { it !in readingViolations }
-                .map { modifyingPurityViolationToReporting(it, boundary) }
-                .forEach(diagnosis::add)
-        }
-
-        fun readonlyViolations(
-            writingViolations: Collection<BoundExecutable<*>>,
-            readonlyFunction: BoundFunction,
-            diagnosis: Diagnosis,
-        ) {
-            return purityViolations(emptySet(), writingViolations, readonlyFunction, diagnosis)
-        }
-
         fun missingReturnValue(returnStatement: BoundReturnExpression, expectedType: BoundTypeReference) = MissingReturnValueReporting(
             returnStatement.declaration,
             expectedType,
