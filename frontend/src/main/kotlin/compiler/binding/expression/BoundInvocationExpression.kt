@@ -46,6 +46,7 @@ import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
 import compiler.reportings.Diagnosis
+import compiler.reportings.DiscardingDiagnosis
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCatchExceptionStatement
@@ -393,7 +394,7 @@ class BoundInvocationExpression(
         val byArguments = valueArguments.flatMap { it.findReadsBeyond(boundary) }
 
         val invokedFunctionIsPure = functionToInvoke?.let {
-            it.semanticAnalysisPhase3(Diagnosis.newDiagnosis())
+            it.semanticAnalysisPhase3(DiscardingDiagnosis)
             BoundFunction.Purity.PURE.contains(it.purity)
         } ?: true
 
@@ -415,7 +416,7 @@ class BoundInvocationExpression(
             .map { (argument, _) -> argument }
 
         val invokedFunctionIsReadonly = functionToInvoke?.let {
-            it.semanticAnalysisPhase3(Diagnosis.newDiagnosis())
+            it.semanticAnalysisPhase3(DiscardingDiagnosis)
             BoundFunction.Purity.READONLY.contains(it.purity)
         } ?: true
         val bySelf: Collection<BoundExecutable<*>> = if (invokedFunctionIsReadonly) emptySet() else setOf(this)

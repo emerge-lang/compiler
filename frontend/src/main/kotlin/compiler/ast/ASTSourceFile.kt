@@ -26,6 +26,7 @@ import compiler.binding.context.SourceFile
 import compiler.binding.context.SourceFileRootContext
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
+import compiler.reportings.CollectingDiagnosis
 import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -55,7 +56,7 @@ class ASTSourceFile(
 
     val baseTypes: MutableList<BaseTypeDeclaration> = mutableListOf()
 
-    private var parseTimeDiagnosis = Diagnosis.newDiagnosis()
+    private var parseTimeDiagnosis = CollectingDiagnosis()
     fun addParseTimeReporting(reporting: Reporting) {
         parseTimeDiagnosis.add(reporting)
     }

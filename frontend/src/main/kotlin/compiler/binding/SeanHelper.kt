@@ -7,42 +7,28 @@ import compiler.reportings.Diagnosis
  * Sean is short for SEmantic ANalysis
  */
 class SeanHelper {
-    private lateinit var phase1Results: Diagnosis.Recorded
-    val phase1HadErrors: Boolean
-        get() = requirePhase1Done().hasErrors
+    // TODO: avoid double-checking on a best-effort basis without allocating new objects per invocation of the phases
+    private var phase1Done = false
+    private var phase1HadErrors = false
+    private var phase2Done = false
+    private var phase2HadErrors = false
+    private var phase3Done = false
+    private var phase3HadErrors = false
 
-    private lateinit var phase2Results: Diagnosis.Recorded
-    val phase2HadErrors: Boolean
-        get() = requirePhase2Done().hasErrors
-
-    private lateinit var phase3Results: Diagnosis.Recorded
-    val phase3HadErrors: Boolean
-        get() = requirePhase3Done().hasErrors
-
-    fun phase1(diagnosis: Diagnosis, impl: (Diagnosis) -> Unit) {
-        if (this::phase1Results.isInitialized) {
-            this.phase1Results.replayOnto(diagnosis)
-            return
-        }
-
-        diagnosis.record().use { diagnosisRecording ->
-            impl(diagnosis)
-            phase1Results = diagnosisRecording.complete()
-        }
+    fun phase1(diagnosis: Diagnosis, impl: () -> Unit) {
+        val nErrorsBefore = diagnosis.nErrors
+        impl()
+        phase1Done = true
+        phase1HadErrors = diagnosis.nErrors > nErrorsBefore
     }
 
-    fun phase2(diagnosis: Diagnosis, impl: (Diagnosis) -> Unit) {
+    fun phase2(diagnosis: Diagnosis, impl: () -> Unit) {
         requirePhase1Done()
 
-        if (this::phase2Results.isInitialized) {
-            this.phase2Results.replayOnto(diagnosis)
-            return
-        }
-
-        diagnosis.record().use { diagnosisRecording ->
-            impl(diagnosis)
-            phase2Results = diagnosisRecording.complete()
-        }
+        val nErrorsBefore = diagnosis.nErrors
+        impl()
+        phase2Done = true
+        phase2HadErrors = diagnosis.nErrors > nErrorsBefore
     }
 
     /**
@@ -52,69 +38,58 @@ class SeanHelper {
     fun phase3(diagnosis: Diagnosis, runIfErrorsPreviously: Boolean = true, impl: (Diagnosis) -> Unit) {
         requirePhase2Done()
 
-        if (this::phase3Results.isInitialized) {
-            this.phase3Results.replayOnto(diagnosis)
-            return
-        }
-
         if (!runIfErrorsPreviously && (phase1HadErrors || phase2HadErrors)) {
             return
         }
 
-        diagnosis.record().use { diagnosisRecording ->
-            impl(diagnosis)
-            phase3Results = diagnosisRecording.complete()
-        }
+        val nErrorsBefore = diagnosis.nErrors
+        impl(diagnosis)
+        phase3Done = true
+        phase3HadErrors = diagnosis.nErrors > nErrorsBefore
     }
 
-    fun requirePhase1Done(): Diagnosis.Recorded {
-        if (!this::phase1Results.isInitialized) {
+    fun requirePhase1Done() {
+        if (!phase1Done) {
             throw InternalCompilerError("Semantic analysis phase 1 is required but hasn't been done yet.")
         }
-
-        return this.phase1Results
     }
 
     fun requirePhase1NotDone() {
-        if (this::phase1Results.isInitialized) {
+        if (phase1Done) {
             throw InternalCompilerError("Semantic analysis phase 1 must not have been done yet.")
         }
     }
 
-    fun requirePhase2Done(): Diagnosis.Recorded {
+    fun requirePhase2Done() {
         requirePhase1Done()
 
-        if (!this::phase2Results.isInitialized) {
+        if (!phase2Done) {
             throw InternalCompilerError("Semantic analysis phase 2 is required but hasn't been done yet.")
         }
-
-        return this.phase2Results
     }
 
     fun requirePhase2NotDone() {
-        if (this::phase2Results.isInitialized) {
+        if (phase2Done) {
             throw InternalCompilerError("Semantic analysis phase 2 must not have been done yet.")
         }
     }
 
-    fun requirePhase3Done(): Diagnosis.Recorded {
+    fun requirePhase3Done() {
         requirePhase2Done()
 
-        if (!this::phase3Results.isInitialized) {
+        if (!phase3Done) {
             throw InternalCompilerError("Semantic analysis phase 3 is required but hasn't been done yet.")
         }
-
-        return this.phase3Results
     }
 
     fun requirePhase3NotDone() {
-        if (this::phase3Results.isInitialized) {
+        if (phase3Done) {
             throw InternalCompilerError("Semantic analysis phase 3 must not have been done yet.")
         }
     }
 
     override fun toString(): String {
-        val phase1State = if (this::phase1Results.isInitialized) {
+        val phase1State = if (phase1Done) {
             if (phase1HadErrors) {
                 "\u274C"
             } else {
@@ -123,7 +98,7 @@ class SeanHelper {
         } else {
             "?"
         }
-        val phase2State = if (this::phase2Results.isInitialized) {
+        val phase2State = if (phase2Done) {
             if (phase2HadErrors) {
                 "\u274C"
             } else {
@@ -132,7 +107,7 @@ class SeanHelper {
         } else {
             "?"
         }
-        val phase3State = if (this::phase3Results.isInitialized) {
+        val phase3State = if (phase3Done) {
             if (phase3HadErrors) {
                 "\u274C"
             } else {

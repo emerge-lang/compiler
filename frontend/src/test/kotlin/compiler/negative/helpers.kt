@@ -8,12 +8,15 @@ import compiler.lexer.Token
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
 import compiler.parser.grammar.rule.MatchingResult
+import compiler.reportings.CollectingDiagnosis
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrModule
 import io.github.tmarsteel.emerge.backend.noop.NoopBackend
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
 import io.github.tmarsteel.emerge.common.config.ConfigModuleDefinition
+import io.kotest.assertions.fail
 import io.kotest.inspectors.forNone
 import io.kotest.inspectors.forOne
 import io.kotest.matchers.Matcher
@@ -98,12 +101,7 @@ fun emptySoftwareContext(validate: Boolean = true): SoftwareContext {
     }
 
     if (validate) {
-        swCtxt
-            .doSemanticAnalysis()
-            .find { it.level >= Reporting.Level.ERROR }
-            ?.let {
-                error("SoftwareContext without any user code contains errors:\n$it")
-            }
+        swCtxt.doSemanticAnalysis(FailOnErrorDiagnosis)
     }
 
     return swCtxt
@@ -126,10 +124,11 @@ fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext
         swCtxt.registerModule(module.moduleName, module.dependsOnModules).addSourceFile(sourceFile)
     }
 
-    val semanticReportings = swCtxt.doSemanticAnalysis()
+    val diagnosis = CollectingDiagnosis()
+    swCtxt.doSemanticAnalysis(diagnosis)
     return Pair(
         swCtxt,
-        semanticReportings.toSet(),
+        diagnosis.findings.toList(),
     )
 }
 
@@ -178,6 +177,24 @@ inline fun <reified T : Reporting> Collection<Reporting>.shouldNotReport(additio
         additional(it)
     }
     return this
+}
+
+object FailTestOnFindingDiagnosis : Diagnosis {
+    override val nErrors = 0uL
+
+    override fun add(finding: Reporting) {
+        fail("Expected no findings, but got this:\n$finding")
+    }
+}
+
+object FailOnErrorDiagnosis : Diagnosis {
+    override val nErrors = 0uL
+
+    override fun add(finding: Reporting) {
+        if (finding.level >= Reporting.Level.ERROR) {
+            fail("Expected no errors, but got this:\n$finding")
+        }
+    }
 }
 
 fun Pair<SoftwareContext, Collection<Reporting>>.shouldHaveNoDiagnostics(): Pair<SoftwareContext, Collection<Reporting>> {

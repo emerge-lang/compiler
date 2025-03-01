@@ -4,6 +4,7 @@ import compiler.ast.ImportDeclaration
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.PackageContext
+import compiler.reportings.CollectingDiagnosis
 import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -85,13 +86,13 @@ class BoundImportDeclaration(
                 val accessDiagnosis = result.sets.asSequence()
                     .flatMap { it.overloads }
                     .map {
-                        val subDiagnosis = Diagnosis.newDiagnosis()
+                        val subDiagnosis = CollectingDiagnosis()
                         it.attributes.visibility.validateAccessFrom(lastIdentifierAt, it, subDiagnosis)
                         subDiagnosis
                     }
-                val noneAccessible = accessDiagnosis.all { it.hasErrors }
+                val noneAccessible = accessDiagnosis.all { it.nErrors > 0uL }
                 if (noneAccessible) {
-                    accessDiagnosis.filter { it.hasErrors }.first().let(diagnosis::incorporate)
+                    accessDiagnosis.filter { it.nErrors > 0uL }.first().replayOnto(diagnosis)
                 }
             }
             is ResolutionResult.BaseType -> {

@@ -19,6 +19,7 @@
 package compiler.binding.context
 
 import compiler.binding.SemanticallyAnalyzable
+import compiler.reportings.CollectingDiagnosis
 import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -29,7 +30,7 @@ class SourceFile(
     val packageName: CanonicalElementName.Package,
     val context: SourceFileRootContext,
     /** [Reporting]s generated at bind-time: double declarations, ... */
-    val bindTimeDiagnosis: Diagnosis,
+    val bindTimeDiagnosis: CollectingDiagnosis,
 ) : SemanticallyAnalyzable {
     init {
         context.sourceFile = this
@@ -41,7 +42,7 @@ class SourceFile(
      * elements to the file (such as doubly declared variables).
      */
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-        diagnosis.incorporate(bindTimeDiagnosis)
+        bindTimeDiagnosis.replayOnto(diagnosis)
         context.imports.forEach { it.semanticAnalysisPhase1(diagnosis) }
         context.types.forEach { it.semanticAnalysisPhase1(diagnosis) }
         context.variables.forEach { it.semanticAnalysisPhase1(diagnosis) }

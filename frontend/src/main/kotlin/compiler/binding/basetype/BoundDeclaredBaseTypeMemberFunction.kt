@@ -11,6 +11,7 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.lexer.Span
 import compiler.reportings.Diagnosis
+import compiler.reportings.DiscardingDiagnosis
 import compiler.reportings.IncompatibleReturnTypeOnOverrideReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -108,7 +109,7 @@ class BoundDeclaredBaseTypeMemberFunction(
             .asElementNotNullable()
             ?: return emptySet()
 
-        declaredOnType.superTypes.semanticAnalysisPhase1(Diagnosis.newDiagnosis())
+        declaredOnType.superTypes.semanticAnalysisPhase1(DiscardingDiagnosis)
         return declaredOnType.superTypes.inheritedMemberFunctions
             .asSequence()
             .filter { it.canonicalName.simpleName == this.name }

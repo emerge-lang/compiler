@@ -30,6 +30,7 @@ import compiler.binding.type.NullableTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.handleCyclicInvocation
 import compiler.reportings.Diagnosis
+import compiler.reportings.DiscardingDiagnosis
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -78,7 +79,7 @@ open class BoundNumericLiteral(
         // assure completed
         handleCyclicInvocation(
             context = this,
-            action = { type.baseType.semanticAnalysisPhase1(Diagnosis.newDiagnosis()) },
+            action = { type.baseType.semanticAnalysisPhase1(DiscardingDiagnosis) },
             onCycle = { }
         )
 
