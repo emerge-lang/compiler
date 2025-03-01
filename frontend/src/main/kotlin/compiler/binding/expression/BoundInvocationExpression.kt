@@ -28,6 +28,8 @@ import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
+import compiler.binding.DetectingImpurityVisitor
+import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
@@ -45,9 +47,15 @@ import compiler.binding.type.*
 import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
-import compiler.util.checkNoDiagnostics
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.ambiguousInvocation
+import compiler.diagnostic.noMatchingFunctionOverload
+import compiler.diagnostic.nothrowViolatingInvocation
+import compiler.diagnostic.typeDeductionError
+import compiler.diagnostic.unresolvableConstructor
+import compiler.diagnostic.varianceOnInvocationTypeArgument
 import io.github.tmarsteel.emerge.backend.api.ir.IrCatchExceptionStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrDynamicDispatchFunctionInvocationExpression
@@ -99,19 +107,17 @@ class BoundInvocationExpression(
         return behaviors.reduceSequentialExecution()
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> =
-        seanHelper.phase1 {
-            val reportings = mutableSetOf<Reporting>()
-            receiverExpression?.semanticAnalysisPhase1()?.let(reportings::addAll)
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) =
+        seanHelper.phase1(diagnosis) {
+            receiverExpression?.semanticAnalysisPhase1(diagnosis)
             receiverExpression?.markEvaluationResultUsed()
-            valueArguments.map(BoundExpression<*>::semanticAnalysisPhase1).forEach(reportings::addAll)
+            valueArguments.forEach { it.semanticAnalysisPhase1(diagnosis) }
             typeArguments = declaration.typeArguments?.map(context::resolveType)
             typeArguments?.forEach {
                 if (it.variance != TypeVariance.UNSPECIFIED) {
-                    reportings.add(Reporting.varianceOnInvocationTypeArgument(it))
+                    diagnosis.varianceOnInvocationTypeArgument(it)
                 }
             }
-            reportings
         }
 
     private var evaluationResultUsed = false
@@ -121,13 +127,11 @@ class BoundInvocationExpression(
         evaluationResultUsed = true
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
             valueArguments.forEach { it.markEvaluationResultUsed() }
 
-            val reportings = mutableSetOf<Reporting>()
-
-            receiverExpression?.semanticAnalysisPhase2()?.let(reportings::addAll)
+            receiverExpression?.semanticAnalysisPhase2(diagnosis)
 
             val availableOverloads: AvailableOverloads? = if (receiverExpression == null || (receiverExpression.type != null && receiverExpression.type !is UnresolvedType)) {
                 collectOverloadCandidates()
@@ -141,29 +145,29 @@ class BoundInvocationExpression(
                     .dropWhile { it === singleOption.parameters.declaredReceiver }
                     .zip(valueArguments)
                     .forEach { (parameter, argument) ->
-                        parameter.typeAtDeclarationTime?.also(argument::setExpectedEvaluationResultType)
+                        parameter.typeAtDeclarationTime?.let { paramType ->
+                            argument.setExpectedEvaluationResultType(paramType, diagnosis)
+                        }
                     }
             }
 
-            typeArguments?.forEach { reportings.addAll(it.validate(TypeUseSite.Irrelevant(it.astNode.span, null))) }
-            valueArguments.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
+            typeArguments?.forEach { it.validate(TypeUseSite.Irrelevant(it.astNode.span, null), diagnosis) }
+            valueArguments.forEach { it.semanticAnalysisPhase2(diagnosis) }
 
             if (availableOverloads == null) {
-                return@phase2 reportings
+                return@phase2
             }
 
-            chosenOverload = selectOverload(availableOverloads, reportings) ?: return@phase2 reportings
+            chosenOverload = selectOverload(availableOverloads, diagnosis) ?: return@phase2
 
             if (chosenOverload!!.returnType == null) {
                 handleCyclicInvocation(
                     context = this,
-                    action = { chosenOverload!!.candidate.semanticAnalysisPhase2() },
+                    action = { chosenOverload!!.candidate.semanticAnalysisPhase2(diagnosis) },
                     onCycle = {
-                        reportings.add(
-                            Reporting.typeDeductionError(
-                                "Cannot infer return type of the call to function ${functionNameToken.value} because the inference is cyclic here. Specify the return type explicitly.",
-                                declaration.span,
-                            )
+                        diagnosis.typeDeductionError(
+                            "Cannot infer return type of the call to function ${functionNameToken.value} because the inference is cyclic here. Specify the return type explicitly.",
+                            declaration.span,
                         )
                     }
                 )
@@ -172,8 +176,6 @@ class BoundInvocationExpression(
             chosenOverload!!.candidate.parameters.parameters.zip(listOfNotNull(receiverExceptReferringType) + valueArguments)
                 .filter { (parameter, _) -> parameter.ownershipAtDeclarationTime == VariableOwnership.CAPTURED }
                 .forEach { (parameter, argument) -> argument.markEvaluationResultCaptured(parameter.typeAtDeclarationTime?.mutability ?: TypeMutability.READONLY) }
-
-            return@phase2 reportings
         }
     }
 
@@ -203,9 +205,9 @@ class BoundInvocationExpression(
      * Also performs the following checks and reports accordingly:
      * * absolutely no candidate available to evaluate
      * * of the evaluated constructors or functions, none match
-     * * if there is only one overload to pick from, forwards any reportings from evaluating that candidate
+     * * if there is only one overload to pick from, forwards any diagnostics from evaluating that candidate
      */
-    private fun selectOverload(overloadCandidates: AvailableOverloads, reportings: MutableCollection<in Reporting>): OverloadCandidateEvaluation? {
+    private fun selectOverload(overloadCandidates: AvailableOverloads, diagnosis: Diagnosis): OverloadCandidateEvaluation? {
         if (valueArguments.any { it.type == null}) {
             // resolving the overload does not make sense if not all parameter types can be deducted
             // note that for erroneous type references, the parameter type will be a non-null UnresolvedType
@@ -221,7 +223,7 @@ class BoundInvocationExpression(
         val (allCandidates, constructorsConsidered, anyTopLevelFunctions) = overloadCandidates
 
         if (allCandidates.isEmpty()) {
-            reportings.add(Reporting.noMatchingFunctionOverload(functionNameToken, receiverExpression?.type, valueArguments, false))
+            diagnosis.noMatchingFunctionOverload(functionNameToken, receiverExpression?.type, valueArguments, false)
             return null
         }
 
@@ -234,21 +236,17 @@ class BoundInvocationExpression(
         if (evaluations.isEmpty()) {
             // TODO: pass on the mismatch reason for all candidates?
             if (constructorsConsidered) {
-                reportings.add(
-                    Reporting.unresolvableConstructor(
-                        functionNameToken,
-                        valueArguments,
-                        anyTopLevelFunctions,
-                    )
+                diagnosis.unresolvableConstructor(
+                    functionNameToken,
+                    valueArguments,
+                    anyTopLevelFunctions,
                 )
             } else {
-                reportings.add(
-                    Reporting.noMatchingFunctionOverload(
-                        functionNameToken,
-                        receiverExpression?.type,
-                        valueArguments,
-                        anyTopLevelFunctions,
-                    )
+                diagnosis.noMatchingFunctionOverload(
+                    functionNameToken,
+                    receiverExpression?.type,
+                    valueArguments,
+                    anyTopLevelFunctions,
                 )
             }
 
@@ -261,11 +259,14 @@ class BoundInvocationExpression(
                 if (evaluations.size == 1) {
                     val singleEval = evaluations.single()
                     // if there is only a single candidate, the errors found in validating are 100% applicable to be shown to the user
-                    reportings.addAll(singleEval.unification.reportings.also {
-                        check(it.any { it.level >= Reporting.Level.ERROR }) {
-                            "Cannot choose overload to invoke, but evaluation of single overload candidate didn't yield any error -- what?"
+                    singleEval.unification.diagnostics
+                        .also {
+                            check(it.any { it.severity >= Diagnostic.Severity.ERROR }) {
+                                "Cannot choose overload to invoke, but evaluation of single overload candidate didn't yield any error -- what?"
+                            }
                         }
-                    })
+                        .forEach(diagnosis::add)
+
                     return singleEval
                 } else {
                     val disjointParameterIndices = evaluations.indicesOfDisjointlyTypedParameters().toSet()
@@ -273,16 +274,14 @@ class BoundInvocationExpression(
                         evaluations.filter { it.indicesOfErroneousParameters.none { it in disjointParameterIndices } }
                     if (reducedEvaluations.size == 1) {
                         val singleEval = reducedEvaluations.single()
-                        reportings.addAll(singleEval.unification.reportings)
+                        singleEval.unification.diagnostics.forEach(diagnosis::add)
                         return singleEval
                     } else {
-                        reportings.add(
-                            Reporting.noMatchingFunctionOverload(
-                                functionNameToken,
-                                receiverExpression?.type,
-                                valueArguments,
-                                true
-                            )
+                        diagnosis.noMatchingFunctionOverload(
+                            functionNameToken,
+                            receiverExpression?.type,
+                            valueArguments,
+                            true
                         )
                         return evaluations.firstOrNull()
                     }
@@ -290,7 +289,7 @@ class BoundInvocationExpression(
             }
             1 -> return legalMatches.single()
             else -> {
-                reportings.add(Reporting.ambiguousInvocation(this, evaluations.map { it.candidate }))
+                diagnosis.ambiguousInvocation(this, evaluations.map { it.candidate })
                 return legalMatches.firstOrNull()
             }
         }
@@ -368,75 +367,75 @@ class BoundInvocationExpression(
             .toList()
     }
 
-    private var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    private var nothrowBoundary: NothrowViolationDiagnostic.SideEffectBoundary? = null
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         this.nothrowBoundary = boundary
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            val reportings = mutableSetOf<Reporting>()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
+            receiverExpression?.semanticAnalysisPhase3(diagnosis)
 
-            if (receiverExpression != null) {
-                reportings += receiverExpression.semanticAnalysisPhase3()
-            }
-
-            reportings += valueArguments.flatMap { it.semanticAnalysisPhase3() }
+            valueArguments.forEach { it.semanticAnalysisPhase3(diagnosis) }
             functionToInvoke?.let { targetFn ->
-                reportings.addAll(
-                    targetFn.validateAccessFrom(functionNameToken.span)
-                )
+                targetFn.validateAccessFrom(functionNameToken.span, diagnosis)
                 nothrowBoundary?.let { nothrowBoundary ->
                     if (targetFn.throwBehavior != SideEffectPrediction.NEVER) {
-                        reportings.add(Reporting.nothrowViolatingInvocation(this, nothrowBoundary))
+                        diagnosis.nothrowViolatingInvocation(this, nothrowBoundary)
                     }
                 }
             }
-
-            return@phase3 reportings
         }
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         seanHelper.requirePhase2Done()
 
-        val byReceiver = receiverExpression?.findReadsBeyond(boundary) ?: emptySet()
-        val byArguments = valueArguments.flatMap { it.findReadsBeyond(boundary) }
+        receiverExpression?.visitReadsBeyond(boundary, visitor)
+        valueArguments.forEach { it.visitReadsBeyond(boundary, visitor) }
 
         val invokedFunctionIsPure = functionToInvoke?.let {
-            it.semanticAnalysisPhase3()
             BoundFunction.Purity.PURE.contains(it.purity)
         } ?: true
 
-        val bySelf = if (invokedFunctionIsPure) emptySet() else setOf(this)
-
-        return byReceiver + byArguments + bySelf
+        if (!invokedFunctionIsPure) {
+            visitor.visitReadBeyondBoundary(boundary, this)
+        }
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         seanHelper.requirePhase2Done()
 
-        val byReceiver = receiverExpression?.findWritesBeyond(boundary) ?: emptySet()
-        val byArguments = valueArguments.flatMap { it.findWritesBeyond(boundary) }
-        val byParameters = (listOfNotNull(receiverExpression) + valueArguments).zip(functionToInvoke?.parameters?.parameters ?: emptyList())
+        receiverExpression?.visitWritesBeyond(boundary, visitor)
+        valueArguments.forEach { it.visitWritesBeyond(boundary, visitor) }
+
+        // writes through arguments that are modified by the called function
+        (listOfNotNull(receiverExpression) + valueArguments).zip(functionToInvoke?.parameters?.parameters ?: emptyList())
             // does the function potentially modify the parameter?
             .filter { (_, parameter) -> parameter.typeAtDeclarationTime?.mutability?.isMutable ?: false }
             // is the argument itself a read beyond the boundary
-            .filter { (argument, _) -> argument in argument.findReadsBeyond(boundary) }
-            .map { (argument, _) -> argument }
+            .filter { (argument, _) ->
+                val detectingVisitor = DetectingImpurityVisitor(argument)
+                argument.visitReadsBeyond(boundary, detectingVisitor)
+                detectingVisitor.foundAsReading
+            }
+            .forEach { (argument, _) ->
+                visitor.visitWriteBeyondBoundary(boundary, argument)
+            }
 
         val invokedFunctionIsReadonly = functionToInvoke?.let {
-            it.semanticAnalysisPhase3()
+            //it.semanticAnalysisPhase3(DiscardingDiagnosis)
             BoundFunction.Purity.READONLY.contains(it.purity)
         } ?: true
-        val bySelf: Collection<BoundExecutable<*>> = if (invokedFunctionIsReadonly) emptySet() else setOf(this)
 
-        return byReceiver + byArguments + byParameters + bySelf
+        if (!invokedFunctionIsReadonly) {
+            visitor.visitWriteBeyondBoundary(boundary, this)
+        }
     }
 
     private var expectedEvaluationResultType: BoundTypeReference? = null
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         seanHelper.requirePhase2NotDone()
         expectedEvaluationResultType = type
     }
@@ -519,7 +518,7 @@ private data class OverloadCandidateEvaluation(
     val returnType: BoundTypeReference?,
     val indicesOfErroneousParameters: Collection<Int>,
 ) {
-    val hasErrors = unification.reportings.any { it.level >= Reporting.Level.ERROR }
+    val hasErrors = unification.diagnostics.any { it.severity >= Diagnostic.Severity.ERROR }
 }
 
 private fun Collection<OverloadCandidateEvaluation>.indicesOfDisjointlyTypedParameters(): Sequence<Int> {
@@ -642,9 +641,9 @@ internal fun buildGenericInvocationLikeIr(
                     TypeReference(IdentifierToken("Throwable", invocationLocation)),
                     null,
                 ).bindTo(landingpadContext)
-                checkNoDiagnostics(throwableVar.semanticAnalysisPhase1())
-                checkNoDiagnostics(throwableVar.semanticAnalysisPhase2())
-                checkNoDiagnostics(throwableVar.semanticAnalysisPhase3())
+                throwableVar.semanticAnalysisPhase1(Diagnosis.failOnError())
+                throwableVar.semanticAnalysisPhase2(Diagnosis.failOnError())
+                throwableVar.semanticAnalysisPhase3(Diagnosis.failOnError())
                 landingpadContext.addVariable(throwableVar)
 
                 val exceptionTemporary = IrCreateTemporaryValueImpl(

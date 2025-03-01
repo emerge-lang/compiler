@@ -11,8 +11,10 @@ import compiler.binding.expression.BoundLiteralExpression
 import compiler.binding.expression.BoundNotNullExpression
 import compiler.binding.expression.BoundUnaryExpression
 import compiler.binding.type.BoundTypeReference
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.illegalAssignment
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
 class BoundIllegalTargetAssignmentStatement(
@@ -24,8 +26,8 @@ class BoundIllegalTargetAssignmentStatement(
     override val targetThrowBehavior get() = targetExpression.throwBehavior
     override val targetReturnBehavior get() = targetExpression.returnBehavior
 
-    override fun additionalSemanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = targetExpression.semanticAnalysisPhase1().toMutableList()
+    override fun additionalSemanticAnalysisPhase1(diagnosis: Diagnosis) {
+        targetExpression.semanticAnalysisPhase1(diagnosis)
 
         val targetDescription = when (targetExpression) {
             is BoundInvocationExpression -> "a function invocation"
@@ -37,30 +39,22 @@ class BoundIllegalTargetAssignmentStatement(
             else -> "a ${targetExpression::class.simpleName!!.removePrefix("Bound").removeSuffix("Expression").lowercase()} expression"
         }
 
-        reportings.add(
-            Reporting.illegalAssignment("Cannot assign to $targetDescription", this)
-        )
-
-        return reportings
+        diagnosis.illegalAssignment("Cannot assign to $targetDescription", this)
     }
 
-    override fun assignmentTargetSemanticAnalysisPhase2(): Collection<Reporting> {
-        return targetExpression.semanticAnalysisPhase2()
+    override fun assignmentTargetSemanticAnalysisPhase2(diagnosis: Diagnosis) {
+        targetExpression.semanticAnalysisPhase2(diagnosis)
     }
 
     override val assignmentTargetType: BoundTypeReference? = null
 
-    override fun additionalSemanticAnalysisPhase2(): Collection<Reporting> {
-        return emptySet()
-    }
+    override fun additionalSemanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
 
-    override fun setTargetNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setTargetNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         targetExpression.setNothrow(boundary)
     }
 
-    override fun additionalSemanticAnalysisPhase3(): Collection<Reporting> {
-        return emptySet()
-    }
+    override fun additionalSemanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
 
     override fun toBackendIrStatement(): IrExecutable {
         throw InternalCompilerError("This statement should never have passed semantic validation, cannot emit backend IR")

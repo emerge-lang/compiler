@@ -10,7 +10,9 @@ import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
 import compiler.lexer.Span
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.typeParameterNameConflict
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 
@@ -34,26 +36,23 @@ data class BoundTypeParameter(
         _modifiedContext.addTypeParameter(this)
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         context.resolveType(TypeReference(name))
             .takeUnless { it is UnresolvedType }
             ?.let { preExistingType ->
-                reportings.add(Reporting.typeParameterNameConflict(preExistingType, this))
+                diagnosis.typeParameterNameConflict(preExistingType, this)
             }
         bound = astNode.bound?.let(context::resolveType) ?: context.swCtx.typeParameterDefaultBound
-        return reportings
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return bound.validate(TypeUseSite.Irrelevant(astNode.name.span, this))
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        bound.validate(TypeUseSite.Irrelevant(astNode.name.span, this), diagnosis)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return emptySet()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
     }
 
-    override fun validateAccessFrom(location: Span): Collection<Reporting> {
+    override fun validateAccessFrom(location: Span, diagnosis: Diagnosis) {
         throw InternalCompilerError("This should not ever matter")
     }
 

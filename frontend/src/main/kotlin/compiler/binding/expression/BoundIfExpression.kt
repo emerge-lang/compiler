@@ -22,10 +22,12 @@ import compiler.ast.IfExpression
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundCondition
 import compiler.binding.BoundExecutable
+import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.combineBranch
 import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecution
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MultiBranchJoinExecutionScopedCTContext
 import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
@@ -33,8 +35,8 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrConditionalBranch
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -63,38 +65,30 @@ class BoundIfExpression(
     override var type: BoundTypeReference? = null
         private set
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         type = context.swCtx.unit.baseReference
 
-        var reportings = condition.semanticAnalysisPhase1() + thenCode.semanticAnalysisPhase1()
-
-        val elseCodeReportings = elseCode?.semanticAnalysisPhase1()
-        if (elseCodeReportings != null) {
-            reportings = reportings + elseCodeReportings
-        }
-
-        return reportings
+        condition.semanticAnalysisPhase1(diagnosis)
+        thenCode.semanticAnalysisPhase1(diagnosis)
+        elseCode?.semanticAnalysisPhase1(diagnosis)
     }
 
     private var isInExpressionContext = false
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         isInExpressionContext = true
-        thenCode.setExpectedEvaluationResultType(type)
-        elseCode?.setExpectedEvaluationResultType(type)
+        thenCode.setExpectedEvaluationResultType(type, diagnosis)
+        elseCode?.setExpectedEvaluationResultType(type, diagnosis)
     }
 
     override fun markEvaluationResultUsed() {
         isInExpressionContext = true
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        var reportings = condition.semanticAnalysisPhase2() + thenCode.semanticAnalysisPhase2()
-
-        val elseCodeReportings = elseCode?.semanticAnalysisPhase2()
-        if (elseCodeReportings != null) {
-            reportings = reportings + elseCodeReportings
-        }
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        condition.semanticAnalysisPhase2(diagnosis)
+        thenCode.semanticAnalysisPhase2(diagnosis)
+        elseCode?.semanticAnalysisPhase2(diagnosis)
 
         if (isInExpressionContext) {
             type = listOfNotNull(
@@ -104,8 +98,6 @@ class BoundIfExpression(
                 .takeUnless { it.isEmpty() }
                 ?.reduce(BoundTypeReference::closestCommonSupertypeWith)
         }
-
-        return reportings
     }
 
     override val modifiedContext: ExecutionScopedCTContext = if (elseCode != null) {
@@ -114,28 +106,33 @@ class BoundIfExpression(
         SingleBranchJoinExecutionScopedCTContext(context, thenCode.modifiedContext)
     }
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         condition.setNothrow(boundary)
         thenCode.setNothrow(boundary)
         elseCode?.setNothrow(boundary)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
-
-        reportings.addAll(condition.semanticAnalysisPhase3())
-        reportings.addAll(thenCode.semanticAnalysisPhase3())
-
-        if (elseCode != null) {
-            reportings.addAll(elseCode.semanticAnalysisPhase3())
-        }
-
-        return reportings
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        condition.semanticAnalysisPhase3(diagnosis)
+        thenCode.semanticAnalysisPhase3(diagnosis)
+        elseCode?.semanticAnalysisPhase3(diagnosis)
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
-        thenCode.setExpectedReturnType(type)
-        elseCode?.setExpectedReturnType(type)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        condition.visitReadsBeyond(boundary, visitor)
+        thenCode.visitReadsBeyond(boundary, visitor)
+        elseCode?.visitReadsBeyond(boundary, visitor)
+    }
+
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        condition.visitWritesBeyond(boundary, visitor)
+        thenCode.visitWritesBeyond(boundary, visitor)
+        elseCode?.visitWritesBeyond(boundary, visitor)
+    }
+
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        thenCode.setExpectedReturnType(type, diagnosis)
+        elseCode?.setExpectedReturnType(type, diagnosis)
     }
 
     override val isEvaluationResultReferenceCounted get() = when {

@@ -4,7 +4,11 @@ import compiler.ast.ImportDeclaration
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.PackageContext
-import compiler.reportings.Reporting
+import compiler.diagnostic.CollectingDiagnosis
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.UnresolvableImportDiagnostic
+import compiler.diagnostic.UnresolvablePackageNameDiagnostic
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class BoundImportDeclaration(
@@ -18,7 +22,7 @@ class BoundImportDeclaration(
 
     private val resolutionResult: ResolutionResult by lazy {
         val packageContext = context.swCtx.getPackage(packageName)
-            ?: return@lazy ResolutionResult.Erroneous(Reporting.unresolvablePackageName(packageName, declaration.declaredAt))
+            ?: return@lazy ResolutionResult.Erroneous(UnresolvablePackageNameDiagnostic(packageName, declaration.declaredAt))
 
         if (isImportAll) {
             return@lazy ResolutionResult.EntirePackage(packageContext)
@@ -39,7 +43,7 @@ class BoundImportDeclaration(
             return@lazy ResolutionResult.Variable(variable)
         }
 
-        return@lazy ResolutionResult.Erroneous(Reporting.unresolvableImport(this))
+        return@lazy ResolutionResult.Erroneous(UnresolvableImportDiagnostic(this))
     }
 
     fun getOverloadSetsBySimpleName(simpleName: String): Collection<BoundOverloadSet<*>> = when(val result = resolutionResult) {
@@ -66,39 +70,38 @@ class BoundImportDeclaration(
         is ResolutionResult.Erroneous -> null
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return (resolutionResult as? ResolutionResult.Erroneous)?.errors ?: emptySet()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        (resolutionResult as? ResolutionResult.Erroneous)?.errors?.forEach(diagnosis::add)
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         val lastIdentifierAt = declaration.identifiers.last().span
-        val reportings = mutableListOf<Reporting>()
         when (val result = resolutionResult) {
             is ResolutionResult.Variable -> {
                 if (result.variable.kind.allowsVisibility) {
-                    reportings.addAll(result.variable.visibility.validateAccessFrom(lastIdentifierAt, result.variable))
+                    result.variable.visibility.validateAccessFrom(lastIdentifierAt, result.variable, diagnosis)
                 }
             }
             is ResolutionResult.OverloadSets -> {
-                val allImplsSeq = result.sets.asSequence().flatMap { it.overloads }
-                val noneAccessible = allImplsSeq.none { it.attributes.visibility.validateAccessFrom(lastIdentifierAt, it).isEmpty() }
-
+                val accessDiagnosis = result.sets.asSequence()
+                    .flatMap { it.overloads }
+                    .map {
+                        val subDiagnosis = CollectingDiagnosis()
+                        it.attributes.visibility.validateAccessFrom(lastIdentifierAt, it, subDiagnosis)
+                        subDiagnosis
+                    }
+                val noneAccessible = accessDiagnosis.all { it.nErrors > 0uL }
                 if (noneAccessible) {
-                    val sampleReportings = allImplsSeq
-                        .map { it.validateAccessFrom(lastIdentifierAt) }
-                        .filter { it.isNotEmpty() }
-                        .first()
-                    reportings.addAll(sampleReportings)
+                    accessDiagnosis.filter { it.nErrors > 0uL }.first().replayOnto(diagnosis)
                 }
             }
             is ResolutionResult.BaseType -> {
-                reportings.addAll(result.baseType.validateAccessFrom(lastIdentifierAt))
+                result.baseType.validateAccessFrom(lastIdentifierAt, diagnosis)
             }
             else -> { /* nothing to do */ }
         }
-        return reportings
     }
 
     private sealed interface ResolutionResult {
@@ -106,7 +109,7 @@ class BoundImportDeclaration(
         class OverloadSets(val simpleName: String, val sets: Collection<BoundOverloadSet<*>>) : ResolutionResult
         class BaseType(val baseType: BoundBaseType) : ResolutionResult
         class Variable(val variable: BoundVariable) : ResolutionResult
-        class Erroneous(error: Reporting) : ResolutionResult {
+        class Erroneous(error: Diagnostic) : ResolutionResult {
             val errors = setOf(error)
         }
     }

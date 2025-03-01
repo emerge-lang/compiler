@@ -26,8 +26,9 @@ import compiler.binding.BoundParameter
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.lexer.Span
-import compiler.reportings.Reporting
-import compiler.reportings.ValueNotAssignableReporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.util.twoElementPermutationsUnordered
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import java.util.IdentityHashMap
@@ -65,21 +66,19 @@ sealed interface BoundTypeReference {
 
     /**
      * Validates the type reference. Must be invoked after [SemanticallyAnalyzable.semanticAnalysisPhase1].
-     *
-     * @return Any reportings on the validated code
      */
-    fun validate(forUsage: TypeUseSite): Collection<Reporting>
+    fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis)
 
     /**
      * Determines whether a value of type `this` can be assigned to a variable
      * of type [targetType].
-     * @param assignmentLocation Will be used in the returned [Reporting]
-     * @return `null` if the assignment is allowed, a reporting of level [Reporting.Level.ERROR] describing the
+     * @param assignmentLocation Will be used in the returned [Diagnostic]
+     * @return `null` if the assignment is allowed, a diagnostic of severity [Diagnostic.Severity.ERROR] describing the
      * problem with the assignment in case it is not possible
      */
-    fun evaluateAssignabilityTo(targetType: BoundTypeReference, assignmentLocation: Span): ValueNotAssignableReporting? {
+    fun evaluateAssignabilityTo(targetType: BoundTypeReference, assignmentLocation: Span): ValueNotAssignableDiagnostic? {
         val unification = targetType.unify(this, assignmentLocation, TypeUnification.EMPTY)
-        return unification.reportings.firstOrNull { it.level >= Reporting.Level.ERROR } as ValueNotAssignableReporting?
+        return unification.diagnostics.firstOrNull { it.severity >= Diagnostic.Severity.ERROR } as ValueNotAssignableDiagnostic?
     }
 
     /**
@@ -139,9 +138,9 @@ sealed interface BoundTypeReference {
      * this method works with [IdentityHashMap] on the `T`s.
      *
      * If two disjoint ([isDisjointWith]) types are to be unified the final type will remain with the first-come-first-serve
-     * type and a [ValueNotAssignableReporting] will be added to the [TypeUnification].
+     * type and a [ValueNotAssignableDiagnostic] will be added to the [TypeUnification].
      *
-     * The [Reporting]s added to [carry] will refer to `this` as the type being assigned to (member variable, function
+     * The [Diagnostic]s added to [carry] will refer to `this` as the type being assigned to (member variable, function
      * parameter, ...) and [assigneeType] as the type of the value being assigned.
      *
      * @param assignmentLocation Used to properly locate errors, also for forwarding to [evaluateAssignabilityTo]

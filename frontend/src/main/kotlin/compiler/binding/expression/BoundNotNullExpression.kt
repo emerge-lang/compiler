@@ -25,6 +25,7 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
+import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -36,8 +37,10 @@ import compiler.binding.misc_ir.IrIsNullExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.nothrowViolatingNotNullAssertion
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -48,7 +51,7 @@ class BoundNotNullExpression(
     override val declaration: NotNullExpression,
     val nullableExpression: BoundExpression<*>
 ) : BoundExpression<NotNullExpression>, BoundExecutable<NotNullExpression> {
-    // TODO: reporting on superfluous notnull when nullableExpression.type.nullable == false
+    // TODO: diagnostic on superfluous notnull when nullableExpression.type.nullable == false
     // TODO: obtain type from nullableExpression and remove nullability from the type
 
     override var type: BoundTypeReference? = null
@@ -57,27 +60,26 @@ class BoundNotNullExpression(
     override val throwBehavior get() = nullableExpression.throwBehavior
     override val returnBehavior get() = nullableExpression.returnBehavior
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return nullableExpression.semanticAnalysisPhase1()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        nullableExpression.semanticAnalysisPhase1(diagnosis)
     }
 
     private var expectedEvaluationResultType: BoundTypeReference? = null
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         expectedEvaluationResultType = type
 
-        nullableExpression.setExpectedEvaluationResultType(type.withCombinedNullability(TypeReference.Nullability.NULLABLE))
+        nullableExpression.setExpectedEvaluationResultType(type.withCombinedNullability(TypeReference.Nullability.NULLABLE), diagnosis)
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         nullableExpression.markEvaluationResultUsed()
-        val reportings = nullableExpression.semanticAnalysisPhase2()
+        nullableExpression.semanticAnalysisPhase2(diagnosis)
         type = nullableExpression.type?.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
             ?: expectedEvaluationResultType
-        return reportings
     }
 
-    private var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    private var nothrowBoundary: NothrowViolationDiagnostic.SideEffectBoundary? = null
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         this.nothrowBoundary = boundary
     }
 
@@ -86,26 +88,25 @@ class BoundNotNullExpression(
         nonNullResultUsed = true
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         // this expression duplicates the reference. That doesn't prove a capture, but it would easily allow for one,
         // so it has to be treated as such.
         // defaulting to readonly is okay because: that only happens if the nullableExpression couldn't determine its
         // result type. That in and of itself must produce an ERROR-level diagnostic, stopping compilation in any case.
         nullableExpression.markEvaluationResultCaptured(type?.mutability ?: TypeMutability.READONLY)
 
-        val reportings = nullableExpression.semanticAnalysisPhase3().toMutableList()
+        nullableExpression.semanticAnalysisPhase3(diagnosis)
         nothrowBoundary?.let { nothrowBoundary ->
-            reportings.add(Reporting.nothrowViolatingNotNullAssertion(this, nothrowBoundary))
+            diagnosis.nothrowViolatingNotNullAssertion(this, nothrowBoundary)
         }
-        return reportings
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return nullableExpression.findReadsBeyond(boundary)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        nullableExpression.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return nullableExpression.findWritesBeyond(boundary)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        nullableExpression.visitWritesBeyond(boundary, visitor)
     }
 
     override val isEvaluationResultReferenceCounted get() = nullableExpression.isEvaluationResultReferenceCounted

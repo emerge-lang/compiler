@@ -1,6 +1,6 @@
 package compiler.compiler.negative
 
-import compiler.reportings.ValueNotAssignableReporting
+import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -17,7 +17,7 @@ class MutabilityErrors : FreeSpec({
                     set myX.a = 3
                 }
             """.trimIndent())
-                    .shouldReport<ValueNotAssignableReporting>()
+                    .shouldFind<ValueNotAssignableDiagnostic>()
         }
 
         "cannot be assigned to a mut reference" {
@@ -30,7 +30,7 @@ class MutabilityErrors : FreeSpec({
                     var otherX: mut X = myX
                 }
             """.trimIndent())
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.reason shouldBe "cannot assign a const value to a mut reference"
                 }
         }
@@ -63,7 +63,7 @@ class MutabilityErrors : FreeSpec({
                     set myB.genericVal.someVal = 5
                 }
             """.trimIndent())
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.targetType.toString() shouldBe "mut testmodule.A"
                     it.sourceType.toString() shouldBe "const testmodule.A"
                 }
@@ -81,7 +81,7 @@ class MutabilityErrors : FreeSpec({
                     foo(p)
                 }
             """.trimIndent())
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.message shouldBe "A const value is needed here, this one is mut."
                 }
         }
@@ -96,7 +96,7 @@ class MutabilityErrors : FreeSpec({
                     foo(p)
                 }
             """.trimIndent())
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.message shouldBe "Cannot mutate this value, this is a read reference."
                 }
         }
@@ -111,7 +111,7 @@ class MutabilityErrors : FreeSpec({
                     foo(p)
                 }
             """.trimIndent())
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.message shouldBe "A const value is needed here. This is a read reference, immutability is not guaranteed."
                 }
         }
@@ -126,7 +126,7 @@ class MutabilityErrors : FreeSpec({
                     foo(p)
                 }
             """.trimIndent())
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.message shouldBe "Cannot mutate this value. In fact, this is an const value."
                 }
         }
@@ -141,7 +141,7 @@ class MutabilityErrors : FreeSpec({
                     foo(p)
                 }
             """.trimIndent())
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.message shouldBe "An exclusive value is needed here, this one is mut."
                 }
         }
@@ -156,7 +156,7 @@ class MutabilityErrors : FreeSpec({
                     foo(p)
                 }
             """.trimIndent())
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.message shouldBe "An exclusive value is needed here; this is a read reference."
                 }
         }
@@ -171,7 +171,7 @@ class MutabilityErrors : FreeSpec({
                     foo(p)
                 }
             """.trimIndent())
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.message shouldBe "An exclusive value is needed here, this one is const."
                 }
         }

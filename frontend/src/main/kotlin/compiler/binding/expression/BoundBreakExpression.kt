@@ -2,10 +2,14 @@ package compiler.binding.expression
 
 import compiler.ast.AstBreakExpression
 import compiler.binding.BoundLoop
+import compiler.binding.ImpurityVisitor
 import compiler.binding.SideEffectPrediction
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.breakOutsideOfLoop
 import io.github.tmarsteel.emerge.backend.api.ir.IrBreakStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
@@ -18,28 +22,25 @@ class BoundBreakExpression(
 
     private var parentLoop: BoundLoop<*>? = null
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         parentLoop = context.getParentLoop()
         if (parentLoop == null) {
-            reportings.add(Reporting.breakOutsideOfLoop(this))
+            diagnosis.breakOutsideOfLoop(this)
         }
-
-        return reportings
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return emptySet()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
     }
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         // nothing to do
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return emptySet()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
     }
+
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
 
     private inner class IrBreakStatementImpl : IrBreakStatement {
         override val fromLoop get() = parentLoop!!.toBackendIrStatement()

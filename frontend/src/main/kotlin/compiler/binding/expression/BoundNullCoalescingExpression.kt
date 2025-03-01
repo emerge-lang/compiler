@@ -3,7 +3,7 @@ package compiler.binding.expression
 import compiler.ast.expression.BinaryExpression
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.BoundExecutable
+import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.combineBranch
@@ -19,8 +19,10 @@ import compiler.binding.misc_ir.IrIsNullExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeReference
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.nullCheckOnNonNullableValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
 class BoundNullCoalescingExpression(
@@ -40,20 +42,17 @@ class BoundNullCoalescingExpression(
 
     override val modifiedContext: ExecutionScopedCTContext = SingleBranchJoinExecutionScopedCTContext(nullableExpression.modifiedContext, alternativeExpression.modifiedContext)
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         nullableExpression.setNothrow(boundary)
         alternativeExpression.setNothrow(boundary)
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        reportings.addAll(nullableExpression.semanticAnalysisPhase1())
-        reportings.addAll(alternativeExpression.semanticAnalysisPhase1())
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        nullableExpression.semanticAnalysisPhase1(diagnosis)
+        alternativeExpression.semanticAnalysisPhase1(diagnosis)
 
         // it will be null-checked in any case
         nullableExpression.markEvaluationResultUsed()
-
-        return reportings
     }
 
     private var evaluationResultUsed = false
@@ -65,18 +64,17 @@ class BoundNullCoalescingExpression(
         alternativeExpression.markEvaluationResultUsed()
     }
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
-        nullableExpression.setExpectedEvaluationResultType(type)
-        alternativeExpression.setExpectedEvaluationResultType(type)
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        nullableExpression.setExpectedEvaluationResultType(type, diagnosis)
+        alternativeExpression.setExpectedEvaluationResultType(type, diagnosis)
     }
 
     override var type: BoundTypeReference? = null
         private set
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        reportings.addAll(nullableExpression.semanticAnalysisPhase2())
-        reportings.addAll(alternativeExpression.semanticAnalysisPhase2())
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        nullableExpression.semanticAnalysisPhase2(diagnosis)
+        alternativeExpression.semanticAnalysisPhase2(diagnosis)
 
         val notNullableType = nullableExpression.type?.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
             ?: context.swCtx.bottomTypeRef
@@ -84,10 +82,8 @@ class BoundNullCoalescingExpression(
         this.type = alternateType?.closestCommonSupertypeWith(notNullableType) ?: notNullableType
 
         if (nullableExpression.type?.isNullable == false) {
-            reportings.add(Reporting.nullCheckOnNonNullableValue(nullableExpression))
+            diagnosis.nullCheckOnNonNullableValue(nullableExpression)
         }
-
-        return reportings
     }
 
     override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
@@ -95,24 +91,24 @@ class BoundNullCoalescingExpression(
         alternativeExpression.markEvaluationResultCaptured(withMutability)
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
-        nullableExpression.setExpectedReturnType(type)
-        alternativeExpression.setExpectedReturnType(type)
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        nullableExpression.setExpectedReturnType(type, diagnosis)
+        alternativeExpression.setExpectedReturnType(type, diagnosis)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        reportings.addAll(nullableExpression.semanticAnalysisPhase3())
-        reportings.addAll(alternativeExpression.semanticAnalysisPhase3())
-        return reportings
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        nullableExpression.semanticAnalysisPhase3(diagnosis)
+        alternativeExpression.semanticAnalysisPhase3(diagnosis)
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return nullableExpression.findReadsBeyond(boundary) + alternativeExpression.findReadsBeyond(boundary)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        nullableExpression.visitReadsBeyond(boundary, visitor)
+        alternativeExpression.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return nullableExpression.findWritesBeyond(boundary) + alternativeExpression.findWritesBeyond(boundary)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        nullableExpression.visitWritesBeyond(boundary, visitor)
+        alternativeExpression.visitWritesBeyond(boundary, visitor)
     }
 
     override val isEvaluationResultReferenceCounted: Boolean

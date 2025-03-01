@@ -20,12 +20,13 @@ package compiler.binding.expression
 
 import compiler.ast.expression.NullLiteralExpression
 import compiler.ast.type.TypeReference
+import compiler.binding.ImpurityVisitor
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -36,7 +37,7 @@ class BoundNullLiteralExpression(
 ) : BoundLiteralExpression<NullLiteralExpression>
 {
     private var expectedType: BoundTypeReference? = null
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         expectedType = type
     }
 
@@ -46,20 +47,20 @@ class BoundNullLiteralExpression(
     override val throwBehavior = SideEffectPrediction.NEVER
     override val returnBehavior = SideEffectPrediction.NEVER
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
-    override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
-    override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) = Unit
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {}
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {}
 
     override val isEvaluationResultReferenceCounted = false
     override val isEvaluationResultAnchored = true
     override val isCompileTimeConstant = true
 
     override fun toBackendIrExpression(): IrExpression {
-        return IrNullLiteralExpressionImpl(type?.toBackendIr() ?: context.swCtx.any.baseReference.withCombinedNullability(TypeReference.Nullability.NULLABLE).toBackendIr())
+        return IrNullLiteralExpressionImpl(type.toBackendIr() ?: context.swCtx.any.baseReference.withCombinedNullability(TypeReference.Nullability.NULLABLE).toBackendIr())
     }
 }
 

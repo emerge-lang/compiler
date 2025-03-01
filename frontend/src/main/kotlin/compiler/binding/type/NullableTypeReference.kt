@@ -6,7 +6,7 @@ import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.lexer.Span
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
 
 class NullableTypeReference private constructor(
     internal val nested: BoundTypeReference
@@ -36,8 +36,8 @@ class NullableTypeReference private constructor(
         }
     }
 
-    override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
-        return nested.validate(forUsage)
+    override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
+        nested.validate(forUsage, diagnosis)
     }
 
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {

@@ -1,6 +1,6 @@
 package compiler.compiler.negative
 
-import compiler.reportings.IntegerLiteralOutOfRangeReporting
+import compiler.diagnostic.IntegerLiteralOutOfRangeDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 
@@ -10,7 +10,7 @@ class LiteralErrors : FreeSpec({
             validateModule("""
                 x = 100000000000000
             """.trimIndent())
-                .shouldReport<IntegerLiteralOutOfRangeReporting> {
+                .shouldFind<IntegerLiteralOutOfRangeDiagnostic> {
                     it.expectedType shouldBe s32
                 }
         }
@@ -19,7 +19,7 @@ class LiteralErrors : FreeSpec({
             validateModule("""
                 x: S8 = 200
             """.trimIndent())
-                .shouldReport<IntegerLiteralOutOfRangeReporting> {
+                .shouldFind<IntegerLiteralOutOfRangeDiagnostic> {
                     it.expectedType shouldBe s8
                 }
         }
@@ -28,7 +28,7 @@ class LiteralErrors : FreeSpec({
             validateModule("""
                 x: S32 = 100000000000000
             """.trimIndent())
-                .shouldReport<IntegerLiteralOutOfRangeReporting> {
+                .shouldFind<IntegerLiteralOutOfRangeDiagnostic> {
                     it.expectedType shouldBe s32
                 }
         }
@@ -37,7 +37,7 @@ class LiteralErrors : FreeSpec({
             validateModule("""
                 x: SWord = 2147483649
             """.trimIndent())
-                .shouldReport<IntegerLiteralOutOfRangeReporting> {
+                .shouldFind<IntegerLiteralOutOfRangeDiagnostic> {
                     it.expectedType shouldBe sword
                 }
         }
@@ -46,7 +46,7 @@ class LiteralErrors : FreeSpec({
             validateModule("""
                 x: UWord = 4294967298
             """.trimIndent())
-                .shouldReport<IntegerLiteralOutOfRangeReporting> {
+                .shouldFind<IntegerLiteralOutOfRangeDiagnostic> {
                     it.expectedType shouldBe uword
                 }
         }

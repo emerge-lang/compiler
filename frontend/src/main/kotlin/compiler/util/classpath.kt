@@ -28,7 +28,7 @@ fun parseFromClasspath(path: Path, packageName: CanonicalElementName.Package): A
             System.err.println()
             System.err.println("----------------------------------")
             System.err.println("Errors while parsing from classpath:")
-            System.err.println(matchResult.reporting)
+            System.err.println(matchResult.diagnostic)
             throw InternalCompilerError("Failed to parse from classpath $path")
         }
     }

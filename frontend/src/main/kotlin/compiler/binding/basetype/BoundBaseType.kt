@@ -24,22 +24,40 @@ import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
 import compiler.ast.type.TypeReference
-import compiler.binding.*
+import compiler.binding.BoundElement
+import compiler.binding.BoundMemberFunction
+import compiler.binding.BoundOverloadSet
+import compiler.binding.BoundVisibility
+import compiler.binding.DefinitionWithVisibility
+import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.isAssignableTo
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.UnconventionalTypeNameDiagnostic
+import compiler.diagnostic.duplicateBaseTypeMembers
+import compiler.diagnostic.entryNotAllowedOnBaseType
+import compiler.diagnostic.memberFunctionImplementedOnInterface
+import compiler.diagnostic.multipleClassConstructors
+import compiler.diagnostic.multipleClassDestructors
+import compiler.diagnostic.unconventionalTypeName
+import compiler.diagnostic.unusedMixin
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Span
-import compiler.reportings.Reporting
-import compiler.reportings.UnconventionalTypeNameReporting
-import io.github.tmarsteel.emerge.backend.api.ir.*
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
+import io.github.tmarsteel.emerge.backend.api.ir.IrClass
+import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
+import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import kotlinext.duplicatesBy
 import kotlinext.get
-import java.util.*
+import java.util.Collections
+import java.util.IdentityHashMap
 
 class BoundBaseType(
     private val fileContext: CTContext,
@@ -97,7 +115,7 @@ class BoundBaseType(
 
     /** @return The member function overloads for the given name or an empty collection if no such member function is defined. */
     fun resolveMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> {
-        semanticAnalysisPhase1()
+        seanHelper.requirePhase1Done()
         if (!this::allMemberFunctionOverloadSetsByName.isInitialized) {
             return emptySet()
         }
@@ -106,23 +124,22 @@ class BoundBaseType(
             .filter { it.canonicalName.simpleName == name }
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            val reportings = mutableSetOf<Reporting>()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
 
-            typeParameters?.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
-            reportings.addAll(superTypes.semanticAnalysisPhase1())
+            typeParameters?.forEach { it.semanticAnalysisPhase1(diagnosis) }
+            superTypes.semanticAnalysisPhase1(diagnosis)
 
             entries.forEach {
-                reportings.addAll(it.semanticAnalysisPhase1())
+                it.semanticAnalysisPhase1(diagnosis)
             }
 
             _memberVariables.duplicatesBy(BoundBaseTypeMemberVariable::name).forEach { (_, dupMembers) ->
-                reportings.add(Reporting.duplicateBaseTypeMembers(this, dupMembers))
+                diagnosis.duplicateBaseTypeMembers(this, dupMembers)
             }
             if (!kind.allowsMemberVariables) {
                 _memberVariables.forEach {
-                    reportings.add(Reporting.entryNotAllowedOnBaseType(this, it))
+                    diagnosis.entryNotAllowedOnBaseType(this, it)
                 }
             }
 
@@ -131,13 +148,13 @@ class BoundBaseType(
                     .drop(1)
                     .toList()
                     .takeUnless { it.isEmpty() }
-                    ?.let { list -> reportings.add(Reporting.multipleClassConstructors(list.map { it.declaration })) }
+                    ?.let { list -> diagnosis.multipleClassConstructors(list.map { it.declaration }) }
 
                 declaredDestructors
                     .drop(1)
                     .toList()
                     .takeUnless { it.isEmpty() }
-                    ?.let { list -> reportings.add(Reporting.multipleClassDestructors(list.map { it.declaration })) }
+                    ?.let { list -> diagnosis.multipleClassDestructors(list.map { it.declaration }) }
 
                 if (declaredConstructors.none()) {
                     val defaultCtorAst = BaseTypeConstructorDeclaration(
@@ -146,7 +163,7 @@ class BoundBaseType(
                         AstCodeChunk(emptyList())
                     )
                     constructor = defaultCtorAst.bindTo(typeRootContext, typeParameters) { this }
-                    reportings.addAll(constructor!!.semanticAnalysisPhase1())
+                    constructor!!.semanticAnalysisPhase1(diagnosis)
                 } else {
                     constructor = declaredConstructors.first()
                 }
@@ -157,16 +174,16 @@ class BoundBaseType(
                         AstCodeChunk(emptyList())
                     )
                     destructor = defaultDtorAst.bindTo(typeRootContext, typeParameters) { this }
-                    reportings.addAll(destructor!!.semanticAnalysisPhase1())
+                    destructor!!.semanticAnalysisPhase1(diagnosis)
                 } else {
                     destructor = declaredDestructors.first()
                 }
             } else {
                 declaredConstructors.forEach {
-                    reportings.add(Reporting.entryNotAllowedOnBaseType(this, it))
+                    diagnosis.entryNotAllowedOnBaseType(this, it)
                 }
                 declaredDestructors.forEach {
-                    reportings.add(Reporting.entryNotAllowedOnBaseType(this, it))
+                    diagnosis.entryNotAllowedOnBaseType(this, it)
                 }
             }
 
@@ -177,14 +194,14 @@ class BoundBaseType(
                     .filter { it.declaresReceiver }
                     .filter { it.body != null }
                     .forEach {
-                        reportings.add(Reporting.memberFunctionImplementedOnInterface(it))
+                        diagnosis.memberFunctionImplementedOnInterface(it)
                     }
             }
 
-            lintSean1(reportings)
+            lintSean1(diagnosis)
 
             if (superTypes.hasCyclicInheritance) {
-                return@phase1 reportings
+                return@phase1
             }
 
             val overriddenInheritedFunctions: MutableSet<BoundMemberFunction> = Collections.newSetFromMap(IdentityHashMap())
@@ -216,44 +233,40 @@ class BoundBaseType(
 
             allMemberFunctionOverloadSetsByName.values.forEach { overloadSets ->
                 overloadSets.forEach { overloadSet ->
-                    reportings.addAll(overloadSet.semanticAnalysisPhase1())
+                    overloadSet.semanticAnalysisPhase1(diagnosis)
                 }
             }
-
-            return@phase1 reportings
         }
     }
 
     fun resolveMemberVariable(name: String): BoundBaseTypeMemberVariable? = _memberVariables.find { it.name == name }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
             if (superTypes.hasCyclicInheritance) {
-                return@phase2 emptySet()
+                return@phase2
             }
 
-            val reportings = entries.flatMap { it.semanticAnalysisPhase2() }.toMutableList()
+            entries.forEach { it.semanticAnalysisPhase2(diagnosis) }
 
-            typeParameters?.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
-            reportings.addAll(superTypes.semanticAnalysisPhase2())
-            entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase2).forEach(reportings::addAll)
-            constructor?.semanticAnalysisPhase2()?.let(reportings::addAll)
-            destructor?.semanticAnalysisPhase2()?.let(reportings::addAll)
+            typeParameters?.forEach { it.semanticAnalysisPhase2(diagnosis) }
+            superTypes.semanticAnalysisPhase2(diagnosis)
+            entries.forEach { it.semanticAnalysisPhase2(diagnosis) }
+            constructor?.semanticAnalysisPhase2(diagnosis)
+            destructor?.semanticAnalysisPhase2(diagnosis)
 
             allMemberFunctionOverloadSetsByName.values.forEach { overloadSets ->
                 overloadSets.forEach { overloadSet ->
-                    reportings.addAll(overloadSet.semanticAnalysisPhase2())
+                    overloadSet.semanticAnalysisPhase2(diagnosis)
                 }
             }
-
-            return@phase2 reportings
         }
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3(runIfErrorsPreviously = false) {
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis, runIfErrorsPreviously = false) {
             if (superTypes.hasCyclicInheritance) {
-                return@phase3 emptySet()
+                return@phase3
             }
 
             if (!kind.memberFunctionsAbstractByDefault) {
@@ -284,35 +297,34 @@ class BoundBaseType(
                 check(!kind.hasCtorsAndDtors)
                 check(constructor == null)
             }
-
-            val reportings = mutableListOf<Reporting>()
-            typeParameters?.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
-            reportings.addAll(superTypes.semanticAnalysisPhase3())
-            entries.map(BoundBaseTypeEntry<*>::semanticAnalysisPhase3).forEach(reportings::addAll)
-            constructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
-            destructor?.semanticAnalysisPhase3()?.let(reportings::addAll)
+            typeParameters?.forEach { it.semanticAnalysisPhase3(diagnosis) }
+            superTypes.semanticAnalysisPhase3(diagnosis)
+            entries.forEach { it.semanticAnalysisPhase3(diagnosis) }
+            constructor?.semanticAnalysisPhase3(diagnosis)
+            destructor?.semanticAnalysisPhase3(diagnosis)
 
             allMemberFunctionOverloadSetsByName.values
                 .flatten()
                 .flatMap { it.overloads }
-                .flatMap { it.semanticAnalysisPhase3() }
-                .let(reportings::addAll)
+                .forEach { it.semanticAnalysisPhase3(diagnosis) }
 
-            return@phase3 reportings
+            constructor?.mixins
+                ?.filter { !it.used }
+                ?.forEach(diagnosis::unusedMixin)
         }
     }
 
-    override fun validateAccessFrom(location: Span): Collection<Reporting> {
-        return visibility.validateAccessFrom(location, this)
+    override fun validateAccessFrom(location: Span, diagnosis: Diagnosis) {
+        visibility.validateAccessFrom(location, this, diagnosis)
     }
 
     override fun toStringForErrorMessage() = "class $simpleName"
 
-    private fun lintSean1(reportings: MutableCollection<Reporting>) {
+    private fun lintSean1(diagnosis: Diagnosis) {
         if (declaration.name.value.any { it == '_' }) {
-            reportings.add(Reporting.unconventionalTypeName(declaration.name, UnconventionalTypeNameReporting.ViolatedConvention.UPPER_CAMEL_CASE))
+            diagnosis.unconventionalTypeName(declaration.name, UnconventionalTypeNameDiagnostic.ViolatedConvention.UPPER_CAMEL_CASE)
         } else if (!declaration.name.value.first().isUpperCase()) {
-            reportings.add(Reporting.unconventionalTypeName(declaration.name, UnconventionalTypeNameReporting.ViolatedConvention.FIRST_LETTER_UPPERCASE))
+            diagnosis.unconventionalTypeName(declaration.name, UnconventionalTypeNameDiagnostic.ViolatedConvention.FIRST_LETTER_UPPERCASE)
         }
     }
 

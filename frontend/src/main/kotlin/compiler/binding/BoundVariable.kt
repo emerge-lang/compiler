@@ -37,8 +37,17 @@ import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
 import compiler.handleCyclicInvocation
 import compiler.lexer.Span
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.explicitInferTypeNotAllowed
+import compiler.diagnostic.explicitInferTypeWithArguments
+import compiler.diagnostic.explicitOwnershipNotAllowed
+import compiler.diagnostic.globalVariableNotInitialized
+import compiler.diagnostic.typeDeductionError
+import compiler.diagnostic.variableDeclaredMoreThanOnce
+import compiler.diagnostic.variableTypeNotDeclared
+import compiler.diagnostic.visibilityNotAllowedOnVariable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -102,41 +111,36 @@ class BoundVariable(
 
     private val seanHelper = SeanHelper()
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            val reportings = mutableSetOf<Reporting>()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
 
-            reportings.addAll(visibility.semanticAnalysisPhase1())
+            visibility.semanticAnalysisPhase1(diagnosis)
             if (!kind.allowsVisibility && declaration.visibility != null) {
-                reportings.add(Reporting.visibilityNotAllowedOnVariable(this))
+                diagnosis.visibilityNotAllowedOnVariable(this)
             }
 
             context.resolveVariable(this.name)
                 ?.takeUnless { it === this }
                 ?.takeUnless { shadowed -> this.kind.allowsShadowingGlobals && shadowed.isGlobal }
                 ?.let { firstDeclarationOfVariable ->
-                    reportings.add(
-                        Reporting.variableDeclaredMoreThanOnce(
-                            firstDeclarationOfVariable.declaration,
-                            this.declaration
-                        )
+                    diagnosis.variableDeclaredMoreThanOnce(
+                        firstDeclarationOfVariable.declaration,
+                        this.declaration
                     )
                 }
 
             if (isGlobal && declaration.initializerExpression == null) {
-                reportings.add(Reporting.globalVariableNotInitialized(this))
+                diagnosis.globalVariableNotInitialized(this)
             }
 
             if (kind.requiresExplicitType) {
                 if (declaration.type == null) {
-                    reportings.add(Reporting.variableTypeNotDeclared(this))
+                    diagnosis.variableTypeNotDeclared(this)
                 }
             } else if (declaration.initializerExpression == null && shouldInferBaseType) {
-                reportings.add(
-                    Reporting.typeDeductionError(
-                        "Cannot determine type of $kind $name; neither type nor initializer is specified.",
-                        declaration.declaredAt
-                    )
+                diagnosis.typeDeductionError(
+                    "Cannot determine type of $kind $name; neither type nor initializer is specified.",
+                    declaration.declaredAt
                 )
             }
 
@@ -150,49 +154,44 @@ class BoundVariable(
                 }
 
             if (initializerExpression != null) {
-                reportings.addAll(initializerExpression.semanticAnalysisPhase1())
-                initializerExpression.setExpectedEvaluationResultType(expectedInitializerEvaluationType)
+                initializerExpression.semanticAnalysisPhase1(diagnosis)
+                initializerExpression.setExpectedEvaluationResultType(expectedInitializerEvaluationType, diagnosis)
                 initializerExpression.markEvaluationResultUsed()
             }
 
             if (shouldInferBaseType && declaration.type?.arguments?.isNotEmpty() == true) {
-                reportings.add(Reporting.explicitInferTypeWithArguments(declaration.type))
+                diagnosis.explicitInferTypeWithArguments(declaration.type)
             }
 
             if (declaration.type != null && shouldInferBaseType && !kind.allowsExplicitBaseTypeInfer) {
-                reportings.add(Reporting.explicitInferTypeNotAllowed(declaration.type))
+                diagnosis.explicitInferTypeNotAllowed(declaration.type)
             }
 
             if (declaration.ownership != null && !kind.allowsExplicitOwnership) {
-                reportings.add(Reporting.explicitOwnershipNotAllowed(this))
+                diagnosis.explicitOwnershipNotAllowed(this)
             }
-
-            return@phase1 reportings
         }
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
-        initializerExpression?.setExpectedReturnType(type)
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        initializerExpression?.setExpectedReturnType(type, diagnosis)
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            val reportings = mutableSetOf<Reporting>()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
 
-            reportings.addAll(visibility.semanticAnalysisPhase2())
+            visibility.semanticAnalysisPhase2(diagnosis)
 
             if (initializerExpression != null) {
                 handleCyclicInvocation(
                     context = this,
                     action = {
-                        reportings.addAll(initializerExpression.semanticAnalysisPhase2())
+                        initializerExpression.semanticAnalysisPhase2(diagnosis)
                     },
                     onCycle = {
-                        reportings.add(
-                            Reporting.typeDeductionError(
-                                "Cannot infer the type of variable $name because the type inference is cyclic here. Specify the type of one element explicitly.",
-                                initializerExpression.declaration.span
-                            )
+                        diagnosis.typeDeductionError(
+                            "Cannot infer the type of variable $name because the type inference is cyclic here. Specify the type of one element explicitly.",
+                            initializerExpression.declaration.span
                         )
                     },
                 )
@@ -222,7 +221,7 @@ class BoundVariable(
                                 typeAtDeclarationTime!!,
                                 declaration.initializerExpression!!.span
                             )
-                                ?.let(reportings::add)
+                                ?.let(diagnosis::add)
                         }
                     }
                 }
@@ -235,26 +234,21 @@ class BoundVariable(
 
             if (resolvedDeclaredType != null) {
                 val useSite = kind.getTypeUseSite(this, declaration.span)
-                resolvedDeclaredType!!.validate(useSite).let(reportings::addAll)
+                resolvedDeclaredType!!.validate(useSite, diagnosis)
             }
-
-            return@phase2 reportings
         }
     }
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         initializerExpression?.setNothrow(boundary)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
             initializerExpression?.markEvaluationResultCaptured(typeAtDeclarationTime?.mutability ?: implicitMutability)
-            val reportings = mutableListOf<Reporting>()
 
-            initializerExpression?.semanticAnalysisPhase3()?.let(reportings::addAll)
-            reportings.addAll(visibility.semanticAnalysisPhase3())
-
-            reportings
+            initializerExpression?.semanticAnalysisPhase3(diagnosis)
+            visibility.semanticAnalysisPhase3(diagnosis)
         }
     }
 
@@ -269,12 +263,12 @@ class BoundVariable(
         newCtx
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return initializerExpression?.findReadsBeyond(boundary) ?: emptySet()
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        initializerExpression?.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return initializerExpression?.findWritesBeyond(boundary) ?: emptySet()
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        initializerExpression?.visitWritesBeyond(boundary, visitor)
     }
 
     fun getInitializationStateInContext(context: ExecutionScopedCTContext): VariableInitialization.State {
@@ -294,12 +288,12 @@ class BoundVariable(
         return typeAtDeclarationTime
     }
 
-    override fun validateAccessFrom(location: Span): Collection<Reporting> {
+    override fun validateAccessFrom(location: Span, diagnosis: Diagnosis) {
         if (!kind.allowsVisibility) {
             throw InternalCompilerError("A $kind does not have visibility, cannot validate access")
         }
 
-        return visibility.validateAccessFrom(location, this)
+        return visibility.validateAccessFrom(location, this, diagnosis)
     }
 
     override fun toStringForErrorMessage() = "$kind $name"

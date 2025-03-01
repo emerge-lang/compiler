@@ -4,7 +4,9 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.basetype.BoundBaseType
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.duplicateBaseTypes
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class PackageContext(
@@ -54,10 +56,10 @@ class PackageContext(
             }
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return overloadSetsBySimpleName.values
             .flatten()
-            .flatMap { it.semanticAnalysisPhase1() }
+            .forEach { it.semanticAnalysisPhase1(diagnosis) }
     }
 
     fun getTopLevelFunctionOverloadSetsBySimpleName(simpleName: String): Collection<BoundOverloadSet<*>> {
@@ -66,29 +68,22 @@ class PackageContext(
 
     val allToplevelFunctionOverloadSets: Sequence<BoundOverloadSet<*>> = sequence { yieldAll(overloadSetsBySimpleName.values) }.flatten()
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        sourceFiles.flatMap { it.semanticAnalysisPhase2() }.forEach(reportings::add)
-        overloadSetsBySimpleName.values.flatten().flatMap { it.semanticAnalysisPhase2() }.forEach(reportings::add)
-
-        return reportings
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        sourceFiles.forEach { it.semanticAnalysisPhase2(diagnosis) }
+        overloadSetsBySimpleName.values.flatten().forEach { it.semanticAnalysisPhase2(diagnosis) }
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        sourceFiles.flatMap { it.semanticAnalysisPhase3() }.forEach(reportings::add)
-        overloadSetsBySimpleName.values.flatten().flatMap { it.semanticAnalysisPhase3() }.forEach(reportings::add)
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        sourceFiles.forEach { it.semanticAnalysisPhase3(diagnosis) }
+        overloadSetsBySimpleName.values.flatten().forEach { it.semanticAnalysisPhase3(diagnosis) }
 
         types
-            .asSequence()
             .groupBy { it.simpleName }
             .values
             .filter { it.size > 1 }
             .forEach { duplicateTypes ->
-                reportings.add(Reporting.duplicateBaseTypes(packageName, duplicateTypes))
+                diagnosis.duplicateBaseTypes(packageName, duplicateTypes)
             }
-
-        return reportings
     }
 
     override fun equals(other: Any?): Boolean {

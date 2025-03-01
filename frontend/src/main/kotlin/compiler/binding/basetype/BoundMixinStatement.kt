@@ -4,8 +4,8 @@ import compiler.InternalCompilerError
 import compiler.ast.AstMixinStatement
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.BoundExecutable
 import compiler.binding.BoundStatement
+import compiler.binding.ImpurityVisitor
 import compiler.binding.IrAssignmentStatementImpl
 import compiler.binding.IrAssignmentStatementTargetClassFieldImpl
 import compiler.binding.IrCodeChunkImpl
@@ -22,9 +22,8 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
-import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
@@ -40,7 +39,7 @@ class BoundMixinStatement(
 
     private val seanHelper = SeanHelper()
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         expression.setNothrow(boundary)
     }
 
@@ -50,12 +49,11 @@ class BoundMixinStatement(
             .withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            val reportings = expression.semanticAnalysisPhase1()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
+            expression.semanticAnalysisPhase1(diagnosis)
             expression.markEvaluationResultUsed()
-            expression.setExpectedEvaluationResultType(expectedType)
-            return@phase1 reportings
+            expression.setExpectedEvaluationResultType(expectedType, diagnosis)
         }
     }
 
@@ -69,45 +67,41 @@ class BoundMixinStatement(
      */
     val type: BoundTypeReference? get() = expression.type
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            val reportings = expression.semanticAnalysisPhase2().toMutableSet()
-            expression.type?.evaluateAssignabilityTo(expectedType, expression.declaration.span)?.let(reportings::add)
-            registration = context.registerMixin(this, expression.type ?: context.swCtx.any.baseReference, Diagnosis.addingTo(reportings))?.also {
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
+            expression.semanticAnalysisPhase2(diagnosis)
+            expression.type?.evaluateAssignabilityTo(expectedType, expression.declaration.span)?.let(diagnosis::add)
+            registration = context.registerMixin(this, expression.type ?: context.swCtx.any.baseReference, diagnosis)?.also {
                 it.addDestructingAction(this::generateDestructorCode)
             }
             expression.markEvaluationResultCaptured(TypeMutability.EXCLUSIVE)
-            return@phase2 reportings
         }
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
-        expression.setExpectedReturnType(type)
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        expression.setExpectedReturnType(type, diagnosis)
     }
 
-    private var used = false
+    var used = false
+        private set
     fun assignToFunction(fnNeedingMixin: PossiblyMixedInBoundMemberFunction) {
         seanHelper.requirePhase2Done()
         fnNeedingMixin.assignMixin(registration!!)
         used = true
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            val reportings = expression.semanticAnalysisPhase3().toMutableSet()
-            if (!used) {
-                reportings.add(Reporting.unusedMixin(this))
-            }
-            return@phase3 reportings
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
+            expression.semanticAnalysisPhase3(diagnosis)
         }
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return expression.findReadsBeyond(boundary)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        expression.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return expression.findWritesBeyond(boundary)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        expression.visitWritesBeyond(boundary, visitor)
     }
 
     override fun toBackendIrStatement(): IrExecutable {

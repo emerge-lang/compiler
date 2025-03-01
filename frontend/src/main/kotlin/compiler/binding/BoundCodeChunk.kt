@@ -31,9 +31,11 @@ import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.implicitlyEvaluatingAStatement
 import compiler.handleCyclicInvocation
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -59,9 +61,9 @@ class BoundCodeChunk(
     override val modifiedContext: ExecutionScopedCTContext
         get() = statements.lastOrNull()?.modifiedContext ?: context
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
         this.statements.forEach {
-            it.setExpectedReturnType(type)
+            it.setExpectedReturnType(type, diagnosis)
         }
     }
 
@@ -73,10 +75,10 @@ class BoundCodeChunk(
 
     private var expectedImplicitEvaluationResultType: BoundTypeReference? = null
     private var isInExpressionContext = false
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         expectedImplicitEvaluationResultType = type
         isInExpressionContext = true
-        lastStatementAsExpression?.setExpectedEvaluationResultType(type)
+        lastStatementAsExpression?.setExpectedEvaluationResultType(type, diagnosis)
     }
 
     override fun markEvaluationResultUsed() {
@@ -89,18 +91,17 @@ class BoundCodeChunk(
     }
 
     private val seanHelper = SeanHelper()
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            statements.flatMap { it.semanticAnalysisPhase1() }
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
+            statements.forEach { it.semanticAnalysisPhase1(diagnosis) }
         }
     }
 
     private lateinit var deferredCode: List<BoundExecutable<*>>
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            val reportings = mutableSetOf<Reporting>()
-            statements.map(BoundExecutable<*>::semanticAnalysisPhase2).forEach(reportings::addAll)
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
+            statements.forEach { it.semanticAnalysisPhase2(diagnosis) }
 
             if (lastStatementAsExpression != null) {
                 type = lastStatementAsExpression.type
@@ -111,19 +112,17 @@ class BoundCodeChunk(
                 } else if (isInExpressionContext) {
                     // the type is still unit, technically. However, this will trigger a confusing error message
                     // using the bottom type hides that error, and this becomes the more understandable alternative
-                    reportings.add(Reporting.implicitlyEvaluatingAStatement(statements.lastOrNull() ?: this))
+                    diagnosis.implicitlyEvaluatingAStatement(statements.lastOrNull() ?: this)
                     type = context.swCtx.bottomTypeRef
                 } else {
                     type = context.swCtx.unit.baseReference
                 }
             }
-
-            return@phase2 reportings
         }
     }
 
-    private var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    private var nothrowBoundary: NothrowViolationDiagnostic.SideEffectBoundary? = null
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         seanHelper.requirePhase3NotDone()
         require(nothrowBoundary == null) { "setNothrow called more than once" }
 
@@ -131,40 +130,38 @@ class BoundCodeChunk(
         statements.forEach { it.setNothrow(boundary) }
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            val reportings = mutableListOf<Reporting>()
-            statements.flatMap { it.semanticAnalysisPhase3() }.forEach(reportings::add)
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
+            statements.forEach { it.semanticAnalysisPhase3(diagnosis) }
 
             deferredCode = modifiedContext.getScopeLocalDeferredCode().toList()
-            deferredCode.flatMap { it.semanticAnalysisPhase1() }.forEach(reportings::add)
-            deferredCode.flatMap { it.semanticAnalysisPhase2() }.forEach(reportings::add)
+            deferredCode.forEach { it.semanticAnalysisPhase1(diagnosis) }
+            deferredCode.forEach { it.semanticAnalysisPhase2(diagnosis) }
             nothrowBoundary?.let { nothrowBoundary ->
                 deferredCode.forEach { it.setNothrow(nothrowBoundary) }
             }
-            deferredCode.flatMap { it.semanticAnalysisPhase3() }.forEach(reportings::add)
-
-            return@phase3 reportings
+            deferredCode.forEach { it.semanticAnalysisPhase3(diagnosis) }
         }
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         seanHelper.requirePhase3Done()
-        return statements.flatMap {
+        statements.forEach {
             handleCyclicInvocation(
                 context = this,
-                action =  { it.findReadsBeyond(boundary) },
-                onCycle = ::emptySet,
+                action = { it.visitReadsBeyond(boundary, visitor) },
+                onCycle = { },
             )
         }
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return statements.flatMap {
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        seanHelper.requirePhase3Done()
+        statements.forEach {
             handleCyclicInvocation(
                 context = this,
-                action = { it.findWritesBeyond(boundary) },
-                onCycle = ::emptySet,
+                action = { it.visitWritesBeyond(boundary, visitor) },
+                onCycle = { },
             )
         }
     }

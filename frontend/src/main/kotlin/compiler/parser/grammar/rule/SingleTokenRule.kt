@@ -4,7 +4,8 @@ import compiler.InternalCompilerError
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.Token
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.ParsingMismatchDiagnostic
 
 abstract class SingleTokenRule<Item : Token>(
     override val explicitName: String,
@@ -29,7 +30,7 @@ abstract class SingleTokenRule<Item : Token>(
                 if (canIgnore(token)) {
                     continue
                 }
-                yield(MatchingResult.Error(Reporting.parsingMismatch(explicitName, token)))
+                yield(MatchingResult.Error(ParsingMismatchDiagnostic(setOf(explicitName), token)))
                 return@sequence
             }
 

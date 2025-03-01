@@ -4,7 +4,7 @@ import compiler.ast.expression.ArrayLiteralExpression
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
-import compiler.binding.BoundExecutable
+import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.basetype.BoundBaseType
@@ -18,8 +18,8 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUnification
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrInvocationExpression
@@ -50,16 +50,13 @@ class BoundArrayLiteralExpression(
         context.swCtx.array
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return elements.flatMap { it.semanticAnalysisPhase1() }
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return elements.forEach { it.semanticAnalysisPhase1(diagnosis) }
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         elements.forEach { it.markEvaluationResultUsed() }
-
-        val reportings = elements
-            .flatMap { it.semanticAnalysisPhase2() }
-            .toMutableSet()
+        elements.forEach { it.semanticAnalysisPhase2(diagnosis) }
 
         val elementType: BoundTypeReference
         if (expectedElementType != null) {
@@ -67,7 +64,7 @@ class BoundArrayLiteralExpression(
             elements.forEach { element ->
                 element.type?.let {
                     val unification = elementType.unify(it, element.declaration.span, TypeUnification.EMPTY)
-                    reportings.addAll(unification.reportings)
+                    unification.diagnostics.forEach(diagnosis::add)
                 }
             }
         } else {
@@ -90,31 +87,33 @@ class BoundArrayLiteralExpression(
         expectedEvaluationResultType?.let {
             type = type?.withMutability(it.mutability)
         }
-
-        return reportings
     }
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         elements.forEach { it.setNothrow(boundary) }
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return elements.flatMap { it.semanticAnalysisPhase3() }
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return elements.forEach { it.semanticAnalysisPhase3(diagnosis) }
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return elements.flatMap { it.findReadsBeyond(boundary) }
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        elements.forEach {
+            it.visitReadsBeyond(boundary, visitor)
+        }
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return elements.flatMap { it.findWritesBeyond(boundary) }
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        elements.forEach {
+            it.visitWritesBeyond(boundary, visitor)
+        }
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
-        elements.forEach { it.setExpectedReturnType(type) }
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        elements.forEach { it.setExpectedReturnType(type, diagnosis) }
     }
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         expectedEvaluationResultType = type
 
         if (type !is RootResolvedTypeReference || type.baseType != arrayType) {
@@ -123,7 +122,7 @@ class BoundArrayLiteralExpression(
         }
 
         expectedElementType = type.arguments?.firstOrNull()?.type ?: return
-        elements.forEach { it.setExpectedEvaluationResultType(expectedElementType!!) }
+        elements.forEach { it.setExpectedEvaluationResultType(expectedElementType!!, diagnosis) }
     }
 
     override val isEvaluationResultReferenceCounted = true

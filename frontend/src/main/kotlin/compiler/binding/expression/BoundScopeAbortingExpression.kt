@@ -5,6 +5,7 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.diagnostic.Diagnosis
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import compiler.ast.Expression as AstExpression
 
@@ -17,7 +18,7 @@ abstract class BoundScopeAbortingExpression() : BoundExpression<AstExpression> {
         context.swCtx.bottomTypeRef
     }
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         // not relevant
     }
 

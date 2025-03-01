@@ -69,8 +69,8 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
             val result = matchAgainst(tokens, grammar)
 
             result.shouldBeInstanceOf<MatchingResult.Error>()
-            result.reporting.expectedAlternatives shouldBe listOf("keyword fn")
-            result.reporting.actual shouldBe KeywordToken(Keyword.CLASS_DEFINITION)
+            result.diagnostic.expectedAlternatives shouldBe listOf("keyword fn")
+            result.diagnostic.actual shouldBe KeywordToken(Keyword.CLASS_DEFINITION)
         }
 
         "mismatch after disambiguifying token in second branch" {
@@ -78,8 +78,8 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
             val result = matchAgainst(tokens, grammar)
 
             result.shouldBeInstanceOf<MatchingResult.Error>()
-            result.reporting.expectedAlternatives shouldBe listOf("keyword var")
-            result.reporting.actual shouldBe KeywordToken(Keyword.CLASS_DEFINITION)
+            result.diagnostic.expectedAlternatives shouldBe listOf("keyword var")
+            result.diagnostic.actual shouldBe KeywordToken(Keyword.CLASS_DEFINITION)
         }
 
         "fail before ambiguity in outer sequence" {
@@ -87,8 +87,8 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
             val result = matchAgainst(tokens, grammar)
 
             result.shouldBeInstanceOf<MatchingResult.Error>()
-            result.reporting.expectedAlternatives shouldBe listOf("keyword intrinsic")
-            result.reporting.actual shouldBe KeywordToken(Keyword.CLASS_DEFINITION)
+            result.diagnostic.expectedAlternatives shouldBe listOf("keyword intrinsic")
+            result.diagnostic.actual shouldBe KeywordToken(Keyword.CLASS_DEFINITION)
         }
     }
 
@@ -128,8 +128,8 @@ class MismatchAmbiguityResolutionTest : FreeSpec({
             val result = matchAgainst(tokens, grammar)
 
             result.shouldBeInstanceOf<MatchingResult.Error>()
-            result.reporting.expectedAlternatives shouldBe listOf("identifier d")
-            result.reporting.actual shouldBe IdentifierToken("a")
+            result.diagnostic.expectedAlternatives shouldBe listOf("identifier d")
+            result.diagnostic.actual shouldBe IdentifierToken("a")
         }
     }
 

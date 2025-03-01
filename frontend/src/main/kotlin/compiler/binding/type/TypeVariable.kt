@@ -4,7 +4,9 @@ import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.lexer.Span
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 /**
@@ -76,7 +78,7 @@ class TypeVariable private constructor(
         }
     }
 
-    override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
+    override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
         throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 
@@ -107,7 +109,7 @@ class TypeVariable private constructor(
                 if (effectiveBound.isNullable) {
                     return carry.plus(this, assigneeType, assignmentLocation)
                 } else {
-                    val carry2 = carry.plusReporting(Reporting.valueNotAssignable(
+                    val carry2 = carry.plusReporting(ValueNotAssignableDiagnostic(
                         this,
                         assigneeType,
                         "Cannot assign a possibly null value to a non-nullable reference",

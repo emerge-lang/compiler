@@ -13,8 +13,9 @@ import compiler.binding.basetype.DestructorCodeGenerator
 import compiler.binding.context.effect.EphemeralStateClass
 import compiler.binding.context.effect.SideEffect
 import compiler.binding.type.BoundTypeReference
-import compiler.reportings.Diagnosis
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.mixinNotAllowed
 import compiler.util.TakeWhileAndNextIterator.Companion.takeWhileAndNext
 import compiler.util.takeWhileIsInstance
 import java.util.IdentityHashMap
@@ -346,7 +347,7 @@ open class MutableExecutionScopedCTContext protected constructor(
 
     override fun registerMixin(mixinStatement: BoundMixinStatement, type: BoundTypeReference, diagnosis: Diagnosis): ExecutionScopedCTContext.MixinRegistration? {
         if (parentContext !is ExecutionScopedCTContext) {
-            diagnosis.add(Reporting.mixinNotAllowed(mixinStatement))
+            diagnosis.mixinNotAllowed(mixinStatement)
             return null
         }
 

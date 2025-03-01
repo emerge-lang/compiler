@@ -24,7 +24,7 @@ import compiler.ast.type.TypeReference
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.UnresolvedType
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
@@ -83,7 +83,7 @@ class SoftwareContext {
         return emptyPackage
     }
 
-    fun doSemanticAnalysis(): Collection<Reporting> {
+    fun doSemanticAnalysis(diagnosis: Diagnosis) {
         modules
             .asSequence()
             .flatMap { it.sourceFiles }
@@ -93,13 +93,12 @@ class SoftwareContext {
                 }
             }
 
-        return (modules.flatMap { it.semanticAnalysisPhase1() } +
-                packages.values.flatMap { it.semanticAnalysisPhase1() } +
-                modules.flatMap { it.semanticAnalysisPhase2() } +
-                packages.values.flatMap { it.semanticAnalysisPhase2() } +
-                modules.flatMap { it.semanticAnalysisPhase3() } +
-                packages.values.flatMap { it.semanticAnalysisPhase3() })
-            .toSet()
+        modules.forEach { it.semanticAnalysisPhase1(diagnosis) }
+        packages.values.forEach() { it.semanticAnalysisPhase1(diagnosis) }
+        modules.forEach { it.semanticAnalysisPhase2(diagnosis) }
+        packages.values.forEach() { it.semanticAnalysisPhase2(diagnosis) }
+        modules.forEach { it.semanticAnalysisPhase3(diagnosis) }
+        packages.values.forEach() { it.semanticAnalysisPhase3(diagnosis) }
     }
 
     /**

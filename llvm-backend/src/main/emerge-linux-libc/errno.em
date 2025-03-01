@@ -15,6 +15,8 @@ export ENOSPC = 28
 export EPERM = 1
 export EPIPE = 32
 
-export external(C) nothrow read fn __errno_location() -> CPointer<S32>
+// TODO: make __errno_location and getErrno read
+// this requires some unsafe-style facility to make the compiler accept invocations to read fns in pure contexts
+export external(C) nothrow fn __errno_location() -> CPointer<S32>
 
-export nothrow read fn getErrno() -> S32 = __errno_location().pointed
+export nothrow fn getErrno() -> S32 = __errno_location().pointed

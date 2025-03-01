@@ -3,7 +3,10 @@ package compiler.binding
 import compiler.ast.FunctionDeclaration
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.illegalFunctionBody
+import compiler.diagnostic.missingFunctionBody
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -30,17 +33,15 @@ class BoundTopLevelFunction(
         )
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = super.semanticAnalysisPhase3().toMutableList()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        super.semanticAnalysisPhase3(diagnosis)
         if (attributes.impliesNoBody) {
             if (body != null) {
-                reportings.add(Reporting.illegalFunctionBody(declaration))
+                diagnosis.illegalFunctionBody(declaration)
             }
         } else if (body == null) {
-            reportings.add(Reporting.missingFunctionBody(declaration))
+            diagnosis.missingFunctionBody(declaration)
         }
-
-        return reportings
     }
 
     private val backendIr by lazy { IrTopLevelFunctionImpl(this) }

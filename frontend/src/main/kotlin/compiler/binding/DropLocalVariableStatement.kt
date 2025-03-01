@@ -2,12 +2,13 @@ package compiler.binding
 
 import compiler.ast.Statement
 import compiler.ast.VariableDeclaration
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
 class DropLocalVariableStatement(
@@ -20,10 +21,12 @@ class DropLocalVariableStatement(
         override val returnBehavior = SideEffectPrediction.NEVER
         override val throwBehavior get() = SideEffectPrediction.NEVER
 
-        override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+        override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
 
         }
 
+        override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
+        override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
         override fun toBackendIrStatement(): IrExecutable {
             val valueTemporary = IrCreateTemporaryValueImpl(IrVariableAccessExpressionImpl(variable.backendIrDeclaration))
             return IrCodeChunkImpl(listOf(
@@ -32,8 +35,8 @@ class DropLocalVariableStatement(
             ))
         }
 
-        override fun semanticAnalysisPhase1(): Collection<Reporting> = emptyList()
-        override fun semanticAnalysisPhase2(): Collection<Reporting> = emptyList()
-        override fun semanticAnalysisPhase3(): Collection<Reporting> = emptyList()
+        override fun semanticAnalysisPhase1(diagnosis: Diagnosis) = Unit
+        override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
+        override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
     }
 }

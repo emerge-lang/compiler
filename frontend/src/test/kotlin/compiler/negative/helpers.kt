@@ -8,12 +8,16 @@ import compiler.lexer.Token
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
 import compiler.parser.grammar.rule.MatchingResult
-import compiler.reportings.Reporting
+import compiler.diagnostic.CollectingDiagnosis
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrModule
 import io.github.tmarsteel.emerge.backend.noop.NoopBackend
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
 import io.github.tmarsteel.emerge.common.config.ConfigModuleDefinition
+import io.kotest.assertions.fail
+import io.kotest.inspectors.forAtLeastOne
 import io.kotest.inspectors.forNone
 import io.kotest.inspectors.forOne
 import io.kotest.matchers.Matcher
@@ -56,7 +60,7 @@ private val defaultModulesParsed: List<Pair<ConfigModuleDefinition, List<ASTSour
                 }
                 .partition { it is MatchingResult.Error }
                 .let { (errors, successes) ->
-                    require(errors.isEmpty()) { "default module ${module.name} has errors: ${errors.map { (it as MatchingResult.Error).reporting }}" }
+                    require(errors.isEmpty()) { "default module ${module.name} has errors: ${errors.map { (it as MatchingResult.Error).diagnostic }}" }
                     successes as List<MatchingResult.Success<ASTSourceFile>>
                 }
                 .map { it.item }
@@ -98,25 +102,20 @@ fun emptySoftwareContext(validate: Boolean = true): SoftwareContext {
     }
 
     if (validate) {
-        swCtxt
-            .doSemanticAnalysis()
-            .find { it.level >= Reporting.Level.ERROR }
-            ?.let {
-                error("SoftwareContext without any user code contains errors:\n$it")
-            }
+        swCtxt.doSemanticAnalysis(FailOnErrorDiagnosis)
     }
 
     return swCtxt
 }
 
-fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext, Collection<Reporting>> {
+fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext, Collection<Diagnostic>> {
     val swCtxt = emptySoftwareContext(false)
 
     modules.forEach { module ->
         val lexerSourceFile = module.tokens.first().span.sourceFile
         val result = SourceFileRule.match(module.tokens, lexerSourceFile)
         if (result is MatchingResult.Error) {
-            throw AssertionError("Failed to parse code: ${result.reporting}")
+            throw AssertionError("Failed to parse code: ${result.diagnostic}")
         }
         result as MatchingResult.Success<ASTSourceFile>
         val sourceFile = result.item
@@ -126,10 +125,11 @@ fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext
         swCtxt.registerModule(module.moduleName, module.dependsOnModules).addSourceFile(sourceFile)
     }
 
-    val semanticReportings = swCtxt.doSemanticAnalysis()
+    val diagnosis = CollectingDiagnosis()
+    swCtxt.doSemanticAnalysis(diagnosis)
     return Pair(
         swCtxt,
-        semanticReportings.toSet(),
+        diagnosis.findings.toSet(),
     )
 }
 
@@ -145,34 +145,41 @@ fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext
 fun validateModule(
     code: String,
     invokedFrom: StackTraceElement = Thread.currentThread().stackTrace[2],
-): Pair<SoftwareContext, Collection<Reporting>> {
+): Pair<SoftwareContext, Collection<Diagnostic>> {
     val module = IntegrationTestModule(CanonicalElementName.Package(listOf("testmodule")), emptySet(), lexCode(code.assureEndsWith('\n'), true, invokedFrom))
     return validateModules(module)
 }
 
-// TODO: most test cases expect EXACTLY one reporting, extra reportings are out-of-spec. This one lets extra reportings pass :(
-// the trick is finding the test that actually want more than one reporting and adapting that test code
-inline fun <reified T : Reporting> Pair<SoftwareContext, Collection<Reporting>>.shouldReport(additional: SoftwareContext.(T) -> Unit = {}): Pair<SoftwareContext, Collection<Reporting>> {
-    second.shouldReport<T> {
+// TODO: most test cases expect EXACTLY one diagnostic, extra diagnostics are out-of-spec. This one lets extra reportings pass :(
+// the trick is finding the test that actually want more than one diagnostic and adapting that test code
+inline fun <reified T : Diagnostic> Pair<SoftwareContext, Collection<Diagnostic>>.shouldFind(allowMultiple: Boolean = false, additional: SoftwareContext.(T) -> Unit = {}): Pair<SoftwareContext, Collection<Diagnostic>> {
+    second.shouldFind<T>(allowMultiple) {
         first.additional(it)
     }
     return this
 }
 
-inline fun <reified T : Reporting> Collection<Reporting>.shouldReport(additional: (T) -> Unit = {}): Collection<Reporting> {
-    forOne {
-        it.shouldBeInstanceOf<T>()
-        additional(it)
+inline fun <reified T : Diagnostic> Collection<Diagnostic>.shouldFind(allowMultiple: Boolean = false, additional: (T) -> Unit = {}): Collection<Diagnostic> {
+    if (allowMultiple) {
+        forAtLeastOne {
+            it.shouldBeInstanceOf<T>()
+            additional(it)
+        }
+    } else {
+        forOne {
+            it.shouldBeInstanceOf<T>()
+            additional(it)
+        }
     }
     return this
 }
 
-inline fun <reified T : Reporting> Pair<SoftwareContext, Collection<Reporting>>.shouldNotReport(additional: (T) -> Unit = {}): Pair<SoftwareContext, Collection<Reporting>> {
-    second.shouldNotReport<T>(additional)
+inline fun <reified T : Diagnostic> Pair<SoftwareContext, Collection<Diagnostic>>.shouldNotFind(additional: (T) -> Unit = {}): Pair<SoftwareContext, Collection<Diagnostic>> {
+    second.shouldNotFind<T>(additional)
     return this
 }
 
-inline fun <reified T : Reporting> Collection<Reporting>.shouldNotReport(additional: (T) -> Unit = {}): Collection<Reporting> {
+inline fun <reified T : Diagnostic> Collection<Diagnostic>.shouldNotFind(additional: (T) -> Unit = {}): Collection<Diagnostic> {
     forNone {
         it.shouldBeInstanceOf<T>()
         additional(it)
@@ -180,19 +187,45 @@ inline fun <reified T : Reporting> Collection<Reporting>.shouldNotReport(additio
     return this
 }
 
-fun Pair<SoftwareContext, Collection<Reporting>>.shouldHaveNoDiagnostics(): Pair<SoftwareContext, Collection<Reporting>> {
+object FailTestOnFindingDiagnosis : Diagnosis {
+    override val nErrors = 0uL
+
+    override fun add(finding: Diagnostic) {
+        fail("Expected no findings, but got this:\n$finding")
+    }
+
+    override fun hasSameDrainAs(other: Diagnosis): Boolean {
+        return other === this || other.hasSameDrainAs(this)
+    }
+}
+
+object FailOnErrorDiagnosis : Diagnosis {
+    override val nErrors = 0uL
+
+    override fun add(finding: Diagnostic) {
+        if (finding.severity >= Diagnostic.Severity.ERROR) {
+            fail("Expected no errors, but got this:\n$finding")
+        }
+    }
+
+    override fun hasSameDrainAs(other: Diagnosis): Boolean {
+        return other === this || other.hasSameDrainAs(this)
+    }
+}
+
+fun Pair<SoftwareContext, Collection<Diagnostic>>.shouldHaveNoDiagnostics(): Pair<SoftwareContext, Collection<Diagnostic>> {
     second.shouldBeEmpty()
     return this
 }
 
-fun haveNoDiagnostics(): Matcher<Pair<SoftwareContext, Collection<Reporting>>> = object : Matcher<Pair<SoftwareContext, Collection<Reporting>>> {
-    override fun test(value: Pair<SoftwareContext, Collection<Reporting>>): MatcherResult {
+fun haveNoDiagnostics(): Matcher<Pair<SoftwareContext, Collection<Diagnostic>>> = object : Matcher<Pair<SoftwareContext, Collection<Diagnostic>>> {
+    override fun test(value: Pair<SoftwareContext, Collection<Diagnostic>>): MatcherResult {
         return object : MatcherResult {
             override fun failureMessage() = run {
                 val byLevel = value.second
-                    .groupBy { it.level.name.lowercase() }
+                    .groupBy { it.severity.name.lowercase() }
                     .entries
-                    .joinToString { (level, reportings) -> "${reportings.size} ${level}s" }
+                    .joinToString { (severities, diagnostics) -> "${diagnostics.size} ${severities}s" }
                 "there should not be any diagnostics, but found $byLevel"
             }
             override fun negatedFailureMessage() = "there should be diagnostics, but found none."
@@ -201,12 +234,12 @@ fun haveNoDiagnostics(): Matcher<Pair<SoftwareContext, Collection<Reporting>>> =
     }
 }
 
-inline fun <reified T : Reporting> Pair<SoftwareContext, Collection<Reporting>>.ignore(): Pair<SoftwareContext, Collection<Reporting>> {
+inline fun <reified T : Diagnostic> Pair<SoftwareContext, Collection<Diagnostic>>.ignore(): Pair<SoftwareContext, Collection<Diagnostic>> {
     return Pair(first, second.filter { it !is T })
 }
 
-fun Pair<SoftwareContext, Collection<Reporting>>.moduleBackendIrAssumingNoErrors(moduleName: String = "testmodule"): IrModule {
-    check(second.none { it.level == Reporting.Level.ERROR })
+fun Pair<SoftwareContext, Collection<Diagnostic>>.moduleBackendIrAssumingNoErrors(moduleName: String = "testmodule"): IrModule {
+    check(second.none { it.severity == Diagnostic.Severity.ERROR })
     return first.toBackendIr().modules.single { it.name == CanonicalElementName.Package(listOf("testmodule")) }
 }
 

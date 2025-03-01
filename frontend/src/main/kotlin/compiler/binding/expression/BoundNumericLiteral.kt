@@ -20,6 +20,7 @@ package compiler.binding.expression
 
 import compiler.InternalCompilerError
 import compiler.ast.expression.NumericLiteralExpression
+import compiler.binding.ImpurityVisitor
 import compiler.binding.SideEffectPrediction
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
@@ -29,8 +30,10 @@ import compiler.binding.type.CoreTypes
 import compiler.binding.type.NullableTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.handleCyclicInvocation
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.integerLiteralOutOfRange
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -44,28 +47,26 @@ import java.math.BigInteger
 open class BoundNumericLiteral(
     override val context: ExecutionScopedCTContext,
     override val declaration: NumericLiteralExpression,
-    private val bindTimeReportings: Collection<Reporting>
+    private val bindTimeDiagnostics: Collection<Diagnostic>
 ) : BoundLiteralExpression<NumericLiteralExpression> {
     override val type: BoundTypeReference? = null // unknown
 
     override val throwBehavior = SideEffectPrediction.NEVER
     override val returnBehavior = SideEffectPrediction.NEVER
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        reportings.addAll(bindTimeReportings)
-        return reportings
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        bindTimeDiagnostics.forEach(diagnosis::add)
     }
-    override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
-    override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {}
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {}
 
     protected var expectedNumericType: BoundBaseType? = null
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         if (type is NullableTypeReference) {
-            return setExpectedEvaluationResultType(type.nested)
+            return setExpectedEvaluationResultType(type.nested, diagnosis)
         }
 
         if (type !is RootResolvedTypeReference) {
@@ -79,7 +80,7 @@ open class BoundNumericLiteral(
         // assure completed
         handleCyclicInvocation(
             context = this,
-            action = { type.baseType.semanticAnalysisPhase1() },
+            action = { type.baseType.semanticAnalysisPhase1(diagnosis) },
             onCycle = { }
         )
 
@@ -102,13 +103,12 @@ class BoundIntegerLiteral(
     private val integer: BigInteger,
     /** the number base that the source program used to represent the value in [integer] */
     private val baseInSource: UInt,
-    reportings: Collection<Reporting>
-) : BoundNumericLiteral(context, declaration, reportings) {
+    diagnostics: Collection<Diagnostic>
+) : BoundNumericLiteral(context, declaration, diagnostics) {
     override lateinit var type: RootResolvedTypeReference
     private lateinit var valueCoercedToRange: BigInteger
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         type = (expectedNumericType ?: context.swCtx.s32).baseReference
         val typeRange = when (type.baseType) {
             context.swCtx.s8 -> CoreTypes.S8_RANGE
@@ -138,14 +138,12 @@ class BoundIntegerLiteral(
                         .and(allOnesOfTypeBitLength) // emulate overflow
                         .negate()
                 } else {
-                    reportings.add(Reporting.integerLiteralOutOfRange(declaration, type.baseType, typeRange))
+                    diagnosis.integerLiteralOutOfRange(declaration, type.baseType, typeRange)
                 }
             } else {
-                reportings.add(Reporting.integerLiteralOutOfRange(declaration, type.baseType, typeRange))
+                diagnosis.integerLiteralOutOfRange(declaration, type.baseType, typeRange)
             }
         }
-
-        return reportings
     }
 
     override fun toBackendIrExpression(): IrExpression {
@@ -160,8 +158,8 @@ class BoundFloatingPointLiteral(
     context: ExecutionScopedCTContext,
     declaration: NumericLiteralExpression,
     val float: BigDecimal,
-    reportings: Collection<Reporting>
-) : BoundNumericLiteral(context, declaration, reportings) {
+    diagnostics: Collection<Diagnostic>
+) : BoundNumericLiteral(context, declaration, diagnostics) {
     override val type = context.swCtx.f32.baseReference
 
     override fun toBackendIrExpression(): IrExpression {

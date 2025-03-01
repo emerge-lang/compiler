@@ -24,8 +24,8 @@ import compiler.lexer.lex
 import compiler.parser.grammar.ModuleOrPackageName
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.parser.grammar.rule.matchAgainst
-import compiler.reportings.ReportingException
-import compiler.reportings.illustrateSourceLocations
+import compiler.diagnostic.ReportingException
+import compiler.diagnostic.illustrateSourceLocations
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -63,9 +63,9 @@ private object ConfigModule : SimpleModule("EmergeToolchainConfigs") {
                 when (parseResult) {
                     is MatchingResult.Error -> throw JsonParseException(
                         p,
-                        parseResult.reporting.message,
+                        parseResult.diagnostic.message,
                         location,
-                        ReportingException(parseResult.reporting),
+                        ReportingException(parseResult.diagnostic),
                     )
                     is MatchingResult.Success -> return CanonicalElementName.Package(parseResult.item.names.map { it.value })
                 }

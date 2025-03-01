@@ -2,15 +2,19 @@ package compiler.binding.expression
 
 import compiler.ast.expression.AstReflectExpression
 import compiler.ast.type.TypeMutability
+import compiler.binding.ImpurityVisitor
 import compiler.binding.SideEffectPrediction
 import compiler.binding.basetype.BoundBaseType
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.unsupportedReflection
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseTypeReflectionExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -23,41 +27,41 @@ class BoundReflectExpression(
     override val throwBehavior = SideEffectPrediction.NEVER
     override val returnBehavior = SideEffectPrediction.NEVER
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         // nothing to do
     }
 
     private lateinit var typeToReflectOn: BoundTypeReference
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         typeToReflectOn = context.resolveType(declaration.type)
-        return typeToReflectOn.validate(TypeUseSite.Irrelevant(
-            declaration.span,
-            null
-        ))
+        typeToReflectOn.validate(
+            TypeUseSite.Irrelevant(declaration.span, null),
+            diagnosis,
+        )
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return emptySet()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+
     }
 
     private var baseTypeToReflectOn: BoundBaseType? = null
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         if (typeToReflectOn is RootResolvedTypeReference) {
             baseTypeToReflectOn = (typeToReflectOn as RootResolvedTypeReference).baseType
         } else if (typeToReflectOn !is UnresolvedType) {
-            reportings.add(Reporting.unsupportedReflection(typeToReflectOn))
+            diagnosis.unsupportedReflection(typeToReflectOn)
         }
-
-        return reportings
     }
+
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
 
     override val type: BoundTypeReference
         get() = context.swCtx.reflectionBaseType.baseReference.withMutability(TypeMutability.IMMUTABLE)
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
 
     }
 

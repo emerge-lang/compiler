@@ -2,8 +2,10 @@ package compiler.binding
 
 import compiler.binding.misc_ir.IrOverloadGroupImpl
 import compiler.binding.type.nonDisjointPairs
-import compiler.reportings.InconsistentReceiverPresenceInOverloadSetReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.InconsistentReceiverPresenceInOverloadSetDiagnostic
+import compiler.diagnostic.overloadSetHasNoDisjointParameter
 import compiler.util.pivot
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
@@ -25,43 +27,38 @@ class BoundOverloadSet<out Fn : BoundFunction>(
     var declaresReceiver: Boolean by Delegates.notNull()
         private set
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         // the individual overload implementations are validated through the regular/obvious tree structure (SourceFile)
 
-        return seanHelper.phase1 {
-            val reportings = mutableListOf<Reporting>()
+        return seanHelper.phase1(diagnosis) {
 
             val (withReceiver, withoutReceiver) = overloads.partition { it.declaresReceiver }
             if (withReceiver.isNotEmpty() && withoutReceiver.isNotEmpty()) {
-                reportings.add(InconsistentReceiverPresenceInOverloadSetReporting(this))
+                diagnosis.add(InconsistentReceiverPresenceInOverloadSetDiagnostic(this))
             }
             this.declaresReceiver = withReceiver.size >= withoutReceiver.size
-
-            return@phase1 reportings
         }
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         // the individual overload implementations are validated through the regular/obvious tree structure (SourceFile)
 
-        return seanHelper.phase2 {
+        return seanHelper.phase2(diagnosis) {
             if (overloads.size == 1) {
                 // not actually overloaded
-                return@phase2 emptySet()
+                return@phase2
             }
 
-            return@phase2 if (areOverloadsDisjoint(overloads)) {
-                emptySet()
-            } else {
-                setOf(Reporting.overloadSetHasNoDisjointParameter(this))
+            if (!areOverloadsDisjoint(overloads)) {
+                diagnosis.overloadSetHasNoDisjointParameter(this)
             }
         }
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         // the individual overload implementations are validated through the regular/obvious tree structure (SourceFile)
-        return seanHelper.phase3 {
-            emptySet()
+        return seanHelper.phase3(diagnosis) {
+
         }
     }
 

@@ -1,13 +1,13 @@
 package compiler.compiler.negative
 
 import compiler.binding.type.GenericTypeReference
-import compiler.reportings.MissingTypeArgumentReporting
-import compiler.reportings.SuperfluousTypeArgumentsReporting
-import compiler.reportings.TypeArgumentOutOfBoundsReporting
-import compiler.reportings.TypeArgumentVarianceMismatchReporting
-import compiler.reportings.TypeArgumentVarianceSuperfluousReporting
-import compiler.reportings.UnsupportedTypeUsageVarianceReporting
-import compiler.reportings.ValueNotAssignableReporting
+import compiler.diagnostic.MissingTypeArgumentDiagnostic
+import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
+import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
+import compiler.diagnostic.TypeArgumentVarianceMismatchDiagnostic
+import compiler.diagnostic.TypeArgumentVarianceSuperfluousDiagnostic
+import compiler.diagnostic.UnsupportedTypeUsageVarianceDiagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -27,7 +27,7 @@ class TypeErrors : FreeSpec({
                     set myX.prop = B()
                 }
             """.trimIndent())
-                .shouldReport<ValueNotAssignableReporting>()
+                .shouldFind<ValueNotAssignableDiagnostic>()
         }
 
         "assignment of generically typed value to directly typed variable" {
@@ -45,7 +45,7 @@ class TypeErrors : FreeSpec({
                     x: T = false
                 }
             """.trimIndent())
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.sourceType.simpleName shouldBe "Bool"
                     it.targetType.shouldBeInstanceOf<GenericTypeReference>().simpleName shouldBe "T"
                 }
@@ -75,7 +75,7 @@ class TypeErrors : FreeSpec({
                         set v.x = false
                     }
                 """.trimIndent())
-                    .shouldReport<ValueNotAssignableReporting> {
+                    .shouldFind<ValueNotAssignableDiagnostic> {
                         it.sourceType.toString() shouldBe "const Bool"
                         it.targetType.toString() shouldBe "T"
                     }
@@ -90,7 +90,7 @@ class TypeErrors : FreeSpec({
                     
                     x: X<Any>
                 """.trimIndent())
-                        .shouldReport<TypeArgumentOutOfBoundsReporting>()
+                        .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
             }
 
             "out variance" {
@@ -100,7 +100,7 @@ class TypeErrors : FreeSpec({
                     
                     x: X<Any>
                 """.trimIndent())
-                        .shouldReport<TypeArgumentOutOfBoundsReporting>()
+                        .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
             }
 
             "in variance" {
@@ -110,7 +110,7 @@ class TypeErrors : FreeSpec({
                     
                     fn test(p: X<Any>) {}
                 """.trimIndent())
-                    .shouldReport<TypeArgumentOutOfBoundsReporting>()
+                    .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
             }
         }
 
@@ -119,7 +119,7 @@ class TypeErrors : FreeSpec({
                 class X<T> {}
                 fn test(p: X) {}
             """.trimIndent())
-                .shouldReport<MissingTypeArgumentReporting> {
+                .shouldFind<MissingTypeArgumentDiagnostic> {
                     it.parameter.name.value shouldBe "T"
                 }
         }
@@ -129,7 +129,7 @@ class TypeErrors : FreeSpec({
                 class X<T> {}
                 fn test(p: X<S32, S32, Bool>) {}
             """.trimIndent())
-                .shouldReport<SuperfluousTypeArgumentsReporting> {
+                .shouldFind<SuperfluousTypeArgumentsDiagnostic> {
                     it.nExpected shouldBe 1
                     it.firstSuperfluousArgument.toString() shouldBe "S32"
                 }
@@ -140,13 +140,13 @@ class TypeErrors : FreeSpec({
                 class X<in T> {}
                 fn test(p: X<out Any>) {}
             """.trimIndent())
-                .shouldReport<TypeArgumentVarianceMismatchReporting>()
+                .shouldFind<TypeArgumentVarianceMismatchDiagnostic>()
 
             validateModule("""
                 class X<out T> {}
                 fn test(p: X<in Any>) {}
             """.trimIndent())
-                .shouldReport<TypeArgumentVarianceMismatchReporting>()
+                .shouldFind<TypeArgumentVarianceMismatchDiagnostic>()
         }
 
         "reference to generic type with superfluous parameter variance" {
@@ -154,7 +154,7 @@ class TypeErrors : FreeSpec({
                 class X<in T> {}
                 fn test(p: X<in Any>) {}
             """.trimIndent())
-                .shouldReport<TypeArgumentVarianceSuperfluousReporting>()
+                .shouldFind<TypeArgumentVarianceSuperfluousDiagnostic>()
         }
 
         "reference to generic type with incompatible type argument mutability" - {
@@ -165,7 +165,7 @@ class TypeErrors : FreeSpec({
                     }
                     fn foo(p: A<const S32>) {}
                 """.trimIndent())
-                    .shouldReport<TypeArgumentOutOfBoundsReporting> {
+                    .shouldFind<TypeArgumentOutOfBoundsDiagnostic> {
                         it.argument.toString() shouldBe "const S32"
                     }
             }
@@ -177,7 +177,7 @@ class TypeErrors : FreeSpec({
                     }
                     x = A(2)
                 """.trimIndent())
-                    .shouldReport<ValueNotAssignableReporting> {
+                    .shouldFind<ValueNotAssignableDiagnostic> {
                         it.sourceType.toString() shouldBe "const S32"
                         it.targetType.toString() shouldBe "mut Any"
                         it.reason shouldBe "cannot assign a const value to a mut reference"
@@ -193,7 +193,7 @@ class TypeErrors : FreeSpec({
                 }
                 x: A<S32> = A(2, false)
             """.trimIndent())
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.sourceType.toString() shouldBe "const Any"
                     it.targetType.toString() shouldBe "const S32"
                 }
@@ -206,7 +206,7 @@ class TypeErrors : FreeSpec({
                         prop: T = init
                     }
                 """.trimIndent())
-                    .shouldReport<UnsupportedTypeUsageVarianceReporting>()
+                    .shouldFind<UnsupportedTypeUsageVarianceDiagnostic>()
             }
         }
 
@@ -240,7 +240,7 @@ class TypeErrors : FreeSpec({
                 class C {}
                 fn test(p: C<S32, S32>) {}
             """.trimIndent())
-                .shouldReport<SuperfluousTypeArgumentsReporting>()
+                .shouldFind<SuperfluousTypeArgumentsDiagnostic>()
         }
     }
 
@@ -250,7 +250,7 @@ class TypeErrors : FreeSpec({
                 x = []
                 y: Array<String> = x
             """.trimIndent())
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.sourceType.toString() shouldBe "const Any"
                     it.targetType.toString() shouldBe "const String"
                 }
@@ -262,7 +262,7 @@ class TypeErrors : FreeSpec({
                     x = [1, 2, 3]
                     y: Array<String> = x
                 """.trimIndent())
-                    .shouldReport<ValueNotAssignableReporting> {
+                    .shouldFind<ValueNotAssignableDiagnostic> {
                         it.sourceType.toString() shouldBe "const S32"
                         it.targetType.toString() shouldBe "const String"
                     }
@@ -273,7 +273,7 @@ class TypeErrors : FreeSpec({
                     x = [1, 2, 4, 5]
                     y: Array<String> = x
                 """.trimIndent())
-                    .shouldReport<ValueNotAssignableReporting> {
+                    .shouldFind<ValueNotAssignableDiagnostic> {
                         it.sourceType.toString() shouldBe "const S32"
                         it.targetType.toString() shouldBe "const String"
                     }
@@ -285,7 +285,7 @@ class TypeErrors : FreeSpec({
                 x: Array<S32> = [1, 2, 3, 4]
                 y: Array<String> = x
             """.trimIndent())
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.sourceType.toString() shouldBe "const S32"
                     it.targetType.toString() shouldBe "const String"
                 }
@@ -295,7 +295,7 @@ class TypeErrors : FreeSpec({
             validateModule("""
                 x: Array<S32> = [1, 2, 3, "4"]
             """.trimIndent())
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.sourceType.toString() shouldBe "const String"
                     it.targetType.toString() shouldBe "const S32"
                 }

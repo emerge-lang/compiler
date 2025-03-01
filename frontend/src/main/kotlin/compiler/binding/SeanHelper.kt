@@ -1,129 +1,114 @@
 package compiler.binding
 
 import compiler.InternalCompilerError
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
 
 /**
  * Sean is short for SEmantic ANalysis
  */
 class SeanHelper {
-    private lateinit var phase1Results: Collection<Reporting>
-    var phase1HadErrors = false
-        get() {
-            requirePhase1Done()
-            return field
-        }
-        private set
+    // TODO: avoid double-checking on a best-effort basis without allocating new objects per invocation of the phases
+    private var phase1DoneOn: Diagnosis? = null
+    private var phase1HadErrors = false
+    private var phase2DoneOn: Diagnosis? = null
+    private var phase2HadErrors = false
+    private var phase3DoneOn: Diagnosis? = null
+    private var phase3HadErrors = false
 
-    private lateinit var phase2Results: Collection<Reporting>
-    var phase2HadErrors = false
-        get() {
-            requirePhase2Done()
-            return field
-        }
-        private set
-
-    private lateinit var phase3Results: Collection<Reporting>
-    var phase3HadErrors = false
-        get() {
-            requirePhase3Done()
-            return field
-        }
-        private set
-
-    fun phase1(impl: () -> Collection<Reporting>): Collection<Reporting> {
-        if (this::phase1Results.isInitialized) {
-            return this.phase1Results
+    fun phase1(diagnosis: Diagnosis, impl: () -> Unit) {
+        phase1DoneOn?.let { phase1Diag ->
+            check(phase1Diag.hasSameDrainAs(diagnosis))
+            return
         }
 
-        val results = impl()
-        phase1Results = results
-        phase1HadErrors = results.any { it.level >= Reporting.Level.ERROR }
-        return results
+        val nErrorsBefore = diagnosis.nErrors
+        impl()
+        phase1DoneOn = diagnosis
+        phase1HadErrors = diagnosis.nErrors > nErrorsBefore
     }
 
-    fun phase2(impl: () -> Collection<Reporting>): Collection<Reporting> {
+    fun phase2(diagnosis: Diagnosis, impl: () -> Unit) {
         requirePhase1Done()
 
-        if (this::phase2Results.isInitialized) {
-            return this.phase2Results
+        phase2DoneOn?.let { phase2Diag ->
+            check(phase2Diag.hasSameDrainAs(diagnosis))
+            return
         }
 
-        val results = impl()
-        phase2Results = results
-        phase2HadErrors = results.any { it.level >= Reporting.Level.ERROR }
-        return results
+        val nErrorsBefore = diagnosis.nErrors
+        impl()
+        phase2DoneOn = diagnosis
+        phase2HadErrors = diagnosis.nErrors > nErrorsBefore
     }
 
     /**
      * @param runIfErrorsPreviously if `false` and [phase1] or [phase2] returned errors, this function
      * will return an empty collection without invoking [impl]. [phase3] will also not be marked completed then.
      */
-    fun phase3(runIfErrorsPreviously: Boolean = true, impl: () -> Collection<Reporting>): Collection<Reporting> {
+    fun phase3(diagnosis: Diagnosis, runIfErrorsPreviously: Boolean = true, impl: (Diagnosis) -> Unit) {
         requirePhase2Done()
 
-        if (this::phase3Results.isInitialized) {
-            return this.phase3Results
+        phase3DoneOn?.let { phase3Diag ->
+            check(phase3Diag.hasSameDrainAs(diagnosis))
+            return
         }
 
         if (!runIfErrorsPreviously && (phase1HadErrors || phase2HadErrors)) {
-            return emptySet()
+            return
         }
 
-        val results = impl()
-        phase3Results = results
-        phase3HadErrors = results.any { it.level >= Reporting.Level.ERROR }
-        return results
+        val nErrorsBefore = diagnosis.nErrors
+        impl(diagnosis)
+        phase3DoneOn = diagnosis
+        phase3HadErrors = diagnosis.nErrors > nErrorsBefore
     }
 
-    fun requirePhase1Done(): Collection<Reporting> {
-        if (!this::phase1Results.isInitialized) {
+    private val phase1Done: Boolean get() = phase1DoneOn != null
+    private val phase2Done: Boolean get() = phase2DoneOn != null
+    private val phase3Done: Boolean get() = phase3DoneOn != null
+
+    fun requirePhase1Done() {
+        if (!phase1Done) {
             throw InternalCompilerError("Semantic analysis phase 1 is required but hasn't been done yet.")
         }
-
-        return this.phase1Results
     }
 
     fun requirePhase1NotDone() {
-        if (this::phase1Results.isInitialized) {
+        if (phase1Done) {
             throw InternalCompilerError("Semantic analysis phase 1 must not have been done yet.")
         }
     }
 
-    fun requirePhase2Done(): Collection<Reporting> {
+    fun requirePhase2Done() {
         requirePhase1Done()
 
-        if (!this::phase2Results.isInitialized) {
+        if (!phase2Done) {
             throw InternalCompilerError("Semantic analysis phase 2 is required but hasn't been done yet.")
         }
-
-        return this.phase2Results
     }
 
     fun requirePhase2NotDone() {
-        if (this::phase2Results.isInitialized) {
+        if (phase2Done) {
             throw InternalCompilerError("Semantic analysis phase 2 must not have been done yet.")
         }
     }
 
-    fun requirePhase3Done(): Collection<Reporting> {
+    fun requirePhase3Done() {
         requirePhase2Done()
 
-        if (!this::phase3Results.isInitialized) {
+        if (!phase3Done) {
             throw InternalCompilerError("Semantic analysis phase 3 is required but hasn't been done yet.")
         }
-
-        return this.phase3Results
     }
 
     fun requirePhase3NotDone() {
-        if (this::phase3Results.isInitialized) {
+        if (phase3Done) {
             throw InternalCompilerError("Semantic analysis phase 3 must not have been done yet.")
         }
     }
 
     override fun toString(): String {
-        val phase1State = if (this::phase1Results.isInitialized) {
+        val phase1State = if (phase1Done) {
             if (phase1HadErrors) {
                 "\u274C"
             } else {
@@ -132,7 +117,7 @@ class SeanHelper {
         } else {
             "?"
         }
-        val phase2State = if (this::phase2Results.isInitialized) {
+        val phase2State = if (phase2Done) {
             if (phase2HadErrors) {
                 "\u274C"
             } else {
@@ -141,7 +126,7 @@ class SeanHelper {
         } else {
             "?"
         }
-        val phase3State = if (this::phase3Results.isInitialized) {
+        val phase3State = if (phase3Done) {
             if (phase3HadErrors) {
                 "\u274C"
             } else {

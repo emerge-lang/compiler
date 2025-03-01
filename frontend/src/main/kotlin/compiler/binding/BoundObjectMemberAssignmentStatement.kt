@@ -12,8 +12,11 @@ import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.illegalAssignment
+import compiler.diagnostic.valueNotAssignable
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -33,23 +36,21 @@ class BoundObjectMemberAssignmentStatement(
     override val targetThrowBehavior get() = targetExpression.throwBehavior
     override val targetReturnBehavior get() = targetExpression.returnBehavior
 
-    override fun additionalSemanticAnalysisPhase1(): Collection<Reporting> {
-        return targetExpression.semanticAnalysisPhase1()
+    override fun additionalSemanticAnalysisPhase1(diagnosis: Diagnosis) {
+        targetExpression.semanticAnalysisPhase1(diagnosis)
     }
 
-    override fun assignmentTargetSemanticAnalysisPhase2(): Collection<Reporting> {
-        return targetExpression.semanticAnalysisPhase2()
+    override fun assignmentTargetSemanticAnalysisPhase2(diagnosis: Diagnosis) {
+        targetExpression.semanticAnalysisPhase2(diagnosis)
     }
 
     override val assignmentTargetType get() = targetExpression.type
 
-    override fun setTargetNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setTargetNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         targetExpression.setNothrow(boundary)
     }
 
-    override fun additionalSemanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
-
+    override fun additionalSemanticAnalysisPhase2(diagnosis: Diagnosis) {
         targetExpression.valueExpression.tryAsVariable()?.let { memberOwnerVariable ->
             targetExpression.member?.let { member ->
                 val repetitionRelativeToMemberHolder = context.getRepetitionBehaviorRelativeTo(memberOwnerVariable.modifiedContext)
@@ -64,30 +65,26 @@ class BoundObjectMemberAssignmentStatement(
                     if (member.isReAssignable) {
                         _modifiedContext.trackSideEffect(PartialObjectInitialization.Effect.WriteToMemberVariableEffect(memberOwnerVariable, member))
                     } else {
-                        reportings.add(Reporting.illegalAssignment("Member variable ${member.name} may already have been initialized, cannot assign a value again", this))
+                        diagnosis.illegalAssignment("Member variable ${member.name} may already have been initialized, cannot assign a value again", this)
                     }
                 }
                 if (initializationStateBefore == VariableInitialization.State.INITIALIZED) {
                     if (!member.isReAssignable) {
-                        reportings.add(Reporting.illegalAssignment("Member variable ${member.name} is already initialized, cannot re-assign", this))
+                        diagnosis.illegalAssignment("Member variable ${member.name} is already initialized, cannot re-assign", this)
                     }
                 }
             }
         }
-
-        return reportings
     }
 
     private var initializationStateBefore: VariableInitialization.State? = null
 
-    override fun additionalSemanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-
-        reportings.addAll(targetExpression.semanticAnalysisPhase3())
+    override fun additionalSemanticAnalysisPhase3(diagnosis: Diagnosis) {
+        targetExpression.semanticAnalysisPhase3(diagnosis)
 
         targetExpression.valueExpression.type?.let { memberOwnerType ->
             if (!memberOwnerType.mutability.isMutable) {
-                reportings += Reporting.valueNotAssignable(
+                diagnosis.valueNotAssignable(
                     memberOwnerType.withMutability(TypeMutability.MUTABLE),
                     memberOwnerType,
                     "Cannot mutate a value of type $memberOwnerType",
@@ -97,10 +94,8 @@ class BoundObjectMemberAssignmentStatement(
         }
         targetExpression.type?.let { targetType ->
             toAssignExpression.type?.evaluateAssignabilityTo(targetType, toAssignExpression.declaration.span)
-                ?.let(reportings::add)
+                ?.let(diagnosis::add)
         }
-
-        return reportings
     }
 
     override fun toBackendIrStatement(): IrExecutable {

@@ -2,10 +2,14 @@ package compiler.binding.expression
 
 import compiler.ast.AstContinueExpression
 import compiler.binding.BoundLoop
+import compiler.binding.ImpurityVisitor
 import compiler.binding.SideEffectPrediction
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.continueOutsideOfLoop
 import io.github.tmarsteel.emerge.backend.api.ir.IrContinueStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
@@ -18,28 +22,25 @@ class BoundContinueExpression(
 
     private var parentLoop: BoundLoop<*>? = null
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         parentLoop = context.getParentLoop()
         if (parentLoop == null) {
-            reportings.add(Reporting.continueOutsideOfLoop(this))
+            diagnosis.continueOutsideOfLoop(this)
         }
-
-        return reportings
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return emptySet()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
     }
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         // nothing to do
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return emptySet()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
     }
+
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
 
     private inner class IrContinueStatementImpl : IrContinueStatement {
         override val loop get() = parentLoop!!.toBackendIrStatement()

@@ -1,7 +1,7 @@
 package compiler.compiler.negative
 
-import compiler.reportings.UnresolvableImportReporting
-import compiler.reportings.UnresolvablePackageNameReporting
+import compiler.diagnostic.UnresolvableImportDiagnostic
+import compiler.diagnostic.UnresolvablePackageNameDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 
 class ImportErrors : FreeSpec({
@@ -14,7 +14,7 @@ class ImportErrors : FreeSpec({
                     return "123"
                 }
             """.trimIndent())
-                .shouldReport<UnresolvablePackageNameReporting>()
+                .shouldFind<UnresolvablePackageNameDiagnostic>()
         }
 
         "unknown symbol in known package" {
@@ -25,7 +25,7 @@ class ImportErrors : FreeSpec({
                     return "123"
                 }
             """.trimIndent())
-                .shouldReport<UnresolvableImportReporting>()
+                .shouldFind<UnresolvableImportDiagnostic>()
         }
     }
 })

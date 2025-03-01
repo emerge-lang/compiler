@@ -1,7 +1,7 @@
 package compiler.compiler.negative
 
-import compiler.reportings.ConditionNotBooleanReporting
-import compiler.reportings.MutationInConditionReporting
+import compiler.diagnostic.ConditionNotBooleanDiagnostic
+import compiler.diagnostic.MutationInConditionDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 
 class ConditionErrors : FreeSpec({
@@ -13,7 +13,7 @@ class ConditionErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<ConditionNotBooleanReporting>()
+            .shouldFind<ConditionNotBooleanDiagnostic>()
     }
 
     "if containing mutation" {
@@ -25,7 +25,7 @@ class ConditionErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<MutationInConditionReporting>()
+            .shouldFind<MutationInConditionDiagnostic>()
     }
 
     "while on non-bool" {
@@ -35,7 +35,7 @@ class ConditionErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<ConditionNotBooleanReporting>()
+            .shouldFind<ConditionNotBooleanDiagnostic>()
     }
 
     "while containing mutation" {
@@ -46,6 +46,6 @@ class ConditionErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<MutationInConditionReporting>()
+            .shouldFind<MutationInConditionDiagnostic>()
     }
 })

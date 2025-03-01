@@ -3,7 +3,7 @@ package compiler.binding.context
 import compiler.ast.ASTSourceFile
 import compiler.binding.SeanHelper
 import compiler.binding.SemanticallyAnalyzable
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
 import io.github.tmarsteel.emerge.backend.api.ir.IrModule
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
@@ -32,21 +32,21 @@ class ModuleContext(
         _sourceFiles.add(sourceFile)
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            _sourceFiles.flatMap { it.semanticAnalysisPhase1() }
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
+            _sourceFiles.forEach { it.semanticAnalysisPhase1(diagnosis) }
         }
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            _sourceFiles.flatMap { it.semanticAnalysisPhase2() }
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
+            _sourceFiles.forEach { it.semanticAnalysisPhase2(diagnosis) }
         }
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            _sourceFiles.flatMap { it.semanticAnalysisPhase3() }
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
+            _sourceFiles.forEach { it.semanticAnalysisPhase3(diagnosis) }
         }
     }
 

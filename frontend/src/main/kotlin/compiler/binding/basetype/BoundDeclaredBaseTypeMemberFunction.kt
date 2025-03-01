@@ -9,9 +9,20 @@ import compiler.binding.BoundParameterList
 import compiler.binding.SeanHelper
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.IncompatibleReturnTypeOnOverrideDiagnostic
+import compiler.diagnostic.externalMemberFunction
+import compiler.diagnostic.functionDoesNotOverride
+import compiler.diagnostic.illegalFunctionBody
+import compiler.diagnostic.missingFunctionBody
+import compiler.diagnostic.overrideAddsSideEffects
+import compiler.diagnostic.overrideDropsNothrow
+import compiler.diagnostic.overrideRestrictsVisibility
+import compiler.diagnostic.overridingParameterExtendsOwnership
+import compiler.diagnostic.staticFunctionDeclaredOverride
+import compiler.diagnostic.undeclaredOverride
 import compiler.lexer.Span
-import compiler.reportings.IncompatibleReturnTypeOnOverrideReporting
-import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -58,31 +69,29 @@ class BoundDeclaredBaseTypeMemberFunction(
         }
         private set
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            val reportings = mutableListOf<Reporting>()
-            reportings.addAll(super.semanticAnalysisPhase1())
-            determineOverride(reportings)
-            reportings
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
+            super.semanticAnalysisPhase1(diagnosis)
+            determineOverride(diagnosis)
         }
     }
 
-    private fun determineOverride(reportings: MutableCollection<Reporting>) {
+    private fun determineOverride(diagnosis: Diagnosis) {
         val isDeclaredOverride = attributes.firstOverrideAttribute != null
         if (isDeclaredOverride && !declaresReceiver) {
-            reportings.add(Reporting.staticFunctionDeclaredOverride(this))
+            diagnosis.staticFunctionDeclaredOverride(this)
             return
         }
 
-        val superFns = findOverriddenFunction()
+        val superFns = findOverriddenFunction(diagnosis)
         if (isDeclaredOverride) {
             if (superFns.isEmpty()) {
-                reportings.add(Reporting.functionDoesNotOverride(this))
+                diagnosis.functionDoesNotOverride(this)
             }
         } else {
             if (superFns.isNotEmpty()) {
                 val supertype = superFns.first().declaredOnType
-                reportings.add(Reporting.undeclaredOverride(this, supertype))
+                diagnosis.undeclaredOverride(this, supertype)
             }
         }
 
@@ -96,20 +105,20 @@ class BoundDeclaredBaseTypeMemberFunction(
                         overriddenReturnType.span ?: Span.UNKNOWN
                     )
                         ?.let { typeError ->
-                            reportings.add(IncompatibleReturnTypeOnOverrideReporting(declaration, superFn, typeError))
+                            diagnosis.add(IncompatibleReturnTypeOnOverrideDiagnostic(declaration, superFn, typeError))
                         }
                 }
             }
         }
     }
 
-    private fun findOverriddenFunction(): Set<InheritedBoundMemberFunction> {
+    private fun findOverriddenFunction(diagnosis: Diagnosis): Set<InheritedBoundMemberFunction> {
         val selfParameterTypes = parameterTypes
             .drop(1) // ignore receiver
             .asElementNotNullable()
             ?: return emptySet()
 
-        declaredOnType.superTypes.semanticAnalysisPhase1()
+        declaredOnType.superTypes.semanticAnalysisPhase1(diagnosis)
         return declaredOnType.superTypes.inheritedMemberFunctions
             .asSequence()
             .filter { it.canonicalName.simpleName == this.name }
@@ -126,54 +135,52 @@ class BoundDeclaredBaseTypeMemberFunction(
             .toCollection(Collections.newSetFromMap(IdentityHashMap()))
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            super.semanticAnalysisPhase2()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
+            super.semanticAnalysisPhase2(diagnosis)
         }
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            val reportings = super.semanticAnalysisPhase3().toMutableList()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
+            super.semanticAnalysisPhase3(diagnosis)
 
             if (attributes.externalAttribute != null) {
-                reportings.add(Reporting.externalMemberFunction(this))
+                diagnosis.externalMemberFunction(this)
             }
 
             if (body != null) {
                 if (attributes.impliesNoBody) {
-                    reportings.add(Reporting.illegalFunctionBody(declaration))
+                    diagnosis.illegalFunctionBody(declaration)
                 }
             } else {
                 if (!attributes.impliesNoBody && !declaredOnType.kind.memberFunctionsAbstractByDefault) {
-                    reportings.add(Reporting.missingFunctionBody(declaration))
+                    diagnosis.missingFunctionBody(declaration)
                 }
             }
 
             overrides?.forEach { superFn ->
                 if (!superFn.purity.contains(this.purity)) {
-                    reportings.add(Reporting.overrideAddsSideEffects(this, superFn))
+                    diagnosis.overrideAddsSideEffects(this, superFn)
                 }
                 if (superFn.attributes.isDeclaredNothrow && !this.attributes.isDeclaredNothrow) {
-                    reportings.add(Reporting.overrideDropsNothrow(this, superFn))
+                    diagnosis.overrideDropsNothrow(this, superFn)
                 }
                 if (superFn.visibility.isPossiblyBroaderThan(visibility) && declaredOnType.visibility.isPossiblyBroaderThan(visibility)) {
-                    reportings.add(Reporting.overrideRestrictsVisibility(this, superFn))
+                    diagnosis.overrideRestrictsVisibility(this, superFn)
                 }
 
                 superFn.parameters.parameters.zip(this.parameters.parameters)
                     .filterNot { (superFnParam, overrideFnParam) -> overrideFnParam.ownershipAtDeclarationTime.canOverride(superFnParam.ownershipAtDeclarationTime) }
                     .forEach { (superFnParam, overrideFnParam) ->
-                        reportings.add(Reporting.overridingParameterExtendsOwnership(overrideFnParam, superFnParam))
+                        diagnosis.overridingParameterExtendsOwnership(overrideFnParam, superFnParam)
                     }
             }
-
-            return@phase3 reportings
         }
     }
 
-    override fun validateAccessFrom(location: Span): Collection<Reporting> {
-        return visibility.validateAccessFrom(location, this)
+    override fun validateAccessFrom(location: Span, diagnosis: Diagnosis) {
+        return visibility.validateAccessFrom(location, this, diagnosis)
     }
 
     override fun toStringForErrorMessage() = "member function $name"

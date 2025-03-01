@@ -24,7 +24,7 @@ import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.TypeMutability
-import compiler.binding.BoundExecutable
+import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
@@ -42,10 +42,12 @@ import compiler.binding.type.UnresolvedType
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
-import compiler.reportings.ReturnTypeMismatchReporting
-import compiler.util.checkNoDiagnostics
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.ReturnTypeMismatchDiagnostic
+import compiler.diagnostic.consecutive
+import compiler.diagnostic.missingReturnValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -65,59 +67,56 @@ class BoundReturnExpression(
         else -> SideEffectPrediction.GUARANTEED
     }
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return expression?.semanticAnalysisPhase1() ?: emptySet()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        expression?.semanticAnalysisPhase1(diagnosis)
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         expression?.markEvaluationResultUsed()
-        return expression?.semanticAnalysisPhase2() ?: emptySet()
+        expression?.semanticAnalysisPhase2(diagnosis)
     }
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         expression?.setNothrow(boundary)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         val expectedReturnType = this.expectedReturnType
         expression?.markEvaluationResultCaptured(expectedReturnType?.mutability ?: TypeMutability.READONLY)
-        expression?.semanticAnalysisPhase3()?.let(reportings::addAll)
+        expression?.semanticAnalysisPhase3(diagnosis)
 
         if (expectedReturnType == null) {
-            return reportings + Reporting.consecutive(
+            diagnosis.consecutive(
                 "Cannot check return value type because the expected return type is not known",
                 declaration.span
             )
+            return
         }
 
         val expressionType = expression?.type
 
         if (expressionType != null) {
             expressionType.evaluateAssignabilityTo(expectedReturnType, declaration.span)
-                ?.let {
-                    reportings.add(ReturnTypeMismatchReporting(it))
-                }
+                ?.let(::ReturnTypeMismatchDiagnostic)
+                ?.let(diagnosis::add)
         }
 
         if (expectedReturnType is RootResolvedTypeReference && expectedReturnType.baseType != context.swCtx.unit && expression == null) {
-            reportings.add(Reporting.missingReturnValue(this, expectedReturnType))
+            diagnosis.missingReturnValue(this, expectedReturnType)
         }
-
-        return reportings
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
         expectedReturnType = type
-        expression?.setExpectedEvaluationResultType(type)
+        expression?.setExpectedEvaluationResultType(type, diagnosis)
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return this.expression?.findReadsBeyond(boundary) ?: emptySet()
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        expression?.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return this.expression?.findWritesBeyond(boundary) ?: emptySet()
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        expression?.visitWritesBeyond(boundary, visitor)
     }
 
     override fun toBackendIrStatement(): IrExecutable {
@@ -133,9 +132,9 @@ class BoundReturnExpression(
                 declaration.returnKeyword.span.deriveGenerated(),
             )
             val bound = ast.bindTo(context)
-            checkNoDiagnostics(bound.semanticAnalysisPhase1())
-            checkNoDiagnostics(bound.semanticAnalysisPhase2())
-            checkNoDiagnostics(bound.semanticAnalysisPhase3())
+            bound.semanticAnalysisPhase1(Diagnosis.failOnError())
+            bound.semanticAnalysisPhase2(Diagnosis.failOnError())
+            bound.semanticAnalysisPhase3(Diagnosis.failOnError())
             bound
         }
 

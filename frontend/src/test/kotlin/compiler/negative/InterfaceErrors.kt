@@ -4,9 +4,9 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.basetype.BoundClassDestructor
-import compiler.reportings.CyclicInheritanceReporting
-import compiler.reportings.EntryNotAllowedInBaseTypeReporting
-import compiler.reportings.MemberFunctionImplOnInterfaceReporting
+import compiler.diagnostic.CyclicInheritanceDiagnostic
+import compiler.diagnostic.EntryNotAllowedInBaseTypeDiagnostic
+import compiler.diagnostic.MemberFunctionImplOnInterfaceDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -20,7 +20,7 @@ class InterfaceErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<EntryNotAllowedInBaseTypeReporting> {
+            .shouldFind<EntryNotAllowedInBaseTypeDiagnostic> {
                 it.typeKind shouldBe BoundBaseType.Kind.INTERFACE
                 it.violatingEntry should beInstanceOf<BoundClassConstructor>()
             }
@@ -33,7 +33,7 @@ class InterfaceErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<EntryNotAllowedInBaseTypeReporting> {
+            .shouldFind<EntryNotAllowedInBaseTypeDiagnostic> {
                 it.typeKind shouldBe BoundBaseType.Kind.INTERFACE
                 it.violatingEntry should beInstanceOf<BoundClassDestructor>()
             }
@@ -45,7 +45,7 @@ class InterfaceErrors : FreeSpec({
                 x: S32 = 3
             }
         """.trimIndent())
-            .shouldReport<EntryNotAllowedInBaseTypeReporting> {
+            .shouldFind<EntryNotAllowedInBaseTypeDiagnostic> {
                 it.typeKind shouldBe BoundBaseType.Kind.INTERFACE
                 it.violatingEntry should beInstanceOf<BoundBaseTypeMemberVariable>()
             }
@@ -58,7 +58,7 @@ class InterfaceErrors : FreeSpec({
                     fn bar(self: _) -> S32 = 42
                 }
             """.trimIndent())
-                .shouldReport<MemberFunctionImplOnInterfaceReporting>()
+                .shouldFind<MemberFunctionImplOnInterfaceDiagnostic>()
         }
 
         "static function without self argument" {
@@ -76,7 +76,7 @@ class InterfaceErrors : FreeSpec({
             validateModule("""
                 interface A : A {}
             """.trimIndent())
-                .shouldReport<CyclicInheritanceReporting>()
+                .shouldFind<CyclicInheritanceDiagnostic>()
         }
 
         "cycle size 2" {
@@ -84,7 +84,7 @@ class InterfaceErrors : FreeSpec({
                 interface A : B {}
                 interface B : A {}
             """.trimIndent())
-                .shouldReport<CyclicInheritanceReporting>()
+                .shouldFind<CyclicInheritanceDiagnostic>()
         }
 
         "cycle size 4" {
@@ -94,7 +94,7 @@ class InterfaceErrors : FreeSpec({
                 interface C : B {}
                 interface D : C {}
             """.trimIndent())
-                .shouldReport<CyclicInheritanceReporting>()
+                .shouldFind<CyclicInheritanceDiagnostic>()
         }
     }
 })

@@ -101,8 +101,8 @@ class RepeatingRuleTest : FreeSpec({
                 MockEOIToken,
             ), grammar)
             result.shouldBeInstanceOf<MatchingResult.Error>()
-            result.reporting.expectedAlternatives shouldBe listOf("keyword export")
-            result.reporting.actual shouldBe KeywordToken(Keyword.IF)
+            result.diagnostic.expectedAlternatives shouldBe listOf("keyword export")
+            result.diagnostic.actual shouldBe KeywordToken(Keyword.IF)
         }
     }
 })

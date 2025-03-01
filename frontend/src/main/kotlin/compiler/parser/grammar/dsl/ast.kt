@@ -63,7 +63,7 @@ fun <B : Any, A : Any> Rule<B>.mapResult(mapper: (B) -> A): Rule<A> = map {
 
 /**
  * Flattens all response objects into a single [TransactionalSequence]. Collections and sub-results will be traversed.
- * Also, collects all the reportings into one flat structure
+ * Also, collects all the [Diagnostic]s into one flat structure
  */
 fun Rule<*>.flatten(): Rule<TransactionalSequence<Any, Position>> {
     return mapResult { base ->

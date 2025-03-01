@@ -5,14 +5,13 @@ import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecutio
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
-import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrConditionalBranchImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrLoopImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrBreakStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrLoop
 
@@ -30,54 +29,47 @@ class BoundWhileLoop(
         body.modifiedContext,
     )
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         condition.setNothrow(boundary)
         body.setNothrow(boundary)
     }
 
     private val seanHelper = SeanHelper()
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            val reportings = mutableListOf<Reporting>()
-            reportings.addAll(condition.semanticAnalysisPhase1())
-            reportings.addAll(body.semanticAnalysisPhase1())
-
-            return@phase1 reportings
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
+            condition.semanticAnalysisPhase1(diagnosis)
+            body.semanticAnalysisPhase1(diagnosis)
         }
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            val reportings = mutableListOf<Reporting>()
-            reportings.addAll(condition.semanticAnalysisPhase2())
-            reportings.addAll(body.semanticAnalysisPhase2())
-
-            return@phase2 reportings
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
+            condition.semanticAnalysisPhase2(diagnosis)
+            body.semanticAnalysisPhase2(diagnosis)
         }
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
-        condition.setExpectedReturnType(type)
-        body.setExpectedReturnType(type)
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        condition.setExpectedReturnType(type, diagnosis)
+        body.setExpectedReturnType(type, diagnosis)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            val reportings = mutableListOf<Reporting>()
-            reportings.addAll(condition.semanticAnalysisPhase3())
-            reportings.addAll(body.semanticAnalysisPhase3())
-
-            return@phase3 reportings
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
+            condition.semanticAnalysisPhase3(diagnosis)
+            body.semanticAnalysisPhase3(diagnosis)
         }
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return condition.findReadsBeyond(boundary) + body.findReadsBeyond(boundary)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        condition.visitReadsBeyond(boundary, visitor)
+        body.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return condition.findWritesBeyond(boundary) + body.findWritesBeyond(boundary)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        condition.visitWritesBeyond(boundary, visitor)
+        body.visitWritesBeyond(boundary, visitor)
     }
 
     private val backendIr by lazy {

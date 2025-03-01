@@ -10,12 +10,14 @@ import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.choice
 import compiler.InternalCompilerError
 import compiler.binding.context.SoftwareContext
+import compiler.diagnostic.CompilerGeneratedInvalidCodeDiagnostic
 import compiler.lexer.SourceSet
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
 import compiler.parser.grammar.rule.MatchingResult
-import compiler.reportings.ModuleWithoutSourcesReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.ModuleWithoutSourcesDiagnostic
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.EmergeBackend
 import io.github.tmarsteel.emerge.common.EmergeConstants
@@ -62,7 +64,7 @@ object CompileCommand : CliktCommand() {
             SourceSet.load(moduleRef.sourceDirectory, moduleRef.name)
                 .also {
                     if (it.isEmpty()) {
-                        echo(ModuleWithoutSourcesReporting(moduleRef.name, moduleRef.sourceDirectory))
+                        echo(ModuleWithoutSourcesDiagnostic(moduleRef.name, moduleRef.sourceDirectory))
                     }
                 }
                 .map { SourceFileRule.match(lex(it), it) }
@@ -70,7 +72,7 @@ object CompileCommand : CliktCommand() {
                     when (fileResult) {
                         is MatchingResult.Success -> moduleContext.addSourceFile(fileResult.item)
                         is MatchingResult.Error -> {
-                            echo(fileResult.reporting)
+                            echo(fileResult.diagnostic)
                             anyParseErrors = true
                         }
                     }
@@ -87,19 +89,22 @@ object CompileCommand : CliktCommand() {
             )
         }
 
-        val semanticResults = swCtx.doSemanticAnalysis()
-        val semanticCompleteAt = measureClock.instant()
+        val semanticCompleteAt: Instant
+        ProcessOnTheGoDiagnosis {
+            if (it.severity > Diagnostic.Severity.CONSECUTIVE) {
+                echo(it)
+            }
+        }.use { diagnosis ->
+            swCtx.doSemanticAnalysis(diagnosis)
+            semanticCompleteAt = measureClock.instant()
 
-        semanticResults
-            .filter { it.level > Reporting.Level.CONSECUTIVE }
-            .forEach(this::echo)
-
-        if (semanticResults.any { it.level >= Reporting.Level.ERROR}) {
-            throw PrintMessage(
-                "The provided program is not valid",
-                statusCode = 1,
-                printError = true,
-            )
+            if (diagnosis.nErrors > 0uL) {
+                throw PrintMessage(
+                    "The provided program is not valid",
+                    statusCode = 1,
+                    printError = true,
+                )
+            }
         }
 
         val irSwCtx = swCtx.toBackendIr()
@@ -119,8 +124,8 @@ object CompileCommand : CliktCommand() {
         echo("total time: ${elapsedBetween(startedAt, backendDoneAt)}")
     }
 
-    private fun echo(reporting: Reporting) {
-        echo(reporting.toString())
+    private fun echo(diagnostic: Diagnostic) {
+        echo(diagnostic.toString())
         echo()
         echo()
     }
@@ -133,8 +138,8 @@ fun main(args: Array<String>) {
     CompileCommand.main(args)
 }
 
-private val Iterable<Reporting>.containsErrors
-    get() = map(Reporting::level).any { it.level >= Reporting.Level.ERROR.level }
+private val Iterable<Diagnostic>.containsErrors
+    get() = map(Diagnostic::severity).any { it.level >= Diagnostic.Severity.ERROR.level }
 
 private fun elapsedBetween(start: Instant, end: Instant): String {
     val duration = Duration.between(start, end).toKotlinDuration()
@@ -143,4 +148,51 @@ private fun elapsedBetween(start: Instant, end: Instant): String {
     return duration.toString()
         .replace(Regex("(?<=\\.\\d{3})\\d+"), "")
         .replace(".000", "")
+}
+
+private class ProcessOnTheGoDiagnosis(private val process: (Diagnostic) -> Unit) : Diagnosis, AutoCloseable {
+    private val seen = HashSet<Diagnostic>()
+    private val errorsInGeneratedCode = HashSet<Diagnostic>()
+    override var nErrors: ULong = 0uL
+        private set
+
+    private var hasErrorInUserSuppliedCode = false
+    private var closed = false
+
+    override fun add(finding: Diagnostic) {
+        check(!closed)
+        if (finding.severity >= Diagnostic.Severity.ERROR) {
+            nErrors++
+            if (!finding.span.generated) {
+                hasErrorInUserSuppliedCode = true
+            }
+        }
+
+        if (finding.span.generated) {
+            if (finding.severity >= Diagnostic.Severity.ERROR) {
+                errorsInGeneratedCode.add(finding)
+            }
+        } else {
+            if (seen.add(finding)) {
+                process(finding)
+            }
+        }
+    }
+
+    override fun hasSameDrainAs(other: Diagnosis): Boolean {
+        return other === this || other.hasSameDrainAs(this)
+    }
+
+    override fun close() {
+        if (closed) {
+            return
+        }
+
+        closed = true
+
+        if (!hasErrorInUserSuppliedCode && nErrors > 0uL) {
+            process(CompilerGeneratedInvalidCodeDiagnostic())
+            errorsInGeneratedCode.forEach(process)
+        }
+    }
 }

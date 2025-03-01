@@ -8,8 +8,8 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
+import compiler.diagnostic.Diagnosis
 import compiler.lexer.NumericLiteralToken
-import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNumericComparisonExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -27,22 +27,22 @@ class BoundComparisonExpression(
         NumericLiteralToken(declaration.span.deriveGenerated(), "0")
     ).bindTo(context)
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return hiddenCompareInvocation.semanticAnalysisPhase1() +
-                boundZeroConstant.semanticAnalysisPhase1()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        hiddenCompareInvocation.semanticAnalysisPhase1(diagnosis)
+        boundZeroConstant.semanticAnalysisPhase1(diagnosis)
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        reportings.addAll(hiddenCompareInvocation.semanticAnalysisPhase2())
-        hiddenCompareInvocation.type?.also(boundZeroConstant::setExpectedEvaluationResultType)
-        reportings.addAll(boundZeroConstant.semanticAnalysisPhase2())
-        return reportings
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        hiddenCompareInvocation.semanticAnalysisPhase2(diagnosis)
+        hiddenCompareInvocation.type?.let { compareResultType ->
+            boundZeroConstant.setExpectedEvaluationResultType(compareResultType, diagnosis)
+        }
+        boundZeroConstant.semanticAnalysisPhase2(diagnosis)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return hiddenCompareInvocation.semanticAnalysisPhase3() +
-                boundZeroConstant.semanticAnalysisPhase3()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        hiddenCompareInvocation.semanticAnalysisPhase3(diagnosis)
+        boundZeroConstant.semanticAnalysisPhase3(diagnosis)
     }
 
     override fun toBackendIrExpression(): IrExpression {

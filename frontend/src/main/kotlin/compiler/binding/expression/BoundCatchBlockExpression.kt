@@ -4,17 +4,17 @@ import compiler.InternalCompilerError
 import compiler.ast.expression.AstCatchBlockExpression
 import compiler.ast.type.TypeMutability
 import compiler.binding.BoundCodeChunk
-import compiler.binding.BoundExecutable
 import compiler.binding.BoundVariable
 import compiler.binding.DropLocalVariableStatement
+import compiler.binding.ImpurityVisitor
 import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.type.BoundTypeReference
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
@@ -49,66 +49,59 @@ class BoundCatchBlockExpression(
 
     val seanHelper = SeanHelper()
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            val reportings = mutableSetOf<Reporting>()
-            reportings.addAll(throwableVariable.semanticAnalysisPhase1())
-            reportings.addAll(catchCode.semanticAnalysisPhase1())
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
+            throwableVariable.semanticAnalysisPhase1(diagnosis)
+            catchCode.semanticAnalysisPhase1(diagnosis)
 
             // this is done by the backend
             contextOfCatchCode.trackSideEffect(
                 VariableInitialization.WriteToVariableEffect(throwableVariable)
             )
-
-            return@phase1 reportings
         }
     }
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
-        catchCode.setExpectedEvaluationResultType(type)
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        catchCode.setExpectedEvaluationResultType(type, diagnosis)
     }
 
     override fun markEvaluationResultUsed() {
 
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            val reportings = mutableSetOf<Reporting>()
-            reportings.addAll(throwableVariable.semanticAnalysisPhase2())
-            reportings.addAll(catchCode.semanticAnalysisPhase2())
-            return@phase2 reportings
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
+            throwableVariable.semanticAnalysisPhase2(diagnosis)
+            catchCode.semanticAnalysisPhase2(diagnosis)
         }
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
-        catchCode.setExpectedReturnType(type)
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        catchCode.setExpectedReturnType(type, diagnosis)
     }
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         // note that not even a catch-all can turn throwing code into nothrow code!
         // objects of type emerge.core.Error cannot be caught
         catchCode.setNothrow(boundary)
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return catchCode.findReadsBeyond(boundary)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        catchCode.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return catchCode.findWritesBeyond(boundary)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        catchCode.visitWritesBeyond(boundary, visitor)
     }
 
     override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
         catchCode.markEvaluationResultCaptured(withMutability)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            val reportings = mutableSetOf<Reporting>()
-            reportings.addAll(throwableVariable.semanticAnalysisPhase3())
-            reportings.addAll(catchCode.semanticAnalysisPhase3())
-            return@phase3 reportings
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
+            throwableVariable.semanticAnalysisPhase3(diagnosis)
+            catchCode.semanticAnalysisPhase3(diagnosis)
         }
     }
 

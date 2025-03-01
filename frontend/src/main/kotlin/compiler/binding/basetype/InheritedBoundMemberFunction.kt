@@ -9,7 +9,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.IdentifierToken
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrFullyInheritedMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrInheritedMemberFunction
@@ -78,21 +78,18 @@ class InheritedBoundMemberFunction(
 
     override val parameterTypes get() = super.parameterTypes
 
-    // semantic analysis not needed here
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        parameters.semanticAnalysisPhase1()
-        parameters.parameters.flatMap { it.semanticAnalysisPhase1() }
-        return emptySet()
+    // semantic analysis is not really needed here; the super function will have its sean functions invoked, too
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        parameters.semanticAnalysisPhase1(diagnosis)
+        parameters.parameters.forEach { it.semanticAnalysisPhase1(diagnosis) }
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        parameters.parameters.flatMap { it.semanticAnalysisPhase2() }
-        return emptySet()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        parameters.parameters.forEach { it.semanticAnalysisPhase2(diagnosis) }
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        parameters.parameters.flatMap { it.semanticAnalysisPhase3() }
-        return emptySet()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        parameters.parameters.forEach { it.semanticAnalysisPhase3(diagnosis) }
     }
 
     private val backendIr by lazy {

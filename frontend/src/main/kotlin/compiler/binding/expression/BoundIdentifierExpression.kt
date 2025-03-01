@@ -23,6 +23,7 @@ import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundVariable
+import compiler.binding.ImpurityVisitor
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
@@ -35,8 +36,14 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.lexer.Span
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.borrowedVariableCaptured
+import compiler.diagnostic.notAllMemberVariablesInitialized
+import compiler.diagnostic.notAllMixinsInitialized
+import compiler.diagnostic.undefinedIdentifier
+import compiler.diagnostic.useOfUninitializedVariable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -63,9 +70,7 @@ class BoundIdentifierExpression(
     private val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(context)
     override val modifiedContext: ExecutionScopedCTContext = _modifiedContext
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
-
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         // attempt variable
         val variable = context.resolveVariable(identifier)
 
@@ -77,13 +82,13 @@ class BoundIdentifierExpression(
             ).takeUnless { it is UnresolvedType }
 
             if (type == null) {
-                reportings.add(Reporting.undefinedIdentifier(declaration.identifier))
+                diagnosis.undefinedIdentifier(declaration.identifier)
             } else {
                 referral = ReferringType(type)
             }
         }
 
-        return reportings + (referral?.semanticAnalysisPhase1() ?: emptySet())
+        referral?.semanticAnalysisPhase1(diagnosis)
     }
 
     override fun markEvaluationResultUsed() {
@@ -101,42 +106,39 @@ class BoundIdentifierExpression(
     override val isEvaluationResultAnchored get() = referral?.isEvaluationResultAnchored ?: false
     override val isCompileTimeConstant get() = referral?.isCompileTimeConstant ?: false
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-        referral?.semanticAnalysisPhase2()?.let(reportings::addAll)
-        return reportings
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        referral?.semanticAnalysisPhase2(diagnosis)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return referral?.semanticAnalysisPhase3() ?: emptySet()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        referral?.semanticAnalysisPhase3(diagnosis)
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return referral?.findReadsBeyond(boundary) ?: emptySet()
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        referral?.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        // this does not write by itself; writs are done by other statements
-        return emptySet()
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        // this does not write by itself; writes are done by other statements
     }
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         // nothing to do. identifiers must always be unambiguous so there is no use for this information
     }
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         // nothing to do
     }
 
     sealed interface Referral : SemanticallyAnalyzable {
         val span: Span
 
-        override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
-        override fun semanticAnalysisPhase2(): Collection<Reporting> = emptySet()
-        override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
+        override fun semanticAnalysisPhase1(diagnosis: Diagnosis) = Unit
+        override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
+        override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
 
         /** @see BoundExpression.findReadsBeyond */
-        fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>>
+        fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor)
 
         /** @see BoundExpression.markEvaluationResultUsed */
         fun markEvaluationResultUsed()
@@ -170,22 +172,19 @@ class BoundIdentifierExpression(
             thisUsageCapturesWithMutability = withMutability
         }
 
-        override fun semanticAnalysisPhase2(): Collection<Reporting> {
-            return variable.semanticAnalysisPhase2()
+        override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+            variable.semanticAnalysisPhase2(diagnosis)
         }
 
-        override fun semanticAnalysisPhase3(): Collection<Reporting> {
-            val reportings = mutableListOf<Reporting>()
+        override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
 
             val initializationState = variable.getInitializationStateInContext(context)
             if (usageContext.requiresInitialization) {
                 if (initializationState != VariableInitialization.State.INITIALIZED) {
-                    reportings.add(
-                        Reporting.useOfUninitializedVariable(
-                            variable,
-                            this@BoundIdentifierExpression,
-                            initializationState == VariableInitialization.State.MAYBE_INITIALIZED,
-                        )
+                    diagnosis.useOfUninitializedVariable(
+                        variable,
+                        this@BoundIdentifierExpression,
+                        initializationState == VariableInitialization.State.MAYBE_INITIALIZED,
                     )
                 }
 
@@ -198,13 +197,13 @@ class BoundIdentifierExpression(
                             partialState.getUninitializedMembers(baseType)
                                 .takeUnless { it.isEmpty() }
                                 ?.let {
-                                    reportings.add(Reporting.notAllMemberVariablesInitialized(it, declaration.span))
+                                    diagnosis.notAllMemberVariablesInitialized(it, declaration.span)
                                 }
 
                             partialState.getUninitializedMixins(baseType)
                                 .takeUnless { it.isEmpty() }
                                 ?.let {
-                                    reportings.add(Reporting.notAllMixinsInitialized(it, declaration.span))
+                                    diagnosis.notAllMixinsInitialized(it, declaration.span)
                                 }
                         }
                 }
@@ -212,7 +211,7 @@ class BoundIdentifierExpression(
 
             thisUsageCapturesWithMutability?.let { capturedWithMutability ->
                 if (variable.ownershipAtDeclarationTime == VariableOwnership.BORROWED) {
-                    reportings.add(Reporting.borrowedVariableCaptured(variable, this@BoundIdentifierExpression))
+                    diagnosis.borrowedVariableCaptured(variable, this@BoundIdentifierExpression)
                 } else {
                     _modifiedContext.trackSideEffect(
                         VariableLifetime.Effect.ValueCaptured(
@@ -226,30 +225,30 @@ class BoundIdentifierExpression(
 
             if (usageContext.requiresVariableLifetimeActive) {
                 val lifeStateBeforeUsage = context.getEphemeralState(VariableLifetime, variable)
-                reportings.addAll(lifeStateBeforeUsage.validateCapture(this@BoundIdentifierExpression))
+                lifeStateBeforeUsage.validateCapture(this@BoundIdentifierExpression, diagnosis)
 
                 if (thisUsageCapturesWithMutability != null) {
                     val repetitionRelativeToVariable = context.getRepetitionBehaviorRelativeTo(variable.modifiedContext)
                     if (repetitionRelativeToVariable.mayRepeat) {
                         val stateAfterUsage = _modifiedContext.getEphemeralState(VariableLifetime, variable)
-                        reportings.addAll(stateAfterUsage.validateRepeatedCapture(lifeStateBeforeUsage, this@BoundIdentifierExpression))
+                        stateAfterUsage.validateRepeatedCapture(lifeStateBeforeUsage, this@BoundIdentifierExpression, diagnosis)
                     }
                 }
             }
 
             if (variable.kind.allowsVisibility) {
-                reportings.addAll(variable.visibility.validateAccessFrom(declaration.span, variable))
+                variable.visibility.validateAccessFrom(declaration.span, variable, diagnosis)
             }
-
-            return reportings
         }
 
-        override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-            return when {
-                context.containsWithinBoundary(variable, boundary) -> emptySet()
-                isCompileTimeConstant -> emptySet()
-                else -> setOf(this@BoundIdentifierExpression)
+        override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+            if (context.containsWithinBoundary(variable, boundary)) {
+                return
             }
+            if (isCompileTimeConstant) {
+                return
+            }
+            visitor.visitReadBeyondBoundary(boundary, this@BoundIdentifierExpression)
         }
 
         override val isCompileTimeConstant: Boolean
@@ -264,9 +263,8 @@ class BoundIdentifierExpression(
         override fun markEvaluationResultUsed() {}
         override fun markEvaluationResultCaptured(withMutability: TypeMutability) {}
 
-        override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
+        override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
             // reading type information outside the boundary is pure because type information is compile-time constant
-            return emptySet()
         }
 
         override val isCompileTimeConstant = true

@@ -3,15 +3,15 @@ package compiler.binding.expression
 import compiler.ast.expression.AstTryCatchExpression
 import compiler.ast.type.TypeMutability
 import compiler.binding.BoundCodeChunk
-import compiler.binding.BoundExecutable
+import compiler.binding.ImpurityVisitor
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.combineBranch
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTryCatchExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -49,19 +49,16 @@ class BoundTryCatchExpression(
 
     private val seanHelper = SeanHelper()
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        return seanHelper.phase1 {
-            val reportings = mutableSetOf<Reporting>()
-            reportings.addAll(fallibleCode.semanticAnalysisPhase1())
-            reportings.addAll(catchBlock.semanticAnalysisPhase1())
-
-            return@phase1 reportings
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        return seanHelper.phase1(diagnosis) {
+            fallibleCode.semanticAnalysisPhase1(diagnosis)
+            catchBlock.semanticAnalysisPhase1(diagnosis)
         }
     }
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
-        fallibleCode.setExpectedEvaluationResultType(type)
-        catchBlock.setExpectedEvaluationResultType(type)
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        fallibleCode.setExpectedEvaluationResultType(type, diagnosis)
+        catchBlock.setExpectedEvaluationResultType(type, diagnosis)
     }
 
     override fun markEvaluationResultUsed() {
@@ -69,33 +66,32 @@ class BoundTryCatchExpression(
         catchBlock.markEvaluationResultUsed()
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return seanHelper.phase2 {
-            val reportings = mutableSetOf<Reporting>()
-            reportings.addAll(fallibleCode.semanticAnalysisPhase2())
-            reportings.addAll(catchBlock.semanticAnalysisPhase2())
-
-            return@phase2 reportings
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        return seanHelper.phase2(diagnosis) {
+            fallibleCode.semanticAnalysisPhase2(diagnosis)
+            catchBlock.semanticAnalysisPhase2(diagnosis)
         }
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
-        fallibleCode.setExpectedReturnType(type)
-        catchBlock.setExpectedReturnType(type)
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        fallibleCode.setExpectedReturnType(type, diagnosis)
+        catchBlock.setExpectedReturnType(type, diagnosis)
     }
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         // note that even a catch-all cannot make code nothrow! Errors fall through
         fallibleCode.setNothrow(boundary)
         catchBlock.setNothrow(boundary)
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return fallibleCode.findReadsBeyond(boundary) + catchBlock.findReadsBeyond(boundary)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        fallibleCode.visitReadsBeyond(boundary, visitor)
+        catchBlock.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return fallibleCode.findWritesBeyond(boundary) + catchBlock.findWritesBeyond(boundary)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        fallibleCode.visitWritesBeyond(boundary, visitor)
+        catchBlock.visitWritesBeyond(boundary, visitor)
     }
 
     override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
@@ -103,13 +99,10 @@ class BoundTryCatchExpression(
         catchBlock.markEvaluationResultCaptured(withMutability)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return seanHelper.phase3 {
-            val reportings = mutableSetOf<Reporting>()
-            reportings.addAll(fallibleCode.semanticAnalysisPhase3())
-            reportings.addAll(catchBlock.semanticAnalysisPhase3())
-
-            return@phase3 reportings
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        return seanHelper.phase3(diagnosis) {
+            fallibleCode.semanticAnalysisPhase3(diagnosis)
+            catchBlock.semanticAnalysisPhase3(diagnosis)
         }
     }
 

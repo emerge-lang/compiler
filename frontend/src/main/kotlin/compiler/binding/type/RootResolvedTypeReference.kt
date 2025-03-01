@@ -8,7 +8,10 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.lexer.Span
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.diagnostic.hiddenTypeExposed
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
@@ -81,19 +84,15 @@ class RootResolvedTypeReference private constructor(
         )
     }
 
-    override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
-
-        arguments?.forEach { reportings.addAll(it.validate(forUsage.deriveIrrelevant())) }
-        reportings.addAll(inherentTypeBindings.reportings)
-        reportings.addAll(baseType.validateAccessFrom(forUsage.usageLocation))
+    override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
+        arguments?.forEach { it.validate(forUsage.deriveIrrelevant(), diagnosis) }
+        inherentTypeBindings.diagnostics.forEach(diagnosis::add)
+        baseType.validateAccessFrom(forUsage.usageLocation, diagnosis)
         forUsage.exposedBy?.let { exposer ->
             if (exposer.visibility.isPossiblyBroaderThan(baseType.visibility)) {
-                reportings.add(Reporting.hiddenTypeExposed(baseType, exposer, span ?: Span.UNKNOWN))
+                diagnosis.hiddenTypeExposed(baseType, exposer, span ?: Span.UNKNOWN)
             }
         }
-
-        return reportings
     }
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
@@ -157,14 +156,14 @@ class RootResolvedTypeReference private constructor(
                 // this must be a subtype of other
                 if (!(assigneeType.baseType isSubtypeOf this.baseType)) {
                     return carry.plusReporting(
-                        Reporting.valueNotAssignable(this, assigneeType, "${assigneeType.baseType.simpleName} is not a subtype of ${this.baseType.simpleName}", assignmentLocation)
+                        ValueNotAssignableDiagnostic(this, assigneeType, "${assigneeType.baseType.simpleName} is not a subtype of ${this.baseType.simpleName}", assignmentLocation)
                     )
                 }
 
                 // the modifiers must be compatible
                 if (!(assigneeType.mutability isAssignableTo this.mutability)) {
                     return carry.plusReporting(
-                        Reporting.valueNotAssignable(this, assigneeType, "cannot assign a ${assigneeType.mutability} value to a ${this.mutability} reference", assignmentLocation)
+                        ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a ${assigneeType.mutability} value to a ${this.mutability} reference", assignmentLocation)
                     )
                 }
 
@@ -195,7 +194,7 @@ class RootResolvedTypeReference private constructor(
             }
             is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
             is NullableTypeReference -> return carry.plusReporting(
-                Reporting.valueNotAssignable(this, assigneeType, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
+                ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
             )
         }
     }

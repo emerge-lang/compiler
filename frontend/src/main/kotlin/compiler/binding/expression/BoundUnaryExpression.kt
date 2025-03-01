@@ -23,45 +23,42 @@ import compiler.ast.expression.UnaryExpression
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
-import compiler.reportings.FunctionMissingModifierReporting.Companion.requireOperatorModifier
-import compiler.reportings.Reporting
-import compiler.reportings.UnresolvableFunctionOverloadReporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.FunctionMissingModifierDiagnostic.Companion.requireOperatorModifier
+import compiler.diagnostic.OperatorNotDeclaredDiagnostic
+import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
 
 class BoundUnaryExpression(
     override val context: ExecutionScopedCTContext,
     override val declaration: UnaryExpression,
     private val hiddenInvocation: BoundInvocationExpression,
 ) : BoundExpression<Expression> by hiddenInvocation {
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         if (type is RootResolvedTypeReference && type.baseType.isCoreScalar) {
-            hiddenInvocation.receiverExpression!!.setExpectedEvaluationResultType(type)
+            hiddenInvocation.receiverExpression!!.setExpectedEvaluationResultType(type, diagnosis)
         }
 
-        hiddenInvocation.setExpectedEvaluationResultType(type)
+        hiddenInvocation.setExpectedEvaluationResultType(type, diagnosis)
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
-        hiddenInvocation.semanticAnalysisPhase2()
-            .map { hiddenReporting ->
-                if (hiddenReporting !is UnresolvableFunctionOverloadReporting) {
-                    return@map hiddenReporting
-                }
-
-                Reporting.operatorNotDeclared(
-                    "Unary operator ${declaration.operator.name} (function ${hiddenInvocation.functionNameToken.value}) not declared for type ${hiddenReporting.receiverType ?: "<unknown>"}",
-                    declaration,
-                )
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        hiddenInvocation.semanticAnalysisPhase2(diagnosis.mapping { hiddenReporting ->
+            if (hiddenReporting !is UnresolvableFunctionOverloadDiagnostic || hiddenReporting.functionNameReference != hiddenInvocation.functionNameToken) {
+                return@mapping hiddenReporting
             }
-            .let(reportings::addAll)
+
+            OperatorNotDeclaredDiagnostic(
+                "Unary operator ${declaration.operator.name} (function ${hiddenInvocation.functionNameToken.value}) not declared for type ${hiddenReporting.receiverType ?: "<unknown>"}",
+                declaration,
+            )
+        })
 
         requireOperatorModifier(
             hiddenInvocation,
             this,
-            reportings,
+            diagnosis,
         )
-
-        return reportings
     }
 }
 

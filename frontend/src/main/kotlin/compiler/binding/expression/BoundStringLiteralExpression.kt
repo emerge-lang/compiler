@@ -2,11 +2,13 @@ package compiler.binding.expression
 
 import compiler.ast.expression.StringLiteralExpression
 import compiler.ast.type.TypeMutability
+import compiler.binding.ImpurityVisitor
 import compiler.binding.SideEffectPrediction
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStringLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -19,17 +21,19 @@ class BoundStringLiteralExpression(
     override val returnBehavior = SideEffectPrediction.NEVER
     override var type: BoundTypeReference? = null
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> = emptySet()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) = Unit
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         type = context.swCtx.string.baseReference.withMutability(TypeMutability.IMMUTABLE)
-        return emptySet()
     }
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {}
-    override fun semanticAnalysisPhase3(): Collection<Reporting> = emptySet()
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {}
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
+
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         // nothing to do
     }
 

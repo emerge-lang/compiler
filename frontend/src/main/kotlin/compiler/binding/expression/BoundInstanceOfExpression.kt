@@ -3,8 +3,10 @@ package compiler.binding.expression
 import compiler.InternalCompilerError
 import compiler.ast.expression.AstInstanceOfExpression
 import compiler.ast.type.TypeMutability
+import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.basetype.BoundBaseType
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.SoftwareContext
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -14,8 +16,10 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.typeCheckOnVolatileTypeParameter
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -32,7 +36,7 @@ class BoundInstanceOfExpression(
     override val throwBehavior get() = expressionToCheck.throwBehavior
     override val returnBehavior get() = expressionToCheck.returnBehavior
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         expressionToCheck.setNothrow(boundary)
     }
 
@@ -45,29 +49,33 @@ class BoundInstanceOfExpression(
     var typeToCheck: BoundBaseType? = null
         private set
 
-    override fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-
-        reportings.addAll(expressionToCheck.semanticAnalysisPhase1())
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        expressionToCheck.semanticAnalysisPhase1(diagnosis)
 
         val fullTypeToCheck = context.resolveType(declaration.typeToCheck)
-        reportings.addAll(fullTypeToCheck.validate(TypeUseSite.Irrelevant(declaration.operator.span, null)))
-        typeToCheck = validateTypeCheck(this, fullTypeToCheck, reportings)
+        fullTypeToCheck.validate(TypeUseSite.Irrelevant(declaration.operator.span, null), diagnosis)
+        typeToCheck = validateTypeCheck(this, fullTypeToCheck, diagnosis)
         type = context.swCtx.bool.baseReference
-
-        return reportings
     }
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         // nothing to do, always evaluates to bool
     }
 
-    override fun semanticAnalysisPhase2(): Collection<Reporting> {
-        return expressionToCheck.semanticAnalysisPhase2()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        expressionToCheck.semanticAnalysisPhase2(diagnosis)
     }
 
-    override fun semanticAnalysisPhase3(): Collection<Reporting> {
-        return expressionToCheck.semanticAnalysisPhase3()
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        expressionToCheck.semanticAnalysisPhase3(diagnosis)
+    }
+
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        expressionToCheck.visitReadsBeyond(boundary, visitor)
+    }
+
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        expressionToCheck.visitWritesBeyond(boundary, visitor)
     }
 
     override val isEvaluationResultReferenceCounted = true
@@ -82,14 +90,14 @@ class BoundInstanceOfExpression(
     }
 }
 
-internal fun validateTypeCheck(node: BoundExpression<*>, fullTypeToCheck: BoundTypeReference, reportings: MutableCollection<Reporting>): BoundBaseType? {
+internal fun validateTypeCheck(node: BoundExpression<*>, fullTypeToCheck: BoundTypeReference, diagnosis: Diagnosis): BoundBaseType? {
     if (fullTypeToCheck is RootResolvedTypeReference) {
         return fullTypeToCheck.baseType
         // TODO: warn about unchecked type arguments!!
     }
 
     if (fullTypeToCheck !is UnresolvedType) {
-        reportings.add(Reporting.typeCheckOnVolatileTypeParameter(node, fullTypeToCheck))
+        diagnosis.typeCheckOnVolatileTypeParameter(node, fullTypeToCheck)
     }
 
     return null

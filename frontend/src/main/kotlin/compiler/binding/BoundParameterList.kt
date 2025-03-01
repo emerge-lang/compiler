@@ -22,7 +22,9 @@ import compiler.ast.ParameterList
 import compiler.ast.VariableOwnership
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.parameterDeclaredMoreThanOnce
 
 class BoundParameterList(
     val context: ExecutionScopedCTContext,
@@ -38,22 +40,18 @@ class BoundParameterList(
         parameters.forEach(it::addVariable)
     }
 
-    fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableSetOf<Reporting>()
-
+    fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         parameters.forEachIndexed { index, parameter ->
             // double names
             if (index > 0) {
                 val previousWithSameName = parameters.subList(0, index).find { it !== parameter && it.name == parameter.name }
                 if (previousWithSameName != null) {
-                    reportings.add(Reporting.parameterDeclaredMoreThanOnce(previousWithSameName.declaration, parameter.declaration))
+                    diagnosis.parameterDeclaredMoreThanOnce(previousWithSameName.declaration, parameter.declaration)
                 }
             }
 
-            reportings.addAll(parameter.semanticAnalysisPhase1())
+            parameter.semanticAnalysisPhase1(diagnosis)
         }
-
-        return reportings
     }
 
     companion object {

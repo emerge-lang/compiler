@@ -24,7 +24,8 @@ import compiler.binding.expression.BoundFloatingPointLiteral
 import compiler.binding.expression.BoundIntegerLiteral
 import compiler.binding.expression.BoundNumericLiteral
 import compiler.lexer.NumericLiteralToken
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.ErroneousLiteralExpressionDiagnostic
 import java.math.BigDecimal
 import java.math.BigInteger
 
@@ -40,7 +41,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
     private var floatingValue: BigDecimal? = null
 
     /** Cached validation result; numeric literals are the same in every context */
-    private var validationResult: Collection<Reporting>? = null
+    private var validationResult: Collection<Diagnostic>? = null
 
     override val span = literalToken.span
 
@@ -69,7 +70,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
         return BoundNumericLiteral(
             context,
             this,
-            validationResult ?: setOf(Reporting.erroneousLiteralExpression("Could not determine type of numeric literal", this.span))
+            validationResult ?: setOf(ErroneousLiteralExpressionDiagnostic("Could not determine type of numeric literal", this.span))
         )
     }
 
@@ -104,7 +105,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
         var allowedChars = ('0' .. '9') + arrayOf('.', 'e', 'E', '-')
         val unallowed = str.minus(allowedChars)
         if (unallowed.isNotEmpty()) {
-            validationResult = setOf(Reporting.erroneousLiteralExpression(
+            validationResult = setOf(ErroneousLiteralExpressionDiagnostic(
                 "Floating point literal contains forbidden characters: ${unallowed.unique()}",
                 literalToken.span
             ))
@@ -139,7 +140,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
 
         if (!preComma.map(Char::isDigit).reduce(Boolean::and)) {
             // preComma is not OK
-            validationResult = setOf(Reporting.erroneousLiteralExpression(
+            validationResult = setOf(ErroneousLiteralExpressionDiagnostic(
                 "Floating point literal contains non-decimal characters before the floating point: ${preComma.minus(allowedChars).unique()}",
                 literalToken.span
             ))
@@ -148,7 +149,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
 
         if (postComma != null && !postComma.map(Char::isDigit).reduce(Boolean::and)) {
             // postComma is not OK
-            validationResult = setOf(Reporting.erroneousLiteralExpression(
+            validationResult = setOf(ErroneousLiteralExpressionDiagnostic(
                 "Floating point literal contains non-decimal characters after the floating point: ${postComma.minus(allowedChars).unique()}",
                 literalToken.span
             ))
@@ -156,7 +157,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
         }
 
         if (exp != null && exp.isBlank()) {
-            validationResult =  setOf(Reporting.erroneousLiteralExpression(
+            validationResult =  setOf(ErroneousLiteralExpressionDiagnostic(
                 "Empty exponent in floating point literal",
                 literalToken.span
             ))
@@ -165,7 +166,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
 
         if (exp != null && exp.map(Char::isDigit).reduce(Boolean::and)) {
             // exponent is not OK
-            validationResult = setOf(Reporting.erroneousLiteralExpression(
+            validationResult = setOf(ErroneousLiteralExpressionDiagnostic(
                 "Floating point literal contains non-decimal characters in the exponent: ${exp.minus(allowedChars).unique()}",
                 literalToken.span
             ))
@@ -202,7 +203,7 @@ class NumericLiteralExpression(val literalToken: NumericLiteralToken) : Expressi
 
         val unallowed = str.minus(allowedChars + listOf('-'))
         if (unallowed.isNotEmpty()) {
-            validationResult = setOf(Reporting.erroneousLiteralExpression(
+            validationResult = setOf(ErroneousLiteralExpressionDiagnostic(
                 "Integer literal contains unallowed characters: ${unallowed.unique()}",
                 literalToken.span
             ))

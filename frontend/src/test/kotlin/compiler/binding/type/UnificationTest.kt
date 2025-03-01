@@ -2,9 +2,9 @@ package compiler.compiler.binding.type
 
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.compiler.negative.shouldHaveNoDiagnostics
-import compiler.compiler.negative.shouldReport
+import compiler.compiler.negative.shouldFind
 import compiler.compiler.negative.validateModule
-import compiler.reportings.ValueNotAssignableReporting
+import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -25,7 +25,7 @@ class UnificationTest : FreeSpec({
                 x = A::<S32>(false)
             """.trimIndent()
             )
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.sourceType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType shouldBe bool
                     it.targetType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType shouldBe s32
                 }
@@ -40,7 +40,7 @@ class UnificationTest : FreeSpec({
                 x: A<S32> = A(false)
             """.trimIndent()
             )
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.sourceType.toString() shouldBe "const Any"
                     it.targetType.toString() shouldBe "const S32"
                 }
@@ -86,7 +86,7 @@ class UnificationTest : FreeSpec({
                     otherA: A = someB
                 }
             """.trimIndent())
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.sourceType.simpleName shouldBe "B"
                     it.targetType.simpleName shouldBe "A"
                 }
@@ -99,7 +99,7 @@ class UnificationTest : FreeSpec({
                     otherA: A = someB
                 }
             """.trimIndent())
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.sourceType.simpleName shouldBe "B"
                     it.targetType.simpleName shouldBe "A"
                 }

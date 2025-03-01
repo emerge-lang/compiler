@@ -5,11 +5,11 @@ import compiler.binding.BoundVariable
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
-import compiler.reportings.ElementNotAccessibleReporting
-import compiler.reportings.HiddenTypeExposedReporting
-import compiler.reportings.MissingModuleDependencyReporting
-import compiler.reportings.OverrideRestrictsVisibilityReporting
-import compiler.reportings.ShadowedVisibilityReporting
+import compiler.diagnostic.ElementNotAccessibleDiagnostic
+import compiler.diagnostic.HiddenTypeExposedDiagnostic
+import compiler.diagnostic.MissingModuleDependencyDiagnostic
+import compiler.diagnostic.OverrideRestrictsVisibilityDiagnostic
+import compiler.diagnostic.ShadowedVisibilityDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -33,7 +33,7 @@ class VisibilityTests : FreeSpec({
                     fn dummy() {}
                 """.trimIndent())
             )
-                .shouldReport<ElementNotAccessibleReporting> {
+                .shouldFind<ElementNotAccessibleDiagnostic> {
                     it.element should beInstanceOf<BoundVariable>()
                 }
         }
@@ -53,7 +53,7 @@ class VisibilityTests : FreeSpec({
                     fn dummy() = x
                 """.trimIndent())
             )
-                .shouldReport<ElementNotAccessibleReporting> {
+                .shouldFind<ElementNotAccessibleDiagnostic> {
                     it.element should beInstanceOf<BoundVariable>()
                 }
         }
@@ -78,7 +78,7 @@ class VisibilityTests : FreeSpec({
                     }
                 """.trimIndent()),
             )
-                .shouldReport<ElementNotAccessibleReporting> {
+                .shouldFind<ElementNotAccessibleDiagnostic> {
                     it.element should beInstanceOf<BoundBaseTypeMemberVariable>()
                 }
         }
@@ -101,7 +101,7 @@ class VisibilityTests : FreeSpec({
                     }
                 """.trimIndent()),
             )
-                .shouldReport<ElementNotAccessibleReporting> {
+                .shouldFind<ElementNotAccessibleDiagnostic> {
                     it.element should beInstanceOf<BoundBaseTypeMemberVariable>()
                 }
         }
@@ -112,7 +112,7 @@ class VisibilityTests : FreeSpec({
                     export bla: S32 = init
                 }
             """.trimIndent())
-                .shouldReport<ShadowedVisibilityReporting> {
+                .shouldFind<ShadowedVisibilityDiagnostic> {
                     it.element.shouldBeInstanceOf<BoundBaseTypeMemberVariable>().name shouldBe "bla"
                 }
         }
@@ -123,7 +123,7 @@ class VisibilityTests : FreeSpec({
                     export bla: S32 = init
                 }
             """.trimIndent())
-                .shouldReport<ShadowedVisibilityReporting> {
+                .shouldFind<ShadowedVisibilityDiagnostic> {
                     it.element.shouldBeInstanceOf<BoundBaseTypeMemberVariable>().name shouldBe "bla"
                 }
         }
@@ -134,7 +134,7 @@ class VisibilityTests : FreeSpec({
                     module bla: S32 = init
                 }
             """.trimIndent())
-                .shouldReport<ShadowedVisibilityReporting> {
+                .shouldFind<ShadowedVisibilityDiagnostic> {
                     it.element.shouldBeInstanceOf<BoundBaseTypeMemberVariable>().name shouldBe "bla"
                 }
         }
@@ -160,7 +160,7 @@ class VisibilityTests : FreeSpec({
                     }
                 """.trimIndent()),
             )
-                .shouldReport<ElementNotAccessibleReporting> {
+                .shouldFind<ElementNotAccessibleDiagnostic> {
                     it.element.shouldBeInstanceOf<BoundDeclaredFunction>().canonicalName.toString() shouldBe "module_A.Foo::foo"
                 }
         }
@@ -184,7 +184,7 @@ class VisibilityTests : FreeSpec({
                     }
                 """.trimIndent()),
             )
-                .shouldReport<ElementNotAccessibleReporting> {
+                .shouldFind<ElementNotAccessibleDiagnostic> {
                     it.element.shouldBeInstanceOf<BoundClassConstructor>()
                 }
         }
@@ -204,7 +204,7 @@ class VisibilityTests : FreeSpec({
                     fn dummy() {}
                 """.trimIndent()),
             )
-                .shouldReport<ElementNotAccessibleReporting> {
+                .shouldFind<ElementNotAccessibleDiagnostic> {
                     it.element.shouldBeInstanceOf<BoundDeclaredFunction>()
                 }
         }
@@ -224,7 +224,7 @@ class VisibilityTests : FreeSpec({
                     }
                 """.trimIndent()),
             )
-                .shouldReport<ElementNotAccessibleReporting> {
+                .shouldFind<ElementNotAccessibleDiagnostic> {
                     it.element.shouldBeInstanceOf<BoundDeclaredFunction>()
                 }
         }
@@ -244,7 +244,7 @@ class VisibilityTests : FreeSpec({
                     fn dummy() {}
                 """.trimIndent()),
             )
-                .shouldReport<ElementNotAccessibleReporting> {
+                .shouldFind<ElementNotAccessibleDiagnostic> {
                     it.element should beInstanceOf<BoundBaseType>()
                 }
         }
@@ -263,7 +263,7 @@ class VisibilityTests : FreeSpec({
                         fn test() -> Foo {}
                     """.trimIndent()),
                 )
-                    .shouldReport<ElementNotAccessibleReporting> {
+                    .shouldFind<ElementNotAccessibleDiagnostic> {
                         it.element should beInstanceOf<BoundBaseType>()
                     }
             }
@@ -281,7 +281,7 @@ class VisibilityTests : FreeSpec({
                         fn test<T : Foo>() {}
                     """.trimIndent()),
                 )
-                    .shouldReport<ElementNotAccessibleReporting> {
+                    .shouldFind<ElementNotAccessibleDiagnostic> {
                         it.element should beInstanceOf<BoundBaseType>()
                     }
             }
@@ -300,7 +300,7 @@ class VisibilityTests : FreeSpec({
                         intrinsic fn test() -> Bar<Foo>
                     """.trimIndent()),
                 )
-                    .shouldReport<ElementNotAccessibleReporting> {
+                    .shouldFind<ElementNotAccessibleDiagnostic> {
                         it.element should beInstanceOf<BoundBaseType>()
                     }
             }
@@ -325,7 +325,7 @@ class VisibilityTests : FreeSpec({
                     export fn foo() {}
                 """.trimIndent())
             )
-                .shouldReport<MissingModuleDependencyReporting> {
+                .shouldFind<MissingModuleDependencyDiagnostic> {
                     it.moduleOfAccess.toString() shouldBe "module_A"
                     it.moduleOfAccessedElement.toString() shouldBe "module_B"
                 }
@@ -338,7 +338,7 @@ class VisibilityTests : FreeSpec({
                 private class Foo {}
                 module fn test(p: Foo) {}
             """.trimIndent())
-                .shouldReport<HiddenTypeExposedReporting> {
+                .shouldFind<HiddenTypeExposedDiagnostic> {
                     it.type.simpleName shouldBe "Foo"
                 }
         }
@@ -349,7 +349,7 @@ class VisibilityTests : FreeSpec({
                 private class B {}
                 export fn test(p: A<B>) {}
             """.trimIndent())
-                .shouldReport<HiddenTypeExposedReporting> {
+                .shouldFind<HiddenTypeExposedDiagnostic> {
                     it.type.simpleName shouldBe "B"
                 }
         }
@@ -359,7 +359,7 @@ class VisibilityTests : FreeSpec({
                 private class Foo {}
                 module fn test() -> Foo {}
             """.trimIndent())
-                .shouldReport<HiddenTypeExposedReporting> {
+                .shouldFind<HiddenTypeExposedDiagnostic> {
                     it.type.simpleName shouldBe "Foo"
                 }
         }
@@ -370,7 +370,7 @@ class VisibilityTests : FreeSpec({
                 private class B {}
                 intrinsic export fn test() -> A<B>
             """.trimIndent())
-                .shouldReport<HiddenTypeExposedReporting> {
+                .shouldFind<HiddenTypeExposedDiagnostic> {
                     it.type.simpleName shouldBe "B"
                 }
         }
@@ -380,7 +380,7 @@ class VisibilityTests : FreeSpec({
                 private class Foo {}
                 module fn test<T : Foo>() {}
             """.trimIndent())
-                .shouldReport<HiddenTypeExposedReporting> {
+                .shouldFind<HiddenTypeExposedDiagnostic> {
                     it.type.simpleName shouldBe "Foo"
                 }
         }
@@ -390,7 +390,7 @@ class VisibilityTests : FreeSpec({
                 private class Foo {}
                 module class Bar<T : Foo> {}
             """.trimIndent())
-                .shouldReport<HiddenTypeExposedReporting> {
+                .shouldFind<HiddenTypeExposedDiagnostic> {
                     it.type.simpleName shouldBe "Foo"
                 }
         }
@@ -402,7 +402,7 @@ class VisibilityTests : FreeSpec({
                     module x: Foo? = null
                 }
             """.trimIndent())
-                .shouldReport<HiddenTypeExposedReporting> {
+                .shouldFind<HiddenTypeExposedDiagnostic> {
                     it.type.simpleName shouldBe "Foo"
                 }
         }
@@ -425,7 +425,7 @@ class VisibilityTests : FreeSpec({
                     private class C {}
                     export fn test(self: C) {}
                 """.trimIndent())
-                    .shouldReport<HiddenTypeExposedReporting>()
+                    .shouldFind<HiddenTypeExposedDiagnostic>()
             }
         }
     }
@@ -439,6 +439,6 @@ class VisibilityTests : FreeSpec({
                 override fn foo(self) {}
             }
         """.trimIndent())
-            .shouldReport<OverrideRestrictsVisibilityReporting>()
+            .shouldFind<OverrideRestrictsVisibilityDiagnostic>()
     }
 })

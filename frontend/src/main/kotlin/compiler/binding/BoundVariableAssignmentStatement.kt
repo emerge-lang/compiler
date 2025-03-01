@@ -12,8 +12,11 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.lexer.IdentifierToken
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.illegalAssignment
+import compiler.diagnostic.undefinedIdentifier
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -29,38 +32,31 @@ class BoundVariableAssignmentStatement(
 
     private var targetVariable: BoundVariable? = null
 
-    override fun additionalSemanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-
+    override fun additionalSemanticAnalysisPhase1(diagnosis: Diagnosis) {
         targetVariable = context.resolveVariable(variableName.value)
         if (targetVariable == null) {
-            reportings.add(Reporting.undefinedIdentifier(variableName))
+            diagnosis.undefinedIdentifier(variableName)
         }
-
-        return reportings
     }
 
-    override fun assignmentTargetSemanticAnalysisPhase2(): Collection<Reporting> {
-        return emptySet()
+    override fun assignmentTargetSemanticAnalysisPhase2(diagnosis: Diagnosis) {
+
     }
 
     override val assignmentTargetType get() = targetVariable?.typeAtDeclarationTime
 
-    override fun additionalSemanticAnalysisPhase2(): Collection<Reporting> {
+    override fun additionalSemanticAnalysisPhase2(diagnosis: Diagnosis) {
         targetVariable?.also {
             _modifiedContext.trackSideEffect(VariableLifetime.Effect.NewValueAssigned(it))
         }
-        return emptySet()
     }
 
-    override fun setTargetNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setTargetNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         // variable write cannot throw
     }
 
     private lateinit var initializationStateBefore: VariableInitialization.State
-    override fun additionalSemanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = mutableListOf<Reporting>()
-
+    override fun additionalSemanticAnalysisPhase3(diagnosis: Diagnosis) {
         targetVariable?.let { targetVariable ->
             val repetitionRelativeToVariable = context.getRepetitionBehaviorRelativeTo(targetVariable.modifiedContext)
 
@@ -73,26 +69,31 @@ class BoundVariableAssignmentStatement(
                 if (targetVariable.isReAssignable) {
                     _modifiedContext.trackSideEffect(VariableInitialization.WriteToVariableEffect(targetVariable))
                 } else {
-                    reportings.add(Reporting.illegalAssignment("Variable ${targetVariable.name} may have already been initialized, cannot assign a value again", this))
+                    diagnosis.illegalAssignment("Variable ${targetVariable.name} may have already been initialized, cannot assign a value again", this)
                 }
             }
             if (initializationStateBefore == VariableInitialization.State.INITIALIZED) {
                 if (!targetVariable.isReAssignable) {
-                    reportings.add(Reporting.illegalAssignment("Variable ${targetVariable.name} is already initialized, cannot re-assign", this))
+                    diagnosis.illegalAssignment("Variable ${targetVariable.name} is already initialized, cannot re-assign", this)
                 }
             }
         }
-
-        return reportings
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        if (targetVariable == null || context.containsWithinBoundary(targetVariable!!, boundary)) {
-            return super.findWritesBeyond(boundary)
-        }
-
-        return super.findWritesBeyond(boundary) + listOf(this)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        toAssignExpression.visitReadsBeyond(boundary, visitor)
     }
+
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        targetVariable
+            ?.takeIf { !context.containsWithinBoundary(it, boundary) }
+            ?.let {
+                visitor.visitWriteBeyondBoundary(boundary, this)
+            }
+
+        super.visitWritesBeyond(boundary, visitor)
+    }
+
 
     override fun toBackendIrStatement(): IrExecutable {
         val dropPreviousCode: List<IrExecutable> = when (initializationStateBefore) {

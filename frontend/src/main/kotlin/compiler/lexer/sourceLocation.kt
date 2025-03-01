@@ -18,7 +18,7 @@
 
 package compiler.lexer
 
-import compiler.reportings.illustrateSourceLocations
+import compiler.diagnostic.illustrateSourceLocations
 import io.github.tmarsteel.emerge.backend.api.ir.IrSourceFile
 import io.github.tmarsteel.emerge.backend.api.ir.IrSourceLocation
 import io.github.tmarsteel.emerge.common.CanonicalElementName

@@ -9,7 +9,9 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
 import compiler.lexer.Span
-import compiler.reportings.Reporting
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
@@ -38,8 +40,9 @@ class BoundTypeArgument(
         type.defaultMutabilityTo(mutability),
     )
 
-    override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
-        return setOfNotNull(forUsage.validateForTypeVariance(variance)) + type.validate(forUsage.deriveIrrelevant())
+    override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
+        forUsage.validateForTypeVariance(variance, diagnosis)
+        type.validate(forUsage.deriveIrrelevant(), diagnosis)
     }
 
     override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeArgument {
@@ -48,7 +51,7 @@ class BoundTypeArgument(
 
     override fun unify(assigneeType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification {
         if (assigneeType !is BoundTypeArgument && this.variance == TypeVariance.OUT) {
-            return carry.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "Cannot assign to a reference of an out-variant type", assignmentLocation))
+            return carry.plusReporting(ValueNotAssignableDiagnostic(this, assigneeType, "Cannot assign to a reference of an out-variant type", assignmentLocation))
         }
 
         if (this.type is TypeVariable) {
@@ -72,11 +75,11 @@ class BoundTypeArgument(
 
                     // target needs to use the type in both IN and OUT fashion -> source must match exactly
                     if (assigneeActualTypeNotNullable !is GenericTypeReference && !assigneeActualTypeNotNullable.hasSameBaseTypeAs(this.type)) {
-                        return carry2.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "the exact type ${this.type} is required", assignmentLocation))
+                        return carry2.plusReporting(ValueNotAssignableDiagnostic(this, assigneeType, "the exact type ${this.type} is required", assignmentLocation))
                     }
 
                     if (assigneeType.variance != TypeVariance.UNSPECIFIED) {
-                        return carry2.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "cannot assign an in-variant value to an exact-variant reference", assignmentLocation))
+                        return carry2.plusReporting(ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign an in-variant value to an exact-variant reference", assignmentLocation))
                     }
 
                     // checks for mutability and nullability
@@ -90,7 +93,7 @@ class BoundTypeArgument(
 
                     check(assigneeType.variance == TypeVariance.IN)
                     return carry.plusReporting(
-                        Reporting.valueNotAssignable(this, assigneeType, "cannot assign in-variant value to out-variant reference", assignmentLocation)
+                        ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign in-variant value to out-variant reference", assignmentLocation)
                     )
                 }
 
@@ -101,7 +104,7 @@ class BoundTypeArgument(
                 }
 
                 return carry.plusReporting(
-                    Reporting.valueNotAssignable(this, assigneeType, "cannot assign out-variant value to in-variant reference", assignmentLocation)
+                    ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign out-variant value to in-variant reference", assignmentLocation)
                 )
             }
             is GenericTypeReference -> {

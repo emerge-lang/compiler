@@ -18,7 +18,12 @@
 
 package compiler.binding.context
 
-import compiler.reportings.Reporting
+import compiler.binding.SemanticallyAnalyzable
+import compiler.diagnostic.CollectingDiagnosis
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.ambiguousImports
+import compiler.diagnostic.toplevelFunctionWithOverrideAttribute
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import compiler.lexer.SourceFile as LexerSourceFile
 
@@ -26,24 +31,24 @@ class SourceFile(
     val lexerFile: LexerSourceFile,
     val packageName: CanonicalElementName.Package,
     val context: SourceFileRootContext,
-    /** [Reporting]s generated at bind-time: double declarations, ... */
-    val bindTimeReportings: Collection<Reporting> = emptySet()
-) {
+    /** [Diagnostic]s generated at bind-time: double declarations, ... */
+    val bindTimeDiagnosis: CollectingDiagnosis,
+) : SemanticallyAnalyzable {
     init {
         context.sourceFile = this
     }
 
     /**
      * Delegates to semantic analysis phase 1 of all components that make up this file;
-     * collects the results and returns them. Also returns the [Reporting]s found when binding
+     * collects the results and returns them. Also returns the [Diagnostic]s found when binding
      * elements to the file (such as doubly declared variables).
      */
-    fun semanticAnalysisPhase1(): Collection<Reporting> {
-        val reportings = bindTimeReportings.toMutableList()
-        context.imports.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
-        context.types.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
-        context.variables.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
-        context.functions.forEach { reportings.addAll(it.semanticAnalysisPhase1()) }
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
+        bindTimeDiagnosis.replayOnto(diagnosis)
+        context.imports.forEach { it.semanticAnalysisPhase1(diagnosis) }
+        context.types.forEach { it.semanticAnalysisPhase1(diagnosis) }
+        context.variables.forEach { it.semanticAnalysisPhase1(diagnosis) }
+        context.functions.forEach { it.semanticAnalysisPhase1(diagnosis) }
 
         context.imports
             .asSequence()
@@ -52,40 +57,34 @@ class SourceFile(
             .values
             .filter { imports -> imports.size > 1 }
             .forEach { ambiguousImports ->
-                reportings.add(Reporting.ambiguousImports(ambiguousImports))
+                diagnosis.ambiguousImports(ambiguousImports)
             }
-
-        return reportings
     }
 
     /**
      * Delegates to semantic analysis phase 2 of all components that make up this file;
      * collects the results and returns them.
      */
-    fun semanticAnalysisPhase2(): Collection<Reporting> {
-        val reportings = ArrayList<Reporting>()
-        context.imports.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
-        context.types.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
-        context.variables.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
-        context.functions.forEach { reportings.addAll(it.semanticAnalysisPhase2()) }
-        return reportings
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+        context.imports.forEach { it.semanticAnalysisPhase2(diagnosis) }
+        context.types.forEach { it.semanticAnalysisPhase2(diagnosis) }
+        context.variables.forEach { it.semanticAnalysisPhase2(diagnosis) }
+        context.functions.forEach { it.semanticAnalysisPhase2(diagnosis) }
     }
 
     /**
      * Delegates to semantic analysis phase 3 of all components that make up this file;
      * collects the results and returns them.
      */
-    fun semanticAnalysisPhase3(): Collection<Reporting> {
-        val reportings = ArrayList<Reporting>()
-        context.imports.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
-        context.types.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
-        context.variables.forEach { reportings.addAll(it.semanticAnalysisPhase3()) }
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        context.imports.forEach { it.semanticAnalysisPhase3(diagnosis) }
+        context.types.forEach { it.semanticAnalysisPhase3(diagnosis) }
+        context.variables.forEach { it.semanticAnalysisPhase3(diagnosis) }
         context.functions.forEach { topLevelFn ->
-            reportings.addAll(topLevelFn.semanticAnalysisPhase3())
+            topLevelFn.semanticAnalysisPhase3(diagnosis)
             topLevelFn.attributes.firstOverrideAttribute?.let { overrideAttr ->
-                reportings.add(Reporting.toplevelFunctionWithOverrideAttribute(overrideAttr))
+                diagnosis.toplevelFunctionWithOverrideAttribute(overrideAttr)
             }
         }
-        return reportings
     }
 }

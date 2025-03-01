@@ -1,35 +1,35 @@
 package compiler.compiler.negative
 
-import compiler.reportings.AbstractInheritedFunctionNotImplementedReporting
-import compiler.reportings.AssignmentOutsideOfPurityBoundaryReporting
-import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
-import compiler.reportings.ConstructorDeclaredModifyingReporting
-import compiler.reportings.DuplicateBaseTypeMemberReporting
-import compiler.reportings.DuplicateSupertypeReporting
-import compiler.reportings.ExplicitOwnershipNotAllowedReporting
-import compiler.reportings.ExternalMemberFunctionReporting
-import compiler.reportings.IllegalAssignmentReporting
-import compiler.reportings.IllegalFunctionBodyReporting
-import compiler.reportings.IllegalSupertypeReporting
-import compiler.reportings.ImpureInvocationInPureContextReporting
-import compiler.reportings.IncompatibleReturnTypeOnOverrideReporting
-import compiler.reportings.MissingFunctionBodyReporting
-import compiler.reportings.MultipleClassConstructorsReporting
-import compiler.reportings.MultipleClassDestructorsReporting
-import compiler.reportings.NotAllMemberVariablesInitializedReporting
-import compiler.reportings.OverloadSetHasNoDisjointParameterReporting
-import compiler.reportings.OverrideAddsSideEffectsReporting
-import compiler.reportings.OverrideDropsNothrowReporting
-import compiler.reportings.ReadInPureContextReporting
-import compiler.reportings.StaticFunctionDeclaredOverrideReporting
-import compiler.reportings.SuperFunctionForOverrideNotFoundReporting
-import compiler.reportings.TypeArgumentOutOfBoundsReporting
-import compiler.reportings.TypeParameterNameConflictReporting
-import compiler.reportings.UndeclaredOverrideReporting
-import compiler.reportings.UndefinedIdentifierReporting
-import compiler.reportings.UnknownTypeReporting
-import compiler.reportings.UseOfUninitializedClassMemberVariableReporting
-import compiler.reportings.ValueNotAssignableReporting
+import compiler.diagnostic.AbstractInheritedFunctionNotImplementedDiagnostic
+import compiler.diagnostic.AssignmentOutsideOfPurityBoundaryDiagnostic
+import compiler.diagnostic.ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic
+import compiler.diagnostic.ConstructorDeclaredModifyingDiagnostic
+import compiler.diagnostic.DuplicateBaseTypeMemberDiagnostic
+import compiler.diagnostic.DuplicateSupertypeDiagnostic
+import compiler.diagnostic.ExplicitOwnershipNotAllowedDiagnostic
+import compiler.diagnostic.ExternalMemberFunctionDiagnostic
+import compiler.diagnostic.IllegalAssignmentDiagnostic
+import compiler.diagnostic.IllegalFunctionBodyDiagnostic
+import compiler.diagnostic.IllegalSupertypeDiagnostic
+import compiler.diagnostic.ImpureInvocationInPureContextDiagnostic
+import compiler.diagnostic.IncompatibleReturnTypeOnOverrideDiagnostic
+import compiler.diagnostic.MissingFunctionBodyDiagnostic
+import compiler.diagnostic.MultipleClassConstructorsDiagnostic
+import compiler.diagnostic.MultipleClassDestructorsDiagnostic
+import compiler.diagnostic.NotAllMemberVariablesInitializedDiagnostic
+import compiler.diagnostic.OverloadSetHasNoDisjointParameterDiagnostic
+import compiler.diagnostic.OverrideAddsSideEffectsDiagnostic
+import compiler.diagnostic.OverrideDropsNothrowDiagnostic
+import compiler.diagnostic.ReadInPureContextDiagnostic
+import compiler.diagnostic.StaticFunctionDeclaredOverrideDiagnostic
+import compiler.diagnostic.SuperFunctionForOverrideNotFoundDiagnostic
+import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
+import compiler.diagnostic.TypeParameterNameConflictDiagnostic
+import compiler.diagnostic.UndeclaredOverrideDiagnostic
+import compiler.diagnostic.UndefinedIdentifierDiagnostic
+import compiler.diagnostic.UnknownTypeDiagnostic
+import compiler.diagnostic.UseOfUninitializedClassMemberVariableDiagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forAll
 import io.kotest.matchers.collections.haveSize
@@ -46,7 +46,7 @@ class ClassErrors : FreeSpec({
                 a: Bool
             }
         """.trimIndent())
-            .shouldReport<DuplicateBaseTypeMemberReporting> {
+            .shouldFind<DuplicateBaseTypeMemberDiagnostic> {
                 it.duplicates should haveSize(2)
                 it.duplicates.forAll {
                     it.name shouldBe "a"
@@ -60,7 +60,7 @@ class ClassErrors : FreeSpec({
                 a: Foo
             }
         """.trimIndent())
-            .shouldReport<UnknownTypeReporting>()
+            .shouldFind<UnknownTypeDiagnostic>()
     }
 
     "calling a constructor with incorrect argument types" {
@@ -73,7 +73,7 @@ class ClassErrors : FreeSpec({
                 x = X(true)
             }
         """.trimIndent())
-            .shouldReport<ValueNotAssignableReporting>()
+            .shouldFind<ValueNotAssignableDiagnostic>()
     }
 
     "calling a hypothetical constructor of a non-existent type" {
@@ -89,7 +89,7 @@ class ClassErrors : FreeSpec({
                     x: S32
                 }
             """.trimIndent())
-                .shouldReport<ClassMemberVariableNotInitializedDuringObjectConstructionReporting>()
+                .shouldFind<ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic>()
         }
 
         "members can be initialized in the custom constructor by assignment" {
@@ -113,7 +113,7 @@ class ClassErrors : FreeSpec({
                         y: S32 = x
                     }
                 """.trimIndent())
-                    .shouldReport<ReadInPureContextReporting>()
+                    .shouldFind<ReadInPureContextDiagnostic>()
             }
 
             "cannot call read functions" {
@@ -123,7 +123,7 @@ class ClassErrors : FreeSpec({
                         x: S32 = bar()
                     }
                 """.trimIndent())
-                    .shouldReport<ImpureInvocationInPureContextReporting>()
+                    .shouldFind<ImpureInvocationInPureContextDiagnostic>()
             }
 
             // TODO: as soon as there are lambdas, add a test to verify a run { ... } initializer can't write
@@ -135,7 +135,7 @@ class ClassErrors : FreeSpec({
                     borrow x: S32
                 }
             """.trimIndent())
-                .shouldReport<ExplicitOwnershipNotAllowedReporting>()
+                .shouldFind<ExplicitOwnershipNotAllowedDiagnostic>()
         }
     }
 
@@ -146,7 +146,7 @@ class ClassErrors : FreeSpec({
                     fn test(self)
                 }
             """.trimIndent())
-                .shouldReport<MissingFunctionBodyReporting>()
+                .shouldFind<MissingFunctionBodyDiagnostic>()
         }
 
         "intrinsic must not have a body" {
@@ -155,7 +155,7 @@ class ClassErrors : FreeSpec({
                     intrinsic fn test(self) {}
                 }
             """.trimIndent())
-                .shouldReport<IllegalFunctionBodyReporting>()
+                .shouldFind<IllegalFunctionBodyDiagnostic>()
         }
 
         "cannot be external" - {
@@ -165,7 +165,7 @@ class ClassErrors : FreeSpec({
                         external(C) nothrow fn foo()
                     }
                 """.trimIndent())
-                    .shouldReport<ExternalMemberFunctionReporting>()
+                    .shouldFind<ExternalMemberFunctionDiagnostic>()
             }
 
             "on interface" {
@@ -174,7 +174,7 @@ class ClassErrors : FreeSpec({
                         external(C) nothrow fn foo()
                     }
                 """.trimIndent())
-                    .shouldReport<ExternalMemberFunctionReporting>()
+                    .shouldFind<ExternalMemberFunctionDiagnostic>()
             }
         }
 
@@ -186,7 +186,7 @@ class ClassErrors : FreeSpec({
                     }
                     class Dog : Animal {}
                 """.trimIndent())
-                    .shouldReport<AbstractInheritedFunctionNotImplementedReporting>()
+                    .shouldFind<AbstractInheritedFunctionNotImplementedDiagnostic>()
             }
 
             "two degrees of inheritance" {
@@ -197,7 +197,7 @@ class ClassErrors : FreeSpec({
                     interface QuadraPede : Animal {}
                     class Dog : QuadraPede {}
                 """.trimIndent())
-                    .shouldReport<AbstractInheritedFunctionNotImplementedReporting>()
+                    .shouldFind<AbstractInheritedFunctionNotImplementedDiagnostic>()
             }
         }
 
@@ -205,13 +205,13 @@ class ClassErrors : FreeSpec({
             "if super fn is nothrow, override must be nothrow, too" {
                 validateModule("""
                     interface I {
-                        nothrow fn foo(self) {}
+                        nothrow fn foo(self)
                     }
                     class Test : I {
                         override fn foo(self) {}
                     }
                 """.trimIndent())
-                    .shouldReport<OverrideDropsNothrowReporting>()
+                    .shouldFind<OverrideDropsNothrowDiagnostic>()
             }
         }
     }
@@ -226,7 +226,7 @@ class ClassErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<MultipleClassConstructorsReporting>()
+                .shouldFind<MultipleClassConstructorsDiagnostic>()
         }
 
         "member variable uninitialized" - {
@@ -246,7 +246,7 @@ class ClassErrors : FreeSpec({
                     
                     fn doSomething(p: S32) {}
                 """.trimIndent())
-                    .shouldReport<UseOfUninitializedClassMemberVariableReporting> {
+                    .shouldFind<UseOfUninitializedClassMemberVariableDiagnostic> {
                         it.member.name.value shouldBe "x"
                     }
             }
@@ -266,7 +266,7 @@ class ClassErrors : FreeSpec({
                     
                     fn doSomething(p: Foo) {}
                 """.trimIndent())
-                    .shouldReport<NotAllMemberVariablesInitializedReporting> {
+                    .shouldFind<NotAllMemberVariablesInitializedDiagnostic> {
                         it.uninitializedMembers.shouldBeSingleton().single().name.value shouldBe "x"
                     }
             }
@@ -283,7 +283,7 @@ class ClassErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<ClassMemberVariableNotInitializedDuringObjectConstructionReporting> {
+                .shouldFind<ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic> {
                     it.memberDeclaration.name.value shouldBe "y"
                 }
         }
@@ -305,7 +305,7 @@ class ClassErrors : FreeSpec({
                     
                     fn doSomething(p: S32) {}
                 """.trimIndent())
-                    .shouldReport<UseOfUninitializedClassMemberVariableReporting> {
+                    .shouldFind<UseOfUninitializedClassMemberVariableDiagnostic> {
                         it.member.name.value shouldBe "x"
                     }
             }
@@ -326,7 +326,7 @@ class ClassErrors : FreeSpec({
                     
                     fn doSomething(p: Foo) {}
                 """.trimIndent())
-                    .shouldReport<NotAllMemberVariablesInitializedReporting> {
+                    .shouldFind<NotAllMemberVariablesInitializedDiagnostic> {
                         it.uninitializedMembers should haveSize(1)
                         it.uninitializedMembers.single().name.value shouldBe "x"
                     }
@@ -345,7 +345,7 @@ class ClassErrors : FreeSpec({
                         }
                         read intrinsic fn random() -> Bool
                     """.trimIndent())
-                        .shouldReport<IllegalAssignmentReporting>()
+                        .shouldFind<IllegalAssignmentDiagnostic>()
 
                     validateModule("""
                         class Foo {
@@ -359,7 +359,7 @@ class ClassErrors : FreeSpec({
                         }
                         read intrinsic fn random() -> Bool
                     """.trimIndent())
-                        .shouldReport<IllegalAssignmentReporting>()
+                        .shouldFind<IllegalAssignmentDiagnostic>()
                 }
 
                 "execution uncertainty of loops doesn't persist to code after the loop" {
@@ -436,7 +436,7 @@ class ClassErrors : FreeSpec({
                         }
                     }
                 """.trimIndent())
-                    .shouldReport<IllegalAssignmentReporting>()
+                    .shouldFind<IllegalAssignmentDiagnostic>()
             }
 
             "assigned in a loop" {
@@ -451,7 +451,7 @@ class ClassErrors : FreeSpec({
                     }
                     read intrinsic fn random() -> Bool
                 """.trimIndent())
-                    .shouldReport<IllegalAssignmentReporting>()
+                    .shouldFind<IllegalAssignmentDiagnostic>()
             }
         }
 
@@ -468,7 +468,7 @@ class ClassErrors : FreeSpec({
                             }
                         }
                     """.trimIndent())
-                        .shouldReport<ReadInPureContextReporting>()
+                        .shouldFind<ReadInPureContextDiagnostic>()
                 }
 
                 "cannot write global state" {
@@ -480,7 +480,7 @@ class ClassErrors : FreeSpec({
                             }
                         }
                     """.trimIndent())
-                        .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
+                        .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
                 }
             }
 
@@ -508,7 +508,7 @@ class ClassErrors : FreeSpec({
                             }
                         }
                     """.trimIndent())
-                        .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
+                        .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
                 }
             }
 
@@ -521,7 +521,7 @@ class ClassErrors : FreeSpec({
                         }
                     }
                 """.trimIndent())
-                    .shouldReport<ConstructorDeclaredModifyingReporting>()
+                    .shouldFind<ConstructorDeclaredModifyingDiagnostic>()
             }
         }
 
@@ -535,7 +535,7 @@ class ClassErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<UndefinedIdentifierReporting> {
+                .shouldFind<UndefinedIdentifierDiagnostic> {
                     it.expr.value shouldBe "x"
                 }
         }
@@ -551,7 +551,7 @@ class ClassErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<MultipleClassDestructorsReporting>()
+                .shouldFind<MultipleClassDestructorsDiagnostic>()
         }
     }
 
@@ -560,7 +560,7 @@ class ClassErrors : FreeSpec({
             validateModule("""
                 class X<T : Bla> {}
             """.trimIndent())
-                .shouldReport<UnknownTypeReporting> {
+                .shouldFind<UnknownTypeDiagnostic> {
                     it.erroneousReference.simpleName shouldBe "Bla"
                 }
         }
@@ -569,14 +569,14 @@ class ClassErrors : FreeSpec({
             validateModule("""
                 class Test<T, T> {}
             """.trimIndent())
-                .shouldReport<TypeParameterNameConflictReporting>()
+                .shouldFind<TypeParameterNameConflictDiagnostic>()
         }
 
         "type parameter name clashes with top level type" {
             validateModule("""
                 class Test<S32> {}
             """.trimIndent())
-                .shouldReport<TypeParameterNameConflictReporting>()
+                .shouldFind<TypeParameterNameConflictDiagnostic>()
         }
 
         "member functions cannot re-declare type parameters declared on class level" {
@@ -585,7 +585,7 @@ class ClassErrors : FreeSpec({
                     fn foo<T>() {}
                 }
             """.trimIndent())
-                .shouldReport<TypeParameterNameConflictReporting>()
+                .shouldFind<TypeParameterNameConflictDiagnostic>()
         }
     }
 
@@ -595,7 +595,7 @@ class ClassErrors : FreeSpec({
                 class A {}
                 class B : A {}
             """.trimIndent())
-                .shouldReport<IllegalSupertypeReporting> {
+                .shouldFind<IllegalSupertypeDiagnostic> {
                     it.supertype.simpleName shouldBe "A"
                 }
         }
@@ -604,7 +604,7 @@ class ClassErrors : FreeSpec({
             validateModule("""
                 class A<T> : T {}
             """.trimIndent())
-                .shouldReport<IllegalSupertypeReporting> {
+                .shouldFind<IllegalSupertypeDiagnostic> {
                     it.supertype.simpleName shouldBe "T"
                 }
         }
@@ -614,7 +614,7 @@ class ClassErrors : FreeSpec({
                 interface A {}
                 class B : A, A {}
             """.trimIndent())
-                .shouldReport<DuplicateSupertypeReporting> {
+                .shouldFind<DuplicateSupertypeDiagnostic> {
                     it.supertype.simpleName shouldBe "A"
                 }
         }
@@ -623,7 +623,7 @@ class ClassErrors : FreeSpec({
             validateModule("""
                 class Test : Foo {}
             """.trimIndent())
-                .shouldReport<UnknownTypeReporting> {
+                .shouldFind<UnknownTypeDiagnostic> {
                     it.erroneousReference.simpleName shouldBe "Foo"
                 }
         }
@@ -635,7 +635,7 @@ class ClassErrors : FreeSpec({
                 interface Foo<T : A> {}
                 class Test : Foo<String> {}
             """.trimIndent())
-                .shouldReport<TypeArgumentOutOfBoundsReporting> {
+                .shouldFind<TypeArgumentOutOfBoundsDiagnostic> {
                     it.argument.simpleName shouldBe "String"
                 }
         }
@@ -651,7 +651,7 @@ class ClassErrors : FreeSpec({
                     override fn foo()
                 }
             """.trimIndent())
-                .shouldReport<StaticFunctionDeclaredOverrideReporting>()
+                .shouldFind<StaticFunctionDeclaredOverrideDiagnostic>()
         }
 
         "override must be declared" {
@@ -664,10 +664,10 @@ class ClassErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<UndeclaredOverrideReporting>()
+                .shouldFind<UndeclaredOverrideDiagnostic>()
                 // this could happen if the inherited and the subtype-declared function are considered different
                 // and thus clash in the overload-set
-                .shouldNotReport<OverloadSetHasNoDisjointParameterReporting>()
+                .shouldNotFind<OverloadSetHasNoDisjointParameterDiagnostic>()
         }
 
         "actually overrides nothing" {
@@ -680,7 +680,7 @@ class ClassErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<SuperFunctionForOverrideNotFoundReporting>()
+                .shouldFind<SuperFunctionForOverrideNotFoundDiagnostic>()
         }
 
         "widening the type of a parameter does not count as overriding" {
@@ -692,7 +692,7 @@ class ClassErrors : FreeSpec({
                     override fn foo(self, p1: Any) {}
                 }
             """.trimIndent())
-                .shouldReport<SuperFunctionForOverrideNotFoundReporting>()
+                .shouldFind<SuperFunctionForOverrideNotFoundDiagnostic>()
         }
 
         "return type not compatible" {
@@ -706,7 +706,7 @@ class ClassErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<IncompatibleReturnTypeOnOverrideReporting>()
+                .shouldFind<IncompatibleReturnTypeOnOverrideDiagnostic>()
         }
 
         "overriding function cannot have more side-effects" {
@@ -718,7 +718,7 @@ class ClassErrors : FreeSpec({
                     override read fn foo(self) -> S32 = 3
                 }
             """.trimIndent())
-                .shouldReport<OverrideAddsSideEffectsReporting>()
+                .shouldFind<OverrideAddsSideEffectsDiagnostic>()
         }
     }
 })

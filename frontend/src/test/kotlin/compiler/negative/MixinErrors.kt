@@ -2,13 +2,13 @@ package compiler.compiler.negative
 
 import compiler.ast.type.TypeMutability
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.reportings.AbstractInheritedFunctionNotImplementedReporting
-import compiler.reportings.IllegalMixinRepetitionReporting
-import compiler.reportings.MixinNotAllowedReporting
-import compiler.reportings.ObjectUsedBeforeMixinInitializationReporting
-import compiler.reportings.UnusedMixinReporting
-import compiler.reportings.ValueNotAssignableReporting
-import compiler.reportings.VariableUsedAfterLifetimeReporting
+import compiler.diagnostic.AbstractInheritedFunctionNotImplementedDiagnostic
+import compiler.diagnostic.IllegalMixinRepetitionDiagnostic
+import compiler.diagnostic.MixinNotAllowedDiagnostic
+import compiler.diagnostic.ObjectUsedBeforeMixinInitializationDiagnostic
+import compiler.diagnostic.UnusedMixinDiagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.diagnostic.VariableUsedAfterLifetimeDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forExactly
 import io.kotest.matchers.shouldBe
@@ -22,7 +22,7 @@ class MixinErrors : FreeSpec({
                 mixin Foo
             }
         """.trimIndent())
-            .shouldReport<MixinNotAllowedReporting>()
+            .shouldFind<MixinNotAllowedDiagnostic>()
     }
 
     "mixin in member function" {
@@ -34,7 +34,7 @@ class MixinErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<MixinNotAllowedReporting>()
+            .shouldFind<MixinNotAllowedDiagnostic>()
     }
 
     "mixin must be a exclusive value" {
@@ -51,7 +51,7 @@ class MixinErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<ValueNotAssignableReporting> {
+            .shouldFind<ValueNotAssignableDiagnostic> {
                 it.targetType.mutability shouldBe TypeMutability.EXCLUSIVE
                 it.sourceType.mutability shouldBe TypeMutability.READONLY
             }
@@ -69,7 +69,7 @@ class MixinErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<ValueNotAssignableReporting> {
+            .shouldFind<ValueNotAssignableDiagnostic> {
                 it.sourceType.isNullable shouldBe true
                 it.targetType.isNullable shouldBe false
             }
@@ -90,7 +90,7 @@ class MixinErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<VariableUsedAfterLifetimeReporting> {
+            .shouldFind<VariableUsedAfterLifetimeDiagnostic> {
                 it.variable.name.value shouldBe "mixinValue"
             }
     }
@@ -110,7 +110,7 @@ class MixinErrors : FreeSpec({
                 fn bla(self) {}
             }
         """.trimIndent())
-            .shouldReport<ObjectUsedBeforeMixinInitializationReporting>()
+            .shouldFind<ObjectUsedBeforeMixinInitializationDiagnostic>()
     }
 
     "indirect inheritance" - {
@@ -149,8 +149,8 @@ class MixinErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .ignore<AbstractInheritedFunctionNotImplementedReporting>()
-                .shouldReport<UnusedMixinReporting>()
+                .ignore<AbstractInheritedFunctionNotImplementedDiagnostic>()
+                .shouldFind<UnusedMixinDiagnostic>()
         }
 
         "override present" {
@@ -170,7 +170,7 @@ class MixinErrors : FreeSpec({
                     override fn test(self) -> S32 = 1
                 }
             """.trimIndent())
-                .shouldReport<UnusedMixinReporting>()
+                .shouldFind<UnusedMixinDiagnostic>()
         }
     }
 
@@ -192,7 +192,7 @@ class MixinErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<IllegalMixinRepetitionReporting>()
+                .shouldFind<IllegalMixinRepetitionDiagnostic>()
         }
 
         "only in else-branch of if" {
@@ -212,7 +212,7 @@ class MixinErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<IllegalMixinRepetitionReporting>()
+                .shouldFind<IllegalMixinRepetitionDiagnostic>()
         }
 
         "in two branches of if" {
@@ -235,7 +235,7 @@ class MixinErrors : FreeSpec({
             """.trimIndent())
                 .second
                 .forExactly(2) {
-                    it.shouldBeInstanceOf<IllegalMixinRepetitionReporting>()
+                    it.shouldBeInstanceOf<IllegalMixinRepetitionDiagnostic>()
                     it.repetition shouldBe ExecutionScopedCTContext.Repetition.MAYBE
                 }
         }
@@ -255,7 +255,7 @@ class MixinErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<IllegalMixinRepetitionReporting>()
+                .shouldFind<IllegalMixinRepetitionDiagnostic>()
         }
 
         "in try" {
@@ -273,7 +273,7 @@ class MixinErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<IllegalMixinRepetitionReporting>()
+                .shouldFind<IllegalMixinRepetitionDiagnostic>()
         }
 
         "in catch" {
@@ -294,7 +294,7 @@ class MixinErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<IllegalMixinRepetitionReporting>()
+                .shouldFind<IllegalMixinRepetitionDiagnostic>()
         }
     }
 })

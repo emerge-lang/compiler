@@ -1,7 +1,7 @@
 package compiler.compiler.negative
 
-import compiler.reportings.FunctionMissingModifierReporting
-import compiler.reportings.OperatorNotDeclaredReporting
+import compiler.diagnostic.FunctionMissingModifierDiagnostic
+import compiler.diagnostic.OperatorNotDeclaredDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 
@@ -12,7 +12,7 @@ class OperatorOverloadErrors : FreeSpec({
                 a = - false
             }
         """.trimIndent())
-            .shouldReport<OperatorNotDeclaredReporting>()
+            .shouldFind<OperatorNotDeclaredDiagnostic>()
     }
 
     "binary plus not declared" {
@@ -21,7 +21,7 @@ class OperatorOverloadErrors : FreeSpec({
                 a = false + true
             }
         """.trimIndent())
-            .shouldReport<OperatorNotDeclaredReporting>()
+            .shouldFind<OperatorNotDeclaredDiagnostic>()
     }
 
     "unary minus declared without operator modifier" {
@@ -31,7 +31,7 @@ class OperatorOverloadErrors : FreeSpec({
                 x = -false
             }
         """.trimIndent())
-            .shouldReport<FunctionMissingModifierReporting> {
+            .shouldFind<FunctionMissingModifierDiagnostic> {
                 it.function.name shouldBe "unaryMinus"
                 it.missingAttribute shouldBe "operator"
             }
@@ -49,7 +49,7 @@ class OperatorOverloadErrors : FreeSpec({
                 y = v[3]
             }
         """.trimIndent())
-            .shouldReport<FunctionMissingModifierReporting> {
+            .shouldFind<FunctionMissingModifierDiagnostic> {
                 it.function.name shouldBe "get"
                 it.missingAttribute shouldBe "operator"
             }
@@ -67,7 +67,7 @@ class OperatorOverloadErrors : FreeSpec({
                 set v[3] = 5 
             }
         """.trimIndent())
-            .shouldReport<FunctionMissingModifierReporting> {
+            .shouldFind<FunctionMissingModifierDiagnostic> {
                 it.function.name shouldBe "set"
                 it.missingAttribute shouldBe "operator"
             }
