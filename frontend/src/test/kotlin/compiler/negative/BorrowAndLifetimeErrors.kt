@@ -20,7 +20,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     return v.m
                 }
             """.trimIndent())
-                .shouldReport<VariableUsedAfterLifetimeDiagnostic> {
+                .shouldFind<VariableUsedAfterLifetimeDiagnostic> {
                     it.variable.name.value shouldBe "v"
                     it.lifetimeEndedMaybe shouldBe false
                 }
@@ -37,7 +37,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     set v.m = 1
                 }
             """.trimIndent())
-                .shouldReport<VariableUsedAfterLifetimeDiagnostic> {
+                .shouldFind<VariableUsedAfterLifetimeDiagnostic> {
                     it.variable.name.value shouldBe "v"
                     it.lifetimeEndedMaybe shouldBe false
                 }
@@ -52,7 +52,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     return v
                 }
             """.trimIndent())
-                .shouldReport<VariableUsedAfterLifetimeDiagnostic> {
+                .shouldFind<VariableUsedAfterLifetimeDiagnostic> {
                     it.variable.name.value shouldBe "v"
                     it.lifetimeEndedMaybe shouldBe false
                 }
@@ -69,7 +69,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 return v
             }
         """.trimIndent())
-            .shouldReport<VariableUsedAfterLifetimeDiagnostic> {
+            .shouldFind<VariableUsedAfterLifetimeDiagnostic> {
                 it.variable.name.value shouldBe "v"
                 it.lifetimeEndedMaybe shouldBe false
             }
@@ -85,7 +85,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
             }
             fn captureValue(p: const Test) {}
         """.trimIndent())
-            .shouldReport<VariableUsedAfterLifetimeDiagnostic> {
+            .shouldFind<VariableUsedAfterLifetimeDiagnostic> {
                 it.variable.name.value shouldBe "v"
                 it.lifetimeEndedMaybe shouldBe false
             }
@@ -104,7 +104,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     captureValue(v)
                 }
             """.trimIndent())
-                .shouldReport<VariableUsedAfterLifetimeDiagnostic> {
+                .shouldFind<VariableUsedAfterLifetimeDiagnostic> {
                     it.variable.name.value shouldBe "v"
                     it.lifetimeEndedMaybe shouldBe true
                 }
@@ -123,7 +123,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     captureValue(v)
                 }
             """.trimIndent())
-                .shouldReport<VariableUsedAfterLifetimeDiagnostic> {
+                .shouldFind<VariableUsedAfterLifetimeDiagnostic> {
                     it.variable.name.value shouldBe "v"
                     it.lifetimeEndedMaybe shouldBe true
                 }
@@ -143,7 +143,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     captureValue(v)
                 }
             """.trimIndent())
-                .shouldReport<VariableUsedAfterLifetimeDiagnostic> {
+                .shouldFind<VariableUsedAfterLifetimeDiagnostic> {
                     it.variable.name.value shouldBe "v"
                     it.lifetimeEndedMaybe shouldBe false
                 }
@@ -161,7 +161,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 }
                 intrinsic fn captureValue(p: const Any)
             """.trimIndent())
-                .shouldReport<LifetimeEndingCaptureInLoopDiagnostic>()
+                .shouldFind<LifetimeEndingCaptureInLoopDiagnostic>()
         }
     }
 
@@ -174,7 +174,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     captureValue(p2)
                 }
             """.trimIndent())
-                .shouldReport<BorrowedVariableCapturedDiagnostic> {
+                .shouldFind<BorrowedVariableCapturedDiagnostic> {
                     it.variable.name.value shouldBe "p2"
                 }
 
@@ -187,7 +187,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<BorrowedVariableCapturedDiagnostic> {
+                .shouldFind<BorrowedVariableCapturedDiagnostic> {
                     it.variable.name.value shouldBe "p2"
                 }
         }
@@ -199,7 +199,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     p3 = p2
                 }
             """.trimIndent())
-                .shouldReport<BorrowedVariableCapturedDiagnostic> {
+                .shouldFind<BorrowedVariableCapturedDiagnostic> {
                     it.variable.name.value shouldBe "p2"
                 }
         }
@@ -212,7 +212,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     v = p2
                 }
             """.trimIndent())
-                .shouldReport<BorrowedVariableCapturedDiagnostic> {
+                .shouldFind<BorrowedVariableCapturedDiagnostic> {
                     it.variable.name.value shouldBe "p2"
                 }
         }
@@ -296,7 +296,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     captureValue(v1)
                 }
             """.trimIndent())
-                .shouldReport<VariableUsedAfterLifetimeDiagnostic>()
+                .shouldFind<VariableUsedAfterLifetimeDiagnostic>()
         }
     }
 
@@ -310,7 +310,7 @@ class BorrowAndLifetimeErrors : FreeSpec({
                     override fn foo(self, capture p: String) {}
                 } 
             """.trimIndent())
-                .shouldReport<ExtendingOwnershipOverrideDiagnostic>()
+                .shouldFind<ExtendingOwnershipOverrideDiagnostic>()
         }
 
         "overriding function can borrow a parameter that's captured in the parent function" {

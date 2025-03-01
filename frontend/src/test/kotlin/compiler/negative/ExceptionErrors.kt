@@ -16,7 +16,7 @@ class ExceptionErrors : FreeSpec({
             validateModule("""
                 external(C) fn test()
             """.trimIndent())
-                .shouldReport<FunctionMissingDeclaredModifierDiagnostic> {
+                .shouldFind<FunctionMissingDeclaredModifierDiagnostic> {
                     it.attribute should beInstanceOf<AstFunctionAttribute.Nothrow>()
                 }
         }
@@ -29,7 +29,7 @@ class ExceptionErrors : FreeSpec({
                         dangerous()
                     }
                 """.trimIndent())
-                    .shouldReport<NothrowViolationDiagnostic.ThrowingInvocation>()
+                    .shouldFind<NothrowViolationDiagnostic.ThrowingInvocation>()
             }
 
             "in destructor body" {
@@ -41,7 +41,7 @@ class ExceptionErrors : FreeSpec({
                         }
                     }
                 """.trimIndent())
-                    .shouldReport<NothrowViolationDiagnostic.ThrowingInvocation>()
+                    .shouldFind<NothrowViolationDiagnostic.ThrowingInvocation>()
             }
         }
 
@@ -50,7 +50,7 @@ class ExceptionErrors : FreeSpec({
                 validateModule("""
                     nothrow fn safe(p: Any?) -> Any = p!!
                 """.trimIndent())
-                    .shouldReport<NothrowViolationDiagnostic.NotNullAssertion>()
+                    .shouldFind<NothrowViolationDiagnostic.NotNullAssertion>()
             }
 
             "in destructor body" {
@@ -62,7 +62,7 @@ class ExceptionErrors : FreeSpec({
                         }
                     }
                 """.trimIndent())
-                    .shouldReport<NothrowViolationDiagnostic.NotNullAssertion>()
+                    .shouldFind<NothrowViolationDiagnostic.NotNullAssertion>()
             }
         }
 
@@ -74,7 +74,7 @@ class ExceptionErrors : FreeSpec({
                         throw SomeError()
                     }
                 """.trimIndent())
-                    .shouldReport<NothrowViolationDiagnostic.ThrowStatement>()
+                    .shouldFind<NothrowViolationDiagnostic.ThrowStatement>()
             }
 
             "in destructor body" {
@@ -86,7 +86,7 @@ class ExceptionErrors : FreeSpec({
                         }
                     }
                 """.trimIndent())
-                    .shouldReport<NothrowViolationDiagnostic.ThrowStatement>()
+                    .shouldFind<NothrowViolationDiagnostic.ThrowStatement>()
             }
         }
 
@@ -96,7 +96,7 @@ class ExceptionErrors : FreeSpec({
                     nothrow constructor {}
                 }
             """.trimIndent())
-                .shouldReport<ConstructorDeclaredNothrowDiagnostic>()
+                .shouldFind<ConstructorDeclaredNothrowDiagnostic>()
         }
     }
 
@@ -107,7 +107,7 @@ class ExceptionErrors : FreeSpec({
                     throw "Error"
                 }
             """.trimIndent())
-                .shouldReport<ValueNotAssignableDiagnostic> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.sourceType.toString() shouldBe "const String"
                     it.targetType.toString() shouldBe "read Throwable"
                 }
@@ -119,7 +119,7 @@ class ExceptionErrors : FreeSpec({
                     throw maybeException()
                 }
             """.trimIndent())
-                .shouldReport<ValueNotAssignableDiagnostic> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.sourceType.toString() shouldBe "read Throwable?"
                     it.targetType.toString() shouldBe "read Throwable"
                 }

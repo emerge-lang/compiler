@@ -3,7 +3,6 @@ package compiler.binding
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.modifyingPurityViolation
 import compiler.diagnostic.readingPurityViolation
@@ -14,7 +13,7 @@ interface ImpurityVisitor {
 }
 
 internal class PurityViolationImpurityVisitor(
-    private val reportTo: Diagnosis,
+    private val diagnosis: Diagnosis,
     private val boundaryForReporting: PurityViolationDiagnostic.SideEffectBoundary,
 ) : ImpurityVisitor {
     private val writesBeyondContext = HashSet<BoundExecutable<*>>()
@@ -22,7 +21,7 @@ internal class PurityViolationImpurityVisitor(
     override fun visitReadBeyondBoundary(purityBoundary: CTContext, read: BoundExpression<*>) {
         firstReadSeen = true
         if (read !in writesBeyondContext) {
-            reportTo.readingPurityViolation(read, boundaryForReporting)
+            diagnosis.readingPurityViolation(read, boundaryForReporting)
         }
     }
 
@@ -32,7 +31,7 @@ internal class PurityViolationImpurityVisitor(
         }
 
         writesBeyondContext.add(write)
-        reportTo.modifyingPurityViolation(write, boundaryForReporting)
+        diagnosis.modifyingPurityViolation(write, boundaryForReporting)
     }
 }
 

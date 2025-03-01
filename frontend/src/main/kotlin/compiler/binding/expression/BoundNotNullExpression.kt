@@ -51,7 +51,7 @@ class BoundNotNullExpression(
     override val declaration: NotNullExpression,
     val nullableExpression: BoundExpression<*>
 ) : BoundExpression<NotNullExpression>, BoundExecutable<NotNullExpression> {
-    // TODO: reporting on superfluous notnull when nullableExpression.type.nullable == false
+    // TODO: diagnostic on superfluous notnull when nullableExpression.type.nullable == false
     // TODO: obtain type from nullableExpression and remove nullability from the type
 
     override var type: BoundTypeReference? = null

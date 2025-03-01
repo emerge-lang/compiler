@@ -205,7 +205,7 @@ class BoundInvocationExpression(
      * Also performs the following checks and reports accordingly:
      * * absolutely no candidate available to evaluate
      * * of the evaluated constructors or functions, none match
-     * * if there is only one overload to pick from, forwards any reportings from evaluating that candidate
+     * * if there is only one overload to pick from, forwards any diagnostics from evaluating that candidate
      */
     private fun selectOverload(overloadCandidates: AvailableOverloads, diagnosis: Diagnosis): OverloadCandidateEvaluation? {
         if (valueArguments.any { it.type == null}) {

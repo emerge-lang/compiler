@@ -12,7 +12,7 @@ class OperatorOverloadErrors : FreeSpec({
                 a = - false
             }
         """.trimIndent())
-            .shouldReport<OperatorNotDeclaredDiagnostic>()
+            .shouldFind<OperatorNotDeclaredDiagnostic>()
     }
 
     "binary plus not declared" {
@@ -21,7 +21,7 @@ class OperatorOverloadErrors : FreeSpec({
                 a = false + true
             }
         """.trimIndent())
-            .shouldReport<OperatorNotDeclaredDiagnostic>()
+            .shouldFind<OperatorNotDeclaredDiagnostic>()
     }
 
     "unary minus declared without operator modifier" {
@@ -31,7 +31,7 @@ class OperatorOverloadErrors : FreeSpec({
                 x = -false
             }
         """.trimIndent())
-            .shouldReport<FunctionMissingModifierDiagnostic> {
+            .shouldFind<FunctionMissingModifierDiagnostic> {
                 it.function.name shouldBe "unaryMinus"
                 it.missingAttribute shouldBe "operator"
             }
@@ -49,7 +49,7 @@ class OperatorOverloadErrors : FreeSpec({
                 y = v[3]
             }
         """.trimIndent())
-            .shouldReport<FunctionMissingModifierDiagnostic> {
+            .shouldFind<FunctionMissingModifierDiagnostic> {
                 it.function.name shouldBe "get"
                 it.missingAttribute shouldBe "operator"
             }
@@ -67,7 +67,7 @@ class OperatorOverloadErrors : FreeSpec({
                 set v[3] = 5 
             }
         """.trimIndent())
-            .shouldReport<FunctionMissingModifierDiagnostic> {
+            .shouldFind<FunctionMissingModifierDiagnostic> {
                 it.function.name shouldBe "set"
                 it.missingAttribute shouldBe "operator"
             }

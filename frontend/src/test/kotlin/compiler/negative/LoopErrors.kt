@@ -11,7 +11,7 @@ class LoopErrors : FreeSpec({
                 break
             }
         """.trimIndent())
-            .shouldReport<BreakOutsideOfLoopDiagnostic>()
+            .shouldFind<BreakOutsideOfLoopDiagnostic>()
     }
 
     "continue outside of loop" {
@@ -20,6 +20,6 @@ class LoopErrors : FreeSpec({
                 continue
             }
         """.trimIndent())
-            .shouldReport<ContinueOutsideOfLoopDiagnostic>()
+            .shouldFind<ContinueOutsideOfLoopDiagnostic>()
     }
 })

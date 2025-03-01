@@ -10,7 +10,7 @@ class TypeInferenceErrors : FreeSpec({
             x = y
             y = x
         """.trimIndent())
-            .shouldReport<TypeDeductionErrorDiagnostic>()
+            .shouldFind<TypeDeductionErrorDiagnostic>()
     }
 
     "cyclic inference in variables (3)" {
@@ -19,7 +19,7 @@ class TypeInferenceErrors : FreeSpec({
             y = z
             z = x
         """.trimIndent())
-            .shouldReport<TypeDeductionErrorDiagnostic>()
+            .shouldFind<TypeDeductionErrorDiagnostic>()
     }
 
     "cyclic inference in functions" {
@@ -27,7 +27,7 @@ class TypeInferenceErrors : FreeSpec({
             fn a() = b()
             fn b() = a()
         """.trimIndent())
-            .shouldReport<TypeDeductionErrorDiagnostic>(allowMultiple = true)
+            .shouldFind<TypeDeductionErrorDiagnostic>(allowMultiple = true)
     }
 
     "cyclic inference in variables and functions (mixed)" {
@@ -37,7 +37,7 @@ class TypeInferenceErrors : FreeSpec({
             fn a() = z
             z = x
         """.trimIndent())
-            .shouldReport<TypeDeductionErrorDiagnostic>()
+            .shouldFind<TypeDeductionErrorDiagnostic>()
     }
 
     "cannot infer for variable without initializer expression" {
@@ -46,7 +46,7 @@ class TypeInferenceErrors : FreeSpec({
                 x: _
             }
         """.trimIndent())
-            .shouldReport<TypeDeductionErrorDiagnostic>()
+            .shouldFind<TypeDeductionErrorDiagnostic>()
     }
 
     "explicit inference type cannot have parameters" {
@@ -56,6 +56,6 @@ class TypeInferenceErrors : FreeSpec({
                 x: _<S32> = S()
             }
         """.trimIndent())
-            .shouldReport<ExplicitInferTypeWithArgumentsDiagnostic>()
+            .shouldFind<ExplicitInferTypeWithArgumentsDiagnostic>()
     }
 })

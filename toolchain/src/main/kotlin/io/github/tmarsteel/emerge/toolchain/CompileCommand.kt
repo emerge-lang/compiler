@@ -71,7 +71,7 @@ object CompileCommand : CliktCommand() {
                     when (fileResult) {
                         is MatchingResult.Success -> moduleContext.addSourceFile(fileResult.item)
                         is MatchingResult.Error -> {
-                            echo(fileResult.reporting)
+                            echo(fileResult.diagnostic)
                             anyParseErrors = true
                         }
                     }

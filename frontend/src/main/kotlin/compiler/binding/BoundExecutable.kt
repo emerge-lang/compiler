@@ -53,7 +53,7 @@ interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
      *
      * Sets the type that [BoundReturnExpression]s within this executable are expected to return. When this method has
      * been invoked the types evaluated for all [BoundReturnExpression]s within this executable must be assignable to that
-     * given type; otherwise an appropriate reporting as to returned from [semanticAnalysisPhase3].
+     * given type; otherwise an appropriate diagnostic as to returned from [semanticAnalysisPhase3].
      */
     fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {}
 

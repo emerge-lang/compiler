@@ -28,7 +28,7 @@ class PurityErrors : FreeSpec({
                 return x
             }
         """.trimIndent())
-            .shouldReport<ReadInPureContextDiagnostic>()
+            .shouldFind<ReadInPureContextDiagnostic>()
     }
 
     "calling a read function from a pure context" {
@@ -41,7 +41,7 @@ class PurityErrors : FreeSpec({
                 a()
             }
         """.trimIndent())
-            .shouldReport<ImpureInvocationInPureContextDiagnostic>()
+            .shouldFind<ImpureInvocationInPureContextDiagnostic>()
     }
 
     "calling a modifying function from a pure context" {
@@ -54,7 +54,7 @@ class PurityErrors : FreeSpec({
                 a()
             }
         """.trimIndent())
-            .shouldReport<ModifyingInvocationInReadonlyContextDiagnostic>()
+            .shouldFind<ModifyingInvocationInReadonlyContextDiagnostic>()
     }
 
     "calling a modifying function from a read context" {
@@ -67,7 +67,7 @@ class PurityErrors : FreeSpec({
                 a()
             }
         """.trimIndent())
-            .shouldReport<ModifyingInvocationInReadonlyContextDiagnostic>()
+            .shouldFind<ModifyingInvocationInReadonlyContextDiagnostic>()
     }
 
     "reading from outside a pure context" {
@@ -77,7 +77,7 @@ class PurityErrors : FreeSpec({
                 x
             }
         """.trimIndent())
-            .shouldReport<ReadInPureContextDiagnostic>()
+            .shouldFind<ReadInPureContextDiagnostic>()
     }
 
     "mutating outside of a pure context" - {
@@ -88,7 +88,7 @@ class PurityErrors : FreeSpec({
                     set x = 2
                 }
             """.trimIndent())
-                .shouldReport<AssignmentOutsideOfPurityBoundaryDiagnostic>()
+                .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
         }
 
         "by calling a function that takes a mutable parameter" - {
@@ -105,7 +105,7 @@ class PurityErrors : FreeSpec({
                         pureMutate(x)
                     }
                 """.trimIndent())
-                    .shouldReport<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                    .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
             }
 
             "global variable as self-parameter to member function" {
@@ -121,7 +121,7 @@ class PurityErrors : FreeSpec({
                         x.pureMutate()
                     }
                 """.trimIndent())
-                    .shouldReport<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                    .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
             }
 
             "global variable as non-self parameter to member function" {
@@ -140,7 +140,7 @@ class PurityErrors : FreeSpec({
                         k.pureMutate(x)
                     }
                 """.trimIndent())
-                    .shouldReport<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                    .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
             }
         }
     }
@@ -152,6 +152,6 @@ class PurityErrors : FreeSpec({
                 set x = 2
             }
         """.trimIndent())
-            .shouldReport<AssignmentOutsideOfPurityBoundaryDiagnostic>()
+            .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
     }
 })

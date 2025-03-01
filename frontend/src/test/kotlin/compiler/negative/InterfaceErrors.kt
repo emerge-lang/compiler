@@ -20,7 +20,7 @@ class InterfaceErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<EntryNotAllowedInBaseTypeDiagnostic> {
+            .shouldFind<EntryNotAllowedInBaseTypeDiagnostic> {
                 it.typeKind shouldBe BoundBaseType.Kind.INTERFACE
                 it.violatingEntry should beInstanceOf<BoundClassConstructor>()
             }
@@ -33,7 +33,7 @@ class InterfaceErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<EntryNotAllowedInBaseTypeDiagnostic> {
+            .shouldFind<EntryNotAllowedInBaseTypeDiagnostic> {
                 it.typeKind shouldBe BoundBaseType.Kind.INTERFACE
                 it.violatingEntry should beInstanceOf<BoundClassDestructor>()
             }
@@ -45,7 +45,7 @@ class InterfaceErrors : FreeSpec({
                 x: S32 = 3
             }
         """.trimIndent())
-            .shouldReport<EntryNotAllowedInBaseTypeDiagnostic> {
+            .shouldFind<EntryNotAllowedInBaseTypeDiagnostic> {
                 it.typeKind shouldBe BoundBaseType.Kind.INTERFACE
                 it.violatingEntry should beInstanceOf<BoundBaseTypeMemberVariable>()
             }
@@ -58,7 +58,7 @@ class InterfaceErrors : FreeSpec({
                     fn bar(self: _) -> S32 = 42
                 }
             """.trimIndent())
-                .shouldReport<MemberFunctionImplOnInterfaceDiagnostic>()
+                .shouldFind<MemberFunctionImplOnInterfaceDiagnostic>()
         }
 
         "static function without self argument" {
@@ -76,7 +76,7 @@ class InterfaceErrors : FreeSpec({
             validateModule("""
                 interface A : A {}
             """.trimIndent())
-                .shouldReport<CyclicInheritanceDiagnostic>()
+                .shouldFind<CyclicInheritanceDiagnostic>()
         }
 
         "cycle size 2" {
@@ -84,7 +84,7 @@ class InterfaceErrors : FreeSpec({
                 interface A : B {}
                 interface B : A {}
             """.trimIndent())
-                .shouldReport<CyclicInheritanceDiagnostic>()
+                .shouldFind<CyclicInheritanceDiagnostic>()
         }
 
         "cycle size 4" {
@@ -94,7 +94,7 @@ class InterfaceErrors : FreeSpec({
                 interface C : B {}
                 interface D : C {}
             """.trimIndent())
-                .shouldReport<CyclicInheritanceDiagnostic>()
+                .shouldFind<CyclicInheritanceDiagnostic>()
         }
     }
 })

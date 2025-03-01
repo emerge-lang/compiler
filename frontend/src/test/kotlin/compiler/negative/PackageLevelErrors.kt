@@ -12,7 +12,7 @@ class PackageLevelErrors : FreeSpec({
             class Foo {}
             interface Foo {}
         """.trimIndent())
-            .shouldReport<DuplicateBaseTypesDiagnostic> {
+            .shouldFind<DuplicateBaseTypesDiagnostic> {
                 it.duplicates should haveSize(3)
             }
     }

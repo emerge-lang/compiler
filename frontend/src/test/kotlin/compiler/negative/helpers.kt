@@ -60,7 +60,7 @@ private val defaultModulesParsed: List<Pair<ConfigModuleDefinition, List<ASTSour
                 }
                 .partition { it is MatchingResult.Error }
                 .let { (errors, successes) ->
-                    require(errors.isEmpty()) { "default module ${module.name} has errors: ${errors.map { (it as MatchingResult.Error).reporting }}" }
+                    require(errors.isEmpty()) { "default module ${module.name} has errors: ${errors.map { (it as MatchingResult.Error).diagnostic }}" }
                     successes as List<MatchingResult.Success<ASTSourceFile>>
                 }
                 .map { it.item }
@@ -115,7 +115,7 @@ fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext
         val lexerSourceFile = module.tokens.first().span.sourceFile
         val result = SourceFileRule.match(module.tokens, lexerSourceFile)
         if (result is MatchingResult.Error) {
-            throw AssertionError("Failed to parse code: ${result.reporting}")
+            throw AssertionError("Failed to parse code: ${result.diagnostic}")
         }
         result as MatchingResult.Success<ASTSourceFile>
         val sourceFile = result.item
@@ -150,16 +150,16 @@ fun validateModule(
     return validateModules(module)
 }
 
-// TODO: most test cases expect EXACTLY one reporting, extra reportings are out-of-spec. This one lets extra reportings pass :(
-// the trick is finding the test that actually want more than one reporting and adapting that test code
-inline fun <reified T : Diagnostic> Pair<SoftwareContext, Collection<Diagnostic>>.shouldReport(allowMultiple: Boolean = false, additional: SoftwareContext.(T) -> Unit = {}): Pair<SoftwareContext, Collection<Diagnostic>> {
-    second.shouldReport<T>(allowMultiple) {
+// TODO: most test cases expect EXACTLY one diagnostic, extra diagnostics are out-of-spec. This one lets extra reportings pass :(
+// the trick is finding the test that actually want more than one diagnostic and adapting that test code
+inline fun <reified T : Diagnostic> Pair<SoftwareContext, Collection<Diagnostic>>.shouldFind(allowMultiple: Boolean = false, additional: SoftwareContext.(T) -> Unit = {}): Pair<SoftwareContext, Collection<Diagnostic>> {
+    second.shouldFind<T>(allowMultiple) {
         first.additional(it)
     }
     return this
 }
 
-inline fun <reified T : Diagnostic> Collection<Diagnostic>.shouldReport(allowMultiple: Boolean = false, additional: (T) -> Unit = {}): Collection<Diagnostic> {
+inline fun <reified T : Diagnostic> Collection<Diagnostic>.shouldFind(allowMultiple: Boolean = false, additional: (T) -> Unit = {}): Collection<Diagnostic> {
     if (allowMultiple) {
         forAtLeastOne {
             it.shouldBeInstanceOf<T>()
@@ -174,12 +174,12 @@ inline fun <reified T : Diagnostic> Collection<Diagnostic>.shouldReport(allowMul
     return this
 }
 
-inline fun <reified T : Diagnostic> Pair<SoftwareContext, Collection<Diagnostic>>.shouldNotReport(additional: (T) -> Unit = {}): Pair<SoftwareContext, Collection<Diagnostic>> {
-    second.shouldNotReport<T>(additional)
+inline fun <reified T : Diagnostic> Pair<SoftwareContext, Collection<Diagnostic>>.shouldNotFind(additional: (T) -> Unit = {}): Pair<SoftwareContext, Collection<Diagnostic>> {
+    second.shouldNotFind<T>(additional)
     return this
 }
 
-inline fun <reified T : Diagnostic> Collection<Diagnostic>.shouldNotReport(additional: (T) -> Unit = {}): Collection<Diagnostic> {
+inline fun <reified T : Diagnostic> Collection<Diagnostic>.shouldNotFind(additional: (T) -> Unit = {}): Collection<Diagnostic> {
     forNone {
         it.shouldBeInstanceOf<T>()
         additional(it)
@@ -225,7 +225,7 @@ fun haveNoDiagnostics(): Matcher<Pair<SoftwareContext, Collection<Diagnostic>>> 
                 val byLevel = value.second
                     .groupBy { it.severity.name.lowercase() }
                     .entries
-                    .joinToString { (level, reportings) -> "${reportings.size} ${level}s" }
+                    .joinToString { (severities, diagnostics) -> "${diagnostics.size} ${severities}s" }
                 "there should not be any diagnostics, but found $byLevel"
             }
             override fun negatedFailureMessage() = "there should be diagnostics, but found none."

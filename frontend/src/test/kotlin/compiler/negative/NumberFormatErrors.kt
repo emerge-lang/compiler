@@ -9,7 +9,7 @@ class NumberFormatErrors : FreeSpec({
             validateModule("""
                 a: S32 = 3a
             """.trimIndent())
-                .shouldReport<ErroneousLiteralExpressionDiagnostic>()
+                .shouldFind<ErroneousLiteralExpressionDiagnostic>()
         }
     }
 
@@ -18,35 +18,35 @@ class NumberFormatErrors : FreeSpec({
             validateModule("""
                 a = 3pf
             """.trimIndent())
-                .shouldReport<ErroneousLiteralExpressionDiagnostic>()
+                .shouldFind<ErroneousLiteralExpressionDiagnostic>()
         }
 
         "illegal char before point" {
             validateModule("""
                 a = 3a.0
             """.trimIndent())
-                .shouldReport<ErroneousLiteralExpressionDiagnostic>()
+                .shouldFind<ErroneousLiteralExpressionDiagnostic>()
         }
 
         "illegal char after point" {
             validateModule("""
                 a = 3.0a
             """.trimIndent())
-                .shouldReport<ErroneousLiteralExpressionDiagnostic>()
+                .shouldFind<ErroneousLiteralExpressionDiagnostic>()
         }
 
         "empty exponent" {
             validateModule("""
                 a = 3.4e
             """.trimIndent())
-                .shouldReport<ErroneousLiteralExpressionDiagnostic>()
+                .shouldFind<ErroneousLiteralExpressionDiagnostic>()
         }
 
         "illegal char in exponent" {
             validateModule("""
                 a = 3.2e4gf
             """.trimIndent())
-                .shouldReport<ErroneousLiteralExpressionDiagnostic>()
+                .shouldFind<ErroneousLiteralExpressionDiagnostic>()
         }
     }
 })

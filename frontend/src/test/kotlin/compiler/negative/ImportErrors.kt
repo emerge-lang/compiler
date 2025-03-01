@@ -14,7 +14,7 @@ class ImportErrors : FreeSpec({
                     return "123"
                 }
             """.trimIndent())
-                .shouldReport<UnresolvablePackageNameDiagnostic>()
+                .shouldFind<UnresolvablePackageNameDiagnostic>()
         }
 
         "unknown symbol in known package" {
@@ -25,7 +25,7 @@ class ImportErrors : FreeSpec({
                     return "123"
                 }
             """.trimIndent())
-                .shouldReport<UnresolvableImportDiagnostic>()
+                .shouldFind<UnresolvableImportDiagnostic>()
         }
     }
 })

@@ -22,7 +22,7 @@ import compiler.lexer.Span
 
 /**
  * An error that results from another one. These should not be shown to an end-user because - assuming the compiler
- * acts as designed - there is another reporting with [Level.ERROR] that describes the root cause.
+ * acts as designed - there is another diagnostic with [Diagnostic.Severity.ERROR] that describes the root cause.
  * Use this class only if the consecutive error is sever and will likely cause further issues (e.g. because crucial
  * information is missing)
  */

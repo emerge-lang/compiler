@@ -13,7 +13,7 @@ class ConditionErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<ConditionNotBooleanDiagnostic>()
+            .shouldFind<ConditionNotBooleanDiagnostic>()
     }
 
     "if containing mutation" {
@@ -25,7 +25,7 @@ class ConditionErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<MutationInConditionDiagnostic>()
+            .shouldFind<MutationInConditionDiagnostic>()
     }
 
     "while on non-bool" {
@@ -35,7 +35,7 @@ class ConditionErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<ConditionNotBooleanDiagnostic>()
+            .shouldFind<ConditionNotBooleanDiagnostic>()
     }
 
     "while containing mutation" {
@@ -46,6 +46,6 @@ class ConditionErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<MutationInConditionDiagnostic>()
+            .shouldFind<MutationInConditionDiagnostic>()
     }
 })

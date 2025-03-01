@@ -180,7 +180,7 @@ class VarianceErrors : FreeSpec({
                 set x = a.p
             }
         """.trimIndent())
-            .shouldReport<ValueNotAssignableDiagnostic> {
+            .shouldFind<ValueNotAssignableDiagnostic> {
                 it.sourceType.toString() shouldBe "read Any?"
                 it.targetType.toString() shouldBe "T"
             }

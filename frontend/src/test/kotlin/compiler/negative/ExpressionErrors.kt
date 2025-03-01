@@ -18,7 +18,7 @@ class ExpressionErrors : FreeSpec({
                 return p.a
             }
         """.trimIndent())
-            .shouldReport<UnsafeObjectTraversalDiagnostic> {
+            .shouldFind<UnsafeObjectTraversalDiagnostic> {
                 it.nullableExpression.shouldBeInstanceOf<BoundIdentifierExpression>().identifier shouldBe "p"
             }
     }
@@ -47,7 +47,7 @@ class ExpressionErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<ImplicitlyEvaluatedStatementDiagnostic> {
+                .shouldFind<ImplicitlyEvaluatedStatementDiagnostic> {
                     it.statement.shouldBeInstanceOf<VariableDeclaration>().name.value shouldBe "y"
                 }
         }
@@ -60,7 +60,7 @@ class ExpressionErrors : FreeSpec({
                     } else {}
                 }
             """.trimIndent())
-                .shouldReport<ImplicitlyEvaluatedStatementDiagnostic>()
+                .shouldFind<ImplicitlyEvaluatedStatementDiagnostic>()
         }
     }
 })

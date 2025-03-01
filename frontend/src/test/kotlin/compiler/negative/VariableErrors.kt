@@ -21,7 +21,7 @@ class VariableErrors : FreeSpec({
             validateModule("""
                 foo: S32 = false
             """.trimIndent())
-                .shouldReport<ValueNotAssignableDiagnostic> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.sourceType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType.canonicalName.toString() shouldBe "emerge.core.Bool"
                     it.targetType.shouldBeInstanceOf<RootResolvedTypeReference>().baseType.canonicalName.toString() shouldBe "emerge.core.S32"
                 }
@@ -31,21 +31,21 @@ class VariableErrors : FreeSpec({
             validateModule("""
                 var foo
             """.trimIndent())
-                .shouldReport<TypeDeductionErrorDiagnostic>()
+                .shouldFind<TypeDeductionErrorDiagnostic>()
         }
 
         "unknown declared type" {
             validateModule("""
                 foo: Foo
             """.trimIndent())
-                .shouldReport<UnknownTypeDiagnostic>()
+                .shouldFind<UnknownTypeDiagnostic>()
         }
 
         "cannot declare ownership" {
             validateModule("""
                 borrow x: String
             """.trimIndent())
-                .shouldReport<ExplicitOwnershipNotAllowedDiagnostic>()
+                .shouldFind<ExplicitOwnershipNotAllowedDiagnostic>()
         }
     }
 
@@ -57,7 +57,7 @@ class VariableErrors : FreeSpec({
                     set a = 5
                 }
             """.trimIndent())
-                .shouldReport<IllegalAssignmentDiagnostic>()
+                .shouldFind<IllegalAssignmentDiagnostic>()
         }
 
         "cannot assign to a type" {
@@ -66,7 +66,7 @@ class VariableErrors : FreeSpec({
                     set S32 = 3
                 }
             """.trimIndent())
-                .shouldReport<UndefinedIdentifierDiagnostic>()
+                .shouldFind<UndefinedIdentifierDiagnostic>()
         }
 
         "cannot assign to literal" {
@@ -75,21 +75,21 @@ class VariableErrors : FreeSpec({
                     set false = 3
                 }
             """.trimIndent())
-                .shouldReport<IllegalAssignmentDiagnostic>()
+                .shouldFind<IllegalAssignmentDiagnostic>()
 
             validateModule("""
                 fn foo() {
                     set [1, 2] = 3
                 }
             """.trimIndent())
-                .shouldReport<IllegalAssignmentDiagnostic>()
+                .shouldFind<IllegalAssignmentDiagnostic>()
 
             validateModule("""
                 fn foo() {
                     set null = 3
                 }
             """.trimIndent())
-                .shouldReport<IllegalAssignmentDiagnostic>()
+                .shouldFind<IllegalAssignmentDiagnostic>()
         }
 
         "cannot assign to not-null assertion" {
@@ -99,7 +99,7 @@ class VariableErrors : FreeSpec({
                     set x!! = 3
                 }
             """.trimIndent())
-                .shouldReport<IllegalAssignmentDiagnostic>()
+                .shouldFind<IllegalAssignmentDiagnostic>()
         }
 
         "cannot assign to unary operator invocation" {
@@ -108,7 +108,7 @@ class VariableErrors : FreeSpec({
                     set -3 = 4
                 }
             """.trimIndent())
-                .shouldReport<IllegalAssignmentDiagnostic>()
+                .shouldFind<IllegalAssignmentDiagnostic>()
         }
 
         "cannot assign to binary operator invocation" {
@@ -117,7 +117,7 @@ class VariableErrors : FreeSpec({
                     set 3 + 4 = 4
                 }
             """.trimIndent())
-                .shouldReport<IllegalAssignmentDiagnostic>()
+                .shouldFind<IllegalAssignmentDiagnostic>()
         }
 
         "cannot assign to parameter" {
@@ -126,7 +126,7 @@ class VariableErrors : FreeSpec({
                     set p = 2
                 }
             """.trimIndent())
-                .shouldReport<IllegalAssignmentDiagnostic>()
+                .shouldFind<IllegalAssignmentDiagnostic>()
         }
 
         "variable declared multiple times" {
@@ -137,7 +137,7 @@ class VariableErrors : FreeSpec({
                     x = true
                 }
             """.trimIndent())
-                .shouldReport<MultipleVariableDeclarationsDiagnostic> {
+                .shouldFind<MultipleVariableDeclarationsDiagnostic> {
                     it.originalDeclaration.name.value shouldBe "x"
                     it.additionalDeclaration.name.value shouldBe "x"
                 }
@@ -147,7 +147,7 @@ class VariableErrors : FreeSpec({
             validateModule("""
                 x = y
             """.trimIndent())
-                .shouldReport<UndefinedIdentifierDiagnostic> {
+                .shouldFind<UndefinedIdentifierDiagnostic> {
                     it.expr.value shouldBe "y"
                 }
         }
@@ -158,7 +158,7 @@ class VariableErrors : FreeSpec({
                     foo: Foo
                 }
             """.trimIndent())
-                .shouldReport<UnknownTypeDiagnostic>()
+                .shouldFind<UnknownTypeDiagnostic>()
         }
 
         "cannot declare ownership" {
@@ -167,7 +167,7 @@ class VariableErrors : FreeSpec({
                     capture x: String
                 }
             """.trimIndent())
-                .shouldReport<ExplicitOwnershipNotAllowedDiagnostic>()
+                .shouldFind<ExplicitOwnershipNotAllowedDiagnostic>()
         }
 
         "assignment status tracking" - {
@@ -175,7 +175,7 @@ class VariableErrors : FreeSpec({
                 validateModule("""
                     a: S32
                 """.trimIndent())
-                    .shouldReport<GlobalVariableNotInitializedDiagnostic>()
+                    .shouldFind<GlobalVariableNotInitializedDiagnostic>()
             }
 
             "local final variable can be assigned after declaration and then accessed" {
@@ -201,7 +201,7 @@ class VariableErrors : FreeSpec({
                         set a = 3
                     }
                 """.trimIndent())
-                    .shouldReport<VariableAccessedBeforeInitializationDiagnostic>()
+                    .shouldFind<VariableAccessedBeforeInitializationDiagnostic>()
             }
 
             "local non-final variable can be assigned after declaration and then accessed, and reassigned" {
@@ -228,7 +228,7 @@ class VariableErrors : FreeSpec({
                         a = 3
                     }
                 """.trimIndent())
-                    .shouldReport<VariableAccessedBeforeInitializationDiagnostic> {
+                    .shouldFind<VariableAccessedBeforeInitializationDiagnostic> {
                         it.maybeInitialized shouldBe false
                     }
             }
@@ -246,7 +246,7 @@ class VariableErrors : FreeSpec({
                             doStuff(x)
                         }
                     """.trimIndent())
-                        .shouldReport<VariableAccessedBeforeInitializationDiagnostic> {
+                        .shouldFind<VariableAccessedBeforeInitializationDiagnostic> {
                             it.maybeInitialized shouldBe true
                         }
                 }
@@ -280,7 +280,7 @@ class VariableErrors : FreeSpec({
                             set x = 4
                         }
                     """.trimIndent())
-                        .shouldReport<IllegalAssignmentDiagnostic> {
+                        .shouldFind<IllegalAssignmentDiagnostic> {
                             it.message shouldContain "may have already been initialized"
                         }
                 }
@@ -298,7 +298,7 @@ class VariableErrors : FreeSpec({
                             y = x
                         }
                     """.trimIndent())
-                        .shouldReport<VariableAccessedBeforeInitializationDiagnostic> {
+                        .shouldFind<VariableAccessedBeforeInitializationDiagnostic> {
                             it.maybeInitialized shouldBe true
                             it.declaration.name.value shouldBe "x"
                         }
@@ -314,7 +314,7 @@ class VariableErrors : FreeSpec({
                             }
                         }
                     """.trimIndent())
-                        .shouldReport<IllegalAssignmentDiagnostic>()
+                        .shouldFind<IllegalAssignmentDiagnostic>()
 
                     validateModule("""
                         read intrinsic fn random() -> Bool
@@ -326,7 +326,7 @@ class VariableErrors : FreeSpec({
                             }
                         }
                     """.trimIndent())
-                        .shouldReport<IllegalAssignmentDiagnostic>()
+                        .shouldFind<IllegalAssignmentDiagnostic>()
                 }
 
                 "execution uncertainty of loops doesn't persist to code after the loop" {
@@ -374,7 +374,7 @@ class VariableErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<MultipleVariableDeclarationsDiagnostic> {
+                .shouldFind<MultipleVariableDeclarationsDiagnostic> {
                     it.originalDeclaration.name.value shouldBe "a"
                     it.additionalDeclaration.name.value shouldBe "a"
                 }
@@ -386,7 +386,7 @@ class VariableErrors : FreeSpec({
                     a = false
                 }
             """.trimIndent())
-                .shouldReport<MultipleVariableDeclarationsDiagnostic> {
+                .shouldFind<MultipleVariableDeclarationsDiagnostic> {
                     it.originalDeclaration.name.value shouldBe "a"
                     it.additionalDeclaration.name.value shouldBe "a"
                 }
@@ -399,7 +399,7 @@ class VariableErrors : FreeSpec({
                     a = false
                 }
             """.trimIndent())
-                .shouldReport<MultipleVariableDeclarationsDiagnostic> {
+                .shouldFind<MultipleVariableDeclarationsDiagnostic> {
                     it.originalDeclaration.name.value shouldBe "a"
                     it.additionalDeclaration.name.value shouldBe "a"
                 }
@@ -411,7 +411,7 @@ class VariableErrors : FreeSpec({
                 fn foo(a: Bool) {
                 }
             """.trimIndent())
-                .shouldReport<MultipleVariableDeclarationsDiagnostic> {
+                .shouldFind<MultipleVariableDeclarationsDiagnostic> {
                     it.originalDeclaration.name.value shouldBe "a"
                     it.additionalDeclaration.name.value shouldBe "a"
                 }
@@ -438,7 +438,7 @@ class VariableErrors : FreeSpec({
                     return a
                 }
             """.trimIndent())
-                .shouldReport<UndefinedIdentifierDiagnostic>()
+                .shouldFind<UndefinedIdentifierDiagnostic>()
         }
     }
 })

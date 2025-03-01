@@ -63,9 +63,9 @@ private object ConfigModule : SimpleModule("EmergeToolchainConfigs") {
                 when (parseResult) {
                     is MatchingResult.Error -> throw JsonParseException(
                         p,
-                        parseResult.reporting.message,
+                        parseResult.diagnostic.message,
                         location,
-                        ReportingException(parseResult.reporting),
+                        ReportingException(parseResult.diagnostic),
                     )
                     is MatchingResult.Success -> return CanonicalElementName.Package(parseResult.item.names.map { it.value })
                 }

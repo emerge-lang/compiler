@@ -24,7 +24,7 @@ import compiler.diagnostic.ParsingMismatchDiagnostic
 
 sealed interface MatchingResult<out Item : Any> {
     class Success<out Item : Any>(val item: Item, val continueAtIndex: Int) : MatchingResult<Item>
-    class Error(val reporting: ParsingMismatchDiagnostic) : MatchingResult<Nothing>
+    class Error(val diagnostic: ParsingMismatchDiagnostic) : MatchingResult<Nothing>
 }
 
 interface Rule<out Item : Any> {
@@ -41,23 +41,23 @@ interface Rule<out Item : Any> {
 
 fun <Item : Any> matchAgainst(tokens: Array<Token>, rule: Rule<Item>): MatchingResult<Item> {
     require(tokens.isNotEmpty()) { "Cannot match an empty token sequence" }
-    var reporting: ParsingMismatchDiagnostic? = null
+    var diagnostic: ParsingMismatchDiagnostic? = null
     for (resultOption in rule.match(tokens, 0)) {
         when (resultOption) {
             is MatchingResult.Success -> return resultOption
-            is MatchingResult.Error -> reporting = if (reporting == null) {
-                resultOption.reporting
+            is MatchingResult.Error -> diagnostic = if (diagnostic == null) {
+                resultOption.diagnostic
             } else {
                 reduceCombineParseError(
-                    reporting,
-                    resultOption.reporting
+                    diagnostic,
+                    resultOption.diagnostic
                 )
             }
         }
     }
 
-    reporting ?: throw InternalCompilerError("No options from rule")
-    return MatchingResult.Error(reporting)
+    diagnostic ?: throw InternalCompilerError("No options from rule")
+    return MatchingResult.Error(diagnostic)
 }
 
 private val parseErrorComparator: Comparator<ParsingMismatchDiagnostic> =

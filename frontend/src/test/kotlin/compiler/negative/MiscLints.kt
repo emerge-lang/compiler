@@ -10,6 +10,6 @@ class MiscLints : FreeSpec({
                 return p ?: "default"
             }
         """.trimIndent())
-            .shouldReport<NullCheckingNonNullableValueDiagnostic>()
+            .shouldFind<NullCheckingNonNullableValueDiagnostic>()
     }
 })

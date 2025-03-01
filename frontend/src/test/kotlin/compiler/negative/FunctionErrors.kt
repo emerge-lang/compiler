@@ -39,7 +39,7 @@ class FunctionErrors : FreeSpec({
                 }
             """.trimIndent()
             )
-                .shouldReport<IllegalFunctionBodyDiagnostic>()
+                .shouldFind<IllegalFunctionBodyDiagnostic>()
         }
 
         "non-external function must have body" {
@@ -48,7 +48,7 @@ class FunctionErrors : FreeSpec({
                 fn foo() -> S32
             """.trimIndent()
             )
-                .shouldReport<MissingFunctionBodyDiagnostic>()
+                .shouldFind<MissingFunctionBodyDiagnostic>()
         }
     }
 
@@ -59,7 +59,7 @@ class FunctionErrors : FreeSpec({
                 fn foo(bar) = 3
             """.trimIndent()
             )
-                .shouldReport<MissingVariableTypeDiagnostic>() {
+                .shouldFind<MissingVariableTypeDiagnostic>() {
                     it.parameter.name.value shouldBe "bar"
                 }
         }
@@ -68,7 +68,7 @@ class FunctionErrors : FreeSpec({
             validateModule("""
                 fn foo(a: S32, a: Bool, b: S32) {}
             """.trimIndent())
-                    .shouldReport<MultipleParameterDeclarationsDiagnostic> {
+                    .shouldFind<MultipleParameterDeclarationsDiagnostic> {
                         it.firstDeclaration.name.value shouldBe "a"
                         it.additionalDeclaration.name.value shouldBe "a"
                     }
@@ -78,7 +78,7 @@ class FunctionErrors : FreeSpec({
             validateModule("""
                 fn foo(p: _) {}
             """.trimIndent())
-                .shouldReport<ExplicitInferTypeNotAllowedDiagnostic>()
+                .shouldFind<ExplicitInferTypeNotAllowedDiagnostic>()
         }
     }
 
@@ -88,7 +88,7 @@ class FunctionErrors : FreeSpec({
                 return 0
             }
         """.trimIndent())
-            .shouldReport<UnknownTypeDiagnostic>()
+            .shouldFind<UnknownTypeDiagnostic>()
     }
 
     "unknown declared receiver type" {
@@ -96,7 +96,7 @@ class FunctionErrors : FreeSpec({
             fn a(self: Foo) {
             }
         """.trimIndent())
-            .shouldReport<UnknownTypeDiagnostic>()
+            .shouldFind<UnknownTypeDiagnostic>()
     }
 
     "overloads" - {
@@ -112,7 +112,7 @@ class FunctionErrors : FreeSpec({
                     foo(true)
                 }
             """.trimIndent())
-                    .shouldReport<UnresolvableFunctionOverloadDiagnostic>()
+                    .shouldFind<UnresolvableFunctionOverloadDiagnostic>()
         }
 
         "overload-set with single non-disjoint parameter is not valid" {
@@ -120,7 +120,7 @@ class FunctionErrors : FreeSpec({
                 fn foo(a: Number) {}
                 fn foo(a: S32) {}
             """.trimIndent())
-                .shouldReport<OverloadSetHasNoDisjointParameterDiagnostic>()
+                .shouldFind<OverloadSetHasNoDisjointParameterDiagnostic>()
         }
 
         "overload-set with multiple parameters, none of which has disjoint types, is not valid" {
@@ -128,7 +128,7 @@ class FunctionErrors : FreeSpec({
                 fn foo(a: S32, b: Any) {}
                 fn foo(a: Any, b: S32) {}
             """.trimIndent())
-                .shouldReport<OverloadSetHasNoDisjointParameterDiagnostic>()
+                .shouldFind<OverloadSetHasNoDisjointParameterDiagnostic>()
         }
 
         "overload set with multiple parameters, only one of which has disjoint types, is valid" {
@@ -147,7 +147,7 @@ class FunctionErrors : FreeSpec({
                     println("Hello, World!")
                 }
             """.trimIndent())
-                .shouldReport<AmbiguousInvocationDiagnostic>()
+                .shouldFind<AmbiguousInvocationDiagnostic>()
         }
 
         "no argument assignable to a disjointly typed parameter" {
@@ -160,11 +160,11 @@ class FunctionErrors : FreeSpec({
                     foo(0, 0)
                 }
             """.trimIndent())
-                .shouldReport<UnresolvableFunctionOverloadDiagnostic>()
+                .shouldFind<UnresolvableFunctionOverloadDiagnostic>()
         }
 
         "argument not assignable to non-disjointly typed parameter" {
-            val (_, reportings) = validateModule("""
+            val (_, diagnostics) = validateModule("""
                 class A {}
                 class B {}
                 fn foo(disjoint: A, p1: S32, p2: S32) {}
@@ -174,14 +174,14 @@ class FunctionErrors : FreeSpec({
                 }
             """.trimIndent())
 
-            reportings should haveSize(2)
-            reportings.forOne {
+            diagnostics should haveSize(2)
+            diagnostics.forOne {
                 it.shouldBeInstanceOf<ValueNotAssignableDiagnostic>().also {
                     it.sourceType.toString() shouldBe "const String"
                     it.targetType.toString() shouldBe "const S32"
                 }
             }
-            reportings.forOne {
+            diagnostics.forOne {
                 it.shouldBeInstanceOf<ValueNotAssignableDiagnostic>().also {
                     it.sourceType.toString() shouldBe "exclusive testmodule.B"
                     it.targetType.toString() shouldBe "const S32"
@@ -194,7 +194,7 @@ class FunctionErrors : FreeSpec({
                 fn foo(self: S32, p2: String) {}
                 fn foo(p1: S32, p2: S32) {}
             """.trimIndent())
-                .shouldReport<InconsistentReceiverPresenceInOverloadSetDiagnostic>()
+                .shouldFind<InconsistentReceiverPresenceInOverloadSetDiagnostic>()
         }
 
         "inheritance induced" - {
@@ -213,7 +213,7 @@ class FunctionErrors : FreeSpec({
                         override fn bar(self) {}
                     }
                 """.trimIndent())
-                    .shouldReport<MultipleInheritanceIssueDiagnostic> {
+                    .shouldFind<MultipleInheritanceIssueDiagnostic> {
                         it.base should beInstanceOf<OverloadSetHasNoDisjointParameterDiagnostic>()
                         it.conflictOnSubType.canonicalName.toString() shouldBe "testmodule.C"
                         it.contributingSuperTypes.map { it.canonicalName.simpleName }.toSet() shouldBe setOf("A", "B")
@@ -229,7 +229,7 @@ class FunctionErrors : FreeSpec({
                     interface Innocent : Problematic {}
                 """.trimIndent())
                 results.second.count { it.severity >= Diagnostic.Severity.ERROR } shouldBe 1
-                results.shouldReport<OverloadSetHasNoDisjointParameterDiagnostic>()
+                results.shouldFind<OverloadSetHasNoDisjointParameterDiagnostic>()
             }
         }
     }
@@ -240,7 +240,7 @@ class FunctionErrors : FreeSpec({
                 foo(true)
             }
         """.trimIndent())
-            .shouldReport<UnresolvableFunctionOverloadDiagnostic>()
+            .shouldFind<UnresolvableFunctionOverloadDiagnostic>()
     }
 
     "termination" - {
@@ -249,7 +249,7 @@ class FunctionErrors : FreeSpec({
                 fn a() -> S32 {
                 }
             """.trimIndent())
-                .shouldReport<UncertainTerminationDiagnostic>()
+                .shouldFind<UncertainTerminationDiagnostic>()
         }
 
         "return type mismatch" - {
@@ -259,14 +259,14 @@ class FunctionErrors : FreeSpec({
                         return true
                     }
                 """.trimIndent())
-                    .shouldReport<ReturnTypeMismatchDiagnostic>()
+                    .shouldFind<ReturnTypeMismatchDiagnostic>()
             }
 
             "on single-expression body" {
                 validateModule("""
                     fn a() -> S32 = false
                 """.trimIndent())
-                    .shouldReport<ReturnTypeMismatchDiagnostic>()
+                    .shouldFind<ReturnTypeMismatchDiagnostic>()
             }
         }
 
@@ -295,7 +295,7 @@ class FunctionErrors : FreeSpec({
                         return
                     }
                 """.trimIndent())
-                    .shouldReport<MissingReturnValueDiagnostic>()
+                    .shouldFind<MissingReturnValueDiagnostic>()
             }
         }
 
@@ -308,7 +308,7 @@ class FunctionErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<UncertainTerminationDiagnostic>()
+                .shouldFind<UncertainTerminationDiagnostic>()
         }
 
         "if where only else returns" {
@@ -320,7 +320,7 @@ class FunctionErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<UncertainTerminationDiagnostic>()
+                .shouldFind<UncertainTerminationDiagnostic>()
         }
 
         // TODO: if where only one branch throws, one test for then and else each
@@ -332,7 +332,7 @@ class FunctionErrors : FreeSpec({
             validateModule("""
                 fn foo<T : Bla>() {}
             """.trimIndent())
-                .shouldReport<UnknownTypeDiagnostic> {
+                .shouldFind<UnknownTypeDiagnostic> {
                     it.erroneousReference.simpleName shouldBe "Bla"
                 }
         }
@@ -341,7 +341,7 @@ class FunctionErrors : FreeSpec({
             validateModule("""
                 fn foo<in T : String>() {}
             """.trimIndent())
-                .shouldReport<VarianceOnFunctionTypeParameterDiagnostic> {
+                .shouldFind<VarianceOnFunctionTypeParameterDiagnostic> {
                     it.parameter.name.value shouldBe "T"
                 }
         }
@@ -350,7 +350,7 @@ class FunctionErrors : FreeSpec({
             validateModule("""
                 fn foo<out T : String>() {}
             """.trimIndent())
-                .shouldReport<VarianceOnFunctionTypeParameterDiagnostic> {
+                .shouldFind<VarianceOnFunctionTypeParameterDiagnostic> {
                     it.parameter.name.value shouldBe "T"
                 }
         }
@@ -359,14 +359,14 @@ class FunctionErrors : FreeSpec({
             validateModule("""
                 fn foo<T, T>() {}
             """.trimIndent())
-                .shouldReport<TypeParameterNameConflictDiagnostic>()
+                .shouldFind<TypeParameterNameConflictDiagnostic>()
         }
 
         "type parameter name collides with top level type" {
             validateModule("""
                 fn foo<S32>() {}
             """.trimIndent())
-                .shouldReport<TypeParameterNameConflictDiagnostic>()
+                .shouldFind<TypeParameterNameConflictDiagnostic>()
         }
 
         "variance on invocation" {
@@ -376,7 +376,7 @@ class FunctionErrors : FreeSpec({
                     foo::<in X>()
                 }
             """.trimIndent())
-                .shouldReport<VarianceOnInvocationTypeArgumentDiagnostic>()
+                .shouldFind<VarianceOnInvocationTypeArgumentDiagnostic>()
 
             validateModule("""
                 fn foo<X>() {}
@@ -384,7 +384,7 @@ class FunctionErrors : FreeSpec({
                     foo::<out X>()
                 }
             """.trimIndent())
-                .shouldReport<VarianceOnInvocationTypeArgumentDiagnostic>()
+                .shouldFind<VarianceOnInvocationTypeArgumentDiagnostic>()
         }
     }
 
@@ -394,7 +394,7 @@ class FunctionErrors : FreeSpec({
                 override fn test() {
                 }
             """.trimIndent())
-                .shouldReport<ToplevelFunctionWithOverrideAttributeDiagnostic>()
+                .shouldFind<ToplevelFunctionWithOverrideAttributeDiagnostic>()
         }
     }
 
@@ -403,7 +403,7 @@ class FunctionErrors : FreeSpec({
             validateModule("""
                 override external(Rust) fn test()
             """.trimIndent())
-                .shouldReport<UnsupportedCallingConventionDiagnostic>()
+                .shouldFind<UnsupportedCallingConventionDiagnostic>()
         }
     }
 })

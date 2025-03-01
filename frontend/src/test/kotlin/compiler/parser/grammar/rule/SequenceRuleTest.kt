@@ -19,7 +19,7 @@ class SequenceRuleTest : FreeSpec({
         val result = matchAgainst(arrayOf(KeywordToken(Keyword.CLASS_DEFINITION)), grammar)
 
         result.shouldBeInstanceOf<MatchingResult.Error>()
-        result.reporting.expectedAlternatives shouldBe setOf("keyword if")
+        result.diagnostic.expectedAlternatives shouldBe setOf("keyword if")
     }
 
     "fail on middle token" {
@@ -35,7 +35,7 @@ class SequenceRuleTest : FreeSpec({
         ), grammar)
 
         result.shouldBeInstanceOf<MatchingResult.Error>()
-        result.reporting.expectedAlternatives shouldBe setOf("keyword set")
+        result.diagnostic.expectedAlternatives shouldBe setOf("keyword set")
     }
 
     "fail on last token" {
@@ -50,6 +50,6 @@ class SequenceRuleTest : FreeSpec({
         ), grammar)
 
         result.shouldBeInstanceOf<MatchingResult.Error>()
-        result.reporting.expectedAlternatives shouldBe setOf("keyword set")
+        result.diagnostic.expectedAlternatives shouldBe setOf("keyword set")
     }
 })

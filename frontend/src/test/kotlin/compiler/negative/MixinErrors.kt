@@ -22,7 +22,7 @@ class MixinErrors : FreeSpec({
                 mixin Foo
             }
         """.trimIndent())
-            .shouldReport<MixinNotAllowedDiagnostic>()
+            .shouldFind<MixinNotAllowedDiagnostic>()
     }
 
     "mixin in member function" {
@@ -34,7 +34,7 @@ class MixinErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<MixinNotAllowedDiagnostic>()
+            .shouldFind<MixinNotAllowedDiagnostic>()
     }
 
     "mixin must be a exclusive value" {
@@ -51,7 +51,7 @@ class MixinErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<ValueNotAssignableDiagnostic> {
+            .shouldFind<ValueNotAssignableDiagnostic> {
                 it.targetType.mutability shouldBe TypeMutability.EXCLUSIVE
                 it.sourceType.mutability shouldBe TypeMutability.READONLY
             }
@@ -69,7 +69,7 @@ class MixinErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<ValueNotAssignableDiagnostic> {
+            .shouldFind<ValueNotAssignableDiagnostic> {
                 it.sourceType.isNullable shouldBe true
                 it.targetType.isNullable shouldBe false
             }
@@ -90,7 +90,7 @@ class MixinErrors : FreeSpec({
                 }
             }
         """.trimIndent())
-            .shouldReport<VariableUsedAfterLifetimeDiagnostic> {
+            .shouldFind<VariableUsedAfterLifetimeDiagnostic> {
                 it.variable.name.value shouldBe "mixinValue"
             }
     }
@@ -110,7 +110,7 @@ class MixinErrors : FreeSpec({
                 fn bla(self) {}
             }
         """.trimIndent())
-            .shouldReport<ObjectUsedBeforeMixinInitializationDiagnostic>()
+            .shouldFind<ObjectUsedBeforeMixinInitializationDiagnostic>()
     }
 
     "indirect inheritance" - {
@@ -150,7 +150,7 @@ class MixinErrors : FreeSpec({
                 }
             """.trimIndent())
                 .ignore<AbstractInheritedFunctionNotImplementedDiagnostic>()
-                .shouldReport<UnusedMixinDiagnostic>()
+                .shouldFind<UnusedMixinDiagnostic>()
         }
 
         "override present" {
@@ -170,7 +170,7 @@ class MixinErrors : FreeSpec({
                     override fn test(self) -> S32 = 1
                 }
             """.trimIndent())
-                .shouldReport<UnusedMixinDiagnostic>()
+                .shouldFind<UnusedMixinDiagnostic>()
         }
     }
 
@@ -192,7 +192,7 @@ class MixinErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<IllegalMixinRepetitionDiagnostic>()
+                .shouldFind<IllegalMixinRepetitionDiagnostic>()
         }
 
         "only in else-branch of if" {
@@ -212,7 +212,7 @@ class MixinErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<IllegalMixinRepetitionDiagnostic>()
+                .shouldFind<IllegalMixinRepetitionDiagnostic>()
         }
 
         "in two branches of if" {
@@ -255,7 +255,7 @@ class MixinErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<IllegalMixinRepetitionDiagnostic>()
+                .shouldFind<IllegalMixinRepetitionDiagnostic>()
         }
 
         "in try" {
@@ -273,7 +273,7 @@ class MixinErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<IllegalMixinRepetitionDiagnostic>()
+                .shouldFind<IllegalMixinRepetitionDiagnostic>()
         }
 
         "in catch" {
@@ -294,7 +294,7 @@ class MixinErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<IllegalMixinRepetitionDiagnostic>()
+                .shouldFind<IllegalMixinRepetitionDiagnostic>()
         }
     }
 })

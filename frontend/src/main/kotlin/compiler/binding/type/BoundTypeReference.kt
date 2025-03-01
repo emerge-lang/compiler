@@ -66,8 +66,6 @@ sealed interface BoundTypeReference {
 
     /**
      * Validates the type reference. Must be invoked after [SemanticallyAnalyzable.semanticAnalysisPhase1].
-     *
-     * @return Any reportings on the validated code
      */
     fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis)
 
@@ -75,7 +73,7 @@ sealed interface BoundTypeReference {
      * Determines whether a value of type `this` can be assigned to a variable
      * of type [targetType].
      * @param assignmentLocation Will be used in the returned [Diagnostic]
-     * @return `null` if the assignment is allowed, a reporting of level [Diagnostic.Severity.ERROR] describing the
+     * @return `null` if the assignment is allowed, a diagnostic of severity [Diagnostic.Severity.ERROR] describing the
      * problem with the assignment in case it is not possible
      */
     fun evaluateAssignabilityTo(targetType: BoundTypeReference, assignmentLocation: Span): ValueNotAssignableDiagnostic? {
