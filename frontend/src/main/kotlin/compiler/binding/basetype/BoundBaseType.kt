@@ -300,6 +300,12 @@ class BoundBaseType(
                 .flatten()
                 .flatMap { it.overloads }
                 .forEach { it.semanticAnalysisPhase3(diagnosis) }
+
+            constructor?.mixins
+                ?.filter { !it.used }
+                ?.forEach {
+                    diagnosis.add(Reporting.unusedMixin(it))
+                }
         }
     }
 

@@ -24,7 +24,6 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
@@ -83,7 +82,8 @@ class BoundMixinStatement(
         expression.setExpectedReturnType(type, diagnosis)
     }
 
-    private var used = false
+    var used = false
+        private set
     fun assignToFunction(fnNeedingMixin: PossiblyMixedInBoundMemberFunction) {
         seanHelper.requirePhase2Done()
         fnNeedingMixin.assignMixin(registration!!)
@@ -93,9 +93,6 @@ class BoundMixinStatement(
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
             expression.semanticAnalysisPhase3(diagnosis)
-            if (!used) {
-                diagnosis.add(Reporting.unusedMixin(this))
-            }
         }
     }
 

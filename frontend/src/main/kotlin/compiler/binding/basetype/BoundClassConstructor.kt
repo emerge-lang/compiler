@@ -271,12 +271,6 @@ class BoundClassConstructor(
         }
     }
 
-    private var isEffectivelyPure: Boolean? = null
-        private set
-
-    private var isEffectivelyReadonly: Boolean? = null
-        private set
-
     override val purity = attributes.purity
 
     override val throwBehavior: SideEffectPrediction? get() {
