@@ -63,9 +63,9 @@ class BoundNullCoalescingExpression(
         alternativeExpression.markEvaluationResultUsed()
     }
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
-        nullableExpression.setExpectedEvaluationResultType(type)
-        alternativeExpression.setExpectedEvaluationResultType(type)
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        nullableExpression.setExpectedEvaluationResultType(type, diagnosis)
+        alternativeExpression.setExpectedEvaluationResultType(type, diagnosis)
     }
 
     override var type: BoundTypeReference? = null
@@ -90,9 +90,9 @@ class BoundNullCoalescingExpression(
         alternativeExpression.markEvaluationResultCaptured(withMutability)
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
-        nullableExpression.setExpectedReturnType(type)
-        alternativeExpression.setExpectedReturnType(type)
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        nullableExpression.setExpectedReturnType(type, diagnosis)
+        alternativeExpression.setExpectedReturnType(type, diagnosis)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
@@ -100,12 +100,15 @@ class BoundNullCoalescingExpression(
         alternativeExpression.semanticAnalysisPhase3(diagnosis)
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return nullableExpression.findReadsBeyond(boundary) + alternativeExpression.findReadsBeyond(boundary)
+    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
+        return nullableExpression.findReadsBeyond(boundary, diagnosis) + alternativeExpression.findReadsBeyond(boundary, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return nullableExpression.findWritesBeyond(boundary) + alternativeExpression.findWritesBeyond(boundary)
+    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
+        return nullableExpression.findWritesBeyond(boundary, diagnosis) + alternativeExpression.findWritesBeyond(
+            boundary,
+            diagnosis
+        )
     }
 
     override val isEvaluationResultReferenceCounted: Boolean

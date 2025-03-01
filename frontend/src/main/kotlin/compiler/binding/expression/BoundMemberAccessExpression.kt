@@ -111,15 +111,15 @@ class BoundMemberAccessExpression(
         member?.validateAccessFrom(declaration.memberName.span, diagnosis)
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return valueExpression.findReadsBeyond(boundary)
+    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
+        return valueExpression.findReadsBeyond(boundary, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return valueExpression.findWritesBeyond(boundary)
+    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
+        return valueExpression.findWritesBeyond(boundary, diagnosis)
     }
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         // nothing to do, the type of any object member is predetermined
     }
 

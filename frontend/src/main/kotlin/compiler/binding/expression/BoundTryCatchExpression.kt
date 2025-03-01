@@ -56,9 +56,9 @@ class BoundTryCatchExpression(
         }
     }
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
-        fallibleCode.setExpectedEvaluationResultType(type)
-        catchBlock.setExpectedEvaluationResultType(type)
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        fallibleCode.setExpectedEvaluationResultType(type, diagnosis)
+        catchBlock.setExpectedEvaluationResultType(type, diagnosis)
     }
 
     override fun markEvaluationResultUsed() {
@@ -73,9 +73,9 @@ class BoundTryCatchExpression(
         }
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
-        fallibleCode.setExpectedReturnType(type)
-        catchBlock.setExpectedReturnType(type)
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        fallibleCode.setExpectedReturnType(type, diagnosis)
+        catchBlock.setExpectedReturnType(type, diagnosis)
     }
 
     override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
@@ -84,12 +84,12 @@ class BoundTryCatchExpression(
         catchBlock.setNothrow(boundary)
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return fallibleCode.findReadsBeyond(boundary) + catchBlock.findReadsBeyond(boundary)
+    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
+        return fallibleCode.findReadsBeyond(boundary, diagnosis) + catchBlock.findReadsBeyond(boundary, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return fallibleCode.findWritesBeyond(boundary) + catchBlock.findWritesBeyond(boundary)
+    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
+        return fallibleCode.findWritesBeyond(boundary, diagnosis) + catchBlock.findWritesBeyond(boundary, diagnosis)
     }
 
     override fun markEvaluationResultCaptured(withMutability: TypeMutability) {

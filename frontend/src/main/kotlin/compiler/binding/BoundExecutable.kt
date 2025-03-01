@@ -23,6 +23,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
@@ -55,7 +56,7 @@ interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
      * been invoked the types evaluated for all [BoundReturnExpression]s within this executable must be assignable to that
      * given type; otherwise an appropriate reporting as to returned from [semanticAnalysisPhase3].
      */
-    fun setExpectedReturnType(type: BoundTypeReference) {}
+    fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {}
 
     /**
      * Called from the context where an [AstFunctionAttribute.Nothrow] is present, to be propagated down the syntax
@@ -71,7 +72,7 @@ interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
      * @return All the nested [BoundExecutable]s (or `this` if there are no nested ones) that read state that belongs
      *         to context outside the given boundary.
      */
-    fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet() // TODO remove default impl
+    fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> = emptySet() // TODO remove default impl
 
     /**
      * Use to find violations of readonlyness and/or purity.
@@ -79,7 +80,7 @@ interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
      * @return All the nested [BoundExecutable]s (or `this` if there are no nested ones) that write state that belongs
      *         to context outside the given boundary.
      */
-    fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> = emptySet() // TODO remove default impl
+    fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> = emptySet() // TODO remove default impl
 
     fun toBackendIrStatement(): IrExecutable
 }

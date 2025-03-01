@@ -302,8 +302,11 @@ class BoundClassConstructor(
                 val statementsWritingBeyondConstructorContext: Collection<BoundExecutable<*>> = handleCyclicInvocation(
                     this,
                     action = {
-                        boundMemberVariableInitCodeFromExpression.findWritesBeyond(constructorFunctionRootContext) +
-                                additionalInitCode.findWritesBeyond(constructorFunctionRootContext)
+                        boundMemberVariableInitCodeFromExpression.findWritesBeyond(
+                            constructorFunctionRootContext,
+                            diagnosis
+                        ) +
+                                additionalInitCode.findWritesBeyond(constructorFunctionRootContext, diagnosis)
                     },
                     onCycle = ::emptySet,
                 )
@@ -312,8 +315,8 @@ class BoundClassConstructor(
                     val statementsReadingBeyondConstructorContext: Collection<BoundExpression<*>> = handleCyclicInvocation(
                         this,
                         action = {
-                            boundMemberVariableInitCodeFromExpression.findReadsBeyond(constructorFunctionRootContext) +
-                                    additionalInitCode.findReadsBeyond(constructorFunctionRootContext)
+                            boundMemberVariableInitCodeFromExpression.findReadsBeyond(constructorFunctionRootContext, diagnosis) +
+                                    additionalInitCode.findReadsBeyond(constructorFunctionRootContext, diagnosis)
                         },
                         onCycle = ::emptySet,
                     )

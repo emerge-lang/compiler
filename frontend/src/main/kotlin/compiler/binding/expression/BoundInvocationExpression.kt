@@ -46,7 +46,6 @@ import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
 import compiler.reportings.Diagnosis
-import compiler.reportings.DiscardingDiagnosis
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCatchExceptionStatement
@@ -138,7 +137,9 @@ class BoundInvocationExpression(
                     .dropWhile { it === singleOption.parameters.declaredReceiver }
                     .zip(valueArguments)
                     .forEach { (parameter, argument) ->
-                        parameter.typeAtDeclarationTime?.also(argument::setExpectedEvaluationResultType)
+                        parameter.typeAtDeclarationTime?.let { paramType ->
+                            argument.setExpectedEvaluationResultType(paramType, diagnosis)
+                        }
                     }
             }
 
@@ -387,14 +388,14 @@ class BoundInvocationExpression(
         }
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
+    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
         seanHelper.requirePhase2Done()
 
-        val byReceiver = receiverExpression?.findReadsBeyond(boundary) ?: emptySet()
-        val byArguments = valueArguments.flatMap { it.findReadsBeyond(boundary) }
+        val byReceiver = receiverExpression?.findReadsBeyond(boundary, diagnosis) ?: emptySet()
+        val byArguments = valueArguments.flatMap { it.findReadsBeyond(boundary, diagnosis) }
 
         val invokedFunctionIsPure = functionToInvoke?.let {
-            it.semanticAnalysisPhase3(DiscardingDiagnosis)
+            it.semanticAnalysisPhase3(diagnosis)
             BoundFunction.Purity.PURE.contains(it.purity)
         } ?: true
 
@@ -403,20 +404,20 @@ class BoundInvocationExpression(
         return byReceiver + byArguments + bySelf
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
+    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
         seanHelper.requirePhase2Done()
 
-        val byReceiver = receiverExpression?.findWritesBeyond(boundary) ?: emptySet()
-        val byArguments = valueArguments.flatMap { it.findWritesBeyond(boundary) }
+        val byReceiver = receiverExpression?.findWritesBeyond(boundary, diagnosis) ?: emptySet()
+        val byArguments = valueArguments.flatMap { it.findWritesBeyond(boundary, diagnosis) }
         val byParameters = (listOfNotNull(receiverExpression) + valueArguments).zip(functionToInvoke?.parameters?.parameters ?: emptyList())
             // does the function potentially modify the parameter?
             .filter { (_, parameter) -> parameter.typeAtDeclarationTime?.mutability?.isMutable ?: false }
             // is the argument itself a read beyond the boundary
-            .filter { (argument, _) -> argument in argument.findReadsBeyond(boundary) }
+            .filter { (argument, _) -> argument in argument.findReadsBeyond(boundary, diagnosis) }
             .map { (argument, _) -> argument }
 
         val invokedFunctionIsReadonly = functionToInvoke?.let {
-            it.semanticAnalysisPhase3(DiscardingDiagnosis)
+            //it.semanticAnalysisPhase3(DiscardingDiagnosis)
             BoundFunction.Purity.READONLY.contains(it.purity)
         } ?: true
         val bySelf: Collection<BoundExecutable<*>> = if (invokedFunctionIsReadonly) emptySet() else setOf(this)
@@ -426,7 +427,7 @@ class BoundInvocationExpression(
 
     private var expectedEvaluationResultType: BoundTypeReference? = null
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         seanHelper.requirePhase2NotDone()
         expectedEvaluationResultType = type
     }

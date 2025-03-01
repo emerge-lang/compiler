@@ -151,7 +151,7 @@ class BoundVariable(
 
             if (initializerExpression != null) {
                 initializerExpression.semanticAnalysisPhase1(diagnosis)
-                initializerExpression.setExpectedEvaluationResultType(expectedInitializerEvaluationType)
+                initializerExpression.setExpectedEvaluationResultType(expectedInitializerEvaluationType, diagnosis)
                 initializerExpression.markEvaluationResultUsed()
             }
 
@@ -169,8 +169,8 @@ class BoundVariable(
         }
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
-        initializerExpression?.setExpectedReturnType(type)
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        initializerExpression?.setExpectedReturnType(type, diagnosis)
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
@@ -261,12 +261,12 @@ class BoundVariable(
         newCtx
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return initializerExpression?.findReadsBeyond(boundary) ?: emptySet()
+    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
+        return initializerExpression?.findReadsBeyond(boundary, diagnosis) ?: emptySet()
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return initializerExpression?.findWritesBeyond(boundary) ?: emptySet()
+    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
+        return initializerExpression?.findWritesBeyond(boundary, diagnosis) ?: emptySet()
     }
 
     fun getInitializationStateInContext(context: ExecutionScopedCTContext): VariableInitialization.State {

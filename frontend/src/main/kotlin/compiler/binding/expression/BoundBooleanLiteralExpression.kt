@@ -38,7 +38,7 @@ class BoundBooleanLiteralExpression(
     override val throwBehavior = SideEffectPrediction.NEVER
     override val returnBehavior = SideEffectPrediction.NEVER
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         // nothing to do: this expression can only ever have one type
     }
 

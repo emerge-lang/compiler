@@ -30,7 +30,6 @@ import compiler.binding.type.NullableTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.handleCyclicInvocation
 import compiler.reportings.Diagnosis
-import compiler.reportings.DiscardingDiagnosis
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -58,14 +57,14 @@ open class BoundNumericLiteral(
     }
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
+    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> = emptySet()
+    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> = emptySet()
     override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {}
 
     protected var expectedNumericType: BoundBaseType? = null
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         if (type is NullableTypeReference) {
-            return setExpectedEvaluationResultType(type.nested)
+            return setExpectedEvaluationResultType(type.nested, diagnosis)
         }
 
         if (type !is RootResolvedTypeReference) {
@@ -79,7 +78,7 @@ open class BoundNumericLiteral(
         // assure completed
         handleCyclicInvocation(
             context = this,
-            action = { type.baseType.semanticAnalysisPhase1(DiscardingDiagnosis) },
+            action = { type.baseType.semanticAnalysisPhase1(diagnosis) },
             onCycle = { }
         )
 

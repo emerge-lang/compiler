@@ -90,8 +90,8 @@ class BoundBaseTypeMemberVariable(
 
         if (boundEffectiveVariableDeclaration.initializerExpression != null) {
             Reporting.purityViolations(
-                boundEffectiveVariableDeclaration.initializerExpression.findReadsBeyond(context),
-                boundEffectiveVariableDeclaration.initializerExpression.findWritesBeyond(context),
+                boundEffectiveVariableDeclaration.initializerExpression.findReadsBeyond(context, diagnosis),
+                boundEffectiveVariableDeclaration.initializerExpression.findWritesBeyond(context, diagnosis),
                 this,
                 diagnosis,
             )

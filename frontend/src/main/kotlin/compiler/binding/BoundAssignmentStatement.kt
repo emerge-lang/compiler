@@ -64,7 +64,9 @@ abstract class BoundAssignmentStatement(
             toAssignExpression.markEvaluationResultUsed()
 
             assignmentTargetSemanticAnalysisPhase2(diagnosis)
-            assignmentTargetType?.let(toAssignExpression::setExpectedEvaluationResultType)
+            assignmentTargetType?.let { targetType ->
+                toAssignExpression.setExpectedEvaluationResultType(targetType, diagnosis)
+            }
 
             toAssignExpression.semanticAnalysisPhase2(diagnosis)
             additionalSemanticAnalysisPhase2(diagnosis)
@@ -102,12 +104,12 @@ abstract class BoundAssignmentStatement(
 
     protected abstract fun additionalSemanticAnalysisPhase3(diagnosis: Diagnosis)
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return toAssignExpression.findReadsBeyond(boundary)
+    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
+        return toAssignExpression.findReadsBeyond(boundary, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return toAssignExpression.findWritesBeyond(boundary)
+    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
+        return toAssignExpression.findWritesBeyond(boundary, diagnosis)
     }
 
     protected fun IrType.nullable(): IrType = if (isNullable) this else when (this) {

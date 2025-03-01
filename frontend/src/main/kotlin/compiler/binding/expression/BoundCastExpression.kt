@@ -65,7 +65,7 @@ class BoundCastExpression(
         if (isTypedNumericLiteral) {
             // there is no suffix type notation for numeric literals; instead casting should do that
             // this enables the numeric literal to change its type based on what is required, e.g. 3 as U16
-            value.setExpectedEvaluationResultType(type)
+            value.setExpectedEvaluationResultType(type, diagnosis)
         }
 
         value.markEvaluationResultUsed()
@@ -76,7 +76,7 @@ class BoundCastExpression(
     }
 
     private var expectedMutability: TypeMutability? = null
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         // don't forward / isolate this from the to-be-cast expression
         expectedMutability = type.mutability
     }
@@ -97,8 +97,8 @@ class BoundCastExpression(
         value.setNothrow(boundary)
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
-        value.setExpectedReturnType(type)
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        value.setExpectedReturnType(type, diagnosis)
     }
 
     override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
@@ -117,12 +117,12 @@ class BoundCastExpression(
         }
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return value.findReadsBeyond(boundary)
+    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
+        return value.findReadsBeyond(boundary, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return value.findWritesBeyond(boundary)
+    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
+        return value.findWritesBeyond(boundary, diagnosis)
     }
 
     override val isEvaluationResultReferenceCounted: Boolean get() = value.isEvaluationResultReferenceCounted

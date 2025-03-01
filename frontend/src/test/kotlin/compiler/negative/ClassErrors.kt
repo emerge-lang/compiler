@@ -205,7 +205,7 @@ class ClassErrors : FreeSpec({
             "if super fn is nothrow, override must be nothrow, too" {
                 validateModule("""
                     interface I {
-                        nothrow fn foo(self) {}
+                        nothrow fn foo(self)
                     }
                     class Test : I {
                         override fn foo(self) {}

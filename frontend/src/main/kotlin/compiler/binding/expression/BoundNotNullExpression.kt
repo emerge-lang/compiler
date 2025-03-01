@@ -63,10 +63,10 @@ class BoundNotNullExpression(
     }
 
     private var expectedEvaluationResultType: BoundTypeReference? = null
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         expectedEvaluationResultType = type
 
-        nullableExpression.setExpectedEvaluationResultType(type.withCombinedNullability(TypeReference.Nullability.NULLABLE))
+        nullableExpression.setExpectedEvaluationResultType(type.withCombinedNullability(TypeReference.Nullability.NULLABLE), diagnosis)
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
@@ -99,12 +99,12 @@ class BoundNotNullExpression(
         }
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return nullableExpression.findReadsBeyond(boundary)
+    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
+        return nullableExpression.findReadsBeyond(boundary, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return nullableExpression.findWritesBeyond(boundary)
+    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
+        return nullableExpression.findWritesBeyond(boundary, diagnosis)
     }
 
     override val isEvaluationResultReferenceCounted get() = nullableExpression.isEvaluationResultReferenceCounted

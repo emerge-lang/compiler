@@ -23,7 +23,7 @@ class BoundCondition(
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         expression.semanticAnalysisPhase3(diagnosis)
 
-        expression.findWritesBeyond(context)
+        expression.findWritesBeyond(context, diagnosis)
             .map(Reporting::mutationInCondition)
             .forEach(diagnosis::add)
     }

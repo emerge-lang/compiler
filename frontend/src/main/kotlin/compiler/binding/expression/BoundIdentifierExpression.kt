@@ -108,16 +108,16 @@ class BoundIdentifierExpression(
         referral?.semanticAnalysisPhase3(diagnosis)
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
+    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
         return referral?.findReadsBeyond(boundary) ?: emptySet()
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
+    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
         // this does not write by itself; writs are done by other statements
         return emptySet()
     }
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         // nothing to do. identifiers must always be unambiguous so there is no use for this information
     }
 

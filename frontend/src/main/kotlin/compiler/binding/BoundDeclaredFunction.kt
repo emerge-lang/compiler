@@ -68,7 +68,6 @@ abstract class BoundDeclaredFunction(
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
-
             attributes.semanticAnalysisPhase1(diagnosis)
 
             declaredTypeParameters.forEach { it.semanticAnalysisPhase1(diagnosis) }
@@ -84,7 +83,7 @@ abstract class BoundDeclaredFunction(
             this.body?.semanticAnalysisPhase1(diagnosis)
 
             returnType?.let {
-                body?.setExpectedReturnType(it)
+                body?.setExpectedReturnType(it, diagnosis)
             }
         }
     }
@@ -148,14 +147,14 @@ abstract class BoundDeclaredFunction(
                 if (BoundFunction.Purity.READONLY.contains(this.purity)) {
                     val statementsWritingBeyondFunctionContext = handleCyclicInvocation(
                         context = this,
-                        action = { body.findWritesBeyond(context) },
+                        action = { body.findWritesBeyond(context, diagnosis) },
                         onCycle = ::emptySet,
                     )
 
                     if (BoundFunction.Purity.PURE.contains(this.purity)) {
                         val statementsReadingBeyondFunctionContext = handleCyclicInvocation(
                             context = this,
-                            action = { body.findReadsBeyond(context) },
+                            action = { body.findReadsBeyond(context, diagnosis) },
                             onCycle = ::emptySet,
                         )
                         Reporting.purityViolations(statementsReadingBeyondFunctionContext, statementsWritingBeyondFunctionContext, this, diagnosis)
@@ -223,9 +222,9 @@ abstract class BoundDeclaredFunction(
 
             private var expectedReturnType: BoundTypeReference? = null
 
-            override fun setExpectedReturnType(type: BoundTypeReference) {
+            override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
                 expectedReturnType = type
-                expression.setExpectedEvaluationResultType(type)
+                expression.setExpectedEvaluationResultType(type, diagnosis)
             }
 
             override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {

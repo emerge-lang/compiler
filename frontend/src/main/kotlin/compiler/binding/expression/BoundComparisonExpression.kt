@@ -34,7 +34,9 @@ class BoundComparisonExpression(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         hiddenCompareInvocation.semanticAnalysisPhase2(diagnosis)
-        hiddenCompareInvocation.type?.also(boundZeroConstant::setExpectedEvaluationResultType)
+        hiddenCompareInvocation.type?.let { compareResultType ->
+            boundZeroConstant.setExpectedEvaluationResultType(compareResultType, diagnosis)
+        }
         boundZeroConstant.semanticAnalysisPhase2(diagnosis)
     }
 

@@ -33,13 +33,13 @@ class BoundBinaryExpression(
     override val declaration: BinaryExpression,
     val hiddenInvocation: BoundInvocationExpression,
 ) : BoundExpression<Expression> by hiddenInvocation {
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         if (type is RootResolvedTypeReference && type.baseType.isCoreScalar) {
-            hiddenInvocation.receiverExpression!!.setExpectedEvaluationResultType(type)
-            hiddenInvocation.valueArguments[0].setExpectedEvaluationResultType(type)
+            hiddenInvocation.receiverExpression!!.setExpectedEvaluationResultType(type, diagnosis)
+            hiddenInvocation.valueArguments[0].setExpectedEvaluationResultType(type, diagnosis)
         }
 
-        hiddenInvocation.setExpectedEvaluationResultType(type)
+        hiddenInvocation.setExpectedEvaluationResultType(type, diagnosis)
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {

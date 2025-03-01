@@ -11,6 +11,7 @@ interface Diagnosis {
     val nErrors: ULong
 
     fun add(finding: Reporting)
+    fun hasSameDrainAs(other: Diagnosis): Boolean
 
     fun mapping(mapper: (Reporting) -> Reporting): Diagnosis = MappingDiagnosisImpl(this, mapper)
 
@@ -22,6 +23,10 @@ interface Diagnosis {
                 if (finding.level >= Reporting.Level.ERROR) {
                     throw InternalCompilerError("Generated code produced an error finding:\n$finding")
                 }
+            }
+
+            override fun hasSameDrainAs(other: Diagnosis): Boolean {
+                return other === this
             }
         }
     }
@@ -42,20 +47,21 @@ class CollectingDiagnosis : Diagnosis {
     }
 
     val findings: Iterable<Reporting> = storage
-}
 
-object DiscardingDiagnosis : Diagnosis {
-    override var nErrors: ULong = 0uL
-
-    override fun add(finding: Reporting) {
-        if (finding.level >= Reporting.Level.ERROR) {
-            nErrors++
-        }
+    override fun hasSameDrainAs(other: Diagnosis): Boolean {
+        return other === this || other.hasSameDrainAs(this)
     }
 }
 
 private class MappingDiagnosisImpl(private val delegate: Diagnosis, private val mapper: (Reporting) -> Reporting) : Diagnosis by delegate {
     override fun add(finding: Reporting) {
         delegate.add(mapper(finding))
+    }
+
+    override fun hasSameDrainAs(other: Diagnosis): Boolean {
+        return when (other) {
+            is MappingDiagnosisImpl -> delegate.hasSameDrainAs(other.delegate)
+            else -> other.hasSameDrainAs(delegate) || other.hasSameDrainAs(this)
+        }
     }
 }

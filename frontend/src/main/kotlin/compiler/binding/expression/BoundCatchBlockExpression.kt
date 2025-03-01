@@ -61,8 +61,8 @@ class BoundCatchBlockExpression(
         }
     }
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
-        catchCode.setExpectedEvaluationResultType(type)
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        catchCode.setExpectedEvaluationResultType(type, diagnosis)
     }
 
     override fun markEvaluationResultUsed() {
@@ -76,8 +76,8 @@ class BoundCatchBlockExpression(
         }
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
-        catchCode.setExpectedReturnType(type)
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        catchCode.setExpectedReturnType(type, diagnosis)
     }
 
     override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
@@ -86,12 +86,12 @@ class BoundCatchBlockExpression(
         catchCode.setNothrow(boundary)
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return catchCode.findReadsBeyond(boundary)
+    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
+        return catchCode.findReadsBeyond(boundary, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return catchCode.findWritesBeyond(boundary)
+    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
+        return catchCode.findWritesBeyond(boundary, diagnosis)
     }
 
     override fun markEvaluationResultCaptured(withMutability: TypeMutability) {

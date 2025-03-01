@@ -36,7 +36,7 @@ class BoundNullLiteralExpression(
 ) : BoundLiteralExpression<NullLiteralExpression>
 {
     private var expectedType: BoundTypeReference? = null
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         expectedType = type
     }
 
@@ -50,8 +50,8 @@ class BoundNullLiteralExpression(
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
+    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> = emptySet()
+    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> = emptySet()
     override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {}
 
     override val isEvaluationResultReferenceCounted = false

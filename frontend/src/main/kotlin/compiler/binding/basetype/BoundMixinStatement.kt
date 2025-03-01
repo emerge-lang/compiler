@@ -54,7 +54,7 @@ class BoundMixinStatement(
         return seanHelper.phase1(diagnosis) {
             expression.semanticAnalysisPhase1(diagnosis)
             expression.markEvaluationResultUsed()
-            expression.setExpectedEvaluationResultType(expectedType)
+            expression.setExpectedEvaluationResultType(expectedType, diagnosis)
         }
     }
 
@@ -79,8 +79,8 @@ class BoundMixinStatement(
         }
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
-        expression.setExpectedReturnType(type)
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        expression.setExpectedReturnType(type, diagnosis)
     }
 
     private var used = false
@@ -99,12 +99,12 @@ class BoundMixinStatement(
         }
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return expression.findReadsBeyond(boundary)
+    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
+        return expression.findReadsBeyond(boundary, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return expression.findWritesBeyond(boundary)
+    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
+        return expression.findWritesBeyond(boundary, diagnosis)
     }
 
     override fun toBackendIrStatement(): IrExecutable {

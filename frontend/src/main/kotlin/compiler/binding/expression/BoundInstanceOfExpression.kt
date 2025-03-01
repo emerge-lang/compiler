@@ -55,7 +55,7 @@ class BoundInstanceOfExpression(
         type = context.swCtx.bool.baseReference
     }
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         // nothing to do, always evaluates to bool
     }
 

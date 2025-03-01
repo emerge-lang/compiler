@@ -104,17 +104,17 @@ class BoundReturnExpression(
         }
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
         expectedReturnType = type
-        expression?.setExpectedEvaluationResultType(type)
+        expression?.setExpectedEvaluationResultType(type, diagnosis)
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return this.expression?.findReadsBeyond(boundary) ?: emptySet()
+    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
+        return this.expression?.findReadsBeyond(boundary, diagnosis) ?: emptySet()
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return this.expression?.findWritesBeyond(boundary) ?: emptySet()
+    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
+        return this.expression?.findWritesBeyond(boundary, diagnosis) ?: emptySet()
     }
 
     override fun toBackendIrStatement(): IrExecutable {

@@ -128,7 +128,7 @@ fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext
     swCtxt.doSemanticAnalysis(diagnosis)
     return Pair(
         swCtxt,
-        diagnosis.findings.toList(),
+        diagnosis.findings.toSet(),
     )
 }
 
@@ -185,6 +185,10 @@ object FailTestOnFindingDiagnosis : Diagnosis {
     override fun add(finding: Reporting) {
         fail("Expected no findings, but got this:\n$finding")
     }
+
+    override fun hasSameDrainAs(other: Diagnosis): Boolean {
+        return other === this || other.hasSameDrainAs(this)
+    }
 }
 
 object FailOnErrorDiagnosis : Diagnosis {
@@ -194,6 +198,10 @@ object FailOnErrorDiagnosis : Diagnosis {
         if (finding.level >= Reporting.Level.ERROR) {
             fail("Expected no errors, but got this:\n$finding")
         }
+    }
+
+    override fun hasSameDrainAs(other: Diagnosis): Boolean {
+        return other === this || other.hasSameDrainAs(this)
     }
 }
 

@@ -28,7 +28,7 @@ class BoundStringLiteralExpression(
     override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {}
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         // nothing to do
     }
 

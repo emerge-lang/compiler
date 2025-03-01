@@ -55,7 +55,7 @@ class BoundReflectExpression(
     override val type: BoundTypeReference
         get() = context.swCtx.reflectionBaseType.baseReference.withMutability(TypeMutability.IMMUTABLE)
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
 
     }
 

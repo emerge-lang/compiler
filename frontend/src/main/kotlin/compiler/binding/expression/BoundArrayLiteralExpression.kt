@@ -97,19 +97,19 @@ class BoundArrayLiteralExpression(
         return elements.forEach { it.semanticAnalysisPhase3(diagnosis) }
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return elements.flatMap { it.findReadsBeyond(boundary) }
+    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
+        return elements.flatMap { it.findReadsBeyond(boundary, diagnosis) }
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return elements.flatMap { it.findWritesBeyond(boundary) }
+    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
+        return elements.flatMap { it.findWritesBeyond(boundary, diagnosis) }
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
-        elements.forEach { it.setExpectedReturnType(type) }
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        elements.forEach { it.setExpectedReturnType(type, diagnosis) }
     }
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         expectedEvaluationResultType = type
 
         if (type !is RootResolvedTypeReference || type.baseType != arrayType) {
@@ -118,7 +118,7 @@ class BoundArrayLiteralExpression(
         }
 
         expectedElementType = type.arguments?.firstOrNull()?.type ?: return
-        elements.forEach { it.setExpectedEvaluationResultType(expectedElementType!!) }
+        elements.forEach { it.setExpectedEvaluationResultType(expectedElementType!!, diagnosis) }
     }
 
     override val isEvaluationResultReferenceCounted = true

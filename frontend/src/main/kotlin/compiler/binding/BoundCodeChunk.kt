@@ -60,9 +60,9 @@ class BoundCodeChunk(
     override val modifiedContext: ExecutionScopedCTContext
         get() = statements.lastOrNull()?.modifiedContext ?: context
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
         this.statements.forEach {
-            it.setExpectedReturnType(type)
+            it.setExpectedReturnType(type, diagnosis)
         }
     }
 
@@ -74,10 +74,10 @@ class BoundCodeChunk(
 
     private var expectedImplicitEvaluationResultType: BoundTypeReference? = null
     private var isInExpressionContext = false
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         expectedImplicitEvaluationResultType = type
         isInExpressionContext = true
-        lastStatementAsExpression?.setExpectedEvaluationResultType(type)
+        lastStatementAsExpression?.setExpectedEvaluationResultType(type, diagnosis)
     }
 
     override fun markEvaluationResultUsed() {
@@ -143,22 +143,22 @@ class BoundCodeChunk(
         }
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
+    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
         seanHelper.requirePhase3Done()
         return statements.flatMap {
             handleCyclicInvocation(
                 context = this,
-                action =  { it.findReadsBeyond(boundary) },
+                action =  { it.findReadsBeyond(boundary, diagnosis) },
                 onCycle = ::emptySet,
             )
         }
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
+    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
         return statements.flatMap {
             handleCyclicInvocation(
                 context = this,
-                action = { it.findWritesBeyond(boundary) },
+                action = { it.findWritesBeyond(boundary, diagnosis) },
                 onCycle = ::emptySet,
             )
         }

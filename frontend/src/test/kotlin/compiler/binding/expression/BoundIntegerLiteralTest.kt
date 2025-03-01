@@ -50,7 +50,7 @@ class BoundIntegerLiteralTest : FreeSpec({
                             emptySet(),
                         )
                         boundNode.semanticAnalysisPhase1(FailTestOnFindingDiagnosis)
-                        boundNode.setExpectedEvaluationResultType(baseType.baseReference)
+                        boundNode.setExpectedEvaluationResultType(baseType.baseReference, FailTestOnFindingDiagnosis)
                         boundNode.semanticAnalysisPhase2(FailTestOnFindingDiagnosis)
                         boundNode.semanticAnalysisPhase3(FailTestOnFindingDiagnosis)
                     }

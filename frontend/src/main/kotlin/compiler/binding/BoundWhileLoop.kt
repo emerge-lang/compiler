@@ -51,9 +51,9 @@ class BoundWhileLoop(
         }
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
-        condition.setExpectedReturnType(type)
-        body.setExpectedReturnType(type)
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        condition.setExpectedReturnType(type, diagnosis)
+        body.setExpectedReturnType(type, diagnosis)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
@@ -63,12 +63,12 @@ class BoundWhileLoop(
         }
     }
 
-    override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-        return condition.findReadsBeyond(boundary) + body.findReadsBeyond(boundary)
+    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
+        return condition.findReadsBeyond(boundary, diagnosis) + body.findReadsBeyond(boundary, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
-        return condition.findWritesBeyond(boundary) + body.findWritesBeyond(boundary)
+    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
+        return condition.findWritesBeyond(boundary, diagnosis) + body.findWritesBeyond(boundary, diagnosis)
     }
 
     private val backendIr by lazy {

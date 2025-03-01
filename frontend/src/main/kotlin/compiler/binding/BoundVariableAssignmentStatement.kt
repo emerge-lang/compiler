@@ -78,12 +78,12 @@ class BoundVariableAssignmentStatement(
         }
     }
 
-    override fun findWritesBeyond(boundary: CTContext): Collection<BoundExecutable<*>> {
+    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
         if (targetVariable == null || context.containsWithinBoundary(targetVariable!!, boundary)) {
-            return super.findWritesBeyond(boundary)
+            return super.findWritesBeyond(boundary, diagnosis)
         }
 
-        return super.findWritesBeyond(boundary) + listOf(this)
+        return super.findWritesBeyond(boundary, diagnosis) + listOf(this)
     }
 
     override fun toBackendIrStatement(): IrExecutable {

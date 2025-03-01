@@ -73,10 +73,10 @@ class BoundIfExpression(
 
     private var isInExpressionContext = false
 
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         isInExpressionContext = true
-        thenCode.setExpectedEvaluationResultType(type)
-        elseCode?.setExpectedEvaluationResultType(type)
+        thenCode.setExpectedEvaluationResultType(type, diagnosis)
+        elseCode?.setExpectedEvaluationResultType(type, diagnosis)
     }
 
     override fun markEvaluationResultUsed() {
@@ -116,9 +116,9 @@ class BoundIfExpression(
         elseCode?.semanticAnalysisPhase3(diagnosis)
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference) {
-        thenCode.setExpectedReturnType(type)
-        elseCode?.setExpectedReturnType(type)
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        thenCode.setExpectedReturnType(type, diagnosis)
+        elseCode?.setExpectedReturnType(type, diagnosis)
     }
 
     override val isEvaluationResultReferenceCounted get() = when {

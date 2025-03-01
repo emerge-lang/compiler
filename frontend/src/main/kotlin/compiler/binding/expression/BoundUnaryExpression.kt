@@ -33,12 +33,12 @@ class BoundUnaryExpression(
     override val declaration: UnaryExpression,
     private val hiddenInvocation: BoundInvocationExpression,
 ) : BoundExpression<Expression> by hiddenInvocation {
-    override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
+    override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
         if (type is RootResolvedTypeReference && type.baseType.isCoreScalar) {
-            hiddenInvocation.receiverExpression!!.setExpectedEvaluationResultType(type)
+            hiddenInvocation.receiverExpression!!.setExpectedEvaluationResultType(type, diagnosis)
         }
 
-        hiddenInvocation.setExpectedEvaluationResultType(type)
+        hiddenInvocation.setExpectedEvaluationResultType(type, diagnosis)
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
