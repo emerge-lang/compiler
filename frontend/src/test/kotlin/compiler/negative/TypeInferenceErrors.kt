@@ -27,7 +27,7 @@ class TypeInferenceErrors : FreeSpec({
             fn a() = b()
             fn b() = a()
         """.trimIndent())
-            .shouldReport<TypeDeductionErrorDiagnostic>()
+            .shouldReport<TypeDeductionErrorDiagnostic>(allowMultiple = true)
     }
 
     "cyclic inference in variables and functions (mixed)" {

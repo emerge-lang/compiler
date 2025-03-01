@@ -17,6 +17,7 @@ import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
 import io.github.tmarsteel.emerge.common.config.ConfigModuleDefinition
 import io.kotest.assertions.fail
+import io.kotest.inspectors.forAtLeastOne
 import io.kotest.inspectors.forNone
 import io.kotest.inspectors.forOne
 import io.kotest.matchers.Matcher
@@ -151,17 +152,24 @@ fun validateModule(
 
 // TODO: most test cases expect EXACTLY one reporting, extra reportings are out-of-spec. This one lets extra reportings pass :(
 // the trick is finding the test that actually want more than one reporting and adapting that test code
-inline fun <reified T : Diagnostic> Pair<SoftwareContext, Collection<Diagnostic>>.shouldReport(additional: SoftwareContext.(T) -> Unit = {}): Pair<SoftwareContext, Collection<Diagnostic>> {
-    second.shouldReport<T> {
+inline fun <reified T : Diagnostic> Pair<SoftwareContext, Collection<Diagnostic>>.shouldReport(allowMultiple: Boolean = false, additional: SoftwareContext.(T) -> Unit = {}): Pair<SoftwareContext, Collection<Diagnostic>> {
+    second.shouldReport<T>(allowMultiple) {
         first.additional(it)
     }
     return this
 }
 
-inline fun <reified T : Diagnostic> Collection<Diagnostic>.shouldReport(additional: (T) -> Unit = {}): Collection<Diagnostic> {
-    forOne {
-        it.shouldBeInstanceOf<T>()
-        additional(it)
+inline fun <reified T : Diagnostic> Collection<Diagnostic>.shouldReport(allowMultiple: Boolean = false, additional: (T) -> Unit = {}): Collection<Diagnostic> {
+    if (allowMultiple) {
+        forAtLeastOne {
+            it.shouldBeInstanceOf<T>()
+            additional(it)
+        }
+    } else {
+        forOne {
+            it.shouldBeInstanceOf<T>()
+            additional(it)
+        }
     }
     return this
 }
