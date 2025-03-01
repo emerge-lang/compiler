@@ -86,8 +86,8 @@ class BoundCatchBlockExpression(
         catchCode.setNothrow(boundary)
     }
 
-    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
-        catchCode.visitReadsBeyond(boundary, visitor, diagnosis)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        catchCode.visitReadsBeyond(boundary, visitor)
     }
 
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {

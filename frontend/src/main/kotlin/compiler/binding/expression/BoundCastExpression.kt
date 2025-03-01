@@ -117,8 +117,8 @@ class BoundCastExpression(
         }
     }
 
-    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
-        value.visitReadsBeyond(boundary, visitor, diagnosis)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        value.visitReadsBeyond(boundary, visitor)
     }
 
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {

@@ -109,8 +109,8 @@ class BoundReturnExpression(
         expression?.setExpectedEvaluationResultType(type, diagnosis)
     }
 
-    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
-        expression?.visitReadsBeyond(boundary, visitor, diagnosis)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        expression?.visitReadsBeyond(boundary, visitor)
     }
 
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {

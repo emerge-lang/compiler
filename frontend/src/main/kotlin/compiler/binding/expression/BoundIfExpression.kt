@@ -118,10 +118,10 @@ class BoundIfExpression(
         elseCode?.semanticAnalysisPhase3(diagnosis)
     }
 
-    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
-        condition.visitReadsBeyond(boundary, visitor, diagnosis)
-        thenCode.visitReadsBeyond(boundary, visitor, diagnosis)
-        elseCode?.visitReadsBeyond(boundary, visitor, diagnosis)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        condition.visitReadsBeyond(boundary, visitor)
+        thenCode.visitReadsBeyond(boundary, visitor)
+        elseCode?.visitReadsBeyond(boundary, visitor)
     }
 
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {

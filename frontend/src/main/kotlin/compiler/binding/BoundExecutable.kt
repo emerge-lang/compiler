@@ -71,7 +71,7 @@ interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
      * @return All the nested [BoundExecutable]s (or `this` if there are no nested ones) that read state that belongs
      *         to context outside the given boundary.
      */
-    fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis)
+    fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor)
 
     /**
      * Use to find violations of readonlyness and/or purity.

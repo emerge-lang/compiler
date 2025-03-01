@@ -390,14 +390,13 @@ class BoundInvocationExpression(
         }
     }
 
-    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         seanHelper.requirePhase2Done()
 
-        receiverExpression?.visitReadsBeyond(boundary, visitor, diagnosis)
-        valueArguments.forEach { it.visitReadsBeyond(boundary, visitor, diagnosis) }
+        receiverExpression?.visitReadsBeyond(boundary, visitor)
+        valueArguments.forEach { it.visitReadsBeyond(boundary, visitor) }
 
         val invokedFunctionIsPure = functionToInvoke?.let {
-            it.semanticAnalysisPhase3(diagnosis)
             BoundFunction.Purity.PURE.contains(it.purity)
         } ?: true
 
@@ -419,7 +418,7 @@ class BoundInvocationExpression(
             // is the argument itself a read beyond the boundary
             .filter { (argument, _) ->
                 val detectingVisitor = DetectingImpurityVisitor(argument)
-                argument.visitReadsBeyond(boundary, detectingVisitor, diagnosis)
+                argument.visitReadsBeyond(boundary, detectingVisitor)
                 detectingVisitor.foundAsReading
             }
             .forEach { (argument, _) ->

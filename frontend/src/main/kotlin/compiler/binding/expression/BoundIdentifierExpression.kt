@@ -109,8 +109,8 @@ class BoundIdentifierExpression(
         referral?.semanticAnalysisPhase3(diagnosis)
     }
 
-    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
-        referral?.visitReadsBeyond(boundary, visitor, diagnosis)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        referral?.visitReadsBeyond(boundary, visitor)
     }
 
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
@@ -133,7 +133,7 @@ class BoundIdentifierExpression(
         override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
 
         /** @see BoundExpression.findReadsBeyond */
-        fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis)
+        fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor)
 
         /** @see BoundExpression.markEvaluationResultUsed */
         fun markEvaluationResultUsed()
@@ -238,7 +238,7 @@ class BoundIdentifierExpression(
             }
         }
 
-        override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
             if (context.containsWithinBoundary(variable, boundary)) {
                 return
             }
@@ -260,7 +260,7 @@ class BoundIdentifierExpression(
         override fun markEvaluationResultUsed() {}
         override fun markEvaluationResultCaptured(withMutability: TypeMutability) {}
 
-        override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
             // reading type information outside the boundary is pure because type information is compile-time constant
         }
 

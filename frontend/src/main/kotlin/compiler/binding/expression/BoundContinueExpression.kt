@@ -38,7 +38,7 @@ class BoundContinueExpression(
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
     }
 
-    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) = Unit
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) = Unit
 
     private inner class IrContinueStatementImpl : IrContinueStatement {

@@ -143,12 +143,12 @@ class BoundCodeChunk(
         }
     }
 
-    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         seanHelper.requirePhase3Done()
         statements.forEach {
             handleCyclicInvocation(
                 context = this,
-                action = { it.visitReadsBeyond(boundary, visitor, diagnosis) },
+                action = { it.visitReadsBeyond(boundary, visitor) },
                 onCycle = { },
             )
         }

@@ -100,9 +100,9 @@ class BoundNullCoalescingExpression(
         alternativeExpression.semanticAnalysisPhase3(diagnosis)
     }
 
-    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
-        nullableExpression.visitReadsBeyond(boundary, visitor, diagnosis)
-        alternativeExpression.visitReadsBeyond(boundary, visitor, diagnosis)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        nullableExpression.visitReadsBeyond(boundary, visitor)
+        alternativeExpression.visitReadsBeyond(boundary, visitor)
     }
 
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {

@@ -54,7 +54,7 @@ class BoundReflectExpression(
         }
     }
 
-    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) = Unit
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) = Unit
 
     override val type: BoundTypeReference

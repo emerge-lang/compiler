@@ -156,7 +156,7 @@ abstract class BoundDeclaredFunction(
                     if (BoundFunction.Purity.PURE.contains(this.purity)) {
                         handleCyclicInvocation(
                             context = this,
-                            action = { body.visitReadsBeyond(context, diagnosingVisitor, diagnosis) },
+                            action = { body.visitReadsBeyond(context, diagnosingVisitor) },
                             onCycle = {},
                         )
                     }

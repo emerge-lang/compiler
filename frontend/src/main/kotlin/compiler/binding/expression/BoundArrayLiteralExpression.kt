@@ -97,9 +97,9 @@ class BoundArrayLiteralExpression(
         return elements.forEach { it.semanticAnalysisPhase3(diagnosis) }
     }
 
-    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         elements.forEach {
-            it.visitReadsBeyond(boundary, visitor, diagnosis)
+            it.visitReadsBeyond(boundary, visitor)
         }
     }
 

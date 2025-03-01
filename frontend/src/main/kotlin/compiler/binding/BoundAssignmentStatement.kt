@@ -104,8 +104,8 @@ abstract class BoundAssignmentStatement(
 
     protected abstract fun additionalSemanticAnalysisPhase3(diagnosis: Diagnosis)
 
-    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
-        toAssignExpression.visitReadsBeyond(boundary, visitor, diagnosis)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        toAssignExpression.visitReadsBeyond(boundary, visitor)
     }
 
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {

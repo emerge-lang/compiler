@@ -92,7 +92,7 @@ class BoundBaseTypeMemberVariable(
         boundEffectiveVariableDeclaration.initializerExpression?.let { initializer ->
             val diagnosingVisitor = PurityViolationImpurityVisitor(diagnosis, PurityViolationReporting.SideEffectBoundary.ClassMemberInitializer(this))
             initializer.visitWritesBeyond(context, diagnosingVisitor, diagnosis)
-            initializer.visitReadsBeyond(context, diagnosingVisitor, diagnosis)
+            initializer.visitReadsBeyond(context, diagnosingVisitor)
         }
     }
 
