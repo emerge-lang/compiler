@@ -98,7 +98,6 @@ abstract class Diagnostic internal constructor(
         return result
     }
 
-
     enum class Severity(val level: Int) {
         CONSECUTIVE(0),
         INFO(10),
