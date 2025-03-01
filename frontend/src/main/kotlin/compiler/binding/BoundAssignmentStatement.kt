@@ -108,8 +108,8 @@ abstract class BoundAssignmentStatement(
         toAssignExpression.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
-        toAssignExpression.visitWritesBeyond(boundary, visitor, diagnosis)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        toAssignExpression.visitWritesBeyond(boundary, visitor)
     }
 
     protected fun IrType.nullable(): IrType = if (isNullable) this else when (this) {

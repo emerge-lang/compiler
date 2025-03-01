@@ -105,9 +105,9 @@ class BoundNullCoalescingExpression(
         alternativeExpression.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
-        nullableExpression.visitWritesBeyond(boundary, visitor, diagnosis)
-        alternativeExpression.visitWritesBeyond(boundary, visitor, diagnosis)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        nullableExpression.visitWritesBeyond(boundary, visitor)
+        alternativeExpression.visitWritesBeyond(boundary, visitor)
     }
 
     override val isEvaluationResultReferenceCounted: Boolean

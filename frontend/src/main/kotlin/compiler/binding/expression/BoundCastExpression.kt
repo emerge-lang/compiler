@@ -121,8 +121,8 @@ class BoundCastExpression(
         value.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
-        value.visitWritesBeyond(boundary, visitor, diagnosis)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        value.visitWritesBeyond(boundary, visitor)
     }
 
     override val isEvaluationResultReferenceCounted: Boolean get() = value.isEvaluationResultReferenceCounted

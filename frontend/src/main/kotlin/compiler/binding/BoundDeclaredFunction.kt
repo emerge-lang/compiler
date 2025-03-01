@@ -149,7 +149,7 @@ abstract class BoundDeclaredFunction(
                     val diagnosingVisitor = PurityViolationImpurityVisitor(diagnosis, PurityViolationReporting.SideEffectBoundary.Function(this))
                     handleCyclicInvocation(
                         context = this,
-                        action = { body.visitWritesBeyond(context, diagnosingVisitor, diagnosis) },
+                        action = { body.visitWritesBeyond(context, diagnosingVisitor) },
                         onCycle = {},
                     )
 

@@ -265,8 +265,8 @@ class BoundVariable(
         initializerExpression?.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
-        initializerExpression?.visitWritesBeyond(boundary, visitor, diagnosis)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        initializerExpression?.visitWritesBeyond(boundary, visitor)
     }
 
     fun getInitializationStateInContext(context: ExecutionScopedCTContext): VariableInitialization.State {

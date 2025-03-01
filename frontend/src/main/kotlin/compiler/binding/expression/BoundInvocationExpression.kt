@@ -405,11 +405,11 @@ class BoundInvocationExpression(
         }
     }
 
-    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         seanHelper.requirePhase2Done()
 
-        receiverExpression?.visitWritesBeyond(boundary, visitor, diagnosis)
-        valueArguments.forEach { it.visitWritesBeyond(boundary, visitor, diagnosis) }
+        receiverExpression?.visitWritesBeyond(boundary, visitor)
+        valueArguments.forEach { it.visitWritesBeyond(boundary, visitor) }
 
         // writes through arguments that are modified by the called function
         (listOfNotNull(receiverExpression) + valueArguments).zip(functionToInvoke?.parameters?.parameters ?: emptyList())

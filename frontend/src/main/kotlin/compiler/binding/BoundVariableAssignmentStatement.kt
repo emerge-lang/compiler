@@ -82,14 +82,14 @@ class BoundVariableAssignmentStatement(
         toAssignExpression.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         targetVariable
             ?.takeIf { !context.containsWithinBoundary(it, boundary) }
             ?.let {
                 visitor.visitWriteBeyondBoundary(boundary, this)
             }
 
-        super.visitWritesBeyond(boundary, visitor, diagnosis)
+        super.visitWritesBeyond(boundary, visitor)
     }
 
 

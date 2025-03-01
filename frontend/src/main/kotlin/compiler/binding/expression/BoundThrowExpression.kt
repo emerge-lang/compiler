@@ -71,8 +71,8 @@ class BoundThrowExpression(
         throwableExpression.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
-        throwableExpression.visitWritesBeyond(boundary, visitor, diagnosis)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        throwableExpression.visitWritesBeyond(boundary, visitor)
     }
 
     private val _backendIr: IrExecutable by lazy {

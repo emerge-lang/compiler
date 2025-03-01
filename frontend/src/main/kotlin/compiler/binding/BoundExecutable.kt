@@ -79,7 +79,7 @@ interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
      * @return All the nested [BoundExecutable]s (or `this` if there are no nested ones) that write state that belongs
      *         to context outside the given boundary.
      */
-    fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis)
+    fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor)
 
     fun toBackendIrStatement(): IrExecutable
 }

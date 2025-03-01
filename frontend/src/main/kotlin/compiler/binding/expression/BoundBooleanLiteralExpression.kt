@@ -52,7 +52,7 @@ class BoundBooleanLiteralExpression(
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
     override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
-    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) = Unit
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
 
     override val isEvaluationResultReferenceCounted = false
     override val isEvaluationResultAnchored = true

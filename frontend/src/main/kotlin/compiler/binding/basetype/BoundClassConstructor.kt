@@ -297,8 +297,11 @@ class BoundClassConstructor(
                 handleCyclicInvocation(
                     context = this,
                     action = {
-                        boundMemberVariableInitCodeFromExpression.visitWritesBeyond(constructorFunctionRootContext, diagnosingVisitor, diagnosis)
-                        additionalInitCode.visitWritesBeyond(constructorFunctionRootContext, diagnosingVisitor, diagnosis)
+                        boundMemberVariableInitCodeFromExpression.visitWritesBeyond(
+                            constructorFunctionRootContext,
+                            diagnosingVisitor
+                        )
+                        additionalInitCode.visitWritesBeyond(constructorFunctionRootContext, diagnosingVisitor)
                     },
                     onCycle = {},
                 )

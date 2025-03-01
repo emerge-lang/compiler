@@ -73,8 +73,8 @@ class BoundInstanceOfExpression(
         expressionToCheck.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
-        expressionToCheck.visitWritesBeyond(boundary, visitor, diagnosis)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        expressionToCheck.visitWritesBeyond(boundary, visitor)
     }
 
     override val isEvaluationResultReferenceCounted = true

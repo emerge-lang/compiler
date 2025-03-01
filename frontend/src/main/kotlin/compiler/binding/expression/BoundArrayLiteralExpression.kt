@@ -103,9 +103,9 @@ class BoundArrayLiteralExpression(
         }
     }
 
-    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         elements.forEach {
-            it.visitWritesBeyond(boundary, visitor, diagnosis)
+            it.visitWritesBeyond(boundary, visitor)
         }
     }
 

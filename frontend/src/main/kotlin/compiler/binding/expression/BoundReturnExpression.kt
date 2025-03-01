@@ -113,8 +113,8 @@ class BoundReturnExpression(
         expression?.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
-        expression?.visitWritesBeyond(boundary, visitor, diagnosis)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        expression?.visitWritesBeyond(boundary, visitor)
     }
 
     override fun toBackendIrStatement(): IrExecutable {

@@ -124,10 +124,10 @@ class BoundIfExpression(
         elseCode?.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
-        condition.visitWritesBeyond(boundary, visitor, diagnosis)
-        thenCode.visitWritesBeyond(boundary, visitor, diagnosis)
-        elseCode?.visitWritesBeyond(boundary, visitor, diagnosis)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        condition.visitWritesBeyond(boundary, visitor)
+        thenCode.visitWritesBeyond(boundary, visitor)
+        elseCode?.visitWritesBeyond(boundary, visitor)
     }
 
     override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {

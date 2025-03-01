@@ -90,8 +90,8 @@ class BoundCatchBlockExpression(
         catchCode.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
-        catchCode.visitWritesBeyond(boundary, visitor, diagnosis)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        catchCode.visitWritesBeyond(boundary, visitor)
     }
 
     override fun markEvaluationResultCaptured(withMutability: TypeMutability) {

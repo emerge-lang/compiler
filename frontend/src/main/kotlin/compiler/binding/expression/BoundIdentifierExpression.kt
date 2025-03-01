@@ -113,7 +113,7 @@ class BoundIdentifierExpression(
         referral?.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         // this does not write by itself; writes are done by other statements
     }
 

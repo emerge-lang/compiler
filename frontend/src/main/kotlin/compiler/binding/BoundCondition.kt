@@ -34,8 +34,7 @@ class BoundCondition(
                 override fun visitWriteBeyondBoundary(purityBoundary: CTContext, write: BoundExecutable<*>) {
                     diagnosis.add(Reporting.mutationInCondition(write))
                 }
-            },
-            diagnosis
+            }
         )
     }
 }

@@ -67,9 +67,9 @@ class BoundWhileLoop(
         body.visitReadsBeyond(boundary, visitor)
     }
 
-    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
-        condition.visitWritesBeyond(boundary, visitor, diagnosis)
-        body.visitWritesBeyond(boundary, visitor, diagnosis)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        condition.visitWritesBeyond(boundary, visitor)
+        body.visitWritesBeyond(boundary, visitor)
     }
 
     private val backendIr by lazy {
