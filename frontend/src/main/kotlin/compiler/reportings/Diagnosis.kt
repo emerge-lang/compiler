@@ -8,93 +8,48 @@ import compiler.InternalCompilerError
  * passed to a [Diagnosis], this can be made much more efficient.
  */
 interface Diagnosis {
-    val hasErrors: Boolean
+    val nErrors: ULong
 
     fun add(finding: Reporting)
-    fun incorporate(diagnosis: Diagnosis)
-
-    fun record(): OngoingRecording
 
     fun mapping(mapper: (Reporting) -> Reporting): Diagnosis = MappingDiagnosisImpl(this, mapper)
 
-    interface OngoingRecording : AutoCloseable {
-        fun complete(): Recorded
-    }
-
-    interface Recorded {
-        val hasErrors: Boolean
-        fun replayOnto(diagnosis: Diagnosis)
-    }
-
     companion object {
-        fun newDiagnosis(): Diagnosis = DiagnosisImpl()
-        fun failOnError(): Diagnosis = object : Diagnosis by Diagnosis.newDiagnosis() {
-            override val hasErrors = false
+        fun failOnError(): Diagnosis = object : Diagnosis {
+            override val nErrors = 0uL
 
             override fun add(finding: Reporting) {
                 if (finding.level >= Reporting.Level.ERROR) {
                     throw InternalCompilerError("Generated code produced an error finding:\n$finding")
                 }
             }
-
-            override fun incorporate(diagnosis: Diagnosis) {
-                TODO("generic impl")
-            }
         }
     }
 }
 
-private class DiagnosisImpl : Diagnosis {
+class CollectingDiagnosis : Diagnosis {
     private val storage = ArrayList<Reporting>()
 
-    override val hasErrors: Boolean
-        get() = storage.any { it.level >= Reporting.Level.ERROR }
+    override val nErrors: ULong
+        get() = storage.count { it.level >= Reporting.Level.ERROR }.toULong()
 
     override fun add(finding: Reporting) {
         storage.add(finding)
     }
 
-    override fun incorporate(diagnosis: Diagnosis) {
-        if (diagnosis === this) {
-            return
-        }
-
-        if (diagnosis !is DiagnosisImpl) {
-            TODO("abstract impl")
-        }
-
-        storage.addAll(diagnosis.storage)
+    fun replayOnto(diagnosis: Diagnosis) {
+        storage.forEach(diagnosis::add)
     }
 
-    override fun record(): Diagnosis.OngoingRecording {
-        return object : Diagnosis.OngoingRecording {
-            private val firstIndex = storage.size
-            private var closed = false
-            override fun complete(): Diagnosis.Recorded {
-                check(!closed)
-                close()
-                val lastIndex = storage.lastIndex
-                return object : Diagnosis.Recorded {
-                    private val findings: Sequence<Reporting> = IntProgression.fromClosedRange(firstIndex, lastIndex, 1)
-                        .asSequence()
-                        .map(storage::get)
+    val findings: Iterable<Reporting> = storage
+}
 
-                    override val hasErrors: Boolean
-                        get() = findings.any { it.level >= Reporting.Level.ERROR }
+object DiscardingDiagnosis : Diagnosis {
+    override var nErrors: ULong = 0uL
 
-                    override fun replayOnto(diagnosis: Diagnosis) {
-                        if (diagnosis === this@DiagnosisImpl) {
-                            return
-                        }
-
-                        findings.forEach(diagnosis::add)
-                    }
-                }
-            }
-
-            override fun close() {
-                closed = true
-            }
+    override fun add(finding: Reporting) {
+        if (finding.level >= Reporting.Level.ERROR) {
+            nErrors++
         }
     }
 }
@@ -102,9 +57,5 @@ private class DiagnosisImpl : Diagnosis {
 private class MappingDiagnosisImpl(private val delegate: Diagnosis, private val mapper: (Reporting) -> Reporting) : Diagnosis by delegate {
     override fun add(finding: Reporting) {
         delegate.add(mapper(finding))
-    }
-
-    override fun incorporate(diagnosis: Diagnosis) {
-        TODO("abstract impl")
     }
 }
