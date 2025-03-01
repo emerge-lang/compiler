@@ -5,6 +5,7 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
 import compiler.lexer.Span
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
@@ -25,8 +26,10 @@ class UnresolvedType private constructor(
     override val span = reference.declaringNameToken?.span
     override val inherentTypeBindings = TypeUnification.EMPTY
 
-    override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
-        return (parameters ?: emptyList()).flatMap { it.validate(forUsage.deriveIrrelevant()) } + setOf(Reporting.unknownType(reference))
+    override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
+        diagnosis.add(Reporting.unknownType(reference))
+
+        parameters?.forEach { it.validate(forUsage.deriveIrrelevant(), diagnosis) }
     }
 
     override fun withMutability(modifier: TypeMutability?): BoundTypeReference {

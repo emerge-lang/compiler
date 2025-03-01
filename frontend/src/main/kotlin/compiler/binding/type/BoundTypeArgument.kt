@@ -9,6 +9,7 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
 import compiler.lexer.Span
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -38,8 +39,9 @@ class BoundTypeArgument(
         type.defaultMutabilityTo(mutability),
     )
 
-    override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
-        return setOfNotNull(forUsage.validateForTypeVariance(variance)) + type.validate(forUsage.deriveIrrelevant())
+    override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
+        forUsage.validateForTypeVariance(variance, diagnosis)
+        type.validate(forUsage.deriveIrrelevant(), diagnosis)
     }
 
     override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeArgument {

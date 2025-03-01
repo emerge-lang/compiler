@@ -36,6 +36,7 @@ import compiler.binding.misc_ir.IrIsNullExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -58,7 +59,7 @@ class BoundNotNullExpression(
     override val returnBehavior get() = nullableExpression.returnBehavior
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-        return nullableExpression.semanticAnalysisPhase1()
+        nullableExpression.semanticAnalysisPhase1(diagnosis)
     }
 
     private var expectedEvaluationResultType: BoundTypeReference? = null
@@ -70,10 +71,9 @@ class BoundNotNullExpression(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         nullableExpression.markEvaluationResultUsed()
-        val reportings = nullableExpression.semanticAnalysisPhase2()
+        nullableExpression.semanticAnalysisPhase2(diagnosis)
         type = nullableExpression.type?.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
             ?: expectedEvaluationResultType
-        return reportings
     }
 
     private var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
@@ -97,7 +97,6 @@ class BoundNotNullExpression(
         nothrowBoundary?.let { nothrowBoundary ->
             diagnosis.add(Reporting.nothrowViolatingNotNullAssertion(this, nothrowBoundary))
         }
-        return reportings
     }
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {

@@ -23,6 +23,7 @@ import compiler.ast.expression.UnaryExpression
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
+import compiler.reportings.Diagnosis
 import compiler.reportings.FunctionMissingModifierReporting.Companion.requireOperatorModifier
 import compiler.reportings.Reporting
 import compiler.reportings.UnresolvableFunctionOverloadReporting
@@ -41,26 +42,22 @@ class BoundUnaryExpression(
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
-        hiddenInvocation.semanticAnalysisPhase2()
-            .map { hiddenReporting ->
-                if (hiddenReporting !is UnresolvableFunctionOverloadReporting) {
-                    return@map hiddenReporting
-                }
-
-                Reporting.operatorNotDeclared(
-                    "Unary operator ${declaration.operator.name} (function ${hiddenInvocation.functionNameToken.value}) not declared for type ${hiddenReporting.receiverType ?: "<unknown>"}",
-                    declaration,
-                )
+        hiddenInvocation.semanticAnalysisPhase2(diagnosis.mapping { hiddenReporting ->
+            if (hiddenReporting !is UnresolvableFunctionOverloadReporting || hiddenReporting.functionNameReference != hiddenInvocation.functionNameToken) {
+                return@mapping hiddenReporting
             }
-            .let(reportings::addAll)
+
+            Reporting.operatorNotDeclared(
+                "Unary operator ${declaration.operator.name} (function ${hiddenInvocation.functionNameToken.value}) not declared for type ${hiddenReporting.receiverType ?: "<unknown>"}",
+                declaration,
+            )
+        })
 
         requireOperatorModifier(
             hiddenInvocation,
             this,
-            reportings,
+            diagnosis,
         )
-
-        return reportings
     }
 }
 

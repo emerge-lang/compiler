@@ -19,6 +19,7 @@ import compiler.binding.misc_ir.IrIsNullExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -51,8 +52,6 @@ class BoundNullCoalescingExpression(
 
         // it will be null-checked in any case
         nullableExpression.markEvaluationResultUsed()
-
-        return reportings
     }
 
     private var evaluationResultUsed = false
@@ -84,8 +83,6 @@ class BoundNullCoalescingExpression(
         if (nullableExpression.type?.isNullable == false) {
             diagnosis.add(Reporting.nullCheckOnNonNullableValue(nullableExpression))
         }
-
-        return reportings
     }
 
     override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
@@ -101,7 +98,6 @@ class BoundNullCoalescingExpression(
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         nullableExpression.semanticAnalysisPhase3(diagnosis)
         alternativeExpression.semanticAnalysisPhase3(diagnosis)
-        return reportings
     }
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {

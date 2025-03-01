@@ -6,6 +6,7 @@ import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
 import compiler.lexer.Span
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import compiler.util.andThen
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
@@ -42,8 +43,9 @@ sealed class GenericTypeReference : BoundTypeReference {
         }
     }
 
-    override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
-        return effectiveBound.validate(forUsage) + setOfNotNull(forUsage.validateForTypeVariance(parameter.variance))
+    override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
+        effectiveBound.validate(forUsage, diagnosis)
+        forUsage.validateForTypeVariance(parameter.variance, diagnosis)
     }
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {

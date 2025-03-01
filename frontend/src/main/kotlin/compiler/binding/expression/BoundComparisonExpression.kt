@@ -9,6 +9,7 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.lexer.NumericLiteralToken
+import compiler.reportings.Diagnosis
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNumericComparisonExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -27,20 +28,19 @@ class BoundComparisonExpression(
     ).bindTo(context)
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-        return hiddenCompareInvocation.semanticAnalysisPhase1() +
-                boundZeroConstant.semanticAnalysisPhase1()
+        hiddenCompareInvocation.semanticAnalysisPhase1(diagnosis)
+        boundZeroConstant.semanticAnalysisPhase1(diagnosis)
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         hiddenCompareInvocation.semanticAnalysisPhase2(diagnosis)
         hiddenCompareInvocation.type?.also(boundZeroConstant::setExpectedEvaluationResultType)
         boundZeroConstant.semanticAnalysisPhase2(diagnosis)
-        return reportings
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
-        return hiddenCompareInvocation.semanticAnalysisPhase3() +
-                boundZeroConstant.semanticAnalysisPhase3()
+        hiddenCompareInvocation.semanticAnalysisPhase3(diagnosis)
+        boundZeroConstant.semanticAnalysisPhase3(diagnosis)
     }
 
     override fun toBackendIrExpression(): IrExpression {

@@ -9,6 +9,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
@@ -31,14 +32,14 @@ class BoundReflectExpression(
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         typeToReflectOn = context.resolveType(declaration.type)
-        return typeToReflectOn.validate(TypeUseSite.Irrelevant(
-            declaration.span,
-            null
-        ))
+        typeToReflectOn.validate(
+            TypeUseSite.Irrelevant(declaration.span, null),
+            diagnosis,
+        )
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
-        return emptySet()
+
     }
 
     private var baseTypeToReflectOn: BoundBaseType? = null
@@ -49,8 +50,6 @@ class BoundReflectExpression(
         } else if (typeToReflectOn !is UnresolvedType) {
             diagnosis.add(Reporting.unsupportedReflection(typeToReflectOn))
         }
-
-        return reportings
     }
 
     override val type: BoundTypeReference

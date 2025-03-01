@@ -10,6 +10,7 @@ import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
 import compiler.lexer.Span
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
@@ -41,15 +42,13 @@ data class BoundTypeParameter(
                 diagnosis.add(Reporting.typeParameterNameConflict(preExistingType, this))
             }
         bound = astNode.bound?.let(context::resolveType) ?: context.swCtx.typeParameterDefaultBound
-        return reportings
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
-        return bound.validate(TypeUseSite.Irrelevant(astNode.name.span, this))
+        bound.validate(TypeUseSite.Irrelevant(astNode.name.span, this), diagnosis)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
-        return emptySet()
     }
 
     override fun validateAccessFrom(location: Span, diagnosis: Diagnosis) {

@@ -3,8 +3,8 @@ package compiler.binding.type
 import compiler.ast.type.TypeVariance
 import compiler.binding.DefinitionWithVisibility
 import compiler.lexer.Span
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
-import compiler.reportings.UnsupportedTypeUsageVarianceReporting
 
 /**
  * Describes the [TypeVariance] of the usage side. E.g. function parameters are [TypeVariance.IN],
@@ -17,7 +17,7 @@ sealed class TypeUseSite(
 ) {
     val usageLocation: Span = givenUsageLocation ?: Span.UNKNOWN
 
-    abstract fun validateForTypeVariance(typeVariance: TypeVariance): Reporting?
+    abstract fun validateForTypeVariance(typeVariance: TypeVariance, diagnosis: Diagnosis)
 
     fun deriveIrrelevant(): Irrelevant = Irrelevant(usageLocation, exposedBy)
 
@@ -42,12 +42,10 @@ sealed class TypeUseSite(
         usageLocation: Span?,
         exposedBy: DefinitionWithVisibility?,
     ): TypeUseSite(usageLocation, "in", exposedBy) {
-        override fun validateForTypeVariance(typeVariance: TypeVariance): UnsupportedTypeUsageVarianceReporting? {
+        override fun validateForTypeVariance(typeVariance: TypeVariance, diagnosis: Diagnosis) {
             if (typeVariance != TypeVariance.IN && typeVariance != TypeVariance.UNSPECIFIED) {
-                return Reporting.unsupportedTypeUsageVariance(this, typeVariance)
+                diagnosis.add(Reporting.unsupportedTypeUsageVariance(this, typeVariance))
             }
-
-            return null
         }
     }
 
@@ -55,12 +53,10 @@ sealed class TypeUseSite(
         usageLocation: Span?,
         exposedBy: DefinitionWithVisibility?,
     ): TypeUseSite(usageLocation, "out", exposedBy) {
-        override fun validateForTypeVariance(typeVariance: TypeVariance): UnsupportedTypeUsageVarianceReporting? {
+        override fun validateForTypeVariance(typeVariance: TypeVariance, diagnosis: Diagnosis) {
             if (typeVariance != TypeVariance.OUT && typeVariance != TypeVariance.UNSPECIFIED) {
-                return Reporting.unsupportedTypeUsageVariance(this, typeVariance)
+                diagnosis.add(Reporting.unsupportedTypeUsageVariance(this, typeVariance))
             }
-
-            return null
         }
     }
 
@@ -68,12 +64,10 @@ sealed class TypeUseSite(
         usageLocation: Span?,
         exposedBy: DefinitionWithVisibility?,
     ): TypeUseSite(usageLocation, "invariant", exposedBy) {
-        override fun validateForTypeVariance(typeVariance: TypeVariance): UnsupportedTypeUsageVarianceReporting? {
+        override fun validateForTypeVariance(typeVariance: TypeVariance, diagnosis: Diagnosis) {
             if (typeVariance != TypeVariance.UNSPECIFIED) {
-                return Reporting.unsupportedTypeUsageVariance(this, typeVariance)
+                diagnosis.add(Reporting.unsupportedTypeUsageVariance(this, typeVariance))
             }
-
-            return null
         }
     }
 
@@ -81,6 +75,6 @@ sealed class TypeUseSite(
         usageLocation: Span?,
         exposedBy: DefinitionWithVisibility?,
     ) : TypeUseSite(usageLocation, "irrelevant", exposedBy) {
-        override fun validateForTypeVariance(typeVariance: TypeVariance) = null
+        override fun validateForTypeVariance(typeVariance: TypeVariance, diagnosis: Diagnosis) = Unit
     }
 }

@@ -11,6 +11,7 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrExpressionSideEffectsStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -33,7 +34,7 @@ class BoundThrowExpression(
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
-            throwableExpression.semanticAnalysisPhase1()
+            throwableExpression.semanticAnalysisPhase1(diagnosis)
         }
     }
 
@@ -45,9 +46,7 @@ class BoundThrowExpression(
             throwableExpression.semanticAnalysisPhase2(diagnosis)
             throwableExpression.type
                 ?.evaluateAssignabilityTo(expectedType, throwableExpression.declaration.span)
-                ?.let(reportings::add)
-
-            return@phase2 reportings
+                ?.let(diagnosis::add)
         }
     }
 
@@ -63,8 +62,6 @@ class BoundThrowExpression(
             nothrowBoundary?.let { nothrowBoundary ->
                 diagnosis.add(Reporting.throwStatementInNothrowContext(this, nothrowBoundary))
             }
-
-            return@phase3 reportings
         }
     }
 

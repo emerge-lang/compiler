@@ -8,6 +8,7 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.lexer.Span
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
@@ -81,18 +82,15 @@ class RootResolvedTypeReference private constructor(
         )
     }
 
-    override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
-
-        arguments?.forEach { reportings.addAll(it.validate(forUsage.deriveIrrelevant())) }
-        reportings.addAll(inherentTypeBindings.reportings)
-        reportings.addAll(baseType.validateAccessFrom(forUsage.usageLocation))
+    override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
+        arguments?.forEach { it.validate(forUsage.deriveIrrelevant(), diagnosis) }
+        inherentTypeBindings.reportings.forEach(diagnosis::add)
+        baseType.validateAccessFrom(forUsage.usageLocation, diagnosis)
         forUsage.exposedBy?.let { exposer ->
             if (exposer.visibility.isPossiblyBroaderThan(baseType.visibility)) {
                 diagnosis.add(Reporting.hiddenTypeExposed(baseType, exposer, span ?: Span.UNKNOWN))
             }
         }
-
-        return reportings
     }
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {

@@ -47,15 +47,12 @@ class BoundInstanceOfExpression(
         private set
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-
         expressionToCheck.semanticAnalysisPhase1(diagnosis)
 
         val fullTypeToCheck = context.resolveType(declaration.typeToCheck)
-        reportings.addAll(fullTypeToCheck.validate(TypeUseSite.Irrelevant(declaration.operator.span, null)))
-        typeToCheck = validateTypeCheck(this, fullTypeToCheck, reportings)
+        fullTypeToCheck.validate(TypeUseSite.Irrelevant(declaration.operator.span, null), diagnosis)
+        typeToCheck = validateTypeCheck(this, fullTypeToCheck, diagnosis)
         type = context.swCtx.bool.baseReference
-
-        return reportings
     }
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference) {
@@ -63,11 +60,11 @@ class BoundInstanceOfExpression(
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
-        return expressionToCheck.semanticAnalysisPhase2()
+        expressionToCheck.semanticAnalysisPhase2(diagnosis)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
-        return expressionToCheck.semanticAnalysisPhase3()
+        expressionToCheck.semanticAnalysisPhase3(diagnosis)
     }
 
     override val isEvaluationResultReferenceCounted = true

@@ -24,6 +24,7 @@ import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullLiteralExpression
@@ -45,9 +46,9 @@ class BoundNullLiteralExpression(
     override val throwBehavior = SideEffectPrediction.NEVER
     override val returnBehavior = SideEffectPrediction.NEVER
 
-    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) = emptySet()
-    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = emptySet()
-    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = emptySet()
+    override fun semanticAnalysisPhase1(diagnosis: Diagnosis) = Unit
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
@@ -58,7 +59,7 @@ class BoundNullLiteralExpression(
     override val isCompileTimeConstant = true
 
     override fun toBackendIrExpression(): IrExpression {
-        return IrNullLiteralExpressionImpl(type?.toBackendIr() ?: context.swCtx.any.baseReference.withCombinedNullability(TypeReference.Nullability.NULLABLE).toBackendIr())
+        return IrNullLiteralExpressionImpl(type.toBackendIr() ?: context.swCtx.any.baseReference.withCombinedNullability(TypeReference.Nullability.NULLABLE).toBackendIr())
     }
 }
 

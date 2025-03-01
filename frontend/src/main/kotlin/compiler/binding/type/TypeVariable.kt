@@ -4,6 +4,7 @@ import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.lexer.Span
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
@@ -76,7 +77,7 @@ class TypeVariable private constructor(
         }
     }
 
-    override fun validate(forUsage: TypeUseSite): Collection<Reporting> {
+    override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
         throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 

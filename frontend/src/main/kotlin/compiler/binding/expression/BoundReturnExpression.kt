@@ -42,10 +42,10 @@ import compiler.binding.type.UnresolvedType
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import compiler.reportings.ReturnTypeMismatchReporting
-import compiler.util.checkNoDiagnostics
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -66,12 +66,12 @@ class BoundReturnExpression(
     }
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-        return expression?.semanticAnalysisPhase1() ?: emptySet()
+        expression?.semanticAnalysisPhase1(diagnosis)
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         expression?.markEvaluationResultUsed()
-        return expression?.semanticAnalysisPhase2() ?: emptySet()
+        expression?.semanticAnalysisPhase2(diagnosis)
     }
 
     override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
@@ -81,29 +81,27 @@ class BoundReturnExpression(
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         val expectedReturnType = this.expectedReturnType
         expression?.markEvaluationResultCaptured(expectedReturnType?.mutability ?: TypeMutability.READONLY)
-        expression?.semanticAnalysisPhase3()?.let(reportings::addAll)
+        expression?.semanticAnalysisPhase3(diagnosis)
 
         if (expectedReturnType == null) {
-            return reportings + Reporting.consecutive(
+            diagnosis.add(Reporting.consecutive(
                 "Cannot check return value type because the expected return type is not known",
                 declaration.span
-            )
+            ))
+            return
         }
 
         val expressionType = expression?.type
 
         if (expressionType != null) {
             expressionType.evaluateAssignabilityTo(expectedReturnType, declaration.span)
-                ?.let {
-                    reportings.add(ReturnTypeMismatchReporting(it))
-                }
+                ?.let(::ReturnTypeMismatchReporting)
+                ?.let(diagnosis::add)
         }
 
         if (expectedReturnType is RootResolvedTypeReference && expectedReturnType.baseType != context.swCtx.unit && expression == null) {
             diagnosis.add(Reporting.missingReturnValue(this, expectedReturnType))
         }
-
-        return reportings
     }
 
     override fun setExpectedReturnType(type: BoundTypeReference) {
@@ -132,9 +130,9 @@ class BoundReturnExpression(
                 declaration.returnKeyword.span.deriveGenerated(),
             )
             val bound = ast.bindTo(context)
-            checkNoDiagnostics(bound.semanticAnalysisPhase1())
-            checkNoDiagnostics(bound.semanticAnalysisPhase2())
-            checkNoDiagnostics(bound.semanticAnalysisPhase3())
+            bound.semanticAnalysisPhase1(Diagnosis.failOnError())
+            bound.semanticAnalysisPhase2(Diagnosis.failOnError())
+            bound.semanticAnalysisPhase3(Diagnosis.failOnError())
             bound
         }
 

@@ -6,6 +6,7 @@ import compiler.ast.type.TypeMutability
 import compiler.binding.BoundVariable
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.lexer.Span
+import compiler.reportings.Diagnosis
 import compiler.reportings.Reporting
 
 object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.State, VariableLifetime.Effect> {
@@ -65,8 +66,8 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
 
     sealed interface State {
         fun maybe(): State = this
-        fun validateCapture(read: BoundIdentifierExpression): Collection<Reporting> = emptySet()
-        fun validateRepeatedCapture(stateBeforeCapture: State, read: BoundIdentifierExpression): Collection<Reporting> = emptySet()
+        fun validateCapture(read: BoundIdentifierExpression, diagnosis: Diagnosis) = Unit
+        fun validateRepeatedCapture(stateBeforeCapture: State, read: BoundIdentifierExpression, diagnosis: Diagnosis) = Unit
 
         /**
          * No lifetime tracking is done, it lives for the entirety of its scope
@@ -81,17 +82,17 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
             val maybe: Boolean = false,
         ) : State {
             override fun maybe() = if (maybe) this else Dead(variable, lifetimeEndedAt, true)
-            override fun validateCapture(read: BoundIdentifierExpression): Collection<Reporting> {
-                return setOf(Reporting.variableUsedAfterLifetime(variable, read, this))
+            override fun validateCapture(read: BoundIdentifierExpression, diagnosis: Diagnosis) {
+                diagnosis.add(Reporting.variableUsedAfterLifetime(variable, read, this))
             }
 
-            override fun validateRepeatedCapture(stateBeforeCapture: State, read: BoundIdentifierExpression): Collection<Reporting> {
+            override fun validateRepeatedCapture(stateBeforeCapture: State, read: BoundIdentifierExpression, diagnosis: Diagnosis) {
                 if (stateBeforeCapture is Dead) {
                     // the looping isn't causing the problem; don't report anything here. validateCapture should report it
-                    return emptySet()
+                    return
                 }
 
-                return setOf(Reporting.lifetimeEndingCaptureInLoop(variable, read))
+                diagnosis.add(Reporting.lifetimeEndingCaptureInLoop(variable, read))
             }
         }
     }

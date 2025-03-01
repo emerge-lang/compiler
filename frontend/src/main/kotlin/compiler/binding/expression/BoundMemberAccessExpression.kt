@@ -31,6 +31,7 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
@@ -63,9 +64,8 @@ class BoundMemberAccessExpression(
     override val returnBehavior get() = valueExpression.returnBehavior
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-        val reportings = valueExpression.semanticAnalysisPhase1()
+        valueExpression.semanticAnalysisPhase1(diagnosis)
         valueExpression.markEvaluationResultUsed()
-        return reportings
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
@@ -100,8 +100,6 @@ class BoundMemberAccessExpression(
                 }
             }
         }
-
-        return reportings
     }
 
     override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
@@ -110,12 +108,7 @@ class BoundMemberAccessExpression(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         valueExpression.semanticAnalysisPhase3(diagnosis)
-        member?.let { resolvedMember ->
-            reportings.addAll(
-                resolvedMember.validateAccessFrom(declaration.memberName.span)
-            )
-        }
-        return reportings
+        member?.validateAccessFrom(declaration.memberName.span, diagnosis)
     }
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {

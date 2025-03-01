@@ -3,6 +3,7 @@ package compiler.binding.expression
 import compiler.ast.Expression
 import compiler.ast.expression.AstIndexAccessExpression
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.reportings.Diagnosis
 import compiler.reportings.FunctionMissingModifierReporting.Companion.requireOperatorModifier
 
 class BoundIndexAccessExpression(
@@ -16,9 +17,7 @@ class BoundIndexAccessExpression(
         requireOperatorModifier(
             hiddenInvocation,
             this,
-            reportings,
+            diagnosis,
         )
-
-        return reportings
     }
 }

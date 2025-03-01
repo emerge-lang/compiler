@@ -33,6 +33,7 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrConditionalBranch
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -65,14 +66,9 @@ class BoundIfExpression(
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         type = context.swCtx.unit.baseReference
 
-        var reportings = condition.semanticAnalysisPhase1() + thenCode.semanticAnalysisPhase1()
-
-        val elseCodeReportings = elseCode?.semanticAnalysisPhase1()
-        if (elseCodeReportings != null) {
-            reportings = reportings + elseCodeReportings
-        }
-
-        return reportings
+        condition.semanticAnalysisPhase1(diagnosis)
+        thenCode.semanticAnalysisPhase1(diagnosis)
+        elseCode?.semanticAnalysisPhase1(diagnosis)
     }
 
     private var isInExpressionContext = false
@@ -88,12 +84,9 @@ class BoundIfExpression(
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
-        var reportings = condition.semanticAnalysisPhase2() + thenCode.semanticAnalysisPhase2()
-
-        val elseCodeReportings = elseCode?.semanticAnalysisPhase2()
-        if (elseCodeReportings != null) {
-            reportings = reportings + elseCodeReportings
-        }
+        condition.semanticAnalysisPhase2(diagnosis)
+        thenCode.semanticAnalysisPhase2(diagnosis)
+        elseCode?.semanticAnalysisPhase2(diagnosis)
 
         if (isInExpressionContext) {
             type = listOfNotNull(
@@ -103,8 +96,6 @@ class BoundIfExpression(
                 .takeUnless { it.isEmpty() }
                 ?.reduce(BoundTypeReference::closestCommonSupertypeWith)
         }
-
-        return reportings
     }
 
     override val modifiedContext: ExecutionScopedCTContext = if (elseCode != null) {
@@ -120,15 +111,9 @@ class BoundIfExpression(
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
-
         condition.semanticAnalysisPhase3(diagnosis)
         thenCode.semanticAnalysisPhase3(diagnosis)
-
-        if (elseCode != null) {
-            elseCode.semanticAnalysisPhase3(diagnosis)
-        }
-
-        return reportings
+        elseCode?.semanticAnalysisPhase3(diagnosis)
     }
 
     override fun setExpectedReturnType(type: BoundTypeReference) {

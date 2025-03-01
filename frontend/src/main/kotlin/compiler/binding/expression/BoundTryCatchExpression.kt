@@ -10,6 +10,7 @@ import compiler.binding.SideEffectPrediction.Companion.combineBranch
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTryCatchExpression
@@ -52,8 +53,6 @@ class BoundTryCatchExpression(
         return seanHelper.phase1(diagnosis) {
             fallibleCode.semanticAnalysisPhase1(diagnosis)
             catchBlock.semanticAnalysisPhase1(diagnosis)
-
-            return@phase1 reportings
         }
     }
 
@@ -71,8 +70,6 @@ class BoundTryCatchExpression(
         return seanHelper.phase2(diagnosis) {
             fallibleCode.semanticAnalysisPhase2(diagnosis)
             catchBlock.semanticAnalysisPhase2(diagnosis)
-
-            return@phase2 reportings
         }
     }
 
@@ -104,8 +101,6 @@ class BoundTryCatchExpression(
         return seanHelper.phase3(diagnosis) {
             fallibleCode.semanticAnalysisPhase3(diagnosis)
             catchBlock.semanticAnalysisPhase3(diagnosis)
-
-            return@phase3 reportings
         }
     }
 

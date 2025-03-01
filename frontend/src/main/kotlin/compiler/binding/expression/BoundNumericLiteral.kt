@@ -29,6 +29,7 @@ import compiler.binding.type.CoreTypes
 import compiler.binding.type.NullableTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.handleCyclicInvocation
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -52,11 +53,10 @@ open class BoundNumericLiteral(
     override val returnBehavior = SideEffectPrediction.NEVER
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-        reportings.addAll(bindTimeReportings)
-        return reportings
+        bindTimeReportings.forEach(diagnosis::add)
     }
-    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = emptySet()
-    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = emptySet()
+    override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
+    override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
     override fun findWritesBeyond(boundary: CTContext): Collection<BoundExpression<*>> = emptySet()
     override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {}
@@ -78,7 +78,7 @@ open class BoundNumericLiteral(
         // assure completed
         handleCyclicInvocation(
             context = this,
-            action = { type.baseType.semanticAnalysisPhase1() },
+            action = { type.baseType.semanticAnalysisPhase1(Diagnosis.newDiagnosis()) },
             onCycle = { }
         )
 
@@ -142,8 +142,6 @@ class BoundIntegerLiteral(
                 diagnosis.add(Reporting.integerLiteralOutOfRange(declaration, type.baseType, typeRange))
             }
         }
-
-        return reportings
     }
 
     override fun toBackendIrExpression(): IrExpression {

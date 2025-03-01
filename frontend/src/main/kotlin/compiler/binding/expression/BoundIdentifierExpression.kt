@@ -35,6 +35,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.lexer.Span
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -64,7 +65,6 @@ class BoundIdentifierExpression(
     override val modifiedContext: ExecutionScopedCTContext = _modifiedContext
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-
         // attempt variable
         val variable = context.resolveVariable(identifier)
 
@@ -82,7 +82,7 @@ class BoundIdentifierExpression(
             }
         }
 
-        return reportings + (referral?.semanticAnalysisPhase1() ?: emptySet())
+        referral?.semanticAnalysisPhase1(diagnosis)
     }
 
     override fun markEvaluationResultUsed() {
@@ -101,12 +101,11 @@ class BoundIdentifierExpression(
     override val isCompileTimeConstant get() = referral?.isCompileTimeConstant ?: false
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
-        referral?.semanticAnalysisPhase2()?.let(reportings::addAll)
-        return reportings
+        referral?.semanticAnalysisPhase2(diagnosis)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
-        return referral?.semanticAnalysisPhase3() ?: emptySet()
+        referral?.semanticAnalysisPhase3(diagnosis)
     }
 
     override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
@@ -129,9 +128,9 @@ class BoundIdentifierExpression(
     sealed interface Referral : SemanticallyAnalyzable {
         val span: Span
 
-        override fun semanticAnalysisPhase1(diagnosis: Diagnosis) = emptySet()
-        override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = emptySet()
-        override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = emptySet()
+        override fun semanticAnalysisPhase1(diagnosis: Diagnosis) = Unit
+        override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
+        override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
 
         /** @see BoundExpression.findReadsBeyond */
         fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>>
@@ -169,7 +168,7 @@ class BoundIdentifierExpression(
         }
 
         override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
-            return variable.semanticAnalysisPhase2()
+            variable.semanticAnalysisPhase2(diagnosis)
         }
 
         override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
@@ -177,7 +176,7 @@ class BoundIdentifierExpression(
             val initializationState = variable.getInitializationStateInContext(context)
             if (usageContext.requiresInitialization) {
                 if (initializationState != VariableInitialization.State.INITIALIZED) {
-                    reportings.add(
+                    diagnosis.add(
                         Reporting.useOfUninitializedVariable(
                             variable,
                             this@BoundIdentifierExpression,
@@ -223,22 +222,20 @@ class BoundIdentifierExpression(
 
             if (usageContext.requiresVariableLifetimeActive) {
                 val lifeStateBeforeUsage = context.getEphemeralState(VariableLifetime, variable)
-                reportings.addAll(lifeStateBeforeUsage.validateCapture(this@BoundIdentifierExpression))
+                lifeStateBeforeUsage.validateCapture(this@BoundIdentifierExpression, diagnosis)
 
                 if (thisUsageCapturesWithMutability != null) {
                     val repetitionRelativeToVariable = context.getRepetitionBehaviorRelativeTo(variable.modifiedContext)
                     if (repetitionRelativeToVariable.mayRepeat) {
                         val stateAfterUsage = _modifiedContext.getEphemeralState(VariableLifetime, variable)
-                        reportings.addAll(stateAfterUsage.validateRepeatedCapture(lifeStateBeforeUsage, this@BoundIdentifierExpression))
+                        stateAfterUsage.validateRepeatedCapture(lifeStateBeforeUsage, this@BoundIdentifierExpression, diagnosis)
                     }
                 }
             }
 
             if (variable.kind.allowsVisibility) {
-                reportings.addAll(variable.visibility.validateAccessFrom(declaration.span, variable))
+                variable.visibility.validateAccessFrom(declaration.span, variable, diagnosis)
             }
-
-            return reportings
         }
 
         override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {

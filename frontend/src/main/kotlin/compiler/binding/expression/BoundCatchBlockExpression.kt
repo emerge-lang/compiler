@@ -13,6 +13,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.type.BoundTypeReference
+import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -57,8 +58,6 @@ class BoundCatchBlockExpression(
             contextOfCatchCode.trackSideEffect(
                 VariableInitialization.WriteToVariableEffect(throwableVariable)
             )
-
-            return@phase1 reportings
         }
     }
 
@@ -74,7 +73,6 @@ class BoundCatchBlockExpression(
         return seanHelper.phase2(diagnosis) {
             throwableVariable.semanticAnalysisPhase2(diagnosis)
             catchCode.semanticAnalysisPhase2(diagnosis)
-            return@phase2 reportings
         }
     }
 
@@ -104,7 +102,6 @@ class BoundCatchBlockExpression(
         return seanHelper.phase3(diagnosis) {
             throwableVariable.semanticAnalysisPhase3(diagnosis)
             catchCode.semanticAnalysisPhase3(diagnosis)
-            return@phase3 reportings
         }
     }
 
