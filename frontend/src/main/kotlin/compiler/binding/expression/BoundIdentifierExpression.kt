@@ -36,9 +36,9 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.lexer.Span
-import compiler.reportings.Diagnosis
-import compiler.reportings.Diagnostic
-import compiler.reportings.NothrowViolationDiagnostic
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration

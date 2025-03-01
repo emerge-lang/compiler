@@ -30,9 +30,9 @@ import compiler.binding.type.CoreTypes
 import compiler.binding.type.NullableTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.handleCyclicInvocation
-import compiler.reportings.Diagnosis
-import compiler.reportings.Diagnostic
-import compiler.reportings.NothrowViolationDiagnostic
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType

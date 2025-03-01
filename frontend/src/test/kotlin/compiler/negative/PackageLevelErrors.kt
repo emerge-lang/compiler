@@ -1,6 +1,6 @@
 package compiler.compiler.negative
 
-import compiler.reportings.DuplicateBaseTypesDiagnostic
+import compiler.diagnostic.DuplicateBaseTypesDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.haveSize
 import io.kotest.matchers.should

@@ -2,8 +2,8 @@ package compiler.compiler.negative
 
 import compiler.ast.VariableDeclaration
 import compiler.binding.expression.BoundIdentifierExpression
-import compiler.reportings.ImplicitlyEvaluatedStatementDiagnostic
-import compiler.reportings.UnsafeObjectTraversalDiagnostic
+import compiler.diagnostic.ImplicitlyEvaluatedStatementDiagnostic
+import compiler.diagnostic.UnsafeObjectTraversalDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf

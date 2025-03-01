@@ -3,8 +3,8 @@ package compiler.binding
 import compiler.ast.AssignmentStatement
 import compiler.ast.Statement
 import compiler.binding.expression.BoundInvocationExpression
-import compiler.reportings.Diagnosis
-import compiler.reportings.FunctionMissingModifierDiagnostic.Companion.requireOperatorModifier
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.FunctionMissingModifierDiagnostic.Companion.requireOperatorModifier
 
 class BoundIndexAssignmentStatement(
     override val declaration: AssignmentStatement,

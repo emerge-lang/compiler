@@ -2,9 +2,9 @@ package compiler.binding
 
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
-import compiler.reportings.Diagnosis
-import compiler.reportings.Diagnostic
-import compiler.reportings.PurityViolationDiagnostic
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.PurityViolationDiagnostic
 
 interface ImpurityVisitor {
     fun visitReadBeyondBoundary(purityBoundary: CTContext, read: BoundExpression<*>)

@@ -3,8 +3,8 @@ package compiler.binding.type
 import compiler.ast.type.TypeVariance
 import compiler.binding.DefinitionWithVisibility
 import compiler.lexer.Span
-import compiler.reportings.Diagnosis
-import compiler.reportings.Diagnostic
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
 
 /**
  * Describes the [TypeVariance] of the usage side. E.g. function parameters are [TypeVariance.IN],

@@ -1,10 +1,10 @@
 package compiler.compiler.negative
 
-import compiler.reportings.AssignmentOutsideOfPurityBoundaryDiagnostic
-import compiler.reportings.ImpureInvocationInPureContextDiagnostic
-import compiler.reportings.ModifyingInvocationInReadonlyContextDiagnostic
-import compiler.reportings.MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic
-import compiler.reportings.ReadInPureContextDiagnostic
+import compiler.diagnostic.AssignmentOutsideOfPurityBoundaryDiagnostic
+import compiler.diagnostic.ImpureInvocationInPureContextDiagnostic
+import compiler.diagnostic.ModifyingInvocationInReadonlyContextDiagnostic
+import compiler.diagnostic.MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic
+import compiler.diagnostic.ReadInPureContextDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 
 class PurityErrors : FreeSpec({

@@ -8,8 +8,8 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
+import compiler.diagnostic.Diagnosis
 import compiler.lexer.NumericLiteralToken
-import compiler.reportings.Diagnosis
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNumericComparisonExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference

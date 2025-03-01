@@ -1,13 +1,13 @@
 package compiler.compiler.negative
 
 import compiler.binding.type.GenericTypeReference
-import compiler.reportings.MissingTypeArgumentDiagnostic
-import compiler.reportings.SuperfluousTypeArgumentsDiagnostic
-import compiler.reportings.TypeArgumentOutOfBoundsDiagnostic
-import compiler.reportings.TypeArgumentVarianceMismatchDiagnostic
-import compiler.reportings.TypeArgumentVarianceSuperfluousDiagnostic
-import compiler.reportings.UnsupportedTypeUsageVarianceDiagnostic
-import compiler.reportings.ValueNotAssignableDiagnostic
+import compiler.diagnostic.MissingTypeArgumentDiagnostic
+import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
+import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
+import compiler.diagnostic.TypeArgumentVarianceMismatchDiagnostic
+import compiler.diagnostic.TypeArgumentVarianceSuperfluousDiagnostic
+import compiler.diagnostic.UnsupportedTypeUsageVarianceDiagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf

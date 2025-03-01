@@ -24,11 +24,11 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.SoftwareContext
 import compiler.binding.context.SourceFile
 import compiler.binding.context.SourceFileRootContext
+import compiler.diagnostic.CollectingDiagnosis
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
-import compiler.reportings.CollectingDiagnosis
-import compiler.reportings.Diagnosis
-import compiler.reportings.Diagnostic
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
 import compiler.lexer.SourceFile as LexerSourceFile

@@ -1,7 +1,7 @@
 package compiler.compiler.negative
 
-import compiler.reportings.BreakOutsideOfLoopDiagnostic
-import compiler.reportings.ContinueOutsideOfLoopDiagnostic
+import compiler.diagnostic.BreakOutsideOfLoopDiagnostic
+import compiler.diagnostic.ContinueOutsideOfLoopDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 
 class LoopErrors : FreeSpec({

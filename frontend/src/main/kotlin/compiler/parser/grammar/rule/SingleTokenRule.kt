@@ -4,7 +4,7 @@ import compiler.InternalCompilerError
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.Token
-import compiler.reportings.Diagnostic
+import compiler.diagnostic.Diagnostic
 
 abstract class SingleTokenRule<Item : Token>(
     override val explicitName: String,

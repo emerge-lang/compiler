@@ -3,7 +3,7 @@ package compiler.binding.context
 import compiler.ast.ASTSourceFile
 import compiler.binding.SeanHelper
 import compiler.binding.SemanticallyAnalyzable
-import compiler.reportings.Diagnosis
+import compiler.diagnostic.Diagnosis
 import io.github.tmarsteel.emerge.backend.api.ir.IrModule
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 

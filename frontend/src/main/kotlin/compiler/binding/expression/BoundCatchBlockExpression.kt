@@ -13,8 +13,8 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.type.BoundTypeReference
-import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationDiagnostic
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 

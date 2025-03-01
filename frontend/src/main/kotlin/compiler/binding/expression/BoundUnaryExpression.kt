@@ -23,10 +23,10 @@ import compiler.ast.expression.UnaryExpression
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
-import compiler.reportings.Diagnosis
-import compiler.reportings.Diagnostic
-import compiler.reportings.FunctionMissingModifierDiagnostic.Companion.requireOperatorModifier
-import compiler.reportings.UnresolvableFunctionOverloadDiagnostic
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.FunctionMissingModifierDiagnostic.Companion.requireOperatorModifier
+import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
 
 class BoundUnaryExpression(
     override val context: ExecutionScopedCTContext,

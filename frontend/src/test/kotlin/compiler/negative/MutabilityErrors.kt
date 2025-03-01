@@ -1,6 +1,6 @@
 package compiler.compiler.negative
 
-import compiler.reportings.ValueNotAssignableDiagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe

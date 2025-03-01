@@ -6,9 +6,9 @@ import compiler.binding.ImpurityVisitor
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.reportings.Diagnosis
-import compiler.reportings.Diagnostic
-import compiler.reportings.NothrowViolationDiagnostic
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrContinueStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 

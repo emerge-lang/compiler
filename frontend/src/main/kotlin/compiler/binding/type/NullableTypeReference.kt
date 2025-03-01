@@ -6,7 +6,7 @@ import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.lexer.Span
-import compiler.reportings.Diagnosis
+import compiler.diagnostic.Diagnosis
 
 class NullableTypeReference private constructor(
     internal val nested: BoundTypeReference

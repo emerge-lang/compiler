@@ -12,7 +12,7 @@ import compiler.lexer.Token
 import compiler.parser.grammar.SourceFileGrammar
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.parser.grammar.rule.matchAgainst
-import compiler.reportings.Diagnostic
+import compiler.diagnostic.Diagnostic
 import compiler.lexer.SourceFile as LexerSourceFile
 
 object SourceFileRule {

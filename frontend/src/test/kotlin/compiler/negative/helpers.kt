@@ -8,9 +8,9 @@ import compiler.lexer.Token
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
 import compiler.parser.grammar.rule.MatchingResult
-import compiler.reportings.CollectingDiagnosis
-import compiler.reportings.Diagnosis
-import compiler.reportings.Diagnostic
+import compiler.diagnostic.CollectingDiagnosis
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrModule
 import io.github.tmarsteel.emerge.backend.noop.NoopBackend
 import io.github.tmarsteel.emerge.common.CanonicalElementName

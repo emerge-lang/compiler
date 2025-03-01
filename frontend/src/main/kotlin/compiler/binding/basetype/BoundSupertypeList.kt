@@ -6,8 +6,8 @@ import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.handleCyclicInvocation
-import compiler.reportings.Diagnosis
-import compiler.reportings.Diagnostic
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
 
 class BoundSupertypeList(
     val context: CTContext,

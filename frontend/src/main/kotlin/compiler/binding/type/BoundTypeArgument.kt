@@ -9,8 +9,8 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
 import compiler.lexer.Span
-import compiler.reportings.Diagnosis
-import compiler.reportings.Diagnostic
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance

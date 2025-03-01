@@ -1,6 +1,6 @@
 package compiler.binding
 
-import compiler.reportings.Diagnosis
+import compiler.diagnostic.Diagnosis
 
 interface SemanticallyAnalyzable {
     /**

@@ -1,15 +1,15 @@
 package compiler.compiler.negative
 
 import compiler.binding.type.RootResolvedTypeReference
-import compiler.reportings.ExplicitOwnershipNotAllowedDiagnostic
-import compiler.reportings.GlobalVariableNotInitializedDiagnostic
-import compiler.reportings.IllegalAssignmentDiagnostic
-import compiler.reportings.MultipleVariableDeclarationsDiagnostic
-import compiler.reportings.TypeDeductionErrorDiagnostic
-import compiler.reportings.UndefinedIdentifierDiagnostic
-import compiler.reportings.UnknownTypeDiagnostic
-import compiler.reportings.ValueNotAssignableDiagnostic
-import compiler.reportings.VariableAccessedBeforeInitializationDiagnostic
+import compiler.diagnostic.ExplicitOwnershipNotAllowedDiagnostic
+import compiler.diagnostic.GlobalVariableNotInitializedDiagnostic
+import compiler.diagnostic.IllegalAssignmentDiagnostic
+import compiler.diagnostic.MultipleVariableDeclarationsDiagnostic
+import compiler.diagnostic.TypeDeductionErrorDiagnostic
+import compiler.diagnostic.UndefinedIdentifierDiagnostic
+import compiler.diagnostic.UnknownTypeDiagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.diagnostic.VariableAccessedBeforeInitializationDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain

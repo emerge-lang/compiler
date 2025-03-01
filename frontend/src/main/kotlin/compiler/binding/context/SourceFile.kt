@@ -19,9 +19,9 @@
 package compiler.binding.context
 
 import compiler.binding.SemanticallyAnalyzable
-import compiler.reportings.CollectingDiagnosis
-import compiler.reportings.Diagnosis
-import compiler.reportings.Diagnostic
+import compiler.diagnostic.CollectingDiagnosis
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import compiler.lexer.SourceFile as LexerSourceFile
 

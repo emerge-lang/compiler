@@ -10,7 +10,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.compiler.ast.type.getTestType
 import compiler.lexer.Span
-import compiler.reportings.ValueNotAssignableDiagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.github.tmarsteel.emerge.common.EmergeConstants
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.Matcher

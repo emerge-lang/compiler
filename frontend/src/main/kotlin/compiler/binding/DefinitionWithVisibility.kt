@@ -1,7 +1,7 @@
 package compiler.binding
 
 import compiler.lexer.Span
-import compiler.reportings.Diagnosis
+import compiler.diagnostic.Diagnosis
 
 interface DefinitionWithVisibility {
     val visibility: BoundVisibility

@@ -1,7 +1,7 @@
 package compiler.compiler.negative
 
-import compiler.reportings.FunctionMissingModifierDiagnostic
-import compiler.reportings.OperatorNotDeclaredDiagnostic
+import compiler.diagnostic.FunctionMissingModifierDiagnostic
+import compiler.diagnostic.OperatorNotDeclaredDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 

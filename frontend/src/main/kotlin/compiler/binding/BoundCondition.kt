@@ -5,8 +5,8 @@ import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.isAssignableTo
-import compiler.reportings.Diagnosis
-import compiler.reportings.Diagnostic
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
 
 class BoundCondition(
     val expression: BoundExpression<*>,

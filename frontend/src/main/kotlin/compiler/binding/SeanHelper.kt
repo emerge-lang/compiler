@@ -1,7 +1,7 @@
 package compiler.binding
 
 import compiler.InternalCompilerError
-import compiler.reportings.Diagnosis
+import compiler.diagnostic.Diagnosis
 
 /**
  * Sean is short for SEmantic ANalysis

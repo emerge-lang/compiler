@@ -22,8 +22,8 @@ import compiler.ast.ParameterList
 import compiler.ast.VariableOwnership
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
-import compiler.reportings.Diagnosis
-import compiler.reportings.Diagnostic
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
 
 class BoundParameterList(
     val context: ExecutionScopedCTContext,

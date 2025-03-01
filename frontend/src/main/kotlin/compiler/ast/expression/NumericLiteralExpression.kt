@@ -24,7 +24,7 @@ import compiler.binding.expression.BoundFloatingPointLiteral
 import compiler.binding.expression.BoundIntegerLiteral
 import compiler.binding.expression.BoundNumericLiteral
 import compiler.lexer.NumericLiteralToken
-import compiler.reportings.Diagnostic
+import compiler.diagnostic.Diagnostic
 import java.math.BigDecimal
 import java.math.BigInteger
 

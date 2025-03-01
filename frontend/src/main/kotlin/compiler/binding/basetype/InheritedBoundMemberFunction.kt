@@ -9,7 +9,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.IdentifierToken
-import compiler.reportings.Diagnosis
+import compiler.diagnostic.Diagnosis
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrFullyInheritedMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrInheritedMemberFunction

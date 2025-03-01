@@ -2,9 +2,9 @@ package compiler.binding
 
 import compiler.binding.misc_ir.IrOverloadGroupImpl
 import compiler.binding.type.nonDisjointPairs
-import compiler.reportings.Diagnosis
-import compiler.reportings.Diagnostic
-import compiler.reportings.InconsistentReceiverPresenceInOverloadSetDiagnostic
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.InconsistentReceiverPresenceInOverloadSetDiagnostic
 import compiler.util.pivot
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup

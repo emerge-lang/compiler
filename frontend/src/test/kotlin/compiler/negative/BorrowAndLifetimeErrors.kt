@@ -1,9 +1,9 @@
 package compiler.compiler.negative
 
-import compiler.reportings.BorrowedVariableCapturedDiagnostic
-import compiler.reportings.ExtendingOwnershipOverrideDiagnostic
-import compiler.reportings.LifetimeEndingCaptureInLoopDiagnostic
-import compiler.reportings.VariableUsedAfterLifetimeDiagnostic
+import compiler.diagnostic.BorrowedVariableCapturedDiagnostic
+import compiler.diagnostic.ExtendingOwnershipOverrideDiagnostic
+import compiler.diagnostic.LifetimeEndingCaptureInLoopDiagnostic
+import compiler.diagnostic.VariableUsedAfterLifetimeDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 

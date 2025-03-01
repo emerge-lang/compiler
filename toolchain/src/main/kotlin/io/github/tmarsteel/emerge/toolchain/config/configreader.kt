@@ -24,8 +24,8 @@ import compiler.lexer.lex
 import compiler.parser.grammar.ModuleOrPackageName
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.parser.grammar.rule.matchAgainst
-import compiler.reportings.ReportingException
-import compiler.reportings.illustrateSourceLocations
+import compiler.diagnostic.ReportingException
+import compiler.diagnostic.illustrateSourceLocations
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import java.nio.file.Path
 import java.nio.file.Paths

@@ -5,8 +5,8 @@ import compiler.ast.AstVisibility
 import compiler.binding.context.CTContext
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
-import compiler.reportings.Diagnosis
-import compiler.reportings.Diagnostic
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
 import compiler.util.twoElementPermutationsUnordered
 
 class BoundFunctionAttributeList(

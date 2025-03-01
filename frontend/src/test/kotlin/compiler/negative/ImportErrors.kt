@@ -1,7 +1,7 @@
 package compiler.compiler.negative
 
-import compiler.reportings.UnresolvableImportDiagnostic
-import compiler.reportings.UnresolvablePackageNameDiagnostic
+import compiler.diagnostic.UnresolvableImportDiagnostic
+import compiler.diagnostic.UnresolvablePackageNameDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 
 class ImportErrors : FreeSpec({

@@ -4,9 +4,9 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.basetype.BoundClassDestructor
-import compiler.reportings.CyclicInheritanceDiagnostic
-import compiler.reportings.EntryNotAllowedInBaseTypeDiagnostic
-import compiler.reportings.MemberFunctionImplOnInterfaceDiagnostic
+import compiler.diagnostic.CyclicInheritanceDiagnostic
+import compiler.diagnostic.EntryNotAllowedInBaseTypeDiagnostic
+import compiler.diagnostic.MemberFunctionImplOnInterfaceDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe

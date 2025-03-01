@@ -1,6 +1,6 @@
 package compiler.compiler.negative
 
-import compiler.reportings.NullCheckingNonNullableValueDiagnostic
+import compiler.diagnostic.NullCheckingNonNullableValueDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 
 class MiscLints : FreeSpec({

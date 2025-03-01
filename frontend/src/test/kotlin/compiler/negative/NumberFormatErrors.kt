@@ -1,6 +1,6 @@
 package compiler.compiler.negative
 
-import compiler.reportings.ErroneousLiteralExpressionDiagnostic
+import compiler.diagnostic.ErroneousLiteralExpressionDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 
 class NumberFormatErrors : FreeSpec({

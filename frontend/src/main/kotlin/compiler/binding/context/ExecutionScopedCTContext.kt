@@ -13,8 +13,8 @@ import compiler.binding.basetype.DestructorCodeGenerator
 import compiler.binding.context.effect.EphemeralStateClass
 import compiler.binding.context.effect.SideEffect
 import compiler.binding.type.BoundTypeReference
-import compiler.reportings.Diagnosis
-import compiler.reportings.Diagnostic
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
 import compiler.util.TakeWhileAndNextIterator.Companion.takeWhileAndNext
 import compiler.util.takeWhileIsInstance
 import java.util.IdentityHashMap

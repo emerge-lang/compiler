@@ -4,7 +4,7 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.compiler.negative.shouldHaveNoDiagnostics
 import compiler.compiler.negative.shouldReport
 import compiler.compiler.negative.validateModule
-import compiler.reportings.ValueNotAssignableDiagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf

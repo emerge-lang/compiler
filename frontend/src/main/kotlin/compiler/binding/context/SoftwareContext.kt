@@ -24,7 +24,7 @@ import compiler.ast.type.TypeReference
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.UnresolvedType
-import compiler.reportings.Diagnosis
+import compiler.diagnostic.Diagnosis
 import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants

@@ -27,9 +27,9 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.lexer.Span
-import compiler.reportings.Diagnosis
-import compiler.reportings.PurityViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 

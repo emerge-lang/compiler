@@ -1,6 +1,6 @@
 package compiler.compiler.negative
 
-import compiler.reportings.IntegerLiteralOutOfRangeDiagnostic
+import compiler.diagnostic.IntegerLiteralOutOfRangeDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 

@@ -1,7 +1,7 @@
 package compiler.compiler.negative
 
-import compiler.reportings.ConditionNotBooleanDiagnostic
-import compiler.reportings.MutationInConditionDiagnostic
+import compiler.diagnostic.ConditionNotBooleanDiagnostic
+import compiler.diagnostic.MutationInConditionDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 
 class ConditionErrors : FreeSpec({

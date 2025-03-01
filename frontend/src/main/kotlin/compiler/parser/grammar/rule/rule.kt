@@ -20,7 +20,7 @@ package compiler.parser.grammar.rule
 
 import compiler.InternalCompilerError
 import compiler.lexer.Token
-import compiler.reportings.ParsingMismatchDiagnostic
+import compiler.diagnostic.ParsingMismatchDiagnostic
 
 sealed interface MatchingResult<out Item : Any> {
     class Success<out Item : Any>(val item: Item, val continueAtIndex: Int) : MatchingResult<Item>

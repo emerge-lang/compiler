@@ -2,8 +2,8 @@ package compiler.binding.type
 
 import compiler.ast.type.TypeVariance
 import compiler.lexer.Span
-import compiler.reportings.Diagnostic
-import compiler.reportings.ValueNotAssignableDiagnostic
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
 
 /* TODO: optimization potential
  * Have a custom collection class that optimized the get-a-copy-plus-one-element use-case

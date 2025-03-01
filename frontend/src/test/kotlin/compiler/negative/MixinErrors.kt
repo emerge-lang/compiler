@@ -2,13 +2,13 @@ package compiler.compiler.negative
 
 import compiler.ast.type.TypeMutability
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.reportings.AbstractInheritedFunctionNotImplementedDiagnostic
-import compiler.reportings.IllegalMixinRepetitionDiagnostic
-import compiler.reportings.MixinNotAllowedDiagnostic
-import compiler.reportings.ObjectUsedBeforeMixinInitializationDiagnostic
-import compiler.reportings.UnusedMixinDiagnostic
-import compiler.reportings.ValueNotAssignableDiagnostic
-import compiler.reportings.VariableUsedAfterLifetimeDiagnostic
+import compiler.diagnostic.AbstractInheritedFunctionNotImplementedDiagnostic
+import compiler.diagnostic.IllegalMixinRepetitionDiagnostic
+import compiler.diagnostic.MixinNotAllowedDiagnostic
+import compiler.diagnostic.ObjectUsedBeforeMixinInitializationDiagnostic
+import compiler.diagnostic.UnusedMixinDiagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.diagnostic.VariableUsedAfterLifetimeDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forExactly
 import io.kotest.matchers.shouldBe

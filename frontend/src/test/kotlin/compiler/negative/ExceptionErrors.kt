@@ -1,10 +1,10 @@
 package compiler.compiler.negative
 
 import compiler.ast.AstFunctionAttribute
-import compiler.reportings.ConstructorDeclaredNothrowDiagnostic
-import compiler.reportings.FunctionMissingDeclaredModifierDiagnostic
-import compiler.reportings.NothrowViolationDiagnostic
-import compiler.reportings.ValueNotAssignableDiagnostic
+import compiler.diagnostic.ConstructorDeclaredNothrowDiagnostic
+import compiler.diagnostic.FunctionMissingDeclaredModifierDiagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe

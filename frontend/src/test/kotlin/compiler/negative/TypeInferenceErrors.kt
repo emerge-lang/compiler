@@ -1,7 +1,7 @@
 package compiler.compiler.negative
 
-import compiler.reportings.ExplicitInferTypeWithArgumentsDiagnostic
-import compiler.reportings.TypeDeductionErrorDiagnostic
+import compiler.diagnostic.ExplicitInferTypeWithArgumentsDiagnostic
+import compiler.diagnostic.TypeDeductionErrorDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 
 class TypeInferenceErrors : FreeSpec({

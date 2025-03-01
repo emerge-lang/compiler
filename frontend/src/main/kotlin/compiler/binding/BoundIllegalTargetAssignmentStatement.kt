@@ -11,9 +11,9 @@ import compiler.binding.expression.BoundLiteralExpression
 import compiler.binding.expression.BoundNotNullExpression
 import compiler.binding.expression.BoundUnaryExpression
 import compiler.binding.type.BoundTypeReference
-import compiler.reportings.Diagnosis
-import compiler.reportings.Diagnostic
-import compiler.reportings.NothrowViolationDiagnostic
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
 class BoundIllegalTargetAssignmentStatement(

@@ -26,9 +26,9 @@ import compiler.binding.BoundParameter
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.lexer.Span
-import compiler.reportings.Diagnosis
-import compiler.reportings.Diagnostic
-import compiler.reportings.ValueNotAssignableDiagnostic
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.util.twoElementPermutationsUnordered
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import java.util.IdentityHashMap

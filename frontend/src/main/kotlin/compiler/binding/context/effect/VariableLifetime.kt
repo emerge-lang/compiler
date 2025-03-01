@@ -6,8 +6,8 @@ import compiler.ast.type.TypeMutability
 import compiler.binding.BoundVariable
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.lexer.Span
-import compiler.reportings.Diagnosis
-import compiler.reportings.Diagnostic
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
 
 object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.State, VariableLifetime.Effect> {
     override fun getInitialState(subject: BoundVariable): State {

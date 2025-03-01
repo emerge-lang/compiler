@@ -1,6 +1,6 @@
 package compiler.util
 
-import compiler.reportings.Diagnostic
+import compiler.diagnostic.Diagnostic
 
 internal fun checkNoDiagnostics(diagnostics: Collection<Diagnostic>) {
     check(diagnostics.isEmpty()) {

@@ -5,11 +5,11 @@ import compiler.binding.BoundVariable
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
-import compiler.reportings.ElementNotAccessibleDiagnostic
-import compiler.reportings.HiddenTypeExposedDiagnostic
-import compiler.reportings.MissingModuleDependencyDiagnostic
-import compiler.reportings.OverrideRestrictsVisibilityDiagnostic
-import compiler.reportings.ShadowedVisibilityDiagnostic
+import compiler.diagnostic.ElementNotAccessibleDiagnostic
+import compiler.diagnostic.HiddenTypeExposedDiagnostic
+import compiler.diagnostic.MissingModuleDependencyDiagnostic
+import compiler.diagnostic.OverrideRestrictsVisibilityDiagnostic
+import compiler.diagnostic.ShadowedVisibilityDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
