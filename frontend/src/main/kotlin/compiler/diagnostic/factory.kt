@@ -505,17 +505,16 @@ fun Diagnosis.modifyingPurityViolation(violation: BoundExecutable<*>, boundary: 
         return
     }
 
-    if (violation is BoundIdentifierExpression) {
-        add(MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic(violation, boundary))
-        return
+    if (violation is BoundInvocationExpression) {
+        add(
+            if (violation.functionToInvoke?.purity?.contains(BoundFunction.Purity.MODIFYING) == true) {
+                ModifyingInvocationInReadonlyContextDiagnostic(violation, boundary)
+            } else {
+                ImpureInvocationInPureContextDiagnostic(violation, boundary)
+            }
+        )
     }
 
-    check(violation is BoundInvocationExpression)
-    add(
-        if (violation.functionToInvoke?.purity?.contains(BoundFunction.Purity.MODIFYING) == true) {
-            ModifyingInvocationInReadonlyContextDiagnostic(violation, boundary)
-        } else {
-            ImpureInvocationInPureContextDiagnostic(violation, boundary)
-        }
-    )
+    check(violation is BoundExpression<*>)
+    add(MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic(violation, boundary))
 }
