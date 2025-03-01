@@ -2,7 +2,9 @@ package compiler.binding.expression
 
 import compiler.ast.AstContinueExpression
 import compiler.binding.BoundLoop
+import compiler.binding.ImpurityVisitor
 import compiler.binding.SideEffectPrediction
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
@@ -35,6 +37,9 @@ class BoundContinueExpression(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
     }
+
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) = Unit
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) = Unit
 
     private inner class IrContinueStatementImpl : IrContinueStatement {
         override val loop get() = parentLoop!!.toBackendIrStatement()

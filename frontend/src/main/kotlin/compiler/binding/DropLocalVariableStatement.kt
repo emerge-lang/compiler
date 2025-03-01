@@ -2,6 +2,7 @@ package compiler.binding
 
 import compiler.ast.Statement
 import compiler.ast.VariableDeclaration
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -24,6 +25,8 @@ class DropLocalVariableStatement(
 
         }
 
+        override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) = Unit
+        override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) = Unit
         override fun toBackendIrStatement(): IrExecutable {
             val valueTemporary = IrCreateTemporaryValueImpl(IrVariableAccessExpressionImpl(variable.backendIrDeclaration))
             return IrCodeChunkImpl(listOf(

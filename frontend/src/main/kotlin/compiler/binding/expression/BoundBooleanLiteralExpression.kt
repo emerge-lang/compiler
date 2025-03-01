@@ -19,7 +19,9 @@
 package compiler.binding.expression
 
 import compiler.ast.expression.BooleanLiteralExpression
+import compiler.binding.ImpurityVisitor
 import compiler.binding.SideEffectPrediction
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Diagnosis
@@ -49,6 +51,8 @@ class BoundBooleanLiteralExpression(
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) = Unit
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) = Unit
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) = Unit
 
     override val isEvaluationResultReferenceCounted = false
     override val isEvaluationResultAnchored = true

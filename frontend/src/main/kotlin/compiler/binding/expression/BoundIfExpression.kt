@@ -22,10 +22,12 @@ import compiler.ast.IfExpression
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundCondition
 import compiler.binding.BoundExecutable
+import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.combineBranch
 import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecution
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MultiBranchJoinExecutionScopedCTContext
 import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
@@ -114,6 +116,18 @@ class BoundIfExpression(
         condition.semanticAnalysisPhase3(diagnosis)
         thenCode.semanticAnalysisPhase3(diagnosis)
         elseCode?.semanticAnalysisPhase3(diagnosis)
+    }
+
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        condition.visitReadsBeyond(boundary, visitor, diagnosis)
+        thenCode.visitReadsBeyond(boundary, visitor, diagnosis)
+        elseCode?.visitReadsBeyond(boundary, visitor, diagnosis)
+    }
+
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        condition.visitWritesBeyond(boundary, visitor, diagnosis)
+        thenCode.visitWritesBeyond(boundary, visitor, diagnosis)
+        elseCode?.visitWritesBeyond(boundary, visitor, diagnosis)
     }
 
     override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {

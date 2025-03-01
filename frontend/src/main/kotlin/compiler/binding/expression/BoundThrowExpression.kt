@@ -2,9 +2,11 @@ package compiler.binding.expression
 
 import compiler.ast.AstThrowExpression
 import compiler.ast.type.TypeMutability
+import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -63,6 +65,14 @@ class BoundThrowExpression(
                 diagnosis.add(Reporting.throwStatementInNothrowContext(this, nothrowBoundary))
             }
         }
+    }
+
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        throwableExpression.visitReadsBeyond(boundary, visitor, diagnosis)
+    }
+
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        throwableExpression.visitWritesBeyond(boundary, visitor, diagnosis)
     }
 
     private val _backendIr: IrExecutable by lazy {

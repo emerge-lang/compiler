@@ -3,8 +3,10 @@ package compiler.binding.expression
 import compiler.InternalCompilerError
 import compiler.ast.expression.AstInstanceOfExpression
 import compiler.ast.type.TypeMutability
+import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.basetype.BoundBaseType
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.SoftwareContext
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -65,6 +67,14 @@ class BoundInstanceOfExpression(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         expressionToCheck.semanticAnalysisPhase3(diagnosis)
+    }
+
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        expressionToCheck.visitReadsBeyond(boundary, visitor, diagnosis)
+    }
+
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        expressionToCheck.visitWritesBeyond(boundary, visitor, diagnosis)
     }
 
     override val isEvaluationResultReferenceCounted = true

@@ -45,6 +45,6 @@ private class WriteFailedException : IOException {
     errno: S32 = init
     
     constructor {
-        mixin ThrowableTrait("write(2) failed, errno = " + self.errno.toString()) as Throwable
+        mixin ThrowableTrait("write(2) failed, errno = " + self.errno.toString())
     }
 }

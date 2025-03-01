@@ -2,7 +2,9 @@ package compiler.binding.expression
 
 import compiler.ast.AstBreakExpression
 import compiler.binding.BoundLoop
+import compiler.binding.ImpurityVisitor
 import compiler.binding.SideEffectPrediction
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
@@ -20,7 +22,6 @@ class BoundBreakExpression(
     private var parentLoop: BoundLoop<*>? = null
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-
         parentLoop = context.getParentLoop()
         if (parentLoop == null) {
             diagnosis.add(Reporting.breakOutsideOfLoop(this))
@@ -36,6 +37,9 @@ class BoundBreakExpression(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
     }
+
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) = Unit
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) = Unit
 
     private inner class IrBreakStatementImpl : IrBreakStatement {
         override val fromLoop get() = parentLoop!!.toBackendIrStatement()

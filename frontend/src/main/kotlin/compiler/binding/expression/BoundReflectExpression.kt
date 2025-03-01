@@ -2,8 +2,10 @@ package compiler.binding.expression
 
 import compiler.ast.expression.AstReflectExpression
 import compiler.ast.type.TypeMutability
+import compiler.binding.ImpurityVisitor
 import compiler.binding.SideEffectPrediction
 import compiler.binding.basetype.BoundBaseType
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
@@ -51,6 +53,9 @@ class BoundReflectExpression(
             diagnosis.add(Reporting.unsupportedReflection(typeToReflectOn))
         }
     }
+
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) = Unit
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) = Unit
 
     override val type: BoundTypeReference
         get() = context.swCtx.reflectionBaseType.baseReference.withMutability(TypeMutability.IMMUTABLE)
