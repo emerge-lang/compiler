@@ -4,7 +4,7 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.DefinitionWithVisibility
 import compiler.lexer.Span
 import compiler.reportings.Diagnosis
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
 
 /**
  * Describes the [TypeVariance] of the usage side. E.g. function parameters are [TypeVariance.IN],
@@ -44,7 +44,7 @@ sealed class TypeUseSite(
     ): TypeUseSite(usageLocation, "in", exposedBy) {
         override fun validateForTypeVariance(typeVariance: TypeVariance, diagnosis: Diagnosis) {
             if (typeVariance != TypeVariance.IN && typeVariance != TypeVariance.UNSPECIFIED) {
-                diagnosis.add(Reporting.unsupportedTypeUsageVariance(this, typeVariance))
+                diagnosis.add(Diagnostic.unsupportedTypeUsageVariance(this, typeVariance))
             }
         }
     }
@@ -55,7 +55,7 @@ sealed class TypeUseSite(
     ): TypeUseSite(usageLocation, "out", exposedBy) {
         override fun validateForTypeVariance(typeVariance: TypeVariance, diagnosis: Diagnosis) {
             if (typeVariance != TypeVariance.OUT && typeVariance != TypeVariance.UNSPECIFIED) {
-                diagnosis.add(Reporting.unsupportedTypeUsageVariance(this, typeVariance))
+                diagnosis.add(Diagnostic.unsupportedTypeUsageVariance(this, typeVariance))
             }
         }
     }
@@ -66,7 +66,7 @@ sealed class TypeUseSite(
     ): TypeUseSite(usageLocation, "invariant", exposedBy) {
         override fun validateForTypeVariance(typeVariance: TypeVariance, diagnosis: Diagnosis) {
             if (typeVariance != TypeVariance.UNSPECIFIED) {
-                diagnosis.add(Reporting.unsupportedTypeUsageVariance(this, typeVariance))
+                diagnosis.add(Diagnostic.unsupportedTypeUsageVariance(this, typeVariance))
             }
         }
     }

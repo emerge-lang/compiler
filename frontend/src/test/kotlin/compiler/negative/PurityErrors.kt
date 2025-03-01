@@ -1,10 +1,10 @@
 package compiler.compiler.negative
 
-import compiler.reportings.AssignmentOutsideOfPurityBoundaryReporting
-import compiler.reportings.ImpureInvocationInPureContextReporting
-import compiler.reportings.ModifyingInvocationInReadonlyContextReporting
-import compiler.reportings.MutableUsageOfStateOutsideOfPurityBoundaryReporting
-import compiler.reportings.ReadInPureContextReporting
+import compiler.reportings.AssignmentOutsideOfPurityBoundaryDiagnostic
+import compiler.reportings.ImpureInvocationInPureContextDiagnostic
+import compiler.reportings.ModifyingInvocationInReadonlyContextDiagnostic
+import compiler.reportings.MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic
+import compiler.reportings.ReadInPureContextDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 
 class PurityErrors : FreeSpec({
@@ -28,7 +28,7 @@ class PurityErrors : FreeSpec({
                 return x
             }
         """.trimIndent())
-            .shouldReport<ReadInPureContextReporting>()
+            .shouldReport<ReadInPureContextDiagnostic>()
     }
 
     "calling a read function from a pure context" {
@@ -41,7 +41,7 @@ class PurityErrors : FreeSpec({
                 a()
             }
         """.trimIndent())
-            .shouldReport<ImpureInvocationInPureContextReporting>()
+            .shouldReport<ImpureInvocationInPureContextDiagnostic>()
     }
 
     "calling a modifying function from a pure context" {
@@ -54,7 +54,7 @@ class PurityErrors : FreeSpec({
                 a()
             }
         """.trimIndent())
-            .shouldReport<ModifyingInvocationInReadonlyContextReporting>()
+            .shouldReport<ModifyingInvocationInReadonlyContextDiagnostic>()
     }
 
     "calling a modifying function from a read context" {
@@ -67,7 +67,7 @@ class PurityErrors : FreeSpec({
                 a()
             }
         """.trimIndent())
-            .shouldReport<ModifyingInvocationInReadonlyContextReporting>()
+            .shouldReport<ModifyingInvocationInReadonlyContextDiagnostic>()
     }
 
     "reading from outside a pure context" {
@@ -77,7 +77,7 @@ class PurityErrors : FreeSpec({
                 x
             }
         """.trimIndent())
-            .shouldReport<ReadInPureContextReporting>()
+            .shouldReport<ReadInPureContextDiagnostic>()
     }
 
     "mutating outside of a pure context" - {
@@ -88,7 +88,7 @@ class PurityErrors : FreeSpec({
                     set x = 2
                 }
             """.trimIndent())
-                .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
+                .shouldReport<AssignmentOutsideOfPurityBoundaryDiagnostic>()
         }
 
         "by calling a function that takes a mutable parameter" - {
@@ -105,7 +105,7 @@ class PurityErrors : FreeSpec({
                         pureMutate(x)
                     }
                 """.trimIndent())
-                    .shouldReport<MutableUsageOfStateOutsideOfPurityBoundaryReporting>()
+                    .shouldReport<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
             }
 
             "global variable as self-parameter to member function" {
@@ -121,7 +121,7 @@ class PurityErrors : FreeSpec({
                         x.pureMutate()
                     }
                 """.trimIndent())
-                    .shouldReport<MutableUsageOfStateOutsideOfPurityBoundaryReporting>()
+                    .shouldReport<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
             }
 
             "global variable as non-self parameter to member function" {
@@ -140,7 +140,7 @@ class PurityErrors : FreeSpec({
                         k.pureMutate(x)
                     }
                 """.trimIndent())
-                    .shouldReport<MutableUsageOfStateOutsideOfPurityBoundaryReporting>()
+                    .shouldReport<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
             }
         }
     }
@@ -152,6 +152,6 @@ class PurityErrors : FreeSpec({
                 set x = 2
             }
         """.trimIndent())
-            .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
+            .shouldReport<AssignmentOutsideOfPurityBoundaryDiagnostic>()
     }
 })

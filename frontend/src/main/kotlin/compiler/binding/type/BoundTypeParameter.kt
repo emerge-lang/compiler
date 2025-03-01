@@ -11,7 +11,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
 import compiler.lexer.Span
 import compiler.reportings.Diagnosis
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 
@@ -39,7 +39,7 @@ data class BoundTypeParameter(
         context.resolveType(TypeReference(name))
             .takeUnless { it is UnresolvedType }
             ?.let { preExistingType ->
-                diagnosis.add(Reporting.typeParameterNameConflict(preExistingType, this))
+                diagnosis.add(Diagnostic.typeParameterNameConflict(preExistingType, this))
             }
         bound = astNode.bound?.let(context::resolveType) ?: context.swCtx.typeParameterDefaultBound
     }

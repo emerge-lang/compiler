@@ -19,7 +19,7 @@ import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUnification
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrInvocationExpression
@@ -64,7 +64,7 @@ class BoundArrayLiteralExpression(
             elements.forEach { element ->
                 element.type?.let {
                     val unification = elementType.unify(it, element.declaration.span, TypeUnification.EMPTY)
-                    unification.reportings.forEach(diagnosis::add)
+                    unification.diagnostics.forEach(diagnosis::add)
                 }
             }
         } else {
@@ -89,7 +89,7 @@ class BoundArrayLiteralExpression(
         }
     }
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         elements.forEach { it.setNothrow(boundary) }
     }
 

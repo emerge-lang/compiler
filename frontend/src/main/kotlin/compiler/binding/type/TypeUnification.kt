@@ -2,8 +2,8 @@ package compiler.binding.type
 
 import compiler.ast.type.TypeVariance
 import compiler.lexer.Span
-import compiler.reportings.Reporting
-import compiler.reportings.ValueNotAssignableReporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.ValueNotAssignableDiagnostic
 
 /* TODO: optimization potential
  * Have a custom collection class that optimized the get-a-copy-plus-one-element use-case
@@ -14,10 +14,10 @@ import compiler.reportings.ValueNotAssignableReporting
 
 interface TypeUnification {
     val bindings: Map<TypeVariable, BoundTypeReference>
-    val reportings: Set<Reporting>
+    val diagnostics: Set<Diagnostic>
 
     fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: Span): TypeUnification
-    fun plusReporting(reporting: Reporting): TypeUnification
+    fun plusReporting(diagnostic: Diagnostic): TypeUnification
 
     fun doTreatingNonUnifiableAsOutOfBounds(parameter: BoundTypeParameter, argument: BoundTypeArgument, action: (TypeUnification) -> TypeUnification): TypeUnification {
         return DecoratingTypeUnification.doWithDecorated(ValueNotAssignableAsArgumentOutOfBounds(this, parameter, argument), action)
@@ -25,10 +25,10 @@ interface TypeUnification {
 
     fun doWithIgnoringReportings(action: (TypeUnification) -> TypeUnification): TypeUnification
 
-    fun getErrorsNotIn(previous: TypeUnification): Sequence<Reporting> {
-        return reportings.asSequence()
-            .filter { it.level >= Reporting.Level.ERROR }
-            .filter { it !in previous.reportings }
+    fun getErrorsNotIn(previous: TypeUnification): Sequence<Diagnostic> {
+        return diagnostics.asSequence()
+            .filter { it.level >= Diagnostic.Level.ERROR }
+            .filter { it !in previous.diagnostics }
     }
 
     companion object {
@@ -45,7 +45,7 @@ interface TypeUnification {
          * and the return value would be `[E = Int, T = Boolean] Errors: 0`
          *
          * @param argumentsLocation Location of where the type arguments are being supplied. Used as a fallback
-         * for [Reporting]s if there are no type arguments and [allowZeroTypeArguments] is false
+         * for [Diagnostic]s if there are no type arguments and [allowZeroTypeArguments] is false
          * @param allowZeroTypeArguments Whether 0 type arguments is valid even if [typeParameters] is non-empty.
          * This is the case for function invocations, but type references always need to specify all type args.
          */
@@ -60,7 +60,7 @@ interface TypeUnification {
             if (arguments == null) {
                 if (typeParameters.isNotEmpty() && !allowMissingTypeArguments) {
                     for (typeParam in typeParameters) {
-                        unification = unification.plusReporting(Reporting.missingTypeArgument(typeParam, argumentsLocation))
+                        unification = unification.plusReporting(Diagnostic.missingTypeArgument(typeParam, argumentsLocation))
                     }
                 }
 
@@ -72,9 +72,9 @@ interface TypeUnification {
                 val argument = arguments[i]
                 if (argument.variance != TypeVariance.UNSPECIFIED && parameter.variance != TypeVariance.UNSPECIFIED) {
                     if (argument.variance != parameter.variance) {
-                        unification = unification.plusReporting(Reporting.typeArgumentVarianceMismatch(parameter, argument))
+                        unification = unification.plusReporting(Diagnostic.typeArgumentVarianceMismatch(parameter, argument))
                     } else {
-                        unification = unification.plusReporting(Reporting.typeArgumentVarianceSuperfluous(argument))
+                        unification = unification.plusReporting(Diagnostic.typeArgumentVarianceSuperfluous(argument))
                     }
                 }
 
@@ -87,12 +87,12 @@ interface TypeUnification {
 
             for (i in arguments.size..typeParameters.lastIndex) {
                 unification = unification.plusReporting(
-                    Reporting.missingTypeArgument(typeParameters[i], arguments.lastOrNull()?.span ?: argumentsLocation)
+                    Diagnostic.missingTypeArgument(typeParameters[i], arguments.lastOrNull()?.span ?: argumentsLocation)
                 )
             }
             if (arguments.size > typeParameters.size) {
                 unification = unification.plusReporting(
-                    Reporting.superfluousTypeArguments(
+                    Diagnostic.superfluousTypeArguments(
                         typeParameters.size,
                         arguments[typeParameters.size],
                     )
@@ -106,10 +106,10 @@ interface TypeUnification {
 
 private class DefaultTypeUnification private constructor(
     override val bindings: Map<TypeVariable, BoundTypeReference>,
-    override val reportings: Set<Reporting>,
+    override val diagnostics: Set<Diagnostic>,
 ) : TypeUnification {
-    override fun plusReporting(reporting: Reporting): TypeUnification {
-        return DefaultTypeUnification(bindings, reportings + setOf(reporting))
+    override fun plusReporting(diagnostic: Diagnostic): TypeUnification {
+        return DefaultTypeUnification(bindings, diagnostics + setOf(diagnostic))
     }
 
     override fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: Span): TypeUnification {
@@ -128,7 +128,7 @@ private class DefaultTypeUnification private constructor(
         return variable.parameter.bound.unify(
             newBinding,
             assignmentLocation,
-            DefaultTypeUnification(bindings.plus(variable to newBinding), reportings),
+            DefaultTypeUnification(bindings.plus(variable to newBinding), diagnostics),
         )
     }
 
@@ -136,7 +136,7 @@ private class DefaultTypeUnification private constructor(
         val result = action(this)
         return DefaultTypeUnification(
             result.bindings,
-            this.reportings,
+            this.diagnostics,
         )
     }
 
@@ -147,7 +147,7 @@ private class DefaultTypeUnification private constructor(
             separator = ", ",
             postfix = "]",
         )
-        val nErrors = reportings.count { it.level >= Reporting.Level.ERROR }
+        val nErrors = diagnostics.count { it.level >= Diagnostic.Level.ERROR }
 
         return "$bindingsStr Errors:$nErrors"
     }
@@ -176,14 +176,14 @@ private class ValueNotAssignableAsArgumentOutOfBounds(
     private val argument: BoundTypeArgument,
 ) : DecoratingTypeUnification<ValueNotAssignableAsArgumentOutOfBounds>() {
     override val bindings get() = undecorated.bindings
-    override val reportings get() = undecorated.reportings
+    override val diagnostics get() = undecorated.diagnostics
 
-    override fun plusReporting(reporting: Reporting): TypeUnification {
-        val reportingToAdd = if (reporting !is ValueNotAssignableReporting) reporting else {
-            Reporting.typeArgumentOutOfBounds(parameter, argument, reporting.reason)
+    override fun plusReporting(diagnostic: Diagnostic): TypeUnification {
+        val diagnostic = if (diagnostic !is ValueNotAssignableDiagnostic) diagnostic else {
+            Diagnostic.typeArgumentOutOfBounds(parameter, argument, diagnostic.reason)
         }
 
-        return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plusReporting(reportingToAdd), parameter, argument)
+        return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plusReporting(diagnostic), parameter, argument)
     }
 
     override fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: Span): ValueNotAssignableAsArgumentOutOfBounds {

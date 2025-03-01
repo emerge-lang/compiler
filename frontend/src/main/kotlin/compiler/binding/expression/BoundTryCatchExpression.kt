@@ -11,7 +11,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTryCatchExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -78,7 +78,7 @@ class BoundTryCatchExpression(
         catchBlock.setExpectedReturnType(type, diagnosis)
     }
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         // note that even a catch-all cannot make code nothrow! Errors fall through
         fallibleCode.setNothrow(boundary)
         catchBlock.setNothrow(boundary)

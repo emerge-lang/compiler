@@ -17,8 +17,8 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -35,7 +35,7 @@ class BoundInstanceOfExpression(
     override val throwBehavior get() = expressionToCheck.throwBehavior
     override val returnBehavior get() = expressionToCheck.returnBehavior
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         expressionToCheck.setNothrow(boundary)
     }
 
@@ -96,7 +96,7 @@ internal fun validateTypeCheck(node: BoundExpression<*>, fullTypeToCheck: BoundT
     }
 
     if (fullTypeToCheck !is UnresolvedType) {
-        diagnosis.add(Reporting.typeCheckOnVolatileTypeParameter(node, fullTypeToCheck))
+        diagnosis.add(Diagnostic.typeCheckOnVolatileTypeParameter(node, fullTypeToCheck))
     }
 
     return null

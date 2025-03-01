@@ -7,7 +7,7 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
 import compiler.lexer.Span
 import compiler.reportings.Diagnosis
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
 import compiler.util.andThen
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
@@ -62,10 +62,10 @@ sealed class GenericTypeReference : BoundTypeReference {
                 // TODO: try the assignment ignoring the nullability problem. If it works, report the nullability problem
                 // otherwise, report the bigger/harder to fix problem first. This requires code in TypeUnification
                 // that can determin success/failure of a sub-unification
-                carry.plusReporting(Reporting.valueNotAssignable(this, assigneeType, "Cannot assign a possibly null value to a non-nullable reference", assignmentLocation))
+                carry.plusReporting(Diagnostic.valueNotAssignable(this, assigneeType, "Cannot assign a possibly null value to a non-nullable reference", assignmentLocation))
             }
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
-            is RootResolvedTypeReference -> carry.plusReporting(Reporting.valueNotAssignable(
+            is RootResolvedTypeReference -> carry.plusReporting(Diagnostic.valueNotAssignable(
                 this,
                 assigneeType,
                 "$assigneeType cannot be proven to be a subtype of $simpleName",
@@ -83,7 +83,7 @@ sealed class GenericTypeReference : BoundTypeReference {
                 if (assigneeType.isSubtypeOf(this)) {
                     return carry
                 } else {
-                    return carry.plusReporting(Reporting.valueNotAssignable(
+                    return carry.plusReporting(Diagnostic.valueNotAssignable(
                         this,
                         assigneeType,
                         "${assigneeType.simpleName} cannot be proven to be a subtype of $simpleName",

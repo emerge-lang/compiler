@@ -48,8 +48,8 @@ import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrCatchExceptionStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrDynamicDispatchFunctionInvocationExpression
@@ -109,7 +109,7 @@ class BoundInvocationExpression(
             typeArguments = declaration.typeArguments?.map(context::resolveType)
             typeArguments?.forEach {
                 if (it.variance != TypeVariance.UNSPECIFIED) {
-                    diagnosis.add(Reporting.varianceOnInvocationTypeArgument(it))
+                    diagnosis.add(Diagnostic.varianceOnInvocationTypeArgument(it))
                 }
             }
         }
@@ -160,7 +160,7 @@ class BoundInvocationExpression(
                     action = { chosenOverload!!.candidate.semanticAnalysisPhase2(diagnosis) },
                     onCycle = {
                         diagnosis.add(
-                            Reporting.typeDeductionError(
+                            Diagnostic.typeDeductionError(
                                 "Cannot infer return type of the call to function ${functionNameToken.value} because the inference is cyclic here. Specify the return type explicitly.",
                                 declaration.span,
                             )
@@ -219,7 +219,7 @@ class BoundInvocationExpression(
         val (allCandidates, constructorsConsidered, anyTopLevelFunctions) = overloadCandidates
 
         if (allCandidates.isEmpty()) {
-            diagnosis.add(Reporting.noMatchingFunctionOverload(functionNameToken, receiverExpression?.type, valueArguments, false))
+            diagnosis.add(Diagnostic.noMatchingFunctionOverload(functionNameToken, receiverExpression?.type, valueArguments, false))
             return null
         }
 
@@ -233,7 +233,7 @@ class BoundInvocationExpression(
             // TODO: pass on the mismatch reason for all candidates?
             if (constructorsConsidered) {
                 diagnosis.add(
-                    Reporting.unresolvableConstructor(
+                    Diagnostic.unresolvableConstructor(
                         functionNameToken,
                         valueArguments,
                         anyTopLevelFunctions,
@@ -241,7 +241,7 @@ class BoundInvocationExpression(
                 )
             } else {
                 diagnosis.add(
-                    Reporting.noMatchingFunctionOverload(
+                    Diagnostic.noMatchingFunctionOverload(
                         functionNameToken,
                         receiverExpression?.type,
                         valueArguments,
@@ -259,9 +259,9 @@ class BoundInvocationExpression(
                 if (evaluations.size == 1) {
                     val singleEval = evaluations.single()
                     // if there is only a single candidate, the errors found in validating are 100% applicable to be shown to the user
-                    singleEval.unification.reportings
+                    singleEval.unification.diagnostics
                         .also {
-                            check(it.any { it.level >= Reporting.Level.ERROR }) {
+                            check(it.any { it.level >= Diagnostic.Level.ERROR }) {
                                 "Cannot choose overload to invoke, but evaluation of single overload candidate didn't yield any error -- what?"
                             }
                         }
@@ -274,11 +274,11 @@ class BoundInvocationExpression(
                         evaluations.filter { it.indicesOfErroneousParameters.none { it in disjointParameterIndices } }
                     if (reducedEvaluations.size == 1) {
                         val singleEval = reducedEvaluations.single()
-                        singleEval.unification.reportings.forEach(diagnosis::add)
+                        singleEval.unification.diagnostics.forEach(diagnosis::add)
                         return singleEval
                     } else {
                         diagnosis.add(
-                            Reporting.noMatchingFunctionOverload(
+                            Diagnostic.noMatchingFunctionOverload(
                                 functionNameToken,
                                 receiverExpression?.type,
                                 valueArguments,
@@ -291,7 +291,7 @@ class BoundInvocationExpression(
             }
             1 -> return legalMatches.single()
             else -> {
-                diagnosis.add(Reporting.ambiguousInvocation(this, evaluations.map { it.candidate }))
+                diagnosis.add(Diagnostic.ambiguousInvocation(this, evaluations.map { it.candidate }))
                 return legalMatches.firstOrNull()
             }
         }
@@ -369,8 +369,8 @@ class BoundInvocationExpression(
             .toList()
     }
 
-    private var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    private var nothrowBoundary: NothrowViolationDiagnostic.SideEffectBoundary? = null
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         this.nothrowBoundary = boundary
     }
 
@@ -383,7 +383,7 @@ class BoundInvocationExpression(
                 targetFn.validateAccessFrom(functionNameToken.span, diagnosis)
                 nothrowBoundary?.let { nothrowBoundary ->
                     if (targetFn.throwBehavior != SideEffectPrediction.NEVER) {
-                        diagnosis.add(Reporting.nothrowViolatingInvocation(this, nothrowBoundary))
+                        diagnosis.add(Diagnostic.nothrowViolatingInvocation(this, nothrowBoundary))
                     }
                 }
             }
@@ -520,7 +520,7 @@ private data class OverloadCandidateEvaluation(
     val returnType: BoundTypeReference?,
     val indicesOfErroneousParameters: Collection<Int>,
 ) {
-    val hasErrors = unification.reportings.any { it.level >= Reporting.Level.ERROR }
+    val hasErrors = unification.diagnostics.any { it.level >= Diagnostic.Level.ERROR }
 }
 
 private fun Collection<OverloadCandidateEvaluation>.indicesOfDisjointlyTypedParameters(): Sequence<Int> {

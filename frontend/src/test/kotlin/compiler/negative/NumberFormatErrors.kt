@@ -1,6 +1,6 @@
 package compiler.compiler.negative
 
-import compiler.reportings.ErroneousLiteralExpressionReporting
+import compiler.reportings.ErroneousLiteralExpressionDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 
 class NumberFormatErrors : FreeSpec({
@@ -9,7 +9,7 @@ class NumberFormatErrors : FreeSpec({
             validateModule("""
                 a: S32 = 3a
             """.trimIndent())
-                .shouldReport<ErroneousLiteralExpressionReporting>()
+                .shouldReport<ErroneousLiteralExpressionDiagnostic>()
         }
     }
 
@@ -18,35 +18,35 @@ class NumberFormatErrors : FreeSpec({
             validateModule("""
                 a = 3pf
             """.trimIndent())
-                .shouldReport<ErroneousLiteralExpressionReporting>()
+                .shouldReport<ErroneousLiteralExpressionDiagnostic>()
         }
 
         "illegal char before point" {
             validateModule("""
                 a = 3a.0
             """.trimIndent())
-                .shouldReport<ErroneousLiteralExpressionReporting>()
+                .shouldReport<ErroneousLiteralExpressionDiagnostic>()
         }
 
         "illegal char after point" {
             validateModule("""
                 a = 3.0a
             """.trimIndent())
-                .shouldReport<ErroneousLiteralExpressionReporting>()
+                .shouldReport<ErroneousLiteralExpressionDiagnostic>()
         }
 
         "empty exponent" {
             validateModule("""
                 a = 3.4e
             """.trimIndent())
-                .shouldReport<ErroneousLiteralExpressionReporting>()
+                .shouldReport<ErroneousLiteralExpressionDiagnostic>()
         }
 
         "illegal char in exponent" {
             validateModule("""
                 a = 3.2e4gf
             """.trimIndent())
-                .shouldReport<ErroneousLiteralExpressionReporting>()
+                .shouldReport<ErroneousLiteralExpressionDiagnostic>()
         }
     }
 })

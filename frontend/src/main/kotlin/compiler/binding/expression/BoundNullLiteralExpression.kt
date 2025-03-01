@@ -26,7 +26,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrNullLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -53,7 +53,7 @@ class BoundNullLiteralExpression(
 
     override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {}
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {}
 
     override val isEvaluationResultReferenceCounted = false
     override val isEvaluationResultAnchored = true

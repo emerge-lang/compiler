@@ -4,7 +4,7 @@ import compiler.ast.FunctionDeclaration
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.reportings.Diagnosis
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -35,10 +35,10 @@ class BoundTopLevelFunction(
         super.semanticAnalysisPhase3(diagnosis)
         if (attributes.impliesNoBody) {
             if (body != null) {
-                diagnosis.add(Reporting.illegalFunctionBody(declaration))
+                diagnosis.add(Diagnostic.illegalFunctionBody(declaration))
             }
         } else if (body == null) {
-            diagnosis.add(Reporting.missingFunctionBody(declaration))
+            diagnosis.add(Diagnostic.missingFunctionBody(declaration))
         }
     }
 

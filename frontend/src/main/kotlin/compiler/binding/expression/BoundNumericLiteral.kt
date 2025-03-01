@@ -31,8 +31,8 @@ import compiler.binding.type.NullableTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.handleCyclicInvocation
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -46,7 +46,7 @@ import java.math.BigInteger
 open class BoundNumericLiteral(
     override val context: ExecutionScopedCTContext,
     override val declaration: NumericLiteralExpression,
-    private val bindTimeReportings: Collection<Reporting>
+    private val bindTimeDiagnostics: Collection<Diagnostic>
 ) : BoundLiteralExpression<NumericLiteralExpression> {
     override val type: BoundTypeReference? = null // unknown
 
@@ -54,13 +54,13 @@ open class BoundNumericLiteral(
     override val returnBehavior = SideEffectPrediction.NEVER
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-        bindTimeReportings.forEach(diagnosis::add)
+        bindTimeDiagnostics.forEach(diagnosis::add)
     }
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
     override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {}
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {}
 
     protected var expectedNumericType: BoundBaseType? = null
     override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
@@ -102,8 +102,8 @@ class BoundIntegerLiteral(
     private val integer: BigInteger,
     /** the number base that the source program used to represent the value in [integer] */
     private val baseInSource: UInt,
-    reportings: Collection<Reporting>
-) : BoundNumericLiteral(context, declaration, reportings) {
+    diagnostics: Collection<Diagnostic>
+) : BoundNumericLiteral(context, declaration, diagnostics) {
     override lateinit var type: RootResolvedTypeReference
     private lateinit var valueCoercedToRange: BigInteger
 
@@ -137,10 +137,10 @@ class BoundIntegerLiteral(
                         .and(allOnesOfTypeBitLength) // emulate overflow
                         .negate()
                 } else {
-                    diagnosis.add(Reporting.integerLiteralOutOfRange(declaration, type.baseType, typeRange))
+                    diagnosis.add(Diagnostic.integerLiteralOutOfRange(declaration, type.baseType, typeRange))
                 }
             } else {
-                diagnosis.add(Reporting.integerLiteralOutOfRange(declaration, type.baseType, typeRange))
+                diagnosis.add(Diagnostic.integerLiteralOutOfRange(declaration, type.baseType, typeRange))
             }
         }
     }
@@ -157,8 +157,8 @@ class BoundFloatingPointLiteral(
     context: ExecutionScopedCTContext,
     declaration: NumericLiteralExpression,
     val float: BigDecimal,
-    reportings: Collection<Reporting>
-) : BoundNumericLiteral(context, declaration, reportings) {
+    diagnostics: Collection<Diagnostic>
+) : BoundNumericLiteral(context, declaration, diagnostics) {
     override val type = context.swCtx.f32.baseReference
 
     override fun toBackendIrExpression(): IrExpression {

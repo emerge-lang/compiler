@@ -20,8 +20,8 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
 class BoundNullCoalescingExpression(
@@ -41,7 +41,7 @@ class BoundNullCoalescingExpression(
 
     override val modifiedContext: ExecutionScopedCTContext = SingleBranchJoinExecutionScopedCTContext(nullableExpression.modifiedContext, alternativeExpression.modifiedContext)
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         nullableExpression.setNothrow(boundary)
         alternativeExpression.setNothrow(boundary)
     }
@@ -81,7 +81,7 @@ class BoundNullCoalescingExpression(
         this.type = alternateType?.closestCommonSupertypeWith(notNullableType) ?: notNullableType
 
         if (nullableExpression.type?.isNullable == false) {
-            diagnosis.add(Reporting.nullCheckOnNonNullableValue(nullableExpression))
+            diagnosis.add(Diagnostic.nullCheckOnNonNullableValue(nullableExpression))
         }
     }
 

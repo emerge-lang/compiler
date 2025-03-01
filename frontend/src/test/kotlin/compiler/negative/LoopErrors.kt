@@ -1,7 +1,7 @@
 package compiler.compiler.negative
 
-import compiler.reportings.BreakOutsideOfLoopReporting
-import compiler.reportings.ContinueOutsideOfLoopReporting
+import compiler.reportings.BreakOutsideOfLoopDiagnostic
+import compiler.reportings.ContinueOutsideOfLoopDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 
 class LoopErrors : FreeSpec({
@@ -11,7 +11,7 @@ class LoopErrors : FreeSpec({
                 break
             }
         """.trimIndent())
-            .shouldReport<BreakOutsideOfLoopReporting>()
+            .shouldReport<BreakOutsideOfLoopDiagnostic>()
     }
 
     "continue outside of loop" {
@@ -20,6 +20,6 @@ class LoopErrors : FreeSpec({
                 continue
             }
         """.trimIndent())
-            .shouldReport<ContinueOutsideOfLoopReporting>()
+            .shouldReport<ContinueOutsideOfLoopDiagnostic>()
     }
 })

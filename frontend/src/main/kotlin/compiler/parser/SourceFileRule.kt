@@ -12,7 +12,7 @@ import compiler.lexer.Token
 import compiler.parser.grammar.SourceFileGrammar
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.parser.grammar.rule.matchAgainst
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
 import compiler.lexer.SourceFile as LexerSourceFile
 
 object SourceFileRule {
@@ -32,7 +32,7 @@ object SourceFileRule {
                 if (astSourceFile.selfDeclaration == null) {
                     if (index != 0) {
                         astSourceFile.addParseTimeReporting(
-                            Reporting.parsingError(
+                            Diagnostic.parsingError(
                             "The package declaration must be the first declaration in the source file",
                             declaration.declaredAt
                         ))
@@ -42,7 +42,7 @@ object SourceFileRule {
                 }
                 else {
                     astSourceFile.addParseTimeReporting(
-                        Reporting.parsingError(
+                        Diagnostic.parsingError(
                         "Duplicate package declaration",
                         declaration.declaredAt
                     ))
@@ -62,7 +62,7 @@ object SourceFileRule {
             }
             else {
                 astSourceFile.addParseTimeReporting(
-                    Reporting.unsupported(
+                    Diagnostic.unsupported(
                     "Unsupported declaration $declaration",
                     declaration.declaredAt,
                 ))
@@ -70,7 +70,7 @@ object SourceFileRule {
         }
 
         if (astSourceFile.selfDeclaration == null) {
-            astSourceFile.addParseTimeReporting(Reporting.parsingError(
+            astSourceFile.addParseTimeReporting(Diagnostic.parsingError(
                 "No package declaration found.",
                 (inResult.item.items.getOrNull(0) as AstFileLevelDeclaration?)?.declaredAt ?: Span.UNKNOWN
             ))

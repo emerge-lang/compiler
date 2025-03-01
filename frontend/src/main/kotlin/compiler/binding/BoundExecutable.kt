@@ -23,7 +23,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
 interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
@@ -63,7 +63,7 @@ interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
      *
      * Must be called before [semanticAnalysisPhase3] so the diagnostic can be generated there.
      */
-    fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary)
+    fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary)
 
     /**
      * Use to find violations of purity.

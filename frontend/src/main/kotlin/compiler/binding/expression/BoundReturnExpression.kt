@@ -43,9 +43,9 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
-import compiler.reportings.ReturnTypeMismatchReporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.NothrowViolationDiagnostic
+import compiler.reportings.ReturnTypeMismatchDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -74,7 +74,7 @@ class BoundReturnExpression(
         expression?.semanticAnalysisPhase2(diagnosis)
     }
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         expression?.setNothrow(boundary)
     }
 
@@ -84,7 +84,7 @@ class BoundReturnExpression(
         expression?.semanticAnalysisPhase3(diagnosis)
 
         if (expectedReturnType == null) {
-            diagnosis.add(Reporting.consecutive(
+            diagnosis.add(Diagnostic.consecutive(
                 "Cannot check return value type because the expected return type is not known",
                 declaration.span
             ))
@@ -95,12 +95,12 @@ class BoundReturnExpression(
 
         if (expressionType != null) {
             expressionType.evaluateAssignabilityTo(expectedReturnType, declaration.span)
-                ?.let(::ReturnTypeMismatchReporting)
+                ?.let(::ReturnTypeMismatchDiagnostic)
                 ?.let(diagnosis::add)
         }
 
         if (expectedReturnType is RootResolvedTypeReference && expectedReturnType.baseType != context.swCtx.unit && expression == null) {
-            diagnosis.add(Reporting.missingReturnValue(this, expectedReturnType))
+            diagnosis.add(Diagnostic.missingReturnValue(this, expectedReturnType))
         }
     }
 

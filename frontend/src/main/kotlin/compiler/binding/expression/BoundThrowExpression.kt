@@ -14,8 +14,8 @@ import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrExpressionSideEffectsStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrInvocationExpression
@@ -52,8 +52,8 @@ class BoundThrowExpression(
         }
     }
 
-    private var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    private var nothrowBoundary: NothrowViolationDiagnostic.SideEffectBoundary? = null
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         this.nothrowBoundary = boundary
         this.throwableExpression.setNothrow(boundary)
     }
@@ -62,7 +62,7 @@ class BoundThrowExpression(
         return seanHelper.phase3(diagnosis) {
             throwableExpression.semanticAnalysisPhase3(diagnosis)
             nothrowBoundary?.let { nothrowBoundary ->
-                diagnosis.add(Reporting.throwStatementInNothrowContext(this, nothrowBoundary))
+                diagnosis.add(Diagnostic.throwStatementInNothrowContext(this, nothrowBoundary))
             }
         }
     }

@@ -2,8 +2,8 @@ package compiler.compiler.negative
 
 import compiler.ast.VariableDeclaration
 import compiler.binding.expression.BoundIdentifierExpression
-import compiler.reportings.ImplicitlyEvaluatedStatementReporting
-import compiler.reportings.UnsafeObjectTraversalReporting
+import compiler.reportings.ImplicitlyEvaluatedStatementDiagnostic
+import compiler.reportings.UnsafeObjectTraversalDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -18,7 +18,7 @@ class ExpressionErrors : FreeSpec({
                 return p.a
             }
         """.trimIndent())
-            .shouldReport<UnsafeObjectTraversalReporting> {
+            .shouldReport<UnsafeObjectTraversalDiagnostic> {
                 it.nullableExpression.shouldBeInstanceOf<BoundIdentifierExpression>().identifier shouldBe "p"
             }
     }
@@ -47,7 +47,7 @@ class ExpressionErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldReport<ImplicitlyEvaluatedStatementReporting> {
+                .shouldReport<ImplicitlyEvaluatedStatementDiagnostic> {
                     it.statement.shouldBeInstanceOf<VariableDeclaration>().name.value shouldBe "y"
                 }
         }
@@ -60,7 +60,7 @@ class ExpressionErrors : FreeSpec({
                     } else {}
                 }
             """.trimIndent())
-                .shouldReport<ImplicitlyEvaluatedStatementReporting>()
+                .shouldReport<ImplicitlyEvaluatedStatementDiagnostic>()
         }
     }
 })

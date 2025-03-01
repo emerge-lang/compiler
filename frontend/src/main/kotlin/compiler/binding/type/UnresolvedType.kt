@@ -6,7 +6,7 @@ import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
 import compiler.lexer.Span
 import compiler.reportings.Diagnosis
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class UnresolvedType private constructor(
@@ -27,7 +27,7 @@ class UnresolvedType private constructor(
     override val inherentTypeBindings = TypeUnification.EMPTY
 
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
-        diagnosis.add(Reporting.unknownType(reference))
+        diagnosis.add(Diagnostic.unknownType(reference))
 
         parameters?.forEach { it.validate(forUsage.deriveIrrelevant(), diagnosis) }
     }

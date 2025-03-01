@@ -4,7 +4,7 @@ import compiler.ast.AssignmentStatement
 import compiler.ast.Statement
 import compiler.binding.expression.BoundInvocationExpression
 import compiler.reportings.Diagnosis
-import compiler.reportings.FunctionMissingModifierReporting.Companion.requireOperatorModifier
+import compiler.reportings.FunctionMissingModifierDiagnostic.Companion.requireOperatorModifier
 
 class BoundIndexAssignmentStatement(
     override val declaration: AssignmentStatement,

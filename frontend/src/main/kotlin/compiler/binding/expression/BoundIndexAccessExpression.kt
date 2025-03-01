@@ -4,7 +4,7 @@ import compiler.ast.Expression
 import compiler.ast.expression.AstIndexAccessExpression
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.reportings.Diagnosis
-import compiler.reportings.FunctionMissingModifierReporting.Companion.requireOperatorModifier
+import compiler.reportings.FunctionMissingModifierDiagnostic.Companion.requireOperatorModifier
 
 class BoundIndexAccessExpression(
     override val context: ExecutionScopedCTContext,

@@ -12,8 +12,8 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseTypeReflectionExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -26,7 +26,7 @@ class BoundReflectExpression(
     override val throwBehavior = SideEffectPrediction.NEVER
     override val returnBehavior = SideEffectPrediction.NEVER
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         // nothing to do
     }
 
@@ -50,7 +50,7 @@ class BoundReflectExpression(
         if (typeToReflectOn is RootResolvedTypeReference) {
             baseTypeToReflectOn = (typeToReflectOn as RootResolvedTypeReference).baseType
         } else if (typeToReflectOn !is UnresolvedType) {
-            diagnosis.add(Reporting.unsupportedReflection(typeToReflectOn))
+            diagnosis.add(Diagnostic.unsupportedReflection(typeToReflectOn))
         }
     }
 

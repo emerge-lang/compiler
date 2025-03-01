@@ -1,6 +1,6 @@
 package compiler.compiler.negative
 
-import compiler.reportings.DuplicateBaseTypesReporting
+import compiler.reportings.DuplicateBaseTypesDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.collections.haveSize
 import io.kotest.matchers.should
@@ -12,7 +12,7 @@ class PackageLevelErrors : FreeSpec({
             class Foo {}
             interface Foo {}
         """.trimIndent())
-            .shouldReport<DuplicateBaseTypesReporting> {
+            .shouldReport<DuplicateBaseTypesDiagnostic> {
                 it.duplicates should haveSize(3)
             }
     }

@@ -18,8 +18,8 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -91,8 +91,8 @@ class BoundCastExpression(
         }
     }
 
-    private var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    private var nothrowBoundary: NothrowViolationDiagnostic.SideEffectBoundary? = null
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         nothrowBoundary = boundary
         value.setNothrow(boundary)
     }
@@ -113,7 +113,7 @@ class BoundCastExpression(
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         value.semanticAnalysisPhase3(diagnosis)
         if (nothrowBoundary != null && !isTypedNumericLiteral) {
-            diagnosis.add(Reporting.nothrowViolatingCast(this, nothrowBoundary!!))
+            diagnosis.add(Diagnostic.nothrowViolatingCast(this, nothrowBoundary!!))
         }
     }
 

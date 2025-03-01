@@ -38,8 +38,8 @@ import compiler.binding.type.UnresolvedType
 import compiler.handleCyclicInvocation
 import compiler.lexer.Span
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -108,7 +108,7 @@ class BoundVariable(
 
             visibility.semanticAnalysisPhase1(diagnosis)
             if (!kind.allowsVisibility && declaration.visibility != null) {
-                diagnosis.add(Reporting.visibilityNotAllowedOnVariable(this))
+                diagnosis.add(Diagnostic.visibilityNotAllowedOnVariable(this))
             }
 
             context.resolveVariable(this.name)
@@ -116,7 +116,7 @@ class BoundVariable(
                 ?.takeUnless { shadowed -> this.kind.allowsShadowingGlobals && shadowed.isGlobal }
                 ?.let { firstDeclarationOfVariable ->
                     diagnosis.add(
-                        Reporting.variableDeclaredMoreThanOnce(
+                        Diagnostic.variableDeclaredMoreThanOnce(
                             firstDeclarationOfVariable.declaration,
                             this.declaration
                         )
@@ -124,16 +124,16 @@ class BoundVariable(
                 }
 
             if (isGlobal && declaration.initializerExpression == null) {
-                diagnosis.add(Reporting.globalVariableNotInitialized(this))
+                diagnosis.add(Diagnostic.globalVariableNotInitialized(this))
             }
 
             if (kind.requiresExplicitType) {
                 if (declaration.type == null) {
-                    diagnosis.add(Reporting.variableTypeNotDeclared(this))
+                    diagnosis.add(Diagnostic.variableTypeNotDeclared(this))
                 }
             } else if (declaration.initializerExpression == null && shouldInferBaseType) {
                 diagnosis.add(
-                    Reporting.typeDeductionError(
+                    Diagnostic.typeDeductionError(
                         "Cannot determine type of $kind $name; neither type nor initializer is specified.",
                         declaration.declaredAt
                     )
@@ -156,15 +156,15 @@ class BoundVariable(
             }
 
             if (shouldInferBaseType && declaration.type?.arguments?.isNotEmpty() == true) {
-                diagnosis.add(Reporting.explicitInferTypeWithArguments(declaration.type))
+                diagnosis.add(Diagnostic.explicitInferTypeWithArguments(declaration.type))
             }
 
             if (declaration.type != null && shouldInferBaseType && !kind.allowsExplicitBaseTypeInfer) {
-                diagnosis.add(Reporting.explicitInferTypeNotAllowed(declaration.type))
+                diagnosis.add(Diagnostic.explicitInferTypeNotAllowed(declaration.type))
             }
 
             if (declaration.ownership != null && !kind.allowsExplicitOwnership) {
-                diagnosis.add(Reporting.explicitOwnershipNotAllowed(this))
+                diagnosis.add(Diagnostic.explicitOwnershipNotAllowed(this))
             }
         }
     }
@@ -186,7 +186,7 @@ class BoundVariable(
                     },
                     onCycle = {
                         diagnosis.add(
-                            Reporting.typeDeductionError(
+                            Diagnostic.typeDeductionError(
                                 "Cannot infer the type of variable $name because the type inference is cyclic here. Specify the type of one element explicitly.",
                                 initializerExpression.declaration.span
                             )
@@ -237,7 +237,7 @@ class BoundVariable(
         }
     }
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         initializerExpression?.setNothrow(boundary)
     }
 

@@ -23,7 +23,7 @@ import compiler.ast.VariableOwnership
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.reportings.Diagnosis
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
 
 class BoundParameterList(
     val context: ExecutionScopedCTContext,
@@ -45,7 +45,7 @@ class BoundParameterList(
             if (index > 0) {
                 val previousWithSameName = parameters.subList(0, index).find { it !== parameter && it.name == parameter.name }
                 if (previousWithSameName != null) {
-                    diagnosis.add(Reporting.parameterDeclaredMoreThanOnce(previousWithSameName.declaration, parameter.declaration))
+                    diagnosis.add(Diagnostic.parameterDeclaredMoreThanOnce(previousWithSameName.declaration, parameter.declaration))
                 }
             }
 

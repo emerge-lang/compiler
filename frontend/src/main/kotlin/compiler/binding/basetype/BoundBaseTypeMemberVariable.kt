@@ -29,7 +29,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.lexer.Span
 import compiler.reportings.Diagnosis
-import compiler.reportings.PurityViolationReporting
+import compiler.reportings.PurityViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
@@ -90,7 +90,7 @@ class BoundBaseTypeMemberVariable(
         boundEffectiveVariableDeclaration.semanticAnalysisPhase3(diagnosis)
 
         boundEffectiveVariableDeclaration.initializerExpression?.let { initializer ->
-            val diagnosingVisitor = PurityViolationImpurityVisitor(diagnosis, PurityViolationReporting.SideEffectBoundary.ClassMemberInitializer(this))
+            val diagnosingVisitor = PurityViolationImpurityVisitor(diagnosis, PurityViolationDiagnostic.SideEffectBoundary.ClassMemberInitializer(this))
             initializer.visitWritesBeyond(context, diagnosingVisitor)
             initializer.visitReadsBeyond(context, diagnosingVisitor)
         }

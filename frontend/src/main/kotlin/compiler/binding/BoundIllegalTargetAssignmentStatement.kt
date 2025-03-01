@@ -12,8 +12,8 @@ import compiler.binding.expression.BoundNotNullExpression
 import compiler.binding.expression.BoundUnaryExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
 class BoundIllegalTargetAssignmentStatement(
@@ -39,7 +39,7 @@ class BoundIllegalTargetAssignmentStatement(
         }
 
         diagnosis.add(
-            Reporting.illegalAssignment("Cannot assign to $targetDescription", this)
+            Diagnostic.illegalAssignment("Cannot assign to $targetDescription", this)
         )
     }
 
@@ -51,7 +51,7 @@ class BoundIllegalTargetAssignmentStatement(
 
     override fun additionalSemanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
 
-    override fun setTargetNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setTargetNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         targetExpression.setNothrow(boundary)
     }
 

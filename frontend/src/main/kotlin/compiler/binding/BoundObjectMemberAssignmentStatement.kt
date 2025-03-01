@@ -13,8 +13,8 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -44,7 +44,7 @@ class BoundObjectMemberAssignmentStatement(
 
     override val assignmentTargetType get() = targetExpression.type
 
-    override fun setTargetNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setTargetNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         targetExpression.setNothrow(boundary)
     }
 
@@ -63,12 +63,12 @@ class BoundObjectMemberAssignmentStatement(
                     if (member.isReAssignable) {
                         _modifiedContext.trackSideEffect(PartialObjectInitialization.Effect.WriteToMemberVariableEffect(memberOwnerVariable, member))
                     } else {
-                        diagnosis.add(Reporting.illegalAssignment("Member variable ${member.name} may already have been initialized, cannot assign a value again", this))
+                        diagnosis.add(Diagnostic.illegalAssignment("Member variable ${member.name} may already have been initialized, cannot assign a value again", this))
                     }
                 }
                 if (initializationStateBefore == VariableInitialization.State.INITIALIZED) {
                     if (!member.isReAssignable) {
-                        diagnosis.add(Reporting.illegalAssignment("Member variable ${member.name} is already initialized, cannot re-assign", this))
+                        diagnosis.add(Diagnostic.illegalAssignment("Member variable ${member.name} is already initialized, cannot re-assign", this))
                     }
                 }
             }
@@ -82,7 +82,7 @@ class BoundObjectMemberAssignmentStatement(
 
         targetExpression.valueExpression.type?.let { memberOwnerType ->
             if (!memberOwnerType.mutability.isMutable) {
-                diagnosis.add(Reporting.valueNotAssignable(
+                diagnosis.add(Diagnostic.valueNotAssignable(
                     memberOwnerType.withMutability(TypeMutability.MUTABLE),
                     memberOwnerType,
                     "Cannot mutate a value of type $memberOwnerType",

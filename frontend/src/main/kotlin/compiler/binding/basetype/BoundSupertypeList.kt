@@ -7,7 +7,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.handleCyclicInvocation
 import compiler.reportings.Diagnosis
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
 
 class BoundSupertypeList(
     val context: CTContext,
@@ -47,7 +47,7 @@ class BoundSupertypeList(
                         resolvedReference.baseType.semanticAnalysisPhase1(diagnosis)
                     },
                     onCycle = {
-                        diagnosis.add(Reporting.cyclicInheritance(typeDef, clause))
+                        diagnosis.add(Diagnostic.cyclicInheritance(typeDef, clause))
                         hasCyclicInheritance = true
                     }
                 )
@@ -56,7 +56,7 @@ class BoundSupertypeList(
                 }
 
                 if (!distinctSuperBaseTypes.add(resolvedReference.baseType)) {
-                    diagnosis.add(Reporting.duplicateSupertype(clause.astNode))
+                    diagnosis.add(Diagnostic.duplicateSupertype(clause.astNode))
                 } else {
                     distinctSupertypes.add(resolvedReference)
                 }

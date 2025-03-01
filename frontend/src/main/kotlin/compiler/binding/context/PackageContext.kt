@@ -5,7 +5,7 @@ import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.basetype.BoundBaseType
 import compiler.reportings.Diagnosis
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class PackageContext(
@@ -81,7 +81,7 @@ class PackageContext(
             .values
             .filter { it.size > 1 }
             .forEach { duplicateTypes ->
-                diagnosis.add(Reporting.duplicateBaseTypes(packageName, duplicateTypes))
+                diagnosis.add(Diagnostic.duplicateBaseTypes(packageName, duplicateTypes))
             }
     }
 

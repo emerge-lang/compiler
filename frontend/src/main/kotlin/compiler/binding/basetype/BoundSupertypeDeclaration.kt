@@ -9,7 +9,7 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
 import compiler.reportings.Diagnosis
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
 
 /**
  * Resembles a supertype declared on a subtype
@@ -41,7 +41,7 @@ class BoundSupertypeDeclaration(
             if (unfilteredResolved is RootResolvedTypeReference) {
                 resolvedReference = unfilteredResolved as RootResolvedTypeReference
             } else if (unfilteredResolved !is UnresolvedType) {
-                diagnosis.add(Reporting.illegalSupertype(astNode, "can only inherit from interfaces"))
+                diagnosis.add(Diagnostic.illegalSupertype(astNode, "can only inherit from interfaces"))
             }
         }
     }
@@ -58,7 +58,7 @@ class BoundSupertypeDeclaration(
 
             if (!astNode.arguments.isNullOrEmpty()) {
                 diagnosis.add(
-                    Reporting.illegalSupertype(
+                    Diagnostic.illegalSupertype(
                         astNode,
                         "inheriting from generic types is currently not supported"
                     )
@@ -71,7 +71,7 @@ class BoundSupertypeDeclaration(
             }
 
             if (localResolvedReference.baseType.kind != BoundBaseType.Kind.INTERFACE) {
-                diagnosis.add(Reporting.illegalSupertype(astNode, "can only inherit from interfaces"))
+                diagnosis.add(Diagnostic.illegalSupertype(astNode, "can only inherit from interfaces"))
             }
         }
     }

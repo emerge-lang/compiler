@@ -38,8 +38,8 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -77,8 +77,8 @@ class BoundNotNullExpression(
             ?: expectedEvaluationResultType
     }
 
-    private var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    private var nothrowBoundary: NothrowViolationDiagnostic.SideEffectBoundary? = null
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         this.nothrowBoundary = boundary
     }
 
@@ -96,7 +96,7 @@ class BoundNotNullExpression(
 
         nullableExpression.semanticAnalysisPhase3(diagnosis)
         nothrowBoundary?.let { nothrowBoundary ->
-            diagnosis.add(Reporting.nothrowViolatingNotNullAssertion(this, nothrowBoundary))
+            diagnosis.add(Diagnostic.nothrowViolatingNotNullAssertion(this, nothrowBoundary))
         }
     }
 

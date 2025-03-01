@@ -16,7 +16,7 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.reportings.Diagnosis
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
 
 class SourceFileRootContext(
     packageContext: PackageContext,
@@ -106,7 +106,7 @@ class SourceFileRootContext(
                 type: BoundTypeReference,
                 diagnosis: Diagnosis
             ): ExecutionScopedCTContext.MixinRegistration? {
-                diagnosis.add(Reporting.mixinNotAllowed(mixinStatement))
+                diagnosis.add(Diagnostic.mixinNotAllowed(mixinStatement))
                 return null
             }
         }

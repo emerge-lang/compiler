@@ -15,8 +15,8 @@ import compiler.lexer.lex
 import compiler.parser.SourceFileRule
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.reportings.Diagnosis
-import compiler.reportings.ModuleWithoutSourcesReporting
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.ModuleWithoutSourcesDiagnostic
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.EmergeBackend
 import io.github.tmarsteel.emerge.common.EmergeConstants
@@ -63,7 +63,7 @@ object CompileCommand : CliktCommand() {
             SourceSet.load(moduleRef.sourceDirectory, moduleRef.name)
                 .also {
                     if (it.isEmpty()) {
-                        echo(ModuleWithoutSourcesReporting(moduleRef.name, moduleRef.sourceDirectory))
+                        echo(ModuleWithoutSourcesDiagnostic(moduleRef.name, moduleRef.sourceDirectory))
                     }
                 }
                 .map { SourceFileRule.match(lex(it), it) }
@@ -89,7 +89,7 @@ object CompileCommand : CliktCommand() {
         }
 
         val diagnosis = ProcessOnTheGoDiagnosis {
-            if (it.level > Reporting.Level.CONSECUTIVE) {
+            if (it.level > Diagnostic.Level.CONSECUTIVE) {
                 echo(it)
             }
         }
@@ -121,8 +121,8 @@ object CompileCommand : CliktCommand() {
         echo("total time: ${elapsedBetween(startedAt, backendDoneAt)}")
     }
 
-    private fun echo(reporting: Reporting) {
-        echo(reporting.toString())
+    private fun echo(diagnostic: Diagnostic) {
+        echo(diagnostic.toString())
         echo()
         echo()
     }
@@ -135,8 +135,8 @@ fun main(args: Array<String>) {
     CompileCommand.main(args)
 }
 
-private val Iterable<Reporting>.containsErrors
-    get() = map(Reporting::level).any { it.level >= Reporting.Level.ERROR.level }
+private val Iterable<Diagnostic>.containsErrors
+    get() = map(Diagnostic::level).any { it.level >= Diagnostic.Level.ERROR.level }
 
 private fun elapsedBetween(start: Instant, end: Instant): String {
     val duration = Duration.between(start, end).toKotlinDuration()
@@ -147,13 +147,13 @@ private fun elapsedBetween(start: Instant, end: Instant): String {
         .replace(".000", "")
 }
 
-private class ProcessOnTheGoDiagnosis(private val process: (Reporting) -> Unit) : Diagnosis {
-    private val seen = HashSet<Reporting>()
+private class ProcessOnTheGoDiagnosis(private val process: (Diagnostic) -> Unit) : Diagnosis {
+    private val seen = HashSet<Diagnostic>()
     override var nErrors: ULong = 0uL
         private set
 
-    override fun add(finding: Reporting) {
-        if (finding.level >= Reporting.Level.ERROR) {
+    override fun add(finding: Diagnostic) {
+        if (finding.level >= Diagnostic.Level.ERROR) {
             nErrors++
         }
 

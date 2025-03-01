@@ -4,7 +4,7 @@ import compiler.lexer.Span
 
 class UnsupportedTypeReflectionException(
     val typeLocation: Span,
-) : Reporting(
+) : Diagnostic(
     Level.ERROR,
     "Currently, reflection is only supported on named base types",
     typeLocation,

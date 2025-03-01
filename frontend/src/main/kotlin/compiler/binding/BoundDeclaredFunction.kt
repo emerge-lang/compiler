@@ -19,10 +19,10 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.lexer.Span
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.PurityViolationReporting
-import compiler.reportings.Reporting
-import compiler.reportings.ReturnTypeMismatchReporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.NothrowViolationDiagnostic
+import compiler.reportings.PurityViolationDiagnostic
+import compiler.reportings.ReturnTypeMismatchDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
@@ -95,7 +95,7 @@ abstract class BoundDeclaredFunction(
                 context = this,
                 action = { this.body?.semanticAnalysisPhase2(diagnosis) },
                 onCycle = {
-                    Reporting.typeDeductionError(
+                    Diagnostic.typeDeductionError(
                         "Cannot infer the return type of function $name because the type inference is cyclic here. Specify the type of one element explicitly.",
                         declaredAt
                     )
@@ -128,12 +128,12 @@ abstract class BoundDeclaredFunction(
             declaredTypeParameters.forEach {
                 it.semanticAnalysisPhase2(diagnosis)
                 if (it.variance != TypeVariance.UNSPECIFIED) {
-                    diagnosis.add(Reporting.varianceOnFunctionTypeParameter(it))
+                    diagnosis.add(Diagnostic.varianceOnFunctionTypeParameter(it))
                 }
             }
             body?.semanticAnalysisPhase2(diagnosis)
             if (attributes.isDeclaredNothrow) {
-                body?.setNothrow(NothrowViolationReporting.SideEffectBoundary.Function(this))
+                body?.setNothrow(NothrowViolationDiagnostic.SideEffectBoundary.Function(this))
             }
         }
     }
@@ -146,7 +146,7 @@ abstract class BoundDeclaredFunction(
                 body.semanticAnalysisPhase3(diagnosis)
 
                 if (BoundFunction.Purity.READONLY.contains(this.purity)) {
-                    val diagnosingVisitor = PurityViolationImpurityVisitor(diagnosis, PurityViolationReporting.SideEffectBoundary.Function(this))
+                    val diagnosingVisitor = PurityViolationImpurityVisitor(diagnosis, PurityViolationDiagnostic.SideEffectBoundary.Function(this))
                     handleCyclicInvocation(
                         context = this,
                         action = { body.visitWritesBeyond(context, diagnosingVisitor) },
@@ -172,7 +172,7 @@ abstract class BoundDeclaredFunction(
                     if (localReturnType == null || this.body !is Body.SingleExpression) {
                         val isImplicitUnitReturn = localReturnType is RootResolvedTypeReference && localReturnType.baseType == context.swCtx.unit
                         if (!isImplicitUnitReturn) {
-                            diagnosis.add(Reporting.uncertainTermination(this))
+                            diagnosis.add(Diagnostic.uncertainTermination(this))
                         }
                     }
                 }
@@ -236,7 +236,7 @@ abstract class BoundDeclaredFunction(
                 expectedReturnType?.let { declaredReturnType ->
                     expression.type?.let { actualReturnType ->
                         actualReturnType.evaluateAssignabilityTo(declaredReturnType, expression.declaration.span)
-                            ?.let(::ReturnTypeMismatchReporting)
+                            ?.let(::ReturnTypeMismatchDiagnostic)
                             ?.let(diagnosis::add)
                     }
                 }

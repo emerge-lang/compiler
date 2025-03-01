@@ -1,6 +1,6 @@
 package compiler.compiler.negative
 
-import compiler.reportings.NullCheckingNonNullableValueReporting
+import compiler.reportings.NullCheckingNonNullableValueDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 
 class MiscLints : FreeSpec({
@@ -10,6 +10,6 @@ class MiscLints : FreeSpec({
                 return p ?: "default"
             }
         """.trimIndent())
-            .shouldReport<NullCheckingNonNullableValueReporting>()
+            .shouldReport<NullCheckingNonNullableValueDiagnostic>()
     }
 })

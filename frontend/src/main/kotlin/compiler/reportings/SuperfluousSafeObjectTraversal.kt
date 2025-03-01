@@ -21,7 +21,7 @@ package compiler.reportings
 import compiler.binding.expression.BoundExpression
 import compiler.lexer.OperatorToken
 
-class SuperfluousSafeObjectTraversal(val nonNullExpression: BoundExpression<*>, val superfluousSafeOperator: OperatorToken) : Reporting(
+class SuperfluousSafeObjectTraversal(val nonNullExpression: BoundExpression<*>, val superfluousSafeOperator: OperatorToken) : Diagnostic(
     Level.INFO,
     "Null-safe object traversal is superfluous here; the receiver expression cannot evaluate to null",
     superfluousSafeOperator.span

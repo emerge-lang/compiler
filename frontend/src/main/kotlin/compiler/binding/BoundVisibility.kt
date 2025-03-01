@@ -8,7 +8,7 @@ import compiler.lexer.KeywordToken
 import compiler.lexer.SourceFile
 import compiler.lexer.Span
 import compiler.reportings.Diagnosis
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
 
@@ -19,7 +19,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
     /**
      * Validate whether an element with `this` visibility is accessible from
      * the given location ([accessAt]). [subject] is not inspected, only forwarded
-     * to any [Reporting]s generated.
+     * to any [Diagnostic]s generated.
      *
      * **WARNING:** You very likely do not want to use this method, but [DefinitionWithVisibility.validateAccessFrom]
      * instead.
@@ -48,7 +48,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
      */
     open fun validateOnElement(element: DefinitionWithVisibility, diagnosis: Diagnosis) {
         if (this.isStrictlyBroaderThan(context.visibility)) {
-            diagnosis.add(Reporting.visibilityShadowed(element, context.visibility))
+            diagnosis.add(Diagnostic.visibilityShadowed(element, context.visibility))
         }
     }
 
@@ -56,7 +56,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
         val lexerFile: SourceFile get() = context.sourceFile.lexerFile
         override fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility, diagnosis: Diagnosis) {
             if (lexerFile != accessAt.sourceFile) {
-                diagnosis.add(Reporting.elementNotAccessible(subject, this, accessAt))
+                diagnosis.add(Diagnostic.elementNotAccessible(subject, this, accessAt))
             }
         }
 
@@ -98,7 +98,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
         override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
             val owningModule = context.moduleContext.moduleName
             if (owningModule != packageName && owningModule.containsOrEquals(packageName)) {
-                diagnosis.add(Reporting.visibilityTooBroad(owningModule, this))
+                diagnosis.add(Diagnostic.visibilityTooBroad(owningModule, this))
             }
         }
 
@@ -106,7 +106,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
             if (packageName.containsOrEquals(accessAt.sourceFile.packageName)) {
                 validateCrossModuleAccess(context, accessAt, subject, diagnosis)
             } else {
-                diagnosis.add(Reporting.elementNotAccessible(subject, this, accessAt))
+                diagnosis.add(Diagnostic.elementNotAccessible(subject, this, accessAt))
             }
         }
 
@@ -216,5 +216,5 @@ private fun validateCrossModuleAccess(contextOfAccessedElement: CTContext, acces
         return
     }
 
-    diagnosis.add(Reporting.missingModuleDependency(subject, accessAt, moduleOfAccessedElement.moduleName, moduleOfAccess.moduleName))
+    diagnosis.add(Diagnostic.missingModuleDependency(subject, accessAt, moduleOfAccessedElement.moduleName, moduleOfAccess.moduleName))
 }

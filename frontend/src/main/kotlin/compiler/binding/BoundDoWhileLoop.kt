@@ -11,7 +11,7 @@ import compiler.binding.misc_ir.IrLoopImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrBreakStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrContinueStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrLoop
@@ -30,7 +30,7 @@ class BoundDoWhileLoop(
         condition.modifiedContext,
     )
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         condition.setNothrow(boundary)
         body.setNothrow(boundary)
     }

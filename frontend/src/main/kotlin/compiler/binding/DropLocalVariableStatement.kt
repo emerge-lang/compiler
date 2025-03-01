@@ -8,7 +8,7 @@ import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
 class DropLocalVariableStatement(
@@ -21,7 +21,7 @@ class DropLocalVariableStatement(
         override val returnBehavior = SideEffectPrediction.NEVER
         override val throwBehavior get() = SideEffectPrediction.NEVER
 
-        override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+        override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
 
         }
 

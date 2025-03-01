@@ -14,7 +14,7 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
@@ -80,7 +80,7 @@ class BoundCatchBlockExpression(
         catchCode.setExpectedReturnType(type, diagnosis)
     }
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         // note that not even a catch-all can turn throwing code into nothrow code!
         // objects of type emerge.core.Error cannot be caught
         catchCode.setNothrow(boundary)

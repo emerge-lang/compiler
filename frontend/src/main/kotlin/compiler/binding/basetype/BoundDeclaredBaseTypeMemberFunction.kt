@@ -11,8 +11,8 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.lexer.Span
 import compiler.reportings.Diagnosis
-import compiler.reportings.IncompatibleReturnTypeOnOverrideReporting
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.IncompatibleReturnTypeOnOverrideDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -69,19 +69,19 @@ class BoundDeclaredBaseTypeMemberFunction(
     private fun determineOverride(diagnosis: Diagnosis) {
         val isDeclaredOverride = attributes.firstOverrideAttribute != null
         if (isDeclaredOverride && !declaresReceiver) {
-            diagnosis.add(Reporting.staticFunctionDeclaredOverride(this))
+            diagnosis.add(Diagnostic.staticFunctionDeclaredOverride(this))
             return
         }
 
         val superFns = findOverriddenFunction(diagnosis)
         if (isDeclaredOverride) {
             if (superFns.isEmpty()) {
-                diagnosis.add(Reporting.functionDoesNotOverride(this))
+                diagnosis.add(Diagnostic.functionDoesNotOverride(this))
             }
         } else {
             if (superFns.isNotEmpty()) {
                 val supertype = superFns.first().declaredOnType
-                diagnosis.add(Reporting.undeclaredOverride(this, supertype))
+                diagnosis.add(Diagnostic.undeclaredOverride(this, supertype))
             }
         }
 
@@ -95,7 +95,7 @@ class BoundDeclaredBaseTypeMemberFunction(
                         overriddenReturnType.span ?: Span.UNKNOWN
                     )
                         ?.let { typeError ->
-                            diagnosis.add(IncompatibleReturnTypeOnOverrideReporting(declaration, superFn, typeError))
+                            diagnosis.add(IncompatibleReturnTypeOnOverrideDiagnostic(declaration, superFn, typeError))
                         }
                 }
             }
@@ -136,34 +136,34 @@ class BoundDeclaredBaseTypeMemberFunction(
             super.semanticAnalysisPhase3(diagnosis)
 
             if (attributes.externalAttribute != null) {
-                diagnosis.add(Reporting.externalMemberFunction(this))
+                diagnosis.add(Diagnostic.externalMemberFunction(this))
             }
 
             if (body != null) {
                 if (attributes.impliesNoBody) {
-                    diagnosis.add(Reporting.illegalFunctionBody(declaration))
+                    diagnosis.add(Diagnostic.illegalFunctionBody(declaration))
                 }
             } else {
                 if (!attributes.impliesNoBody && !declaredOnType.kind.memberFunctionsAbstractByDefault) {
-                    diagnosis.add(Reporting.missingFunctionBody(declaration))
+                    diagnosis.add(Diagnostic.missingFunctionBody(declaration))
                 }
             }
 
             overrides?.forEach { superFn ->
                 if (!superFn.purity.contains(this.purity)) {
-                    diagnosis.add(Reporting.overrideAddsSideEffects(this, superFn))
+                    diagnosis.add(Diagnostic.overrideAddsSideEffects(this, superFn))
                 }
                 if (superFn.attributes.isDeclaredNothrow && !this.attributes.isDeclaredNothrow) {
-                    diagnosis.add(Reporting.overrideDropsNothrow(this, superFn))
+                    diagnosis.add(Diagnostic.overrideDropsNothrow(this, superFn))
                 }
                 if (superFn.visibility.isPossiblyBroaderThan(visibility) && declaredOnType.visibility.isPossiblyBroaderThan(visibility)) {
-                    diagnosis.add(Reporting.overrideRestrictsVisibility(this, superFn))
+                    diagnosis.add(Diagnostic.overrideRestrictsVisibility(this, superFn))
                 }
 
                 superFn.parameters.parameters.zip(this.parameters.parameters)
                     .filterNot { (superFnParam, overrideFnParam) -> overrideFnParam.ownershipAtDeclarationTime.canOverride(superFnParam.ownershipAtDeclarationTime) }
                     .forEach { (superFnParam, overrideFnParam) ->
-                        diagnosis.add(Reporting.overridingParameterExtendsOwnership(overrideFnParam, superFnParam))
+                        diagnosis.add(Diagnostic.overridingParameterExtendsOwnership(overrideFnParam, superFnParam))
                     }
             }
         }

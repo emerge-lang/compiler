@@ -3,10 +3,10 @@ package compiler.reportings
 import compiler.ast.type.TypeArgument
 import compiler.lexer.Span
 
-data class SuperfluousTypeArgumentsReporting(
+data class SuperfluousTypeArgumentsDiagnostic(
     val nExpected: Int,
     val firstSuperfluousArgument: TypeArgument,
-) : Reporting(
+) : Diagnostic(
     Level.ERROR,
     "Too many type arguments, expected only $nExpected",
     firstSuperfluousArgument.span ?: Span.UNKNOWN,

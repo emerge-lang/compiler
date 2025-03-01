@@ -18,4 +18,4 @@
 
 package compiler.reportings
 
-class ReportingException(val reporting: Reporting) : Exception("${reporting.message} in ${reporting.span.fileLineColumnText}")
+class ReportingException(val diagnostic: Diagnostic) : Exception("${diagnostic.message} in ${diagnostic.span.fileLineColumnText}")

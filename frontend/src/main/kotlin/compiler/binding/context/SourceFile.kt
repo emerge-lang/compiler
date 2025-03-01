@@ -21,7 +21,7 @@ package compiler.binding.context
 import compiler.binding.SemanticallyAnalyzable
 import compiler.reportings.CollectingDiagnosis
 import compiler.reportings.Diagnosis
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import compiler.lexer.SourceFile as LexerSourceFile
 
@@ -29,7 +29,7 @@ class SourceFile(
     val lexerFile: LexerSourceFile,
     val packageName: CanonicalElementName.Package,
     val context: SourceFileRootContext,
-    /** [Reporting]s generated at bind-time: double declarations, ... */
+    /** [Diagnostic]s generated at bind-time: double declarations, ... */
     val bindTimeDiagnosis: CollectingDiagnosis,
 ) : SemanticallyAnalyzable {
     init {
@@ -38,7 +38,7 @@ class SourceFile(
 
     /**
      * Delegates to semantic analysis phase 1 of all components that make up this file;
-     * collects the results and returns them. Also returns the [Reporting]s found when binding
+     * collects the results and returns them. Also returns the [Diagnostic]s found when binding
      * elements to the file (such as doubly declared variables).
      */
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
@@ -55,7 +55,7 @@ class SourceFile(
             .values
             .filter { imports -> imports.size > 1 }
             .forEach { ambiguousImports ->
-                diagnosis.add(Reporting.ambiguousImports(ambiguousImports))
+                diagnosis.add(Diagnostic.ambiguousImports(ambiguousImports))
             }
     }
 
@@ -81,7 +81,7 @@ class SourceFile(
         context.functions.forEach { topLevelFn ->
             topLevelFn.semanticAnalysisPhase3(diagnosis)
             topLevelFn.attributes.firstOverrideAttribute?.let { overrideAttr ->
-                diagnosis.add(Reporting.toplevelFunctionWithOverrideAttribute(overrideAttr))
+                diagnosis.add(Diagnostic.toplevelFunctionWithOverrideAttribute(overrideAttr))
             }
         }
     }

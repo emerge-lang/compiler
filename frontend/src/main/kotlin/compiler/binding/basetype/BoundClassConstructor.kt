@@ -47,10 +47,10 @@ import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.Span
-import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
+import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic
 import compiler.reportings.Diagnosis
-import compiler.reportings.PurityViolationReporting
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.PurityViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
@@ -266,7 +266,7 @@ class BoundClassConstructor(
             additionalInitCode.semanticAnalysisPhase2(diagnosis)
 
             if (attributes.isDeclaredNothrow) {
-                diagnosis.add(Reporting.constructorDeclaredNothrow(this))
+                diagnosis.add(Diagnostic.constructorDeclaredNothrow(this))
             }
         }
     }
@@ -293,7 +293,7 @@ class BoundClassConstructor(
             additionalInitCode.semanticAnalysisPhase3(diagnosis)
 
             if (BoundFunction.Purity.READONLY.contains(this.purity)) {
-                val diagnosingVisitor = PurityViolationImpurityVisitor(diagnosis, PurityViolationReporting.SideEffectBoundary.Function(this))
+                val diagnosingVisitor = PurityViolationImpurityVisitor(diagnosis, PurityViolationDiagnostic.SideEffectBoundary.Function(this))
                 handleCyclicInvocation(
                     context = this,
                     action = {
@@ -322,14 +322,14 @@ class BoundClassConstructor(
             }
 
             if (purity.contains(BoundFunction.Purity.MODIFYING)) {
-                diagnosis.add(Reporting.constructorDeclaredAsModifying(this))
+                diagnosis.add(Diagnostic.constructorDeclaredAsModifying(this))
             }
 
             val partialInitState = additionalInitCode.modifiedContext.getEphemeralState(PartialObjectInitialization, selfVariableForInitCode)
             classDef.memberVariables
                 .filter { partialInitState.getMemberInitializationState(it) != VariableInitialization.State.INITIALIZED }
                 .forEach {
-                    diagnosis.add(ClassMemberVariableNotInitializedDuringObjectConstructionReporting(it.declaration))
+                    diagnosis.add(ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic(it.declaration))
                 }
         }
     }
@@ -394,7 +394,7 @@ class BoundClassConstructor(
                 ExecutionScopedCTContext.Repetition.EXACTLY_ONCE -> {
                     // all good
                 }
-                else -> diagnosis.add(Reporting.illegalMixinRepetition(mixinStatement, repetition))
+                else -> diagnosis.add(Diagnostic.illegalMixinRepetition(mixinStatement, repetition))
             }
 
             return object : ExecutionScopedCTContext.MixinRegistration {

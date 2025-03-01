@@ -10,7 +10,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.compiler.ast.type.getTestType
 import compiler.lexer.Span
-import compiler.reportings.ValueNotAssignableReporting
+import compiler.reportings.ValueNotAssignableDiagnostic
 import io.github.tmarsteel.emerge.common.EmergeConstants
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.Matcher
@@ -180,7 +180,7 @@ class VarianceErrors : FreeSpec({
                 set x = a.p
             }
         """.trimIndent())
-            .shouldReport<ValueNotAssignableReporting> {
+            .shouldReport<ValueNotAssignableDiagnostic> {
                 it.sourceType.toString() shouldBe "read Any?"
                 it.targetType.toString() shouldBe "T"
             }

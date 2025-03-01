@@ -13,8 +13,8 @@ import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.lexer.IdentifierToken
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -33,7 +33,7 @@ class BoundVariableAssignmentStatement(
     override fun additionalSemanticAnalysisPhase1(diagnosis: Diagnosis) {
         targetVariable = context.resolveVariable(variableName.value)
         if (targetVariable == null) {
-            diagnosis.add(Reporting.undefinedIdentifier(variableName))
+            diagnosis.add(Diagnostic.undefinedIdentifier(variableName))
         }
     }
 
@@ -49,7 +49,7 @@ class BoundVariableAssignmentStatement(
         }
     }
 
-    override fun setTargetNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setTargetNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         // variable write cannot throw
     }
 
@@ -67,12 +67,12 @@ class BoundVariableAssignmentStatement(
                 if (targetVariable.isReAssignable) {
                     _modifiedContext.trackSideEffect(VariableInitialization.WriteToVariableEffect(targetVariable))
                 } else {
-                    diagnosis.add(Reporting.illegalAssignment("Variable ${targetVariable.name} may have already been initialized, cannot assign a value again", this))
+                    diagnosis.add(Diagnostic.illegalAssignment("Variable ${targetVariable.name} may have already been initialized, cannot assign a value again", this))
                 }
             }
             if (initializationStateBefore == VariableInitialization.State.INITIALIZED) {
                 if (!targetVariable.isReAssignable) {
-                    diagnosis.add(Reporting.illegalAssignment("Variable ${targetVariable.name} is already initialized, cannot re-assign", this))
+                    diagnosis.add(Diagnostic.illegalAssignment("Variable ${targetVariable.name} is already initialized, cannot re-assign", this))
                 }
             }
         }

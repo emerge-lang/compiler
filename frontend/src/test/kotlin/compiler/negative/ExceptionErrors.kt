@@ -1,10 +1,10 @@
 package compiler.compiler.negative
 
 import compiler.ast.AstFunctionAttribute
-import compiler.reportings.ConstructorDeclaredNothrowReporting
-import compiler.reportings.FunctionMissingDeclaredModifierReporting
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.ValueNotAssignableReporting
+import compiler.reportings.ConstructorDeclaredNothrowDiagnostic
+import compiler.reportings.FunctionMissingDeclaredModifierDiagnostic
+import compiler.reportings.NothrowViolationDiagnostic
+import compiler.reportings.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -16,7 +16,7 @@ class ExceptionErrors : FreeSpec({
             validateModule("""
                 external(C) fn test()
             """.trimIndent())
-                .shouldReport<FunctionMissingDeclaredModifierReporting> {
+                .shouldReport<FunctionMissingDeclaredModifierDiagnostic> {
                     it.attribute should beInstanceOf<AstFunctionAttribute.Nothrow>()
                 }
         }
@@ -29,7 +29,7 @@ class ExceptionErrors : FreeSpec({
                         dangerous()
                     }
                 """.trimIndent())
-                    .shouldReport<NothrowViolationReporting.ThrowingInvocation>()
+                    .shouldReport<NothrowViolationDiagnostic.ThrowingInvocation>()
             }
 
             "in destructor body" {
@@ -41,7 +41,7 @@ class ExceptionErrors : FreeSpec({
                         }
                     }
                 """.trimIndent())
-                    .shouldReport<NothrowViolationReporting.ThrowingInvocation>()
+                    .shouldReport<NothrowViolationDiagnostic.ThrowingInvocation>()
             }
         }
 
@@ -50,7 +50,7 @@ class ExceptionErrors : FreeSpec({
                 validateModule("""
                     nothrow fn safe(p: Any?) -> Any = p!!
                 """.trimIndent())
-                    .shouldReport<NothrowViolationReporting.NotNullAssertion>()
+                    .shouldReport<NothrowViolationDiagnostic.NotNullAssertion>()
             }
 
             "in destructor body" {
@@ -62,7 +62,7 @@ class ExceptionErrors : FreeSpec({
                         }
                     }
                 """.trimIndent())
-                    .shouldReport<NothrowViolationReporting.NotNullAssertion>()
+                    .shouldReport<NothrowViolationDiagnostic.NotNullAssertion>()
             }
         }
 
@@ -74,7 +74,7 @@ class ExceptionErrors : FreeSpec({
                         throw SomeError()
                     }
                 """.trimIndent())
-                    .shouldReport<NothrowViolationReporting.ThrowStatement>()
+                    .shouldReport<NothrowViolationDiagnostic.ThrowStatement>()
             }
 
             "in destructor body" {
@@ -86,7 +86,7 @@ class ExceptionErrors : FreeSpec({
                         }
                     }
                 """.trimIndent())
-                    .shouldReport<NothrowViolationReporting.ThrowStatement>()
+                    .shouldReport<NothrowViolationDiagnostic.ThrowStatement>()
             }
         }
 
@@ -96,7 +96,7 @@ class ExceptionErrors : FreeSpec({
                     nothrow constructor {}
                 }
             """.trimIndent())
-                .shouldReport<ConstructorDeclaredNothrowReporting>()
+                .shouldReport<ConstructorDeclaredNothrowDiagnostic>()
         }
     }
 
@@ -107,7 +107,7 @@ class ExceptionErrors : FreeSpec({
                     throw "Error"
                 }
             """.trimIndent())
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldReport<ValueNotAssignableDiagnostic> {
                     it.sourceType.toString() shouldBe "const String"
                     it.targetType.toString() shouldBe "read Throwable"
                 }
@@ -119,7 +119,7 @@ class ExceptionErrors : FreeSpec({
                     throw maybeException()
                 }
             """.trimIndent())
-                .shouldReport<ValueNotAssignableReporting> {
+                .shouldReport<ValueNotAssignableDiagnostic> {
                     it.sourceType.toString() shouldBe "read Throwable?"
                     it.targetType.toString() shouldBe "read Throwable"
                 }

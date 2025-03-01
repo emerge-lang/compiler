@@ -3,8 +3,8 @@ package compiler.binding
 import compiler.binding.misc_ir.IrOverloadGroupImpl
 import compiler.binding.type.nonDisjointPairs
 import compiler.reportings.Diagnosis
-import compiler.reportings.InconsistentReceiverPresenceInOverloadSetReporting
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.InconsistentReceiverPresenceInOverloadSetDiagnostic
 import compiler.util.pivot
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
@@ -33,7 +33,7 @@ class BoundOverloadSet<out Fn : BoundFunction>(
 
             val (withReceiver, withoutReceiver) = overloads.partition { it.declaresReceiver }
             if (withReceiver.isNotEmpty() && withoutReceiver.isNotEmpty()) {
-                diagnosis.add(InconsistentReceiverPresenceInOverloadSetReporting(this))
+                diagnosis.add(InconsistentReceiverPresenceInOverloadSetDiagnostic(this))
             }
             this.declaresReceiver = withReceiver.size >= withoutReceiver.size
         }
@@ -49,7 +49,7 @@ class BoundOverloadSet<out Fn : BoundFunction>(
             }
 
             if (!areOverloadsDisjoint(overloads)) {
-                diagnosis.add(Reporting.overloadSetHasNoDisjointParameter(this))
+                diagnosis.add(Diagnostic.overloadSetHasNoDisjointParameter(this))
             }
         }
     }

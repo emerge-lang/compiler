@@ -8,7 +8,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrStringLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -27,7 +27,7 @@ class BoundStringLiteralExpression(
         type = context.swCtx.string.baseReference.withMutability(TypeMutability.IMMUTABLE)
     }
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {}
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {}
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
 
     override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) = Unit

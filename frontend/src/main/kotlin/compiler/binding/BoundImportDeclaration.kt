@@ -6,7 +6,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.PackageContext
 import compiler.reportings.CollectingDiagnosis
 import compiler.reportings.Diagnosis
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class BoundImportDeclaration(
@@ -20,7 +20,7 @@ class BoundImportDeclaration(
 
     private val resolutionResult: ResolutionResult by lazy {
         val packageContext = context.swCtx.getPackage(packageName)
-            ?: return@lazy ResolutionResult.Erroneous(Reporting.unresolvablePackageName(packageName, declaration.declaredAt))
+            ?: return@lazy ResolutionResult.Erroneous(Diagnostic.unresolvablePackageName(packageName, declaration.declaredAt))
 
         if (isImportAll) {
             return@lazy ResolutionResult.EntirePackage(packageContext)
@@ -41,7 +41,7 @@ class BoundImportDeclaration(
             return@lazy ResolutionResult.Variable(variable)
         }
 
-        return@lazy ResolutionResult.Erroneous(Reporting.unresolvableImport(this))
+        return@lazy ResolutionResult.Erroneous(Diagnostic.unresolvableImport(this))
     }
 
     fun getOverloadSetsBySimpleName(simpleName: String): Collection<BoundOverloadSet<*>> = when(val result = resolutionResult) {
@@ -107,7 +107,7 @@ class BoundImportDeclaration(
         class OverloadSets(val simpleName: String, val sets: Collection<BoundOverloadSet<*>>) : ResolutionResult
         class BaseType(val baseType: BoundBaseType) : ResolutionResult
         class Variable(val variable: BoundVariable) : ResolutionResult
-        class Erroneous(error: Reporting) : ResolutionResult {
+        class Erroneous(error: Diagnostic) : ResolutionResult {
             val errors = setOf(error)
         }
     }

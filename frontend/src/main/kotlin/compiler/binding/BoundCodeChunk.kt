@@ -33,8 +33,8 @@ import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.handleCyclicInvocation
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -111,7 +111,7 @@ class BoundCodeChunk(
                 } else if (isInExpressionContext) {
                     // the type is still unit, technically. However, this will trigger a confusing error message
                     // using the bottom type hides that error, and this becomes the more understandable alternative
-                    diagnosis.add(Reporting.implicitlyEvaluatingAStatement(statements.lastOrNull() ?: this))
+                    diagnosis.add(Diagnostic.implicitlyEvaluatingAStatement(statements.lastOrNull() ?: this))
                     type = context.swCtx.bottomTypeRef
                 } else {
                     type = context.swCtx.unit.baseReference
@@ -120,8 +120,8 @@ class BoundCodeChunk(
         }
     }
 
-    private var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    private var nothrowBoundary: NothrowViolationDiagnostic.SideEffectBoundary? = null
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         seanHelper.requirePhase3NotDone()
         require(nothrowBoundary == null) { "setNothrow called more than once" }
 

@@ -28,7 +28,7 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
 import compiler.reportings.CollectingDiagnosis
 import compiler.reportings.Diagnosis
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
 import compiler.lexer.SourceFile as LexerSourceFile
@@ -57,8 +57,8 @@ class ASTSourceFile(
     val baseTypes: MutableList<BaseTypeDeclaration> = mutableListOf()
 
     private var parseTimeDiagnosis = CollectingDiagnosis()
-    fun addParseTimeReporting(reporting: Reporting) {
-        parseTimeDiagnosis.add(reporting)
+    fun addParseTimeReporting(diagnostic: Diagnostic) {
+        parseTimeDiagnosis.add(diagnostic)
     }
 
     /**
@@ -77,7 +77,7 @@ class ASTSourceFile(
 
         selfDeclaration?.packageName?.let { declaredPackageName ->
             if (declaredPackageName.names.map { it.value } != expectedPackageName.components) {
-                parseTimeDiagnosis.add(Reporting.incorrectPackageDeclaration(declaredPackageName, expectedPackageName))
+                parseTimeDiagnosis.add(Diagnostic.incorrectPackageDeclaration(declaredPackageName, expectedPackageName))
             }
         }
 
@@ -131,7 +131,7 @@ class ASTSourceFile(
             }
             else {
                 // variable double-declared
-                diagnosis.add(Reporting.variableDeclaredMoreThanOnce(existingVariable.declaration, globalVariable))
+                diagnosis.add(Diagnostic.variableDeclaredMoreThanOnce(existingVariable.declaration, globalVariable))
             }
         }
     }

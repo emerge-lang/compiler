@@ -20,11 +20,11 @@ package compiler.parser.grammar.rule
 
 import compiler.InternalCompilerError
 import compiler.lexer.Token
-import compiler.reportings.ParsingMismatchReporting
+import compiler.reportings.ParsingMismatchDiagnostic
 
 sealed interface MatchingResult<out Item : Any> {
     class Success<out Item : Any>(val item: Item, val continueAtIndex: Int) : MatchingResult<Item>
-    class Error(val reporting: ParsingMismatchReporting) : MatchingResult<Nothing>
+    class Error(val reporting: ParsingMismatchDiagnostic) : MatchingResult<Nothing>
 }
 
 interface Rule<out Item : Any> {
@@ -41,7 +41,7 @@ interface Rule<out Item : Any> {
 
 fun <Item : Any> matchAgainst(tokens: Array<Token>, rule: Rule<Item>): MatchingResult<Item> {
     require(tokens.isNotEmpty()) { "Cannot match an empty token sequence" }
-    var reporting: ParsingMismatchReporting? = null
+    var reporting: ParsingMismatchDiagnostic? = null
     for (resultOption in rule.match(tokens, 0)) {
         when (resultOption) {
             is MatchingResult.Success -> return resultOption
@@ -60,12 +60,12 @@ fun <Item : Any> matchAgainst(tokens: Array<Token>, rule: Rule<Item>): MatchingR
     return MatchingResult.Error(reporting)
 }
 
-private val parseErrorComparator: Comparator<ParsingMismatchReporting> =
-    compareBy<ParsingMismatchReporting> { it.level }
+private val parseErrorComparator: Comparator<ParsingMismatchDiagnostic> =
+    compareBy<ParsingMismatchDiagnostic> { it.level }
         .thenBy { it.span.fromLineNumber }
         .thenBy { it.span.fromColumnNumber }
 
-internal fun reduceCombineParseError(a: ParsingMismatchReporting, b: ParsingMismatchReporting): ParsingMismatchReporting {
+internal fun reduceCombineParseError(a: ParsingMismatchDiagnostic, b: ParsingMismatchDiagnostic): ParsingMismatchDiagnostic {
     val comparison = parseErrorComparator.compare(a, b)
     when {
         comparison > 0 -> return a
@@ -73,5 +73,5 @@ internal fun reduceCombineParseError(a: ParsingMismatchReporting, b: ParsingMism
     }
 
     // same location and severity
-    return ParsingMismatchReporting((a.expectedAlternatives + b.expectedAlternatives).toSet(), a.actual)
+    return ParsingMismatchDiagnostic((a.expectedAlternatives + b.expectedAlternatives).toSet(), a.actual)
 }

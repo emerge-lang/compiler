@@ -12,7 +12,7 @@ import compiler.binding.type.IrGenericTypeReferenceImpl
 import compiler.binding.type.IrParameterizedTypeImpl
 import compiler.binding.type.IrSimpleTypeImpl
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
@@ -80,11 +80,11 @@ abstract class BoundAssignmentStatement(
         }
     }
 
-    protected abstract fun setTargetNothrow(boundary: NothrowViolationReporting.SideEffectBoundary)
+    protected abstract fun setTargetNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary)
 
-    protected var nothrowBoundary: NothrowViolationReporting.SideEffectBoundary? = null
+    protected var nothrowBoundary: NothrowViolationDiagnostic.SideEffectBoundary? = null
         private set
-    final override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    final override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         seanHelper.requirePhase3NotDone()
         require(nothrowBoundary == null) { "setNothrow called more than once" }
 

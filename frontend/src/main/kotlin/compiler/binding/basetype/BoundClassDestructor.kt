@@ -29,7 +29,7 @@ import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Span
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
@@ -117,7 +117,7 @@ class BoundClassDestructor(
         return seanHelper.phase2(diagnosis) {
             userDefinedCode.semanticAnalysisPhase2(diagnosis)
 
-            userDefinedCode.setNothrow(NothrowViolationReporting.SideEffectBoundary.Function(this))
+            userDefinedCode.setNothrow(NothrowViolationDiagnostic.SideEffectBoundary.Function(this))
         }
     }
 

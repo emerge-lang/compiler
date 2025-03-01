@@ -24,9 +24,9 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.reportings.Diagnosis
-import compiler.reportings.FunctionMissingModifierReporting.Companion.requireOperatorModifier
-import compiler.reportings.Reporting
-import compiler.reportings.UnresolvableFunctionOverloadReporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.FunctionMissingModifierDiagnostic.Companion.requireOperatorModifier
+import compiler.reportings.UnresolvableFunctionOverloadDiagnostic
 
 class BoundUnaryExpression(
     override val context: ExecutionScopedCTContext,
@@ -43,11 +43,11 @@ class BoundUnaryExpression(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         hiddenInvocation.semanticAnalysisPhase2(diagnosis.mapping { hiddenReporting ->
-            if (hiddenReporting !is UnresolvableFunctionOverloadReporting || hiddenReporting.functionNameReference != hiddenInvocation.functionNameToken) {
+            if (hiddenReporting !is UnresolvableFunctionOverloadDiagnostic || hiddenReporting.functionNameReference != hiddenInvocation.functionNameToken) {
                 return@mapping hiddenReporting
             }
 
-            Reporting.operatorNotDeclared(
+            Diagnostic.operatorNotDeclared(
                 "Unary operator ${declaration.operator.name} (function ${hiddenInvocation.functionNameToken.value}) not declared for type ${hiddenReporting.receiverType ?: "<unknown>"}",
                 declaration,
             )

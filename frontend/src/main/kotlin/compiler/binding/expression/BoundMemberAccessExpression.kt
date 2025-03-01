@@ -32,8 +32,8 @@ import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Diagnosis
-import compiler.reportings.NothrowViolationReporting
-import compiler.reportings.Reporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassFieldAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -76,15 +76,15 @@ class BoundMemberAccessExpression(
         val valueType = valueExpression.type
         if (valueType != null) {
             if (valueType.isNullable && !isNullSafeAccess) {
-                diagnosis.add(Reporting.unsafeObjectTraversal(valueExpression, declaration.accessOperatorToken))
+                diagnosis.add(Diagnostic.unsafeObjectTraversal(valueExpression, declaration.accessOperatorToken))
             }
             else if (!valueType.isNullable && isNullSafeAccess) {
-                diagnosis.add(Reporting.superfluousSafeObjectTraversal(valueExpression, declaration.accessOperatorToken))
+                diagnosis.add(Diagnostic.superfluousSafeObjectTraversal(valueExpression, declaration.accessOperatorToken))
             }
 
             val member = valueType.findMemberVariable(memberName)
             if (member == null) {
-                diagnosis.add(Reporting.unresolvableMemberVariable(this, valueType))
+                diagnosis.add(Diagnostic.unresolvableMemberVariable(this, valueType))
             } else {
                 this.member = member
                 this.type = member.type?.instantiateAllParameters(valueType.inherentTypeBindings)
@@ -95,14 +95,14 @@ class BoundMemberAccessExpression(
                     } ?: true
 
                     if (!isInitialized) {
-                        diagnosis.add(Reporting.useOfUninitializedMember(this))
+                        diagnosis.add(Diagnostic.useOfUninitializedMember(this))
                     }
                 }
             }
         }
     }
 
-    override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {
+    override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         valueExpression.setNothrow(boundary)
     }
 

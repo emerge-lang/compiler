@@ -39,8 +39,8 @@ import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Span
 import compiler.reportings.Diagnosis
-import compiler.reportings.Reporting
-import compiler.reportings.UnconventionalTypeNameReporting
+import compiler.reportings.Diagnostic
+import compiler.reportings.UnconventionalTypeNameDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
@@ -128,11 +128,11 @@ class BoundBaseType(
             }
 
             _memberVariables.duplicatesBy(BoundBaseTypeMemberVariable::name).forEach { (_, dupMembers) ->
-                diagnosis.add(Reporting.duplicateBaseTypeMembers(this, dupMembers))
+                diagnosis.add(Diagnostic.duplicateBaseTypeMembers(this, dupMembers))
             }
             if (!kind.allowsMemberVariables) {
                 _memberVariables.forEach {
-                    diagnosis.add(Reporting.entryNotAllowedOnBaseType(this, it))
+                    diagnosis.add(Diagnostic.entryNotAllowedOnBaseType(this, it))
                 }
             }
 
@@ -141,13 +141,13 @@ class BoundBaseType(
                     .drop(1)
                     .toList()
                     .takeUnless { it.isEmpty() }
-                    ?.let { list -> diagnosis.add(Reporting.multipleClassConstructors(list.map { it.declaration })) }
+                    ?.let { list -> diagnosis.add(Diagnostic.multipleClassConstructors(list.map { it.declaration })) }
 
                 declaredDestructors
                     .drop(1)
                     .toList()
                     .takeUnless { it.isEmpty() }
-                    ?.let { list -> diagnosis.add(Reporting.multipleClassDestructors(list.map { it.declaration })) }
+                    ?.let { list -> diagnosis.add(Diagnostic.multipleClassDestructors(list.map { it.declaration })) }
 
                 if (declaredConstructors.none()) {
                     val defaultCtorAst = BaseTypeConstructorDeclaration(
@@ -173,10 +173,10 @@ class BoundBaseType(
                 }
             } else {
                 declaredConstructors.forEach {
-                    diagnosis.add(Reporting.entryNotAllowedOnBaseType(this, it))
+                    diagnosis.add(Diagnostic.entryNotAllowedOnBaseType(this, it))
                 }
                 declaredDestructors.forEach {
-                    diagnosis.add(Reporting.entryNotAllowedOnBaseType(this, it))
+                    diagnosis.add(Diagnostic.entryNotAllowedOnBaseType(this, it))
                 }
             }
 
@@ -187,7 +187,7 @@ class BoundBaseType(
                     .filter { it.declaresReceiver }
                     .filter { it.body != null }
                     .forEach {
-                        diagnosis.add(Reporting.memberFunctionImplementedOnInterface(it))
+                        diagnosis.add(Diagnostic.memberFunctionImplementedOnInterface(it))
                     }
             }
 
@@ -304,7 +304,7 @@ class BoundBaseType(
             constructor?.mixins
                 ?.filter { !it.used }
                 ?.forEach {
-                    diagnosis.add(Reporting.unusedMixin(it))
+                    diagnosis.add(Diagnostic.unusedMixin(it))
                 }
         }
     }
@@ -317,9 +317,9 @@ class BoundBaseType(
 
     private fun lintSean1(diagnosis: Diagnosis) {
         if (declaration.name.value.any { it == '_' }) {
-            diagnosis.add(Reporting.unconventionalTypeName(declaration.name, UnconventionalTypeNameReporting.ViolatedConvention.UPPER_CAMEL_CASE))
+            diagnosis.add(Diagnostic.unconventionalTypeName(declaration.name, UnconventionalTypeNameDiagnostic.ViolatedConvention.UPPER_CAMEL_CASE))
         } else if (!declaration.name.value.first().isUpperCase()) {
-            diagnosis.add(Reporting.unconventionalTypeName(declaration.name, UnconventionalTypeNameReporting.ViolatedConvention.FIRST_LETTER_UPPERCASE))
+            diagnosis.add(Diagnostic.unconventionalTypeName(declaration.name, UnconventionalTypeNameDiagnostic.ViolatedConvention.FIRST_LETTER_UPPERCASE))
         }
     }
 
