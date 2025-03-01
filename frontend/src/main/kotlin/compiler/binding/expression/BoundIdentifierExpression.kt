@@ -39,6 +39,11 @@ import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.borrowedVariableCaptured
+import compiler.diagnostic.notAllMemberVariablesInitialized
+import compiler.diagnostic.notAllMixinsInitialized
+import compiler.diagnostic.undefinedIdentifier
+import compiler.diagnostic.useOfUninitializedVariable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -77,7 +82,7 @@ class BoundIdentifierExpression(
             ).takeUnless { it is UnresolvedType }
 
             if (type == null) {
-                diagnosis.add(Diagnostic.undefinedIdentifier(declaration.identifier))
+                diagnosis.undefinedIdentifier(declaration.identifier)
             } else {
                 referral = ReferringType(type)
             }
@@ -176,12 +181,10 @@ class BoundIdentifierExpression(
             val initializationState = variable.getInitializationStateInContext(context)
             if (usageContext.requiresInitialization) {
                 if (initializationState != VariableInitialization.State.INITIALIZED) {
-                    diagnosis.add(
-                        Diagnostic.useOfUninitializedVariable(
-                            variable,
-                            this@BoundIdentifierExpression,
-                            initializationState == VariableInitialization.State.MAYBE_INITIALIZED,
-                        )
+                    diagnosis.useOfUninitializedVariable(
+                        variable,
+                        this@BoundIdentifierExpression,
+                        initializationState == VariableInitialization.State.MAYBE_INITIALIZED,
                     )
                 }
 
@@ -194,13 +197,13 @@ class BoundIdentifierExpression(
                             partialState.getUninitializedMembers(baseType)
                                 .takeUnless { it.isEmpty() }
                                 ?.let {
-                                    diagnosis.add(Diagnostic.notAllMemberVariablesInitialized(it, declaration.span))
+                                    diagnosis.notAllMemberVariablesInitialized(it, declaration.span)
                                 }
 
                             partialState.getUninitializedMixins(baseType)
                                 .takeUnless { it.isEmpty() }
                                 ?.let {
-                                    diagnosis.add(Diagnostic.notAllMixinsInitialized(it, declaration.span))
+                                    diagnosis.notAllMixinsInitialized(it, declaration.span)
                                 }
                         }
                 }
@@ -208,7 +211,7 @@ class BoundIdentifierExpression(
 
             thisUsageCapturesWithMutability?.let { capturedWithMutability ->
                 if (variable.ownershipAtDeclarationTime == VariableOwnership.BORROWED) {
-                    diagnosis.add(Diagnostic.borrowedVariableCaptured(variable, this@BoundIdentifierExpression))
+                    diagnosis.borrowedVariableCaptured(variable, this@BoundIdentifierExpression)
                 } else {
                     _modifiedContext.trackSideEffect(
                         VariableLifetime.Effect.ValueCaptured(

@@ -16,6 +16,7 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.throwStatementInNothrowContext
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrInvocationExpression
@@ -62,7 +63,7 @@ class BoundThrowExpression(
         return seanHelper.phase3(diagnosis) {
             throwableExpression.semanticAnalysisPhase3(diagnosis)
             nothrowBoundary?.let { nothrowBoundary ->
-                diagnosis.add(Diagnostic.throwStatementInNothrowContext(this, nothrowBoundary))
+                diagnosis.throwStatementInNothrowContext(this, nothrowBoundary)
             }
         }
     }

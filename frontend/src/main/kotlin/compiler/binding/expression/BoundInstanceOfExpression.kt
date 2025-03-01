@@ -19,6 +19,7 @@ import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.typeCheckOnVolatileTypeParameter
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrImplicitEvaluationExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -96,7 +97,7 @@ internal fun validateTypeCheck(node: BoundExpression<*>, fullTypeToCheck: BoundT
     }
 
     if (fullTypeToCheck !is UnresolvedType) {
-        diagnosis.add(Diagnostic.typeCheckOnVolatileTypeParameter(node, fullTypeToCheck))
+        diagnosis.typeCheckOnVolatileTypeParameter(node, fullTypeToCheck)
     }
 
     return null

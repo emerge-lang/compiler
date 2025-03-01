@@ -14,6 +14,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.illegalAssignment
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
 class BoundIllegalTargetAssignmentStatement(
@@ -38,9 +39,7 @@ class BoundIllegalTargetAssignmentStatement(
             else -> "a ${targetExpression::class.simpleName!!.removePrefix("Bound").removeSuffix("Expression").lowercase()} expression"
         }
 
-        diagnosis.add(
-            Diagnostic.illegalAssignment("Cannot assign to $targetDescription", this)
-        )
+        diagnosis.illegalAssignment("Cannot assign to $targetDescription", this)
     }
 
     override fun assignmentTargetSemanticAnalysisPhase2(diagnosis: Diagnosis) {

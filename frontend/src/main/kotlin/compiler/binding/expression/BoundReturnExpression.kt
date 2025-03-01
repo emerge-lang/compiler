@@ -46,6 +46,8 @@ import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.ReturnTypeMismatchDiagnostic
+import compiler.diagnostic.consecutive
+import compiler.diagnostic.missingReturnValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -84,10 +86,10 @@ class BoundReturnExpression(
         expression?.semanticAnalysisPhase3(diagnosis)
 
         if (expectedReturnType == null) {
-            diagnosis.add(Diagnostic.consecutive(
+            diagnosis.consecutive(
                 "Cannot check return value type because the expected return type is not known",
                 declaration.span
-            ))
+            )
             return
         }
 
@@ -100,7 +102,7 @@ class BoundReturnExpression(
         }
 
         if (expectedReturnType is RootResolvedTypeReference && expectedReturnType.baseType != context.swCtx.unit && expression == null) {
-            diagnosis.add(Diagnostic.missingReturnValue(this, expectedReturnType))
+            diagnosis.missingReturnValue(this, expectedReturnType)
         }
     }
 

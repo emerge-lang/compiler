@@ -13,6 +13,8 @@ import compiler.parser.grammar.SourceFileGrammar
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.parser.grammar.rule.matchAgainst
 import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.ParsingErrorDiagnostic
+import compiler.diagnostic.UnsupportedFeatureDiagnostic
 import compiler.lexer.SourceFile as LexerSourceFile
 
 object SourceFileRule {
@@ -32,20 +34,22 @@ object SourceFileRule {
                 if (astSourceFile.selfDeclaration == null) {
                     if (index != 0) {
                         astSourceFile.addParseTimeReporting(
-                            Diagnostic.parsingError(
-                            "The package declaration must be the first declaration in the source file",
-                            declaration.declaredAt
-                        ))
+                            ParsingErrorDiagnostic(
+                                "The package declaration must be the first declaration in the source file",
+                                declaration.declaredAt
+                            )
+                        )
                     }
 
                     astSourceFile.selfDeclaration = declaration
                 }
                 else {
                     astSourceFile.addParseTimeReporting(
-                        Diagnostic.parsingError(
-                        "Duplicate package declaration",
-                        declaration.declaredAt
-                    ))
+                        ParsingErrorDiagnostic(
+                            "Duplicate package declaration",
+                            declaration.declaredAt
+                        )
+                    )
                 }
             }
             else if (declaration is ImportDeclaration) {
@@ -62,15 +66,16 @@ object SourceFileRule {
             }
             else {
                 astSourceFile.addParseTimeReporting(
-                    Diagnostic.unsupported(
-                    "Unsupported declaration $declaration",
-                    declaration.declaredAt,
-                ))
+                    UnsupportedFeatureDiagnostic(
+                        "Unsupported declaration $declaration",
+                        declaration.declaredAt,
+                    )
+                )
             }
         }
 
         if (astSourceFile.selfDeclaration == null) {
-            astSourceFile.addParseTimeReporting(Diagnostic.parsingError(
+            astSourceFile.addParseTimeReporting(ParsingErrorDiagnostic(
                 "No package declaration found.",
                 (inResult.item.items.getOrNull(0) as AstFileLevelDeclaration?)?.declaredAt ?: Span.UNKNOWN
             ))

@@ -40,6 +40,7 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.nothrowViolatingNotNullAssertion
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -96,7 +97,7 @@ class BoundNotNullExpression(
 
         nullableExpression.semanticAnalysisPhase3(diagnosis)
         nothrowBoundary?.let { nothrowBoundary ->
-            diagnosis.add(Diagnostic.nothrowViolatingNotNullAssertion(this, nothrowBoundary))
+            diagnosis.nothrowViolatingNotNullAssertion(this, nothrowBoundary)
         }
     }
 

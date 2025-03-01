@@ -14,6 +14,7 @@ import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.unsupportedReflection
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseTypeReflectionExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -50,7 +51,7 @@ class BoundReflectExpression(
         if (typeToReflectOn is RootResolvedTypeReference) {
             baseTypeToReflectOn = (typeToReflectOn as RootResolvedTypeReference).baseType
         } else if (typeToReflectOn !is UnresolvedType) {
-            diagnosis.add(Diagnostic.unsupportedReflection(typeToReflectOn))
+            diagnosis.unsupportedReflection(typeToReflectOn)
         }
     }
 

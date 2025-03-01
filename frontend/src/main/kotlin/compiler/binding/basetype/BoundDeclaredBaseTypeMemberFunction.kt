@@ -12,6 +12,16 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.IncompatibleReturnTypeOnOverrideDiagnostic
+import compiler.diagnostic.externalMemberFunction
+import compiler.diagnostic.functionDoesNotOverride
+import compiler.diagnostic.illegalFunctionBody
+import compiler.diagnostic.missingFunctionBody
+import compiler.diagnostic.overrideAddsSideEffects
+import compiler.diagnostic.overrideDropsNothrow
+import compiler.diagnostic.overrideRestrictsVisibility
+import compiler.diagnostic.overridingParameterExtendsOwnership
+import compiler.diagnostic.staticFunctionDeclaredOverride
+import compiler.diagnostic.undeclaredOverride
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
@@ -69,19 +79,19 @@ class BoundDeclaredBaseTypeMemberFunction(
     private fun determineOverride(diagnosis: Diagnosis) {
         val isDeclaredOverride = attributes.firstOverrideAttribute != null
         if (isDeclaredOverride && !declaresReceiver) {
-            diagnosis.add(Diagnostic.staticFunctionDeclaredOverride(this))
+            diagnosis.staticFunctionDeclaredOverride(this)
             return
         }
 
         val superFns = findOverriddenFunction(diagnosis)
         if (isDeclaredOverride) {
             if (superFns.isEmpty()) {
-                diagnosis.add(Diagnostic.functionDoesNotOverride(this))
+                diagnosis.functionDoesNotOverride(this)
             }
         } else {
             if (superFns.isNotEmpty()) {
                 val supertype = superFns.first().declaredOnType
-                diagnosis.add(Diagnostic.undeclaredOverride(this, supertype))
+                diagnosis.undeclaredOverride(this, supertype)
             }
         }
 
@@ -136,34 +146,34 @@ class BoundDeclaredBaseTypeMemberFunction(
             super.semanticAnalysisPhase3(diagnosis)
 
             if (attributes.externalAttribute != null) {
-                diagnosis.add(Diagnostic.externalMemberFunction(this))
+                diagnosis.externalMemberFunction(this)
             }
 
             if (body != null) {
                 if (attributes.impliesNoBody) {
-                    diagnosis.add(Diagnostic.illegalFunctionBody(declaration))
+                    diagnosis.illegalFunctionBody(declaration)
                 }
             } else {
                 if (!attributes.impliesNoBody && !declaredOnType.kind.memberFunctionsAbstractByDefault) {
-                    diagnosis.add(Diagnostic.missingFunctionBody(declaration))
+                    diagnosis.missingFunctionBody(declaration)
                 }
             }
 
             overrides?.forEach { superFn ->
                 if (!superFn.purity.contains(this.purity)) {
-                    diagnosis.add(Diagnostic.overrideAddsSideEffects(this, superFn))
+                    diagnosis.overrideAddsSideEffects(this, superFn)
                 }
                 if (superFn.attributes.isDeclaredNothrow && !this.attributes.isDeclaredNothrow) {
-                    diagnosis.add(Diagnostic.overrideDropsNothrow(this, superFn))
+                    diagnosis.overrideDropsNothrow(this, superFn)
                 }
                 if (superFn.visibility.isPossiblyBroaderThan(visibility) && declaredOnType.visibility.isPossiblyBroaderThan(visibility)) {
-                    diagnosis.add(Diagnostic.overrideRestrictsVisibility(this, superFn))
+                    diagnosis.overrideRestrictsVisibility(this, superFn)
                 }
 
                 superFn.parameters.parameters.zip(this.parameters.parameters)
                     .filterNot { (superFnParam, overrideFnParam) -> overrideFnParam.ownershipAtDeclarationTime.canOverride(superFnParam.ownershipAtDeclarationTime) }
                     .forEach { (superFnParam, overrideFnParam) ->
-                        diagnosis.add(Diagnostic.overridingParameterExtendsOwnership(overrideFnParam, superFnParam))
+                        diagnosis.overridingParameterExtendsOwnership(overrideFnParam, superFnParam)
                     }
             }
         }

@@ -6,6 +6,7 @@ import compiler.ast.type.TypeReference
 import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 /**
@@ -108,7 +109,7 @@ class TypeVariable private constructor(
                 if (effectiveBound.isNullable) {
                     return carry.plus(this, assigneeType, assignmentLocation)
                 } else {
-                    val carry2 = carry.plusReporting(Diagnostic.valueNotAssignable(
+                    val carry2 = carry.plusReporting(ValueNotAssignableDiagnostic(
                         this,
                         assigneeType,
                         "Cannot assign a possibly null value to a non-nullable reference",

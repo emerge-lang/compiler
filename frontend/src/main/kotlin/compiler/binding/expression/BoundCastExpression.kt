@@ -20,6 +20,7 @@ import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.nothrowViolatingCast
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -113,7 +114,7 @@ class BoundCastExpression(
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         value.semanticAnalysisPhase3(diagnosis)
         if (nothrowBoundary != null && !isTypedNumericLiteral) {
-            diagnosis.add(Diagnostic.nothrowViolatingCast(this, nothrowBoundary!!))
+            diagnosis.nothrowViolatingCast(this, nothrowBoundary!!)
         }
     }
 

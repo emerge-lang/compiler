@@ -12,6 +12,7 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.abstractInheritedFunctionNotImplemented
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrDelegatingMemberFunction
@@ -49,7 +50,7 @@ class PossiblyMixedInBoundMemberFunction(
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         inheritedFn.semanticAnalysisPhase3(diagnosis)
         if (mixinRegistration == null) {
-            diagnosis.add(Diagnostic.abstractInheritedFunctionNotImplemented(ownerBaseType, inheritedFn.supertypeMemberFn))
+            diagnosis.abstractInheritedFunctionNotImplemented(ownerBaseType, inheritedFn.supertypeMemberFn)
         }
     }
 

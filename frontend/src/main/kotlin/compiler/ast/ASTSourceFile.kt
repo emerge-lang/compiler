@@ -27,6 +27,8 @@ import compiler.binding.context.SourceFileRootContext
 import compiler.diagnostic.CollectingDiagnosis
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.incorrectPackageDeclaration
+import compiler.diagnostic.variableDeclaredMoreThanOnce
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -77,7 +79,7 @@ class ASTSourceFile(
 
         selfDeclaration?.packageName?.let { declaredPackageName ->
             if (declaredPackageName.names.map { it.value } != expectedPackageName.components) {
-                parseTimeDiagnosis.add(Diagnostic.incorrectPackageDeclaration(declaredPackageName, expectedPackageName))
+                parseTimeDiagnosis.incorrectPackageDeclaration(declaredPackageName, expectedPackageName)
             }
         }
 
@@ -131,7 +133,7 @@ class ASTSourceFile(
             }
             else {
                 // variable double-declared
-                diagnosis.add(Diagnostic.variableDeclaredMoreThanOnce(existingVariable.declaration, globalVariable))
+                diagnosis.variableDeclaredMoreThanOnce(existingVariable.declaration, globalVariable)
             }
         }
     }

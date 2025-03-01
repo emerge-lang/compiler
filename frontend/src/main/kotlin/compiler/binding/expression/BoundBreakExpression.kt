@@ -9,6 +9,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.breakOutsideOfLoop
 import io.github.tmarsteel.emerge.backend.api.ir.IrBreakStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
@@ -24,7 +25,7 @@ class BoundBreakExpression(
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         parentLoop = context.getParentLoop()
         if (parentLoop == null) {
-            diagnosis.add(Diagnostic.breakOutsideOfLoop(this))
+            diagnosis.breakOutsideOfLoop(this)
         }
     }
 

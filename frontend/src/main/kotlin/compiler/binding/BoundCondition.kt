@@ -7,6 +7,8 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.isAssignableTo
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.conditionIsNotBoolean
+import compiler.diagnostic.mutationInCondition
 
 class BoundCondition(
     val expression: BoundExpression<*>,
@@ -17,7 +19,7 @@ class BoundCondition(
         expression.semanticAnalysisPhase2(diagnosis)
 
         if (expression.type?.isAssignableTo(context.swCtx.bool.baseReference) == false) {
-            diagnosis.add(Diagnostic.conditionIsNotBoolean(expression))
+            diagnosis.conditionIsNotBoolean(expression)
         }
     }
 
@@ -32,7 +34,7 @@ class BoundCondition(
                 }
 
                 override fun visitWriteBeyondBoundary(purityBoundary: CTContext, write: BoundExecutable<*>) {
-                    diagnosis.add(Diagnostic.mutationInCondition(write))
+                    diagnosis.mutationInCondition(write)
                 }
             }
         )

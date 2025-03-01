@@ -23,6 +23,9 @@ import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.ReturnTypeMismatchDiagnostic
+import compiler.diagnostic.typeDeductionError
+import compiler.diagnostic.uncertainTermination
+import compiler.diagnostic.varianceOnFunctionTypeParameter
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
@@ -95,7 +98,7 @@ abstract class BoundDeclaredFunction(
                 context = this,
                 action = { this.body?.semanticAnalysisPhase2(diagnosis) },
                 onCycle = {
-                    Diagnostic.typeDeductionError(
+                    diagnosis.typeDeductionError(
                         "Cannot infer the return type of function $name because the type inference is cyclic here. Specify the type of one element explicitly.",
                         declaredAt
                     )
@@ -128,7 +131,7 @@ abstract class BoundDeclaredFunction(
             declaredTypeParameters.forEach {
                 it.semanticAnalysisPhase2(diagnosis)
                 if (it.variance != TypeVariance.UNSPECIFIED) {
-                    diagnosis.add(Diagnostic.varianceOnFunctionTypeParameter(it))
+                    diagnosis.varianceOnFunctionTypeParameter(it)
                 }
             }
             body?.semanticAnalysisPhase2(diagnosis)
@@ -172,7 +175,7 @@ abstract class BoundDeclaredFunction(
                     if (localReturnType == null || this.body !is Body.SingleExpression) {
                         val isImplicitUnitReturn = localReturnType is RootResolvedTypeReference && localReturnType.baseType == context.swCtx.unit
                         if (!isImplicitUnitReturn) {
-                            diagnosis.add(Diagnostic.uncertainTermination(this))
+                            diagnosis.uncertainTermination(this)
                         }
                     }
                 }

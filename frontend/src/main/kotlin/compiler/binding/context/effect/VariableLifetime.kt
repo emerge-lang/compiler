@@ -8,6 +8,8 @@ import compiler.binding.expression.BoundIdentifierExpression
 import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.lifetimeEndingCaptureInLoop
+import compiler.diagnostic.variableUsedAfterLifetime
 
 object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.State, VariableLifetime.Effect> {
     override fun getInitialState(subject: BoundVariable): State {
@@ -83,7 +85,7 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
         ) : State {
             override fun maybe() = if (maybe) this else Dead(variable, lifetimeEndedAt, true)
             override fun validateCapture(read: BoundIdentifierExpression, diagnosis: Diagnosis) {
-                diagnosis.add(Diagnostic.variableUsedAfterLifetime(variable, read, this))
+                diagnosis.variableUsedAfterLifetime(variable, read, this)
             }
 
             override fun validateRepeatedCapture(stateBeforeCapture: State, read: BoundIdentifierExpression, diagnosis: Diagnosis) {
@@ -92,7 +94,7 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
                     return
                 }
 
-                diagnosis.add(Diagnostic.lifetimeEndingCaptureInLoop(variable, read))
+                diagnosis.lifetimeEndingCaptureInLoop(variable, read)
             }
         }
     }

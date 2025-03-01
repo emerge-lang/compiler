@@ -15,6 +15,8 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.illegalAssignment
+import compiler.diagnostic.valueNotAssignable
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -63,12 +65,12 @@ class BoundObjectMemberAssignmentStatement(
                     if (member.isReAssignable) {
                         _modifiedContext.trackSideEffect(PartialObjectInitialization.Effect.WriteToMemberVariableEffect(memberOwnerVariable, member))
                     } else {
-                        diagnosis.add(Diagnostic.illegalAssignment("Member variable ${member.name} may already have been initialized, cannot assign a value again", this))
+                        diagnosis.illegalAssignment("Member variable ${member.name} may already have been initialized, cannot assign a value again", this)
                     }
                 }
                 if (initializationStateBefore == VariableInitialization.State.INITIALIZED) {
                     if (!member.isReAssignable) {
-                        diagnosis.add(Diagnostic.illegalAssignment("Member variable ${member.name} is already initialized, cannot re-assign", this))
+                        diagnosis.illegalAssignment("Member variable ${member.name} is already initialized, cannot re-assign", this)
                     }
                 }
             }
@@ -82,12 +84,12 @@ class BoundObjectMemberAssignmentStatement(
 
         targetExpression.valueExpression.type?.let { memberOwnerType ->
             if (!memberOwnerType.mutability.isMutable) {
-                diagnosis.add(Diagnostic.valueNotAssignable(
+                diagnosis.valueNotAssignable(
                     memberOwnerType.withMutability(TypeMutability.MUTABLE),
                     memberOwnerType,
                     "Cannot mutate a value of type $memberOwnerType",
                     targetExpression.valueExpression.declaration.span,
-                ))
+                )
             }
         }
         targetExpression.type?.let { targetType ->

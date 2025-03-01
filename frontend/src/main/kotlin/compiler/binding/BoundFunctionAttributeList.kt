@@ -7,6 +7,10 @@ import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.conflictingModifiers
+import compiler.diagnostic.functionIsMissingDeclaredAttribute
+import compiler.diagnostic.inefficientAttributes
+import compiler.diagnostic.unsupportedCallingConvention
 import compiler.util.twoElementPermutationsUnordered
 
 class BoundFunctionAttributeList(
@@ -57,42 +61,42 @@ class BoundFunctionAttributeList(
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
             if (firstPureAttribute != null) {
-                diagnosis.add(Diagnostic.inefficientAttributes(
+                diagnosis.inefficientAttributes(
                     "The attribute \"pure\" is superfluous, functions are pure by default.",
                     listOf(firstPureAttribute),
-                ))
+                )
             }
 
             attributes.groupBy { it }.values
                 .filter { it.size > 1 }
                 .forEach { attrs ->
-                    diagnosis.add(Diagnostic.inefficientAttributes(
+                    diagnosis.inefficientAttributes(
                         "These attributes are redundant",
                         attrs,
-                    ))
+                    )
                 }
 
             attributes.twoElementPermutationsUnordered()
                 .filter { (a, b) -> conflictsWith(a, b) }
                 .forEach { (a, b) ->
-                    diagnosis.add(Diagnostic.conflictingModifiers(listOf(a, b)))
+                    diagnosis.conflictingModifiers(listOf(a, b))
                 }
 
             attributes
                 .filterIsInstance<AstFunctionAttribute.External>()
                 .filter { it.ffiName.value !in SUPPORTED_EXTERNAL_CALLING_CONVENTIONS }
                 .forEach {
-                    diagnosis.add(Diagnostic.unsupportedCallingConvention(it, SUPPORTED_EXTERNAL_CALLING_CONVENTIONS))
+                    diagnosis.unsupportedCallingConvention(it, SUPPORTED_EXTERNAL_CALLING_CONVENTIONS)
                 }
 
             if (attributes.any { it is AstFunctionAttribute.External } && attributes.none { it is AstFunctionAttribute.Nothrow }) {
                 // this should never occur on ctors or dtors
                 val fn = getFunction() as BoundDeclaredFunction
-                diagnosis.add(Diagnostic.functionIsMissingDeclaredAttribute(
+                diagnosis.functionIsMissingDeclaredAttribute(
                     fn,
                     AstFunctionAttribute.Nothrow(KeywordToken(Keyword.NOTHROW)),
                     "is declared external; external functions cannot throw exceptions."
-                ))
+                )
             }
         }
     }

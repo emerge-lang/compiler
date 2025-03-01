@@ -3,6 +3,11 @@ package compiler.binding.type
 import compiler.ast.type.TypeVariance
 import compiler.lexer.Span
 import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.MissingTypeArgumentDiagnostic
+import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
+import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
+import compiler.diagnostic.TypeArgumentVarianceMismatchDiagnostic
+import compiler.diagnostic.TypeArgumentVarianceSuperfluousDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 
 /* TODO: optimization potential
@@ -60,7 +65,7 @@ interface TypeUnification {
             if (arguments == null) {
                 if (typeParameters.isNotEmpty() && !allowMissingTypeArguments) {
                     for (typeParam in typeParameters) {
-                        unification = unification.plusReporting(Diagnostic.missingTypeArgument(typeParam, argumentsLocation))
+                        unification = unification.plusReporting(MissingTypeArgumentDiagnostic(typeParam.astNode, argumentsLocation))
                     }
                 }
 
@@ -72,9 +77,9 @@ interface TypeUnification {
                 val argument = arguments[i]
                 if (argument.variance != TypeVariance.UNSPECIFIED && parameter.variance != TypeVariance.UNSPECIFIED) {
                     if (argument.variance != parameter.variance) {
-                        unification = unification.plusReporting(Diagnostic.typeArgumentVarianceMismatch(parameter, argument))
+                        unification = unification.plusReporting(TypeArgumentVarianceMismatchDiagnostic(parameter.astNode, argument))
                     } else {
-                        unification = unification.plusReporting(Diagnostic.typeArgumentVarianceSuperfluous(argument))
+                        unification = unification.plusReporting(TypeArgumentVarianceSuperfluousDiagnostic(argument))
                     }
                 }
 
@@ -87,14 +92,14 @@ interface TypeUnification {
 
             for (i in arguments.size..typeParameters.lastIndex) {
                 unification = unification.plusReporting(
-                    Diagnostic.missingTypeArgument(typeParameters[i], arguments.lastOrNull()?.span ?: argumentsLocation)
+                    MissingTypeArgumentDiagnostic(typeParameters[i].astNode, arguments.lastOrNull()?.span ?: argumentsLocation)
                 )
             }
             if (arguments.size > typeParameters.size) {
                 unification = unification.plusReporting(
-                    Diagnostic.superfluousTypeArguments(
+                    SuperfluousTypeArgumentsDiagnostic(
                         typeParameters.size,
-                        arguments[typeParameters.size],
+                        arguments[typeParameters.size].astNode,
                     )
                 )
             }
@@ -180,7 +185,7 @@ private class ValueNotAssignableAsArgumentOutOfBounds(
 
     override fun plusReporting(diagnostic: Diagnostic): TypeUnification {
         val diagnostic = if (diagnostic !is ValueNotAssignableDiagnostic) diagnostic else {
-            Diagnostic.typeArgumentOutOfBounds(parameter, argument, diagnostic.reason)
+            TypeArgumentOutOfBoundsDiagnostic(parameter.astNode, argument, diagnostic.reason)
         }
 
         return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plusReporting(diagnostic), parameter, argument)

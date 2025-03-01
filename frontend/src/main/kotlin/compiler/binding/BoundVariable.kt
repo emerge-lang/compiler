@@ -40,6 +40,14 @@ import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.explicitInferTypeNotAllowed
+import compiler.diagnostic.explicitInferTypeWithArguments
+import compiler.diagnostic.explicitOwnershipNotAllowed
+import compiler.diagnostic.globalVariableNotInitialized
+import compiler.diagnostic.typeDeductionError
+import compiler.diagnostic.variableDeclaredMoreThanOnce
+import compiler.diagnostic.variableTypeNotDeclared
+import compiler.diagnostic.visibilityNotAllowedOnVariable
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -108,35 +116,31 @@ class BoundVariable(
 
             visibility.semanticAnalysisPhase1(diagnosis)
             if (!kind.allowsVisibility && declaration.visibility != null) {
-                diagnosis.add(Diagnostic.visibilityNotAllowedOnVariable(this))
+                diagnosis.visibilityNotAllowedOnVariable(this)
             }
 
             context.resolveVariable(this.name)
                 ?.takeUnless { it === this }
                 ?.takeUnless { shadowed -> this.kind.allowsShadowingGlobals && shadowed.isGlobal }
                 ?.let { firstDeclarationOfVariable ->
-                    diagnosis.add(
-                        Diagnostic.variableDeclaredMoreThanOnce(
-                            firstDeclarationOfVariable.declaration,
-                            this.declaration
-                        )
+                    diagnosis.variableDeclaredMoreThanOnce(
+                        firstDeclarationOfVariable.declaration,
+                        this.declaration
                     )
                 }
 
             if (isGlobal && declaration.initializerExpression == null) {
-                diagnosis.add(Diagnostic.globalVariableNotInitialized(this))
+                diagnosis.globalVariableNotInitialized(this)
             }
 
             if (kind.requiresExplicitType) {
                 if (declaration.type == null) {
-                    diagnosis.add(Diagnostic.variableTypeNotDeclared(this))
+                    diagnosis.variableTypeNotDeclared(this)
                 }
             } else if (declaration.initializerExpression == null && shouldInferBaseType) {
-                diagnosis.add(
-                    Diagnostic.typeDeductionError(
-                        "Cannot determine type of $kind $name; neither type nor initializer is specified.",
-                        declaration.declaredAt
-                    )
+                diagnosis.typeDeductionError(
+                    "Cannot determine type of $kind $name; neither type nor initializer is specified.",
+                    declaration.declaredAt
                 )
             }
 
@@ -156,15 +160,15 @@ class BoundVariable(
             }
 
             if (shouldInferBaseType && declaration.type?.arguments?.isNotEmpty() == true) {
-                diagnosis.add(Diagnostic.explicitInferTypeWithArguments(declaration.type))
+                diagnosis.explicitInferTypeWithArguments(declaration.type)
             }
 
             if (declaration.type != null && shouldInferBaseType && !kind.allowsExplicitBaseTypeInfer) {
-                diagnosis.add(Diagnostic.explicitInferTypeNotAllowed(declaration.type))
+                diagnosis.explicitInferTypeNotAllowed(declaration.type)
             }
 
             if (declaration.ownership != null && !kind.allowsExplicitOwnership) {
-                diagnosis.add(Diagnostic.explicitOwnershipNotAllowed(this))
+                diagnosis.explicitOwnershipNotAllowed(this)
             }
         }
     }
@@ -185,11 +189,9 @@ class BoundVariable(
                         initializerExpression.semanticAnalysisPhase2(diagnosis)
                     },
                     onCycle = {
-                        diagnosis.add(
-                            Diagnostic.typeDeductionError(
-                                "Cannot infer the type of variable $name because the type inference is cyclic here. Specify the type of one element explicitly.",
-                                initializerExpression.declaration.span
-                            )
+                        diagnosis.typeDeductionError(
+                            "Cannot infer the type of variable $name because the type inference is cyclic here. Specify the type of one element explicitly.",
+                            initializerExpression.declaration.span
                         )
                     },
                 )

@@ -50,6 +50,12 @@ import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.ambiguousInvocation
+import compiler.diagnostic.noMatchingFunctionOverload
+import compiler.diagnostic.nothrowViolatingInvocation
+import compiler.diagnostic.typeDeductionError
+import compiler.diagnostic.unresolvableConstructor
+import compiler.diagnostic.varianceOnInvocationTypeArgument
 import io.github.tmarsteel.emerge.backend.api.ir.IrCatchExceptionStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrDynamicDispatchFunctionInvocationExpression
@@ -109,7 +115,7 @@ class BoundInvocationExpression(
             typeArguments = declaration.typeArguments?.map(context::resolveType)
             typeArguments?.forEach {
                 if (it.variance != TypeVariance.UNSPECIFIED) {
-                    diagnosis.add(Diagnostic.varianceOnInvocationTypeArgument(it))
+                    diagnosis.varianceOnInvocationTypeArgument(it)
                 }
             }
         }
@@ -159,11 +165,9 @@ class BoundInvocationExpression(
                     context = this,
                     action = { chosenOverload!!.candidate.semanticAnalysisPhase2(diagnosis) },
                     onCycle = {
-                        diagnosis.add(
-                            Diagnostic.typeDeductionError(
-                                "Cannot infer return type of the call to function ${functionNameToken.value} because the inference is cyclic here. Specify the return type explicitly.",
-                                declaration.span,
-                            )
+                        diagnosis.typeDeductionError(
+                            "Cannot infer return type of the call to function ${functionNameToken.value} because the inference is cyclic here. Specify the return type explicitly.",
+                            declaration.span,
                         )
                     }
                 )
@@ -219,7 +223,7 @@ class BoundInvocationExpression(
         val (allCandidates, constructorsConsidered, anyTopLevelFunctions) = overloadCandidates
 
         if (allCandidates.isEmpty()) {
-            diagnosis.add(Diagnostic.noMatchingFunctionOverload(functionNameToken, receiverExpression?.type, valueArguments, false))
+            diagnosis.noMatchingFunctionOverload(functionNameToken, receiverExpression?.type, valueArguments, false)
             return null
         }
 
@@ -232,21 +236,17 @@ class BoundInvocationExpression(
         if (evaluations.isEmpty()) {
             // TODO: pass on the mismatch reason for all candidates?
             if (constructorsConsidered) {
-                diagnosis.add(
-                    Diagnostic.unresolvableConstructor(
-                        functionNameToken,
-                        valueArguments,
-                        anyTopLevelFunctions,
-                    )
+                diagnosis.unresolvableConstructor(
+                    functionNameToken,
+                    valueArguments,
+                    anyTopLevelFunctions,
                 )
             } else {
-                diagnosis.add(
-                    Diagnostic.noMatchingFunctionOverload(
-                        functionNameToken,
-                        receiverExpression?.type,
-                        valueArguments,
-                        anyTopLevelFunctions,
-                    )
+                diagnosis.noMatchingFunctionOverload(
+                    functionNameToken,
+                    receiverExpression?.type,
+                    valueArguments,
+                    anyTopLevelFunctions,
                 )
             }
 
@@ -277,13 +277,11 @@ class BoundInvocationExpression(
                         singleEval.unification.diagnostics.forEach(diagnosis::add)
                         return singleEval
                     } else {
-                        diagnosis.add(
-                            Diagnostic.noMatchingFunctionOverload(
-                                functionNameToken,
-                                receiverExpression?.type,
-                                valueArguments,
-                                true
-                            )
+                        diagnosis.noMatchingFunctionOverload(
+                            functionNameToken,
+                            receiverExpression?.type,
+                            valueArguments,
+                            true
                         )
                         return evaluations.firstOrNull()
                     }
@@ -291,7 +289,7 @@ class BoundInvocationExpression(
             }
             1 -> return legalMatches.single()
             else -> {
-                diagnosis.add(Diagnostic.ambiguousInvocation(this, evaluations.map { it.candidate }))
+                diagnosis.ambiguousInvocation(this, evaluations.map { it.candidate })
                 return legalMatches.firstOrNull()
             }
         }
@@ -383,7 +381,7 @@ class BoundInvocationExpression(
                 targetFn.validateAccessFrom(functionNameToken.span, diagnosis)
                 nothrowBoundary?.let { nothrowBoundary ->
                     if (targetFn.throwBehavior != SideEffectPrediction.NEVER) {
-                        diagnosis.add(Diagnostic.nothrowViolatingInvocation(this, nothrowBoundary))
+                        diagnosis.nothrowViolatingInvocation(this, nothrowBoundary)
                     }
                 }
             }

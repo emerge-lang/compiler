@@ -22,6 +22,8 @@ import compiler.binding.SemanticallyAnalyzable
 import compiler.diagnostic.CollectingDiagnosis
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.ambiguousImports
+import compiler.diagnostic.toplevelFunctionWithOverrideAttribute
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import compiler.lexer.SourceFile as LexerSourceFile
 
@@ -55,7 +57,7 @@ class SourceFile(
             .values
             .filter { imports -> imports.size > 1 }
             .forEach { ambiguousImports ->
-                diagnosis.add(Diagnostic.ambiguousImports(ambiguousImports))
+                diagnosis.ambiguousImports(ambiguousImports)
             }
     }
 
@@ -81,7 +83,7 @@ class SourceFile(
         context.functions.forEach { topLevelFn ->
             topLevelFn.semanticAnalysisPhase3(diagnosis)
             topLevelFn.attributes.firstOverrideAttribute?.let { overrideAttr ->
-                diagnosis.add(Diagnostic.toplevelFunctionWithOverrideAttribute(overrideAttr))
+                diagnosis.toplevelFunctionWithOverrideAttribute(overrideAttr)
             }
         }
     }

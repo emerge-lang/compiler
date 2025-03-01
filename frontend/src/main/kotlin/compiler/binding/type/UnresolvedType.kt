@@ -7,6 +7,7 @@ import compiler.binding.context.CTContext
 import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.unknownType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class UnresolvedType private constructor(
@@ -27,7 +28,7 @@ class UnresolvedType private constructor(
     override val inherentTypeBindings = TypeUnification.EMPTY
 
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
-        diagnosis.add(Diagnostic.unknownType(reference))
+        diagnosis.unknownType(reference)
 
         parameters?.forEach { it.validate(forUsage.deriveIrrelevant(), diagnosis) }
     }

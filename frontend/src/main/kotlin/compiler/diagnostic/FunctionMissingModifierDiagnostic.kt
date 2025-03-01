@@ -24,12 +24,10 @@ data class FunctionMissingModifierDiagnostic(
         ) {
             val operatorFn = subject.functionToInvoke ?: return
             if (!operatorFn.attributes.isDeclaredOperator) {
-                diagnosis.add(
-                    Diagnostic.functionIsMissingAttribute(
-                        operatorFn,
-                        requirer.declaration,
-                        "operator",
-                    )
+                diagnosis.functionIsMissingAttribute(
+                    operatorFn,
+                    requirer.declaration,
+                    "operator",
                 )
             }
         }

@@ -44,6 +44,9 @@ import compiler.diagnostic.ClassMemberVariableNotInitializedDuringObjectConstruc
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.PurityViolationDiagnostic
+import compiler.diagnostic.constructorDeclaredAsModifying
+import compiler.diagnostic.constructorDeclaredNothrow
+import compiler.diagnostic.illegalMixinRepetition
 import compiler.handleCyclicInvocation
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Keyword
@@ -266,7 +269,7 @@ class BoundClassConstructor(
             additionalInitCode.semanticAnalysisPhase2(diagnosis)
 
             if (attributes.isDeclaredNothrow) {
-                diagnosis.add(Diagnostic.constructorDeclaredNothrow(this))
+                diagnosis.constructorDeclaredNothrow(this)
             }
         }
     }
@@ -322,7 +325,7 @@ class BoundClassConstructor(
             }
 
             if (purity.contains(BoundFunction.Purity.MODIFYING)) {
-                diagnosis.add(Diagnostic.constructorDeclaredAsModifying(this))
+                diagnosis.constructorDeclaredAsModifying(this)
             }
 
             val partialInitState = additionalInitCode.modifiedContext.getEphemeralState(PartialObjectInitialization, selfVariableForInitCode)
@@ -394,7 +397,7 @@ class BoundClassConstructor(
                 ExecutionScopedCTContext.Repetition.EXACTLY_ONCE -> {
                     // all good
                 }
-                else -> diagnosis.add(Diagnostic.illegalMixinRepetition(mixinStatement, repetition))
+                else -> diagnosis.illegalMixinRepetition(mixinStatement, repetition)
             }
 
             return object : ExecutionScopedCTContext.MixinRegistration {

@@ -5,6 +5,8 @@ import compiler.binding.expression.BoundExpression
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.PurityViolationDiagnostic
+import compiler.diagnostic.modifyingPurityViolation
+import compiler.diagnostic.readingPurityViolation
 
 interface ImpurityVisitor {
     fun visitReadBeyondBoundary(purityBoundary: CTContext, read: BoundExpression<*>)
@@ -20,7 +22,7 @@ internal class PurityViolationImpurityVisitor(
     override fun visitReadBeyondBoundary(purityBoundary: CTContext, read: BoundExpression<*>) {
         firstReadSeen = true
         if (read !in writesBeyondContext) {
-            reportTo.add(Diagnostic.readingPurityViolationToReporting(read, boundaryForReporting))
+            reportTo.readingPurityViolation(read, boundaryForReporting)
         }
     }
 
@@ -30,7 +32,7 @@ internal class PurityViolationImpurityVisitor(
         }
 
         writesBeyondContext.add(write)
-        reportTo.add(Diagnostic.modifyingPurityViolationToReporting(write, boundaryForReporting))
+        reportTo.modifyingPurityViolation(write, boundaryForReporting)
     }
 }
 

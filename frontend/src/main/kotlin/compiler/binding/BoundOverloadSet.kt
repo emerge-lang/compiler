@@ -5,6 +5,7 @@ import compiler.binding.type.nonDisjointPairs
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.InconsistentReceiverPresenceInOverloadSetDiagnostic
+import compiler.diagnostic.overloadSetHasNoDisjointParameter
 import compiler.util.pivot
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrOverloadGroup
@@ -49,7 +50,7 @@ class BoundOverloadSet<out Fn : BoundFunction>(
             }
 
             if (!areOverloadsDisjoint(overloads)) {
-                diagnosis.add(Diagnostic.overloadSetHasNoDisjointParameter(this))
+                diagnosis.overloadSetHasNoDisjointParameter(this)
             }
         }
     }

@@ -9,6 +9,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.continueOutsideOfLoop
 import io.github.tmarsteel.emerge.backend.api.ir.IrContinueStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
@@ -24,7 +25,7 @@ class BoundContinueExpression(
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         parentLoop = context.getParentLoop()
         if (parentLoop == null) {
-            diagnosis.add(Diagnostic.continueOutsideOfLoop(this))
+            diagnosis.continueOutsideOfLoop(this)
         }
     }
 

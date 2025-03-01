@@ -26,6 +26,7 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.FunctionMissingModifierDiagnostic
+import compiler.diagnostic.OperatorNotDeclaredDiagnostic
 import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
 
 class BoundBinaryExpression(
@@ -48,7 +49,7 @@ class BoundBinaryExpression(
                 return@mapping hiddenReporting
             }
 
-            Diagnostic.operatorNotDeclared(
+            OperatorNotDeclaredDiagnostic(
                 "Binary operator ${declaration.operator.name} (function ${hiddenInvocation.functionNameToken.value}) not declared for type ${hiddenReporting.receiverType ?: "<unknown>"}",
                 declaration,
             )

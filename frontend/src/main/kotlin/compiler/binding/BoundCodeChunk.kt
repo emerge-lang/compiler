@@ -34,6 +34,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.implicitlyEvaluatingAStatement
 import compiler.handleCyclicInvocation
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateStrongReferenceStatement
@@ -111,7 +112,7 @@ class BoundCodeChunk(
                 } else if (isInExpressionContext) {
                     // the type is still unit, technically. However, this will trigger a confusing error message
                     // using the bottom type hides that error, and this becomes the more understandable alternative
-                    diagnosis.add(Diagnostic.implicitlyEvaluatingAStatement(statements.lastOrNull() ?: this))
+                    diagnosis.implicitlyEvaluatingAStatement(statements.lastOrNull() ?: this)
                     type = context.swCtx.bottomTypeRef
                 } else {
                     type = context.swCtx.unit.baseReference

@@ -33,6 +33,7 @@ import compiler.handleCyclicInvocation
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.integerLiteralOutOfRange
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -137,10 +138,10 @@ class BoundIntegerLiteral(
                         .and(allOnesOfTypeBitLength) // emulate overflow
                         .negate()
                 } else {
-                    diagnosis.add(Diagnostic.integerLiteralOutOfRange(declaration, type.baseType, typeRange))
+                    diagnosis.integerLiteralOutOfRange(declaration, type.baseType, typeRange)
                 }
             } else {
-                diagnosis.add(Diagnostic.integerLiteralOutOfRange(declaration, type.baseType, typeRange))
+                diagnosis.integerLiteralOutOfRange(declaration, type.baseType, typeRange)
             }
         }
     }

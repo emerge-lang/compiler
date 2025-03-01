@@ -26,6 +26,7 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.FunctionMissingModifierDiagnostic.Companion.requireOperatorModifier
+import compiler.diagnostic.OperatorNotDeclaredDiagnostic
 import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
 
 class BoundUnaryExpression(
@@ -47,7 +48,7 @@ class BoundUnaryExpression(
                 return@mapping hiddenReporting
             }
 
-            Diagnostic.operatorNotDeclared(
+            OperatorNotDeclaredDiagnostic(
                 "Unary operator ${declaration.operator.name} (function ${hiddenInvocation.functionNameToken.value}) not declared for type ${hiddenReporting.receiverType ?: "<unknown>"}",
                 declaration,
             )

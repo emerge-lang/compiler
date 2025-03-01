@@ -15,6 +15,8 @@ import compiler.lexer.IdentifierToken
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.illegalAssignment
+import compiler.diagnostic.undefinedIdentifier
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -33,7 +35,7 @@ class BoundVariableAssignmentStatement(
     override fun additionalSemanticAnalysisPhase1(diagnosis: Diagnosis) {
         targetVariable = context.resolveVariable(variableName.value)
         if (targetVariable == null) {
-            diagnosis.add(Diagnostic.undefinedIdentifier(variableName))
+            diagnosis.undefinedIdentifier(variableName)
         }
     }
 
@@ -67,12 +69,12 @@ class BoundVariableAssignmentStatement(
                 if (targetVariable.isReAssignable) {
                     _modifiedContext.trackSideEffect(VariableInitialization.WriteToVariableEffect(targetVariable))
                 } else {
-                    diagnosis.add(Diagnostic.illegalAssignment("Variable ${targetVariable.name} may have already been initialized, cannot assign a value again", this))
+                    diagnosis.illegalAssignment("Variable ${targetVariable.name} may have already been initialized, cannot assign a value again", this)
                 }
             }
             if (initializationStateBefore == VariableInitialization.State.INITIALIZED) {
                 if (!targetVariable.isReAssignable) {
-                    diagnosis.add(Diagnostic.illegalAssignment("Variable ${targetVariable.name} is already initialized, cannot re-assign", this))
+                    diagnosis.illegalAssignment("Variable ${targetVariable.name} is already initialized, cannot re-assign", this)
                 }
             }
         }

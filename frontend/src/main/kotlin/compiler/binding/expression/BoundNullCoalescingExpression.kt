@@ -22,6 +22,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.nullCheckOnNonNullableValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 
 class BoundNullCoalescingExpression(
@@ -81,7 +82,7 @@ class BoundNullCoalescingExpression(
         this.type = alternateType?.closestCommonSupertypeWith(notNullableType) ?: notNullableType
 
         if (nullableExpression.type?.isNullable == false) {
-            diagnosis.add(Diagnostic.nullCheckOnNonNullableValue(nullableExpression))
+            diagnosis.nullCheckOnNonNullableValue(nullableExpression)
         }
     }
 

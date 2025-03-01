@@ -7,6 +7,8 @@ import compiler.binding.context.PackageContext
 import compiler.diagnostic.CollectingDiagnosis
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.UnresolvableImportDiagnostic
+import compiler.diagnostic.UnresolvablePackageNameDiagnostic
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class BoundImportDeclaration(
@@ -20,7 +22,7 @@ class BoundImportDeclaration(
 
     private val resolutionResult: ResolutionResult by lazy {
         val packageContext = context.swCtx.getPackage(packageName)
-            ?: return@lazy ResolutionResult.Erroneous(Diagnostic.unresolvablePackageName(packageName, declaration.declaredAt))
+            ?: return@lazy ResolutionResult.Erroneous(UnresolvablePackageNameDiagnostic(packageName, declaration.declaredAt))
 
         if (isImportAll) {
             return@lazy ResolutionResult.EntirePackage(packageContext)
@@ -41,7 +43,7 @@ class BoundImportDeclaration(
             return@lazy ResolutionResult.Variable(variable)
         }
 
-        return@lazy ResolutionResult.Erroneous(Diagnostic.unresolvableImport(this))
+        return@lazy ResolutionResult.Erroneous(UnresolvableImportDiagnostic(this))
     }
 
     fun getOverloadSetsBySimpleName(simpleName: String): Collection<BoundOverloadSet<*>> = when(val result = resolutionResult) {

@@ -9,6 +9,10 @@ import compiler.lexer.SourceFile
 import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.elementNotAccessible
+import compiler.diagnostic.missingModuleDependency
+import compiler.diagnostic.visibilityShadowed
+import compiler.diagnostic.visibilityTooBroad
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.github.tmarsteel.emerge.common.EmergeConstants
 
@@ -48,7 +52,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
      */
     open fun validateOnElement(element: DefinitionWithVisibility, diagnosis: Diagnosis) {
         if (this.isStrictlyBroaderThan(context.visibility)) {
-            diagnosis.add(Diagnostic.visibilityShadowed(element, context.visibility))
+            diagnosis.visibilityShadowed(element, context.visibility)
         }
     }
 
@@ -56,7 +60,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
         val lexerFile: SourceFile get() = context.sourceFile.lexerFile
         override fun validateAccessFrom(accessAt: Span, subject: DefinitionWithVisibility, diagnosis: Diagnosis) {
             if (lexerFile != accessAt.sourceFile) {
-                diagnosis.add(Diagnostic.elementNotAccessible(subject, this, accessAt))
+                diagnosis.elementNotAccessible(subject, this, accessAt)
             }
         }
 
@@ -98,7 +102,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
         override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
             val owningModule = context.moduleContext.moduleName
             if (owningModule != packageName && owningModule.containsOrEquals(packageName)) {
-                diagnosis.add(Diagnostic.visibilityTooBroad(owningModule, this))
+                diagnosis.visibilityTooBroad(owningModule, this)
             }
         }
 
@@ -106,7 +110,7 @@ sealed class BoundVisibility : SemanticallyAnalyzable {
             if (packageName.containsOrEquals(accessAt.sourceFile.packageName)) {
                 validateCrossModuleAccess(context, accessAt, subject, diagnosis)
             } else {
-                diagnosis.add(Diagnostic.elementNotAccessible(subject, this, accessAt))
+                diagnosis.elementNotAccessible(subject, this, accessAt)
             }
         }
 
@@ -216,5 +220,5 @@ private fun validateCrossModuleAccess(contextOfAccessedElement: CTContext, acces
         return
     }
 
-    diagnosis.add(Diagnostic.missingModuleDependency(subject, accessAt, moduleOfAccessedElement.moduleName, moduleOfAccess.moduleName))
+    diagnosis.missingModuleDependency(subject, accessAt, moduleOfAccessedElement.moduleName, moduleOfAccess.moduleName)
 }

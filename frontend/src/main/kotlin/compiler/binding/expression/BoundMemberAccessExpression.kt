@@ -34,6 +34,10 @@ import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.superfluousSafeObjectTraversal
+import compiler.diagnostic.unresolvableMemberVariable
+import compiler.diagnostic.unsafeObjectTraversal
+import compiler.diagnostic.useOfUninitializedMember
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassFieldAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -76,15 +80,15 @@ class BoundMemberAccessExpression(
         val valueType = valueExpression.type
         if (valueType != null) {
             if (valueType.isNullable && !isNullSafeAccess) {
-                diagnosis.add(Diagnostic.unsafeObjectTraversal(valueExpression, declaration.accessOperatorToken))
+                diagnosis.unsafeObjectTraversal(valueExpression, declaration.accessOperatorToken)
             }
             else if (!valueType.isNullable && isNullSafeAccess) {
-                diagnosis.add(Diagnostic.superfluousSafeObjectTraversal(valueExpression, declaration.accessOperatorToken))
+                diagnosis.superfluousSafeObjectTraversal(valueExpression, declaration.accessOperatorToken)
             }
 
             val member = valueType.findMemberVariable(memberName)
             if (member == null) {
-                diagnosis.add(Diagnostic.unresolvableMemberVariable(this, valueType))
+                diagnosis.unresolvableMemberVariable(this, valueType)
             } else {
                 this.member = member
                 this.type = member.type?.instantiateAllParameters(valueType.inherentTypeBindings)
@@ -95,7 +99,7 @@ class BoundMemberAccessExpression(
                     } ?: true
 
                     if (!isInitialized) {
-                        diagnosis.add(Diagnostic.useOfUninitializedMember(this))
+                        diagnosis.useOfUninitializedMember(this)
                     }
                 }
             }
