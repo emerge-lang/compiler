@@ -2,6 +2,7 @@ package compiler.binding
 
 import compiler.ast.AssignmentStatement
 import compiler.ast.type.TypeMutability
+import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
@@ -95,6 +96,29 @@ class BoundObjectMemberAssignmentStatement(
         targetExpression.type?.let { targetType ->
             toAssignExpression.type?.evaluateAssignabilityTo(targetType, toAssignExpression.declaration.span)
                 ?.let(diagnosis::add)
+        }
+    }
+
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        super.visitReadsBeyond(boundary, visitor)
+        targetExpression.visitReadsBeyond(boundary, visitor)
+    }
+
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        super.visitWritesBeyond(boundary, visitor)
+        targetExpression.visitWritesBeyond(boundary, visitor)
+        var targetReadsBeyondBoundary = false
+        targetExpression.visitReadsBeyond(boundary, object : ImpurityVisitor {
+            override fun visitReadBeyondBoundary(purityBoundary: CTContext, read: BoundExpression<*>) {
+                targetReadsBeyondBoundary = true
+            }
+
+            override fun visitWriteBeyondBoundary(purityBoundary: CTContext, write: BoundExecutable<*>) {
+
+            }
+        })
+        if (targetReadsBeyondBoundary) {
+            visitor.visitWriteBeyondBoundary(boundary, this)
         }
     }
 

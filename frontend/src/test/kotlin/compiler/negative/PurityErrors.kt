@@ -89,7 +89,7 @@ class PurityErrors : FreeSpec({
                         set x = 2
                     }
                 """.trimIndent())
-                    .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
+                    .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
             }
 
             "property of a global variable" {
@@ -102,7 +102,7 @@ class PurityErrors : FreeSpec({
                         set x.foo = "b"
                     }
                 """.trimIndent())
-                    .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
+                    .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
             }
 
             "nested property of a global variable" {
@@ -118,7 +118,7 @@ class PurityErrors : FreeSpec({
                         set x.box.foo = "b"
                     }
                 """.trimIndent())
-                    .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
+                    .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
             }
         }
     }
@@ -127,12 +127,12 @@ class PurityErrors : FreeSpec({
         "by assignment" - {
             "global variable directly" {
                 validateModule("""
-                var x = 1
-                read fn a() {
-                    set x = 2
-                }
-            """.trimIndent())
-                    .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
+                    var x = 1
+                    read fn a() {
+                        set x = 2
+                    }
+                """.trimIndent())
+                    .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
             }
 
             "property of a global variable" {
@@ -145,7 +145,7 @@ class PurityErrors : FreeSpec({
                         set x.foo = "b"
                     }
                 """.trimIndent())
-                    .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
+                    .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
             }
 
             "nested property of a global variable" {
@@ -161,7 +161,7 @@ class PurityErrors : FreeSpec({
                         set x.box.foo = "b"
                     }
                 """.trimIndent())
-                    .shouldReport<AssignmentOutsideOfPurityBoundaryReporting>()
+                    .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
             }
         }
 
@@ -233,7 +233,7 @@ class PurityErrors : FreeSpec({
                         mutate(x.box)
                     }
                 """.trimIndent())
-                    .shouldReport<MutableUsageOfStateOutsideOfPurityBoundaryReporting>()
+                    .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
             }
         }
     }

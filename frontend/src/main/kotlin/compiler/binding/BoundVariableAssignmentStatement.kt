@@ -81,6 +81,7 @@ class BoundVariableAssignmentStatement(
     }
 
     override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+        super.visitReadsBeyond(boundary, visitor)
         toAssignExpression.visitReadsBeyond(boundary, visitor)
     }
 
