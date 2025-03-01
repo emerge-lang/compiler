@@ -415,9 +415,17 @@ class BoundInvocationExpression(
             .filter { (_, parameter) -> parameter.typeAtDeclarationTime?.mutability?.isMutable ?: false }
             // is the argument itself a read beyond the boundary
             .filter { (argument, _) ->
-                val detectingVisitor = DetectingImpurityVisitor(argument)
-                argument.visitReadsBeyond(boundary, detectingVisitor)
-                detectingVisitor.foundAsReading
+                var argumentReadsBeyondBoundary = false
+                argument.visitReadsBeyond(boundary, object : ImpurityVisitor {
+                    override fun visitReadBeyondBoundary(purityBoundary: CTContext, read: BoundExpression<*>) {
+                        argumentReadsBeyondBoundary = true
+                    }
+
+                    override fun visitWriteBeyondBoundary(purityBoundary: CTContext, write: BoundExecutable<*>) {
+
+                    }
+                })
+                argumentReadsBeyondBoundary
             }
             .forEach { (argument, _) ->
                 visitor.visitWriteBeyondBoundary(boundary, argument)
