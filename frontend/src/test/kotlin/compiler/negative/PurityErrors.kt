@@ -50,11 +50,11 @@ class PurityErrors : FreeSpec({
             mut fn a() {
                 set x = 2
             }
-            pure fn b() {
+            fn b() {
                 a()
             }
         """.trimIndent())
-            .shouldReport<ImpureInvocationInPureContextReporting>()
+            .shouldReport<ModifyingInvocationInReadonlyContextReporting>()
     }
 
     "calling a modifying function from a read context" {

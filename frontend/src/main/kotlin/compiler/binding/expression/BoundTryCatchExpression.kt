@@ -3,7 +3,7 @@ package compiler.binding.expression
 import compiler.ast.expression.AstTryCatchExpression
 import compiler.ast.type.TypeMutability
 import compiler.binding.BoundCodeChunk
-import compiler.binding.BoundExecutable
+import compiler.binding.ImpurityVisitor
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.combineBranch
@@ -84,12 +84,14 @@ class BoundTryCatchExpression(
         catchBlock.setNothrow(boundary)
     }
 
-    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
-        return fallibleCode.findReadsBeyond(boundary, diagnosis) + catchBlock.findReadsBeyond(boundary, diagnosis)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        fallibleCode.visitReadsBeyond(boundary, visitor, diagnosis)
+        catchBlock.visitReadsBeyond(boundary, visitor, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
-        return fallibleCode.findWritesBeyond(boundary, diagnosis) + catchBlock.findWritesBeyond(boundary, diagnosis)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        fallibleCode.visitWritesBeyond(boundary, visitor, diagnosis)
+        catchBlock.visitWritesBeyond(boundary, visitor, diagnosis)
     }
 
     override fun markEvaluationResultCaptured(withMutability: TypeMutability) {

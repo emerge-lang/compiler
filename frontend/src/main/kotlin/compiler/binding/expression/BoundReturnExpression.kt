@@ -24,7 +24,7 @@ import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.TypeMutability
-import compiler.binding.BoundExecutable
+import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
@@ -109,12 +109,12 @@ class BoundReturnExpression(
         expression?.setExpectedEvaluationResultType(type, diagnosis)
     }
 
-    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
-        return this.expression?.findReadsBeyond(boundary, diagnosis) ?: emptySet()
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        expression?.visitReadsBeyond(boundary, visitor, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
-        return this.expression?.findWritesBeyond(boundary, diagnosis) ?: emptySet()
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        expression?.visitWritesBeyond(boundary, visitor, diagnosis)
     }
 
     override fun toBackendIrStatement(): IrExecutable {

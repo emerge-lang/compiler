@@ -28,6 +28,8 @@ import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
+import compiler.binding.DetectingImpurityVisitor
+import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
@@ -388,41 +390,50 @@ class BoundInvocationExpression(
         }
     }
 
-    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
         seanHelper.requirePhase2Done()
 
-        val byReceiver = receiverExpression?.findReadsBeyond(boundary, diagnosis) ?: emptySet()
-        val byArguments = valueArguments.flatMap { it.findReadsBeyond(boundary, diagnosis) }
+        receiverExpression?.visitReadsBeyond(boundary, visitor, diagnosis)
+        valueArguments.forEach { it.visitReadsBeyond(boundary, visitor, diagnosis) }
 
         val invokedFunctionIsPure = functionToInvoke?.let {
             it.semanticAnalysisPhase3(diagnosis)
             BoundFunction.Purity.PURE.contains(it.purity)
         } ?: true
 
-        val bySelf = if (invokedFunctionIsPure) emptySet() else setOf(this)
-
-        return byReceiver + byArguments + bySelf
+        if (!invokedFunctionIsPure) {
+            visitor.visitReadBeyondBoundary(boundary, this)
+        }
     }
 
-    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
         seanHelper.requirePhase2Done()
 
-        val byReceiver = receiverExpression?.findWritesBeyond(boundary, diagnosis) ?: emptySet()
-        val byArguments = valueArguments.flatMap { it.findWritesBeyond(boundary, diagnosis) }
-        val byParameters = (listOfNotNull(receiverExpression) + valueArguments).zip(functionToInvoke?.parameters?.parameters ?: emptyList())
+        receiverExpression?.visitWritesBeyond(boundary, visitor, diagnosis)
+        valueArguments.forEach { it.visitWritesBeyond(boundary, visitor, diagnosis) }
+
+        // writes through arguments that are modified by the called function
+        (listOfNotNull(receiverExpression) + valueArguments).zip(functionToInvoke?.parameters?.parameters ?: emptyList())
             // does the function potentially modify the parameter?
             .filter { (_, parameter) -> parameter.typeAtDeclarationTime?.mutability?.isMutable ?: false }
             // is the argument itself a read beyond the boundary
-            .filter { (argument, _) -> argument in argument.findReadsBeyond(boundary, diagnosis) }
-            .map { (argument, _) -> argument }
+            .filter { (argument, _) ->
+                val detectingVisitor = DetectingImpurityVisitor(argument)
+                argument.visitReadsBeyond(boundary, detectingVisitor, diagnosis)
+                detectingVisitor.foundAsReading
+            }
+            .forEach { (argument, _) ->
+                visitor.visitWriteBeyondBoundary(boundary, argument)
+            }
 
         val invokedFunctionIsReadonly = functionToInvoke?.let {
             //it.semanticAnalysisPhase3(DiscardingDiagnosis)
             BoundFunction.Purity.READONLY.contains(it.purity)
         } ?: true
-        val bySelf: Collection<BoundExecutable<*>> = if (invokedFunctionIsReadonly) emptySet() else setOf(this)
 
-        return byReceiver + byArguments + byParameters + bySelf
+        if (!invokedFunctionIsReadonly) {
+            visitor.visitWriteBeyondBoundary(boundary, this)
+        }
     }
 
     private var expectedEvaluationResultType: BoundTypeReference? = null

@@ -3,7 +3,7 @@ package compiler.binding.expression
 import compiler.ast.expression.BinaryExpression
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.BoundExecutable
+import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.combineBranch
@@ -100,15 +100,14 @@ class BoundNullCoalescingExpression(
         alternativeExpression.semanticAnalysisPhase3(diagnosis)
     }
 
-    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
-        return nullableExpression.findReadsBeyond(boundary, diagnosis) + alternativeExpression.findReadsBeyond(boundary, diagnosis)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        nullableExpression.visitReadsBeyond(boundary, visitor, diagnosis)
+        alternativeExpression.visitReadsBeyond(boundary, visitor, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
-        return nullableExpression.findWritesBeyond(boundary, diagnosis) + alternativeExpression.findWritesBeyond(
-            boundary,
-            diagnosis
-        )
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        nullableExpression.visitWritesBeyond(boundary, visitor, diagnosis)
+        alternativeExpression.visitWritesBeyond(boundary, visitor, diagnosis)
     }
 
     override val isEvaluationResultReferenceCounted: Boolean

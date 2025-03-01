@@ -104,12 +104,12 @@ abstract class BoundAssignmentStatement(
 
     protected abstract fun additionalSemanticAnalysisPhase3(diagnosis: Diagnosis)
 
-    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
-        return toAssignExpression.findReadsBeyond(boundary, diagnosis)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        toAssignExpression.visitReadsBeyond(boundary, visitor, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
-        return toAssignExpression.findWritesBeyond(boundary, diagnosis)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        toAssignExpression.visitWritesBeyond(boundary, visitor, diagnosis)
     }
 
     protected fun IrType.nullable(): IrType = if (isNullable) this else when (this) {

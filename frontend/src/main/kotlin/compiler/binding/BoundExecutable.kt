@@ -21,7 +21,6 @@ package compiler.binding
 import compiler.ast.Executable
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
@@ -72,7 +71,7 @@ interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
      * @return All the nested [BoundExecutable]s (or `this` if there are no nested ones) that read state that belongs
      *         to context outside the given boundary.
      */
-    fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> = emptySet() // TODO remove default impl
+    fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) = Unit // TODO remove default impl
 
     /**
      * Use to find violations of readonlyness and/or purity.
@@ -80,7 +79,7 @@ interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
      * @return All the nested [BoundExecutable]s (or `this` if there are no nested ones) that write state that belongs
      *         to context outside the given boundary.
      */
-    fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> = emptySet() // TODO remove default impl
+    fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) = Unit // TODO remove default impl
 
     fun toBackendIrStatement(): IrExecutable
 }

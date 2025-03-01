@@ -4,9 +4,9 @@ import compiler.InternalCompilerError
 import compiler.ast.expression.AstCatchBlockExpression
 import compiler.ast.type.TypeMutability
 import compiler.binding.BoundCodeChunk
-import compiler.binding.BoundExecutable
 import compiler.binding.BoundVariable
 import compiler.binding.DropLocalVariableStatement
+import compiler.binding.ImpurityVisitor
 import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -86,12 +86,12 @@ class BoundCatchBlockExpression(
         catchCode.setNothrow(boundary)
     }
 
-    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
-        return catchCode.findReadsBeyond(boundary, diagnosis)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        catchCode.visitReadsBeyond(boundary, visitor, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
-        return catchCode.findWritesBeyond(boundary, diagnosis)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        catchCode.visitWritesBeyond(boundary, visitor, diagnosis)
     }
 
     override fun markEvaluationResultCaptured(withMutability: TypeMutability) {

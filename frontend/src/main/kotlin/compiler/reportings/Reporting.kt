@@ -542,7 +542,7 @@ abstract class Reporting internal constructor(
         fun nullCheckOnNonNullableValue(value: BoundExpression<*>)
             = NullCheckingNonNullableValueReporting(value.declaration)
 
-        private fun readingPurityViolationToReporting(violation: BoundExpression<*>, boundary: PurityViolationReporting.SideEffectBoundary): Reporting {
+        fun readingPurityViolationToReporting(violation: BoundExpression<*>, boundary: PurityViolationReporting.SideEffectBoundary): Reporting {
             if (violation is BoundIdentifierExpression) {
                 return ReadInPureContextReporting(violation, boundary)
             }
@@ -550,7 +550,7 @@ abstract class Reporting internal constructor(
             return ImpureInvocationInPureContextReporting(violation, boundary)
         }
 
-        private fun modifyingPurityViolationToReporting(violation: BoundExecutable<*>, boundary: PurityViolationReporting.SideEffectBoundary): Reporting {
+        fun modifyingPurityViolationToReporting(violation: BoundExecutable<*>, boundary: PurityViolationReporting.SideEffectBoundary): Reporting {
             if (violation is BoundAssignmentStatement) {
                 return AssignmentOutsideOfPurityBoundaryReporting(violation, boundary)
             }

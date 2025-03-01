@@ -5,7 +5,6 @@ import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecutio
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
-import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrConditionalBranchImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrLoopImpl
@@ -63,12 +62,14 @@ class BoundWhileLoop(
         }
     }
 
-    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
-        return condition.findReadsBeyond(boundary, diagnosis) + body.findReadsBeyond(boundary, diagnosis)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        condition.visitReadsBeyond(boundary, visitor, diagnosis)
+        body.visitReadsBeyond(boundary, visitor, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
-        return condition.findWritesBeyond(boundary, diagnosis) + body.findWritesBeyond(boundary, diagnosis)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        condition.visitWritesBeyond(boundary, visitor, diagnosis)
+        body.visitWritesBeyond(boundary, visitor, diagnosis)
     }
 
     private val backendIr by lazy {

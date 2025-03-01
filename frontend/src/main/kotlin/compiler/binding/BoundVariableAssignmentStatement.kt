@@ -78,13 +78,20 @@ class BoundVariableAssignmentStatement(
         }
     }
 
-    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
-        if (targetVariable == null || context.containsWithinBoundary(targetVariable!!, boundary)) {
-            return super.findWritesBeyond(boundary, diagnosis)
-        }
-
-        return super.findWritesBeyond(boundary, diagnosis) + listOf(this)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        toAssignExpression.visitReadsBeyond(boundary, visitor, diagnosis)
     }
+
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        targetVariable
+            ?.takeIf { !context.containsWithinBoundary(it, boundary) }
+            ?.let {
+                visitor.visitWriteBeyondBoundary(boundary, this)
+            }
+
+        super.visitWritesBeyond(boundary, visitor, diagnosis)
+    }
+
 
     override fun toBackendIrStatement(): IrExecutable {
         val dropPreviousCode: List<IrExecutable> = when (initializationStateBefore) {

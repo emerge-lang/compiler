@@ -143,23 +143,24 @@ class BoundCodeChunk(
         }
     }
 
-    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
         seanHelper.requirePhase3Done()
-        return statements.flatMap {
+        statements.forEach {
             handleCyclicInvocation(
                 context = this,
-                action =  { it.findReadsBeyond(boundary, diagnosis) },
-                onCycle = ::emptySet,
+                action = { it.visitReadsBeyond(boundary, visitor, diagnosis) },
+                onCycle = { },
             )
         }
     }
 
-    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
-        return statements.flatMap {
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        seanHelper.requirePhase3Done()
+        statements.forEach {
             handleCyclicInvocation(
                 context = this,
-                action = { it.findWritesBeyond(boundary, diagnosis) },
-                onCycle = ::emptySet,
+                action = { it.visitWritesBeyond(boundary, visitor, diagnosis) },
+                onCycle = { },
             )
         }
     }

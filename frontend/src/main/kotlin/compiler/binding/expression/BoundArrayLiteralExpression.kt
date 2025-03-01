@@ -4,7 +4,7 @@ import compiler.ast.expression.ArrayLiteralExpression
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
-import compiler.binding.BoundExecutable
+import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.basetype.BoundBaseType
@@ -97,12 +97,16 @@ class BoundArrayLiteralExpression(
         return elements.forEach { it.semanticAnalysisPhase3(diagnosis) }
     }
 
-    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
-        return elements.flatMap { it.findReadsBeyond(boundary, diagnosis) }
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        elements.forEach {
+            it.visitReadsBeyond(boundary, visitor, diagnosis)
+        }
     }
 
-    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
-        return elements.flatMap { it.findWritesBeyond(boundary, diagnosis) }
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        elements.forEach {
+            it.visitWritesBeyond(boundary, visitor, diagnosis)
+        }
     }
 
     override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {

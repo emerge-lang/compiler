@@ -23,6 +23,7 @@ import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundVariable
+import compiler.binding.ImpurityVisitor
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
@@ -108,13 +109,12 @@ class BoundIdentifierExpression(
         referral?.semanticAnalysisPhase3(diagnosis)
     }
 
-    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
-        return referral?.findReadsBeyond(boundary) ?: emptySet()
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        referral?.visitReadsBeyond(boundary, visitor, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
-        // this does not write by itself; writs are done by other statements
-        return emptySet()
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        // this does not write by itself; writes are done by other statements
     }
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
@@ -133,7 +133,7 @@ class BoundIdentifierExpression(
         override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
 
         /** @see BoundExpression.findReadsBeyond */
-        fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>>
+        fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis)
 
         /** @see BoundExpression.markEvaluationResultUsed */
         fun markEvaluationResultUsed()
@@ -238,12 +238,14 @@ class BoundIdentifierExpression(
             }
         }
 
-        override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
-            return when {
-                context.containsWithinBoundary(variable, boundary) -> emptySet()
-                isCompileTimeConstant -> emptySet()
-                else -> setOf(this@BoundIdentifierExpression)
+        override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+            if (context.containsWithinBoundary(variable, boundary)) {
+                return
             }
+            if (isCompileTimeConstant) {
+                return
+            }
+            visitor.visitReadBeyondBoundary(boundary, this@BoundIdentifierExpression)
         }
 
         override val isCompileTimeConstant: Boolean
@@ -258,9 +260,8 @@ class BoundIdentifierExpression(
         override fun markEvaluationResultUsed() {}
         override fun markEvaluationResultCaptured(withMutability: TypeMutability) {}
 
-        override fun findReadsBeyond(boundary: CTContext): Collection<BoundExpression<*>> {
+        override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
             // reading type information outside the boundary is pure because type information is compile-time constant
-            return emptySet()
         }
 
         override val isCompileTimeConstant = true

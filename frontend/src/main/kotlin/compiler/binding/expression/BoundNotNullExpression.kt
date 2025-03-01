@@ -25,6 +25,7 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
+import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -99,12 +100,12 @@ class BoundNotNullExpression(
         }
     }
 
-    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
-        return nullableExpression.findReadsBeyond(boundary, diagnosis)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        nullableExpression.visitReadsBeyond(boundary, visitor, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
-        return nullableExpression.findWritesBeyond(boundary, diagnosis)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        nullableExpression.visitWritesBeyond(boundary, visitor, diagnosis)
     }
 
     override val isEvaluationResultReferenceCounted get() = nullableExpression.isEvaluationResultReferenceCounted

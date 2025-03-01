@@ -20,6 +20,7 @@ import compiler.binding.type.TypeUseSite
 import compiler.lexer.Span
 import compiler.reportings.Diagnosis
 import compiler.reportings.NothrowViolationReporting
+import compiler.reportings.PurityViolationReporting
 import compiler.reportings.Reporting
 import compiler.reportings.ReturnTypeMismatchReporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -145,21 +146,19 @@ abstract class BoundDeclaredFunction(
                 body.semanticAnalysisPhase3(diagnosis)
 
                 if (BoundFunction.Purity.READONLY.contains(this.purity)) {
-                    val statementsWritingBeyondFunctionContext = handleCyclicInvocation(
+                    val diagnosingVisitor = PurityViolationImpurityVisitor(diagnosis, PurityViolationReporting.SideEffectBoundary.Function(this))
+                    handleCyclicInvocation(
                         context = this,
-                        action = { body.findWritesBeyond(context, diagnosis) },
-                        onCycle = ::emptySet,
+                        action = { body.visitWritesBeyond(context, diagnosingVisitor, diagnosis) },
+                        onCycle = {},
                     )
 
                     if (BoundFunction.Purity.PURE.contains(this.purity)) {
-                        val statementsReadingBeyondFunctionContext = handleCyclicInvocation(
+                        handleCyclicInvocation(
                             context = this,
-                            action = { body.findReadsBeyond(context, diagnosis) },
-                            onCycle = ::emptySet,
+                            action = { body.visitReadsBeyond(context, diagnosingVisitor, diagnosis) },
+                            onCycle = {},
                         )
-                        Reporting.purityViolations(statementsReadingBeyondFunctionContext, statementsWritingBeyondFunctionContext, this, diagnosis)
-                    } else {
-                        Reporting.readonlyViolations(statementsWritingBeyondFunctionContext, this, diagnosis)
                     }
                 }
 

@@ -14,7 +14,6 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundCodeChunk
-import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundParameterList
@@ -23,6 +22,7 @@ import compiler.binding.IrAssignmentStatementImpl
 import compiler.binding.IrAssignmentStatementTargetClassFieldImpl
 import compiler.binding.IrAssignmentStatementTargetVariableImpl
 import compiler.binding.IrCodeChunkImpl
+import compiler.binding.PurityViolationImpurityVisitor
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
@@ -31,7 +31,6 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
-import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrReturnStatementImpl
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -50,6 +49,7 @@ import compiler.lexer.OperatorToken
 import compiler.lexer.Span
 import compiler.reportings.ClassMemberVariableNotInitializedDuringObjectConstructionReporting
 import compiler.reportings.Diagnosis
+import compiler.reportings.PurityViolationReporting
 import compiler.reportings.Reporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
@@ -299,36 +299,25 @@ class BoundClassConstructor(
             additionalInitCode.semanticAnalysisPhase3(diagnosis)
 
             if (BoundFunction.Purity.READONLY.contains(this.purity)) {
-                val statementsWritingBeyondConstructorContext: Collection<BoundExecutable<*>> = handleCyclicInvocation(
-                    this,
+                val diagnosingVisitor = PurityViolationImpurityVisitor(diagnosis, PurityViolationReporting.SideEffectBoundary.Function(this))
+                handleCyclicInvocation(
+                    context = this,
                     action = {
-                        boundMemberVariableInitCodeFromExpression.findWritesBeyond(
-                            constructorFunctionRootContext,
-                            diagnosis
-                        ) +
-                                additionalInitCode.findWritesBeyond(constructorFunctionRootContext, diagnosis)
+                        boundMemberVariableInitCodeFromExpression.visitWritesBeyond(constructorFunctionRootContext, diagnosingVisitor, diagnosis)
+                        additionalInitCode.visitWritesBeyond(constructorFunctionRootContext, diagnosingVisitor, diagnosis)
                     },
-                    onCycle = ::emptySet,
+                    onCycle = {},
                 )
 
                 if (BoundFunction.Purity.PURE.contains(this.purity)) {
-                    val statementsReadingBeyondConstructorContext: Collection<BoundExpression<*>> = handleCyclicInvocation(
-                        this,
+                    handleCyclicInvocation(
+                        context = this,
                         action = {
-                            boundMemberVariableInitCodeFromExpression.findReadsBeyond(constructorFunctionRootContext, diagnosis) +
-                                    additionalInitCode.findReadsBeyond(constructorFunctionRootContext, diagnosis)
+                            boundMemberVariableInitCodeFromExpression.visitReadsBeyond(constructorFunctionRootContext, diagnosingVisitor, diagnosis)
+                            additionalInitCode.visitReadsBeyond(constructorFunctionRootContext, diagnosingVisitor, diagnosis)
                         },
-                        onCycle = ::emptySet,
+                        onCycle = {},
                     )
-
-                    Reporting.purityViolations(
-                        statementsReadingBeyondConstructorContext,
-                        statementsWritingBeyondConstructorContext,
-                        this,
-                        diagnosis
-                    )
-                } else {
-                    Reporting.readonlyViolations(statementsWritingBeyondConstructorContext, this, diagnosis)
                 }
             }
 

@@ -19,7 +19,7 @@
 package compiler.binding.expression
 
 import compiler.ast.expression.MemberAccessExpression
-import compiler.binding.BoundExecutable
+import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
@@ -111,12 +111,12 @@ class BoundMemberAccessExpression(
         member?.validateAccessFrom(declaration.memberName.span, diagnosis)
     }
 
-    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
-        return valueExpression.findReadsBeyond(boundary, diagnosis)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        valueExpression.visitReadsBeyond(boundary, visitor, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
-        return valueExpression.findWritesBeyond(boundary, diagnosis)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        valueExpression.visitWritesBeyond(boundary, visitor, diagnosis)
     }
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {

@@ -20,6 +20,7 @@ package compiler.binding.expression
 
 import compiler.ast.expression.NullLiteralExpression
 import compiler.ast.type.TypeReference
+import compiler.binding.ImpurityVisitor
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -50,8 +51,8 @@ class BoundNullLiteralExpression(
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
 
-    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> = emptySet()
-    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> = emptySet()
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) = Unit
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) = Unit
     override fun setNothrow(boundary: NothrowViolationReporting.SideEffectBoundary) {}
 
     override val isEvaluationResultReferenceCounted = false

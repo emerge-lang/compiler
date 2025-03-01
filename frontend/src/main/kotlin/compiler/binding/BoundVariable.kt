@@ -261,12 +261,12 @@ class BoundVariable(
         newCtx
     }
 
-    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
-        return initializerExpression?.findReadsBeyond(boundary, diagnosis) ?: emptySet()
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        initializerExpression?.visitReadsBeyond(boundary, visitor, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
-        return initializerExpression?.findWritesBeyond(boundary, diagnosis) ?: emptySet()
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        initializerExpression?.visitWritesBeyond(boundary, visitor, diagnosis)
     }
 
     fun getInitializationStateInContext(context: ExecutionScopedCTContext): VariableInitialization.State {

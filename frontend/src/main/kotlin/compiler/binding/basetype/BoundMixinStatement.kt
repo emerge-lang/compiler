@@ -4,8 +4,8 @@ import compiler.InternalCompilerError
 import compiler.ast.AstMixinStatement
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.BoundExecutable
 import compiler.binding.BoundStatement
+import compiler.binding.ImpurityVisitor
 import compiler.binding.IrAssignmentStatementImpl
 import compiler.binding.IrAssignmentStatementTargetClassFieldImpl
 import compiler.binding.IrCodeChunkImpl
@@ -99,12 +99,12 @@ class BoundMixinStatement(
         }
     }
 
-    override fun findReadsBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExpression<*>> {
-        return expression.findReadsBeyond(boundary, diagnosis)
+    override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        expression.visitReadsBeyond(boundary, visitor, diagnosis)
     }
 
-    override fun findWritesBeyond(boundary: CTContext, diagnosis: Diagnosis): Collection<BoundExecutable<*>> {
-        return expression.findWritesBeyond(boundary, diagnosis)
+    override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor, diagnosis: Diagnosis) {
+        expression.visitWritesBeyond(boundary, visitor, diagnosis)
     }
 
     override fun toBackendIrStatement(): IrExecutable {

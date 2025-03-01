@@ -22,13 +22,14 @@ import compiler.ast.BaseTypeMemberDeclaration
 import compiler.ast.BaseTypeMemberVariableDeclaration
 import compiler.ast.expression.IdentifierExpression
 import compiler.binding.DefinitionWithVisibility
+import compiler.binding.PurityViolationImpurityVisitor
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.lexer.Span
 import compiler.reportings.Diagnosis
-import compiler.reportings.Reporting
+import compiler.reportings.PurityViolationReporting
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
@@ -88,13 +89,10 @@ class BoundBaseTypeMemberVariable(
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         boundEffectiveVariableDeclaration.semanticAnalysisPhase3(diagnosis)
 
-        if (boundEffectiveVariableDeclaration.initializerExpression != null) {
-            Reporting.purityViolations(
-                boundEffectiveVariableDeclaration.initializerExpression.findReadsBeyond(context, diagnosis),
-                boundEffectiveVariableDeclaration.initializerExpression.findWritesBeyond(context, diagnosis),
-                this,
-                diagnosis,
-            )
+        boundEffectiveVariableDeclaration.initializerExpression?.let { initializer ->
+            val diagnosingVisitor = PurityViolationImpurityVisitor(diagnosis, PurityViolationReporting.SideEffectBoundary.ClassMemberInitializer(this))
+            initializer.visitWritesBeyond(context, diagnosingVisitor, diagnosis)
+            initializer.visitReadsBeyond(context, diagnosingVisitor, diagnosis)
         }
     }
 
