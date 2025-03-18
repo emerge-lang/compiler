@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: cache-glibc
-        uses: actions/cache@v4.1.0
+        uses: actions/cache@v4.2.2
         with:
           path: |
             ${{ github.workspace }}/glibc-build/csu
@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: cache-gcc
-        uses: actions/cache@v4.1.0
+        uses: actions/cache@v4.2.2
         with:
           path: |
             ${{ github.workspace }}/gcc-build/x86_64-pc-linux-gnu/libgcc
@@ -87,7 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: cache-libunwind
-        uses: actions/cache@v4.1.0
+        uses: actions/cache@v4.2.2
         with:
           path: |
             ${{ github.workspace }}/libunwind-install/lib
@@ -112,7 +112,7 @@ jobs:
     name: emerge compiler maven verify
     steps:
       - id: cache-emerge-toolchain-maven
-        uses: actions/cache@v4.1.0
+        uses: actions/cache@v4.2.2
         with:
           path: |
             ${{ github.workspace }}/toolchain/target/toolchain.jar
