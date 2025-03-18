@@ -121,6 +121,8 @@ class PurityErrors : FreeSpec({
                     .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
             }
         }
+
+        // return as mut type not relevant, because even reading the global is not allowed in pure context
     }
 
     "mutation outside of a read context" - {
@@ -162,6 +164,183 @@ class PurityErrors : FreeSpec({
                     }
                 """.trimIndent())
                     .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
+            }
+
+            "assigning a global variable to a local variable of mutable type" - {
+                "in initializer" {
+                    validateModule("""
+                        class Box {
+                            var n: S32 = 0
+                        }
+                        var globalBox = Box()
+                        read fn test() {
+                            localBox: mut Box = globalBox
+                        }
+                    """.trimIndent())
+                        .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                }
+
+                "in assigment statement" - {
+                    "directly" {
+                        validateModule("""
+                            class Box {
+                                var n: S32 = 0
+                            }
+                            var globalBox = Box()
+                            read fn test() {
+                                localBox: mut Box
+                                set localBox = globalBox
+                            }
+                        """.trimIndent())
+                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                    }
+
+                    "through if-else" {
+                        validateModule("""
+                            intrinsic read fn random() -> Bool
+                            class Box {
+                                var n: S32 = 0
+                            }
+                            var globalBox = Box()
+                            read fn test() {
+                                localBox: mut Box
+                                set localBox = if (random()) globalBox else Box()
+                            }
+                        """.trimIndent())
+                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+
+                        validateModule("""
+                            intrinsic read fn random() -> Bool
+                            class Box {
+                                var n: S32 = 0
+                            }
+                            var globalBox = Box()
+                            read fn test() {
+                                localBox: mut Box
+                                set localBox = if (random()) Box() else globalBox
+                            }
+                        """.trimIndent())
+                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                    }
+
+                    "through try-catch" {
+                        validateModule("""
+                            intrinsic read fn randomThrow()
+                            class Box {
+                                var n: S32 = 0
+                            }
+                            var globalBox = Box()
+                            read fn test() {
+                                localBox: mut Box
+                                set localBox = try {
+                                    randomThrow()
+                                    globalBox
+                                } catch e {
+                                    Box()
+                                }
+                            }
+                        """.trimIndent())
+                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+
+                        validateModule("""
+                            intrinsic read fn randomThrow()
+                            class Box {
+                                var n: S32 = 0
+                            }
+                            var globalBox = Box()
+                            read fn test() {
+                                localBox: mut Box
+                                set localBox = try {
+                                    randomThrow()
+                                    Box()
+                                } catch e {
+                                    globalBox
+                                }
+                            }
+                        """.trimIndent())
+                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                    }
+
+                    "through array literal" {
+                        validateModule("""
+                            class Box {
+                                var n: S32 = 0
+                            }
+                            var globalBox = Box()
+                            read fn test() {
+                                localBox: Array<mut Box>
+                                set localBox = [globalBox]
+                            }
+                        """.trimIndent())
+                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+
+                        validateModule("""
+                            class Box {
+                                var n: S32 = 0
+                            }
+                            var globalBox = Box()
+                            read fn test() {
+                                localBox: Array<read Box>
+                                set localBox = [globalBox]
+                            }
+                        """.trimIndent())
+                            .shouldHaveNoDiagnostics()
+                    }
+
+                    "through not null expression" {
+                        validateModule("""
+                            class Box {
+                                var n: S32 = 0
+                            }
+                            var globalBox: mut Box? = Box()
+                            read fn test() {
+                                localBox: mut Box = globalBox!!
+                            }
+                        """.trimIndent())
+                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                    }
+
+                    "through null-coalescing expression" {
+                        validateModule("""
+                            class Box {
+                                var n: S32 = 0
+                            }
+                            var globalBox: mut Box? = Box()
+                            read fn test() {
+                                localBox: mut Box
+                                set localBox = globalBox ?: Box()
+                            }
+                        """.trimIndent())
+                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+
+                        validateModule("""
+                            class Box {
+                                var n: S32 = 0
+                            }
+                            var globalBox: mut Box? = Box()
+                            read fn test() {
+                                localBox: mut Box
+                                set localBox = Box() ?: globalBox
+                            }
+                        """.trimIndent())
+                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                    }
+
+                    "through throw expression" {
+                        validateModule("""
+                            class SampleEx : Throwable {
+                                constructor {
+                                    mixin ThrowableTrait("foo")
+                                }
+                            }
+                            var globalEx: mut SampleEx = SampleEx()
+                            read fn test() {
+                                throw globalEx
+                            }
+                        """.trimIndent())
+                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                    }
+                }
             }
         }
 
@@ -236,5 +415,30 @@ class PurityErrors : FreeSpec({
                     .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
             }
         }
+
+        "by returning as a mut type" {
+            validateModule("""
+                class Box {
+                    var n: S32 = 0
+                }
+                var globalBox = Box()
+                read fn test() -> mut Box = globalBox
+            """.trimIndent())
+                .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+        }
+    }
+
+    "mutation hidden to calling site" {
+        validateModule("""
+            class Box {
+                var n: S32 = 1
+            }
+            class Holder {
+                box: mut Box = Box()
+                
+                fn getMutBox(self: read _) -> mut Box = self.box
+            }
+        """.trimIndent())
+            .shouldFind<ModifyingInvocationInReadonlyContextDiagnostic>()
     }
 })
