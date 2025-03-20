@@ -15,6 +15,8 @@ object KotestProjectConfig : AbstractProjectConfig() {
         assureLlvmIsDynamicallyLinked()
     }
 
+    override val parallelism: Int = Runtime.getRuntime().availableProcessors()
+
     private fun assureLlvmIsDynamicallyLinked() {
         if (loaded) {
             return
