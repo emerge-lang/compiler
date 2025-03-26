@@ -29,6 +29,14 @@ class RepeatingRule<Item : Any>(
         }
     }
 
+    override fun <R : Any> visit(visitor: GrammarVisitor<R>) {
+        visitNoReference(visitor)
+    }
+
+    override fun <R : Any> visitNoReference(visitor: GrammarVisitor<R>) {
+        visitor.visitRepeating(subRule, lowerBound, upperBound.takeUnless { it == UInt.MAX_VALUE })
+    }
+
     private suspend fun SequenceScope<MatchingResult<RepeatedMatch<Item>>>.match(tokens: Array<Token>, atIndex: Int, resultsThusFar: List<MatchingResult.Success<Item>>) {
         for (subResult in subRule.match(tokens, atIndex)) {
             when (subResult) {

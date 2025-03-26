@@ -15,5 +15,9 @@ class EitherOfRule(
             .flatMap { choice -> choice.match(tokens, atIndex) }
     }
 
+    override fun <R : Any> visitNoReference(visitor: GrammarVisitor<R>) {
+        visitor.visitEitherOf(options)
+    }
+
     override fun toString() = explicitName ?: super.toString()
 }

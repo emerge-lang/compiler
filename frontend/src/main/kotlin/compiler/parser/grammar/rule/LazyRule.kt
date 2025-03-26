@@ -7,5 +7,7 @@ class LazyRule<T : Any>(private val compute: () -> Rule<T>) : Rule<T> {
 
     override val explicitName get() = rule.explicitName
     override fun match(tokens: Array<Token>, atIndex: Int) = rule.match(tokens, atIndex)
+    override fun <R : Any> visit(visitor: GrammarVisitor<R>) = rule.visit(visitor)
+    override fun <R : Any> visitNoReference(visitor: GrammarVisitor<R>) = rule.visitNoReference(visitor)
     override fun toString() = rule.toString()
 }

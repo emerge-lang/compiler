@@ -32,6 +32,19 @@ class SequenceRule(
         }
     }
 
+    override fun <R : Any> visit(visitor: GrammarVisitor<R>) {
+        val reference = if (explicitName != null) visitor.tryGetReference(this) else null
+        if (reference != null) {
+            visitor.visitReference(reference)
+        } else {
+            visitNoReference(visitor)
+        }
+    }
+
+    override fun <R : Any> visitNoReference(visitor: GrammarVisitor<R>) {
+        visitor.visitSequence(subRules.asIterable())
+    }
+
     override fun toString() = explicitName ?: super.toString()
 
     data class MatchedSequence(val subResults: List<Any>)

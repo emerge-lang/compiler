@@ -37,6 +37,16 @@ interface Rule<out Item : Any> {
     that flatMap more efficient.
      */
     fun match(tokens: Array<Token>, atIndex: Int): Sequence<MatchingResult<Item>>
+
+    fun <R : Any> visit(visitor: GrammarVisitor<R>) {
+        val reference = visitor.tryGetReference(this)
+        if (reference == null) {
+            visitNoReference(visitor)
+        } else {
+            visitor.visitReference(reference)
+        }
+    }
+    fun <R : Any> visitNoReference(visitor: GrammarVisitor<R>)
 }
 
 fun <Item : Any> matchAgainst(tokens: Array<Token>, rule: Rule<Item>): MatchingResult<Item> {

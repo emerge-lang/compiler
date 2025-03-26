@@ -24,6 +24,7 @@ import compiler.lexer.Token
 import compiler.parser.grammar.rule.MatchingResult
 import compiler.parser.grammar.rule.RepeatingRule
 import compiler.parser.grammar.rule.Rule
+import compiler.parser.grammar.rule.GrammarVisitor
 import compiler.parser.grammar.rule.SequenceRule
 import compiler.transact.Position
 import compiler.transact.SimpleTransactionalSequence
@@ -48,6 +49,14 @@ fun <Base : Any, Mapped : Any> Rule<Base>.map(mapper: (MatchingResult<Base>) -> 
         override val explicitName get() = this@map.explicitName
         override fun match(tokens: Array<Token>, atIndex: Int): Sequence<MatchingResult<Mapped>> {
             return this@map.match(tokens, atIndex).map(mapper)
+        }
+
+        override fun <R : Any> visit(visitor: GrammarVisitor<R>) {
+            this@map.visit(visitor)
+        }
+
+        override fun <R : Any> visitNoReference(visitor: GrammarVisitor<R>) {
+            this@map.visitNoReference(visitor)
         }
     }
 }
