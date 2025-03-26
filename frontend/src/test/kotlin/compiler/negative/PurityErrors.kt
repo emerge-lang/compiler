@@ -5,7 +5,9 @@ import compiler.diagnostic.ImpureInvocationInPureContextDiagnostic
 import compiler.diagnostic.ModifyingInvocationInReadonlyContextDiagnostic
 import compiler.diagnostic.MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic
 import compiler.diagnostic.ReadInPureContextDiagnostic
+import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.shouldBe
 
 class PurityErrors : FreeSpec({
     "reading compile-time constant globals is okay from a pure context" {
@@ -340,6 +342,69 @@ class PurityErrors : FreeSpec({
                         """.trimIndent())
                             .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
                     }
+
+                    "through member accesses" - {
+                        "nesting depth 1" {
+                            validateModule("""
+                                class Box1 {
+                                    var n: S32 = 1
+                                }
+                                class Box2 {
+                                    var b1: mut Box1 = Box1()
+                                }
+                                var globalBox2: mut Box2 = Box2()
+                                read fn test() {
+                                    localBox1: mut Box1
+                                    set localBox1 = globalBox2.b1
+                                }
+                            """.trimIndent()
+                            )
+                                .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                        }
+
+                        "nesting depth 2" {
+                            validateModule("""
+                                class Box1 {
+                                    var n: S32 = 1
+                                }
+                                class Box2 {
+                                    var b1: mut Box1 = Box1()
+                                }
+                                class Box3 {
+                                    var b2: mut Box2 = Box2()
+                                }
+                                var globalBox3: mut Box3 = Box3()
+                                read fn test() {
+                                    localBox1: mut Box1
+                                    set localBox1 = globalBox3.b2.b1
+                                }
+                            """.trimIndent())
+                                .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                        }
+
+                        "nesting depth 3" {
+                            validateModule("""
+                                class Box1 {
+                                    var n: S32 = 1
+                                }
+                                class Box2 {
+                                    var b1: mut Box1 = Box1()
+                                }
+                                class Box3 {
+                                    var b2: mut Box2 = Box2()
+                                }
+                                class Box4 {
+                                    var b3: mut Box3 = Box3()
+                                }
+                                var globalBox4: mut Box4 = Box4()
+                                read fn test() {
+                                    localBox1: mut Box1
+                                    set localBox1 = globalBox4.b3.b2.b1
+                                }
+                            """.trimIndent())
+                                .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                        }
+                    }
                 }
             }
         }
@@ -443,17 +508,52 @@ class PurityErrors : FreeSpec({
         }
     }
 
-    "mutation hidden to calling site" {
-        validateModule("""
-            class Box {
-                var n: S32 = 1
-            }
-            class Holder {
-                box: mut Box = Box()
-                
-                fn getMutBox(self: read _) -> mut Box = self.box
-            }
-        """.trimIndent())
-            .shouldFind<ModifyingInvocationInReadonlyContextDiagnostic>()
+    "object traversal limits mutability" - {
+        // exclusive mutability on object members is currently not allowed, so no need to test
+
+        "member declared mut, accessed through read reference to the object - mutability becomes read" {
+            validateModule("""
+                class Box {
+                    var n: S32 = 0
+                }
+                class Holder {
+                    box: mut Box = Box()
+                }
+                fn test(p: read Holder) -> mut Box = p.box
+            """.trimIndent())
+                .shouldFind< ValueNotAssignableDiagnostic> {
+                    it.sourceType.toString() shouldBe "read testmodule.Box"
+                    it.targetType.toString() shouldBe "mut testmodule.Box"
+                }
+        }
+
+        "member declared mut, accessed through const reference to the object - mutability becomes read" {
+            validateModule("""
+                class Box {
+                    var n: S32 = 0
+                }
+                class Holder {
+                    box: mut Box = Box()
+                }
+                fn test(p: const Holder) -> mut Box = p.box
+            """.trimIndent())
+                .shouldFind< ValueNotAssignableDiagnostic> {
+                    it.sourceType.toString() shouldBe "read testmodule.Box"
+                    it.targetType.toString() shouldBe "mut testmodule.Box"
+                }
+        }
+
+        "member declared const, accessed through mut reference to the object - mutability stays const" {
+            validateModule("""
+                class Box {
+                    var n: S32 = 0
+                }
+                class Holder {
+                    box: const Box = Box()
+                }
+                fn test(p: mut Holder) -> const Box = p.box
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
     }
 })

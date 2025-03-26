@@ -91,7 +91,9 @@ class BoundMemberAccessExpression(
                 diagnosis.unresolvableMemberVariable(this, valueType)
             } else {
                 this.member = member
-                this.type = member.type?.instantiateAllParameters(valueType.inherentTypeBindings)
+                this.type = member.type
+                    ?.instantiateAllParameters(valueType.inherentTypeBindings)
+                    ?.withCombinedMutability(valueExpression.type?.mutability)
 
                 if (usageContext.requiresMemberInitialized) {
                     val isInitialized = valueExpression.tryAsVariable()?.let {
