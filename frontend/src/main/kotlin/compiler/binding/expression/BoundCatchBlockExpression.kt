@@ -66,7 +66,7 @@ class BoundCatchBlockExpression(
     }
 
     override fun markEvaluationResultUsed() {
-
+        catchCode.markEvaluationResultUsed()
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
