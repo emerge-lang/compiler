@@ -109,7 +109,7 @@ class ExceptionErrors : FreeSpec({
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic> {
                     it.sourceType.toString() shouldBe "const String"
-                    it.targetType.toString() shouldBe "read Throwable"
+                    it.targetType.toString() shouldBe "mut Throwable"
                 }
 
             validateModule("""
@@ -121,7 +121,7 @@ class ExceptionErrors : FreeSpec({
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic> {
                     it.sourceType.toString() shouldBe "read Throwable?"
-                    it.targetType.toString() shouldBe "read Throwable"
+                    it.targetType.toString() shouldBe "mut Throwable"
                 }
         }
     }
