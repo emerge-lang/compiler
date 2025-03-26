@@ -122,7 +122,7 @@ class BoundIdentifierExpression(
     }
 
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
-        // this does not write by itself; writes are done by other statements
+        referral?.visitWritesBeyond(boundary, visitor)
     }
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
@@ -142,6 +142,9 @@ class BoundIdentifierExpression(
 
         /** @see BoundExpression.findReadsBeyond */
         fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor)
+
+        /** @see BoundExpression.findWritesBeyond */
+        fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor)
 
         /** @see BoundExpression.markEvaluationResultUsed */
         fun markEvaluationResultUsed()
@@ -261,6 +264,16 @@ class BoundIdentifierExpression(
             visitor.visitReadBeyondBoundary(boundary, this@BoundIdentifierExpression)
         }
 
+        override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+            if (context.containsWithinBoundary(variable, boundary)) {
+                return
+            }
+            if (usedAsType?.mutability?.isMutable == false) {
+                return
+            }
+            visitor.visitWriteBeyondBoundary(boundary, this@BoundIdentifierExpression)
+        }
+
         override val isCompileTimeConstant: Boolean
             get() {
                 val isInitializedToCompileTimeConstant = variable.initializerExpression?.isCompileTimeConstant == true
@@ -274,6 +287,10 @@ class BoundIdentifierExpression(
         override fun markEvaluationResultCaptured(withMutability: TypeMutability) {}
 
         override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+            // reading type information outside the boundary is pure because type information is compile-time constant
+        }
+
+        override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
             // reading type information outside the boundary is pure because type information is compile-time constant
         }
 
