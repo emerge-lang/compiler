@@ -44,7 +44,7 @@ class BoundThrowExpression(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return seanHelper.phase2(diagnosis) {
-            val expectedType = context.swCtx.throwable.baseReference.withMutability(TypeMutability.READONLY)
+            val expectedType = context.swCtx.throwable.baseReference.withMutability(TypeMutability.MUTABLE)
             throwableExpression.setExpectedEvaluationResultType(expectedType, diagnosis)
             throwableExpression.semanticAnalysisPhase2(diagnosis)
             throwableExpression.type
