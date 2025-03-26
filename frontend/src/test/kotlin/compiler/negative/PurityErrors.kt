@@ -73,7 +73,7 @@ class PurityErrors : FreeSpec({
     "reading from outside a pure context" {
         validateModule("""
             var x = 1
-            pure fn a() {
+            fn a() {
                 x
             }
         """.trimIndent())
