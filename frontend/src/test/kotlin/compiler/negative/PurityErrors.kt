@@ -416,15 +416,30 @@ class PurityErrors : FreeSpec({
             }
         }
 
-        "by returning as a mut type" {
-            validateModule("""
-                class Box {
-                    var n: S32 = 0
-                }
-                var globalBox = Box()
-                read fn test() -> mut Box = globalBox
-            """.trimIndent())
-                .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+        "by returning as a mut type" - {
+            "through return statement" {
+                validateModule("""
+                    class Box {
+                        var n: S32 = 0
+                    }
+                    var globalBox = Box()
+                    read fn test() -> mut Box {
+                        return globalBox
+                    }
+                """.trimIndent())
+                    .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+            }
+
+            "through single expression fn body" {
+                validateModule("""
+                    class Box {
+                        var n: S32 = 0
+                    }
+                    var globalBox = Box()
+                    read fn test() -> mut Box = globalBox
+                """.trimIndent())
+                    .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+            }
         }
     }
 

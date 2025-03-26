@@ -17,15 +17,14 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
-import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.ReturnTypeMismatchDiagnostic
 import compiler.diagnostic.typeDeductionError
 import compiler.diagnostic.uncertainTermination
 import compiler.diagnostic.varianceOnFunctionTypeParameter
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
@@ -223,6 +222,7 @@ abstract class BoundDeclaredFunction(
             override val returnBehavior = SideEffectPrediction.GUARANTEED
 
             private var expectedReturnType: BoundTypeReference? = null
+            private val seanHelper = SeanHelper()
 
             override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
                 expectedReturnType = type
@@ -230,17 +230,28 @@ abstract class BoundDeclaredFunction(
             }
 
             override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-                expression.semanticAnalysisPhase1(diagnosis)
-                expression.markEvaluationResultUsed()
+                seanHelper.phase1(diagnosis) {
+                    expression.semanticAnalysisPhase1(diagnosis)
+                    expression.markEvaluationResultUsed()
+                }
+            }
+
+            override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+                seanHelper.phase2(diagnosis) {
+                    expression.semanticAnalysisPhase2(diagnosis)
+                    expression.setUsageContext(expectedReturnType ?: context.swCtx.unresolvableReplacementType)
+                }
             }
 
             override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
-                expression.semanticAnalysisPhase3(diagnosis)
-                expectedReturnType?.let { declaredReturnType ->
-                    expression.type?.let { actualReturnType ->
-                        actualReturnType.evaluateAssignabilityTo(declaredReturnType, expression.declaration.span)
-                            ?.let(::ReturnTypeMismatchDiagnostic)
-                            ?.let(diagnosis::add)
+                seanHelper.phase3(diagnosis) {
+                    expression.semanticAnalysisPhase3(diagnosis)
+                    expectedReturnType?.let { declaredReturnType ->
+                        expression.type?.let { actualReturnType ->
+                            actualReturnType.evaluateAssignabilityTo(declaredReturnType, expression.declaration.span)
+                                ?.let(::ReturnTypeMismatchDiagnostic)
+                                ?.let(diagnosis::add)
+                        }
                     }
                 }
             }
