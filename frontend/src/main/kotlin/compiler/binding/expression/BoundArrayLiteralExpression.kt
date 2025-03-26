@@ -88,7 +88,7 @@ class BoundArrayLiteralExpression(
             type = type?.withMutability(it.mutability)
         }
 
-        elements.forEach { it.setUsageContext(type!!) }
+        elements.forEach { it.setUsageContext(elementType) }
     }
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
