@@ -66,6 +66,20 @@ enum class TypeMutability(
         else -> READONLY
     }
 
+    /**
+     * |`this`     |[other]    |result     |
+     * |-----------|-----------|-----------|
+     * |`MUTABLE`  |`MUTABLE`  |`MUTABLE`  |
+     * |`MUTABLE`  |`READONLY` |`MUTABLE`  |
+     * |`MUTABLE`  |`IMMUTABLE`|`MUTABLE`  |
+     * |`READONLY` |`MUTABLE`  |`MUTABLE`  |
+     * |`READONLY` |`READONLY` |`READONLY` |
+     * |`READONLY` |`IMMUTABLE`|`IMMUTABLE`|
+     * |`IMMUTABLE`|`MUTABLE`  |`EXCLUSIVE`|
+     * |`IMMUTABLE`|`READONLY` |`IMMUTABLE`|
+     * |`IMMUTABLE`|`IMMUTABLE`|`IMMUTABLE`|
+     * @return mutability that allows for everything/guarantees for everything that any of `this` and [other] do:
+     */
     fun conjunctionWith(other: TypeMutability): TypeMutability = when(this) {
         MUTABLE -> when (other) {
             MUTABLE -> MUTABLE
@@ -76,11 +90,11 @@ enum class TypeMutability(
         READONLY -> when (other) {
             READONLY -> READONLY
             IMMUTABLE -> READONLY
-            else -> other.combinedWith(this)
+            else -> other.conjunctionWith(this)
         }
         IMMUTABLE -> when (other) {
             IMMUTABLE -> IMMUTABLE
-            else -> other.combinedWith(this)
+            else -> other.conjunctionWith(this)
         }
         EXCLUSIVE -> EXCLUSIVE
     }
