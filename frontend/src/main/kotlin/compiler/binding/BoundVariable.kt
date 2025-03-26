@@ -35,10 +35,7 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
-import compiler.handleCyclicInvocation
-import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.explicitInferTypeNotAllowed
 import compiler.diagnostic.explicitInferTypeWithArguments
@@ -48,6 +45,8 @@ import compiler.diagnostic.typeDeductionError
 import compiler.diagnostic.variableDeclaredMoreThanOnce
 import compiler.diagnostic.variableTypeNotDeclared
 import compiler.diagnostic.visibilityNotAllowedOnVariable
+import compiler.handleCyclicInvocation
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -225,6 +224,8 @@ class BoundVariable(
                         }
                     }
                 }
+
+                initializerExpression.setUsageContext(typeAtDeclarationTime ?: context.swCtx.unresolvableReplacementType)
             }
 
             // handle no initializer case
