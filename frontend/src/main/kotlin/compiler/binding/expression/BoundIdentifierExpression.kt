@@ -268,10 +268,9 @@ class BoundIdentifierExpression(
             if (context.containsWithinBoundary(variable, boundary)) {
                 return
             }
-            if (usedAsType?.mutability?.isMutable == false) {
-                return
+            if (usedAsType?.mutability?.isMutable == true) {
+                visitor.visitWriteBeyondBoundary(boundary, this@BoundIdentifierExpression)
             }
-            visitor.visitWriteBeyondBoundary(boundary, this@BoundIdentifierExpression)
         }
 
         override val isCompileTimeConstant: Boolean

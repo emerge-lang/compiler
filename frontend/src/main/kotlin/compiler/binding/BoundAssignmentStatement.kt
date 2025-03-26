@@ -70,6 +70,9 @@ abstract class BoundAssignmentStatement(
 
             toAssignExpression.semanticAnalysisPhase2(diagnosis)
             additionalSemanticAnalysisPhase2(diagnosis)
+            assignmentTargetType?.let { targetType ->
+                toAssignExpression.setUsageContext(targetType)
+            }
 
             toAssignExpression.type?.also { assignedType ->
                 assignmentTargetType?.also { targetType ->
