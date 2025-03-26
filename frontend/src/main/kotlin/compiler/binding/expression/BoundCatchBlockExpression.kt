@@ -86,6 +86,10 @@ class BoundCatchBlockExpression(
         catchCode.setNothrow(boundary)
     }
 
+    override fun setUsageContext(usedAsType: BoundTypeReference) {
+        catchCode.setUsageContext(usedAsType)
+    }
+
     override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         catchCode.visitReadsBeyond(boundary, visitor)
     }

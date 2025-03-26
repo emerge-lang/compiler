@@ -28,7 +28,6 @@ import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
-import compiler.binding.DetectingImpurityVisitor
 import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
@@ -44,9 +43,6 @@ import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.*
-import compiler.handleCyclicInvocation
-import compiler.lexer.IdentifierToken
-import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
@@ -56,6 +52,9 @@ import compiler.diagnostic.nothrowViolatingInvocation
 import compiler.diagnostic.typeDeductionError
 import compiler.diagnostic.unresolvableConstructor
 import compiler.diagnostic.varianceOnInvocationTypeArgument
+import compiler.handleCyclicInvocation
+import compiler.lexer.IdentifierToken
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrCatchExceptionStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrDynamicDispatchFunctionInvocationExpression
@@ -174,8 +173,12 @@ class BoundInvocationExpression(
             }
 
             chosenOverload!!.candidate.parameters.parameters.zip(listOfNotNull(receiverExceptReferringType) + valueArguments)
-                .filter { (parameter, _) -> parameter.ownershipAtDeclarationTime == VariableOwnership.CAPTURED }
-                .forEach { (parameter, argument) -> argument.markEvaluationResultCaptured(parameter.typeAtDeclarationTime?.mutability ?: TypeMutability.READONLY) }
+                .forEach { (parameter, argument) ->
+                    argument.setUsageContext(parameter.typeAtDeclarationTime ?: context.swCtx.unresolvableReplacementType)
+                    if (parameter.ownershipAtDeclarationTime == VariableOwnership.CAPTURED) {
+                        argument.markEvaluationResultCaptured(parameter.typeAtDeclarationTime?.mutability ?: TypeMutability.READONLY)
+                    }
+                }
         }
     }
 
@@ -370,6 +373,11 @@ class BoundInvocationExpression(
     private var nothrowBoundary: NothrowViolationDiagnostic.SideEffectBoundary? = null
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         this.nothrowBoundary = boundary
+    }
+
+    override fun setUsageContext(usedAsType: BoundTypeReference) {
+        // nothing to do; a function return type can always be captured and purity is checked fully
+        // inside the function implementation.
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

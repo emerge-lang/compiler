@@ -85,6 +85,11 @@ class BoundIfExpression(
         isInExpressionContext = true
     }
 
+    override fun setUsageContext(usedAsType: BoundTypeReference) {
+        thenCode.setUsageContext(usedAsType)
+        elseCode?.setUsageContext(usedAsType)
+    }
+
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         condition.semanticAnalysisPhase2(diagnosis)
         thenCode.semanticAnalysisPhase2(diagnosis)

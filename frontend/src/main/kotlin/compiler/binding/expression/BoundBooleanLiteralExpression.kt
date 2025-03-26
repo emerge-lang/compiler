@@ -48,6 +48,10 @@ class BoundBooleanLiteralExpression(
         // nothing to do
     }
 
+    override fun setUsageContext(usedAsType: BoundTypeReference) {
+        // not relevant
+    }
+
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) = Unit
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit

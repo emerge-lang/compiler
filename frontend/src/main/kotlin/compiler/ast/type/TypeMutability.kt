@@ -66,6 +66,25 @@ enum class TypeMutability(
         else -> READONLY
     }
 
+    fun conjunctionWith(other: TypeMutability): TypeMutability = when(this) {
+        MUTABLE -> when (other) {
+            MUTABLE -> MUTABLE
+            READONLY -> MUTABLE
+            IMMUTABLE -> EXCLUSIVE
+            EXCLUSIVE -> EXCLUSIVE
+        }
+        READONLY -> when (other) {
+            READONLY -> READONLY
+            IMMUTABLE -> READONLY
+            else -> other.combinedWith(this)
+        }
+        IMMUTABLE -> when (other) {
+            IMMUTABLE -> IMMUTABLE
+            else -> other.combinedWith(this)
+        }
+        EXCLUSIVE -> EXCLUSIVE
+    }
+
     fun toBackendIr(): IrTypeMutability = when (this) {
         IMMUTABLE -> IrTypeMutability.EXCLUSIVE
         READONLY -> IrTypeMutability.READONLY

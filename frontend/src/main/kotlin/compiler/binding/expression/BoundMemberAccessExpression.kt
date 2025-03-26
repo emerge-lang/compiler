@@ -19,6 +19,7 @@
 package compiler.binding.expression
 
 import compiler.ast.expression.MemberAccessExpression
+import compiler.ast.type.TypeMutability
 import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
@@ -32,7 +33,6 @@ import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.superfluousSafeObjectTraversal
 import compiler.diagnostic.unresolvableMemberVariable
@@ -110,6 +110,16 @@ class BoundMemberAccessExpression(
         valueExpression.setNothrow(boundary)
     }
 
+    private var usageContextSet = false
+    override fun setUsageContext(usedAsType: BoundTypeReference) {
+        check(!usageContextSet)
+        usageContextSet = true
+
+        val usageBaseType = valueExpression.type ?: context.swCtx.unresolvableReplacementType
+        val usedWithMutability = usageContext.mutability.conjunctionWith(usedAsType.mutability)
+        valueExpression.setUsageContext(usageBaseType.withMutability(usedWithMutability))
+    }
+
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         valueExpression.semanticAnalysisPhase3(diagnosis)
         member?.validateAccessFrom(declaration.memberName.span, diagnosis)
@@ -145,9 +155,12 @@ class BoundMemberAccessExpression(
         )
     }
 
-    enum class UsageContext(val requiresMemberInitialized: Boolean) {
-        READ(true),
-        WRITE(false),
+    enum class UsageContext(
+        val requiresMemberInitialized: Boolean,
+        val mutability: TypeMutability,
+    ) {
+        READ(true, TypeMutability.READONLY),
+        WRITE(false, TypeMutability.MUTABLE),
         ;
     }
 }

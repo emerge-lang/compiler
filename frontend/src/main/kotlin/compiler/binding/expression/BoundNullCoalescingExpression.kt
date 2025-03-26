@@ -20,7 +20,6 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.nullCheckOnNonNullableValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -94,6 +93,11 @@ class BoundNullCoalescingExpression(
     override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
         nullableExpression.setExpectedReturnType(type, diagnosis)
         alternativeExpression.setExpectedReturnType(type, diagnosis)
+    }
+
+    override fun setUsageContext(usedAsType: BoundTypeReference) {
+        nullableExpression.setUsageContext(usedAsType)
+        alternativeExpression.setUsageContext(usedAsType)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

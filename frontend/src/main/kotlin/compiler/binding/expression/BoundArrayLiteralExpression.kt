@@ -87,6 +87,8 @@ class BoundArrayLiteralExpression(
         expectedEvaluationResultType?.let {
             type = type?.withMutability(it.mutability)
         }
+
+        elements.forEach { it.setUsageContext(type!!) }
     }
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
@@ -123,6 +125,10 @@ class BoundArrayLiteralExpression(
 
         expectedElementType = type.arguments?.firstOrNull()?.type ?: return
         elements.forEach { it.setExpectedEvaluationResultType(expectedElementType!!, diagnosis) }
+    }
+
+    override fun setUsageContext(usedAsType: BoundTypeReference) {
+        // not relevant
     }
 
     override val isEvaluationResultReferenceCounted = true

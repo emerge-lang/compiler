@@ -13,8 +13,8 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrExpressionSideEffectsStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
+import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.throwStatementInNothrowContext
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -38,18 +38,20 @@ class BoundThrowExpression(
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
             throwableExpression.semanticAnalysisPhase1(diagnosis)
+            throwableExpression.markEvaluationResultUsed()
         }
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return seanHelper.phase2(diagnosis) {
-
             val expectedType = context.swCtx.throwable.baseReference.withMutability(TypeMutability.READONLY)
             throwableExpression.setExpectedEvaluationResultType(expectedType, diagnosis)
             throwableExpression.semanticAnalysisPhase2(diagnosis)
             throwableExpression.type
                 ?.evaluateAssignabilityTo(expectedType, throwableExpression.declaration.span)
                 ?.let(diagnosis::add)
+
+            throwableExpression.setUsageContext(expectedType)
         }
     }
 
@@ -57,6 +59,10 @@ class BoundThrowExpression(
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         this.nothrowBoundary = boundary
         this.throwableExpression.setNothrow(boundary)
+    }
+
+    override fun setUsageContext(usedAsType: BoundTypeReference) {
+        // nothing to do; the evaluation result type of "throw" is Nothing
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

@@ -38,7 +38,6 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.nothrowViolatingNotNullAssertion
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -71,6 +70,11 @@ class BoundNotNullExpression(
         nullableExpression.setExpectedEvaluationResultType(type.withCombinedNullability(TypeReference.Nullability.NULLABLE), diagnosis)
     }
 
+    private var nonNullResultUsed = false
+    override fun markEvaluationResultUsed() {
+        nonNullResultUsed = true
+    }
+
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         nullableExpression.markEvaluationResultUsed()
         nullableExpression.semanticAnalysisPhase2(diagnosis)
@@ -83,9 +87,11 @@ class BoundNotNullExpression(
         this.nothrowBoundary = boundary
     }
 
-    private var nonNullResultUsed = false
-    override fun markEvaluationResultUsed() {
-        nonNullResultUsed = true
+    private var usageContextSet = false
+    override fun setUsageContext(usedAsType: BoundTypeReference) {
+        check(!usageContextSet)
+        usageContextSet = true
+        nullableExpression.setUsageContext(usedAsType)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
@@ -94,6 +100,9 @@ class BoundNotNullExpression(
         // defaulting to readonly is okay because: that only happens if the nullableExpression couldn't determine its
         // result type. That in and of itself must produce an ERROR-level diagnostic, stopping compilation in any case.
         nullableExpression.markEvaluationResultCaptured(type?.mutability ?: TypeMutability.READONLY)
+        if (!usageContextSet) {
+            setUsageContext(context.swCtx.unresolvableReplacementType)
+        }
 
         nullableExpression.semanticAnalysisPhase3(diagnosis)
         nothrowBoundary?.let { nothrowBoundary ->

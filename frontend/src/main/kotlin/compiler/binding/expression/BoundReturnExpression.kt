@@ -24,6 +24,7 @@ import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeReference
 import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
@@ -39,15 +40,14 @@ import compiler.binding.type.NullableTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeVariable
 import compiler.binding.type.UnresolvedType
-import compiler.lexer.IdentifierToken
-import compiler.lexer.Operator
-import compiler.lexer.OperatorToken
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.ReturnTypeMismatchDiagnostic
 import compiler.diagnostic.consecutive
 import compiler.diagnostic.missingReturnValue
+import compiler.lexer.IdentifierToken
+import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
@@ -74,10 +74,20 @@ class BoundReturnExpression(
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         expression?.markEvaluationResultUsed()
         expression?.semanticAnalysisPhase2(diagnosis)
+        expression?.setUsageContext(
+            expectedReturnType
+                ?: context.swCtx.any.baseReference
+                    .withCombinedNullability(TypeReference.Nullability.NULLABLE)
+                    .withMutability(TypeMutability.READONLY)
+        )
     }
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         expression?.setNothrow(boundary)
+    }
+
+    override fun setUsageContext(usedAsType: BoundTypeReference) {
+        // nothing to do; the evaluation result type of "return" is Nothing
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

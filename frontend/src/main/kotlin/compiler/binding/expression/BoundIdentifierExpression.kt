@@ -35,15 +35,14 @@ import compiler.binding.context.effect.VariableLifetime
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.UnresolvedType
-import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.borrowedVariableCaptured
 import compiler.diagnostic.notAllMemberVariablesInitialized
 import compiler.diagnostic.notAllMixinsInitialized
 import compiler.diagnostic.undefinedIdentifier
 import compiler.diagnostic.useOfUninitializedVariable
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -93,6 +92,10 @@ class BoundIdentifierExpression(
 
     override fun markEvaluationResultUsed() {
         referral?.markEvaluationResultUsed()
+    }
+
+    override fun setUsageContext(usedAsType: BoundTypeReference) {
+        referral?.setUsageContext(usedAsType)
     }
 
     override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
@@ -146,6 +149,9 @@ class BoundIdentifierExpression(
         /** @see BoundExpression.markEvaluationResultCaptured */
         fun markEvaluationResultCaptured(withMutability: TypeMutability)
 
+        /** @see BoundExpression.setUsageContext */
+        fun setUsageContext(usedAsType: BoundTypeReference)
+
         /** @see BoundExpression.isCompileTimeConstant */
         val isCompileTimeConstant: Boolean
 
@@ -176,8 +182,12 @@ class BoundIdentifierExpression(
             variable.semanticAnalysisPhase2(diagnosis)
         }
 
-        override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        private var usedAsType: BoundTypeReference? = null
+        override fun setUsageContext(usedAsType: BoundTypeReference) {
+            this.usedAsType = usedAsType
+        }
 
+        override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
             val initializationState = variable.getInitializationStateInContext(context)
             if (usageContext.requiresInitialization) {
                 if (initializationState != VariableInitialization.State.INITIALIZED) {
@@ -265,6 +275,10 @@ class BoundIdentifierExpression(
 
         override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
             // reading type information outside the boundary is pure because type information is compile-time constant
+        }
+
+        override fun setUsageContext(usedAsType: BoundTypeReference) {
+            // not needed, because type information is compile-time constant
         }
 
         override val isCompileTimeConstant = true

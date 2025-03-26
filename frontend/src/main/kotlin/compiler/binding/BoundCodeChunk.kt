@@ -32,7 +32,6 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.implicitlyEvaluatingAStatement
 import compiler.handleCyclicInvocation
@@ -128,6 +127,10 @@ class BoundCodeChunk(
 
         this.nothrowBoundary = boundary
         statements.forEach { it.setNothrow(boundary) }
+    }
+
+    override fun setUsageContext(usedAsType: BoundTypeReference) {
+        lastStatementAsExpression?.setUsageContext(usedAsType)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

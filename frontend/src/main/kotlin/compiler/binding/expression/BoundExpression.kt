@@ -20,7 +20,6 @@ package compiler.binding.expression
 
 import compiler.ast.Expression
 import compiler.ast.type.TypeMutability
-import compiler.binding.BoundExecutable
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.IrCodeChunkImpl
@@ -67,6 +66,18 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
     fun markEvaluationResultUsed() {}
 
     /**
+     * Must be called before [BoundExecutable.semanticAnalysisPhase3]. If this method is called, [markEvaluationResultUsed]
+     * must have been called earlier.
+     *
+     * This information is used to enforce purity. This method **MUST NOT** trigger [compiler.diagnostic.ValueNotAssignableDiagnostic]s
+     * resulting from a mismatch between this expressions [type] and [usedAsType]; this is the job of the enclosing
+     * code!
+     */
+    fun setUsageContext(usedAsType: BoundTypeReference)
+
+    /**
+     * TODO: refactor this into [setUsageContext]
+     *
      * Must be called before [semanticAnalysisPhase3]. If this method is called, [markEvaluationResultUsed] must have
      * been called earlier.
      *

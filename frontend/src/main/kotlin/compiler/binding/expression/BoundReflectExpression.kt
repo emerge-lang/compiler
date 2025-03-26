@@ -12,7 +12,6 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.unsupportedReflection
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
@@ -43,6 +42,10 @@ class BoundReflectExpression(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
 
+    }
+
+    override fun setUsageContext(usedAsType: BoundTypeReference) {
+        // nothing to do, this expression doesn't use any values
     }
 
     private var baseTypeToReflectOn: BoundBaseType? = null
