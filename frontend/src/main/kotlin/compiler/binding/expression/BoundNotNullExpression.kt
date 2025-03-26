@@ -91,7 +91,7 @@ class BoundNotNullExpression(
     override fun setUsageContext(usedAsType: BoundTypeReference) {
         check(!usageContextSet)
         usageContextSet = true
-        nullableExpression.setUsageContext(usedAsType)
+        nullableExpression.setUsageContext(usedAsType.withCombinedNullability(TypeReference.Nullability.NULLABLE))
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
