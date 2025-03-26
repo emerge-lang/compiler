@@ -417,33 +417,7 @@ class BoundInvocationExpression(
         receiverExpression?.visitWritesBeyond(boundary, visitor)
         valueArguments.forEach { it.visitWritesBeyond(boundary, visitor) }
 
-        // writes through arguments that are modified by the called function
-        (listOfNotNull(receiverExpression) + valueArguments).zip(functionToInvoke?.parameters?.parameters ?: emptyList())
-            // does the function potentially modify the parameter?
-            .filter { (_, parameter) -> parameter.typeAtDeclarationTime?.mutability?.isMutable ?: false }
-            // is the argument itself a read beyond the boundary
-            .filter { (argument, _) ->
-                var argumentReadsBeyondBoundary = false
-                argument.visitReadsBeyond(boundary, object : ImpurityVisitor {
-                    override fun visitReadBeyondBoundary(purityBoundary: CTContext, read: BoundExpression<*>) {
-                        argumentReadsBeyondBoundary = true
-                    }
-
-                    override fun visitWriteBeyondBoundary(purityBoundary: CTContext, write: BoundExecutable<*>) {
-
-                    }
-                })
-                argumentReadsBeyondBoundary
-            }
-            .forEach { (argument, _) ->
-                visitor.visitWriteBeyondBoundary(boundary, argument)
-            }
-
-        val invokedFunctionIsReadonly = functionToInvoke?.let {
-            //it.semanticAnalysisPhase3(DiscardingDiagnosis)
-            BoundFunction.Purity.READONLY.contains(it.purity)
-        } ?: true
-
+        val invokedFunctionIsReadonly = BoundFunction.Purity.READONLY.contains(functionToInvoke?.purity ?: BoundFunction.Purity.PURE)
         if (!invokedFunctionIsReadonly) {
             visitor.visitWriteBeyondBoundary(boundary, this)
         }
