@@ -58,8 +58,8 @@ class RootResolvedTypeReference private constructor(
         )
     }
 
-    override fun withCombinedMutability(mutability: TypeMutability?): RootResolvedTypeReference {
-        val combinedMutability = mutability?.let { this.mutability.combinedWith(it) } ?: this.mutability
+    override fun withMutabilityIntersectedWith(mutability: TypeMutability?): RootResolvedTypeReference {
+        val combinedMutability = mutability?.let { this.mutability.intersect(it) } ?: this.mutability
         return RootResolvedTypeReference(
             original,
             combinedMutability,
@@ -137,14 +137,14 @@ class RootResolvedTypeReference private constructor(
                     return this
                 }
                 if (this.equalsExceptMutability(other)) {
-                    return withMutability(this.mutability.combinedWith(other.mutability))
+                    return withMutability(this.mutability.intersect(other.mutability))
                 }
                 // end of special cases until generic supertypes are implemented
                 val commonSupertype = BoundBaseType.closestCommonSupertypeOf(this.baseType, other.baseType)
                 check(commonSupertype.typeParameters.isNullOrEmpty()) { "Generic supertypes are not implemented, yet." }
                 RootResolvedTypeReference(
                     null,
-                    this.mutability.combinedWith(other.mutability),
+                    this.mutability.intersect(other.mutability),
                     commonSupertype,
                     null,
                 )

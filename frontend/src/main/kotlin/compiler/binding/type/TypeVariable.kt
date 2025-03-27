@@ -54,7 +54,7 @@ class TypeVariable private constructor(
 
     val effectiveBound: BoundTypeReference get() {
         return parameter.bound
-            .withCombinedMutability(mutability)
+            .withMutabilityIntersectedWith(mutability)
     }
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference {
@@ -65,7 +65,7 @@ class TypeVariable private constructor(
         throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 
-    override fun withCombinedMutability(mutability: TypeMutability?): BoundTypeReference {
+    override fun withMutabilityIntersectedWith(mutability: TypeMutability?): BoundTypeReference {
         throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 

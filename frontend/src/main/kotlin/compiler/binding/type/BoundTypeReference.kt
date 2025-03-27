@@ -53,11 +53,11 @@ sealed interface BoundTypeReference {
     fun withMutability(modifier: TypeMutability?): BoundTypeReference
 
     /**
-     * @return this type but [mutability] is the result of [TypeMutability.combinedWith] of the
+     * @return this type but [mutability] is the result of [TypeMutability.intersect] of the
      * existing mutability and the given one. Type parameters will be defaulted ([defaultMutabilityTo])
      * to the resulting mutability.
      */
-    fun withCombinedMutability(mutability: TypeMutability?): BoundTypeReference
+    fun withMutabilityIntersectedWith(mutability: TypeMutability?): BoundTypeReference
 
     /**
      * @return this type but [limitToMutability] is the result of [TypeMutability.limitedTo] of the

@@ -40,9 +40,9 @@ class UnresolvedType private constructor(
         )
     }
 
-    override fun withCombinedMutability(mutability: TypeMutability?): BoundTypeReference {
+    override fun withMutabilityIntersectedWith(mutability: TypeMutability?): BoundTypeReference {
         return UnresolvedType(
-            standInType.withCombinedMutability(mutability),
+            standInType.withMutabilityIntersectedWith(mutability),
             reference,
             parameters?.map { it.defaultMutabilityTo(mutability) },
         )

@@ -66,7 +66,7 @@ enum class TypeMutability(
      * |`EXCLUSIVE`|`IMMUTABLE`|`IMMUTABLE`|
      * |`EXCLUSIVE`|`EXCLUSIVE`|`EXCLUSIVE`|
      */
-    fun combinedWith(other: TypeMutability?): TypeMutability = when {
+    fun intersect(other: TypeMutability?): TypeMutability = when {
         other == null || other == this -> this
         this == EXCLUSIVE -> other
         other == EXCLUSIVE -> this
@@ -79,6 +79,12 @@ enum class TypeMutability(
      * of the object member (`this`) is limited to the mutability of the reference through which it is accessed ([limitingMutability]).
      */
     fun limitedTo(limitingMutability: TypeMutability?): TypeMutability {
+        if (this == EXCLUSIVE) {
+            // exclusive object members are not allowed, so this should never happen.
+            // If it does happen still, READONLY mutability will limit the damage.
+            return READONLY
+        }
+
         if (limitingMutability == null) {
             return this
         }
@@ -92,9 +98,7 @@ enum class TypeMutability(
             }
             READONLY -> READONLY
             IMMUTABLE -> IMMUTABLE
-            // exclusive object members are not allowed, so this should never happen.
-            // If it does happen still, READONLY mutability will limit the damage.
-            EXCLUSIVE -> READONLY
+            EXCLUSIVE -> error("unreachable")
         }
     }
 

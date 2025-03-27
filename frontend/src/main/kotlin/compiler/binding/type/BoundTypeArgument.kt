@@ -163,7 +163,7 @@ class BoundTypeArgument(
         )
     }
 
-    override fun withCombinedMutability(mutability: TypeMutability?): BoundTypeReference {
+    override fun withMutabilityIntersectedWith(mutability: TypeMutability?): BoundTypeReference {
         if (mutability == null || type.mutability == mutability) {
             return this
         }
@@ -172,7 +172,7 @@ class BoundTypeArgument(
             context,
             astNode,
             variance,
-            type.withCombinedMutability(mutability),
+            type.withMutabilityIntersectedWith(mutability),
         )
     }
 

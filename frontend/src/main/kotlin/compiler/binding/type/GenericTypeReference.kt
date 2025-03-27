@@ -31,8 +31,8 @@ sealed class GenericTypeReference : BoundTypeReference {
         return mapEffectiveBound { it.withMutability(modifier) }
     }
 
-    override fun withCombinedMutability(mutability: TypeMutability?): GenericTypeReference {
-        return mapEffectiveBound { it.withCombinedMutability(mutability) }
+    override fun withMutabilityIntersectedWith(mutability: TypeMutability?): GenericTypeReference {
+        return mapEffectiveBound { it.withMutabilityIntersectedWith(mutability) }
     }
 
     override fun withLimitedMutability(limitToMutability: TypeMutability?): BoundTypeReference {
