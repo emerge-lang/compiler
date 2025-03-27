@@ -3,10 +3,9 @@ package compiler.binding.type
 import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 /**
@@ -67,6 +66,10 @@ class TypeVariable private constructor(
     }
 
     override fun withCombinedMutability(mutability: TypeMutability?): BoundTypeReference {
+        throw InternalCompilerError("not implemented as it was assumed that this can never happen")
+    }
+
+    override fun withLimitedMutability(limitToMutability: TypeMutability?): BoundTypeReference {
         throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 

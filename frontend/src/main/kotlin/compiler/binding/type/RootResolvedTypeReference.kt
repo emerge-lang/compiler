@@ -7,11 +7,10 @@ import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
-import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.hiddenTypeExposed
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
@@ -46,11 +45,16 @@ class RootResolvedTypeReference private constructor(
     )
 
     override fun withMutability(modifier: TypeMutability?): RootResolvedTypeReference {
+        val newMutability = if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else modifier
+        if (newMutability == mutability) {
+            return this
+        }
+
         return RootResolvedTypeReference(
             original,
-            if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else modifier,
+            newMutability,
             baseType,
-            arguments?.map { it.defaultMutabilityTo(modifier) },
+            arguments?.map { it.defaultMutabilityTo(modifier) }, // TODO: pass newMutability here?
         )
     }
 
@@ -61,6 +65,20 @@ class RootResolvedTypeReference private constructor(
             combinedMutability,
             baseType,
             arguments?.map { it.defaultMutabilityTo(combinedMutability) },
+        )
+    }
+
+    override fun withLimitedMutability(limitToMutability: TypeMutability?): BoundTypeReference {
+        val limitedMutability = mutability.limitedTo(limitToMutability)
+        if (limitToMutability == mutability) {
+            return this
+        }
+
+        return RootResolvedTypeReference(
+            original,
+            limitedMutability,
+            baseType,
+            arguments?.map { it.withLimitedMutability(limitToMutability) },
         )
     }
 
@@ -118,6 +136,10 @@ class RootResolvedTypeReference private constructor(
                 if (this == other) {
                     return this
                 }
+                if (this.equalsExceptMutability(other)) {
+                    return withMutability(this.mutability.combinedWith(other.mutability))
+                }
+                // end of special cases until generic supertypes are implemented
                 val commonSupertype = BoundBaseType.closestCommonSupertypeOf(this.baseType, other.baseType)
                 check(commonSupertype.typeParameters.isNullOrEmpty()) { "Generic supertypes are not implemented, yet." }
                 RootResolvedTypeReference(
@@ -260,9 +282,13 @@ class RootResolvedTypeReference private constructor(
 
         other as RootResolvedTypeReference
 
+        if (mutability != other.mutability) return false
+        return equalsExceptMutability(other)
+    }
+
+    private fun equalsExceptMutability(other: RootResolvedTypeReference): Boolean {
         if (baseType != other.baseType) return false
         if (arguments != other.arguments) return false
-        if (mutability != other.mutability) return false
 
         return true
     }

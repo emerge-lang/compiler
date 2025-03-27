@@ -5,8 +5,8 @@ import compiler.ast.type.TypeReference
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
-import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
+import compiler.lexer.Span
 
 class NullableTypeReference private constructor(
     internal val nested: BoundTypeReference
@@ -26,6 +26,10 @@ class NullableTypeReference private constructor(
 
     override fun withCombinedMutability(mutability: TypeMutability?): BoundTypeReference {
         return rewrap(nested.withCombinedMutability(mutability))
+    }
+
+    override fun withLimitedMutability(limitToMutability: TypeMutability?): BoundTypeReference {
+        return rewrap(nested.withLimitedMutability(limitToMutability))
     }
 
     override fun withCombinedNullability(nullability: TypeReference.Nullability): BoundTypeReference {

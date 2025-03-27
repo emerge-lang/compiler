@@ -5,10 +5,9 @@ import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.context.CTContext
-import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.lexer.Span
 import compiler.util.andThen
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
@@ -34,6 +33,10 @@ sealed class GenericTypeReference : BoundTypeReference {
 
     override fun withCombinedMutability(mutability: TypeMutability?): GenericTypeReference {
         return mapEffectiveBound { it.withCombinedMutability(mutability) }
+    }
+
+    override fun withLimitedMutability(limitToMutability: TypeMutability?): BoundTypeReference {
+        return mapEffectiveBound { it.withLimitedMutability(limitToMutability) }
     }
 
     override fun withCombinedNullability(nullability: TypeReference.Nullability): BoundTypeReference {

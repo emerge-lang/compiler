@@ -519,9 +519,12 @@ class PurityErrors : FreeSpec({
                 class Holder {
                     box: mut Box = Box()
                 }
-                fn test(p: read Holder) -> mut Box = p.box
+                fn test(p: read Holder) {
+                    v: mut Box
+                    set v = p.box                
+                }
             """.trimIndent())
-                .shouldFind< ValueNotAssignableDiagnostic> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.sourceType.toString() shouldBe "read testmodule.Box"
                     it.targetType.toString() shouldBe "mut testmodule.Box"
                 }
@@ -535,9 +538,12 @@ class PurityErrors : FreeSpec({
                 class Holder {
                     box: mut Box = Box()
                 }
-                fn test(p: const Holder) -> mut Box = p.box
+                fn test(p: const Holder) {
+                    v: mut Box
+                    set v = p.box   
+                }
             """.trimIndent())
-                .shouldFind< ValueNotAssignableDiagnostic> {
+                .shouldFind<ValueNotAssignableDiagnostic> {
                     it.sourceType.toString() shouldBe "read testmodule.Box"
                     it.targetType.toString() shouldBe "mut testmodule.Box"
                 }
