@@ -51,7 +51,7 @@ class BoundThrowExpression(
                 ?.evaluateAssignabilityTo(expectedType, throwableExpression.declaration.span)
                 ?.let(diagnosis::add)
 
-            throwableExpression.setUsageContext(expectedType)
+            throwableExpression.setUsageContext(expectedType, captured = true)
         }
     }
 
@@ -61,7 +61,7 @@ class BoundThrowExpression(
         this.throwableExpression.setNothrow(boundary)
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference) {
+    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
         // nothing to do; the evaluation result type of "throw" is Nothing
     }
 

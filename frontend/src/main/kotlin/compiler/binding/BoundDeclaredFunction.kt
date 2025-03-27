@@ -239,7 +239,10 @@ abstract class BoundDeclaredFunction(
             override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
                 seanHelper.phase2(diagnosis) {
                     expression.semanticAnalysisPhase2(diagnosis)
-                    expression.setUsageContext(expectedReturnType ?: context.swCtx.unresolvableReplacementType)
+                    expression.setUsageContext(
+                        expectedReturnType ?: context.swCtx.unresolvableReplacementType,
+                        true,
+                    )
                 }
             }
 

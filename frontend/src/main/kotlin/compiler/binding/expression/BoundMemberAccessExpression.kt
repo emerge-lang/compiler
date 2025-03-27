@@ -113,13 +113,15 @@ class BoundMemberAccessExpression(
     }
 
     private var usageContextSet = false
-    override fun setUsageContext(usedAsType: BoundTypeReference) {
+    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
         check(!usageContextSet)
         usageContextSet = true
 
         val usageBaseType = valueExpression.type ?: context.swCtx.unresolvableReplacementType
         val usedWithMutability = usageContext.mutability.union(usedAsType.mutability)
-        valueExpression.setUsageContext(usageBaseType.withMutability(usedWithMutability))
+        // captured = false here because: the host object isn't being referenced; and the result value is already captured
+        // by nature of being stored in an object member, so need to further validate that
+        valueExpression.setUsageContext(usageBaseType.withMutability(usedWithMutability), captured = false)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

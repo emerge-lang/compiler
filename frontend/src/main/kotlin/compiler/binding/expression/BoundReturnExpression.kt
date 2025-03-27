@@ -78,7 +78,8 @@ class BoundReturnExpression(
             expectedReturnType
                 ?: context.swCtx.any.baseReference
                     .withCombinedNullability(TypeReference.Nullability.NULLABLE)
-                    .withMutability(TypeMutability.READONLY)
+                    .withMutability(TypeMutability.READONLY),
+            captured = true,
         )
     }
 
@@ -86,13 +87,12 @@ class BoundReturnExpression(
         expression?.setNothrow(boundary)
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference) {
+    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
         // nothing to do; the evaluation result type of "return" is Nothing
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         val expectedReturnType = this.expectedReturnType
-        expression?.markEvaluationResultCaptured(expectedReturnType?.mutability ?: TypeMutability.READONLY)
         expression?.semanticAnalysisPhase3(diagnosis)
 
         if (expectedReturnType == null) {

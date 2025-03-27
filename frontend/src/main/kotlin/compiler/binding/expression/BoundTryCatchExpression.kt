@@ -84,9 +84,9 @@ class BoundTryCatchExpression(
         catchBlock.setNothrow(boundary)
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference) {
-        fallibleCode.setUsageContext(usedAsType)
-        catchBlock.setUsageContext(usedAsType)
+    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
+        fallibleCode.setUsageContext(usedAsType, captured)
+        catchBlock.setUsageContext(usedAsType, captured)
     }
 
     override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
@@ -97,11 +97,6 @@ class BoundTryCatchExpression(
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         fallibleCode.visitWritesBeyond(boundary, visitor)
         catchBlock.visitWritesBeyond(boundary, visitor)
-    }
-
-    override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
-        fallibleCode.markEvaluationResultCaptured(withMutability)
-        catchBlock.markEvaluationResultCaptured(withMutability)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

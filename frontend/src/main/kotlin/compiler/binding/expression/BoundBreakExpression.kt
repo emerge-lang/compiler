@@ -36,7 +36,7 @@ class BoundBreakExpression(
         // nothing to do
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference) {
+    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
         // not relevant
     }
 

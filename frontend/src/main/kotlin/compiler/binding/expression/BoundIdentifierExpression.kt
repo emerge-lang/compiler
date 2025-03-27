@@ -94,12 +94,8 @@ class BoundIdentifierExpression(
         referral?.markEvaluationResultUsed()
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference) {
-        referral?.setUsageContext(usedAsType)
-    }
-
-    override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
-        referral?.markEvaluationResultCaptured(withMutability)
+    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
+        referral?.setUsageContext(usedAsType, captured)
     }
 
     fun allowPartiallyUninitializedValue() {
@@ -149,11 +145,8 @@ class BoundIdentifierExpression(
         /** @see BoundExpression.markEvaluationResultUsed */
         fun markEvaluationResultUsed()
 
-        /** @see BoundExpression.markEvaluationResultCaptured */
-        fun markEvaluationResultCaptured(withMutability: TypeMutability)
-
         /** @see BoundExpression.setUsageContext */
-        fun setUsageContext(usedAsType: BoundTypeReference)
+        fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean)
 
         /** @see BoundExpression.isCompileTimeConstant */
         val isCompileTimeConstant: Boolean
@@ -177,17 +170,16 @@ class BoundIdentifierExpression(
             usageContext = VariableUsageContext.READ
         }
 
-        override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
-            thisUsageCapturesWithMutability = withMutability
-        }
-
         override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
             variable.semanticAnalysisPhase2(diagnosis)
         }
 
         private var usedAsType: BoundTypeReference? = null
-        override fun setUsageContext(usedAsType: BoundTypeReference) {
+        override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
             this.usedAsType = usedAsType
+            if (captured) {
+                thisUsageCapturesWithMutability = usedAsType.mutability
+            }
         }
 
         override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
@@ -283,7 +275,6 @@ class BoundIdentifierExpression(
     inner class ReferringType(val reference: BoundTypeReference) : Referral {
         override val span = declaration.span
         override fun markEvaluationResultUsed() {}
-        override fun markEvaluationResultCaptured(withMutability: TypeMutability) {}
 
         override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
             // reading type information outside the boundary is pure because type information is compile-time constant
@@ -293,7 +284,7 @@ class BoundIdentifierExpression(
             // reading type information outside the boundary is pure because type information is compile-time constant
         }
 
-        override fun setUsageContext(usedAsType: BoundTypeReference) {
+        override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
             // not needed, because type information is compile-time constant
         }
 

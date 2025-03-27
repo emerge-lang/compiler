@@ -73,20 +73,7 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
      * resulting from a mismatch between this expressions [type] and [usedAsType]; this is the job of the enclosing
      * code!
      */
-    fun setUsageContext(usedAsType: BoundTypeReference)
-
-    /**
-     * TODO: refactor this into [setUsageContext]
-     *
-     * Must be called before [semanticAnalysisPhase3]. If this method is called, [markEvaluationResultUsed] must have
-     * been called earlier.
-     *
-     * To be called when the result of this expression is assigned to a capturing reference (=when possibly a heap
-     * reference is created). In case of a borrowed result, this must produce an error during [semanticAnalysisPhase3].
-     * In case of an exclusive value, this triggers move semantics: the lifetime of the exclusive reference ends and
-     * any subsequent use of the reference will produce an error.
-     */
-    fun markEvaluationResultCaptured(withMutability: TypeMutability) {}
+    fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean)
 
     /**
      * If `true`, the reference counter in the result of this expression already includes a +1 to account for

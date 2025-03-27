@@ -7,7 +7,7 @@ import compiler.binding.type.BoundTypeReference
  * marker interface for literals
  */
 interface BoundLiteralExpression<AstNode : Expression> : BoundExpression<AstNode> {
-    override fun setUsageContext(usedAsType: BoundTypeReference) {
+    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
         // for literals generally nothing to do
     }
 }

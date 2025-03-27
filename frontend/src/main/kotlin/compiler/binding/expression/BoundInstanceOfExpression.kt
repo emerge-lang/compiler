@@ -63,10 +63,13 @@ class BoundInstanceOfExpression(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         expressionToCheck.semanticAnalysisPhase2(diagnosis)
-        expressionToCheck.setUsageContext(context.swCtx.any.baseReference.withMutability(TypeMutability.READONLY))
+        expressionToCheck.setUsageContext(
+            context.swCtx.any.baseReference.withMutability(TypeMutability.READONLY),
+            false,
+        )
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference) {
+    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
         // nothing to do:
         // the expression-to-be-checked is used regardless of context, with a type that doesn't depend on context (read Any)
         // the result of expression-to-be-checked is also never captured

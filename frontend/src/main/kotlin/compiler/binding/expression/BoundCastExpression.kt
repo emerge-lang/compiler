@@ -98,17 +98,13 @@ class BoundCastExpression(
         value.setNothrow(boundary)
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
-        value.setExpectedReturnType(type, diagnosis)
+    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
+        val adaptedUsedAsType = if (type.mutability.isAssignableTo(usedAsType.mutability)) usedAsType else usedAsType.withMutability(TypeMutability.READONLY)
+        value.setUsageContext(adaptedUsedAsType, captured)
     }
 
-    override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
-        // we can use type.mutability here because that is in-line with expectations after sean2
-        value.markEvaluationResultCaptured(if (type.mutability.isAssignableTo(withMutability)) {
-            withMutability
-        } else {
-            TypeMutability.READONLY
-        })
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        value.setExpectedReturnType(type, diagnosis)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

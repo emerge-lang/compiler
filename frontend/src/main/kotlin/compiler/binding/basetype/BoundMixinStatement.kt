@@ -74,7 +74,10 @@ class BoundMixinStatement(
             registration = context.registerMixin(this, expression.type ?: context.swCtx.any.baseReference, diagnosis)?.also {
                 it.addDestructingAction(this::generateDestructorCode)
             }
-            expression.markEvaluationResultCaptured(TypeMutability.EXCLUSIVE)
+            expression.setUsageContext(
+                (expression.type ?: context.swCtx.unresolvableReplacementType).withMutability(TypeMutability.EXCLUSIVE),
+                true,
+            )
         }
     }
 

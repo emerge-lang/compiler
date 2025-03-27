@@ -174,10 +174,10 @@ class BoundInvocationExpression(
 
             chosenOverload!!.candidate.parameters.parameters.zip(listOfNotNull(receiverExceptReferringType) + valueArguments)
                 .forEach { (parameter, argument) ->
-                    argument.setUsageContext(parameter.typeAtDeclarationTime ?: context.swCtx.unresolvableReplacementType)
-                    if (parameter.ownershipAtDeclarationTime == VariableOwnership.CAPTURED) {
-                        argument.markEvaluationResultCaptured(parameter.typeAtDeclarationTime?.mutability ?: TypeMutability.READONLY)
-                    }
+                    argument.setUsageContext(
+                        parameter.typeAtDeclarationTime ?: context.swCtx.unresolvableReplacementType,
+                        parameter.ownershipAtDeclarationTime == VariableOwnership.CAPTURED,
+                    )
                 }
         }
     }
@@ -375,7 +375,7 @@ class BoundInvocationExpression(
         this.nothrowBoundary = boundary
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference) {
+    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
         // nothing to do; a function return type can always be captured and purity is checked fully
         // inside the function implementation.
     }

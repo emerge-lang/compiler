@@ -225,7 +225,10 @@ class BoundVariable(
                     }
                 }
 
-                initializerExpression.setUsageContext(typeAtDeclarationTime ?: context.swCtx.unresolvableReplacementType)
+                initializerExpression.setUsageContext(
+                    typeAtDeclarationTime ?: context.swCtx.unresolvableReplacementType,
+                    true,
+                )
             }
 
             // handle no initializer case
@@ -246,8 +249,6 @@ class BoundVariable(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
-            initializerExpression?.markEvaluationResultCaptured(typeAtDeclarationTime?.mutability ?: implicitMutability)
-
             initializerExpression?.semanticAnalysisPhase3(diagnosis)
             visibility.semanticAnalysisPhase3(diagnosis)
         }

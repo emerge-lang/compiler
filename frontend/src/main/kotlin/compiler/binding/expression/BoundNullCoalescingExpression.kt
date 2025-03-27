@@ -85,19 +85,14 @@ class BoundNullCoalescingExpression(
         }
     }
 
-    override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
-        nullableExpression.markEvaluationResultCaptured(withMutability)
-        alternativeExpression.markEvaluationResultCaptured(withMutability)
-    }
-
     override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
         nullableExpression.setExpectedReturnType(type, diagnosis)
         alternativeExpression.setExpectedReturnType(type, diagnosis)
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference) {
-        nullableExpression.setUsageContext(usedAsType)
-        alternativeExpression.setUsageContext(usedAsType)
+    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
+        nullableExpression.setUsageContext(usedAsType, captured)
+        alternativeExpression.setUsageContext(usedAsType, captured)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

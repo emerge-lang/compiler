@@ -85,10 +85,6 @@ class BoundCodeChunk(
         lastStatementAsExpression?.markEvaluationResultUsed()
     }
 
-    override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
-        lastStatementAsExpression?.markEvaluationResultCaptured(withMutability)
-    }
-
     private val seanHelper = SeanHelper()
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
@@ -129,8 +125,8 @@ class BoundCodeChunk(
         statements.forEach { it.setNothrow(boundary) }
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference) {
-        lastStatementAsExpression?.setUsageContext(usedAsType)
+    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
+        lastStatementAsExpression?.setUsageContext(usedAsType, captured)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

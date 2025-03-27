@@ -88,20 +88,21 @@ class BoundNotNullExpression(
     }
 
     private var usageContextSet = false
-    override fun setUsageContext(usedAsType: BoundTypeReference) {
+    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
         check(!usageContextSet)
         usageContextSet = true
-        nullableExpression.setUsageContext(usedAsType.withCombinedNullability(TypeReference.Nullability.NULLABLE))
+        nullableExpression.setUsageContext(
+            usedAsType.withCombinedNullability(TypeReference.Nullability.NULLABLE),
+            // this expression duplicates the reference. That doesn't prove a capture, but it would easily allow for one,
+            // so it has to be treated as such.
+            true,
+        )
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
-        // this expression duplicates the reference. That doesn't prove a capture, but it would easily allow for one,
-        // so it has to be treated as such.
-        // defaulting to readonly is okay because: that only happens if the nullableExpression couldn't determine its
-        // result type. That in and of itself must produce an ERROR-level diagnostic, stopping compilation in any case.
-        nullableExpression.markEvaluationResultCaptured(type?.mutability ?: TypeMutability.READONLY)
         if (!usageContextSet) {
-            setUsageContext(context.swCtx.unresolvableReplacementType)
+            // the value of "captured" is irrelevant here because its fixed to true for the forwarding to the nullable expr
+            setUsageContext(context.swCtx.unresolvableReplacementType, captured = true)
         }
 
         nullableExpression.semanticAnalysisPhase3(diagnosis)

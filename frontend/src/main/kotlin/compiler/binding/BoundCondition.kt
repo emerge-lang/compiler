@@ -29,7 +29,7 @@ class BoundCondition(
             diagnosis.conditionIsNotBoolean(expression)
         }
 
-        expression.setUsageContext(type)
+        expression.setUsageContext(type, false)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

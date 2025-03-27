@@ -71,7 +71,7 @@ abstract class BoundAssignmentStatement(
             toAssignExpression.semanticAnalysisPhase2(diagnosis)
             additionalSemanticAnalysisPhase2(diagnosis)
             assignmentTargetType?.let { targetType ->
-                toAssignExpression.setUsageContext(targetType)
+                toAssignExpression.setUsageContext(targetType, true)
             }
 
             toAssignExpression.type?.also { assignedType ->
@@ -98,8 +98,6 @@ abstract class BoundAssignmentStatement(
 
     final override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
-            toAssignExpression.markEvaluationResultCaptured(assignmentTargetType?.mutability ?: TypeMutability.READONLY)
-
             toAssignExpression.semanticAnalysisPhase3(diagnosis)
             additionalSemanticAnalysisPhase3(diagnosis)
         }
