@@ -176,7 +176,7 @@ class BoundTypeArgument(
         )
     }
 
-    override fun withLimitedMutability(limitToMutability: TypeMutability?): BoundTypeArgument {
+    override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeArgument {
         val newMutability = type.mutability.limitedTo(limitToMutability)
         if (newMutability == type.mutability) {
             return this
@@ -186,7 +186,7 @@ class BoundTypeArgument(
             context,
             astNode,
             variance,
-            type.withLimitedMutability(limitToMutability)
+            type.withMutabilityLimitedTo(limitToMutability)
         )
     }
 

@@ -61,9 +61,9 @@ sealed interface BoundTypeReference {
 
     /**
      * @return this type but [limitToMutability] is the result of [TypeMutability.limitedTo] of the
-     * existing mutability and the given one. Type parameters will also be modified with [withLimitedMutability].
+     * existing mutability and the given one. Type parameters will also be modified with [withMutabilityLimitedTo].
      */
-    fun withLimitedMutability(limitToMutability: TypeMutability?): BoundTypeReference
+    fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeReference
 
     /**
      * @return this type but [isNullable] is according to the nullability given for this invocation. If that is

@@ -93,7 +93,7 @@ class BoundMemberAccessExpression(
                 this.member = member
                 this.type = member.type
                     ?.instantiateAllParameters(valueType.inherentTypeBindings)
-                    ?.withLimitedMutability(valueExpression.type?.mutability)
+                    ?.withMutabilityLimitedTo(valueExpression.type?.mutability)
 
                 if (usageContext.requiresMemberInitialized) {
                     val isInitialized = valueExpression.tryAsVariable()?.let {

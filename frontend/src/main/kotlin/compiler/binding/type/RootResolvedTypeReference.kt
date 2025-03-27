@@ -68,13 +68,13 @@ class RootResolvedTypeReference private constructor(
         )
     }
 
-    override fun withLimitedMutability(limitToMutability: TypeMutability?): BoundTypeReference {
+    override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeReference {
         val limitedMutability = mutability.limitedTo(limitToMutability)
         return RootResolvedTypeReference(
             original,
             limitedMutability,
             baseType,
-            arguments?.map { it.withLimitedMutability(limitToMutability) },
+            arguments?.map { it.withMutabilityLimitedTo(limitToMutability) },
         )
     }
 

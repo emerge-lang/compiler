@@ -48,11 +48,11 @@ class UnresolvedType private constructor(
         )
     }
 
-    override fun withLimitedMutability(limitToMutability: TypeMutability?): BoundTypeReference {
+    override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeReference {
         return UnresolvedType(
-            standInType.withLimitedMutability(limitToMutability),
+            standInType.withMutabilityLimitedTo(limitToMutability),
             reference,
-            parameters?.map { it.withLimitedMutability(limitToMutability) },
+            parameters?.map { it.withMutabilityLimitedTo(limitToMutability) },
         )
     }
 
