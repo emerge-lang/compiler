@@ -118,7 +118,7 @@ class BoundMemberAccessExpression(
         usageContextSet = true
 
         val usageBaseType = valueExpression.type ?: context.swCtx.unresolvableReplacementType
-        val usedWithMutability = usageContext.mutability.conjunctionWith(usedAsType.mutability)
+        val usedWithMutability = usageContext.mutability.union(usedAsType.mutability)
         valueExpression.setUsageContext(usageBaseType.withMutability(usedWithMutability))
     }
 

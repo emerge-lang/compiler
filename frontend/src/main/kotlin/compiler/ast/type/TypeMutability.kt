@@ -116,7 +116,7 @@ enum class TypeMutability(
      * |`IMMUTABLE`|`IMMUTABLE`|`IMMUTABLE`|
      * @return mutability that allows for everything/guarantees for everything that any of `this` and [other] do:
      */
-    fun conjunctionWith(other: TypeMutability): TypeMutability = when(this) {
+    fun union(other: TypeMutability): TypeMutability = when(this) {
         MUTABLE -> when (other) {
             MUTABLE -> MUTABLE
             READONLY -> MUTABLE
@@ -126,11 +126,11 @@ enum class TypeMutability(
         READONLY -> when (other) {
             READONLY -> READONLY
             IMMUTABLE -> READONLY
-            else -> other.conjunctionWith(this)
+            else -> other.union(this)
         }
         IMMUTABLE -> when (other) {
             IMMUTABLE -> IMMUTABLE
-            else -> other.conjunctionWith(this)
+            else -> other.union(this)
         }
         EXCLUSIVE -> EXCLUSIVE
     }
