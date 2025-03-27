@@ -54,7 +54,7 @@ class RootResolvedTypeReference private constructor(
             original,
             newMutability,
             baseType,
-            arguments?.map { it.defaultMutabilityTo(modifier) }, // TODO: pass newMutability here?
+            arguments?.map { it.defaultMutabilityTo(newMutability) },
         )
     }
 
