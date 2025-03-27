@@ -1,6 +1,7 @@
 package compiler.compiler.negative
 
 import compiler.ast.ASTSourceFile
+import compiler.binding.context.ModuleContext
 import compiler.binding.context.SoftwareContext
 import compiler.lexer.MemorySourceFile
 import compiler.lexer.SourceSet
@@ -108,21 +109,28 @@ fun emptySoftwareContext(validate: Boolean = true): SoftwareContext {
     return swCtxt
 }
 
+fun SoftwareContext.registerModule(module: IntegrationTestModule): ModuleContext {
+    val lexerSourceFile = module.tokens.first().span.sourceFile
+    val result = SourceFileRule.match(module.tokens, lexerSourceFile)
+    if (result is MatchingResult.Error) {
+        throw AssertionError("Failed to parse code: ${result.diagnostic}")
+    }
+    result as MatchingResult.Success<ASTSourceFile>
+    val sourceFile = result.item
+    val nTopLevelDeclarations = sourceFile.functions.size + sourceFile.baseTypes.size + sourceFile.globalVariables.size
+    check(nTopLevelDeclarations > 0) { "Found no top-level declarations in the test source of module ${module.moduleName}. Very likely a parsing bug." }
+
+    val moduleCtx = registerModule(module.moduleName, module.dependsOnModules)
+    moduleCtx.addSourceFile(sourceFile)
+
+    return moduleCtx
+}
+
 fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext, Collection<Diagnostic>> {
     val swCtxt = emptySoftwareContext(false)
 
-    modules.forEach { module ->
-        val lexerSourceFile = module.tokens.first().span.sourceFile
-        val result = SourceFileRule.match(module.tokens, lexerSourceFile)
-        if (result is MatchingResult.Error) {
-            throw AssertionError("Failed to parse code: ${result.diagnostic}")
-        }
-        result as MatchingResult.Success<ASTSourceFile>
-        val sourceFile = result.item
-        val nTopLevelDeclarations = sourceFile.functions.size + sourceFile.baseTypes.size + sourceFile.globalVariables.size
-        check(nTopLevelDeclarations > 0) { "Found no top-level declarations in the test source of module ${module.moduleName}. Very likely a parsing bug." }
-
-        swCtxt.registerModule(module.moduleName, module.dependsOnModules).addSourceFile(sourceFile)
+    modules.forEach {
+        swCtxt.registerModule(it)
     }
 
     val diagnosis = CollectingDiagnosis()

@@ -70,10 +70,6 @@ class RootResolvedTypeReference private constructor(
 
     override fun withLimitedMutability(limitToMutability: TypeMutability?): BoundTypeReference {
         val limitedMutability = mutability.limitedTo(limitToMutability)
-        if (limitToMutability == mutability) {
-            return this
-        }
-
         return RootResolvedTypeReference(
             original,
             limitedMutability,
