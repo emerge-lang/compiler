@@ -15,18 +15,17 @@ export class ReflectionBaseType {
 
     // compares the two by identity; is pure because these objects are some of the
     // few true singletons in the entire language
-    private nothrow intrinsic fn isSameObjectAs(self, other: ReflectionBaseType) -> Bool
+    private nothrow intrinsic fn isSameObjectAs(self, borrow other: ReflectionBaseType) -> Bool
 
-    export nothrow fn isSubtypeOf(capture self, supertype: ReflectionBaseType) -> Bool {
-        supertypeDynamic = supertype.dynamicInstance ?: supertype
+    export nothrow fn isSubtypeOf(capture self, borrow supertype: ReflectionBaseType) -> Bool {
         selfDynamic = self.dynamicInstance ?: self
 
-        return selfDynamic.isSubtypeOfAssumeDynamic(supertypeDynamic)
+        return selfDynamic.isSubtypeOfAssumeDynamic(supertype.dynamicInstance ?: supertype)
     }
 
     // does is-subtype-of logic, assuming both [self] and [supertype] are the dynamic version of their typeinfo
     // objects (i.e. [dynamicInstance] is `null` on both of them).
-    private nothrow fn isSubtypeOfAssumeDynamic(self, supertype: ReflectionBaseType) -> Bool {
+    private nothrow fn isSubtypeOfAssumeDynamic(self, borrow supertype: ReflectionBaseType) -> Bool {
         if self.isSameObjectAs(supertype) {
             return true
         }

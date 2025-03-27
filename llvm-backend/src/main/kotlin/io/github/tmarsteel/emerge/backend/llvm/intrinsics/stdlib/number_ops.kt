@@ -202,6 +202,11 @@ internal val intrinsicNumberOperations: List<KotlinLlvmFunction<EmergeLlvmContex
         binary_and_bool,
         binary_or_bool,
         binary_xor_bool,
+        copy_s8,
+        copy_s16,
+        copy_s32,
+        copy_s64,
+        copy_sWord,
     )
 }
 
@@ -875,3 +880,22 @@ private val bitwise_xor_uWord = buildBitwiseXorFunction("UWord", EmergeWordType)
 private val binary_and_bool = buildBitwiseAndFunction("Bool", LlvmBooleanType)
 private val binary_or_bool = buildBitwiseOrFunction("Bool", LlvmBooleanType)
 private val binary_xor_bool = buildBitwiseXorFunction("Bool", LlvmBooleanType)
+
+private fun <T : LlvmIntegerType> buildCopyFunction(typeSimpleName: String, llvmType: T) = KotlinLlvmFunction.define<EmergeLlvmContext, T>(
+    "emerge.core.$typeSimpleName::copy",
+    llvmType,
+) {
+    instructionAliasAttributes()
+
+    val self by param(llvmType)
+
+    body {
+        ret(self)
+    }
+}
+
+private val copy_s8 = buildCopyFunction("S8", LlvmI8Type)
+private val copy_s16 = buildCopyFunction("S16", LlvmI16Type)
+private val copy_s32 = buildCopyFunction("S32", LlvmI32Type)
+private val copy_s64 = buildCopyFunction("S64", LlvmI64Type)
+private val copy_sWord = buildCopyFunction("SWord", EmergeWordType)
