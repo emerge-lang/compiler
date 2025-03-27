@@ -184,6 +184,17 @@ data class Span(
 
     companion object {
         val UNKNOWN = Span(MemorySourceFile("UNKNOWN", CanonicalElementName.Package(listOf("unknown")), ""), 1u, 1u, 1u, 1u)
+
+        fun range(vararg spans: Span?): Span? {
+            if (spans.all { it == null }) {
+                return null
+            }
+
+            return spans
+                .asSequence()
+                .filterNotNull()
+                .reduce(Span::rangeTo)
+        }
     }
 }
 

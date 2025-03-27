@@ -31,7 +31,7 @@ class RootResolvedTypeReference private constructor(
     override val isNullable = false
     override val mutability = if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else (explicitMutability ?: original?.mutability ?: TypeMutability.READONLY)
     override val simpleName = original?.simpleName ?: baseType.simpleName
-    override val span = original?.declaringNameToken?.span
+    override val span = original?.span ?: original?.declaringNameToken?.span
 
     override val inherentTypeBindings by lazy {
         TypeUnification.fromExplicit(baseType.typeParameters ?: emptyList(), arguments, span ?: Span.UNKNOWN)

@@ -27,10 +27,9 @@ data class TypeReference(
     val mutability: TypeMutability? = null,
     val declaringNameToken: IdentifierToken? = null,
     val arguments: List<TypeArgument>? = null,
+    val span: Span? = declaringNameToken?.span,
 ) {
     constructor(simpleName: IdentifierToken) : this(simpleName.value, declaringNameToken = simpleName)
-
-    val span: Span? = declaringNameToken?.span
 
     fun withMutability(mutability: TypeMutability): TypeReference {
         return TypeReference(
@@ -39,6 +38,7 @@ data class TypeReference(
             mutability,
             declaringNameToken,
             arguments,
+            span,
         )
     }
 
@@ -48,7 +48,7 @@ data class TypeReference(
             val buffer = StringBuilder()
 
             mutability?.let {
-                buffer.append(it.name.lowercase())
+                buffer.append(it.toString())
                 buffer.append(' ')
             }
 
