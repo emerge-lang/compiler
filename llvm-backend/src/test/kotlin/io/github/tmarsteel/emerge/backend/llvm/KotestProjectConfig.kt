@@ -2,7 +2,9 @@ package io.github.tmarsteel.emerge.backend.llvm
 
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.PointerToEmergeArrayOfPointersToTypeInfoType
 import io.github.tmarsteel.emerge.backend.llvm.jna.Llvm
+import io.kotest.common.ExperimentalKotest
 import io.kotest.core.config.AbstractProjectConfig
+import io.kotest.core.spec.IsolationMode
 import java.nio.file.Paths
 
 object KotestProjectConfig : AbstractProjectConfig() {
@@ -11,7 +13,6 @@ object KotestProjectConfig : AbstractProjectConfig() {
     private val loadingMutex = Any()
 
     override suspend fun beforeProject() {
-        PointerToEmergeArrayOfPointersToTypeInfoType
         assureLlvmIsDynamicallyLinked()
     }
 
