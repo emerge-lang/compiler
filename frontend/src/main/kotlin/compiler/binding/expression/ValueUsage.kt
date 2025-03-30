@@ -66,9 +66,8 @@ internal data class ValueUsageImpl(
     }
 }
 
-internal data class CreateReferenceValueUsage(
+data class CreateReferenceValueUsage(
     override val usedAsType: BoundTypeReference?,
-    val referenceIsStoredIn: Any?, // TODO: how to implement the options? variable in initializer plus all subtypes of BoundAssignmentStatement
     val referenceCreatedAt: Span,
     override val usageOwnership: VariableOwnership,
 ) : ValueUsage {

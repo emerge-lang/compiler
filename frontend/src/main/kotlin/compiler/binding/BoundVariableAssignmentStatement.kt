@@ -49,7 +49,6 @@ class BoundVariableAssignmentStatement(
     override val assignmentTargetType get() = targetVariable?.typeAtDeclarationTime
     override val assignedValueUsage: ValueUsage get() = CreateReferenceValueUsage(
         assignmentTargetType,
-        targetVariable,
         declaration.setKeyword.span .. declaration.targetExpression.span,
         VariableOwnership.CAPTURED,
     )

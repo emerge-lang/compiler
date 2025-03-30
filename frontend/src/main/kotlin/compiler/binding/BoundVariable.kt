@@ -229,7 +229,6 @@ class BoundVariable(
 
                 initializerExpression.setEvaluationResultUsage(CreateReferenceValueUsage(
                     typeAtDeclarationTime,
-                    this,
                     declaration.declaredAt,
                     ownershipAtDeclarationTime,
                 ))
