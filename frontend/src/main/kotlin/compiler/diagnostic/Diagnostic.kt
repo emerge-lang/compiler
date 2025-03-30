@@ -73,8 +73,6 @@ abstract class Diagnostic internal constructor(
         return severity.compareTo(other.severity)
     }
 
-    fun toException(): ReportingException = ReportingException(this)
-
     protected val levelAndMessage: String get() = "($severity) $message".indentByFromSecondLine(2)
 
     /**

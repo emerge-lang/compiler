@@ -37,6 +37,7 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.borrowedVariableCaptured
 import compiler.diagnostic.notAllMemberVariablesInitialized
 import compiler.diagnostic.notAllMixinsInitialized
@@ -254,7 +255,7 @@ class BoundIdentifierExpression(
             if (isCompileTimeConstant) {
                 return
             }
-            visitor.visitReadBeyondBoundary(boundary, this@BoundIdentifierExpression)
+            visitor.visit(PurityViolationDiagnostic.Impurity.ReadBeyondBoundary(this@BoundIdentifierExpression, usage ?: IrrelevantValueUsage))
         }
 
         override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
@@ -262,7 +263,7 @@ class BoundIdentifierExpression(
                 return
             }
             if (usage?.usedAsType?.mutability?.isMutable == true) {
-                visitor.visitWriteBeyondBoundary(boundary, this@BoundIdentifierExpression)
+                visitor.visit(PurityViolationDiagnostic.Impurity.VariableUsedAsMutable(this, this.usage!!))
             }
         }
 

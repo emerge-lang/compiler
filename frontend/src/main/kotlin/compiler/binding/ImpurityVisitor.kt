@@ -1,58 +1,36 @@
 package compiler.binding
 
-import compiler.binding.context.CTContext
-import compiler.binding.expression.BoundExpression
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.PurityViolationDiagnostic
-import compiler.diagnostic.modifyingPurityViolation
-import compiler.diagnostic.readingPurityViolation
+import compiler.diagnostic.purityViolation
 
-interface ImpurityVisitor {
-    fun visitReadBeyondBoundary(purityBoundary: CTContext, read: BoundExpression<*>)
-    fun visitWriteBeyondBoundary(purityBoundary: CTContext, write: BoundExecutable<*>)
+fun interface ImpurityVisitor {
+    fun visit(impurity: PurityViolationDiagnostic.Impurity)
 }
 
-internal class PurityViolationImpurityVisitor(
+internal class DiagnosingImpurityVisitor(
     private val diagnosis: Diagnosis,
     private val boundaryForReporting: PurityViolationDiagnostic.SideEffectBoundary,
 ) : ImpurityVisitor {
-    private val writesBeyondContext = HashSet<BoundExecutable<*>>()
+    private val writesBeyondContext = HashSet<PurityViolationDiagnostic.Impurity>()
     private var firstReadSeen = false
-    override fun visitReadBeyondBoundary(purityBoundary: CTContext, read: BoundExpression<*>) {
-        firstReadSeen = true
-        if (read !in writesBeyondContext) {
-            diagnosis.readingPurityViolation(read, boundaryForReporting)
-        }
-    }
 
-    override fun visitWriteBeyondBoundary(purityBoundary: CTContext, write: BoundExecutable<*>) {
-        check(!firstReadSeen) {
-            "visit writes before reads for this class to work correctly!"
-        }
+    override fun visit(impurity: PurityViolationDiagnostic.Impurity) {
+        when (impurity.kind) {
+            PurityViolationDiagnostic.ActionKind.READ -> {
+                firstReadSeen = true
+                if (impurity !in writesBeyondContext) {
+                    diagnosis.purityViolation(impurity, boundaryForReporting)
+                }
+            }
+            PurityViolationDiagnostic.ActionKind.MODIFY -> {
+                check(!firstReadSeen) {
+                    "visit writes before reads for this class to work correctly!"
+                }
 
-        writesBeyondContext.add(write)
-        diagnosis.modifyingPurityViolation(write, boundaryForReporting)
-    }
-}
-
-internal class DetectingImpurityVisitor(
-    private val lookFor: BoundExecutable<*>,
-) : ImpurityVisitor {
-    var foundAsReading: Boolean = false
-        private set
-
-    var foundAsWriting: Boolean = false
-        private set
-
-    override fun visitReadBeyondBoundary(purityBoundary: CTContext, read: BoundExpression<*>) {
-        if (read == lookFor) {
-            foundAsReading = true
-        }
-    }
-
-    override fun visitWriteBeyondBoundary(purityBoundary: CTContext, write: BoundExecutable<*>) {
-        if (write == lookFor) {
-            foundAsWriting = true
+                writesBeyondContext.add(impurity)
+                diagnosis.purityViolation(impurity, boundaryForReporting)
+            }
         }
     }
 }

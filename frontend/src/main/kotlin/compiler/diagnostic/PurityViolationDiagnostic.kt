@@ -18,19 +18,34 @@
 
 package compiler.diagnostic
 
-import compiler.binding.BoundAssignmentStatement
+import compiler.InternalCompilerError
 import compiler.binding.BoundFunction
-import compiler.binding.BoundStatement
+import compiler.binding.BoundVariableAssignmentStatement
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundInvocationExpression
+import compiler.binding.expression.ValueUsage
+import compiler.lexer.Span
 
-abstract class PurityViolationDiagnostic protected constructor(
-    val violation: BoundStatement<*>,
-    message: String
-) : Diagnostic(Severity.ERROR, message, violation.declaration.span) {
+data class PurityViolationDiagnostic(
+    val impurity: Impurity,
+    val boundary: SideEffectBoundary,
+) : Diagnostic(
+    Severity.ERROR,
+    "${impurity.describe()} violates the purity of $boundary",
+    impurity.span
+) {
+    override fun toString(): String {
+        val impurityHints = impurity.sourceHints
+        if (impurityHints.isEmpty()) {
+            return super.toString()
+        }
+
+        return "$levelAndMessage\n${illustrateHints(*impurityHints)}"
+    }
+
     sealed class SideEffectBoundary(
         val asString: String,
         /**
@@ -43,107 +58,66 @@ abstract class PurityViolationDiagnostic protected constructor(
         class Function(val function: BoundFunction) : SideEffectBoundary(
             run {
                 val modifier = if (BoundFunction.Purity.PURE.contains(function.purity)) "pure" else "readonly"
-                val kindAndName = if (function is BoundClassConstructor) "constructor of class ${function.classDef.simpleName}" else "function ${function.name}"
+                val kindAndName = if (function is BoundClassConstructor) "constructor of class `${function.classDef.simpleName}`" else "function `${function.name}`"
                 "$modifier $kindAndName"
             },
             BoundFunction.Purity.PURE.contains(function.purity),
         )
         class ClassMemberInitializer(val member: BoundBaseTypeMemberVariable) : SideEffectBoundary("member variable initializer", true)
     }
-}
 
-class ReadInPureContextDiagnostic internal constructor(val readingExpression: BoundIdentifierExpression, val boundary: SideEffectBoundary) : PurityViolationDiagnostic(
-    readingExpression,
-    "$boundary cannot read ${readingExpression.identifier} (is not within the purity-boundary)"
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is ReadInPureContextDiagnostic) return false
+    sealed interface Impurity {
+        val span: Span
+        val kind: ActionKind
+        val sourceHints: Array<SourceHint>
+            get() = arrayOf(SourceHint(span = span, description = null))
 
-        if (readingExpression.declaration.span != other.readingExpression.declaration.span) return false
+        fun describe(): String
 
-        return true
+        data class ReadBeyondBoundary(val readingExpression: BoundExpression<*>, val usage: ValueUsage): Impurity {
+            override val span = readingExpression.declaration.span
+            override val kind = ActionKind.READ
+            override val sourceHints: Array<SourceHint> get() = TODO()
+            override fun describe(): String = usage.describeForDiagnostic(TODO())
+        }
+
+        data class ImpureInvocation(val invocation: BoundInvocationExpression, val functionToInvoke: BoundFunction) : Impurity {
+            override val span = invocation.declaration.span
+            override val kind = when (functionToInvoke.purity) {
+                BoundFunction.Purity.PURE -> throw InternalCompilerError("Invoking a pure function cannot possibly be considered impure")
+                BoundFunction.Purity.READONLY -> ActionKind.READ
+                BoundFunction.Purity.MODIFYING -> ActionKind.MODIFY
+            }
+            override fun describe(): String = "invoking ${functionToInvoke.purity} function ${functionToInvoke.name}"
+        }
+
+        interface ReassignmentBeyondBoundary : Impurity {
+            data class Variable(val assignment: BoundVariableAssignmentStatement) : Impurity {
+                override val span = assignment.variableName.span
+                override val kind = ActionKind.MODIFY
+                override fun describe(): String = "assigning a new value to ${assignment.variableName.value}"
+            }
+            data class Complex(val assignmentTarget: BoundExpression<*>) : Impurity {
+                override val span = assignmentTarget.declaration.span
+                override val kind = ActionKind.MODIFY
+                override fun describe(): String = "assigning a new value to this target"
+            }
+        }
+
+        data class VariableUsedAsMutable(val referral: BoundIdentifierExpression.ReferringVariable, val usage: ValueUsage) : Impurity {
+            override val span = referral.span
+            override val kind = ActionKind.MODIFY
+            override val sourceHints get() = arrayOf(
+                SourceHint(span = referral.span, "value is used with a mut type here"),
+                SourceHint(span = usage.span, "the reference is created here"),
+            )
+            override fun describe() = usage.describeForDiagnostic("`" + referral.variable.name + "`")
+        }
     }
 
-    override fun hashCode(): Int {
-        return readingExpression.declaration.span.hashCode()
-    }
-}
-
-class ImpureInvocationInPureContextDiagnostic internal constructor(val invcExpr: BoundInvocationExpression, val boundary: SideEffectBoundary) : PurityViolationDiagnostic(
-    invcExpr,
-    "$boundary cannot invoke impure function ${invcExpr.functionToInvoke!!.name}"
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is ImpureInvocationInPureContextDiagnostic) return false
-
-        if (invcExpr.declaration.span != other.invcExpr.declaration.span) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return invcExpr.declaration.span.hashCode()
-    }
-}
-
-class ModifyingInvocationInReadonlyContextDiagnostic internal constructor(val invcExpr: BoundInvocationExpression, val boundary: SideEffectBoundary) : PurityViolationDiagnostic(
-    invcExpr,
-    "$boundary cannot invoke modifying function ${invcExpr.functionToInvoke!!.name}"
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is ModifyingInvocationInReadonlyContextDiagnostic) return false
-
-        if (invcExpr.declaration.span != other.invcExpr.declaration.span) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return invcExpr.declaration.span.hashCode()
-    }
-}
-
-class AssignmentOutsideOfPurityBoundaryDiagnostic internal constructor(val assignment: BoundAssignmentStatement, val boundary: SideEffectBoundary) : PurityViolationDiagnostic(
-    assignment,
-    run {
-        val boundaryType = if (boundary.isPure) "purity" else "readonlyness"
-        "$boundary cannot change state outside of its $boundaryType boundary"
-    }
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is AssignmentOutsideOfPurityBoundaryDiagnostic) return false
-
-        if (assignment.declaration.span != other.assignment.declaration.span) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return assignment.declaration.span.hashCode()
-    }
-}
-
-class MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic internal constructor(val expression: BoundExpression<*>, val boundary: SideEffectBoundary) : PurityViolationDiagnostic(
-    expression,
-    run {
-        val boundaryType = if (boundary.isPure) "purity" else "readonlyness"
-        "$boundary cannot change state outside of its $boundaryType boundary"
-    }
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is AssignmentOutsideOfPurityBoundaryDiagnostic) return false
-
-        if (expression.declaration.span != other.assignment.declaration.span) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return expression.declaration.span.hashCode()
+    enum class ActionKind {
+        READ,
+        MODIFY,
+        ;
     }
 }

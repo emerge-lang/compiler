@@ -22,7 +22,7 @@ import compiler.ast.BaseTypeMemberDeclaration
 import compiler.ast.BaseTypeMemberVariableDeclaration
 import compiler.ast.expression.IdentifierExpression
 import compiler.binding.DefinitionWithVisibility
-import compiler.binding.PurityViolationImpurityVisitor
+import compiler.binding.DiagnosingImpurityVisitor
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
@@ -90,7 +90,7 @@ class BoundBaseTypeMemberVariable(
         boundEffectiveVariableDeclaration.semanticAnalysisPhase3(diagnosis)
 
         boundEffectiveVariableDeclaration.initializerExpression?.let { initializer ->
-            val diagnosingVisitor = PurityViolationImpurityVisitor(diagnosis, PurityViolationDiagnostic.SideEffectBoundary.ClassMemberInitializer(this))
+            val diagnosingVisitor = DiagnosingImpurityVisitor(diagnosis, PurityViolationDiagnostic.SideEffectBoundary.ClassMemberInitializer(this))
             initializer.visitWritesBeyond(context, diagnosingVisitor)
             initializer.visitReadsBeyond(context, diagnosingVisitor)
         }

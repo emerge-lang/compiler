@@ -149,7 +149,7 @@ abstract class BoundDeclaredFunction(
                 body.semanticAnalysisPhase3(diagnosis)
 
                 if (BoundFunction.Purity.READONLY.contains(this.purity)) {
-                    val diagnosingVisitor = PurityViolationImpurityVisitor(diagnosis, PurityViolationDiagnostic.SideEffectBoundary.Function(this))
+                    val diagnosingVisitor = DiagnosingImpurityVisitor(diagnosis, PurityViolationDiagnostic.SideEffectBoundary.Function(this))
                     handleCyclicInvocation(
                         context = this,
                         action = { body.visitWritesBeyond(context, diagnosingVisitor) },

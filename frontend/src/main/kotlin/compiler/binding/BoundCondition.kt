@@ -5,10 +5,12 @@ import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeMutability
 import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.ValueUsage
 import compiler.binding.expression.ValueUsageImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.isAssignableTo
 import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.conditionIsNotBoolean
 import compiler.diagnostic.mutationInCondition
 
@@ -37,17 +39,12 @@ class BoundCondition(
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         expression.semanticAnalysisPhase3(diagnosis)
 
-        expression.visitWritesBeyond(
-            context,
-            object : ImpurityVisitor {
-                override fun visitReadBeyondBoundary(purityBoundary: CTContext, read: BoundExpression<*>) {
-                    // reading in conditions is okay
-                }
-
-                override fun visitWriteBeyondBoundary(purityBoundary: CTContext, write: BoundExecutable<*>) {
-                    diagnosis.mutationInCondition(write)
-                }
+        expression.visitWritesBeyond(context) { impurity ->
+            if (impurity.kind == PurityViolationDiagnostic.ActionKind.READ) {
+                // reading in conditions is okay
+                return@visitWritesBeyond
             }
-        )
+            diagnosis.mutationInCondition(impurity)
+        }
     }
 }

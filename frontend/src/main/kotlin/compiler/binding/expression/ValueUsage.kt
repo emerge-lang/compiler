@@ -1,10 +1,6 @@
 package compiler.binding.expression
 
 import compiler.ast.VariableOwnership
-import compiler.ast.expression.IdentifierExpression
-import compiler.binding.BoundAssignmentStatement
-import compiler.binding.BoundVariable
-import compiler.binding.BoundVariableAssignmentStatement
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.Span
 
@@ -26,12 +22,41 @@ interface ValueUsage {
     val usageOwnership: VariableOwnership
 
     /**
+     * Where the usage happens
+     */
+    val span: Span
+
+    /**
      * @return a [ValueUsage] identical to `this`, except that [usedAsType] has been transformed using [mapper].
      */
     fun mapType(mapper: (BoundTypeReference) -> BoundTypeReference): ValueUsage
+
+    fun describeForDiagnostic(descriptionOfUsedValue: String): String = "!!UNDESCRIBED!!" // TODO: fully implement for all cases
+
+    companion object {
+        fun deriveFromAndThen(
+            deriveUsingType: BoundTypeReference?,
+            deriveWithOwnership: VariableOwnership,
+            andThen: ValueUsage
+        ): ValueUsage {
+            return if (andThen is DeriveFromAndThenValueUsage) {
+                if (andThen.usedAsType == deriveUsingType && andThen.usageOwnership == deriveWithOwnership) {
+                    andThen
+                } else {
+                    DeriveFromAndThenValueUsage(andThen.andThenUsage, deriveUsingType, deriveWithOwnership)
+                }
+            } else {
+                DeriveFromAndThenValueUsage(andThen, deriveUsingType, deriveWithOwnership)
+            }
+        }
+    }
 }
 
-internal data class ValueUsageImpl(override val usedAsType: BoundTypeReference?, override val usageOwnership: VariableOwnership) : ValueUsage {
+internal data class ValueUsageImpl(
+    override val usedAsType: BoundTypeReference?,
+    override val usageOwnership: VariableOwnership,
+    override val span: Span = Span.UNKNOWN, // TODO: remove default value and implement correctly everywhere
+) : ValueUsage {
     override fun mapType(mapper: (BoundTypeReference) -> BoundTypeReference): ValueUsage {
         if (usedAsType == null) {
             return this
@@ -41,18 +66,46 @@ internal data class ValueUsageImpl(override val usedAsType: BoundTypeReference?,
     }
 }
 
-internal data class AssignmentToVariableValueUsage(
+internal data class CreateReferenceValueUsage(
     override val usedAsType: BoundTypeReference?,
-    val referencedVariable: BoundVariable?,
-    val variableReferencedAt: Span,
+    val referenceIsStoredIn: Any?, // TODO: how to implement the options? variable in initializer plus all subtypes of BoundAssignmentStatement
+    val referenceCreatedAt: Span,
+    override val usageOwnership: VariableOwnership,
 ) : ValueUsage {
-    override val usageOwnership: VariableOwnership get() = referencedVariable?.ownershipAtDeclarationTime ?: VariableOwnership.BORROWED
+    override val span = referenceCreatedAt
 
     override fun mapType(mapper: (BoundTypeReference) -> BoundTypeReference): ValueUsage {
         if (usedAsType == null) {
             return this
         }
         return copy(usedAsType = mapper(usedAsType))
+    }
+
+    override fun describeForDiagnostic(descriptionOfUsedValue: String): String {
+        val mutabilityPart = when (val it = usedAsType?.mutability?.toString()) {
+            null -> ""
+            else -> "$it "
+        }
+        return "creating a ${mutabilityPart}reference to $descriptionOfUsedValue"
+    }
+}
+
+internal data class DeriveFromAndThenValueUsage(
+    val andThenUsage: ValueUsage,
+    override val usedAsType: BoundTypeReference?,
+    override val usageOwnership: VariableOwnership,
+) : ValueUsage {
+    override val span: Span = andThenUsage.span
+    override fun mapType(mapper: (BoundTypeReference) -> BoundTypeReference): ValueUsage {
+        if (usedAsType == null) {
+            return this
+        }
+
+        return copy(usedAsType = mapper(usedAsType))
+    }
+
+    override fun describeForDiagnostic(descriptionOfUsedValue: String): String {
+        return andThenUsage.describeForDiagnostic("a value derived from $descriptionOfUsedValue")
     }
 }
 
@@ -63,5 +116,6 @@ internal data class AssignmentToVariableValueUsage(
 object IrrelevantValueUsage : ValueUsage {
     override val usedAsType: BoundTypeReference? = null
     override val usageOwnership: VariableOwnership = VariableOwnership.BORROWED
+    override val span = Span.UNKNOWN
     override fun mapType(mapper: (BoundTypeReference) -> BoundTypeReference): ValueUsage = this
 }

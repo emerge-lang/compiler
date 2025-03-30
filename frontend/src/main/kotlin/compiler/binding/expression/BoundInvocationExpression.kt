@@ -44,6 +44,7 @@ import compiler.binding.type.*
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.ambiguousInvocation
 import compiler.diagnostic.noMatchingFunctionOverload
 import compiler.diagnostic.nothrowViolatingInvocation
@@ -394,18 +395,29 @@ class BoundInvocationExpression(
         }
     }
 
+    /** so that identity remains constant throughout visits to this instance */
+    private val asImpurity: PurityViolationDiagnostic.Impurity.ImpureInvocation? by lazy {
+        seanHelper.requirePhase2Done()
+        val functionToInvoke = this.functionToInvoke ?: return@lazy null
+        if (functionToInvoke.purity.contains(BoundFunction.Purity.PURE)) {
+            return@lazy null
+        }
+
+        PurityViolationDiagnostic.Impurity.ImpureInvocation(
+            this,
+            functionToInvoke,
+        )
+    }
     override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         seanHelper.requirePhase2Done()
 
         receiverExpression?.visitReadsBeyond(boundary, visitor)
         valueArguments.forEach { it.visitReadsBeyond(boundary, visitor) }
 
-        val invokedFunctionIsPure = functionToInvoke?.let {
-            BoundFunction.Purity.PURE.contains(it.purity)
-        } ?: true
-
-        if (!invokedFunctionIsPure) {
-            visitor.visitReadBeyondBoundary(boundary, this)
+        asImpurity?.let { impurity ->
+            if (!BoundFunction.Purity.PURE.contains(impurity.functionToInvoke.purity)) {
+                visitor.visit(impurity)
+            }
         }
     }
 
@@ -415,9 +427,10 @@ class BoundInvocationExpression(
         receiverExpression?.visitWritesBeyond(boundary, visitor)
         valueArguments.forEach { it.visitWritesBeyond(boundary, visitor) }
 
-        val invokedFunctionIsReadonly = BoundFunction.Purity.READONLY.contains(functionToInvoke?.purity ?: BoundFunction.Purity.PURE)
-        if (!invokedFunctionIsReadonly) {
-            visitor.visitWriteBeyondBoundary(boundary, this)
+        asImpurity?.let { impurity ->
+            if (!BoundFunction.Purity.READONLY.contains(impurity.functionToInvoke.purity)) {
+                visitor.visit(impurity)
+            }
         }
     }
 

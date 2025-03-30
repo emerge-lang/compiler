@@ -122,7 +122,11 @@ class BoundMemberAccessExpression(
             ?.withMutability(usageContext.mutability.union(valueUsage.usedAsType?.mutability ?: TypeMutability.READONLY))
         // captured = false here because: the host object isn't being referenced; and the result value is already captured
         // by nature of being stored in an object member, so need to further validate that
-        valueExpression.setEvaluationResultUsage(ValueUsageImpl(valueUsedAsType, VariableOwnership.BORROWED))
+        valueExpression.setEvaluationResultUsage(ValueUsage.deriveFromAndThen(
+            deriveUsingType = valueUsedAsType,
+            deriveWithOwnership = VariableOwnership.BORROWED,
+            andThen = valueUsage,
+        ))
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
