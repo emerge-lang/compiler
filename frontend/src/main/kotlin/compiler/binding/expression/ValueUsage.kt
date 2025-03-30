@@ -1,7 +1,10 @@
 package compiler.binding.expression
 
 import compiler.ast.VariableOwnership
+import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeReference
 import compiler.binding.BoundFunction
+import compiler.binding.context.SoftwareContext
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.Span
 
@@ -127,6 +130,26 @@ class MixinValueUsage(
         }
 
         return MixinValueUsage(mapper(usedAsType), span)
+    }
+}
+
+class TypeCheckValueUsage private constructor(
+    override val usedAsType: BoundTypeReference,
+    override val span: Span,
+) : ValueUsage {
+    constructor(softwareContext: SoftwareContext, span: Span) : this(
+        softwareContext.any.baseReference
+            .withMutability(TypeMutability.READONLY)
+            .withCombinedNullability(TypeReference.Nullability.NULLABLE),
+        span,
+    )
+
+    override val usageOwnership = VariableOwnership.BORROWED
+
+    override fun describeForDiagnostic(descriptionOfUsedValue: String) = "reflecting the type of $descriptionOfUsedValue"
+
+    override fun mapType(mapper: (BoundTypeReference) -> BoundTypeReference): ValueUsage {
+        return TypeCheckValueUsage(mapper(usedAsType), span)
     }
 }
 

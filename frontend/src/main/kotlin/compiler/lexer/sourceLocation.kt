@@ -163,7 +163,11 @@ data class Span(
         }
     }
 
-    operator fun rangeTo(other: Span): Span {
+    operator fun rangeTo(other: Span?): Span {
+        if (other == null) {
+            return this
+        }
+
         check(sourceFile == other.sourceFile)
         return Span(
             sourceFile,

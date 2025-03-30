@@ -66,12 +66,7 @@ class BoundInstanceOfExpression(
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         expressionToCheck.semanticAnalysisPhase2(diagnosis)
         expressionToCheck.setEvaluationResultUsage(
-            ValueUsageImpl(
-                context.swCtx.any.baseReference
-                    .withMutability(TypeMutability.READONLY)
-                    .withCombinedNullability(TypeReference.Nullability.NULLABLE),
-                VariableOwnership.BORROWED,
-            )
+            TypeCheckValueUsage(context.swCtx, declaration.operator.span..declaration.typeToCheck.span),
         )
     }
 
