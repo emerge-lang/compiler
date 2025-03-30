@@ -158,7 +158,6 @@ class BoundIdentifierExpression(
         override val span = declaration.span
         private var usageContext = VariableUsageContext.WRITE
         private var allowPartiallyUninitialized: Boolean = false
-        private var thisUsageCapturesWithMutability: TypeMutability? = null
         /* variables are always anchored, refcount on assignment + deferred refcount of the value at scope exit */
         override val isEvaluationResultAnchored get() = true
 
@@ -174,15 +173,9 @@ class BoundIdentifierExpression(
             variable.semanticAnalysisPhase2(diagnosis)
         }
 
-        private var usedAsType: BoundTypeReference? = null
+        private var usage: ValueUsage? = null
         override fun setUsageContext(valueUsage: ValueUsage) {
-            this.usedAsType = valueUsage.usedAsType
-            when (valueUsage.usageOwnership) {
-                VariableOwnership.BORROWED -> { /* nothing to do in this case */ }
-                VariableOwnership.CAPTURED -> {
-                    thisUsageCapturesWithMutability = valueUsage.usedAsType?.mutability
-                }
-            }
+            this.usage = valueUsage
         }
 
         override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
@@ -215,6 +208,11 @@ class BoundIdentifierExpression(
                                 }
                         }
                 }
+            }
+
+            val thisUsageCapturesWithMutability: TypeMutability? = when (usage?.usageOwnership) {
+                VariableOwnership.BORROWED, null -> null
+                VariableOwnership.CAPTURED -> usage!!.usedAsType?.mutability ?: TypeMutability.READONLY
             }
 
             thisUsageCapturesWithMutability?.let { capturedWithMutability ->
@@ -263,7 +261,7 @@ class BoundIdentifierExpression(
             if (context.containsWithinBoundary(variable, boundary)) {
                 return
             }
-            if (usedAsType?.mutability?.isMutable == true) {
+            if (usage?.usedAsType?.mutability?.isMutable == true) {
                 visitor.visitWriteBeyondBoundary(boundary, this@BoundIdentifierExpression)
             }
         }

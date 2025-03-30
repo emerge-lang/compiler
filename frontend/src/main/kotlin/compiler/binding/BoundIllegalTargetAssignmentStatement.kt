@@ -10,6 +10,8 @@ import compiler.binding.expression.BoundInvocationExpression
 import compiler.binding.expression.BoundLiteralExpression
 import compiler.binding.expression.BoundNotNullExpression
 import compiler.binding.expression.BoundUnaryExpression
+import compiler.binding.expression.IrrelevantValueUsage
+import compiler.binding.expression.ValueUsage
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
@@ -47,6 +49,7 @@ class BoundIllegalTargetAssignmentStatement(
     }
 
     override val assignmentTargetType: BoundTypeReference? = null
+    override val assignedValueUsage = IrrelevantValueUsage
 
     override fun additionalSemanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
 

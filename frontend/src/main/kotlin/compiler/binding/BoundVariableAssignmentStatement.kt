@@ -5,8 +5,10 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.context.effect.VariableLifetime
+import compiler.binding.expression.AssignmentToVariableValueUsage
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrVariableAccessExpressionImpl
+import compiler.binding.expression.ValueUsage
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
@@ -44,6 +46,7 @@ class BoundVariableAssignmentStatement(
     }
 
     override val assignmentTargetType get() = targetVariable?.typeAtDeclarationTime
+    override val assignedValueUsage: ValueUsage get() = AssignmentToVariableValueUsage(assignmentTargetType, targetVariable, variableName.span)
 
     override fun additionalSemanticAnalysisPhase2(diagnosis: Diagnosis) {
         targetVariable?.also {

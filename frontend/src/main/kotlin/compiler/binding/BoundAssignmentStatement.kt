@@ -7,6 +7,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.ValueUsage
 import compiler.binding.expression.ValueUsageImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.IrGenericTypeReferenceImpl
@@ -57,6 +58,7 @@ abstract class BoundAssignmentStatement(
      * the type of the assignment target; if available, must be set after [assignmentTargetSemanticAnalysisPhase2]
      */
     protected abstract val assignmentTargetType: BoundTypeReference?
+    protected abstract val assignedValueUsage: ValueUsage
 
     abstract fun additionalSemanticAnalysisPhase2(diagnosis: Diagnosis)
 
@@ -71,10 +73,7 @@ abstract class BoundAssignmentStatement(
 
             toAssignExpression.semanticAnalysisPhase2(diagnosis)
             additionalSemanticAnalysisPhase2(diagnosis)
-            toAssignExpression.setEvaluationResultUsage(ValueUsageImpl(
-                assignmentTargetType,
-                VariableOwnership.CAPTURED,
-            ))
+            toAssignExpression.setEvaluationResultUsage(assignedValueUsage)
 
             toAssignExpression.type?.also { assignedType ->
                 assignmentTargetType?.also { targetType ->
