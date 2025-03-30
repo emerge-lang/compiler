@@ -1,12 +1,13 @@
 package compiler.binding
 
 import compiler.ast.AssignmentStatement
-import compiler.ast.type.TypeMutability
+import compiler.ast.VariableOwnership
 import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.ValueUsageImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.IrGenericTypeReferenceImpl
 import compiler.binding.type.IrParameterizedTypeImpl
@@ -70,9 +71,10 @@ abstract class BoundAssignmentStatement(
 
             toAssignExpression.semanticAnalysisPhase2(diagnosis)
             additionalSemanticAnalysisPhase2(diagnosis)
-            assignmentTargetType?.let { targetType ->
-                toAssignExpression.setUsageContext(targetType, true)
-            }
+            toAssignExpression.setEvaluationResultUsage(ValueUsageImpl(
+                assignmentTargetType,
+                VariableOwnership.CAPTURED,
+            ))
 
             toAssignExpression.type?.also { assignedType ->
                 assignmentTargetType?.also { targetType ->

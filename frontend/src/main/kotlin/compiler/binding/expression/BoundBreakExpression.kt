@@ -6,7 +6,6 @@ import compiler.binding.ImpurityVisitor
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.breakOutsideOfLoop
@@ -36,7 +35,7 @@ class BoundBreakExpression(
         // nothing to do
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
         // not relevant
     }
 

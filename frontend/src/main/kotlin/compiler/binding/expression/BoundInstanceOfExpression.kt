@@ -1,8 +1,10 @@
 package compiler.binding.expression
 
 import compiler.InternalCompilerError
+import compiler.ast.VariableOwnership
 import compiler.ast.expression.AstInstanceOfExpression
 import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeReference
 import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.basetype.BoundBaseType
@@ -63,13 +65,17 @@ class BoundInstanceOfExpression(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         expressionToCheck.semanticAnalysisPhase2(diagnosis)
-        expressionToCheck.setUsageContext(
-            context.swCtx.any.baseReference.withMutability(TypeMutability.READONLY),
-            false,
+        expressionToCheck.setEvaluationResultUsage(
+            ValueUsageImpl(
+                context.swCtx.any.baseReference
+                    .withMutability(TypeMutability.READONLY)
+                    .withCombinedNullability(TypeReference.Nullability.NULLABLE),
+                VariableOwnership.BORROWED,
+            )
         )
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
         // nothing to do:
         // the expression-to-be-checked is used regardless of context, with a type that doesn't depend on context (read Any)
         // the result of expression-to-be-checked is also never captured

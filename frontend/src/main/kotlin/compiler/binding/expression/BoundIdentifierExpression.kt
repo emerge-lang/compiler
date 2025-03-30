@@ -94,8 +94,8 @@ class BoundIdentifierExpression(
         referral?.markEvaluationResultUsed()
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
-        referral?.setUsageContext(usedAsType, captured)
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
+        referral?.setUsageContext(valueUsage)
     }
 
     fun allowPartiallyUninitializedValue() {
@@ -145,8 +145,8 @@ class BoundIdentifierExpression(
         /** @see BoundExpression.markEvaluationResultUsed */
         fun markEvaluationResultUsed()
 
-        /** @see BoundExpression.setUsageContext */
-        fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean)
+        /** @see BoundExpression.setEvaluationResultUsage */
+        fun setUsageContext(valueUsage: ValueUsage)
 
         /** @see BoundExpression.isCompileTimeConstant */
         val isCompileTimeConstant: Boolean
@@ -175,10 +175,13 @@ class BoundIdentifierExpression(
         }
 
         private var usedAsType: BoundTypeReference? = null
-        override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
-            this.usedAsType = usedAsType
-            if (captured) {
-                thisUsageCapturesWithMutability = usedAsType.mutability
+        override fun setUsageContext(valueUsage: ValueUsage) {
+            this.usedAsType = valueUsage.usedAsType
+            when (valueUsage.usageOwnership) {
+                VariableOwnership.BORROWED -> { /* nothing to do in this case */ }
+                VariableOwnership.CAPTURED -> {
+                    thisUsageCapturesWithMutability = valueUsage.usedAsType?.mutability
+                }
             }
         }
 
@@ -284,7 +287,7 @@ class BoundIdentifierExpression(
             // reading type information outside the boundary is pure because type information is compile-time constant
         }
 
-        override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
+        override fun setUsageContext(valueUsage: ValueUsage) {
             // not needed, because type information is compile-time constant
         }
 

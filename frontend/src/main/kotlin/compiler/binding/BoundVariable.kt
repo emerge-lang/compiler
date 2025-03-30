@@ -29,6 +29,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.ValueUsageImpl
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
@@ -225,10 +226,10 @@ class BoundVariable(
                     }
                 }
 
-                initializerExpression.setUsageContext(
-                    typeAtDeclarationTime ?: context.swCtx.unresolvableReplacementType,
-                    true,
-                )
+                initializerExpression.setEvaluationResultUsage(ValueUsageImpl(
+                    typeAtDeclarationTime,
+                    VariableOwnership.CAPTURED,
+                ))
             }
 
             // handle no initializer case

@@ -20,11 +20,10 @@ package compiler.binding.expression
 
 import compiler.InternalCompilerError
 import compiler.ast.ReturnExpression
+import compiler.ast.VariableOwnership
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
-import compiler.ast.type.TypeMutability
-import compiler.ast.type.TypeReference
 import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
@@ -74,20 +73,17 @@ class BoundReturnExpression(
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         expression?.markEvaluationResultUsed()
         expression?.semanticAnalysisPhase2(diagnosis)
-        expression?.setUsageContext(
-            expectedReturnType
-                ?: context.swCtx.any.baseReference
-                    .withCombinedNullability(TypeReference.Nullability.NULLABLE)
-                    .withMutability(TypeMutability.READONLY),
-            captured = true,
-        )
+        expression?.setEvaluationResultUsage(ValueUsageImpl(
+            expectedReturnType,
+            VariableOwnership.CAPTURED,
+        ))
     }
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         expression?.setNothrow(boundary)
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
         // nothing to do; the evaluation result type of "return" is Nothing
     }
 

@@ -2,7 +2,6 @@ package compiler.binding.expression
 
 import compiler.InternalCompilerError
 import compiler.ast.expression.AstCatchBlockExpression
-import compiler.ast.type.TypeMutability
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundVariable
 import compiler.binding.DropLocalVariableStatement
@@ -86,8 +85,8 @@ class BoundCatchBlockExpression(
         catchCode.setNothrow(boundary)
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
-        catchCode.setUsageContext(usedAsType, captured)
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
+        catchCode.setEvaluationResultUsage(valueUsage)
     }
 
     override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {

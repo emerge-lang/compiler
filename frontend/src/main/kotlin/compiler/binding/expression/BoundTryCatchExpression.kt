@@ -1,7 +1,6 @@
 package compiler.binding.expression
 
 import compiler.ast.expression.AstTryCatchExpression
-import compiler.ast.type.TypeMutability
 import compiler.binding.BoundCodeChunk
 import compiler.binding.ImpurityVisitor
 import compiler.binding.SeanHelper
@@ -84,9 +83,9 @@ class BoundTryCatchExpression(
         catchBlock.setNothrow(boundary)
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
-        fallibleCode.setUsageContext(usedAsType, captured)
-        catchBlock.setUsageContext(usedAsType, captured)
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
+        fallibleCode.setEvaluationResultUsage(valueUsage)
+        catchBlock.setEvaluationResultUsage(valueUsage)
     }
 
     override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {

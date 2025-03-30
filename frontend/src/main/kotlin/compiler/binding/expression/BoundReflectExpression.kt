@@ -44,7 +44,7 @@ class BoundReflectExpression(
 
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
         // nothing to do, this expression doesn't use any values
     }
 

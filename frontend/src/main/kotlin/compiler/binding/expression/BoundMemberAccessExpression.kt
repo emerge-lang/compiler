@@ -18,6 +18,7 @@
 
 package compiler.binding.expression
 
+import compiler.ast.VariableOwnership
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.TypeMutability
 import compiler.binding.ImpurityVisitor
@@ -113,15 +114,15 @@ class BoundMemberAccessExpression(
     }
 
     private var usageContextSet = false
-    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
         check(!usageContextSet)
         usageContextSet = true
 
-        val usageBaseType = valueExpression.type ?: context.swCtx.unresolvableReplacementType
-        val usedWithMutability = usageContext.mutability.union(usedAsType.mutability)
+        val valueUsedAsType = valueExpression.type
+            ?.withMutability(usageContext.mutability.union(valueUsage.usedAsType?.mutability ?: TypeMutability.READONLY))
         // captured = false here because: the host object isn't being referenced; and the result value is already captured
         // by nature of being stored in an object member, so need to further validate that
-        valueExpression.setUsageContext(usageBaseType.withMutability(usedWithMutability), captured = false)
+        valueExpression.setEvaluationResultUsage(ValueUsageImpl(valueUsedAsType, VariableOwnership.BORROWED))
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

@@ -1,6 +1,7 @@
 package compiler.binding.expression
 
 import compiler.ast.AstThrowExpression
+import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeMutability
 import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
@@ -13,7 +14,6 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrExpressionSideEffectsStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
-import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.throwStatementInNothrowContext
@@ -51,7 +51,10 @@ class BoundThrowExpression(
                 ?.evaluateAssignabilityTo(expectedType, throwableExpression.declaration.span)
                 ?.let(diagnosis::add)
 
-            throwableExpression.setUsageContext(expectedType, captured = true)
+            throwableExpression.setEvaluationResultUsage(ValueUsageImpl(
+                expectedType,
+                VariableOwnership.CAPTURED,
+            ))
         }
     }
 
@@ -61,7 +64,7 @@ class BoundThrowExpression(
         this.throwableExpression.setNothrow(boundary)
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
         // nothing to do; the evaluation result type of "throw" is Nothing
     }
 

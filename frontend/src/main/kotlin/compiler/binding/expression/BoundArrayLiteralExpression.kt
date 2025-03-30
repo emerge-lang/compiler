@@ -1,5 +1,6 @@
 package compiler.binding.expression
 
+import compiler.ast.VariableOwnership
 import compiler.ast.expression.ArrayLiteralExpression
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
@@ -88,7 +89,10 @@ class BoundArrayLiteralExpression(
             type = type?.withMutability(it.mutability)
         }
 
-        elements.forEach { it.setUsageContext(elementType, captured = true) }
+        val valueUsage = ValueUsageImpl(elementType, VariableOwnership.CAPTURED)
+        elements.forEach {
+            it.setEvaluationResultUsage(valueUsage)
+        }
     }
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
@@ -127,7 +131,7 @@ class BoundArrayLiteralExpression(
         elements.forEach { it.setExpectedEvaluationResultType(expectedElementType!!, diagnosis) }
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
         // not relevant
     }
 

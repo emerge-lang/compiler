@@ -1,7 +1,6 @@
 package compiler.binding.expression
 
 import compiler.ast.expression.BinaryExpression
-import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
@@ -90,9 +89,9 @@ class BoundNullCoalescingExpression(
         alternativeExpression.setExpectedReturnType(type, diagnosis)
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
-        nullableExpression.setUsageContext(usedAsType, captured)
-        alternativeExpression.setUsageContext(usedAsType, captured)
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
+        nullableExpression.setEvaluationResultUsage(valueUsage)
+        alternativeExpression.setEvaluationResultUsage(valueUsage)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

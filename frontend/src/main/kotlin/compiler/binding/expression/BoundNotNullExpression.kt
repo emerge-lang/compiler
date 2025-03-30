@@ -21,7 +21,6 @@ package compiler.binding.expression
 import compiler.InternalCompilerError
 import compiler.PlatformModule
 import compiler.ast.expression.NotNullExpression
-import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
@@ -88,23 +87,14 @@ class BoundNotNullExpression(
     }
 
     private var usageContextSet = false
-    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
         check(!usageContextSet)
         usageContextSet = true
-        nullableExpression.setUsageContext(
-            usedAsType.withCombinedNullability(TypeReference.Nullability.NULLABLE),
-            // this expression duplicates the reference. That doesn't prove a capture, but it would easily allow for one,
-            // so it has to be treated as such.
-            true,
-        )
+        // TODO: is it okay to keep the valueOwnership as-is? The not-null could duplicate the reference
+        nullableExpression.setEvaluationResultUsage(valueUsage.mapType { it.withCombinedNullability(TypeReference.Nullability.NULLABLE) })
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
-        if (!usageContextSet) {
-            // the value of "captured" is irrelevant here because its fixed to true for the forwarding to the nullable expr
-            setUsageContext(context.swCtx.unresolvableReplacementType, captured = true)
-        }
-
         nullableExpression.semanticAnalysisPhase3(diagnosis)
         nothrowBoundary?.let { nothrowBoundary ->
             diagnosis.nothrowViolatingNotNullAssertion(this, nothrowBoundary)

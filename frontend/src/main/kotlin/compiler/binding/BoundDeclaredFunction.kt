@@ -9,6 +9,7 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrVariableAccessExpressionImpl
+import compiler.binding.expression.ValueUsageImpl
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
@@ -239,10 +240,10 @@ abstract class BoundDeclaredFunction(
             override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
                 seanHelper.phase2(diagnosis) {
                     expression.semanticAnalysisPhase2(diagnosis)
-                    expression.setUsageContext(
-                        expectedReturnType ?: context.swCtx.unresolvableReplacementType,
-                        true,
-                    )
+                    expression.setEvaluationResultUsage(ValueUsageImpl(
+                        expectedReturnType,
+                        VariableOwnership.CAPTURED,
+                    ))
                 }
             }
 

@@ -18,7 +18,6 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.nothrowViolatingCast
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -98,9 +97,14 @@ class BoundCastExpression(
         value.setNothrow(boundary)
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
-        val adaptedUsedAsType = if (type.mutability.isAssignableTo(usedAsType.mutability)) usedAsType else usedAsType.withMutability(TypeMutability.READONLY)
-        value.setUsageContext(adaptedUsedAsType, captured)
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
+        value.setEvaluationResultUsage(valueUsage.mapType { usedAsType ->
+            if (type.mutability.isAssignableTo(usedAsType.mutability)) {
+                usedAsType
+            } else {
+                usedAsType.withMutability(TypeMutability.READONLY)
+            }
+        })
     }
 
     override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {

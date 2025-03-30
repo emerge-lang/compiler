@@ -48,7 +48,7 @@ class BoundBooleanLiteralExpression(
         // nothing to do
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
         // not relevant
     }
 

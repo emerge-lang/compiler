@@ -19,9 +19,7 @@
 package compiler.binding.expression
 
 import compiler.ast.VariableDeclaration
-import compiler.ast.VariableOwnership
 import compiler.ast.expression.InvocationExpression
-import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundExecutable
@@ -174,10 +172,10 @@ class BoundInvocationExpression(
 
             chosenOverload!!.candidate.parameters.parameters.zip(listOfNotNull(receiverExceptReferringType) + valueArguments)
                 .forEach { (parameter, argument) ->
-                    argument.setUsageContext(
-                        parameter.typeAtDeclarationTime ?: context.swCtx.unresolvableReplacementType,
-                        parameter.ownershipAtDeclarationTime == VariableOwnership.CAPTURED,
-                    )
+                    argument.setEvaluationResultUsage(ValueUsageImpl(
+                        parameter.typeAtDeclarationTime,
+                        parameter.ownershipAtDeclarationTime,
+                    ))
                 }
         }
     }
@@ -375,7 +373,7 @@ class BoundInvocationExpression(
         this.nothrowBoundary = boundary
     }
 
-    override fun setUsageContext(usedAsType: BoundTypeReference, captured: Boolean) {
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
         // nothing to do; a function return type can always be captured and purity is checked fully
         // inside the function implementation.
     }
