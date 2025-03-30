@@ -89,7 +89,7 @@ class BoundArrayLiteralExpression(
             type = type?.withMutability(it.mutability)
         }
 
-        val valueUsage = ValueUsageImpl(elementType, VariableOwnership.CAPTURED)
+        val valueUsage = CreateReferenceValueUsage(elementType, declaration.leftBracket.span .. declaration.rightBracket.span, VariableOwnership.CAPTURED)
         elements.forEach {
             it.setEvaluationResultUsage(valueUsage)
         }
