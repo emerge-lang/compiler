@@ -21,6 +21,7 @@ package compiler.ast
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
+import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundTopLevelFunction
 import compiler.binding.basetype.BoundBaseType
@@ -31,6 +32,7 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter.Companion.chain
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
+import compiler.lexer.OperatorToken
 
 data class FunctionDeclaration(
     val declarationKeyword: KeywordToken,
@@ -87,10 +89,14 @@ data class FunctionDeclaration(
     sealed interface Body {
         fun bindTo(context: ExecutionScopedCTContext): BoundDeclaredFunction.Body
 
-        class SingleExpression(val expression: Expression) : Body {
+        class SingleExpression(
+            val equalsOperatorToken: OperatorToken,
+            val expression: Expression
+        ) : Body {
             override fun bindTo(context: ExecutionScopedCTContext): BoundDeclaredFunction.Body {
                 return BoundDeclaredFunction.Body.SingleExpression(
-                    expression.bindTo(context)
+                    this,
+                    expression.bindTo(context),
                 )
             }
         }

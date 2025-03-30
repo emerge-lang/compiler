@@ -73,9 +73,9 @@ class BoundReturnExpression(
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         expression?.markEvaluationResultUsed()
         expression?.semanticAnalysisPhase2(diagnosis)
-        expression?.setEvaluationResultUsage(ValueUsageImpl(
+        expression?.setEvaluationResultUsage(ReturnValueFromFunctionUsage(
             expectedReturnType,
-            VariableOwnership.CAPTURED,
+            declaration.returnKeyword.span,
         ))
     }
 

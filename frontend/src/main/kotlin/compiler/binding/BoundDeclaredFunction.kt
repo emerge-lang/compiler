@@ -9,7 +9,7 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrVariableAccessExpressionImpl
-import compiler.binding.expression.ValueUsageImpl
+import compiler.binding.expression.ReturnValueFromFunctionUsage
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
@@ -219,7 +219,10 @@ abstract class BoundDeclaredFunction(
     sealed interface Body : BoundExecutable<Executable> {
         fun toBackendIr(): IrCodeChunk
 
-        class SingleExpression(val expression: BoundExpression<*>) : Body, BoundExecutable<Executable> by expression {
+        class SingleExpression(
+            private val bodyDeclaration: FunctionDeclaration.Body.SingleExpression,
+            val expression: BoundExpression<*>,
+        ) : Body, BoundExecutable<Executable> by expression {
             override val returnBehavior = SideEffectPrediction.GUARANTEED
 
             private var expectedReturnType: BoundTypeReference? = null
@@ -240,9 +243,9 @@ abstract class BoundDeclaredFunction(
             override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
                 seanHelper.phase2(diagnosis) {
                     expression.semanticAnalysisPhase2(diagnosis)
-                    expression.setEvaluationResultUsage(ValueUsageImpl(
+                    expression.setEvaluationResultUsage(ReturnValueFromFunctionUsage(
                         expectedReturnType,
-                        VariableOwnership.CAPTURED,
+                        bodyDeclaration.equalsOperatorToken.span,
                     ))
                 }
             }

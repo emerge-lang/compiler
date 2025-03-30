@@ -1,6 +1,7 @@
 package compiler.binding.expression
 
 import compiler.ast.VariableOwnership
+import compiler.binding.BoundFunction
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.Span
 
@@ -89,7 +90,27 @@ data class CreateReferenceValueUsage(
     }
 }
 
-internal data class DeriveFromAndThenValueUsage(
+class ReturnValueFromFunctionUsage(
+    returnAsType: BoundTypeReference?,
+    returnActionAt: Span,
+) : ValueUsage {
+    override val usedAsType = returnAsType
+    override val usageOwnership = VariableOwnership.CAPTURED
+    override val span = returnActionAt
+    override fun describeForDiagnostic(descriptionOfUsedValue: String): String {
+        return "returning $descriptionOfUsedValue"
+    }
+
+    override fun mapType(mapper: (BoundTypeReference) -> BoundTypeReference): ValueUsage {
+        if (usedAsType == null) {
+            return this
+        }
+
+        return ReturnValueFromFunctionUsage(mapper(usedAsType), span)
+    }
+}
+
+data class DeriveFromAndThenValueUsage(
     val andThenUsage: ValueUsage,
     override val usedAsType: BoundTypeReference?,
     override val usageOwnership: VariableOwnership,

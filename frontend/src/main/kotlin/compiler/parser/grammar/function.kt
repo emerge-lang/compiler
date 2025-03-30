@@ -262,6 +262,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
         }
 
         if (next == OperatorToken(Operator.ASSIGNMENT)) {
+            val assignmentOpToken = next as OperatorToken
             val singleExpression = tokens.next()!! as AstExpression
 
             return@astTransformation FunctionDeclaration(
@@ -271,7 +272,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
                 typeParameters,
                 parameterList,
                 type,
-                FunctionDeclaration.Body.SingleExpression(singleExpression),
+                FunctionDeclaration.Body.SingleExpression(assignmentOpToken, singleExpression),
             )
         }
 
