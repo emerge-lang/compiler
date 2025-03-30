@@ -110,6 +110,26 @@ class ReturnValueFromFunctionUsage(
     }
 }
 
+class MixinValueUsage(
+    mixedInAsType: BoundTypeReference?,
+    mixedInAt: Span,
+) : ValueUsage {
+    override val usedAsType = mixedInAsType
+    override val span = mixedInAt
+    override val usageOwnership = VariableOwnership.CAPTURED
+    override fun describeForDiagnostic(descriptionOfUsedValue: String): String {
+        return "mixing in $descriptionOfUsedValue"
+    }
+
+    override fun mapType(mapper: (BoundTypeReference) -> BoundTypeReference): ValueUsage {
+        if (usedAsType == null) {
+            return this
+        }
+
+        return MixinValueUsage(mapper(usedAsType), span)
+    }
+}
+
 data class DeriveFromAndThenValueUsage(
     val andThenUsage: ValueUsage,
     override val usedAsType: BoundTypeReference?,

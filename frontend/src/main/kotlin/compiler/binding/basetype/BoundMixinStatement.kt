@@ -18,6 +18,7 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrClassFieldAccessExpressionImpl
 import compiler.binding.expression.IrVariableAccessExpressionImpl
+import compiler.binding.expression.MixinValueUsage
 import compiler.binding.expression.ValueUsageImpl
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
@@ -77,9 +78,9 @@ class BoundMixinStatement(
             registration = context.registerMixin(this, mixinType, diagnosis)?.also {
                 it.addDestructingAction(this::generateDestructorCode)
             }
-            expression.setEvaluationResultUsage(ValueUsageImpl(
+            expression.setEvaluationResultUsage(MixinValueUsage(
                 mixinType,
-                VariableOwnership.CAPTURED,
+                declaration.mixinKeyword.span,
             ))
         }
     }
