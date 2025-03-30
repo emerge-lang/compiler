@@ -172,7 +172,7 @@ val VariableDeclaration = eitherOf("variable declaration") {
         }
 
         AstVariableDeclaration(
-            varKeywordToken?.span ?: nameToken.span,
+            (varKeywordToken?.span ?: nameToken.span) .. nameToken.span,
             visibility,
             varKeywordToken,
             ownership,
