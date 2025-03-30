@@ -108,8 +108,8 @@ data class PurityViolationDiagnostic(
             override val span = referral.span
             override val kind = ActionKind.MODIFY
             override val sourceHints get() = arrayOf(
-                SourceHint(span = referral.span, "value is used with a mut type here"),
-                SourceHint(span = usage.span, "the reference is created here"),
+                SourceHint(span = referral.span, "`${referral.variable.name}` is used with a mut type here"),
+                SourceHint(span = usage.span, "mut reference is created here"),
             )
             override fun describe() = usage.describeForDiagnostic("`" + referral.variable.name + "`")
         }

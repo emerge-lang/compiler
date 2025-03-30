@@ -10,6 +10,7 @@ import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
 import compiler.binding.expression.BoundMemberAccessExpression
+import compiler.binding.expression.CreateReferenceValueUsage
 import compiler.binding.expression.ValueUsage
 import compiler.binding.expression.ValueUsageImpl
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
@@ -49,7 +50,11 @@ class BoundObjectMemberAssignmentStatement(
     }
 
     override val assignmentTargetType get() = targetExpression.type
-    override val assignedValueUsage: ValueUsage get() = ValueUsageImpl(assignmentTargetType, VariableOwnership.CAPTURED)
+    override val assignedValueUsage: ValueUsage get() = CreateReferenceValueUsage(
+        assignmentTargetType,
+        targetExpression.declaration.span,
+        VariableOwnership.CAPTURED
+    )
 
     override fun setTargetNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         targetExpression.setNothrow(boundary)
