@@ -113,6 +113,26 @@ class ReturnValueFromFunctionUsage(
     }
 }
 
+class ThrowValueUsage(
+    thrownAsType: BoundTypeReference?,
+    thrownAt: Span,
+) : ValueUsage {
+    override val usedAsType = thrownAsType
+    override val usageOwnership = VariableOwnership.CAPTURED
+    override val span = thrownAt
+    override fun describeForDiagnostic(descriptionOfUsedValue: String): String {
+        return "throwing $descriptionOfUsedValue"
+    }
+
+    override fun mapType(mapper: (BoundTypeReference) -> BoundTypeReference): ValueUsage {
+        if (usedAsType == null) {
+            return this
+        }
+
+        return ThrowValueUsage(mapper(usedAsType), span)
+    }
+}
+
 class MixinValueUsage(
     mixedInAsType: BoundTypeReference?,
     mixedInAt: Span,

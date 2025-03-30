@@ -51,9 +51,9 @@ class BoundThrowExpression(
                 ?.evaluateAssignabilityTo(expectedType, throwableExpression.declaration.span)
                 ?.let(diagnosis::add)
 
-            throwableExpression.setEvaluationResultUsage(ValueUsageImpl(
+            throwableExpression.setEvaluationResultUsage(ThrowValueUsage(
                 expectedType,
-                VariableOwnership.CAPTURED,
+                declaration.throwKeyword.span,
             ))
         }
     }
