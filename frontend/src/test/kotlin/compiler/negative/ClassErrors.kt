@@ -114,9 +114,6 @@ class ClassErrors : FreeSpec({
                 """.trimIndent())
                     .shouldFind<PurityViolationDiagnostic> {
                         it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReadingVariableBeyondBoundary>()
-                        it.boundary.shouldBeInstanceOf<PurityViolationDiagnostic.SideEffectBoundary.ClassMemberInitializer>().also {
-                            it.member.name shouldBe "y"
-                        }
                     }
             }
 

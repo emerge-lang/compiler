@@ -21,7 +21,6 @@ package compiler.diagnostic
 import compiler.InternalCompilerError
 import compiler.binding.BoundFunction
 import compiler.binding.BoundVariableAssignmentStatement
-import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundIdentifierExpression
@@ -52,12 +51,6 @@ data class PurityViolationDiagnostic(
                 val modifier = if (BoundFunction.Purity.PURE.contains(function.purity)) "pure" else "readonly"
                 val kindAndName = if (function is BoundClassConstructor) "constructor of class `${function.classDef.simpleName}`" else "function `${function.name}`"
                 return "$modifier $kindAndName"
-            }
-        }
-
-        data class ClassMemberInitializer(val member: BoundBaseTypeMemberVariable) : SideEffectBoundary() {
-            override fun toString(): String {
-                return "initializer of member variable `${member.name}`"
             }
         }
     }

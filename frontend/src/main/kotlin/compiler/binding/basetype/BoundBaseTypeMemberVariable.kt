@@ -22,13 +22,11 @@ import compiler.ast.BaseTypeMemberDeclaration
 import compiler.ast.BaseTypeMemberVariableDeclaration
 import compiler.ast.expression.IdentifierExpression
 import compiler.binding.DefinitionWithVisibility
-import compiler.binding.DiagnosingImpurityVisitor
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -89,11 +87,7 @@ class BoundBaseTypeMemberVariable(
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         boundEffectiveVariableDeclaration.semanticAnalysisPhase3(diagnosis)
 
-        boundEffectiveVariableDeclaration.initializerExpression?.let { initializer ->
-            val diagnosingVisitor = DiagnosingImpurityVisitor(diagnosis, PurityViolationDiagnostic.SideEffectBoundary.ClassMemberInitializer(this))
-            initializer.visitWritesBeyond(context, diagnosingVisitor)
-            initializer.visitReadsBeyond(context, diagnosingVisitor)
-        }
+        // the initializer expression is being analyzed by the ctor
     }
 
     lateinit var field: BaseTypeField
