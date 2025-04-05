@@ -35,7 +35,7 @@ data class PurityViolationDiagnostic(
 ) : Diagnostic(
     Severity.ERROR,
     "${impurity.describe()} violates the purity of $boundary",
-    impurity.span
+    impurity.span,
 ) {
     override fun toString(): String {
         val impurityHints = impurity.sourceHints
