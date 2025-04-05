@@ -77,8 +77,7 @@ data class PurityViolationDiagnostic(
         data class ReadBeyondBoundary(val readingExpression: BoundExpression<*>, val usage: ValueUsage): Impurity {
             override val span = readingExpression.declaration.span
             override val kind = ActionKind.READ
-            override val sourceHints: Array<SourceHint> get() = TODO()
-            override fun describe(): String = usage.describeForDiagnostic(TODO())
+            override fun describe(): String = usage.describeForDiagnostic("bla")
         }
 
         data class ImpureInvocation(val invocation: BoundInvocationExpression, val functionToInvoke: BoundFunction) : Impurity {

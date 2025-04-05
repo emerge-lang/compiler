@@ -3,7 +3,6 @@ package compiler.binding.expression
 import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.BoundFunction
 import compiler.binding.context.SoftwareContext
 import compiler.binding.type.BoundTypeReference
 import compiler.lexer.Span

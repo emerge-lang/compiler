@@ -53,7 +53,7 @@ class BoundObjectMemberAssignmentStatement(
     override val assignedValueUsage: ValueUsage get() = CreateReferenceValueUsage(
         assignmentTargetType,
         targetExpression.declaration.span,
-        VariableOwnership.CAPTURED
+        VariableOwnership.CAPTURED,
     )
 
     override fun setTargetNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {

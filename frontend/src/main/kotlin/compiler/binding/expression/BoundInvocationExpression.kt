@@ -173,8 +173,9 @@ class BoundInvocationExpression(
 
             chosenOverload!!.candidate.parameters.parameters.zip(listOfNotNull(receiverExceptReferringType) + valueArguments)
                 .forEach { (parameter, argument) ->
-                    argument.setEvaluationResultUsage(ValueUsageImpl(
+                    argument.setEvaluationResultUsage(CreateReferenceValueUsage(
                         parameter.typeAtDeclarationTime,
+                        parameter.declaration.span,
                         parameter.ownershipAtDeclarationTime,
                     ))
                 }
