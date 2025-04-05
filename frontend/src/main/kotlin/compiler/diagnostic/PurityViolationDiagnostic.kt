@@ -46,24 +46,20 @@ data class PurityViolationDiagnostic(
         return "$levelAndMessage\n${illustrateHints(*impurityHints)}"
     }
 
-    sealed class SideEffectBoundary(
-        val asString: String,
-        /**
-         * if true, the boundary is pure. If false it is readonly.
-         */
-        val isPure: Boolean,
-    ) {
-        override fun toString() = asString
-
-        class Function(val function: BoundFunction) : SideEffectBoundary(
-            run {
+    sealed class SideEffectBoundary {
+        data class Function(val function: BoundFunction) : SideEffectBoundary() {
+            override fun toString(): String {
                 val modifier = if (BoundFunction.Purity.PURE.contains(function.purity)) "pure" else "readonly"
                 val kindAndName = if (function is BoundClassConstructor) "constructor of class `${function.classDef.simpleName}`" else "function `${function.name}`"
-                "$modifier $kindAndName"
-            },
-            BoundFunction.Purity.PURE.contains(function.purity),
-        )
-        class ClassMemberInitializer(val member: BoundBaseTypeMemberVariable) : SideEffectBoundary("member variable initializer", true)
+                return "$modifier $kindAndName"
+            }
+        }
+
+        data class ClassMemberInitializer(val member: BoundBaseTypeMemberVariable) : SideEffectBoundary() {
+            override fun toString(): String {
+                return "initializer of member variable `${member.name}`"
+            }
+        }
     }
 
     sealed interface Impurity {
