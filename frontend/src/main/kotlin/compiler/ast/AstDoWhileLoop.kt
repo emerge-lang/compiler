@@ -17,7 +17,7 @@ class AstDoWhileLoop(
         val bodyContext = MutableExecutionScopedCTContext.deriveNewLoopScopeFrom(context, true, { boundLoopHolder })
         val boundBody = body.bindTo(bodyContext)
         val conditionContext = MutableExecutionScopedCTContext.deriveNewScopeFrom(boundBody.modifiedContext, ExecutionScopedCTContext.Repetition.ONCE_OR_MORE)
-        val boundCondition = BoundCondition(condition.bindTo(conditionContext))
+        val boundCondition = BoundCondition(conditionContext, condition.bindTo(conditionContext))
         boundLoopHolder = BoundDoWhileLoop(
             context,
             this,

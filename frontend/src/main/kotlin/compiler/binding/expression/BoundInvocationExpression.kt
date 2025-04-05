@@ -263,8 +263,8 @@ class BoundInvocationExpression(
                     val singleEval = evaluations.single()
                     // if there is only a single candidate, the errors found in validating are 100% applicable to be shown to the user
                     singleEval.unification.diagnostics
-                        .also {
-                            check(it.any { it.severity >= Diagnostic.Severity.ERROR }) {
+                        .also { diags ->
+                            check(diags.any { it.severity >= Diagnostic.Severity.ERROR }) {
                                 "Cannot choose overload to invoke, but evaluation of single overload candidate didn't yield any error -- what?"
                             }
                         }

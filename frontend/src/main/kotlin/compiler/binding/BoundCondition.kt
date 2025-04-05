@@ -2,6 +2,7 @@ package compiler.binding
 
 import compiler.ast.Expression
 import compiler.ast.type.TypeMutability
+import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrrelevantValueUsage
 import compiler.binding.type.BoundTypeReference
@@ -12,6 +13,7 @@ import compiler.diagnostic.conditionIsNotBoolean
 import compiler.diagnostic.mutationInCondition
 
 class BoundCondition(
+    override val context: ExecutionScopedCTContext,
     val expression: BoundExpression<*>,
 ) : BoundExpression<Expression> by expression {
     override val type: BoundTypeReference by lazy {
