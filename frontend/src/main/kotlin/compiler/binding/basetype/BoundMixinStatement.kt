@@ -2,7 +2,6 @@ package compiler.binding.basetype
 
 import compiler.InternalCompilerError
 import compiler.ast.AstMixinStatement
-import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundStatement
@@ -19,7 +18,6 @@ import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrClassFieldAccessExpressionImpl
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.expression.MixinValueUsage
-import compiler.binding.expression.ValueUsageImpl
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl

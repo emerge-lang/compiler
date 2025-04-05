@@ -12,7 +12,6 @@ import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
 import compiler.binding.expression.BoundMemberAccessExpression
 import compiler.binding.expression.CreateReferenceValueUsage
 import compiler.binding.expression.ValueUsage
-import compiler.binding.expression.ValueUsageImpl
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl

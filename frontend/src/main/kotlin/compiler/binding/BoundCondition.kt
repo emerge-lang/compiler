@@ -1,12 +1,9 @@
 package compiler.binding
 
 import compiler.ast.Expression
-import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeMutability
-import compiler.binding.context.CTContext
 import compiler.binding.expression.BoundExpression
-import compiler.binding.expression.ValueUsage
-import compiler.binding.expression.ValueUsageImpl
+import compiler.binding.expression.IrrelevantValueUsage
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.isAssignableTo
 import compiler.diagnostic.Diagnosis
@@ -33,7 +30,7 @@ class BoundCondition(
             diagnosis.conditionIsNotBoolean(expression)
         }
 
-        expression.setEvaluationResultUsage(ValueUsageImpl(type, VariableOwnership.BORROWED))
+        expression.setEvaluationResultUsage(IrrelevantValueUsage)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

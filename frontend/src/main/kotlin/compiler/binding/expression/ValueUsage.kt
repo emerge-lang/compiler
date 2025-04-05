@@ -34,7 +34,7 @@ interface ValueUsage {
      */
     fun mapType(mapper: (BoundTypeReference) -> BoundTypeReference): ValueUsage
 
-    fun describeForDiagnostic(descriptionOfUsedValue: String): String = "!!UNDESCRIBED!!" // TODO: fully implement for all cases
+    fun describeForDiagnostic(descriptionOfUsedValue: String): String
 
     companion object {
         fun deriveFromAndThen(
@@ -52,20 +52,6 @@ interface ValueUsage {
                 DeriveFromAndThenValueUsage(andThen, deriveUsingType, deriveWithOwnership)
             }
         }
-    }
-}
-
-internal data class ValueUsageImpl(
-    override val usedAsType: BoundTypeReference?,
-    override val usageOwnership: VariableOwnership,
-    override val span: Span = Span.UNKNOWN, // TODO: remove default value and implement correctly everywhere
-) : ValueUsage {
-    override fun mapType(mapper: (BoundTypeReference) -> BoundTypeReference): ValueUsage {
-        if (usedAsType == null) {
-            return this
-        }
-
-        return copy(usedAsType = mapper(usedAsType))
     }
 }
 
@@ -200,4 +186,5 @@ object IrrelevantValueUsage : ValueUsage {
     override val usageOwnership: VariableOwnership = VariableOwnership.BORROWED
     override val span = Span.UNKNOWN
     override fun mapType(mapper: (BoundTypeReference) -> BoundTypeReference): ValueUsage = this
+    override fun describeForDiagnostic(descriptionOfUsedValue: String): String = "unclassified usage of $descriptionOfUsedValue"
 }
