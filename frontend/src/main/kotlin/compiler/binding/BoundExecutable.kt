@@ -21,6 +21,7 @@ package compiler.binding
 import compiler.ast.Executable
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic

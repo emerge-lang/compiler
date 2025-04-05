@@ -2,10 +2,10 @@ package compiler.binding.expression
 
 import compiler.ast.AstContinueExpression
 import compiler.binding.BoundLoop
-import compiler.binding.ImpurityVisitor
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.continueOutsideOfLoop

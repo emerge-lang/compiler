@@ -20,15 +20,14 @@ package compiler.binding.expression
 
 import compiler.InternalCompilerError
 import compiler.ast.ReturnExpression
-import compiler.ast.VariableOwnership
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
-import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl

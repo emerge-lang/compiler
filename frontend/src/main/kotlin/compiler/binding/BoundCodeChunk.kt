@@ -25,6 +25,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrStaticDispatchFunctionInvocationImpl
 import compiler.binding.expression.ValueUsage
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl

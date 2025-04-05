@@ -21,7 +21,6 @@ package compiler.binding.expression
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.TypeMutability
-import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
@@ -29,6 +28,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl

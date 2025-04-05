@@ -26,7 +26,6 @@ import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
-import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
@@ -35,6 +34,8 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.impurity.ImpureInvocation
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
@@ -44,7 +45,6 @@ import compiler.binding.type.*
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
-import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.ambiguousInvocation
 import compiler.diagnostic.noMatchingFunctionOverload
 import compiler.diagnostic.nothrowViolatingInvocation
@@ -397,14 +397,14 @@ class BoundInvocationExpression(
     }
 
     /** so that identity remains constant throughout visits to this instance */
-    private val asImpurity: PurityViolationDiagnostic.Impurity.ImpureInvocation? by lazy {
+    private val asImpurity: ImpureInvocation? by lazy {
         seanHelper.requirePhase2Done()
         val functionToInvoke = this.functionToInvoke ?: return@lazy null
         if (BoundFunction.Purity.PURE.contains(functionToInvoke.purity)) {
             return@lazy null
         }
 
-        PurityViolationDiagnostic.Impurity.ImpureInvocation(
+        ImpureInvocation(
             this,
             functionToInvoke,
         )

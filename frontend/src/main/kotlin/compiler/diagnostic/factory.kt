@@ -42,6 +42,7 @@ import compiler.binding.expression.BoundMemberAccessExpression
 import compiler.binding.expression.BoundNotNullExpression
 import compiler.binding.expression.BoundReturnExpression
 import compiler.binding.expression.BoundThrowExpression
+import compiler.binding.impurity.Impurity
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
@@ -414,7 +415,7 @@ fun Diagnosis.duplicateBaseTypeMembers(typeDef: BoundBaseType, duplicateMembers:
     add(DuplicateBaseTypeMemberDiagnostic(typeDef, duplicateMembers))
 }
 
-fun Diagnosis.mutationInCondition(conditionImpurity: PurityViolationDiagnostic.Impurity) {
+fun Diagnosis.mutationInCondition(conditionImpurity: Impurity) {
     add(MutationInConditionDiagnostic(conditionImpurity))
 }
 
@@ -491,7 +492,7 @@ fun Diagnosis.nullCheckOnNonNullableValue(value: BoundExpression<*>) {
 }
 
 fun Diagnosis.purityViolation(
-    impurity: PurityViolationDiagnostic.Impurity,
+    impurity: Impurity,
     boundary: PurityViolationDiagnostic.SideEffectBoundary
 ) {
     add(PurityViolationDiagnostic(impurity, boundary))

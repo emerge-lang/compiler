@@ -1,5 +1,9 @@
 package compiler.compiler.negative
 
+import compiler.binding.impurity.ImpureInvocation
+import compiler.binding.impurity.ReadingVariableBeyondBoundary
+import compiler.binding.impurity.ReassignmentBeyondBoundary
+import compiler.binding.impurity.VariableUsedAsMutable
 import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
@@ -28,7 +32,7 @@ class PurityErrors : FreeSpec({
             }
         """.trimIndent())
             .shouldFind<PurityViolationDiagnostic> {
-                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReadingVariableBeyondBoundary>()
+                it.impurity.shouldBeInstanceOf<ReadingVariableBeyondBoundary>()
             }
     }
 
@@ -43,7 +47,7 @@ class PurityErrors : FreeSpec({
             }
         """.trimIndent())
             .shouldFind<PurityViolationDiagnostic> {
-                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ImpureInvocation>()
+                it.impurity.shouldBeInstanceOf<ImpureInvocation>()
             }
     }
 
@@ -58,7 +62,7 @@ class PurityErrors : FreeSpec({
             }
         """.trimIndent())
             .shouldFind<PurityViolationDiagnostic> {
-                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ImpureInvocation>()
+                it.impurity.shouldBeInstanceOf<ImpureInvocation>()
             }
     }
 
@@ -73,7 +77,7 @@ class PurityErrors : FreeSpec({
             }
         """.trimIndent())
             .shouldFind<PurityViolationDiagnostic> {
-                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ImpureInvocation>()
+                it.impurity.shouldBeInstanceOf<ImpureInvocation>()
             }
     }
 
@@ -85,7 +89,7 @@ class PurityErrors : FreeSpec({
             }
         """.trimIndent())
             .shouldFind<PurityViolationDiagnostic> {
-                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReadingVariableBeyondBoundary>()
+                it.impurity.shouldBeInstanceOf<ReadingVariableBeyondBoundary>()
             }
     }
 
@@ -99,7 +103,7 @@ class PurityErrors : FreeSpec({
                     }
                 """.trimIndent())
                     .shouldFind<PurityViolationDiagnostic> {
-                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReassignmentBeyondBoundary>()
+                        it.impurity.shouldBeInstanceOf<ReassignmentBeyondBoundary>()
                     }
             }
 
@@ -114,7 +118,7 @@ class PurityErrors : FreeSpec({
                     }
                 """.trimIndent())
                     .shouldFind<PurityViolationDiagnostic> {
-                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReassignmentBeyondBoundary>()
+                        it.impurity.shouldBeInstanceOf<ReassignmentBeyondBoundary>()
                     }
             }
 
@@ -132,7 +136,7 @@ class PurityErrors : FreeSpec({
                     }
                 """.trimIndent())
                     .shouldFind<PurityViolationDiagnostic> {
-                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReassignmentBeyondBoundary>()
+                        it.impurity.shouldBeInstanceOf<ReassignmentBeyondBoundary>()
                     }
             }
         }
@@ -150,7 +154,7 @@ class PurityErrors : FreeSpec({
                     }
                 """.trimIndent())
                     .shouldFind<PurityViolationDiagnostic> {
-                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReassignmentBeyondBoundary>()
+                        it.impurity.shouldBeInstanceOf<ReassignmentBeyondBoundary>()
                     }
             }
 
@@ -165,7 +169,7 @@ class PurityErrors : FreeSpec({
                     }
                 """.trimIndent())
                     .shouldFind<PurityViolationDiagnostic> {
-                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReassignmentBeyondBoundary>()
+                        it.impurity.shouldBeInstanceOf<ReassignmentBeyondBoundary>()
                     }
             }
 
@@ -183,7 +187,7 @@ class PurityErrors : FreeSpec({
                     }
                 """.trimIndent())
                     .shouldFind<PurityViolationDiagnostic> {
-                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReassignmentBeyondBoundary>()
+                        it.impurity.shouldBeInstanceOf<ReassignmentBeyondBoundary>()
                     }
             }
 
@@ -199,7 +203,7 @@ class PurityErrors : FreeSpec({
                         }
                     """.trimIndent())
                         .shouldFind<PurityViolationDiagnostic> {
-                            it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                            it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                         }
                 }
 
@@ -216,7 +220,7 @@ class PurityErrors : FreeSpec({
                             }
                         """.trimIndent())
                             .shouldFind<PurityViolationDiagnostic> {
-                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                                it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                             }
                     }
 
@@ -233,7 +237,7 @@ class PurityErrors : FreeSpec({
                             }
                         """.trimIndent())
                             .shouldFind<PurityViolationDiagnostic> {
-                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                                it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                             }
 
                         validateModule("""
@@ -248,7 +252,7 @@ class PurityErrors : FreeSpec({
                             }
                         """.trimIndent())
                             .shouldFind<PurityViolationDiagnostic> {
-                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                                it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                             }
                     }
 
@@ -270,7 +274,7 @@ class PurityErrors : FreeSpec({
                             }
                         """.trimIndent())
                             .shouldFind<PurityViolationDiagnostic> {
-                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                                it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                             }
 
                         validateModule("""
@@ -290,7 +294,7 @@ class PurityErrors : FreeSpec({
                             }
                         """.trimIndent())
                             .shouldFind<PurityViolationDiagnostic> {
-                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                                it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                             }
                     }
 
@@ -306,7 +310,7 @@ class PurityErrors : FreeSpec({
                             }
                         """.trimIndent())
                             .shouldFind<PurityViolationDiagnostic> {
-                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                                it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                             }
 
                         validateModule("""
@@ -333,7 +337,7 @@ class PurityErrors : FreeSpec({
                             }
                         """.trimIndent())
                             .shouldFind<PurityViolationDiagnostic> {
-                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                                it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                             }
                     }
 
@@ -349,7 +353,7 @@ class PurityErrors : FreeSpec({
                             }
                         """.trimIndent())
                             .shouldFind<PurityViolationDiagnostic> {
-                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                                it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                             }
 
                         validateModule("""
@@ -363,7 +367,7 @@ class PurityErrors : FreeSpec({
                             }
                         """.trimIndent())
                             .shouldFind<PurityViolationDiagnostic> {
-                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                                it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                             }
                     }
 
@@ -380,7 +384,7 @@ class PurityErrors : FreeSpec({
                             }
                         """.trimIndent())
                             .shouldFind<PurityViolationDiagnostic> {
-                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                                it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                             }
                     }
 
@@ -401,7 +405,7 @@ class PurityErrors : FreeSpec({
                             """.trimIndent()
                             )
                                 .shouldFind<PurityViolationDiagnostic> {
-                                    it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                                    it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                                 }
                         }
 
@@ -423,7 +427,7 @@ class PurityErrors : FreeSpec({
                                 }
                             """.trimIndent())
                                 .shouldFind<PurityViolationDiagnostic> {
-                                    it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                                    it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                                 }
                         }
 
@@ -448,7 +452,7 @@ class PurityErrors : FreeSpec({
                                 }
                             """.trimIndent())
                                 .shouldFind<PurityViolationDiagnostic> {
-                                    it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                                    it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                                 }
                         }
                     }
@@ -471,7 +475,7 @@ class PurityErrors : FreeSpec({
                     }
                 """.trimIndent())
                     .shouldFind<PurityViolationDiagnostic> {
-                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                        it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                     }
             }
 
@@ -489,7 +493,7 @@ class PurityErrors : FreeSpec({
                     }
                 """.trimIndent())
                     .shouldFind<PurityViolationDiagnostic> {
-                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                        it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                     }
             }
 
@@ -510,7 +514,7 @@ class PurityErrors : FreeSpec({
                     }
                 """.trimIndent())
                     .shouldFind<PurityViolationDiagnostic> {
-                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                        it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                     }
             }
 
@@ -531,7 +535,7 @@ class PurityErrors : FreeSpec({
                     }
                 """.trimIndent())
                     .shouldFind<PurityViolationDiagnostic> {
-                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                        it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                     }
             }
         }
@@ -548,7 +552,7 @@ class PurityErrors : FreeSpec({
                     }
                 """.trimIndent())
                     .shouldFind<PurityViolationDiagnostic> {
-                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                        it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                     }
             }
 
@@ -561,7 +565,7 @@ class PurityErrors : FreeSpec({
                     read fn test() -> mut Box = globalBox
                 """.trimIndent())
                     .shouldFind<PurityViolationDiagnostic> {
-                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                        it.impurity.shouldBeInstanceOf<VariableUsedAsMutable>()
                     }
             }
         }

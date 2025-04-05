@@ -5,6 +5,7 @@ import compiler.ast.VariableDeclaration
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.IrVariableAccessExpressionImpl
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.diagnostic.Diagnosis

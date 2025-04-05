@@ -5,12 +5,12 @@ import compiler.ast.expression.ArrayLiteralExpression
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
-import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl

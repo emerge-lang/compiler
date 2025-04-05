@@ -12,13 +12,15 @@ import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
 import compiler.binding.expression.BoundMemberAccessExpression
 import compiler.binding.expression.CreateReferenceValueUsage
 import compiler.binding.expression.ValueUsage
+import compiler.binding.impurity.Impurity
+import compiler.binding.impurity.ImpurityVisitor
+import compiler.binding.impurity.ReassignmentBeyondBoundary
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
-import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.illegalAssignment
 import compiler.diagnostic.valueNotAssignable
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
@@ -117,13 +119,13 @@ class BoundObjectMemberAssignmentStatement(
         targetExpression.visitWritesBeyond(boundary, visitor)
         var targetReadsBeyondBoundary = false
         targetExpression.visitReadsBeyond(boundary) { impurity ->
-            if (impurity.kind == PurityViolationDiagnostic.ActionKind.READ) {
+            if (impurity.kind == Impurity.ActionKind.READ) {
                 targetReadsBeyondBoundary = true
             }
         }
         if (targetReadsBeyondBoundary) {
             // TODO: does this need more detail? information from the reading impurity is dropped
-            visitor.visit(PurityViolationDiagnostic.Impurity.ReassignmentBeyondBoundary.Complex(targetExpression))
+            visitor.visit(ReassignmentBeyondBoundary.Complex(targetExpression))
         }
     }
 

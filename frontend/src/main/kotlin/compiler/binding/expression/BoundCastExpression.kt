@@ -5,13 +5,13 @@ import compiler.ast.Expression
 import compiler.ast.expression.AstCastExpression
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression.Companion.wrapIrAsStatement
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl

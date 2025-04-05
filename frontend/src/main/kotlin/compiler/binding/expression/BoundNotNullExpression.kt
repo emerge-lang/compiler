@@ -24,11 +24,11 @@ import compiler.ast.expression.NotNullExpression
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
-import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.SoftwareContext
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrExpressionSideEffectsStatementImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl

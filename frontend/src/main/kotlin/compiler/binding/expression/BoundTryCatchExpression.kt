@@ -2,12 +2,12 @@ package compiler.binding.expression
 
 import compiler.ast.expression.AstTryCatchExpression
 import compiler.binding.BoundCodeChunk
-import compiler.binding.ImpurityVisitor
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.combineBranch
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic

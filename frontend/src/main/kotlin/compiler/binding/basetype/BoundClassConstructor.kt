@@ -22,7 +22,6 @@ import compiler.binding.IrAssignmentStatementImpl
 import compiler.binding.IrAssignmentStatementTargetClassFieldImpl
 import compiler.binding.IrAssignmentStatementTargetVariableImpl
 import compiler.binding.IrCodeChunkImpl
-import compiler.binding.DiagnosingImpurityVisitor
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
@@ -33,6 +32,7 @@ import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.expression.IrReturnStatementImpl
 import compiler.binding.expression.IrVariableAccessExpressionImpl
+import compiler.binding.impurity.DiagnosingImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl

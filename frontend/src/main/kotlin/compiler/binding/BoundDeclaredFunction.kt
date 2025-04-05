@@ -10,6 +10,7 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrVariableAccessExpressionImpl
 import compiler.binding.expression.ReturnValueFromFunctionUsage
+import compiler.binding.impurity.DiagnosingImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl

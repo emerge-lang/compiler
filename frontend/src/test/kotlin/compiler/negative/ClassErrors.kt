@@ -1,5 +1,8 @@
 package compiler.compiler.negative
 
+import compiler.binding.impurity.ImpureInvocation
+import compiler.binding.impurity.ReadingVariableBeyondBoundary
+import compiler.binding.impurity.ReassignmentBeyondBoundary
 import compiler.diagnostic.AbstractInheritedFunctionNotImplementedDiagnostic
 import compiler.diagnostic.ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic
 import compiler.diagnostic.ConstructorDeclaredModifyingDiagnostic
@@ -113,7 +116,7 @@ class ClassErrors : FreeSpec({
                     }
                 """.trimIndent())
                     .shouldFind<PurityViolationDiagnostic> {
-                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReadingVariableBeyondBoundary>()
+                        it.impurity.shouldBeInstanceOf<ReadingVariableBeyondBoundary>()
                     }
             }
 
@@ -125,7 +128,7 @@ class ClassErrors : FreeSpec({
                     }
                 """.trimIndent())
                     .shouldFind<PurityViolationDiagnostic> {
-                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ImpureInvocation>()
+                        it.impurity.shouldBeInstanceOf<ImpureInvocation>()
                     }
             }
 
@@ -472,7 +475,7 @@ class ClassErrors : FreeSpec({
                         }
                     """.trimIndent())
                         .shouldFind<PurityViolationDiagnostic> {
-                            it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReadingVariableBeyondBoundary>()
+                            it.impurity.shouldBeInstanceOf<ReadingVariableBeyondBoundary>()
                         }
                 }
 
@@ -486,7 +489,7 @@ class ClassErrors : FreeSpec({
                         }
                     """.trimIndent())
                         .shouldFind<PurityViolationDiagnostic> {
-                            it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReassignmentBeyondBoundary>()
+                            it.impurity.shouldBeInstanceOf<ReassignmentBeyondBoundary>()
                         }
                 }
             }
@@ -516,7 +519,7 @@ class ClassErrors : FreeSpec({
                         }
                     """.trimIndent())
                         .shouldFind<PurityViolationDiagnostic> {
-                            it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReassignmentBeyondBoundary>()
+                            it.impurity.shouldBeInstanceOf<ReassignmentBeyondBoundary>()
                         }
                 }
             }

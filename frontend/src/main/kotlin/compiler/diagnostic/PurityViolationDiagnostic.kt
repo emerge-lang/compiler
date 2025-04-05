@@ -18,15 +18,9 @@
 
 package compiler.diagnostic
 
-import compiler.InternalCompilerError
 import compiler.binding.BoundFunction
-import compiler.binding.BoundVariableAssignmentStatement
 import compiler.binding.basetype.BoundClassConstructor
-import compiler.binding.expression.BoundExpression
-import compiler.binding.expression.BoundIdentifierExpression
-import compiler.binding.expression.BoundInvocationExpression
-import compiler.binding.expression.ValueUsage
-import compiler.lexer.Span
+import compiler.binding.impurity.Impurity
 
 data class PurityViolationDiagnostic(
     val impurity: Impurity,
@@ -53,63 +47,5 @@ data class PurityViolationDiagnostic(
                 return "$modifier $kindAndName"
             }
         }
-    }
-
-    sealed interface Impurity {
-        val span: Span
-        val kind: ActionKind
-        val sourceHints: Array<SourceHint>
-            get() = arrayOf(SourceHint(span = span, description = null))
-
-        fun describe(): String
-
-        data class ReadingVariableBeyondBoundary(
-            val readingExpression: BoundIdentifierExpression,
-            val referral: BoundIdentifierExpression.ReferringVariable,
-            val usage: ValueUsage
-        ): Impurity {
-            override val span = readingExpression.declaration.span
-            override val kind = ActionKind.READ
-            override fun describe(): String = usage.describeForDiagnostic('`' + referral.variable.name + '`')
-        }
-
-        data class ImpureInvocation(val invocation: BoundInvocationExpression, val functionToInvoke: BoundFunction) : Impurity {
-            override val span = invocation.declaration.span
-            override val kind = when (functionToInvoke.purity) {
-                BoundFunction.Purity.PURE -> throw InternalCompilerError("Invoking a pure function cannot possibly be considered impure")
-                BoundFunction.Purity.READONLY -> ActionKind.READ
-                BoundFunction.Purity.MODIFYING -> ActionKind.MODIFY
-            }
-            override fun describe(): String = "invoking ${functionToInvoke.purity} function ${functionToInvoke.name}"
-        }
-
-        interface ReassignmentBeyondBoundary : Impurity {
-            data class Variable(val assignment: BoundVariableAssignmentStatement) : ReassignmentBeyondBoundary {
-                override val span = assignment.variableName.span
-                override val kind = ActionKind.MODIFY
-                override fun describe(): String = "assigning a new value to ${assignment.variableName.value}"
-            }
-            data class Complex(val assignmentTarget: BoundExpression<*>) : ReassignmentBeyondBoundary {
-                override val span = assignmentTarget.declaration.span
-                override val kind = ActionKind.MODIFY
-                override fun describe(): String = "assigning a new value to this target"
-            }
-        }
-
-        data class VariableUsedAsMutable(val referral: BoundIdentifierExpression.ReferringVariable, val usage: ValueUsage) : Impurity {
-            override val span = referral.span
-            override val kind = ActionKind.MODIFY
-            override val sourceHints get() = arrayOf(
-                SourceHint(span = referral.span, "`${referral.variable.name}` is used with a mut type here"),
-                SourceHint(span = usage.span, "mut reference is created here"),
-            )
-            override fun describe() = usage.describeForDiagnostic("`" + referral.variable.name + "`")
-        }
-    }
-
-    enum class ActionKind {
-        READ,
-        MODIFY,
-        ;
     }
 }

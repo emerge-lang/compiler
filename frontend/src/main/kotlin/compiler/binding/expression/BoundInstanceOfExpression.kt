@@ -1,16 +1,14 @@
 package compiler.binding.expression
 
 import compiler.InternalCompilerError
-import compiler.ast.VariableOwnership
 import compiler.ast.expression.AstInstanceOfExpression
 import compiler.ast.type.TypeMutability
-import compiler.ast.type.TypeReference
-import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.SoftwareContext
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl

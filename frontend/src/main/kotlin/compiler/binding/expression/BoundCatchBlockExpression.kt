@@ -5,12 +5,12 @@ import compiler.ast.expression.AstCatchBlockExpression
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundVariable
 import compiler.binding.DropLocalVariableStatement
-import compiler.binding.ImpurityVisitor
 import compiler.binding.SeanHelper
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.VariableInitialization
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic

@@ -23,7 +23,6 @@ import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundVariable
-import compiler.binding.ImpurityVisitor
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
@@ -32,12 +31,14 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.context.effect.VariableLifetime
+import compiler.binding.impurity.ImpurityVisitor
+import compiler.binding.impurity.ReadingVariableBeyondBoundary
+import compiler.binding.impurity.VariableUsedAsMutable
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
-import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.borrowedVariableCaptured
 import compiler.diagnostic.notAllMemberVariablesInitialized
 import compiler.diagnostic.notAllMixinsInitialized
@@ -255,11 +256,13 @@ class BoundIdentifierExpression(
             if (isCompileTimeConstant) {
                 return
             }
-            visitor.visit(PurityViolationDiagnostic.Impurity.ReadingVariableBeyondBoundary(
+            visitor.visit(
+                ReadingVariableBeyondBoundary(
                 this@BoundIdentifierExpression,
                 this,
                 usage ?: IrrelevantValueUsage,
-            ))
+            )
+            )
         }
 
         override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
@@ -267,7 +270,7 @@ class BoundIdentifierExpression(
                 return
             }
             if (usage?.usedAsType?.mutability?.isMutable == true) {
-                visitor.visit(PurityViolationDiagnostic.Impurity.VariableUsedAsMutable(this, this.usage!!))
+                visitor.visit(VariableUsedAsMutable(this, this.usage!!))
             }
         }
 

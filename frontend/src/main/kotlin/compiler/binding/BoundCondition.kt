@@ -5,10 +5,10 @@ import compiler.ast.type.TypeMutability
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrrelevantValueUsage
+import compiler.binding.impurity.Impurity
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.isAssignableTo
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.conditionIsNotBoolean
 import compiler.diagnostic.mutationInCondition
 
@@ -39,7 +39,7 @@ class BoundCondition(
         expression.semanticAnalysisPhase3(diagnosis)
 
         expression.visitWritesBeyond(context) { impurity ->
-            if (impurity.kind == PurityViolationDiagnostic.ActionKind.READ) {
+            if (impurity.kind == Impurity.ActionKind.READ) {
                 // reading in conditions is okay
                 return@visitWritesBeyond
             }

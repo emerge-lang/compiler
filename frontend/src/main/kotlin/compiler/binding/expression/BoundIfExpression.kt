@@ -22,7 +22,6 @@ import compiler.ast.IfExpression
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundCondition
 import compiler.binding.BoundExecutable
-import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.combineBranch
@@ -31,6 +30,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MultiBranchJoinExecutionScopedCTContext
 import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl

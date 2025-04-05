@@ -2,7 +2,6 @@ package compiler.binding.expression
 
 import compiler.ast.expression.BinaryExpression
 import compiler.ast.type.TypeReference
-import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.combineBranch
@@ -10,6 +9,7 @@ import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecutio
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl

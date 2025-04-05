@@ -7,6 +7,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.ValueUsage
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.IrGenericTypeReferenceImpl
 import compiler.binding.type.IrParameterizedTypeImpl
