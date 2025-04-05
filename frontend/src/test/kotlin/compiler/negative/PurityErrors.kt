@@ -1,13 +1,10 @@
 package compiler.compiler.negative
 
-import compiler.diagnostic.AssignmentOutsideOfPurityBoundaryDiagnostic
-import compiler.diagnostic.ImpureInvocationInPureContextDiagnostic
-import compiler.diagnostic.ModifyingInvocationInReadonlyContextDiagnostic
-import compiler.diagnostic.MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic
-import compiler.diagnostic.ReadInPureContextDiagnostic
+import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class PurityErrors : FreeSpec({
     "reading compile-time constant globals is okay from a pure context" {
@@ -30,7 +27,9 @@ class PurityErrors : FreeSpec({
                 return x
             }
         """.trimIndent())
-            .shouldFind<ReadInPureContextDiagnostic>()
+            .shouldFind<PurityViolationDiagnostic> {
+                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReadingVariableBeyondBoundary>()
+            }
     }
 
     "calling a read function from a pure context" {
@@ -43,7 +42,9 @@ class PurityErrors : FreeSpec({
                 a()
             }
         """.trimIndent())
-            .shouldFind<ImpureInvocationInPureContextDiagnostic>()
+            .shouldFind<PurityViolationDiagnostic> {
+                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ImpureInvocation>()
+            }
     }
 
     "calling a modifying function from a pure context" {
@@ -56,7 +57,9 @@ class PurityErrors : FreeSpec({
                 a()
             }
         """.trimIndent())
-            .shouldFind<ModifyingInvocationInReadonlyContextDiagnostic>()
+            .shouldFind<PurityViolationDiagnostic> {
+                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ImpureInvocation>()
+            }
     }
 
     "calling a modifying function from a read context" {
@@ -69,7 +72,9 @@ class PurityErrors : FreeSpec({
                 a()
             }
         """.trimIndent())
-            .shouldFind<ModifyingInvocationInReadonlyContextDiagnostic>()
+            .shouldFind<PurityViolationDiagnostic> {
+                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ImpureInvocation>()
+            }
     }
 
     "reading from outside a pure context" {
@@ -79,7 +84,9 @@ class PurityErrors : FreeSpec({
                 x
             }
         """.trimIndent())
-            .shouldFind<ReadInPureContextDiagnostic>()
+            .shouldFind<PurityViolationDiagnostic> {
+                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReadingVariableBeyondBoundary>()
+            }
     }
 
     "mutating outside of a pure context" - {
@@ -91,7 +98,9 @@ class PurityErrors : FreeSpec({
                         set x = 2
                     }
                 """.trimIndent())
-                    .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
+                    .shouldFind<PurityViolationDiagnostic> {
+                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReassignmentBeyondBoundary>()
+                    }
             }
 
             "property of a global variable" {
@@ -104,7 +113,9 @@ class PurityErrors : FreeSpec({
                         set x.foo = "b"
                     }
                 """.trimIndent())
-                    .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
+                    .shouldFind<PurityViolationDiagnostic> {
+                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReassignmentBeyondBoundary>()
+                    }
             }
 
             "nested property of a global variable" {
@@ -120,7 +131,9 @@ class PurityErrors : FreeSpec({
                         set x.box.foo = "b"
                     }
                 """.trimIndent())
-                    .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
+                    .shouldFind<PurityViolationDiagnostic> {
+                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReassignmentBeyondBoundary>()
+                    }
             }
         }
 
@@ -136,7 +149,9 @@ class PurityErrors : FreeSpec({
                         set x = 2
                     }
                 """.trimIndent())
-                    .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
+                    .shouldFind<PurityViolationDiagnostic> {
+                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReassignmentBeyondBoundary>()
+                    }
             }
 
             "property of a global variable" {
@@ -149,7 +164,9 @@ class PurityErrors : FreeSpec({
                         set x.foo = "b"
                     }
                 """.trimIndent())
-                    .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
+                    .shouldFind<PurityViolationDiagnostic> {
+                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReassignmentBeyondBoundary>()
+                    }
             }
 
             "nested property of a global variable" {
@@ -165,7 +182,9 @@ class PurityErrors : FreeSpec({
                         set x.box.foo = "b"
                     }
                 """.trimIndent())
-                    .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
+                    .shouldFind<PurityViolationDiagnostic> {
+                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReassignmentBeyondBoundary>()
+                    }
             }
 
             "assigning a global variable to a local variable of mutable type" - {
@@ -179,7 +198,9 @@ class PurityErrors : FreeSpec({
                             localBox: mut Box = globalBox
                         }
                     """.trimIndent())
-                        .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                        .shouldFind<PurityViolationDiagnostic> {
+                            it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                        }
                 }
 
                 "in assigment statement" - {
@@ -194,7 +215,9 @@ class PurityErrors : FreeSpec({
                                 set localBox = globalBox
                             }
                         """.trimIndent())
-                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                            .shouldFind<PurityViolationDiagnostic> {
+                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                            }
                     }
 
                     "through if-else" {
@@ -209,7 +232,9 @@ class PurityErrors : FreeSpec({
                                 set localBox = if (random()) globalBox else Box()
                             }
                         """.trimIndent())
-                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                            .shouldFind<PurityViolationDiagnostic> {
+                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                            }
 
                         validateModule("""
                             intrinsic read fn random() -> Bool
@@ -222,7 +247,9 @@ class PurityErrors : FreeSpec({
                                 set localBox = if (random()) Box() else globalBox
                             }
                         """.trimIndent())
-                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                            .shouldFind<PurityViolationDiagnostic> {
+                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                            }
                     }
 
                     "through try-catch" {
@@ -242,7 +269,9 @@ class PurityErrors : FreeSpec({
                                 }
                             }
                         """.trimIndent())
-                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                            .shouldFind<PurityViolationDiagnostic> {
+                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                            }
 
                         validateModule("""
                             intrinsic read fn randomThrow()
@@ -260,7 +289,9 @@ class PurityErrors : FreeSpec({
                                 }
                             }
                         """.trimIndent())
-                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                            .shouldFind<PurityViolationDiagnostic> {
+                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                            }
                     }
 
                     "through array literal" {
@@ -274,7 +305,9 @@ class PurityErrors : FreeSpec({
                                 set localBox = [globalBox]
                             }
                         """.trimIndent())
-                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                            .shouldFind<PurityViolationDiagnostic> {
+                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                            }
 
                         validateModule("""
                             class Box {
@@ -299,7 +332,9 @@ class PurityErrors : FreeSpec({
                                 localBox: mut Box = globalBox!!
                             }
                         """.trimIndent())
-                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                            .shouldFind<PurityViolationDiagnostic> {
+                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                            }
                     }
 
                     "through null-coalescing expression" {
@@ -313,7 +348,9 @@ class PurityErrors : FreeSpec({
                                 set localBox = globalBox ?: Box()
                             }
                         """.trimIndent())
-                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                            .shouldFind<PurityViolationDiagnostic> {
+                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                            }
 
                         validateModule("""
                             class Box {
@@ -325,7 +362,9 @@ class PurityErrors : FreeSpec({
                                 set localBox = Box() ?: globalBox
                             }
                         """.trimIndent())
-                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                            .shouldFind<PurityViolationDiagnostic> {
+                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                            }
                     }
 
                     "through throw expression" {
@@ -340,7 +379,9 @@ class PurityErrors : FreeSpec({
                                 throw globalEx
                             }
                         """.trimIndent())
-                            .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                            .shouldFind<PurityViolationDiagnostic> {
+                                it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                            }
                     }
 
                     "through member accesses" - {
@@ -359,7 +400,9 @@ class PurityErrors : FreeSpec({
                                 }
                             """.trimIndent()
                             )
-                                .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                                .shouldFind<PurityViolationDiagnostic> {
+                                    it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                                }
                         }
 
                         "nesting depth 2" {
@@ -379,7 +422,9 @@ class PurityErrors : FreeSpec({
                                     set localBox1 = globalBox3.b2.b1
                                 }
                             """.trimIndent())
-                                .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                                .shouldFind<PurityViolationDiagnostic> {
+                                    it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                                }
                         }
 
                         "nesting depth 3" {
@@ -402,7 +447,9 @@ class PurityErrors : FreeSpec({
                                     set localBox1 = globalBox4.b3.b2.b1
                                 }
                             """.trimIndent())
-                                .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                                .shouldFind<PurityViolationDiagnostic> {
+                                    it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                                }
                         }
                     }
                 }
@@ -423,7 +470,9 @@ class PurityErrors : FreeSpec({
                         pureMutate(x)
                     }
                 """.trimIndent())
-                    .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                    .shouldFind<PurityViolationDiagnostic> {
+                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                    }
             }
 
             "global variable as self-parameter to member function" {
@@ -439,7 +488,9 @@ class PurityErrors : FreeSpec({
                         x.pureMutate()
                     }
                 """.trimIndent())
-                    .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                    .shouldFind<PurityViolationDiagnostic> {
+                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                    }
             }
 
             "global variable as non-self parameter to member function" {
@@ -458,7 +509,9 @@ class PurityErrors : FreeSpec({
                         k.pureMutate(x)
                     }
                 """.trimIndent())
-                    .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                    .shouldFind<PurityViolationDiagnostic> {
+                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                    }
             }
 
             "passing a property of a global variable to a mutating function" {
@@ -477,7 +530,9 @@ class PurityErrors : FreeSpec({
                         mutate(x.box)
                     }
                 """.trimIndent())
-                    .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                    .shouldFind<PurityViolationDiagnostic> {
+                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                    }
             }
         }
 
@@ -492,7 +547,9 @@ class PurityErrors : FreeSpec({
                         return globalBox
                     }
                 """.trimIndent())
-                    .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                    .shouldFind<PurityViolationDiagnostic> {
+                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                    }
             }
 
             "through single expression fn body" {
@@ -503,7 +560,9 @@ class PurityErrors : FreeSpec({
                     var globalBox = Box()
                     read fn test() -> mut Box = globalBox
                 """.trimIndent())
-                    .shouldFind<MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic>()
+                    .shouldFind<PurityViolationDiagnostic> {
+                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.VariableUsedAsMutable>()
+                    }
             }
         }
     }

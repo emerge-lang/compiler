@@ -1,7 +1,6 @@
 package compiler.compiler.negative
 
 import compiler.diagnostic.AbstractInheritedFunctionNotImplementedDiagnostic
-import compiler.diagnostic.AssignmentOutsideOfPurityBoundaryDiagnostic
 import compiler.diagnostic.ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic
 import compiler.diagnostic.ConstructorDeclaredModifyingDiagnostic
 import compiler.diagnostic.DuplicateBaseTypeMemberDiagnostic
@@ -11,7 +10,6 @@ import compiler.diagnostic.ExternalMemberFunctionDiagnostic
 import compiler.diagnostic.IllegalAssignmentDiagnostic
 import compiler.diagnostic.IllegalFunctionBodyDiagnostic
 import compiler.diagnostic.IllegalSupertypeDiagnostic
-import compiler.diagnostic.ImpureInvocationInPureContextDiagnostic
 import compiler.diagnostic.IncompatibleReturnTypeOnOverrideDiagnostic
 import compiler.diagnostic.MissingFunctionBodyDiagnostic
 import compiler.diagnostic.MultipleClassConstructorsDiagnostic
@@ -20,7 +18,7 @@ import compiler.diagnostic.NotAllMemberVariablesInitializedDiagnostic
 import compiler.diagnostic.OverloadSetHasNoDisjointParameterDiagnostic
 import compiler.diagnostic.OverrideAddsSideEffectsDiagnostic
 import compiler.diagnostic.OverrideDropsNothrowDiagnostic
-import compiler.diagnostic.ReadInPureContextDiagnostic
+import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.StaticFunctionDeclaredOverrideDiagnostic
 import compiler.diagnostic.SuperFunctionForOverrideNotFoundDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
@@ -36,6 +34,7 @@ import io.kotest.matchers.collections.haveSize
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class ClassErrors : FreeSpec({
     "duplicate member" {
@@ -113,7 +112,12 @@ class ClassErrors : FreeSpec({
                         y: S32 = x
                     }
                 """.trimIndent())
-                    .shouldFind<ReadInPureContextDiagnostic>()
+                    .shouldFind<PurityViolationDiagnostic> {
+                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReadingVariableBeyondBoundary>()
+                        it.boundary.shouldBeInstanceOf<PurityViolationDiagnostic.SideEffectBoundary.ClassMemberInitializer>().also {
+                            it.member.name shouldBe "y"
+                        }
+                    }
             }
 
             "cannot call read functions" {
@@ -123,7 +127,9 @@ class ClassErrors : FreeSpec({
                         x: S32 = bar()
                     }
                 """.trimIndent())
-                    .shouldFind<ImpureInvocationInPureContextDiagnostic>()
+                    .shouldFind<PurityViolationDiagnostic> {
+                        it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ImpureInvocation>()
+                    }
             }
 
             // TODO: as soon as there are lambdas, add a test to verify a run { ... } initializer can't write
@@ -468,7 +474,9 @@ class ClassErrors : FreeSpec({
                             }
                         }
                     """.trimIndent())
-                        .shouldFind<ReadInPureContextDiagnostic>()
+                        .shouldFind<PurityViolationDiagnostic> {
+                            it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReadingVariableBeyondBoundary>()
+                        }
                 }
 
                 "cannot write global state" {
@@ -480,7 +488,9 @@ class ClassErrors : FreeSpec({
                             }
                         }
                     """.trimIndent())
-                        .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
+                        .shouldFind<PurityViolationDiagnostic> {
+                            it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReassignmentBeyondBoundary>()
+                        }
                 }
             }
 
@@ -508,7 +518,9 @@ class ClassErrors : FreeSpec({
                             }
                         }
                     """.trimIndent())
-                        .shouldFind<AssignmentOutsideOfPurityBoundaryDiagnostic>()
+                        .shouldFind<PurityViolationDiagnostic> {
+                            it.impurity.shouldBeInstanceOf<PurityViolationDiagnostic.Impurity.ReassignmentBeyondBoundary>()
+                        }
                 }
             }
 

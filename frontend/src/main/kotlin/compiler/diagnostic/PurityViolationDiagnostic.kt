@@ -91,12 +91,12 @@ data class PurityViolationDiagnostic(
         }
 
         interface ReassignmentBeyondBoundary : Impurity {
-            data class Variable(val assignment: BoundVariableAssignmentStatement) : Impurity {
+            data class Variable(val assignment: BoundVariableAssignmentStatement) : ReassignmentBeyondBoundary {
                 override val span = assignment.variableName.span
                 override val kind = ActionKind.MODIFY
                 override fun describe(): String = "assigning a new value to ${assignment.variableName.value}"
             }
-            data class Complex(val assignmentTarget: BoundExpression<*>) : Impurity {
+            data class Complex(val assignmentTarget: BoundExpression<*>) : ReassignmentBeyondBoundary {
                 override val span = assignmentTarget.declaration.span
                 override val kind = ActionKind.MODIFY
                 override fun describe(): String = "assigning a new value to this target"
