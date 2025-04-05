@@ -400,7 +400,7 @@ class BoundInvocationExpression(
     private val asImpurity: PurityViolationDiagnostic.Impurity.ImpureInvocation? by lazy {
         seanHelper.requirePhase2Done()
         val functionToInvoke = this.functionToInvoke ?: return@lazy null
-        if (functionToInvoke.purity.contains(BoundFunction.Purity.PURE)) {
+        if (BoundFunction.Purity.PURE.contains(functionToInvoke.purity)) {
             return@lazy null
         }
 
