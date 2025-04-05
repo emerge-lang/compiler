@@ -74,10 +74,14 @@ data class PurityViolationDiagnostic(
 
         fun describe(): String
 
-        data class ReadBeyondBoundary(val readingExpression: BoundExpression<*>, val usage: ValueUsage): Impurity {
+        data class ReadingVariableBeyondBoundary(
+            val readingExpression: BoundIdentifierExpression,
+            val referral: BoundIdentifierExpression.ReferringVariable,
+            val usage: ValueUsage
+        ): Impurity {
             override val span = readingExpression.declaration.span
             override val kind = ActionKind.READ
-            override fun describe(): String = usage.describeForDiagnostic("bla")
+            override fun describe(): String = usage.describeForDiagnostic('`' + referral.variable.name + '`')
         }
 
         data class ImpureInvocation(val invocation: BoundInvocationExpression, val functionToInvoke: BoundFunction) : Impurity {

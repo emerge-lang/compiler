@@ -255,7 +255,11 @@ class BoundIdentifierExpression(
             if (isCompileTimeConstant) {
                 return
             }
-            visitor.visit(PurityViolationDiagnostic.Impurity.ReadBeyondBoundary(this@BoundIdentifierExpression, usage ?: IrrelevantValueUsage))
+            visitor.visit(PurityViolationDiagnostic.Impurity.ReadingVariableBeyondBoundary(
+                this@BoundIdentifierExpression,
+                this,
+                usage ?: IrrelevantValueUsage,
+            ))
         }
 
         override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
