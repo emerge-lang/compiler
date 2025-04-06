@@ -32,13 +32,13 @@ class IfExpression (
 ) : Expression {
     override fun bindTo(context: ExecutionScopedCTContext): BoundIfExpression {
         val contextBeforeCondition: ExecutionScopedCTContext = MutableExecutionScopedCTContext.deriveFrom(context)
-        val boundCondition = BoundCondition(condition.bindTo(contextBeforeCondition))
+        val boundCondition = BoundCondition(contextBeforeCondition, condition.bindTo(contextBeforeCondition))
 
         val thenCodeAsChunk: AstCodeChunk = if (thenCode is AstCodeChunk) thenCode else AstCodeChunk(listOf(thenCode as Statement))
         val elseCodeAsChunk: AstCodeChunk? = if (elseCode == null) null else if (elseCode is AstCodeChunk) elseCode else AstCodeChunk(listOf(elseCode as Statement))
 
         return BoundIfExpression(
-            contextBeforeCondition,
+            boundCondition.modifiedContext,
             this,
             boundCondition,
             thenCodeAsChunk.bindTo(MutableExecutionScopedCTContext.deriveNewScopeFrom(
@@ -46,7 +46,7 @@ class IfExpression (
                 ExecutionScopedCTContext.Repetition.MAYBE,
             )),
             elseCodeAsChunk?.bindTo(MutableExecutionScopedCTContext.deriveNewScopeFrom(
-                contextBeforeCondition,
+                boundCondition.modifiedContext,
                 ExecutionScopedCTContext.Repetition.MAYBE,
             )),
         )

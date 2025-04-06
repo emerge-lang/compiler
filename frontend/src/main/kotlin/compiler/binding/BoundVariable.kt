@@ -29,16 +29,15 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.CreateReferenceValueUsage
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
-import compiler.handleCyclicInvocation
-import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.explicitInferTypeNotAllowed
 import compiler.diagnostic.explicitInferTypeWithArguments
@@ -48,6 +47,8 @@ import compiler.diagnostic.typeDeductionError
 import compiler.diagnostic.variableDeclaredMoreThanOnce
 import compiler.diagnostic.variableTypeNotDeclared
 import compiler.diagnostic.visibilityNotAllowedOnVariable
+import compiler.handleCyclicInvocation
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -198,7 +199,7 @@ class BoundVariable(
 
                 if (declaration.type == null) {
                     // full inference
-                    typeAtDeclarationTime = initializerExpression.type?.withCombinedMutability(implicitMutability)
+                    typeAtDeclarationTime = initializerExpression.type?.withMutabilityIntersectedWith(implicitMutability)
                 } else {
                     val finalNullability = declaration.type.nullability
                     val finalMutability = declaration.type.mutability
@@ -225,6 +226,12 @@ class BoundVariable(
                         }
                     }
                 }
+
+                initializerExpression.setEvaluationResultUsage(CreateReferenceValueUsage(
+                    typeAtDeclarationTime,
+                    declaration.declaredAt,
+                    ownershipAtDeclarationTime,
+                ))
             }
 
             // handle no initializer case
@@ -245,8 +252,6 @@ class BoundVariable(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
-            initializerExpression?.markEvaluationResultCaptured(typeAtDeclarationTime?.mutability ?: implicitMutability)
-
             initializerExpression?.semanticAnalysisPhase3(diagnosis)
             visibility.semanticAnalysisPhase3(diagnosis)
         }

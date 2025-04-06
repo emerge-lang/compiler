@@ -25,10 +25,10 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundParameter
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
-import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.lexer.Span
 import compiler.util.twoElementPermutationsUnordered
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import java.util.IdentityHashMap
@@ -41,7 +41,8 @@ sealed interface BoundTypeReference {
     val span: Span?
 
     /**
-     * @return this type, with the given mutability if it doesn't explicitly have one.
+     * @return this type, with the given mutability if it doesn't explicitly have one. Also applied to type arguments,
+     * though type arguments will never get [TypeMutability.EXCLUSIVE] and instead will get [TypeMutability.READONLY].
      */
     fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference
 
@@ -52,11 +53,17 @@ sealed interface BoundTypeReference {
     fun withMutability(modifier: TypeMutability?): BoundTypeReference
 
     /**
-     * @return this type but the mutability is the result of [TypeMutability.combinedWith] of the
+     * @return this type but [mutability] is the result of [TypeMutability.intersect] of the
      * existing mutability and the given one. Type parameters will be defaulted ([defaultMutabilityTo])
      * to the resulting mutability.
      */
-    fun withCombinedMutability(mutability: TypeMutability?): BoundTypeReference
+    fun withMutabilityIntersectedWith(mutability: TypeMutability?): BoundTypeReference
+
+    /**
+     * @return this type but [limitToMutability] is the result of [TypeMutability.limitedTo] of the
+     * existing mutability and the given one. Type parameters will also be modified with [withMutabilityLimitedTo].
+     */
+    fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeReference
 
     /**
      * @return this type but [isNullable] is according to the nullability given for this invocation. If that is

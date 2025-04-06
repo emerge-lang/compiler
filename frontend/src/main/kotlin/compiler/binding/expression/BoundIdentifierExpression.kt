@@ -23,7 +23,6 @@ import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundVariable
-import compiler.binding.ImpurityVisitor
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
@@ -32,18 +31,20 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.context.effect.VariableLifetime
+import compiler.binding.impurity.ImpurityVisitor
+import compiler.binding.impurity.ReadingVariableBeyondBoundary
+import compiler.binding.impurity.VariableUsedAsMutable
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.UnresolvedType
-import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.borrowedVariableCaptured
 import compiler.diagnostic.notAllMemberVariablesInitialized
 import compiler.diagnostic.notAllMixinsInitialized
 import compiler.diagnostic.undefinedIdentifier
 import compiler.diagnostic.useOfUninitializedVariable
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -95,8 +96,8 @@ class BoundIdentifierExpression(
         referral?.markEvaluationResultUsed()
     }
 
-    override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
-        referral?.markEvaluationResultCaptured(withMutability)
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
+        referral?.setUsageContext(valueUsage)
     }
 
     fun allowPartiallyUninitializedValue() {
@@ -119,7 +120,7 @@ class BoundIdentifierExpression(
     }
 
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
-        // this does not write by itself; writes are done by other statements
+        referral?.visitWritesBeyond(boundary, visitor)
     }
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
@@ -140,11 +141,14 @@ class BoundIdentifierExpression(
         /** @see BoundExpression.findReadsBeyond */
         fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor)
 
+        /** @see BoundExpression.findWritesBeyond */
+        fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor)
+
         /** @see BoundExpression.markEvaluationResultUsed */
         fun markEvaluationResultUsed()
 
-        /** @see BoundExpression.markEvaluationResultCaptured */
-        fun markEvaluationResultCaptured(withMutability: TypeMutability)
+        /** @see BoundExpression.setEvaluationResultUsage */
+        fun setUsageContext(valueUsage: ValueUsage)
 
         /** @see BoundExpression.isCompileTimeConstant */
         val isCompileTimeConstant: Boolean
@@ -156,7 +160,6 @@ class BoundIdentifierExpression(
         override val span = declaration.span
         private var usageContext = VariableUsageContext.WRITE
         private var allowPartiallyUninitialized: Boolean = false
-        private var thisUsageCapturesWithMutability: TypeMutability? = null
         /* variables are always anchored, refcount on assignment + deferred refcount of the value at scope exit */
         override val isEvaluationResultAnchored get() = true
 
@@ -168,16 +171,16 @@ class BoundIdentifierExpression(
             usageContext = VariableUsageContext.READ
         }
 
-        override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
-            thisUsageCapturesWithMutability = withMutability
-        }
-
         override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
             variable.semanticAnalysisPhase2(diagnosis)
         }
 
-        override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
+        private var usage: ValueUsage? = null
+        override fun setUsageContext(valueUsage: ValueUsage) {
+            this.usage = valueUsage
+        }
 
+        override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
             val initializationState = variable.getInitializationStateInContext(context)
             if (usageContext.requiresInitialization) {
                 if (initializationState != VariableInitialization.State.INITIALIZED) {
@@ -207,6 +210,11 @@ class BoundIdentifierExpression(
                                 }
                         }
                 }
+            }
+
+            val thisUsageCapturesWithMutability: TypeMutability? = when (usage?.usageOwnership) {
+                VariableOwnership.BORROWED, null -> null
+                VariableOwnership.CAPTURED -> usage!!.usedAsType?.mutability ?: TypeMutability.READONLY
             }
 
             thisUsageCapturesWithMutability?.let { capturedWithMutability ->
@@ -248,7 +256,22 @@ class BoundIdentifierExpression(
             if (isCompileTimeConstant) {
                 return
             }
-            visitor.visitReadBeyondBoundary(boundary, this@BoundIdentifierExpression)
+            visitor.visit(
+                ReadingVariableBeyondBoundary(
+                this@BoundIdentifierExpression,
+                this,
+                usage ?: IrrelevantValueUsage,
+            )
+            )
+        }
+
+        override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+            if (context.containsWithinBoundary(variable, boundary)) {
+                return
+            }
+            if (usage?.usedAsType?.mutability?.isMutable == true) {
+                visitor.visit(VariableUsedAsMutable(this, this.usage!!))
+            }
         }
 
         override val isCompileTimeConstant: Boolean
@@ -261,10 +284,17 @@ class BoundIdentifierExpression(
     inner class ReferringType(val reference: BoundTypeReference) : Referral {
         override val span = declaration.span
         override fun markEvaluationResultUsed() {}
-        override fun markEvaluationResultCaptured(withMutability: TypeMutability) {}
 
         override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
             // reading type information outside the boundary is pure because type information is compile-time constant
+        }
+
+        override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
+            // reading type information outside the boundary is pure because type information is compile-time constant
+        }
+
+        override fun setUsageContext(valueUsage: ValueUsage) {
+            // not needed, because type information is compile-time constant
         }
 
         override val isCompileTimeConstant = true

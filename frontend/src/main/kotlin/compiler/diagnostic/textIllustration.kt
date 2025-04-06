@@ -114,16 +114,18 @@ private fun buildIllustrationForSingleFile(
             append(' ')
         }
         val nCols = (hint.span.toColumnNumber - hint.span.fromColumnNumber).toInt() + 1
-        val nSgwigglesBefore = if (nCols % 2 == 0) (nCols / 2) - 1 else nCols / 2
-        val nSgiwgglesAfter = nCols / 2
-        check(nSgwigglesBefore + 1 + nSgiwgglesAfter == nCols)
+        val pointerWidth = 2 // width of the pointer emojis in monospace fonts
+        val nSwigglesTotal = nCols - pointerWidth
+        val nSgwigglesBefore = nSwigglesTotal / 2
+        val nSgiwgglesAfter = nSwigglesTotal - nSgwigglesBefore
+        check(nSgwigglesBefore + pointerWidth + nSgiwgglesAfter == nCols)
         repeat(nSgwigglesBefore) {
             append('~')
         }
         if (isAbove) {
             append("\uD83D\uDC47") // 👇
         } else {
-            append('\u261D') // ☝
+            append("\uD83D\uDC46") // 👆
         }
         repeat(nSgiwgglesAfter) {
             append('~')

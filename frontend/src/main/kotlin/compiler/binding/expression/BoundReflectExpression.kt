@@ -2,17 +2,16 @@ package compiler.binding.expression
 
 import compiler.ast.expression.AstReflectExpression
 import compiler.ast.type.TypeMutability
-import compiler.binding.ImpurityVisitor
 import compiler.binding.SideEffectPrediction
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.unsupportedReflection
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
@@ -43,6 +42,10 @@ class BoundReflectExpression(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
 
+    }
+
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
+        // nothing to do, this expression doesn't use any values
     }
 
     private var baseTypeToReflectOn: BoundBaseType? = null

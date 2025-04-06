@@ -20,20 +20,20 @@ package compiler.binding.expression
 
 import compiler.InternalCompilerError
 import compiler.ast.expression.NumericLiteralExpression
-import compiler.binding.ImpurityVisitor
 import compiler.binding.SideEffectPrediction
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.CoreTypes
 import compiler.binding.type.NullableTypeReference
 import compiler.binding.type.RootResolvedTypeReference
-import compiler.handleCyclicInvocation
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.integerLiteralOutOfRange
+import compiler.handleCyclicInvocation
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType

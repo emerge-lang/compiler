@@ -4,10 +4,9 @@ import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
-import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.unknownType
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class UnresolvedType private constructor(
@@ -41,11 +40,19 @@ class UnresolvedType private constructor(
         )
     }
 
-    override fun withCombinedMutability(mutability: TypeMutability?): BoundTypeReference {
+    override fun withMutabilityIntersectedWith(mutability: TypeMutability?): BoundTypeReference {
         return UnresolvedType(
-            standInType.withCombinedMutability(mutability),
+            standInType.withMutabilityIntersectedWith(mutability),
             reference,
             parameters?.map { it.defaultMutabilityTo(mutability) },
+        )
+    }
+
+    override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeReference {
+        return UnresolvedType(
+            standInType.withMutabilityLimitedTo(limitToMutability),
+            reference,
+            parameters?.map { it.withMutabilityLimitedTo(limitToMutability) },
         )
     }
 

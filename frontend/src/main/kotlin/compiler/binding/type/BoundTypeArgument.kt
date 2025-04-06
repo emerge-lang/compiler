@@ -8,10 +8,9 @@ import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
-import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
@@ -37,7 +36,10 @@ class BoundTypeArgument(
         context,
         astNode,
         variance,
-        type.defaultMutabilityTo(mutability),
+        type.defaultMutabilityTo(when (mutability) {
+            TypeMutability.EXCLUSIVE -> TypeMutability.READONLY
+            else -> mutability
+        }),
     )
 
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
@@ -161,7 +163,7 @@ class BoundTypeArgument(
         )
     }
 
-    override fun withCombinedMutability(mutability: TypeMutability?): BoundTypeReference {
+    override fun withMutabilityIntersectedWith(mutability: TypeMutability?): BoundTypeReference {
         if (mutability == null || type.mutability == mutability) {
             return this
         }
@@ -170,7 +172,21 @@ class BoundTypeArgument(
             context,
             astNode,
             variance,
-            type.withCombinedMutability(mutability),
+            type.withMutabilityIntersectedWith(mutability),
+        )
+    }
+
+    override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeArgument {
+        val newMutability = type.mutability.limitedTo(limitToMutability)
+        if (newMutability == type.mutability) {
+            return this
+        }
+
+        return BoundTypeArgument(
+            context,
+            astNode,
+            variance,
+            type.withMutabilityLimitedTo(limitToMutability)
         )
     }
 

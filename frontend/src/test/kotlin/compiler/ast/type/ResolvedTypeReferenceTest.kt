@@ -155,14 +155,18 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
             for (outerMutability in TypeMutability.entries) {
                 val type = context.resolveType(
                     TypeReference(
-                    simpleName = "Array",
-                    mutability = outerMutability,
-                    arguments = listOf(TypeArgument(TypeVariance.UNSPECIFIED, TypeReference("Any")))
-                )
+                        simpleName = "Array",
+                        mutability = outerMutability,
+                        arguments = listOf(TypeArgument(TypeVariance.UNSPECIFIED, TypeReference("Any")))
+                    )
                 ) as RootResolvedTypeReference
 
                 "projects onto type parameters with $outerMutability" {
-                    type.arguments!!.single().type.mutability shouldBe outerMutability
+                    val expectedMutability = when (outerMutability) {
+                        TypeMutability.EXCLUSIVE -> TypeMutability.READONLY
+                        else -> outerMutability
+                    }
+                    type.arguments!!.single().type.mutability shouldBe expectedMutability
                 }
             }
         }

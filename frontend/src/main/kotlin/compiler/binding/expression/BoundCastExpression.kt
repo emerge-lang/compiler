@@ -5,20 +5,19 @@ import compiler.ast.Expression
 import compiler.ast.expression.AstCastExpression
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression.Companion.wrapIrAsStatement
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.nothrowViolatingCast
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
@@ -98,17 +97,18 @@ class BoundCastExpression(
         value.setNothrow(boundary)
     }
 
-    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
-        value.setExpectedReturnType(type, diagnosis)
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
+        value.setEvaluationResultUsage(valueUsage.mapType { usedAsType ->
+            if (type.mutability.isAssignableTo(usedAsType.mutability)) {
+                usedAsType
+            } else {
+                usedAsType.withMutability(TypeMutability.READONLY)
+            }
+        })
     }
 
-    override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
-        // we can use type.mutability here because that is in-line with expectations after sean2
-        value.markEvaluationResultCaptured(if (type.mutability.isAssignableTo(withMutability)) {
-            withMutability
-        } else {
-            TypeMutability.READONLY
-        })
+    override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
+        value.setExpectedReturnType(type, diagnosis)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

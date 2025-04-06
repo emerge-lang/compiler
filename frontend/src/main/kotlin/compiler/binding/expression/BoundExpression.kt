@@ -19,8 +19,6 @@
 package compiler.binding.expression
 
 import compiler.ast.Expression
-import compiler.ast.type.TypeMutability
-import compiler.binding.BoundExecutable
 import compiler.binding.BoundStatement
 import compiler.binding.BoundVariable
 import compiler.binding.IrCodeChunkImpl
@@ -55,7 +53,10 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
 
     /**
      * Must be called after [BoundExecutable.semanticAnalysisPhase1] and before [BoundExecutable.semanticAnalysisPhase2]
-     * by the enclosing code running this expression. The intended purposes are:
+     * by the enclosing code running this expression. If this method is called, [setEvaluationResultUsage] must be called
+     * later.
+     *
+     * The intended purposes are:
      * * in the frontend
      *   * detect whether a [BoundIdentifierExpression] is used in read context ([markEvaluationResultUsed] was called)
      *     or in write context ([markEvaluationResultUsed] was not called). Ultimately drives whether initialization of a
@@ -67,15 +68,17 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
     fun markEvaluationResultUsed() {}
 
     /**
-     * Must be called before [semanticAnalysisPhase3]. If this method is called, [markEvaluationResultUsed] must have
-     * been called earlier.
+     * Must be called before [BoundExecutable.semanticAnalysisPhase3]. If this method is called, [markEvaluationResultUsed]
+     * must have been called earlier.
      *
-     * To be called when the result of this expression is assigned to a capturing reference (=when possibly a heap
-     * reference is created). In case of a borrowed result, this must produce an error during [semanticAnalysisPhase3].
-     * In case of an exclusive value, this triggers move semantics: the lifetime of the exclusive reference ends and
-     * any subsequent use of the reference will produce an error.
+     * This information is used to enforce purity. This method **MUST NOT** trigger [compiler.diagnostic.ValueNotAssignableDiagnostic]s
+     * resulting from a mismatch between this expressions [type] and [ValueUsage.usedAsType]; this is the job of the enclosing
+     * code!
+     *
+     * @param valueUsage If the result of this expression is captured, this is not null and describes how the value
+     *                      is captured.
      */
-    fun markEvaluationResultCaptured(withMutability: TypeMutability) {}
+    fun setEvaluationResultUsage(valueUsage: ValueUsage)
 
     /**
      * If `true`, the reference counter in the result of this expression already includes a +1 to account for

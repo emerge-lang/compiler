@@ -1,6 +1,7 @@
 package compiler.binding
 
 import compiler.ast.AssignmentStatement
+import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeMutability
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -9,12 +10,16 @@ import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
 import compiler.binding.expression.BoundMemberAccessExpression
+import compiler.binding.expression.CreateReferenceValueUsage
+import compiler.binding.expression.ValueUsage
+import compiler.binding.impurity.Impurity
+import compiler.binding.impurity.ImpurityVisitor
+import compiler.binding.impurity.ReassignmentBeyondBoundary
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.illegalAssignment
 import compiler.diagnostic.valueNotAssignable
@@ -46,6 +51,11 @@ class BoundObjectMemberAssignmentStatement(
     }
 
     override val assignmentTargetType get() = targetExpression.type
+    override val assignedValueUsage: ValueUsage get() = CreateReferenceValueUsage(
+        assignmentTargetType,
+        targetExpression.declaration.span,
+        VariableOwnership.CAPTURED,
+    )
 
     override fun setTargetNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         targetExpression.setNothrow(boundary)
@@ -108,17 +118,14 @@ class BoundObjectMemberAssignmentStatement(
         super.visitWritesBeyond(boundary, visitor)
         targetExpression.visitWritesBeyond(boundary, visitor)
         var targetReadsBeyondBoundary = false
-        targetExpression.visitReadsBeyond(boundary, object : ImpurityVisitor {
-            override fun visitReadBeyondBoundary(purityBoundary: CTContext, read: BoundExpression<*>) {
+        targetExpression.visitReadsBeyond(boundary) { impurity ->
+            if (impurity.kind == Impurity.ActionKind.READ) {
                 targetReadsBeyondBoundary = true
             }
-
-            override fun visitWriteBeyondBoundary(purityBoundary: CTContext, write: BoundExecutable<*>) {
-
-            }
-        })
+        }
         if (targetReadsBeyondBoundary) {
-            visitor.visitWriteBeyondBoundary(boundary, this)
+            // TODO: does this need more detail? information from the reading impurity is dropped
+            visitor.visit(ReassignmentBeyondBoundary.Complex(targetExpression))
         }
     }
 

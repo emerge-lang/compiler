@@ -22,7 +22,6 @@ import compiler.InternalCompilerError
 import compiler.ast.TypeArgumentBundle
 import compiler.ast.TypeParameterBundle
 import compiler.ast.type.TypeArgument
-import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
@@ -31,9 +30,9 @@ import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
+import compiler.lexer.Span
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
-import compiler.parser.grammar.dsl.mapResult
 import compiler.parser.grammar.dsl.sequence
 import compiler.parser.grammar.rule.Rule
 
@@ -43,16 +42,6 @@ val TypeMutability = eitherOf("type mutability") {
     keyword(Keyword.IMMUTABLE)
     keyword(Keyword.EXCLUSIVE)
 }
-    .mapResult { keywordToken ->
-        keywordToken as KeywordToken
-        when(keywordToken.keyword) {
-            Keyword.MUTABLE   -> compiler.ast.type.TypeMutability.MUTABLE
-            Keyword.READONLY  -> compiler.ast.type.TypeMutability.READONLY
-            Keyword.IMMUTABLE -> compiler.ast.type.TypeMutability.IMMUTABLE
-            Keyword.EXCLUSIVE -> compiler.ast.type.TypeMutability.EXCLUSIVE
-            else -> throw InternalCompilerError("${keywordToken.keyword} is not a type modifier")
-        }
-    }
 
 private val TypeArgument = sequence {
     ref(Variance)
@@ -168,18 +157,18 @@ val Type: Rule<TypeReference> = sequence("type") {
     // TODO: function types
 }
     .astTransformation { tokens ->
-        val nameOrModifier = tokens.next()!!
+        val nameOrMutability = tokens.next()!!
 
-        val typeMutability: TypeMutability?
+        val typeMutabilityKeyword: KeywordToken?
         val nameToken: IdentifierToken
 
-        if (nameOrModifier is TypeMutability) {
-            typeMutability = nameOrModifier
+        if (nameOrMutability is KeywordToken) {
+            typeMutabilityKeyword = nameOrMutability
             nameToken = tokens.next()!! as IdentifierToken
         }
         else {
-            typeMutability = null
-            nameToken = nameOrModifier as IdentifierToken
+            typeMutabilityKeyword = null
+            nameToken = nameOrMutability as IdentifierToken
         }
 
         var next = tokens.next()
@@ -191,14 +180,31 @@ val Type: Rule<TypeReference> = sequence("type") {
             arguments = null
         }
 
-        val nullability = when (next) {
-            null -> TypeReference.Nullability.UNSPECIFIED
-            is OperatorToken -> when(next.operator) {
-                Operator.QUESTION_MARK -> TypeReference.Nullability.NULLABLE
-                Operator.NOTNULL -> TypeReference.Nullability.NOT_NULLABLE
-                else -> throw InternalCompilerError("Unknown type nullability marker: $next")
+        val nullabilityToken: OperatorToken?
+        val nullability: TypeReference.Nullability
+        when (next) {
+            null -> {
+                nullabilityToken = null
+                nullability = TypeReference.Nullability.UNSPECIFIED
+            }
+            is OperatorToken -> {
+                nullabilityToken = next
+                nullability = when(next.operator) {
+                    Operator.QUESTION_MARK -> TypeReference.Nullability.NULLABLE
+                    Operator.NOTNULL -> TypeReference.Nullability.NOT_NULLABLE
+                    else -> throw InternalCompilerError("Unknown type nullability marker: $next")
+                }
             }
             else -> throw InternalCompilerError("Unknown type nullability marker: $next")
+        }
+
+        val typeMutability = when(typeMutabilityKeyword?.keyword) {
+            Keyword.MUTABLE   -> compiler.ast.type.TypeMutability.MUTABLE
+            Keyword.READONLY  -> compiler.ast.type.TypeMutability.READONLY
+            Keyword.IMMUTABLE -> compiler.ast.type.TypeMutability.IMMUTABLE
+            Keyword.EXCLUSIVE -> compiler.ast.type.TypeMutability.EXCLUSIVE
+            null -> null
+            else -> throw InternalCompilerError("Invalid type mutability token: $typeMutabilityKeyword")
         }
 
         TypeReference(
@@ -207,6 +213,7 @@ val Type: Rule<TypeReference> = sequence("type") {
             typeMutability,
             nameToken,
             arguments,
+            Span.range(typeMutabilityKeyword?.span, nameToken.span, nullabilityToken?.span, *(arguments ?: emptyList()).map { it.span }.toTypedArray()),
         )
     }
 

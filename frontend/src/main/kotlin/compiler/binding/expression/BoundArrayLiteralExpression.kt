@@ -1,15 +1,16 @@
 package compiler.binding.expression
 
+import compiler.ast.VariableOwnership
 import compiler.ast.expression.ArrayLiteralExpression
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
-import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
@@ -87,6 +88,11 @@ class BoundArrayLiteralExpression(
         expectedEvaluationResultType?.let {
             type = type?.withMutability(it.mutability)
         }
+
+        val valueUsage = CreateReferenceValueUsage(elementType, declaration.leftBracket.span .. declaration.rightBracket.span, VariableOwnership.CAPTURED)
+        elements.forEach {
+            it.setEvaluationResultUsage(valueUsage)
+        }
     }
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
@@ -123,6 +129,10 @@ class BoundArrayLiteralExpression(
 
         expectedElementType = type.arguments?.firstOrNull()?.type ?: return
         elements.forEach { it.setExpectedEvaluationResultType(expectedElementType!!, diagnosis) }
+    }
+
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
+        // not relevant
     }
 
     override val isEvaluationResultReferenceCounted = true

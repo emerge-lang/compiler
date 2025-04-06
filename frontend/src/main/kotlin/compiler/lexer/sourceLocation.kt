@@ -163,7 +163,11 @@ data class Span(
         }
     }
 
-    operator fun rangeTo(other: Span): Span {
+    operator fun rangeTo(other: Span?): Span {
+        if (other == null) {
+            return this
+        }
+
         check(sourceFile == other.sourceFile)
         return Span(
             sourceFile,
@@ -184,6 +188,17 @@ data class Span(
 
     companion object {
         val UNKNOWN = Span(MemorySourceFile("UNKNOWN", CanonicalElementName.Package(listOf("unknown")), ""), 1u, 1u, 1u, 1u)
+
+        fun range(vararg spans: Span?): Span? {
+            if (spans.all { it == null }) {
+                return null
+            }
+
+            return spans
+                .asSequence()
+                .filterNotNull()
+                .reduce(Span::rangeTo)
+        }
     }
 }
 

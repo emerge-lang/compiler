@@ -48,7 +48,7 @@ export class S8 : Printable {
     export intrinsic nothrow operator fn compareTo(self, other: S8) -> S8
     export intrinsic nothrow operator fn equals(self, other: S8) -> Bool
 
-    export nothrow fn abs(self) = if self < 0 -self else self
+    export nothrow fn abs(self) = if self < 0 -self else self.copy()
 
     export intrinsic nothrow fn asU8(self) -> U8
 
@@ -60,6 +60,8 @@ export class S8 : Printable {
     export override fn printTo(self, borrow stream: mut PrintStream) {
         self.toS64().printTo(stream)
     }
+
+    export intrinsic nothrow fn copy(self) -> S8
 }
 
 export class U8 : Printable {
@@ -116,7 +118,7 @@ export class S16 : Printable {
     export intrinsic nothrow operator fn compareTo(self, other: S16) -> S16
     export intrinsic nothrow operator fn equals(self, other: S16) -> Bool
 
-    export nothrow fn abs(self) = if self < 0 -self else self
+    export nothrow fn abs(self) = if self < 0 -self else self.copy()
 
     export intrinsic nothrow fn asU16(self) -> U16
 
@@ -127,6 +129,8 @@ export class S16 : Printable {
     export override fn printTo(self, borrow stream: mut PrintStream) {
         self.toS64().printTo(stream)
     }
+
+    export intrinsic nothrow fn copy(self) -> S16
 }
 
 export class U16 : Printable {
@@ -182,7 +186,7 @@ export class S32 : Printable {
     export intrinsic nothrow operator fn compareTo(self, other: S32) -> S32
     export intrinsic nothrow operator fn equals(self, other: S32) -> Bool
 
-    export nothrow fn abs(self) = if self < 0 -self else self
+    export nothrow fn abs(self) = if self < 0 -self else self.copy()
 
     export intrinsic nothrow fn asU32(self) -> U32
 
@@ -192,6 +196,8 @@ export class S32 : Printable {
     export override fn printTo(self, borrow stream: mut PrintStream) {
         self.toS64().printTo(stream)
     }
+
+    export intrinsic nothrow fn copy(self) -> S32
 }
 
 export class U32 : Printable {
@@ -246,7 +252,7 @@ export class S64 : Printable {
     export intrinsic nothrow operator fn compareTo(self, other: S64) -> S64
     export intrinsic nothrow operator fn equals(self, other: S64) -> Bool
 
-    export nothrow fn abs(self) = if self < 0 -self else self
+    export nothrow fn abs(self) = if self < 0 -self else self.copy()
 
     export intrinsic nothrow fn asU64(self) -> U64
 
@@ -261,6 +267,8 @@ export class S64 : Printable {
             self.asU64().printTo(stream, false)
         }
     }
+
+    export intrinsic nothrow fn copy(self) -> S64
 }
 
 export class U64 : Printable {
@@ -352,7 +360,7 @@ export class SWord : Printable {
 
     export intrinsic nothrow fn asUWord(self) -> UWord
 
-    export nothrow fn abs(self) = if self < 0 -self else self
+    export nothrow fn abs(self) = if self < 0 -self else self.copy()
 
     export intrinsic nothrow fn asS64(self) -> S64
     export intrinsic nothrow fn asU64(self) -> U64
@@ -361,6 +369,8 @@ export class SWord : Printable {
     export override fn printTo(self, borrow stream: mut PrintStream) {
         self.asS64().printTo(stream)
     }
+
+    export intrinsic nothrow fn copy(self) -> SWord
 }
 
 export class UWord : Printable {

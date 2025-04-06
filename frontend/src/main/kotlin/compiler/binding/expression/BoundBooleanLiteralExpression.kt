@@ -19,10 +19,10 @@
 package compiler.binding.expression
 
 import compiler.ast.expression.BooleanLiteralExpression
-import compiler.binding.ImpurityVisitor
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
@@ -46,6 +46,10 @@ class BoundBooleanLiteralExpression(
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         // nothing to do
+    }
+
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
+        // not relevant
     }
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) = Unit

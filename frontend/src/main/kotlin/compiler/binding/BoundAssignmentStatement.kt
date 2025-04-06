@@ -1,12 +1,13 @@
 package compiler.binding
 
 import compiler.ast.AssignmentStatement
-import compiler.ast.type.TypeMutability
 import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.ValueUsage
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.IrGenericTypeReferenceImpl
 import compiler.binding.type.IrParameterizedTypeImpl
@@ -56,6 +57,7 @@ abstract class BoundAssignmentStatement(
      * the type of the assignment target; if available, must be set after [assignmentTargetSemanticAnalysisPhase2]
      */
     protected abstract val assignmentTargetType: BoundTypeReference?
+    protected abstract val assignedValueUsage: ValueUsage
 
     abstract fun additionalSemanticAnalysisPhase2(diagnosis: Diagnosis)
 
@@ -70,6 +72,7 @@ abstract class BoundAssignmentStatement(
 
             toAssignExpression.semanticAnalysisPhase2(diagnosis)
             additionalSemanticAnalysisPhase2(diagnosis)
+            toAssignExpression.setEvaluationResultUsage(assignedValueUsage)
 
             toAssignExpression.type?.also { assignedType ->
                 assignmentTargetType?.also { targetType ->
@@ -95,8 +98,6 @@ abstract class BoundAssignmentStatement(
 
     final override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
-            toAssignExpression.markEvaluationResultCaptured(assignmentTargetType?.mutability ?: TypeMutability.READONLY)
-
             toAssignExpression.semanticAnalysisPhase3(diagnosis)
             additionalSemanticAnalysisPhase3(diagnosis)
         }

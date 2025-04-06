@@ -19,12 +19,13 @@
 package compiler.binding
 
 import compiler.ast.AstCodeChunk
-import compiler.ast.type.TypeMutability
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrStaticDispatchFunctionInvocationImpl
+import compiler.binding.expression.ValueUsage
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
@@ -32,7 +33,6 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.implicitlyEvaluatingAStatement
 import compiler.handleCyclicInvocation
@@ -86,10 +86,6 @@ class BoundCodeChunk(
         lastStatementAsExpression?.markEvaluationResultUsed()
     }
 
-    override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
-        lastStatementAsExpression?.markEvaluationResultCaptured(withMutability)
-    }
-
     private val seanHelper = SeanHelper()
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
@@ -128,6 +124,10 @@ class BoundCodeChunk(
 
         this.nothrowBoundary = boundary
         statements.forEach { it.setNothrow(boundary) }
+    }
+
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
+        lastStatementAsExpression?.setEvaluationResultUsage(valueUsage)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

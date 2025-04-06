@@ -5,7 +5,6 @@ import compiler.ast.AstMixinStatement
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundStatement
-import compiler.binding.ImpurityVisitor
 import compiler.binding.IrAssignmentStatementImpl
 import compiler.binding.IrAssignmentStatementTargetClassFieldImpl
 import compiler.binding.IrCodeChunkImpl
@@ -17,6 +16,8 @@ import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrClassFieldAccessExpressionImpl
 import compiler.binding.expression.IrVariableAccessExpressionImpl
+import compiler.binding.expression.MixinValueUsage
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
@@ -71,10 +72,14 @@ class BoundMixinStatement(
         return seanHelper.phase2(diagnosis) {
             expression.semanticAnalysisPhase2(diagnosis)
             expression.type?.evaluateAssignabilityTo(expectedType, expression.declaration.span)?.let(diagnosis::add)
-            registration = context.registerMixin(this, expression.type ?: context.swCtx.any.baseReference, diagnosis)?.also {
+            val mixinType = expression.type ?: context.swCtx.any.baseReference
+            registration = context.registerMixin(this, mixinType, diagnosis)?.also {
                 it.addDestructingAction(this::generateDestructorCode)
             }
-            expression.markEvaluationResultCaptured(TypeMutability.EXCLUSIVE)
+            expression.setEvaluationResultUsage(MixinValueUsage(
+                mixinType,
+                declaration.mixinKeyword.span,
+            ))
         }
     }
 

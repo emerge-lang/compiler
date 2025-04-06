@@ -2,12 +2,11 @@ package compiler.binding.expression
 
 import compiler.ast.AstBreakExpression
 import compiler.binding.BoundLoop
-import compiler.binding.ImpurityVisitor
 import compiler.binding.SideEffectPrediction
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.breakOutsideOfLoop
 import io.github.tmarsteel.emerge.backend.api.ir.IrBreakStatement
@@ -34,6 +33,10 @@ class BoundBreakExpression(
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         // nothing to do
+    }
+
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
+        // not relevant
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

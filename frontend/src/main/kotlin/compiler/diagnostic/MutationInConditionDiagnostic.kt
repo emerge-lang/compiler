@@ -1,11 +1,11 @@
 package compiler.diagnostic
 
-import compiler.ast.Executable
+import compiler.binding.impurity.Impurity
 
 class MutationInConditionDiagnostic(
-    val mutation: Executable,
+    val impurity: Impurity,
 ) : Diagnostic(
     Severity.WARNING,
     "This operation is mutating state in a condition.",
-    mutation.span,
+    impurity.span,
 )

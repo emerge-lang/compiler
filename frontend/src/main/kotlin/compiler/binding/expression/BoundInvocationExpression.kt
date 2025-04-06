@@ -19,17 +19,13 @@
 package compiler.binding.expression
 
 import compiler.ast.VariableDeclaration
-import compiler.ast.VariableOwnership
 import compiler.ast.expression.InvocationExpression
-import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
-import compiler.binding.DetectingImpurityVisitor
-import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
@@ -38,15 +34,14 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.impurity.ImpureInvocation
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.*
-import compiler.handleCyclicInvocation
-import compiler.lexer.IdentifierToken
-import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
@@ -56,6 +51,9 @@ import compiler.diagnostic.nothrowViolatingInvocation
 import compiler.diagnostic.typeDeductionError
 import compiler.diagnostic.unresolvableConstructor
 import compiler.diagnostic.varianceOnInvocationTypeArgument
+import compiler.handleCyclicInvocation
+import compiler.lexer.IdentifierToken
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrCatchExceptionStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrCreateTemporaryValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrDynamicDispatchFunctionInvocationExpression
@@ -174,8 +172,13 @@ class BoundInvocationExpression(
             }
 
             chosenOverload!!.candidate.parameters.parameters.zip(listOfNotNull(receiverExceptReferringType) + valueArguments)
-                .filter { (parameter, _) -> parameter.ownershipAtDeclarationTime == VariableOwnership.CAPTURED }
-                .forEach { (parameter, argument) -> argument.markEvaluationResultCaptured(parameter.typeAtDeclarationTime?.mutability ?: TypeMutability.READONLY) }
+                .forEach { (parameter, argument) ->
+                    argument.setEvaluationResultUsage(CreateReferenceValueUsage(
+                        parameter.typeAtDeclarationTime,
+                        parameter.declaration.span,
+                        parameter.ownershipAtDeclarationTime,
+                    ))
+                }
         }
     }
 
@@ -260,8 +263,8 @@ class BoundInvocationExpression(
                     val singleEval = evaluations.single()
                     // if there is only a single candidate, the errors found in validating are 100% applicable to be shown to the user
                     singleEval.unification.diagnostics
-                        .also {
-                            check(it.any { it.severity >= Diagnostic.Severity.ERROR }) {
+                        .also { diags ->
+                            check(diags.any { it.severity >= Diagnostic.Severity.ERROR }) {
                                 "Cannot choose overload to invoke, but evaluation of single overload candidate didn't yield any error -- what?"
                             }
                         }
@@ -372,6 +375,11 @@ class BoundInvocationExpression(
         this.nothrowBoundary = boundary
     }
 
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
+        // nothing to do; a function return type can always be captured and purity is checked fully
+        // inside the function implementation.
+    }
+
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
             receiverExpression?.semanticAnalysisPhase3(diagnosis)
@@ -388,18 +396,29 @@ class BoundInvocationExpression(
         }
     }
 
+    /** so that identity remains constant throughout visits to this instance */
+    private val asImpurity: ImpureInvocation? by lazy {
+        seanHelper.requirePhase2Done()
+        val functionToInvoke = this.functionToInvoke ?: return@lazy null
+        if (BoundFunction.Purity.PURE.contains(functionToInvoke.purity)) {
+            return@lazy null
+        }
+
+        ImpureInvocation(
+            this,
+            functionToInvoke,
+        )
+    }
     override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         seanHelper.requirePhase2Done()
 
         receiverExpression?.visitReadsBeyond(boundary, visitor)
         valueArguments.forEach { it.visitReadsBeyond(boundary, visitor) }
 
-        val invokedFunctionIsPure = functionToInvoke?.let {
-            BoundFunction.Purity.PURE.contains(it.purity)
-        } ?: true
-
-        if (!invokedFunctionIsPure) {
-            visitor.visitReadBeyondBoundary(boundary, this)
+        asImpurity?.let { impurity ->
+            if (!BoundFunction.Purity.PURE.contains(impurity.functionToInvoke.purity)) {
+                visitor.visit(impurity)
+            }
         }
     }
 
@@ -409,35 +428,10 @@ class BoundInvocationExpression(
         receiverExpression?.visitWritesBeyond(boundary, visitor)
         valueArguments.forEach { it.visitWritesBeyond(boundary, visitor) }
 
-        // writes through arguments that are modified by the called function
-        (listOfNotNull(receiverExpression) + valueArguments).zip(functionToInvoke?.parameters?.parameters ?: emptyList())
-            // does the function potentially modify the parameter?
-            .filter { (_, parameter) -> parameter.typeAtDeclarationTime?.mutability?.isMutable ?: false }
-            // is the argument itself a read beyond the boundary
-            .filter { (argument, _) ->
-                var argumentReadsBeyondBoundary = false
-                argument.visitReadsBeyond(boundary, object : ImpurityVisitor {
-                    override fun visitReadBeyondBoundary(purityBoundary: CTContext, read: BoundExpression<*>) {
-                        argumentReadsBeyondBoundary = true
-                    }
-
-                    override fun visitWriteBeyondBoundary(purityBoundary: CTContext, write: BoundExecutable<*>) {
-
-                    }
-                })
-                argumentReadsBeyondBoundary
+        asImpurity?.let { impurity ->
+            if (!BoundFunction.Purity.READONLY.contains(impurity.functionToInvoke.purity)) {
+                visitor.visit(impurity)
             }
-            .forEach { (argument, _) ->
-                visitor.visitWriteBeyondBoundary(boundary, argument)
-            }
-
-        val invokedFunctionIsReadonly = functionToInvoke?.let {
-            //it.semanticAnalysisPhase3(DiscardingDiagnosis)
-            BoundFunction.Purity.READONLY.contains(it.purity)
-        } ?: true
-
-        if (!invokedFunctionIsReadonly) {
-            visitor.visitWriteBeyondBoundary(boundary, this)
         }
     }
 

@@ -68,7 +68,7 @@ val Parameter = sequence("parameter declaration") {
         val name = next as IdentifierToken
         next = tokens.next() as OperatorToken?
 
-        var type: TypeReference?
+        val type: TypeReference?
         if (next != null && next.operator == Operator.COLON) {
             type = tokens.next() as TypeReference
             next = tokens.next()
@@ -262,6 +262,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
         }
 
         if (next == OperatorToken(Operator.ASSIGNMENT)) {
+            val assignmentOpToken = next as OperatorToken
             val singleExpression = tokens.next()!! as AstExpression
 
             return@astTransformation FunctionDeclaration(
@@ -271,7 +272,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
                 typeParameters,
                 parameterList,
                 type,
-                FunctionDeclaration.Body.SingleExpression(singleExpression),
+                FunctionDeclaration.Body.SingleExpression(assignmentOpToken, singleExpression),
             )
         }
 

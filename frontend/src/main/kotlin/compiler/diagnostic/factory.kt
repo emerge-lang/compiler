@@ -42,6 +42,7 @@ import compiler.binding.expression.BoundMemberAccessExpression
 import compiler.binding.expression.BoundNotNullExpression
 import compiler.binding.expression.BoundReturnExpression
 import compiler.binding.expression.BoundThrowExpression
+import compiler.binding.impurity.Impurity
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
@@ -414,8 +415,8 @@ fun Diagnosis.duplicateBaseTypeMembers(typeDef: BoundBaseType, duplicateMembers:
     add(DuplicateBaseTypeMemberDiagnostic(typeDef, duplicateMembers))
 }
 
-fun Diagnosis.mutationInCondition(mutation: BoundExecutable<*>) {
-    add(MutationInConditionDiagnostic(mutation.declaration))
+fun Diagnosis.mutationInCondition(conditionImpurity: Impurity) {
+    add(MutationInConditionDiagnostic(conditionImpurity))
 }
 
 fun Diagnosis.incorrectPackageDeclaration(name: AstPackageName, expected: CanonicalElementName.Package) {
@@ -490,31 +491,9 @@ fun Diagnosis.nullCheckOnNonNullableValue(value: BoundExpression<*>) {
     add(NullCheckingNonNullableValueDiagnostic(value.declaration))
 }
 
-fun Diagnosis.readingPurityViolation(violation: BoundExpression<*>, boundary: PurityViolationDiagnostic.SideEffectBoundary) {
-    if (violation is BoundIdentifierExpression) {
-        add(ReadInPureContextDiagnostic(violation, boundary))
-        return
-    }
-    check(violation is BoundInvocationExpression)
-    add(ImpureInvocationInPureContextDiagnostic(violation, boundary))
-}
-
-fun Diagnosis.modifyingPurityViolation(violation: BoundExecutable<*>, boundary: PurityViolationDiagnostic.SideEffectBoundary) {
-    if (violation is BoundAssignmentStatement) {
-        add(AssignmentOutsideOfPurityBoundaryDiagnostic(violation, boundary))
-        return
-    }
-
-    if (violation is BoundInvocationExpression) {
-        add(
-            if (violation.functionToInvoke?.purity?.contains(BoundFunction.Purity.MODIFYING) == true) {
-                ModifyingInvocationInReadonlyContextDiagnostic(violation, boundary)
-            } else {
-                ImpureInvocationInPureContextDiagnostic(violation, boundary)
-            }
-        )
-    }
-
-    check(violation is BoundExpression<*>)
-    add(MutableUsageOfStateOutsideOfPurityBoundaryDiagnostic(violation, boundary))
+fun Diagnosis.purityViolation(
+    impurity: Impurity,
+    boundary: PurityViolationDiagnostic.SideEffectBoundary
+) {
+    add(PurityViolationDiagnostic(impurity, boundary))
 }

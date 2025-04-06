@@ -6,6 +6,7 @@ import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
 import compiler.binding.expression.IrConditionalBranchImpl
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrLoopImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl

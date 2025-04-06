@@ -3,12 +3,12 @@ package compiler.binding.expression
 import compiler.InternalCompilerError
 import compiler.ast.expression.AstInstanceOfExpression
 import compiler.ast.type.TypeMutability
-import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.SoftwareContext
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
@@ -17,7 +17,6 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.typeCheckOnVolatileTypeParameter
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -64,6 +63,15 @@ class BoundInstanceOfExpression(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         expressionToCheck.semanticAnalysisPhase2(diagnosis)
+        expressionToCheck.setEvaluationResultUsage(
+            TypeCheckValueUsage(context.swCtx, declaration.operator.span..declaration.typeToCheck.span),
+        )
+    }
+
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
+        // nothing to do:
+        // the expression-to-be-checked is used regardless of context, with a type that doesn't depend on context (read Any)
+        // the result of expression-to-be-checked is also never captured
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

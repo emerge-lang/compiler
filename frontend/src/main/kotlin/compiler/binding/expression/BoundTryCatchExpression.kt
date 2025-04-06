@@ -1,14 +1,13 @@
 package compiler.binding.expression
 
 import compiler.ast.expression.AstTryCatchExpression
-import compiler.ast.type.TypeMutability
 import compiler.binding.BoundCodeChunk
-import compiler.binding.ImpurityVisitor
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.combineBranch
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
@@ -84,6 +83,11 @@ class BoundTryCatchExpression(
         catchBlock.setNothrow(boundary)
     }
 
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
+        fallibleCode.setEvaluationResultUsage(valueUsage)
+        catchBlock.setEvaluationResultUsage(valueUsage)
+    }
+
     override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         fallibleCode.visitReadsBeyond(boundary, visitor)
         catchBlock.visitReadsBeyond(boundary, visitor)
@@ -92,11 +96,6 @@ class BoundTryCatchExpression(
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         fallibleCode.visitWritesBeyond(boundary, visitor)
         catchBlock.visitWritesBeyond(boundary, visitor)
-    }
-
-    override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
-        fallibleCode.markEvaluationResultCaptured(withMutability)
-        catchBlock.markEvaluationResultCaptured(withMutability)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

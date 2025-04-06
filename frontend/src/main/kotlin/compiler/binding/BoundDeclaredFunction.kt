@@ -9,6 +9,8 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.IrVariableAccessExpressionImpl
+import compiler.binding.expression.ReturnValueFromFunctionUsage
+import compiler.binding.impurity.DiagnosingImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
@@ -17,15 +19,14 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
-import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.ReturnTypeMismatchDiagnostic
 import compiler.diagnostic.typeDeductionError
 import compiler.diagnostic.uncertainTermination
 import compiler.diagnostic.varianceOnFunctionTypeParameter
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrReturnStatement
@@ -149,7 +150,7 @@ abstract class BoundDeclaredFunction(
                 body.semanticAnalysisPhase3(diagnosis)
 
                 if (BoundFunction.Purity.READONLY.contains(this.purity)) {
-                    val diagnosingVisitor = PurityViolationImpurityVisitor(diagnosis, PurityViolationDiagnostic.SideEffectBoundary.Function(this))
+                    val diagnosingVisitor = DiagnosingImpurityVisitor(diagnosis, PurityViolationDiagnostic.SideEffectBoundary.Function(this))
                     handleCyclicInvocation(
                         context = this,
                         action = { body.visitWritesBeyond(context, diagnosingVisitor) },
@@ -219,10 +220,14 @@ abstract class BoundDeclaredFunction(
     sealed interface Body : BoundExecutable<Executable> {
         fun toBackendIr(): IrCodeChunk
 
-        class SingleExpression(val expression: BoundExpression<*>) : Body, BoundExecutable<Executable> by expression {
+        class SingleExpression(
+            private val bodyDeclaration: FunctionDeclaration.Body.SingleExpression,
+            val expression: BoundExpression<*>,
+        ) : Body, BoundExecutable<Executable> by expression {
             override val returnBehavior = SideEffectPrediction.GUARANTEED
 
             private var expectedReturnType: BoundTypeReference? = null
+            private val seanHelper = SeanHelper()
 
             override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
                 expectedReturnType = type
@@ -230,17 +235,31 @@ abstract class BoundDeclaredFunction(
             }
 
             override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-                expression.semanticAnalysisPhase1(diagnosis)
-                expression.markEvaluationResultUsed()
+                seanHelper.phase1(diagnosis) {
+                    expression.semanticAnalysisPhase1(diagnosis)
+                    expression.markEvaluationResultUsed()
+                }
+            }
+
+            override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
+                seanHelper.phase2(diagnosis) {
+                    expression.semanticAnalysisPhase2(diagnosis)
+                    expression.setEvaluationResultUsage(ReturnValueFromFunctionUsage(
+                        expectedReturnType,
+                        bodyDeclaration.equalsOperatorToken.span,
+                    ))
+                }
             }
 
             override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
-                expression.semanticAnalysisPhase3(diagnosis)
-                expectedReturnType?.let { declaredReturnType ->
-                    expression.type?.let { actualReturnType ->
-                        actualReturnType.evaluateAssignabilityTo(declaredReturnType, expression.declaration.span)
-                            ?.let(::ReturnTypeMismatchDiagnostic)
-                            ?.let(diagnosis::add)
+                seanHelper.phase3(diagnosis) {
+                    expression.semanticAnalysisPhase3(diagnosis)
+                    expectedReturnType?.let { declaredReturnType ->
+                        expression.type?.let { actualReturnType ->
+                            actualReturnType.evaluateAssignabilityTo(declaredReturnType, expression.declaration.span)
+                                ?.let(::ReturnTypeMismatchDiagnostic)
+                                ?.let(diagnosis::add)
+                        }
                     }
                 }
             }

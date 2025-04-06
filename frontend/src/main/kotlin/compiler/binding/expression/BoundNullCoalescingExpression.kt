@@ -1,9 +1,7 @@
 package compiler.binding.expression
 
 import compiler.ast.expression.BinaryExpression
-import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.combineBranch
@@ -11,6 +9,7 @@ import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecutio
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.SingleBranchJoinExecutionScopedCTContext
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
@@ -20,7 +19,6 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.nullCheckOnNonNullableValue
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -86,14 +84,14 @@ class BoundNullCoalescingExpression(
         }
     }
 
-    override fun markEvaluationResultCaptured(withMutability: TypeMutability) {
-        nullableExpression.markEvaluationResultCaptured(withMutability)
-        alternativeExpression.markEvaluationResultCaptured(withMutability)
-    }
-
     override fun setExpectedReturnType(type: BoundTypeReference, diagnosis: Diagnosis) {
         nullableExpression.setExpectedReturnType(type, diagnosis)
         alternativeExpression.setExpectedReturnType(type, diagnosis)
+    }
+
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
+        nullableExpression.setEvaluationResultUsage(valueUsage)
+        alternativeExpression.setEvaluationResultUsage(valueUsage)
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

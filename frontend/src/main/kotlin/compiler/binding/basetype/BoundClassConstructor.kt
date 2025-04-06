@@ -22,7 +22,6 @@ import compiler.binding.IrAssignmentStatementImpl
 import compiler.binding.IrAssignmentStatementTargetClassFieldImpl
 import compiler.binding.IrAssignmentStatementTargetVariableImpl
 import compiler.binding.IrCodeChunkImpl
-import compiler.binding.PurityViolationImpurityVisitor
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
@@ -33,6 +32,7 @@ import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.expression.IrReturnStatementImpl
 import compiler.binding.expression.IrVariableAccessExpressionImpl
+import compiler.binding.impurity.DiagnosingImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
@@ -42,7 +42,6 @@ import compiler.binding.type.IrSimpleTypeImpl
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.constructorDeclaredAsModifying
 import compiler.diagnostic.constructorDeclaredNothrow
@@ -296,7 +295,7 @@ class BoundClassConstructor(
             additionalInitCode.semanticAnalysisPhase3(diagnosis)
 
             if (BoundFunction.Purity.READONLY.contains(this.purity)) {
-                val diagnosingVisitor = PurityViolationImpurityVisitor(diagnosis, PurityViolationDiagnostic.SideEffectBoundary.Function(this))
+                val diagnosingVisitor = DiagnosingImpurityVisitor(diagnosis, PurityViolationDiagnostic.SideEffectBoundary.Function(this))
                 handleCyclicInvocation(
                     context = this,
                     action = {

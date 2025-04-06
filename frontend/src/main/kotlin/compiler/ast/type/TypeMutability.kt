@@ -52,18 +52,87 @@ enum class TypeMutability(
      * |`MUTABLE`  |`MUTABLE`  |`MUTABLE`  |
      * |`MUTABLE`  |`READONLY` |`READONLY` |
      * |`MUTABLE`  |`IMMUTABLE`|`READONLY` |
+     * |`MUTABLE`  |`EXCLUSIVE`|`MUTABLE`  |
      * |`READONLY` |`MUTABLE`  |`READONLY` |
      * |`READONLY` |`READONLY` |`READONLY` |
      * |`READONLY` |`IMMUTABLE`|`READONLY` |
+     * |`READONLY` |`EXCLUSIVE`|`READONLY` |
      * |`IMMUTABLE`|`MUTABLE`  |`READONLY` |
      * |`IMMUTABLE`|`READONLY` |`READONLY` |
      * |`IMMUTABLE`|`IMMUTABLE`|`IMMUTABLE`|
+     * |`IMMUTABLE`|`EXCLUSIVE`|`IMMUTABLE`|
+     * |`EXCLUSIVE`|`MUTABLE`  |`MUTABLE`  |
+     * |`EXCLUSIVE`|`READONLY` |`READONLY` |
+     * |`EXCLUSIVE`|`IMMUTABLE`|`IMMUTABLE`|
+     * |`EXCLUSIVE`|`EXCLUSIVE`|`EXCLUSIVE`|
      */
-    fun combinedWith(other: TypeMutability?): TypeMutability = when {
+    fun intersect(other: TypeMutability?): TypeMutability = when {
         other == null || other == this -> this
         this == EXCLUSIVE -> other
         other == EXCLUSIVE -> this
         else -> READONLY
+    }
+
+    /**
+     * When an object member with mutability `this` is accessed through a reference with mutability [limitingMutability],
+     * the resulting value should have the mutability that is returned by this method. In other words: the mutability
+     * of the object member (`this`) is limited to the mutability of the reference through which it is accessed ([limitingMutability]).
+     */
+    fun limitedTo(limitingMutability: TypeMutability?): TypeMutability {
+        if (this == EXCLUSIVE) {
+            // exclusive object members are not allowed, so this should never happen.
+            // If it does happen still, READONLY mutability will limit the damage.
+            return READONLY
+        }
+
+        if (limitingMutability == null) {
+            return this
+        }
+
+        return when(this) {
+            MUTABLE -> when(limitingMutability) {
+                MUTABLE -> MUTABLE
+                READONLY -> READONLY
+                IMMUTABLE -> READONLY
+                EXCLUSIVE -> MUTABLE
+            }
+            READONLY -> READONLY
+            IMMUTABLE -> IMMUTABLE
+            EXCLUSIVE -> error("unreachable")
+        }
+    }
+
+    /**
+     * |`this`     |[other]    |result     |
+     * |-----------|-----------|-----------|
+     * |`MUTABLE`  |`MUTABLE`  |`MUTABLE`  |
+     * |`MUTABLE`  |`READONLY` |`MUTABLE`  |
+     * |`MUTABLE`  |`IMMUTABLE`|`MUTABLE`  |
+     * |`READONLY` |`MUTABLE`  |`MUTABLE`  |
+     * |`READONLY` |`READONLY` |`READONLY` |
+     * |`READONLY` |`IMMUTABLE`|`IMMUTABLE`|
+     * |`IMMUTABLE`|`MUTABLE`  |`EXCLUSIVE`|
+     * |`IMMUTABLE`|`READONLY` |`IMMUTABLE`|
+     * |`IMMUTABLE`|`IMMUTABLE`|`IMMUTABLE`|
+     * @return mutability that allows for everything/guarantees for everything that any of `this` and [other] do:
+     */
+    fun union(other: TypeMutability): TypeMutability = when(this) {
+        MUTABLE -> when (other) {
+            MUTABLE -> MUTABLE
+            READONLY -> MUTABLE
+            IMMUTABLE -> EXCLUSIVE
+            EXCLUSIVE -> EXCLUSIVE
+        }
+        READONLY -> when (other) {
+            READONLY -> READONLY
+            IMMUTABLE -> READONLY
+            else -> other.union(this)
+        }
+        IMMUTABLE -> when (other) {
+            IMMUTABLE -> IMMUTABLE
+            else -> other.union(this)
+        }
+        EXCLUSIVE -> EXCLUSIVE
     }
 
     fun toBackendIr(): IrTypeMutability = when (this) {

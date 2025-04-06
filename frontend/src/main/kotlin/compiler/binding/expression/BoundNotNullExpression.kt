@@ -21,15 +21,14 @@ package compiler.binding.expression
 import compiler.InternalCompilerError
 import compiler.PlatformModule
 import compiler.ast.expression.NotNullExpression
-import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
-import compiler.binding.ImpurityVisitor
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.SoftwareContext
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrExpressionSideEffectsStatementImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
@@ -38,7 +37,6 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.nothrowViolatingNotNullAssertion
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -71,6 +69,11 @@ class BoundNotNullExpression(
         nullableExpression.setExpectedEvaluationResultType(type.withCombinedNullability(TypeReference.Nullability.NULLABLE), diagnosis)
     }
 
+    private var nonNullResultUsed = false
+    override fun markEvaluationResultUsed() {
+        nonNullResultUsed = true
+    }
+
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         nullableExpression.markEvaluationResultUsed()
         nullableExpression.semanticAnalysisPhase2(diagnosis)
@@ -83,18 +86,15 @@ class BoundNotNullExpression(
         this.nothrowBoundary = boundary
     }
 
-    private var nonNullResultUsed = false
-    override fun markEvaluationResultUsed() {
-        nonNullResultUsed = true
+    private var usageContextSet = false
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
+        check(!usageContextSet)
+        usageContextSet = true
+        // TODO: is it okay to keep the valueOwnership as-is? The not-null could duplicate the reference
+        nullableExpression.setEvaluationResultUsage(valueUsage.mapType { it.withCombinedNullability(TypeReference.Nullability.NULLABLE) })
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
-        // this expression duplicates the reference. That doesn't prove a capture, but it would easily allow for one,
-        // so it has to be treated as such.
-        // defaulting to readonly is okay because: that only happens if the nullableExpression couldn't determine its
-        // result type. That in and of itself must produce an ERROR-level diagnostic, stopping compilation in any case.
-        nullableExpression.markEvaluationResultCaptured(type?.mutability ?: TypeMutability.READONLY)
-
         nullableExpression.semanticAnalysisPhase3(diagnosis)
         nothrowBoundary?.let { nothrowBoundary ->
             diagnosis.nothrowViolatingNotNullAssertion(this, nothrowBoundary)

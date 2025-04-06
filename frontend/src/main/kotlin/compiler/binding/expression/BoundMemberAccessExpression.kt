@@ -18,8 +18,9 @@
 
 package compiler.binding.expression
 
+import compiler.ast.VariableOwnership
 import compiler.ast.expression.MemberAccessExpression
-import compiler.binding.ImpurityVisitor
+import compiler.ast.type.TypeMutability
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
@@ -27,12 +28,12 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.effect.PartialObjectInitialization
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
+import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.superfluousSafeObjectTraversal
 import compiler.diagnostic.unresolvableMemberVariable
@@ -91,7 +92,9 @@ class BoundMemberAccessExpression(
                 diagnosis.unresolvableMemberVariable(this, valueType)
             } else {
                 this.member = member
-                this.type = member.type?.instantiateAllParameters(valueType.inherentTypeBindings)
+                this.type = member.type
+                    ?.instantiateAllParameters(valueType.inherentTypeBindings)
+                    ?.withMutabilityLimitedTo(valueExpression.type?.mutability)
 
                 if (usageContext.requiresMemberInitialized) {
                     val isInitialized = valueExpression.tryAsVariable()?.let {
@@ -108,6 +111,22 @@ class BoundMemberAccessExpression(
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
         valueExpression.setNothrow(boundary)
+    }
+
+    private var usageContextSet = false
+    override fun setEvaluationResultUsage(valueUsage: ValueUsage) {
+        check(!usageContextSet)
+        usageContextSet = true
+
+        val valueUsedAsType = valueExpression.type
+            ?.withMutability(usageContext.mutability.union(valueUsage.usedAsType?.mutability ?: TypeMutability.READONLY))
+        // captured = false here because: the host object isn't being referenced; and the result value is already captured
+        // by nature of being stored in an object member, so need to further validate that
+        valueExpression.setEvaluationResultUsage(ValueUsage.deriveFromAndThen(
+            deriveUsingType = valueUsedAsType,
+            deriveWithOwnership = VariableOwnership.BORROWED,
+            andThen = valueUsage,
+        ))
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
@@ -145,9 +164,12 @@ class BoundMemberAccessExpression(
         )
     }
 
-    enum class UsageContext(val requiresMemberInitialized: Boolean) {
-        READ(true),
-        WRITE(false),
+    enum class UsageContext(
+        val requiresMemberInitialized: Boolean,
+        val mutability: TypeMutability,
+    ) {
+        READ(true, TypeMutability.READONLY),
+        WRITE(false, TypeMutability.MUTABLE),
         ;
     }
 }

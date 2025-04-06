@@ -1,22 +1,26 @@
 package compiler.binding
 
 import compiler.ast.AssignmentStatement
+import compiler.ast.VariableOwnership
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.context.effect.VariableLifetime
 import compiler.binding.expression.BoundExpression
+import compiler.binding.expression.CreateReferenceValueUsage
 import compiler.binding.expression.IrVariableAccessExpressionImpl
+import compiler.binding.expression.ValueUsage
+import compiler.binding.impurity.ImpurityVisitor
+import compiler.binding.impurity.ReassignmentBeyondBoundary
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
-import compiler.lexer.IdentifierToken
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.illegalAssignment
 import compiler.diagnostic.undefinedIdentifier
+import compiler.lexer.IdentifierToken
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
@@ -44,6 +48,11 @@ class BoundVariableAssignmentStatement(
     }
 
     override val assignmentTargetType get() = targetVariable?.typeAtDeclarationTime
+    override val assignedValueUsage: ValueUsage get() = CreateReferenceValueUsage(
+        assignmentTargetType,
+        declaration.setKeyword.span .. declaration.targetExpression.span,
+        VariableOwnership.CAPTURED,
+    )
 
     override fun additionalSemanticAnalysisPhase2(diagnosis: Diagnosis) {
         targetVariable?.also {
@@ -89,7 +98,7 @@ class BoundVariableAssignmentStatement(
         targetVariable
             ?.takeIf { !context.containsWithinBoundary(it, boundary) }
             ?.let {
-                visitor.visitWriteBeyondBoundary(boundary, this)
+                visitor.visit(ReassignmentBeyondBoundary.Variable(this))
             }
 
         super.visitWritesBeyond(boundary, visitor)
