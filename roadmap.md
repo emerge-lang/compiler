@@ -82,6 +82,7 @@ This file describes the Items that are next on the TODO list. **This list is NOT
       * compiler architecture
       * llvm patterns
       * debugging techniques
+    * add fix suggestions to diagnostics; this should also make them much more comprehensible
 11. user tooling
     * language server and VSCode plugin
     * think about an assistant, e.g. taking care of these tasks
