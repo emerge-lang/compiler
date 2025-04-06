@@ -154,7 +154,7 @@ jobs:
         with:
           ref: "${{ inputs.ref || github.sha }}"
       - name: get C-runtime binaries from glibc
-        uses: actions/cache/restore@v4.1.1
+        uses: actions/cache/restore@v4.2.2
         with:
           path: |
             ${{ github.workspace }}/glibc-build/csu
@@ -162,21 +162,21 @@ jobs:
           key: glibc-x86_64-pc-linux-gnu-${{ env.GLIBC_SOURCE_BALL_URL }}
           fail-on-cache-miss: true
       - name: get C-runtime binaries from gcc
-        uses: actions/cache/restore@v4.1.1
+        uses: actions/cache/restore@v4.2.2
         with:
           path: |
             ${{ github.workspace }}/gcc-build/x86_64-pc-linux-gnu/libgcc
           key: gcc-x86_64-pc-linux-gnu-${{ env.GCC_GIT_REF }}
           fail-on-cache-miss: true
       - name: get libunwind binaries
-        uses: actions/cache/restore@v4.1.1
+        uses: actions/cache/restore@v4.2.2
         with:
           path: |
             ${{ github.workspace }}/libunwind-install/lib
           key: libunwind-x86_64-pc-linux-gnu-${{ env.LIBUNWIND_GIT_REF }}
           fail-on-cache-miss: true
       - name: get runnable toolchain jar
-        uses: actions/cache/restore@v4.1.1
+        uses: actions/cache/restore@v4.2.2
         with:
           path: |
             ${{ github.workspace }}/toolchain/target/toolchain.jar
