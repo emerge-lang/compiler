@@ -215,10 +215,10 @@ class TypeErrors : FreeSpec({
                 validateModule("""
                     class Test<T : Any> {
                         x: T = init
-                        fn get(self) -> T? = self.x
+                        fn getX(self) -> T? = self.x
                     }
                     fn test() {
-                        y: String? = Test("abc").get()
+                        y: String? = Test("abc").getX()
                     }
                 """.trimIndent())
                     .shouldHaveNoDiagnostics()

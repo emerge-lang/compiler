@@ -36,7 +36,6 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.isAssignableTo
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.UnconventionalTypeNameDiagnostic
 import compiler.diagnostic.duplicateBaseTypeMembers
 import compiler.diagnostic.entryNotAllowedOnBaseType
@@ -136,11 +135,6 @@ class BoundBaseType(
 
             _memberVariables.duplicatesBy(BoundBaseTypeMemberVariable::name).forEach { (_, dupMembers) ->
                 diagnosis.duplicateBaseTypeMembers(this, dupMembers)
-            }
-            if (!kind.allowsMemberVariables) {
-                _memberVariables.forEach {
-                    diagnosis.entryNotAllowedOnBaseType(this, it)
-                }
             }
 
             if (kind.hasCtorsAndDtors) {
@@ -399,19 +393,16 @@ class BoundBaseType(
     enum class Kind(
         val namePlural: String,
         val hasCtorsAndDtors: Boolean,
-        val allowsMemberVariables: Boolean,
         val allowMemberFunctionImplementations: Boolean,
     ) {
         CLASS(
             "classes",
             hasCtorsAndDtors = true,
-            allowsMemberVariables = true,
             allowMemberFunctionImplementations = true,
         ),
         INTERFACE(
             "interfaces",
             hasCtorsAndDtors = false,
-            allowsMemberVariables = false,
             allowMemberFunctionImplementations = false,
         ),
         ;

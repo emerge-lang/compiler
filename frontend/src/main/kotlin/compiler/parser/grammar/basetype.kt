@@ -30,13 +30,57 @@ import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
 
+val BaseTypeMemberVariableAccessorDeclaration = sequence("member variable accessor") {
+    ref(FunctionAttributes)
+    eitherOf {
+        keyword(GET)
+        keyword(SET)
+    }
+    optional {
+        ref(ParameterList)
+    }
+
+    ref(FunctionBodyDefinition)
+}
+    .astTransformation { tokens ->
+        val attributes = tokens.next() as List<AstFunctionAttribute>
+        val accessorKeyword = tokens.next() as KeywordToken
+        val parameters: ParameterList?
+
+        var next = tokens.next()
+        if (next is ParameterList) {
+            parameters = next
+            next = tokens.next()
+        } else {
+            parameters = null
+        }
+
+        val body = next as FunctionDeclaration.Body
+
+        BaseTypeMemberVariableAccessorDeclaration(
+            attributes,
+            accessorKeyword,
+            parameters,
+            body,
+        )
+    }
+
 val BaseTypeMemberVariableDeclaration = sequence("member variable declaration") {
     ref(VariableDeclaration)
     operator(NEWLINE)
+    repeating {
+        ref(BaseTypeMemberVariableAccessorDeclaration)
+    }
 }
     .astTransformation { tokens ->
+        val variableDeclaration = tokens.next() as VariableDeclaration
+        // skip NEWLINE
+        tokens.next()
+        val accessors = tokens.remainingToList() as List<BaseTypeMemberVariableAccessorDeclaration>
+
         BaseTypeMemberVariableDeclaration(
-            tokens.next() as VariableDeclaration,
+            variableDeclaration,
+            accessors,
         )
     }
 

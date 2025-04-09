@@ -137,6 +137,7 @@ sealed class BaseTypeMemberDeclaration : BaseTypeEntryDeclaration {
 
 class BaseTypeMemberVariableDeclaration(
     val variableDeclaration: VariableDeclaration,
+    val accessors: List<BaseTypeMemberVariableAccessorDeclaration>,
 ) : BaseTypeMemberDeclaration() {
     override val span = variableDeclaration.declaredAt
     override val name = variableDeclaration.name
@@ -200,3 +201,10 @@ class BaseTypeMemberFunctionDeclaration(
         )
     }
 }
+
+class BaseTypeMemberVariableAccessorDeclaration(
+    val attributes: List<AstFunctionAttribute>,
+    val accessKeyword: KeywordToken,
+    val parameters: ParameterList?,
+    val implementation: FunctionDeclaration.Body,
+)

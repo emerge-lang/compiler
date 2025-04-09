@@ -3,7 +3,6 @@ package compiler.diagnostic
 import compiler.InternalCompilerError
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeEntry
-import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.basetype.BoundClassDestructor
 import textutils.capitalizeFirst
@@ -17,7 +16,6 @@ class EntryNotAllowedInBaseTypeDiagnostic(
         val entryDesc = when (violatingEntry) {
             is BoundClassConstructor -> "constructors"
             is BoundClassDestructor -> "destructors"
-            is BoundBaseTypeMemberVariable -> "member variables"
             else -> throw InternalCompilerError("The base type entry ${violatingEntry::class.simpleName} should be allowed in all base types")
         }
         "${entryDesc.capitalizeFirst()} are not allowed in ${typeKind.namePlural}"

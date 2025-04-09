@@ -40,7 +40,7 @@ class OperatorOverloadErrors : FreeSpec({
     "index access read requires operator modifier" {
         validateModule("""
             class Foo {
-                fn get(self, index: UWord) {
+                fn `get`(self, index: UWord) {
                 }
             }
             
