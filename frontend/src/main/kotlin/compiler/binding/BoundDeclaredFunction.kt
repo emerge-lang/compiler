@@ -78,26 +78,31 @@ abstract class BoundDeclaredFunction(
             declaredTypeParameters.forEach { it.semanticAnalysisPhase1(diagnosis) }
             parameters.semanticAnalysisPhase1(diagnosis)
 
-            if (declaration.parsedReturnType != null) {
-                returnType = context.resolveType(declaration.parsedReturnType)
+            val syntaxInferredReturnType = declaration.parsedReturnType?.let(context::resolveType)
+                ?: if (body is Body.SingleExpression) null else context.swCtx.unit.baseReference
+
+            if (syntaxInferredReturnType != null) {
+                returnType = syntaxInferredReturnType
                 if (body !is Body.SingleExpression) {
                     returnType = returnType?.defaultMutabilityTo(TypeMutability.IMMUTABLE)
                 }
             }
 
             this.body?.semanticAnalysisPhase1(diagnosis)
-
-            returnType?.let {
-                body?.setExpectedReturnType(it, diagnosis)
-            }
         }
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return seanHelper.phase2(diagnosis) {
+            var returnTypeOnBodySet = false
+            if (returnType != null) {
+                body?.setExpectedReturnType(returnType!!, diagnosis)
+                returnTypeOnBodySet = true
+            }
+
             handleCyclicInvocation(
                 context = this,
-                action = { this.body?.semanticAnalysisPhase2(diagnosis) },
+                action = { body?.semanticAnalysisPhase2(diagnosis) },
                 onCycle = {
                     diagnosis.typeDeductionError(
                         "Cannot infer the return type of function $name because the type inference is cyclic here. Specify the type of one element explicitly.",
@@ -106,12 +111,14 @@ abstract class BoundDeclaredFunction(
                 }
             )
 
-            if (returnType == null) {
-                if (this.body is Body.SingleExpression) {
-                    this.returnType = this.body.expression.type
-                } else {
-                    this.returnType = context.swCtx.unit.baseReference
-                        .withMutability(TypeMutability.READONLY)
+            if (returnType == null && body is Body.SingleExpression) {
+                returnType = body.expression.type
+            } else {
+                returnType = returnType ?: context.swCtx.unit.baseReference
+                    .withMutability(TypeMutability.READONLY)
+                if (!returnTypeOnBodySet) {
+                    body?.setExpectedReturnType(returnType!!, diagnosis)
+                    returnTypeOnBodySet = true
                 }
             }
 
@@ -246,7 +253,7 @@ abstract class BoundDeclaredFunction(
                     expression.semanticAnalysisPhase2(diagnosis)
                     expression.setEvaluationResultUsage(ReturnValueFromFunctionUsage(
                         expectedReturnType,
-                        bodyDeclaration.equalsOperatorToken.span,
+                        bodyDeclaration.assignmentOperatorToken.span,
                     ))
                 }
             }

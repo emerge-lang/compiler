@@ -21,7 +21,6 @@ package compiler.ast
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
-import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundTopLevelFunction
 import compiler.binding.basetype.BoundBaseType
@@ -41,7 +40,7 @@ data class FunctionDeclaration(
     val typeParameters: List<TypeParameter>,
     val parameters: ParameterList,
     val parsedReturnType: TypeReference?,
-    val body: Body?,
+    val body: Body,
 ) : AstFileLevelDeclaration {
     override val declaredAt = name.span
 
@@ -58,7 +57,7 @@ data class FunctionDeclaration(
             attributes,
             boundTypeParams,
             boundParameterList,
-            body?.bindTo(boundParameterList.modifiedContext),
+            body.bindTo(boundParameterList.modifiedContext),
         )
         return boundFn
     }
@@ -87,10 +86,10 @@ data class FunctionDeclaration(
     }
 
     sealed interface Body {
-        fun bindTo(context: ExecutionScopedCTContext): BoundDeclaredFunction.Body
+        fun bindTo(context: ExecutionScopedCTContext): BoundDeclaredFunction.Body?
 
         class SingleExpression(
-            val equalsOperatorToken: OperatorToken,
+            val assignmentOperatorToken: OperatorToken,
             val expression: Expression
         ) : Body {
             override fun bindTo(context: ExecutionScopedCTContext): BoundDeclaredFunction.Body {
@@ -104,6 +103,12 @@ data class FunctionDeclaration(
         class Full(val code: AstCodeChunk) : Body {
             override fun bindTo(context: ExecutionScopedCTContext): BoundDeclaredFunction.Body {
                 return BoundDeclaredFunction.Body.Full(code.bindTo(context))
+            }
+        }
+
+        object None : Body {
+            override fun bindTo(context: ExecutionScopedCTContext): BoundDeclaredFunction.Body? {
+                return null
             }
         }
     }

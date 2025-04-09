@@ -193,6 +193,33 @@ val FunctionAttributes = sequence("function attributes") {
         tokens.remainingToList().map { it as AstFunctionAttribute }
     }
 
+val FunctionBodyDefinition = eitherOf("function body definition") {
+    sequence {
+        operator(Operator.CBRACE_OPEN)
+        ref(CodeChunk)
+        operator(Operator.CBRACE_CLOSE)
+    }
+    sequence {
+        operator(Operator.ASSIGNMENT)
+        ref(Expression)
+        operator(Operator.NEWLINE)
+    }
+    eitherOf {
+        operator(Operator.NEWLINE)
+        endOfInput()
+    }
+}
+    .astTransformation { tokens -> when (val next = tokens.next()) {
+        OperatorToken(Operator.CBRACE_OPEN) -> FunctionDeclaration.Body.Full(tokens.next() as AstCodeChunk)
+        OperatorToken(Operator.ASSIGNMENT) -> FunctionDeclaration.Body.SingleExpression(
+            next as OperatorToken,
+            tokens.next() as AstExpression
+        )
+        OperatorToken(Operator.NEWLINE),
+        is EndOfInputToken -> FunctionDeclaration.Body.None
+        else -> throw InternalCompilerError("grammar mismatch with ast transform")
+    } }
+
 val StandaloneFunctionDeclaration = sequence("function declaration") {
     ref(FunctionAttributes)
     keyword(Keyword.FUNCTION)
@@ -207,19 +234,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
         ref(Type)
     }
 
-    eitherOf {
-        sequence {
-            operator(Operator.CBRACE_OPEN)
-            ref(CodeChunk)
-            operator(Operator.CBRACE_CLOSE)
-        }
-        sequence {
-            operator(Operator.ASSIGNMENT)
-            ref(Expression)
-            operator(Operator.NEWLINE)
-        }
-        operator(Operator.NEWLINE)
-    }
+    ref(FunctionBodyDefinition)
 }
     .astTransformation { tokens ->
         val attributes = tokens.next() as List<AstFunctionAttribute>
@@ -246,48 +261,17 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
             next = tokens.next()
         }
 
-        if (next == OperatorToken(Operator.CBRACE_OPEN)) {
-            val code = tokens.next()!! as AstCodeChunk
-            // ignore trailing CBRACE_CLOSE
+        val body = next as FunctionDeclaration.Body
 
-            return@astTransformation FunctionDeclaration(
-                declarationKeyword,
-                attributes,
-                name,
-                typeParameters,
-                parameterList,
-                type ?: TypeReference("Unit", nullability = TypeReference.Nullability.UNSPECIFIED),
-                FunctionDeclaration.Body.Full(code),
-            )
-        }
-
-        if (next == OperatorToken(Operator.ASSIGNMENT)) {
-            val assignmentOpToken = next as OperatorToken
-            val singleExpression = tokens.next()!! as AstExpression
-
-            return@astTransformation FunctionDeclaration(
-                declarationKeyword,
-                attributes,
-                name,
-                typeParameters,
-                parameterList,
-                type,
-                FunctionDeclaration.Body.SingleExpression(assignmentOpToken, singleExpression),
-            )
-        }
-
-        if (next == OperatorToken(Operator.NEWLINE) || next == null) {
-            // function without body with trailing newline or immediately followed by EOF
-            return@astTransformation FunctionDeclaration(
-                declarationKeyword,
-                attributes,
-                name,
-                typeParameters,
-                parameterList,
-                type,
-                null
-            )
-        }
+        return@astTransformation FunctionDeclaration(
+            declarationKeyword,
+            attributes,
+            name,
+            typeParameters,
+            parameterList,
+            type,
+            body,
+        )
 
         throw InternalCompilerError("Unexpected token when building AST: expected ${OperatorToken(Operator.CBRACE_OPEN)} or ${OperatorToken(Operator.ASSIGNMENT)} but got $next")
     }
