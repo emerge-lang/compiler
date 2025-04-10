@@ -1,6 +1,7 @@
 package compiler.compiler.negative
 
 import compiler.diagnostic.ConflictingFunctionModifiersDiagnostic
+import compiler.diagnostic.VirtualAndActualMemberVariableNameClashDiagnostic
 import compiler.lexer.Keyword
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forOne
@@ -24,5 +25,47 @@ class VirtualMemberVarsErrors : FreeSpec({
                     it.attributeName.keyword shouldBe Keyword.SET
                 }
             }
+    }
+
+    "physical and virtual clash" - {
+        "with getter only " {
+            validateModule("""
+                class A {
+                    var n: S32 = 0
+                    
+                    get fn n(self) = 1
+                }
+            """.trimIndent())
+                .shouldFind<VirtualAndActualMemberVariableNameClashDiagnostic> {
+                    it.memberVar.name.value shouldBe "n"
+                }
+        }
+
+        "with setter only " {
+            validateModule("""
+                class A {
+                    var n: S32 = 0
+                    
+                    set fn n(self, value: S32) {}
+                }
+            """.trimIndent())
+                .shouldFind<VirtualAndActualMemberVariableNameClashDiagnostic> {
+                    it.memberVar.name.value shouldBe "n"
+                }
+        }
+
+        "with getter and setter " {
+            validateModule("""
+                class A {
+                    var n: S32 = 0
+                    
+                    get fn n(self) = 1
+                    set fn n(self, value: S32) {}
+                }
+            """.trimIndent())
+                .shouldFind<VirtualAndActualMemberVariableNameClashDiagnostic> {
+                    it.memberVar.name.value shouldBe "n"
+                }
+        }
     }
 })

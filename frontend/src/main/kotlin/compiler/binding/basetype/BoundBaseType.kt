@@ -36,7 +36,6 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.isAssignableTo
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.UnconventionalTypeNameDiagnostic
 import compiler.diagnostic.duplicateBaseTypeMembers
 import compiler.diagnostic.entryNotAllowedOnBaseType
@@ -45,6 +44,7 @@ import compiler.diagnostic.multipleClassConstructors
 import compiler.diagnostic.multipleClassDestructors
 import compiler.diagnostic.unconventionalTypeName
 import compiler.diagnostic.unusedMixin
+import compiler.diagnostic.virtualAndActualMemberVariableNameClash
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Span
@@ -236,6 +236,20 @@ class BoundBaseType(
                     overloadSet.semanticAnalysisPhase1(diagnosis)
                 }
             }
+
+            allMemberFunctions
+                .asSequence()
+                .filter { it.attributes.firstAccessorAttribute != null }
+                .groupBy { it.name }
+                .entries
+                .map { (name, accessorFns) -> Pair(accessorFns, memberVariables.find { it.name == name }) }
+                .filter { (_, memberVar) -> memberVar != null }
+                .forEach { (accessorFns, memberVar) ->
+                    diagnosis.virtualAndActualMemberVariableNameClash(
+                        memberVar!!.declaration,
+                        accessorFns,
+                    )
+                }
         }
     }
 

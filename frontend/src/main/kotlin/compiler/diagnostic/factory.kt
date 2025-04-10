@@ -4,6 +4,7 @@ import compiler.ast.AstFunctionAttribute
 import compiler.ast.AstPackageName
 import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
+import compiler.ast.BaseTypeMemberVariableDeclaration
 import compiler.ast.Executable
 import compiler.ast.Expression
 import compiler.ast.FunctionDeclaration
@@ -449,6 +450,10 @@ fun Diagnosis.multipleClassDestructors(additionalDtors: Collection<BaseTypeDestr
 
 fun Diagnosis.entryNotAllowedOnBaseType(baseType: BoundBaseType, entry: BoundBaseTypeEntry<*>) {
     add(EntryNotAllowedInBaseTypeDiagnostic(baseType.kind, entry))
+}
+
+fun Diagnosis.virtualAndActualMemberVariableNameClash(memberVar: BaseTypeMemberVariableDeclaration, clashingAccessors: List<BoundMemberFunction>) {
+    add(VirtualAndActualMemberVariableNameClashDiagnostic(memberVar, clashingAccessors))
 }
 
 fun Diagnosis.elementNotAccessible(element: DefinitionWithVisibility, visibility: BoundVisibility, accessAt: Span) {
