@@ -79,7 +79,7 @@ data class FunctionDeclaration(
             attributes,
             boundTypeParams,
             boundParameterList,
-            body?.bindTo(boundParameterList.modifiedContext),
+            body.bindTo(boundParameterList.modifiedContext),
             getTypeDef,
         )
         return boundFn

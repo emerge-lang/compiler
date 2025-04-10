@@ -30,6 +30,7 @@ import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeEntry
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
+import compiler.binding.basetype.BoundBaseTypeMemberVariableAccessor
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.basetype.BoundClassDestructor
 import compiler.binding.basetype.BoundDeclaredBaseTypeMemberFunction
@@ -84,7 +85,7 @@ class BaseTypeDeclaration(
         // the entries must retain their order, for semantic and linting reasons
         val boundEntries = entryDeclarations
             .map<BaseTypeEntryDeclaration, BoundBaseTypeEntry<*>> { entry -> when (entry) {
-                is BaseTypeMemberVariableDeclaration -> entry.bindTo(memberVariableInitializationContext, typeDefAccessor)
+                is BaseTypeMemberVariableDeclaration -> entry.bindTo(memberVariableInitializationContext, selfTypeReference, typeDefAccessor)
                 is BaseTypeConstructorDeclaration -> {
                     entry.bindTo(fileContextWithTypeParams, boundTypeParameters, typeDefAccessor)
                 }
@@ -136,19 +137,29 @@ sealed class BaseTypeMemberDeclaration : BaseTypeEntryDeclaration {
 }
 
 class BaseTypeMemberVariableDeclaration(
-    val overrideKeyword: KeywordToken?,
+    val overrideKeyword: KeywordToken?, // TODO: use!!!
     val variableDeclaration: VariableDeclaration,
     val accessors: List<BaseTypeMemberVariableAccessorDeclaration>,
 ) : BaseTypeMemberDeclaration() {
     override val span = variableDeclaration.declaredAt
     override val name = variableDeclaration.name
 
-    fun bindTo(context: ExecutionScopedCTContext, getTypeDef: () -> BoundBaseType): BoundBaseTypeMemberVariable {
-        return BoundBaseTypeMemberVariable(
+    fun bindTo(context: ExecutionScopedCTContext, selfType: TypeReference, getTypeDef: () -> BoundBaseType): BoundBaseTypeMemberVariable {
+        lateinit var memberVar: BoundBaseTypeMemberVariable
+        memberVar = BoundBaseTypeMemberVariable(
             context,
             this,
             getTypeDef,
+            accessors.map {
+                it.bindTo(
+                    context,
+                    selfType,
+                    variableDeclaration.type ?: TypeReference(IdentifierToken("Any", variableDeclaration.name.span)),
+                    { memberVar },
+                )
+            },
         )
+        return memberVar
     }
 }
 
@@ -207,5 +218,26 @@ class BaseTypeMemberVariableAccessorDeclaration(
     val attributes: List<AstFunctionAttribute>,
     val accessKeyword: KeywordToken,
     val parameters: ParameterList?,
-    val implementation: FunctionDeclaration.Body,
-)
+    val body: FunctionDeclaration.Body,
+) {
+    fun bindTo(typeContext: ExecutionScopedCTContext, selfType: TypeReference, memberType: TypeReference, getMemberVar: () -> BoundBaseTypeMemberVariable): BoundBaseTypeMemberVariableAccessor {
+        lateinit var boundAccessor: BoundBaseTypeMemberVariableAccessor
+        val accessorFnContext = MutableExecutionScopedCTContext.functionRootIn(typeContext)
+        val attrs = BoundFunctionAttributeList(accessorFnContext, { boundAccessor }, attributes)
+        val type = when (accessKeyword.keyword) {
+            Keyword.GET -> BoundBaseTypeMemberVariableAccessor.AccessType.READ
+            Keyword.SET -> BoundBaseTypeMemberVariableAccessor.AccessType.WRITE
+            else -> throw InternalCompilerError("unknown member var accessor type: $accessKeyword")
+        }
+        val boundParams = (parameters ?: type.buildDefaultParams(accessKeyword, memberType)).bindTo(accessorFnContext, selfType)
+        boundAccessor = BoundBaseTypeMemberVariableAccessor(
+            this,
+            getMemberVar,
+            attrs,
+            type,
+            boundParams,
+            body.bindTo(boundParams.modifiedContext),
+        )
+        return boundAccessor
+    }
+}

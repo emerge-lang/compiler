@@ -35,6 +35,7 @@ class BoundBaseTypeMemberVariable(
     val context: ExecutionScopedCTContext,
     val declaration: BaseTypeMemberVariableDeclaration,
     private val getTypeDef: () -> BoundBaseType,
+    val accessors: List<BoundBaseTypeMemberVariableAccessor>,
 ) : BoundBaseTypeEntry<BaseTypeMemberDeclaration>, DefinitionWithVisibility {
     val name = declaration.name.value
     override val declaredAt = declaration.span
