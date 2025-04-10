@@ -69,7 +69,7 @@ class AssignmentStatement(
                     MemberAccessExpression(
                         targetExpression.valueExpression,
                         OperatorToken(Operator.DOT, generatedSpan),
-                        IdentifierToken("set", generatedSpan),
+                        IdentifierToken("setAtIndex", generatedSpan),
                     ),
                     null,
                     listOf(

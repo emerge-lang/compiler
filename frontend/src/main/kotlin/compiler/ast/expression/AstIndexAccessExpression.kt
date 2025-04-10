@@ -22,7 +22,7 @@ class AstIndexAccessExpression(
             MemberAccessExpression(
                 valueExpression,
                 OperatorToken(Operator.DOT, span),
-                IdentifierToken("get", span),
+                IdentifierToken("getAtIndex", span),
             ),
             null,
             listOf(indexExpression),
