@@ -40,7 +40,7 @@ class OperatorOverloadErrors : FreeSpec({
     "index access read requires operator modifier" {
         validateModule("""
             class Foo {
-                fn get(self, index: UWord) {
+                fn getAtIndex(self, index: UWord) {
                 }
             }
             
@@ -50,7 +50,7 @@ class OperatorOverloadErrors : FreeSpec({
             }
         """.trimIndent())
             .shouldFind<FunctionMissingModifierDiagnostic> {
-                it.function.name shouldBe "get"
+                it.function.name shouldBe "getAtIndex"
                 it.missingAttribute shouldBe "operator"
             }
     }
@@ -58,7 +58,7 @@ class OperatorOverloadErrors : FreeSpec({
     "index access write requires operator modifier" {
         validateModule("""
             class Foo {
-                fn `set`(self, index: UWord, value: S32) {
+                fn setAtIndex(self, index: UWord, value: S32) {
                 }
             }
             
@@ -68,7 +68,7 @@ class OperatorOverloadErrors : FreeSpec({
             }
         """.trimIndent())
             .shouldFind<FunctionMissingModifierDiagnostic> {
-                it.function.name shouldBe "set"
+                it.function.name shouldBe "setAtIndex"
                 it.missingAttribute shouldBe "operator"
             }
     }

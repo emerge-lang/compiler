@@ -32,6 +32,7 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
+import io.github.tmarsteel.emerge.backend.SET_AT_INDEX_FN_NAME
 
 class AssignmentStatement(
     val setKeyword: KeywordToken,
@@ -69,7 +70,7 @@ class AssignmentStatement(
                     MemberAccessExpression(
                         targetExpression.valueExpression,
                         OperatorToken(Operator.DOT, generatedSpan),
-                        IdentifierToken("set", generatedSpan),
+                        IdentifierToken(SET_AT_INDEX_FN_NAME, generatedSpan),
                     ),
                     null,
                     listOf(

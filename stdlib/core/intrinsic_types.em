@@ -419,8 +419,8 @@ export class Array<Element> {
 
     private constructor {}
 
-    export operator intrinsic fn `get`(self: read _<out Element>, index: UWord) -> Element
-    export operator intrinsic fn `set`(self: mut _<in Element>, index: UWord, value: Element) -> Unit
+    export operator intrinsic fn getAtIndex(self: read _<out Element>, index: UWord) -> Element
+    export operator intrinsic fn setAtIndex(self: mut _<in Element>, index: UWord, value: Element) -> Unit
     
     export nothrow intrinsic fn getOrPanic(self: read _<out Element>, index: UWord) -> Element
     export nothrow intrinsic fn setOrPanic(self: mut _<in Element>, index: UWord, value: Element) -> Unit

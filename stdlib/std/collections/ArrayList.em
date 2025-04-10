@@ -17,7 +17,7 @@ export class ArrayList<X : Any> {
         set self._size = self._size + 1
     }
 
-    export operator fn `get`(self, index: UWord) -> X {
+    export operator fn getAtIndex(self, index: UWord) -> X {
         if index >= self._size {
             throw ArrayIndexOutOfBoundsError(index)
         }
