@@ -73,6 +73,7 @@ class BoundBaseTypeMemberVariable(
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         boundEffectiveVariableDeclaration.semanticAnalysisPhase1(diagnosis)
         visibility.validateOnElement(this, diagnosis)
+
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {

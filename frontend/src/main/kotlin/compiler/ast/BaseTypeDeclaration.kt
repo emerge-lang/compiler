@@ -220,7 +220,13 @@ class BaseTypeMemberVariableAccessorDeclaration(
     val parameters: ParameterList?,
     val body: FunctionDeclaration.Body,
 ) {
-    fun bindTo(typeContext: ExecutionScopedCTContext, selfType: TypeReference, memberType: TypeReference, getMemberVar: () -> BoundBaseTypeMemberVariable): BoundBaseTypeMemberVariableAccessor {
+    fun bindTo(
+        typeContext: ExecutionScopedCTContext,
+        selfType: TypeReference,
+        memberType: TypeReference,
+        getMemberVar: () -> BoundBaseTypeMemberVariable,
+        getSelfType: () ->
+    ): BoundBaseTypeMemberVariableAccessor {
         lateinit var boundAccessor: BoundBaseTypeMemberVariableAccessor
         val accessorFnContext = MutableExecutionScopedCTContext.functionRootIn(typeContext)
         val attrs = BoundFunctionAttributeList(accessorFnContext, { boundAccessor }, attributes)
