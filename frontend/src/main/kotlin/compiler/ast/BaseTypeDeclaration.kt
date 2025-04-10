@@ -136,6 +136,7 @@ sealed class BaseTypeMemberDeclaration : BaseTypeEntryDeclaration {
 }
 
 class BaseTypeMemberVariableDeclaration(
+    val overrideKeyword: KeywordToken?,
     val variableDeclaration: VariableDeclaration,
     val accessors: List<BaseTypeMemberVariableAccessorDeclaration>,
 ) : BaseTypeMemberDeclaration() {

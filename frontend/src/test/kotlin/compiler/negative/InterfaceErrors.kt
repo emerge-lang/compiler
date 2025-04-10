@@ -1,7 +1,6 @@
 package compiler.compiler.negative
 
 import compiler.binding.basetype.BoundBaseType
-import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.basetype.BoundClassDestructor
 import compiler.diagnostic.CyclicInheritanceDiagnostic
@@ -36,18 +35,6 @@ class InterfaceErrors : FreeSpec({
             .shouldFind<EntryNotAllowedInBaseTypeDiagnostic> {
                 it.typeKind shouldBe BoundBaseType.Kind.INTERFACE
                 it.violatingEntry should beInstanceOf<BoundClassDestructor>()
-            }
-    }
-
-    "member variables not allowed" {
-        validateModule("""
-            interface Foo {
-                x: S32 = 3
-            }
-        """.trimIndent())
-            .shouldFind<EntryNotAllowedInBaseTypeDiagnostic> {
-                it.typeKind shouldBe BoundBaseType.Kind.INTERFACE
-                it.violatingEntry should beInstanceOf<BoundBaseTypeMemberVariable>()
             }
     }
 

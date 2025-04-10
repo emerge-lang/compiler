@@ -66,6 +66,9 @@ val BaseTypeMemberVariableAccessorDeclaration = sequence("member variable access
     }
 
 val BaseTypeMemberVariableDeclaration = sequence("member variable declaration") {
+    optional {
+        keyword(OVERRIDE)
+    }
     ref(VariableDeclaration)
     operator(NEWLINE)
     repeating {
@@ -73,12 +76,21 @@ val BaseTypeMemberVariableDeclaration = sequence("member variable declaration") 
     }
 }
     .astTransformation { tokens ->
-        val variableDeclaration = tokens.next() as VariableDeclaration
+        var next = tokens.next()
+        val overrideKeyword: KeywordToken?
+        if (next is KeywordToken) {
+            overrideKeyword = next
+            next = tokens.next()
+        } else {
+            overrideKeyword = null
+        }
+        val variableDeclaration = next as VariableDeclaration
         // skip NEWLINE
         tokens.next()
         val accessors = tokens.remainingToList() as List<BaseTypeMemberVariableAccessorDeclaration>
 
         BaseTypeMemberVariableDeclaration(
+            overrideKeyword,
             variableDeclaration,
             accessors,
         )
