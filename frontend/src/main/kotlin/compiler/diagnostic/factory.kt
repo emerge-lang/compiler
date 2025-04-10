@@ -359,6 +359,10 @@ fun Diagnosis.overrideRestrictsVisibility(override: BoundMemberFunction, superFu
     add(OverrideRestrictsVisibilityDiagnostic(override, superFunction))
 }
 
+fun Diagnosis.overrideAccessorDeclarationMismatch(override: BoundMemberFunction, superFunction: BoundMemberFunction) {
+    add(OverrideAccessorDeclarationMismatchDiagnostic(override, superFunction))
+}
+
 fun Diagnosis.overridingParameterExtendsOwnership(override: BoundParameter, superParameter: BoundParameter) {
     add(ExtendingOwnershipOverrideDiagnostic(override, superParameter))
 }
