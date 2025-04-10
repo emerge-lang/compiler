@@ -30,6 +30,7 @@ enum class Keyword(val text: String)
     MIXIN("mixin"),
     DESTRUCTOR("destructor"),
     VAR("var"),
+    GET("get"),
     SET("set"),
     BORROW("borrow"),
     CAPTURE("capture"),
