@@ -123,4 +123,23 @@ class VirtualMemberVarsErrors : FreeSpec({
             }
         }
     }
+
+    /*
+    TODO: implement more checks and tests
+
+    getters:
+    - must take a single, self argument with read mutability
+    - must be pure
+
+    setters:
+    - must take a self argument with mut mutability
+    - must take EXACTLY ONE additional argument
+    - must be pure
+    - must return Unit
+
+    cross-cutting:
+    - for each virtual member var, there must be AT MOST one getter and AT MOST one setter
+    - if both are present, the return type of the getter and the argument type on the setter must be identical
+
+    */
 })
