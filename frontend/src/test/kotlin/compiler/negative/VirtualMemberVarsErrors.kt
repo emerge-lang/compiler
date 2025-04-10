@@ -1,6 +1,7 @@
 package compiler.compiler.negative
 
 import compiler.diagnostic.ConflictingFunctionModifiersDiagnostic
+import compiler.diagnostic.OverrideAccessorDeclarationMismatchDiagnostic
 import compiler.diagnostic.VirtualAndActualMemberVariableNameClashDiagnostic
 import compiler.lexer.Keyword
 import io.kotest.core.spec.style.FreeSpec
@@ -66,6 +67,60 @@ class VirtualMemberVarsErrors : FreeSpec({
                 .shouldFind<VirtualAndActualMemberVariableNameClashDiagnostic> {
                     it.memberVar.name.value shouldBe "n"
                 }
+        }
+    }
+
+    "mismatch with super fn" - {
+        "super not declared accessor, override is" - {
+            "override as get" {
+                validateModule("""
+                    interface I  {
+                        fn bla(self) -> S32
+                    }
+                    class A : I {
+                        override get fn bla(self) -> S32 = 0
+                    }
+                """.trimIndent())
+                    .shouldFind<OverrideAccessorDeclarationMismatchDiagnostic>()
+            }
+
+            "override as set" {
+                validateModule("""
+                    interface I  {
+                        fn bla(self, v: S32)
+                    }
+                    class A : I {
+                        override set fn bla(self, v: S32) {}
+                    }
+                """.trimIndent())
+                    .shouldFind<OverrideAccessorDeclarationMismatchDiagnostic>()
+            }
+        }
+
+        "super declared accessor, override not" - {
+            "super as get" {
+                validateModule("""
+                    interface I  {
+                        get fn bla(self) -> S32
+                    }
+                    class A : I {
+                        override fn bla(self) -> S32 = 0
+                    }
+                """.trimIndent())
+                    .shouldFind<OverrideAccessorDeclarationMismatchDiagnostic>()
+            }
+
+            "override as set" {
+                validateModule("""
+                    interface I  {
+                        get fn bla(self, v: S32)
+                    }
+                    class A : I {
+                        override fn bla(self, v: S32) {}
+                    }
+                """.trimIndent())
+                    .shouldFind<OverrideAccessorDeclarationMismatchDiagnostic>()
+            }
         }
     }
 })

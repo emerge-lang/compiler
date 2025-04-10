@@ -10,12 +10,12 @@ import compiler.binding.SeanHelper
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.IncompatibleReturnTypeOnOverrideDiagnostic
 import compiler.diagnostic.externalMemberFunction
 import compiler.diagnostic.functionDoesNotOverride
 import compiler.diagnostic.illegalFunctionBody
 import compiler.diagnostic.missingFunctionBody
+import compiler.diagnostic.overrideAccessorDeclarationMismatch
 import compiler.diagnostic.overrideAddsSideEffects
 import compiler.diagnostic.overrideDropsNothrow
 import compiler.diagnostic.overrideRestrictsVisibility
@@ -168,6 +168,9 @@ class BoundDeclaredBaseTypeMemberFunction(
                 }
                 if (superFn.visibility.isPossiblyBroaderThan(visibility) && declaredOnType.visibility.isPossiblyBroaderThan(visibility)) {
                     diagnosis.overrideRestrictsVisibility(this, superFn)
+                }
+                if (superFn.attributes.firstAccessorAttribute != attributes.firstAccessorAttribute) {
+                    diagnosis.overrideAccessorDeclarationMismatch(this, superFn)
                 }
 
                 superFn.parameters.parameters.zip(this.parameters.parameters)
