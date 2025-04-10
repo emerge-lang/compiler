@@ -98,13 +98,38 @@ sealed class AstFunctionAttribute(
         }
 
         override fun hashCode(): Int {
-            return value.hashCode()
+            var result = javaClass.hashCode()
+            result = 31 * result + value.hashCode()
+            return result
         }
 
         enum class Category {
             MODIFYING,
             READONLY,
             PURE
+        }
+    }
+
+    class Accessor(val mode: Mode, nameToken: KeywordToken) : AstFunctionAttribute(nameToken) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Accessor) return false
+
+            if (mode != other.mode) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = javaClass.hashCode()
+            result = 31 * result + mode.hashCode()
+            return result
+        }
+
+        enum class Mode {
+            READ,
+            WRITE,
+            ;
         }
     }
 }
