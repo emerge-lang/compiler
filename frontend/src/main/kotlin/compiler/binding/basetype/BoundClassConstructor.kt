@@ -144,7 +144,7 @@ class BoundClassConstructor(
             null,
             null,
             null,
-            IdentifierToken("self", generatedSourceLocation),
+            IdentifierToken(BoundParameterList.RECEIVER_PARAMETER_NAME, generatedSourceLocation),
             (returnType as RootResolvedTypeReference).original!!.withMutability(TypeMutability.EXCLUSIVE),
             null,
         )

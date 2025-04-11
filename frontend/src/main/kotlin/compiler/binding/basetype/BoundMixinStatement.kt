@@ -4,6 +4,7 @@ import compiler.InternalCompilerError
 import compiler.ast.AstMixinStatement
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.binding.BoundParameterList
 import compiler.binding.BoundStatement
 import compiler.binding.IrAssignmentStatementImpl
 import compiler.binding.IrAssignmentStatementTargetClassFieldImpl
@@ -110,7 +111,7 @@ class BoundMixinStatement(
     }
 
     override fun toBackendIrStatement(): IrExecutable {
-        val selfVariable = context.resolveVariable("self", true)
+        val selfVariable = context.resolveVariable(BoundParameterList.RECEIVER_PARAMETER_NAME, true)
             ?: throw InternalCompilerError("Couldn't find a self value to generate IR for mixin at ${declaration.span}")
         val selfValueTemporary = IrCreateTemporaryValueImpl(IrVariableAccessExpressionImpl(selfVariable.backendIrDeclaration))
         val mixinValueTemporary = IrCreateTemporaryValueImpl(expression.toBackendIrExpression())
