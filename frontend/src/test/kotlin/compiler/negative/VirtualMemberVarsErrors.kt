@@ -2,6 +2,7 @@ package compiler.compiler.negative
 
 import compiler.diagnostic.AccessorContractViolationDiagnostic
 import compiler.diagnostic.ConflictingFunctionModifiersDiagnostic
+import compiler.diagnostic.MultipleAccessorsForVirtualMemberVariableDiagnostic
 import compiler.diagnostic.OverrideAccessorDeclarationMismatchDiagnostic
 import compiler.diagnostic.VirtualAndActualMemberVariableNameClashDiagnostic
 import compiler.lexer.Keyword
@@ -371,6 +372,37 @@ class VirtualMemberVarsErrors : FreeSpec({
                         it.accessor.name.value shouldBe "bla"
                     }
             }
+        }
+    }
+
+    "across multiple accessors" - {
+        // getters can't collide as members of a base type because they'll form an overload-set and then clash
+        // with each other, resulting in a diagnostic pointing that out. So no need to produce a second diagnostic
+        // that is just noisy
+        // getters on package level cannot collide, because they'll also form an overload set. If the overloads
+        // are ambiguous, that results in a diagnostic. Same thing as on basetype level. If they are unambiguous,
+        // that is fine. It must be okay, so one can define a getter on two distinct types that happen to have the same name
+
+        // collisions across multiple packages are handled by the ambiguity-handling of invocationexpression
+
+        "two setters in the same base type" {
+            validateModule("""
+                interface I {
+                    set fn bla(self: mut _, value: S32)
+                    set fn bla(self: mut _, value: UWord)
+                }
+            """.trimIndent())
+                .shouldFind<MultipleAccessorsForVirtualMemberVariableDiagnostic>()
+        }
+
+        "two setters in the same package" {
+            validateModule("""
+                interface I {}
+                
+                set fn bla(self: mut I, value: S32) {}
+                set fn bla(self: mut I, value: UWord) {}
+            """.trimIndent())
+                .shouldFind<MultipleAccessorsForVirtualMemberVariableDiagnostic>()
         }
     }
 
