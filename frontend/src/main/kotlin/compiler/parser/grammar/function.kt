@@ -22,6 +22,7 @@ import compiler.InternalCompilerError
 import compiler.ast.*
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
+import compiler.binding.BoundFunction
 import compiler.lexer.*
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
@@ -169,9 +170,9 @@ val FunctionAttribute = eitherOf {
         }
         val nameToken = next as KeywordToken
         when(nameToken.keyword) {
-            Keyword.MUTABLE -> AstFunctionAttribute.EffectCategory(AstFunctionAttribute.EffectCategory.Category.MODIFYING, nameToken)
-            Keyword.READONLY -> AstFunctionAttribute.EffectCategory(AstFunctionAttribute.EffectCategory.Category.READONLY, nameToken)
-            Keyword.PURE -> AstFunctionAttribute.EffectCategory(AstFunctionAttribute.EffectCategory.Category.PURE, nameToken)
+            Keyword.MUTABLE -> AstFunctionAttribute.EffectCategory(BoundFunction.Purity.MODIFYING, nameToken)
+            Keyword.READONLY -> AstFunctionAttribute.EffectCategory(BoundFunction.Purity.READONLY, nameToken)
+            Keyword.PURE -> AstFunctionAttribute.EffectCategory(BoundFunction.Purity.PURE, nameToken)
             Keyword.NOTHROW -> AstFunctionAttribute.Nothrow(nameToken)
             Keyword.OPERATOR -> AstFunctionAttribute.Operator(nameToken)
             Keyword.INTRINSIC -> AstFunctionAttribute.Intrinsic(nameToken)

@@ -1,8 +1,10 @@
 package compiler.ast
 
-enum class VariableOwnership {
-    BORROWED,
-    CAPTURED,
+import compiler.lexer.Keyword
+
+enum class VariableOwnership(val keyword: Keyword) {
+    BORROWED(Keyword.BORROW),
+    CAPTURED(Keyword.CAPTURE),
     ;
 
     /**

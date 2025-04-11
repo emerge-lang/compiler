@@ -1,6 +1,7 @@
 package compiler.binding
 
 import compiler.*
+import compiler.ast.AstFunctionAttribute
 import compiler.ast.Executable
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableOwnership
@@ -23,6 +24,7 @@ import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.ReturnTypeMismatchDiagnostic
+import compiler.diagnostic.accessorContractViolation
 import compiler.diagnostic.typeDeductionError
 import compiler.diagnostic.uncertainTermination
 import compiler.diagnostic.varianceOnFunctionTypeParameter
@@ -139,6 +141,63 @@ abstract class BoundDeclaredFunction(
             if (attributes.isDeclaredNothrow) {
                 body?.setNothrow(NothrowViolationDiagnostic.SideEffectBoundary.Function(this))
             }
+
+            validateAccessorContractPhase2(diagnosis)
+        }
+    }
+
+    private fun validateAccessorContractPhase2(diagnosis: Diagnosis) {
+        val kind = attributes.firstAccessorAttribute?.mode
+            ?: return /* nothing to do if not declared an accessor */
+
+        // common validations
+        parameters.declaredReceiver?.let { receiverParam ->
+            if (receiverParam.ownershipAtDeclarationTime != VariableOwnership.BORROWED) {
+                diagnosis.accessorContractViolation(
+                    declaration,
+                    "Accessors must not capture the object they read data from. Declare the `${receiverParam.name}` parameter as ${VariableOwnership.BORROWED.keyword.text}",
+                    receiverParam.declaration.ownership?.second?.span
+                        ?: receiverParam.declaration.span,
+                )
+            }
+        }
+        if (!BoundFunction.Purity.PURE.contains(purity)) {
+            diagnosis.accessorContractViolation(
+                declaration,
+                "This accessor is declared ${purity.keyword.text}, so it can access global state. Accessors must not access global state. Declare the accessor ${BoundFunction.Purity.PURE.keyword.text}.",
+                attributes.purityAttribute?.sourceLocation ?: declaredAt,
+            )
+        }
+
+        when (kind) {
+            AstFunctionAttribute.Accessor.Mode.READ -> {
+                if (parameters.parameters.size != 1) {
+                    diagnosis.accessorContractViolation(
+                        declaration,
+                        "Getters must declare exactly one parameter, which has to be `${BoundParameterList.RECEIVER_PARAMETER_NAME}`",
+                        if (parameters.parameters.isEmpty()) declaredAt else parameters.parameters.drop(1).first().declaration.span,
+                    )
+                } else if (!declaresReceiver) {
+                    diagnosis.accessorContractViolation(
+                        declaration,
+                        "The only parameter to getters has to be `${BoundParameterList.RECEIVER_PARAMETER_NAME}`",
+                        parameters.parameters.single().declaration.span,
+                    )
+                }
+
+                parameters.declaredReceiver?.let { receiverParam ->
+                    receiverParam.typeAtDeclarationTime?.mutability?.let { receiverMutability ->
+                        if (receiverMutability != TypeMutability.READONLY) {
+                            diagnosis.accessorContractViolation(
+                                declaration,
+                                "Getters must act on ${TypeMutability.READONLY.keyword.text} objects, this one expects a ${receiverMutability.keyword.text} object",
+                                receiverParam.declaration.span,
+                            )
+                        }
+                    }
+                }
+            }
+            AstFunctionAttribute.Accessor.Mode.WRITE -> { /* TODO */ }
         }
     }
 

@@ -106,6 +106,10 @@ fun Diagnosis.unsupportedTypeUsageVariance(useSite: TypeUseSite, erroneousVarian
     add(UnsupportedTypeUsageVarianceDiagnostic(useSite, erroneousVariance))
 }
 
+fun Diagnosis.accessorContractViolation(accessor: FunctionDeclaration, message: String, span: Span) {
+    add(AccessorContractViolationDiagnostic(accessor, message, span))
+}
+
 fun Diagnosis.illegalAssignment(message: String, assignmentStatement: BoundAssignmentStatement) {
     add(IllegalAssignmentDiagnostic(message, assignmentStatement))
 }

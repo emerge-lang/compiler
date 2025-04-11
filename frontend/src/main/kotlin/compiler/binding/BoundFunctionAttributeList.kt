@@ -42,13 +42,13 @@ class BoundFunctionAttributeList(
         impliesNoBody = attributes.any { it.impliesNoBody }
         isDeclaredOperator = attributes.any { it is AstFunctionAttribute.Operator }
         firstModifyingAttribute = attributes.firstOrNull {
-            it is AstFunctionAttribute.EffectCategory && it.value == AstFunctionAttribute.EffectCategory.Category.MODIFYING
+            it is AstFunctionAttribute.EffectCategory && it.value == BoundFunction.Purity.MODIFYING
         }
         firstReadonlyAttribute = attributes.firstOrNull {
-            it is AstFunctionAttribute.EffectCategory && it.value == AstFunctionAttribute.EffectCategory.Category.READONLY
+            it is AstFunctionAttribute.EffectCategory && it.value == BoundFunction.Purity.READONLY
         }
         firstPureAttribute = attributes.firstOrNull {
-            it is AstFunctionAttribute.EffectCategory && it.value == AstFunctionAttribute.EffectCategory.Category.PURE
+            it is AstFunctionAttribute.EffectCategory && it.value == BoundFunction.Purity.PURE
         }
 
         externalAttribute = attrSequence.filterIsInstance<AstFunctionAttribute.External>().firstOrNull()

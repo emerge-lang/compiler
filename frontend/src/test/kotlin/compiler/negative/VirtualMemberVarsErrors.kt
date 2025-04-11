@@ -1,5 +1,6 @@
 package compiler.compiler.negative
 
+import compiler.diagnostic.AccessorContractViolationDiagnostic
 import compiler.diagnostic.ConflictingFunctionModifiersDiagnostic
 import compiler.diagnostic.OverrideAccessorDeclarationMismatchDiagnostic
 import compiler.diagnostic.VirtualAndActualMemberVariableNameClashDiagnostic
@@ -124,17 +125,120 @@ class VirtualMemberVarsErrors : FreeSpec({
         }
     }
 
+    "contract verification" - {
+        "getters" - {
+            "must take a single self argument" - {
+                "no arguments" {
+                    validateModule("""
+                        interface I {
+                            get fn bla() -> S32
+                        }
+                    """.trimIndent())
+                        .shouldFind<AccessorContractViolationDiagnostic> {
+                            it.accessor.name.value shouldBe "bla"
+                        }
+                }
+                "two arguments" {
+                    validateModule("""
+                        interface I {
+                            get fn bla(self, foo: S32) -> S32
+                        }
+                    """.trimIndent())
+                        .shouldFind<AccessorContractViolationDiagnostic> {
+                            it.accessor.name.value shouldBe "bla"
+                        }
+                }
+            }
+
+            "self argument must be readonly" - {
+                "explicitly declared mut" {
+                    validateModule("""
+                        interface I {
+                            get fn bla(self: mut _) -> S32
+                        }
+                    """.trimIndent())
+                        .shouldFind<AccessorContractViolationDiagnostic> {
+                            it.accessor.name.value shouldBe "bla"
+                        }
+                }
+
+                "explicitly declared const" {
+                    validateModule("""
+                        interface I {
+                            get fn bla(self: const _) -> S32
+                        }
+                    """.trimIndent())
+                        .shouldFind<AccessorContractViolationDiagnostic> {
+                            it.accessor.name.value shouldBe "bla"
+                        }
+                }
+
+                "explicitly declared exclusive" {
+                    validateModule("""
+                        interface I {
+                            get fn bla(self: exclusive _) -> S32
+                        }
+                    """.trimIndent())
+                        .shouldFind<AccessorContractViolationDiagnostic> {
+                            it.accessor.name.value shouldBe "bla"
+                        }
+                }
+
+                "mutable through generic bound" {
+                    validateModule("""
+                        interface I {
+                            get fn bla<S : mut Any>(self: S) -> S32
+                        }
+                    """.trimIndent())
+                        .shouldFind<AccessorContractViolationDiagnostic> {
+                            it.accessor.name.value shouldBe "bla"
+                        }
+                }
+            }
+
+            "self argument must be borrowed" {
+                validateModule("""
+                    interface I {
+                        get fn bla(capture self) -> S32
+                    }
+                """.trimIndent())
+                    .shouldFind<AccessorContractViolationDiagnostic> {
+                        it.accessor.name.value shouldBe "bla"
+                    }
+            }
+
+            "must be pure" - {
+                "explicitly declared read" {
+                    validateModule("""
+                        interface I {
+                            read get fn bla(self) -> S32
+                        }
+                    """.trimIndent())
+                        .shouldFind<AccessorContractViolationDiagnostic> {
+                            it.accessor.name.value shouldBe "bla"
+                        }
+                }
+
+                "explicitly declared mut" {
+                    validateModule("""
+                        interface I {
+                            mut get fn bla(self) -> S32
+                        }
+                    """.trimIndent())
+                        .shouldFind<AccessorContractViolationDiagnostic> {
+                            it.accessor.name.value shouldBe "bla"
+                        }
+                }
+            }
+        }
+    }
+
     /*
     TODO: implement more checks and tests
-
-    getters:
-    - must take a single, self argument with read mutability
-    - must be pure
 
     setters:
     - must take a self argument with mut mutability
     - must take EXACTLY ONE additional argument
-    - must be pure
     - must return Unit
 
     cross-cutting:
