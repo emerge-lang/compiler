@@ -85,7 +85,7 @@ abstract class BoundDeclaredFunction(
             if (declaration.parsedReturnType != null) {
                 returnType = context.resolveType(declaration.parsedReturnType)
                 if (body !is Body.SingleExpression) {
-                    returnType = returnType?.defaultMutabilityTo(TypeMutability.IMMUTABLE)
+                    returnType = returnType?.defaultMutabilityTo(TypeMutability.READONLY)
                 }
             }
 
@@ -190,7 +190,41 @@ abstract class BoundDeclaredFunction(
                     }
                 }
             }
-            AstFunctionAttribute.Accessor.Mode.WRITE -> { /* TODO */ }
+            AstFunctionAttribute.Accessor.Mode.WRITE -> {
+                if (parameters.parameters.size != 2) {
+                    diagnosis.accessorContractViolation(
+                        declaration,
+                        "Setters have to take exactly two parameters. First, the object to modify (`${BoundParameterList.RECEIVER_PARAMETER_NAME}`), and the new value for the member variable second",
+                        parameters.parameters.drop(2).firstOrNull()?.declaration?.span ?: declaredAt,
+                    )
+                } else if (!declaresReceiver) {
+                    diagnosis.accessorContractViolation(
+                        declaration,
+                        "Setters have to take a `${BoundParameterList.RECEIVER_PARAMETER_NAME}` parameter",
+                        parameters.parameters.firstOrNull()?.declaration?.span ?: declaredAt,
+                    )
+                }
+
+                parameters.declaredReceiver?.let { receiverParam ->
+                    receiverParam.typeAtDeclarationTime?.mutability?.let { receiverMutability ->
+                        if (receiverMutability != TypeMutability.MUTABLE) {
+                            diagnosis.accessorContractViolation(
+                                declaration,
+                                "Getters must act on ${TypeMutability.MUTABLE.keyword.text} objects, this one expects a ${receiverMutability.keyword.text} object",
+                                receiverParam.declaration.type?.span ?: receiverParam.declaration.span,
+                            )
+                        }
+                    }
+                }
+
+                if (returnType?.equals(context.swCtx.unit.baseReference) == false) {
+                    diagnosis.accessorContractViolation(
+                        declaration,
+                        "Setters must return `${context.swCtx.unit.canonicalName}`",
+                        declaration.parsedReturnType?.span ?: declaredAt,
+                    )
+                }
+            }
         }
     }
 
