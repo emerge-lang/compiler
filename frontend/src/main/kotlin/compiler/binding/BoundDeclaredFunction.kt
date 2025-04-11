@@ -24,7 +24,9 @@ import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.ReturnTypeMismatchDiagnostic
+import compiler.diagnostic.accessorCapturesSelf
 import compiler.diagnostic.accessorContractViolation
+import compiler.diagnostic.accessorNotPure
 import compiler.diagnostic.typeDeductionError
 import compiler.diagnostic.uncertainTermination
 import compiler.diagnostic.varianceOnFunctionTypeParameter
@@ -153,20 +155,11 @@ abstract class BoundDeclaredFunction(
         // common validations
         parameters.declaredReceiver?.let { receiverParam ->
             if (receiverParam.ownershipAtDeclarationTime != VariableOwnership.BORROWED) {
-                diagnosis.accessorContractViolation(
-                    declaration,
-                    "Accessors must not capture the object they read data from. Declare the `${receiverParam.name}` parameter as ${VariableOwnership.BORROWED.keyword.text}",
-                    receiverParam.declaration.ownership?.second?.span
-                        ?: receiverParam.declaration.span,
-                )
+                diagnosis.accessorCapturesSelf(this, receiverParam)
             }
         }
         if (!BoundFunction.Purity.PURE.contains(purity)) {
-            diagnosis.accessorContractViolation(
-                declaration,
-                "This accessor is declared ${purity.keyword.text}, so it can access global state. Accessors must not access global state. Declare the accessor ${BoundFunction.Purity.PURE.keyword.text}.",
-                attributes.purityAttribute?.sourceLocation ?: declaredAt,
-            )
+            diagnosis.accessorNotPure(this)
         }
 
         when (kind) {
