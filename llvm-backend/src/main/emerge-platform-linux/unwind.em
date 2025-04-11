@@ -180,7 +180,7 @@ private read fn unwindCursorGetInstructionPointer(cursorPtr: COpaquePointer) -> 
 }
 
 // returns the name of the function belonging to the stack frame this cursor is currently pointing at
-private read fn unwindCursorGetProcedureName(cursorPtr: COpaquePointer) -> String {
+private read fn unwindCursorGetProcedureName(cursorPtr: COpaquePointer) -> const String {
     var nameBuf = Array.new::<S8>(256, 0 as S8)
     offpBuf = Array.new::<UWord>(1, 0 as UWord)
 

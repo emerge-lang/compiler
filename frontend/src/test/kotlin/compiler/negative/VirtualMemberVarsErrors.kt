@@ -91,7 +91,7 @@ class VirtualMemberVarsErrors : FreeSpec({
                         fn bla(self, v: S32)
                     }
                     class A : I {
-                        override set fn bla(self, v: S32) {}
+                        override set fn bla(self: mut _, v: S32) {}
                     }
                 """.trimIndent())
                     .shouldFind<OverrideAccessorDeclarationMismatchDiagnostic>()
@@ -231,15 +231,151 @@ class VirtualMemberVarsErrors : FreeSpec({
                 }
             }
         }
+        "setters" - {
+            "must take two arguments, the first being a receiver" - {
+                "no arguments" {
+                    validateModule("""
+                        interface I {
+                            set fn bla()
+                        }
+                    """.trimIndent())
+                        .shouldFind<AccessorContractViolationDiagnostic> {
+                            it.accessor.name.value shouldBe "bla"
+                        }
+                }
+
+                "one argument, receiver" {
+                    validateModule("""
+                        interface I {
+                            set fn bla(self: mut _)
+                        }
+                    """.trimIndent())
+                        .shouldFind<AccessorContractViolationDiagnostic> {
+                            it.accessor.name.value shouldBe "bla"
+                        }
+                }
+
+                "one argument, not receiver" {
+                    validateModule("""
+                        class A {}
+                        interface I {
+                            set fn bla(other: mut A)
+                        }
+                    """.trimIndent())
+                        .shouldFind<AccessorContractViolationDiagnostic> {
+                            it.accessor.name.value shouldBe "bla"
+                        }
+                }
+
+                "two arguments, no receiver" {
+                    validateModule("""
+                        class A {}
+                        interface I {
+                            set fn bla(other: mut A, value: S32)
+                        }
+                    """.trimIndent())
+                        .shouldFind<AccessorContractViolationDiagnostic> {
+                            it.accessor.name.value shouldBe "bla"
+                        }
+                }
+
+                "three arguments with receiver" {
+                    validateModule("""
+                        interface I {
+                            set fn bla(self: mut _, value1: S32, value2: S32)
+                        }
+                    """.trimIndent())
+                        .shouldFind<AccessorContractViolationDiagnostic> {
+                            it.accessor.name.value shouldBe "bla"
+                        }
+                }
+            }
+
+            "self argument must be borrowed" {
+                validateModule("""
+                    interface I {
+                        set fn bla(capture self: mut _, v: S32)
+                    }
+                """.trimIndent())
+                    .shouldFind<AccessorContractViolationDiagnostic> {
+                        it.accessor.name.value shouldBe "bla"
+                    }
+            }
+
+            "self argument must be mutable" - {
+                "explicitly declared const" {
+                    validateModule("""
+                        interface I {
+                            set fn bla(self: const _, v: S32)
+                        }
+                    """.trimIndent())
+                        .shouldFind<AccessorContractViolationDiagnostic> {
+                            it.accessor.name.value shouldBe "bla"
+                        }
+                }
+
+                "explicitly declared read" {
+                    validateModule("""
+                        interface I {
+                            set fn bla(self: read _, v: S32)
+                        }
+                    """.trimIndent())
+                        .shouldFind<AccessorContractViolationDiagnostic> {
+                            it.accessor.name.value shouldBe "bla"
+                        }
+                }
+
+                "explicitly declared exclusive" {
+                    validateModule("""
+                        interface I {
+                            set fn bla(self: exclusive _, v: S32)
+                        }
+                    """.trimIndent())
+                        .shouldFind<AccessorContractViolationDiagnostic> {
+                            it.accessor.name.value shouldBe "bla"
+                        }
+                }
+            }
+
+            "must be pure" - {
+                "explicitly declared read" {
+                    validateModule("""
+                        interface I {
+                            read set fn bla(self: mut _, v: S32)
+                        }
+                    """.trimIndent())
+                        .shouldFind<AccessorContractViolationDiagnostic> {
+                            it.accessor.name.value shouldBe "bla"
+                        }
+                }
+
+                "explicitly declared mut" {
+                    validateModule("""
+                        interface I {
+                            mut set fn bla(self: mut _, v: S32)
+                        }
+                    """.trimIndent())
+                        .shouldFind<AccessorContractViolationDiagnostic> {
+                            it.accessor.name.value shouldBe "bla"
+                        }
+                }
+            }
+
+            "must return Unit" {
+                validateModule("""
+                    interface I {
+                        set fn bla(self: mut _, v: S32) -> Bool
+                    }
+                """.trimIndent())
+                    .shouldFind<AccessorContractViolationDiagnostic> {
+                        it.accessor.name.value shouldBe "bla"
+                    }
+            }
+        }
     }
 
     /*
     TODO: implement more checks and tests
-
-    setters:
-    - must take a self argument with mut mutability
-    - must take EXACTLY ONE additional argument
-    - must return Unit
 
     cross-cutting:
     - for each virtual member var, there must be AT MOST one getter and AT MOST one setter
