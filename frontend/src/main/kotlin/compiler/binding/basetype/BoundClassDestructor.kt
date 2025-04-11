@@ -12,6 +12,7 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
+import compiler.binding.BoundParameterList
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
@@ -89,7 +90,7 @@ class BoundClassDestructor(
                     VariableOwnership.BORROWED,
                     KeywordToken(Keyword.BORROW, span = generatedSourceLocation),
                 ),
-                IdentifierToken("self", generatedSourceLocation),
+                IdentifierToken(BoundParameterList.RECEIVER_PARAMETER_NAME, generatedSourceLocation),
                 (receiverType as RootResolvedTypeReference).original!!.withMutability(TypeMutability.EXCLUSIVE),
                 null,
             )

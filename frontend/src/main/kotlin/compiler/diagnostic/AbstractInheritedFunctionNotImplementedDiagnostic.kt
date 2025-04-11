@@ -3,6 +3,7 @@ package compiler.diagnostic
 import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeMutability
 import compiler.binding.BoundMemberFunction
+import compiler.binding.BoundParameterList
 import compiler.binding.basetype.BoundBaseType
 import compiler.lexer.Keyword
 
@@ -53,7 +54,7 @@ private val BoundMemberFunction.synopsis: String get() {
             signature += selfParam.ownershipAtDeclarationTime.name.lowercase()
             signature += " "
         }
-        signature += "self"
+        signature += BoundParameterList.RECEIVER_PARAMETER_NAME
         val mutability = selfParam.typeAtDeclarationTime?.mutability
         if (mutability != null && mutability != TypeMutability.READONLY) {
             signature += ": "
