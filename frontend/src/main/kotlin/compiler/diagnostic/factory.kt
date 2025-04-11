@@ -9,6 +9,7 @@ import compiler.ast.Executable
 import compiler.ast.Expression
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
+import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundAssignmentStatement
@@ -108,6 +109,27 @@ fun Diagnosis.unsupportedTypeUsageVariance(useSite: TypeUseSite, erroneousVarian
 
 fun Diagnosis.accessorContractViolation(accessor: FunctionDeclaration, message: String, span: Span) {
     add(AccessorContractViolationDiagnostic(accessor, message, span))
+}
+
+fun Diagnosis.accessorCapturesSelf(accessor: BoundDeclaredFunction, receiverParam: BoundParameter) {
+    val actionPhrase = when (accessor.attributes.firstAccessorAttribute!!.mode) {
+        AstFunctionAttribute.Accessor.Mode.READ -> "retrieve data from"
+        AstFunctionAttribute.Accessor.Mode.WRITE -> "write data to"
+    }
+    add(AccessorContractViolationDiagnostic(
+        accessor.declaration,
+        "Accessors must not capture the object they $actionPhrase. Declare the `${receiverParam.name}` parameter as ${VariableOwnership.BORROWED.keyword.text}",
+        receiverParam.declaration.ownership?.second?.span
+            ?: receiverParam.declaration.span,
+    ))
+}
+
+fun Diagnosis.accessorNotPure(accessor: BoundDeclaredFunction) {
+    add(AccessorContractViolationDiagnostic(
+        accessor.declaration,
+        "This accessor is declared ${accessor.purity.keyword.text}, so it can access global state. Accessors must not access global state. Declare the accessor ${BoundFunction.Purity.PURE.keyword.text}.",
+        accessor.attributes.purityAttribute?.sourceLocation ?: accessor.declaredAt,
+    ))
 }
 
 fun Diagnosis.illegalAssignment(message: String, assignmentStatement: BoundAssignmentStatement) {
