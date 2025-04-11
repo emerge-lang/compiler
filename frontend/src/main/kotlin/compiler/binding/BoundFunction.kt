@@ -23,6 +23,7 @@ import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.binding.context.CTContext
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
+import compiler.lexer.Keyword
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
@@ -81,10 +82,10 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
 
     fun toBackendIr(): IrFunction
 
-    enum class Purity {
-        PURE,
-        READONLY,
-        MODIFYING,
+    enum class Purity(val keyword: Keyword) {
+        PURE(Keyword.PURE),
+        READONLY(Keyword.READONLY),
+        MODIFYING(Keyword.MUTABLE),
         ;
 
         /**

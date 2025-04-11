@@ -1,5 +1,6 @@
 package compiler.ast
 
+import compiler.binding.BoundFunction
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 
@@ -87,7 +88,7 @@ sealed class AstFunctionAttribute(
         }
     }
 
-    class EffectCategory(val value: Category, nameToken: KeywordToken) : AstFunctionAttribute(nameToken) {
+    class EffectCategory(val value: BoundFunction.Purity, nameToken: KeywordToken) : AstFunctionAttribute(nameToken) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is EffectCategory) return false
@@ -101,12 +102,6 @@ sealed class AstFunctionAttribute(
             var result = javaClass.hashCode()
             result = 31 * result + value.hashCode()
             return result
-        }
-
-        enum class Category {
-            MODIFYING,
-            READONLY,
-            PURE
         }
     }
 
@@ -126,6 +121,7 @@ sealed class AstFunctionAttribute(
             return result
         }
 
+        // TODO: rename to Kind
         enum class Mode {
             READ,
             WRITE,
