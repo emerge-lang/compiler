@@ -20,6 +20,7 @@ package compiler.binding.basetype
 
 import compiler.InternalCompilerError
 import compiler.ast.AstCodeChunk
+import compiler.ast.AstFunctionAttribute
 import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
@@ -40,6 +41,7 @@ import compiler.diagnostic.UnconventionalTypeNameDiagnostic
 import compiler.diagnostic.duplicateBaseTypeMembers
 import compiler.diagnostic.entryNotAllowedOnBaseType
 import compiler.diagnostic.memberFunctionImplementedOnInterface
+import compiler.diagnostic.multipleAccessors
 import compiler.diagnostic.multipleClassConstructors
 import compiler.diagnostic.multipleClassDestructors
 import compiler.diagnostic.unconventionalTypeName
@@ -273,6 +275,22 @@ class BoundBaseType(
                 overloadSets.forEach { overloadSet ->
                     overloadSet.semanticAnalysisPhase2(diagnosis)
                 }
+            }
+
+            allMemberFunctionOverloadSetsByName.forEach { memberFnName, overloadSets ->
+                overloadSets.asSequence()
+                    .flatMap { it.overloads }
+                    .filter { it.attributes.firstAccessorAttribute != null }
+                    .groupBy { it.attributes.firstAccessorAttribute!!.mode }
+                    .filter { (kind, _ ) ->
+                        // getters need not be checked: by necessity of their contract, they will form an overload set,
+                        // and if there is more than one fn in that set, it is an ambiguity that is reported elsewhere
+                        kind in setOf(AstFunctionAttribute.Accessor.Mode.WRITE)
+                    }
+                    .filter { (_, accessors) -> accessors.size > 1 }
+                    .forEach { (kind, accessors) ->
+                        diagnosis.multipleAccessors(memberFnName, kind, accessors)
+                    }
             }
         }
     }

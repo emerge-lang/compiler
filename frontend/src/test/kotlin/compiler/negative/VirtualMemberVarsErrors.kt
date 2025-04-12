@@ -1,5 +1,6 @@
 package compiler.compiler.negative
 
+import compiler.ast.AstFunctionAttribute
 import compiler.diagnostic.AccessorContractViolationDiagnostic
 import compiler.diagnostic.ConflictingFunctionModifiersDiagnostic
 import compiler.diagnostic.MultipleAccessorsForVirtualMemberVariableDiagnostic
@@ -392,7 +393,10 @@ class VirtualMemberVarsErrors : FreeSpec({
                     set fn bla(self: mut _, value: UWord)
                 }
             """.trimIndent())
-                .shouldFind<MultipleAccessorsForVirtualMemberVariableDiagnostic>()
+                .shouldFind<MultipleAccessorsForVirtualMemberVariableDiagnostic> {
+                    it.memberVarName shouldBe "bla"
+                    it.kind shouldBe AstFunctionAttribute.Accessor.Mode.WRITE
+                }
         }
 
         "two setters in the same package" {
@@ -402,7 +406,10 @@ class VirtualMemberVarsErrors : FreeSpec({
                 set fn bla(self: mut I, value: S32) {}
                 set fn bla(self: mut I, value: UWord) {}
             """.trimIndent())
-                .shouldFind<MultipleAccessorsForVirtualMemberVariableDiagnostic>()
+                .shouldFind<MultipleAccessorsForVirtualMemberVariableDiagnostic> {
+                    it.memberVarName shouldBe "bla"
+                    it.kind shouldBe AstFunctionAttribute.Accessor.Mode.WRITE
+                }
         }
     }
 

@@ -132,6 +132,10 @@ fun Diagnosis.accessorNotPure(accessor: BoundDeclaredFunction) {
     ))
 }
 
+fun Diagnosis.multipleAccessors(virtualMemberName: String, kind: AstFunctionAttribute.Accessor.Mode, accessors: List<BoundMemberFunction>) {
+    add(MultipleAccessorsForVirtualMemberVariableDiagnostic(virtualMemberName, kind, accessors.map { it.declaration }))
+}
+
 fun Diagnosis.illegalAssignment(message: String, assignmentStatement: BoundAssignmentStatement) {
     add(IllegalAssignmentDiagnostic(message, assignmentStatement))
 }

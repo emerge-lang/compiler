@@ -18,6 +18,7 @@
 
 package compiler.binding
 
+import compiler.ast.FunctionDeclaration
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.InheritedBoundMemberFunction
 import compiler.binding.context.CTContext
@@ -102,6 +103,8 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
 }
 
 interface BoundMemberFunction : BoundFunction {
+    val declaration: FunctionDeclaration
+
     /**
      * the [BoundBaseType] that declared this function. If `interface A` declares function `foo`
      * and interface `B` extends `A` without overriding `foo`, [declaredOnType] for `B::foo` will be `A`.
