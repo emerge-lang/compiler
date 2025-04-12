@@ -132,7 +132,11 @@ fun Diagnosis.accessorNotPure(accessor: BoundDeclaredFunction) {
     ))
 }
 
-fun Diagnosis.multipleAccessors(virtualMemberName: String, kind: AstFunctionAttribute.Accessor.Mode, accessors: List<BoundMemberFunction>) {
+fun Diagnosis.multipleAccessorsOnBaseType(virtualMemberName: String, kind: AstFunctionAttribute.Accessor.Mode, accessors: List<BoundMemberFunction>) {
+    add(MultipleAccessorsForVirtualMemberVariableDiagnostic(virtualMemberName, kind, accessors.map { it.declaration }))
+}
+
+fun Diagnosis.multipleAccessorsOnPackage(virtualMemberName: String, kind: AstFunctionAttribute.Accessor.Mode, accessors: List<BoundDeclaredFunction>) {
     add(MultipleAccessorsForVirtualMemberVariableDiagnostic(virtualMemberName, kind, accessors.map { it.declaration }))
 }
 

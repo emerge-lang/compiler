@@ -417,7 +417,6 @@ class VirtualMemberVarsErrors : FreeSpec({
     TODO: implement more checks and tests
 
     cross-cutting:
-    - for each virtual member var, there must be AT MOST one getter and AT MOST one setter
     - if both are present, the return type of the getter and the argument type on the setter must be identical
 
     */

@@ -1,12 +1,13 @@
 package compiler.binding.context
 
+import compiler.ast.AstFunctionAttribute
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.basetype.BoundBaseType
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.duplicateBaseTypes
+import compiler.diagnostic.multipleAccessorsOnPackage
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
 class PackageContext(
@@ -76,6 +77,26 @@ class PackageContext(
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         sourceFiles.forEach { it.semanticAnalysisPhase3(diagnosis) }
         overloadSetsBySimpleName.values.flatten().forEach { it.semanticAnalysisPhase3(diagnosis) }
+
+        sourceFiles
+            .flatMap { it.context.functions }
+            .groupBy { it.name }
+            .entries.forEach { (fnName, fns) ->
+                fns
+                    .filter { it.attributes.firstAccessorAttribute != null }
+                    .groupBy { it.attributes.firstAccessorAttribute!!.mode }
+                    .filter { (kind, _) ->
+                        // getters need not be checked, because if multiple getters were forbidden here,
+                        // then it wouldn't be possible to declare the same virtual member on distinct types
+                        // however, if the same getter is defined for ambiguous/overlapping types, the
+                        // overload-set ambiguity will trigger and cause a diagnostic
+                        kind in setOf(AstFunctionAttribute.Accessor.Mode.WRITE)
+                    }
+                    .filter { (_, accessors) -> accessors.size > 1 }
+                    .forEach { (kind, accessors) ->
+                        diagnosis.multipleAccessorsOnPackage(fnName, kind, accessors)
+                    }
+        }
 
         types
             .groupBy { it.simpleName }

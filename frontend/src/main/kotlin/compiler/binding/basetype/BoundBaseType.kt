@@ -41,7 +41,7 @@ import compiler.diagnostic.UnconventionalTypeNameDiagnostic
 import compiler.diagnostic.duplicateBaseTypeMembers
 import compiler.diagnostic.entryNotAllowedOnBaseType
 import compiler.diagnostic.memberFunctionImplementedOnInterface
-import compiler.diagnostic.multipleAccessors
+import compiler.diagnostic.multipleAccessorsOnBaseType
 import compiler.diagnostic.multipleClassConstructors
 import compiler.diagnostic.multipleClassDestructors
 import compiler.diagnostic.unconventionalTypeName
@@ -289,7 +289,7 @@ class BoundBaseType(
                     }
                     .filter { (_, accessors) -> accessors.size > 1 }
                     .forEach { (kind, accessors) ->
-                        diagnosis.multipleAccessors(memberFnName, kind, accessors)
+                        diagnosis.multipleAccessorsOnBaseType(memberFnName, kind, accessors)
                     }
             }
         }
