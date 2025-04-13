@@ -146,7 +146,7 @@ class BoundFunctionAttributeList(
             }
             is AstFunctionAttribute.Accessor -> {
                 if (b is AstFunctionAttribute.Accessor) {
-                    a.mode != b.mode
+                    a.kind != b.kind
                     // if a == b it's an inefficiency, reported through the general inefficiency mechanism
                 } else false
             }

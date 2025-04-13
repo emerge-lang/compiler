@@ -1,6 +1,6 @@
 package compiler.compiler.negative
 
-import compiler.ast.AstFunctionAttribute
+import compiler.binding.AccessorKind
 import compiler.diagnostic.AccessorContractViolationDiagnostic
 import compiler.diagnostic.ConflictingFunctionModifiersDiagnostic
 import compiler.diagnostic.MultipleAccessorsForVirtualMemberVariableDiagnostic
@@ -395,7 +395,7 @@ class VirtualMemberVarsErrors : FreeSpec({
             """.trimIndent())
                 .shouldFind<MultipleAccessorsForVirtualMemberVariableDiagnostic> {
                     it.memberVarName shouldBe "bla"
-                    it.kind shouldBe AstFunctionAttribute.Accessor.Mode.WRITE
+                    it.kind shouldBe AccessorKind.WRITE
                 }
         }
 
@@ -408,7 +408,7 @@ class VirtualMemberVarsErrors : FreeSpec({
             """.trimIndent())
                 .shouldFind<MultipleAccessorsForVirtualMemberVariableDiagnostic> {
                     it.memberVarName shouldBe "bla"
-                    it.kind shouldBe AstFunctionAttribute.Accessor.Mode.WRITE
+                    it.kind shouldBe AccessorKind.WRITE
                 }
         }
     }

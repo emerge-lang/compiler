@@ -1,7 +1,6 @@
 package compiler.binding
 
 import compiler.*
-import compiler.ast.AstFunctionAttribute
 import compiler.ast.Executable
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableOwnership
@@ -149,7 +148,7 @@ abstract class BoundDeclaredFunction(
     }
 
     private fun validateAccessorContractPhase2(diagnosis: Diagnosis) {
-        val kind = attributes.firstAccessorAttribute?.mode
+        val kind = attributes.firstAccessorAttribute?.kind
             ?: return /* nothing to do if not declared an accessor */
 
         // common validations
@@ -163,7 +162,7 @@ abstract class BoundDeclaredFunction(
         }
 
         when (kind) {
-            AstFunctionAttribute.Accessor.Mode.READ -> {
+            AccessorKind.READ -> {
                 if (parameters.parameters.size != 1) {
                     diagnosis.accessorContractViolation(
                         declaration,
@@ -190,7 +189,7 @@ abstract class BoundDeclaredFunction(
                     }
                 }
             }
-            AstFunctionAttribute.Accessor.Mode.WRITE -> {
+            AccessorKind.WRITE -> {
                 if (parameters.parameters.size != 2) {
                     diagnosis.accessorContractViolation(
                         declaration,

@@ -12,6 +12,7 @@ import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
+import compiler.binding.AccessorKind
 import compiler.binding.BoundAssignmentStatement
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundExecutable
@@ -112,9 +113,9 @@ fun Diagnosis.accessorContractViolation(accessor: FunctionDeclaration, message: 
 }
 
 fun Diagnosis.accessorCapturesSelf(accessor: BoundDeclaredFunction, receiverParam: BoundParameter) {
-    val actionPhrase = when (accessor.attributes.firstAccessorAttribute!!.mode) {
-        AstFunctionAttribute.Accessor.Mode.READ -> "retrieve data from"
-        AstFunctionAttribute.Accessor.Mode.WRITE -> "write data to"
+    val actionPhrase = when (accessor.attributes.firstAccessorAttribute!!.kind) {
+        AccessorKind.READ -> "retrieve data from"
+        AccessorKind.WRITE -> "write data to"
     }
     add(AccessorContractViolationDiagnostic(
         accessor.declaration,
@@ -132,11 +133,11 @@ fun Diagnosis.accessorNotPure(accessor: BoundDeclaredFunction) {
     ))
 }
 
-fun Diagnosis.multipleAccessorsOnBaseType(virtualMemberName: String, kind: AstFunctionAttribute.Accessor.Mode, accessors: List<BoundMemberFunction>) {
+fun Diagnosis.multipleAccessorsOnBaseType(virtualMemberName: String, kind: AccessorKind, accessors: List<BoundMemberFunction>) {
     add(MultipleAccessorsForVirtualMemberVariableDiagnostic(virtualMemberName, kind, accessors.map { it.declaration }))
 }
 
-fun Diagnosis.multipleAccessorsOnPackage(virtualMemberName: String, kind: AstFunctionAttribute.Accessor.Mode, accessors: List<BoundDeclaredFunction>) {
+fun Diagnosis.multipleAccessorsOnPackage(virtualMemberName: String, kind: AccessorKind, accessors: List<BoundDeclaredFunction>) {
     add(MultipleAccessorsForVirtualMemberVariableDiagnostic(virtualMemberName, kind, accessors.map { it.declaration }))
 }
 

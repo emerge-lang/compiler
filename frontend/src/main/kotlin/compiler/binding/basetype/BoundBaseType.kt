@@ -20,11 +20,11 @@ package compiler.binding.basetype
 
 import compiler.InternalCompilerError
 import compiler.ast.AstCodeChunk
-import compiler.ast.AstFunctionAttribute
 import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
 import compiler.ast.type.TypeReference
+import compiler.binding.AccessorKind
 import compiler.binding.BoundElement
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
@@ -285,7 +285,7 @@ class BoundBaseType(
                     .filter { (kind, _ ) ->
                         // getters need not be checked: by necessity of their contract, they will form an overload set,
                         // and if there is more than one fn in that set, it is an ambiguity that is reported elsewhere
-                        kind in setOf(AstFunctionAttribute.Accessor.Mode.WRITE)
+                        kind in setOf(AccessorKind.WRITE)
                     }
                     .filter { (_, accessors) -> accessors.size > 1 }
                     .forEach { (kind, accessors) ->

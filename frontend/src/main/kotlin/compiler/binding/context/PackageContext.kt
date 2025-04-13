@@ -1,6 +1,6 @@
 package compiler.binding.context
 
-import compiler.ast.AstFunctionAttribute
+import compiler.binding.AccessorKind
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
@@ -84,13 +84,13 @@ class PackageContext(
             .entries.forEach { (fnName, fns) ->
                 fns
                     .filter { it.attributes.firstAccessorAttribute != null }
-                    .groupBy { it.attributes.firstAccessorAttribute!!.mode }
+                    .groupBy { it.attributes.firstAccessorAttribute!!.kind }
                     .filter { (kind, _) ->
                         // getters need not be checked, because if multiple getters were forbidden here,
                         // then it wouldn't be possible to declare the same virtual member on distinct types
                         // however, if the same getter is defined for ambiguous/overlapping types, the
                         // overload-set ambiguity will trigger and cause a diagnostic
-                        kind in setOf(AstFunctionAttribute.Accessor.Mode.WRITE)
+                        kind in setOf(AccessorKind.WRITE)
                     }
                     .filter { (_, accessors) -> accessors.size > 1 }
                     .forEach { (kind, accessors) ->

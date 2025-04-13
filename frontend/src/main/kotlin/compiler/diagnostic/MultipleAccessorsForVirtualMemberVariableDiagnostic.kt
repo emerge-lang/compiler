@@ -1,18 +1,18 @@
 package compiler.diagnostic
 
-import compiler.ast.AstFunctionAttribute
 import compiler.ast.FunctionDeclaration
+import compiler.binding.AccessorKind
 
 class MultipleAccessorsForVirtualMemberVariableDiagnostic(
     val memberVarName: String,
-    val kind: AstFunctionAttribute.Accessor.Mode,
+    val kind: AccessorKind,
     val accessorsOfSameKind: List<FunctionDeclaration>,
 ) : Diagnostic(
     Severity.ERROR,
     run {
         val kindStr = when (kind) {
-            AstFunctionAttribute.Accessor.Mode.READ -> "getters"
-            AstFunctionAttribute.Accessor.Mode.WRITE -> "setters"
+            AccessorKind.READ -> "getters"
+            AccessorKind.WRITE -> "setters"
         }
         "Multiple $kindStr defined for virtual member variable `$memberVarName`"
     },

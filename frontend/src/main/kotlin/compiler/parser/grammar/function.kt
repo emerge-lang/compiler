@@ -19,15 +19,28 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
-import compiler.ast.*
+import compiler.ast.AstCodeChunk
+import compiler.ast.AstFunctionAttribute
+import compiler.ast.AstVisibility
+import compiler.ast.FunctionDeclaration
+import compiler.ast.ParameterList
+import compiler.ast.TypeParameterBundle
+import compiler.ast.VariableDeclaration
+import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
+import compiler.binding.AccessorKind
 import compiler.binding.BoundFunction
-import compiler.lexer.*
+import compiler.lexer.IdentifierToken
+import compiler.lexer.Keyword
+import compiler.lexer.KeywordToken
+import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
+import compiler.lexer.Token
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
-import java.util.*
+import java.util.LinkedList
 import compiler.ast.Expression as AstExpression
 
 val Parameter = sequence("parameter declaration") {
@@ -177,8 +190,8 @@ val FunctionAttribute = eitherOf {
             Keyword.OPERATOR -> AstFunctionAttribute.Operator(nameToken)
             Keyword.INTRINSIC -> AstFunctionAttribute.Intrinsic(nameToken)
             Keyword.OVERRIDE -> AstFunctionAttribute.Override(nameToken)
-            Keyword.GET -> AstFunctionAttribute.Accessor(AstFunctionAttribute.Accessor.Mode.READ, nameToken)
-            Keyword.SET -> AstFunctionAttribute.Accessor(AstFunctionAttribute.Accessor.Mode.WRITE, nameToken)
+            Keyword.GET -> AstFunctionAttribute.Accessor(AccessorKind.READ, nameToken)
+            Keyword.SET -> AstFunctionAttribute.Accessor(AccessorKind.WRITE, nameToken)
             Keyword.EXTERNAL -> {
                 tokens.next() // skip parant_open
                 val ffiNameToken = tokens.next() as IdentifierToken
