@@ -145,6 +145,10 @@ fun Diagnosis.getterAndSetterWithDifferentType(virtualMemberName: String, getter
     add(GetterAndSetterHaveDifferentTypesDiagnostics(getter.declaration, setter.declaration))
 }
 
+fun Diagnosis.getterAndSetterWithDifferentType(virtualMemberName: String, getter: BoundDeclaredFunction, setter: BoundDeclaredFunction) {
+    add(GetterAndSetterHaveDifferentTypesDiagnostics(getter.declaration, setter.declaration))
+}
+
 fun Diagnosis.illegalAssignment(message: String, assignmentStatement: BoundAssignmentStatement) {
     add(IllegalAssignmentDiagnostic(message, assignmentStatement))
 }

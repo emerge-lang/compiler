@@ -5,8 +5,12 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.basetype.BoundBaseType
+import compiler.binding.context.PackageContext.TypeBranch.Companion.groupTypeBranches
+import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.isAssignableTo
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.duplicateBaseTypes
+import compiler.diagnostic.getterAndSetterWithDifferentType
 import compiler.diagnostic.multipleAccessorsOnPackage
 import io.github.tmarsteel.emerge.common.CanonicalElementName
 
@@ -78,25 +82,7 @@ class PackageContext(
         sourceFiles.forEach { it.semanticAnalysisPhase3(diagnosis) }
         overloadSetsBySimpleName.values.flatten().forEach { it.semanticAnalysisPhase3(diagnosis) }
 
-        sourceFiles
-            .flatMap { it.context.functions }
-            .groupBy { it.name }
-            .entries.forEach { (fnName, fns) ->
-                fns
-                    .filter { it.attributes.firstAccessorAttribute != null }
-                    .groupBy { it.attributes.firstAccessorAttribute!!.kind }
-                    .filter { (kind, _) ->
-                        // getters need not be checked, because if multiple getters were forbidden here,
-                        // then it wouldn't be possible to declare the same virtual member on distinct types
-                        // however, if the same getter is defined for ambiguous/overlapping types, the
-                        // overload-set ambiguity will trigger and cause a diagnostic
-                        kind in setOf(AccessorKind.Write)
-                    }
-                    .filter { (_, accessors) -> accessors.size > 1 }
-                    .forEach { (kind, accessors) ->
-                        diagnosis.multipleAccessorsOnPackage(fnName, kind, accessors)
-                    }
-        }
+        checkRulesAcrossAccessorsPhase3(diagnosis)
 
         types
             .groupBy { it.simpleName }
@@ -107,9 +93,101 @@ class PackageContext(
             }
     }
 
+    private fun checkRulesAcrossAccessorsPhase3(diagnosis: Diagnosis) {
+        // getters need not be checked, because if multiple getters were forbidden here,
+        // then it wouldn't be possible to declare the same virtual member on distinct types
+        // however, if the same getter is defined for ambiguous/overlapping types, the
+        // overload-set ambiguity will trigger and cause a diagnostic
+
+        sourceFiles
+            .flatMap { it.context.functions }
+            .filter { it.attributes.firstAccessorAttribute != null }
+            .groupBy { it.name }
+            .forEach { (virtualMemberName, accessors) ->
+                accessors
+                    .groupTypeBranches { it.receiverType }
+                    .forEach { branch ->
+                        val getters = branch.elements.filter { it.attributes.firstAccessorAttribute!!.kind == AccessorKind.Read }
+                        val setters = branch.elements.filter { it.attributes.firstAccessorAttribute!!.kind == AccessorKind.Write }
+
+                        if (setters.size > 1) {
+                            diagnosis.multipleAccessorsOnPackage(virtualMemberName, AccessorKind.Write, setters)
+                            return@forEach
+                        }
+
+                        if (getters.size > 1) {
+                            // this will be reported as an overload ambiguity on package level, no reason to dupe this diagnostic
+                            return@forEach
+                        }
+
+                        val getter = getters.firstOrNull() ?: return@forEach
+                        val getterType = AccessorKind.Read.extractMemberType(getter)
+                        val setter = setters.firstOrNull() ?: return@forEach
+                        val setterType = AccessorKind.Write.extractMemberType(setter)
+
+                        if (getterType != null && setterType != null && getterType != setterType) {
+                            diagnosis.getterAndSetterWithDifferentType(virtualMemberName, getter, setter)
+                        }
+                    }
+            }
+    }
+
     override fun equals(other: Any?): Boolean {
         return other != null && other::class == PackageContext::class && (other as PackageContext).packageName == this.packageName
     }
 
     override fun hashCode() = packageName.hashCode()
+
+    /**
+     * when looking at multiple things on package level that all associate to a type each,
+     * sometimes the type hierarchy of all those elements needs to be inspected. This class helps
+     * build that hierarchy
+     */
+    private class TypeBranch<T>(firstElement: T, firstType: BoundTypeReference) {
+        private var leastSpecificTypeInBranch: BoundTypeReference = firstType
+        private val _elements = mutableListOf<T>(firstElement)
+
+        val elements: List<T> get() = _elements
+
+        /**
+         * If this element belongs to this branch, adds it and returns `true`.
+         * @return `true` iff the element belongs to this branch and the branch was modified as a result of this call
+         */
+        fun tryAdd(element: T, withType: BoundTypeReference): Boolean {
+            if (withType isAssignableTo leastSpecificTypeInBranch) {
+                _elements.add(element)
+                return true
+            }
+            if (leastSpecificTypeInBranch isAssignableTo withType) {
+                leastSpecificTypeInBranch = withType
+                _elements.add(element)
+                return true
+            }
+
+            return false
+        }
+
+        companion object {
+            fun <T> List<T>.groupTypeBranches(
+                typeSelector: (T) -> BoundTypeReference?,
+            ) : List<TypeBranch<T>> {
+                val typeBranches = mutableListOf<TypeBranch<T>>()
+                this
+                    .mapNotNull {
+                        val type = typeSelector(it) ?: return@mapNotNull null
+                        it to type
+                    }
+                    .forEach { (element, type) ->
+                        for (branch in typeBranches) {
+                            if (branch.tryAdd(element, type)) {
+                                return@forEach
+                            }
+                        }
+                        typeBranches.add(TypeBranch(element, type))
+                    }
+
+                return typeBranches
+            }
+        }
+    }
 }

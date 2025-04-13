@@ -11,6 +11,7 @@ import compiler.lexer.Keyword
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forOne
 import io.kotest.matchers.collections.haveSize
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 
@@ -117,10 +118,10 @@ class VirtualMemberVarsErrors : FreeSpec({
             "override as set" {
                 validateModule("""
                     interface I  {
-                        get fn bla(self, v: S32)
+                        get fn bla(self) -> S32
                     }
                     class A : I {
-                        override fn bla(self, v: S32) {}
+                        override fn bla(self) -> S32 {}
                     }
                 """.trimIndent())
                     .shouldFind<OverrideAccessorDeclarationMismatchDiagnostic>()
@@ -426,14 +427,22 @@ class VirtualMemberVarsErrors : FreeSpec({
                         it.setter.name.value shouldBe "bla"
                     }
             }
+
+            "on package level" {
+                validateModule("""
+                    interface I {}
+                    interface Decoy {}
+                    
+                    get fn bla(self: I) -> S32 = 0
+                    set fn bla(self: mut I, value: UWord) {}
+                    set fn bla(self: mut Decoy, value: SWord) {} // this should be ignored because Decoy and I are disjoint
+                """.trimIndent())
+                    .shouldFind<GetterAndSetterHaveDifferentTypesDiagnostics> {
+                        it.getter.name.value shouldBe "bla"
+                        it.setter.name.value shouldBe "bla"
+                        it.setter.parameters.parameters.firstOrNull().shouldNotBeNull().type.shouldNotBeNull().simpleName shouldBe "I"
+                    }
+            }
         }
     }
-
-    /*
-    TODO: implement more checks and tests
-
-    cross-cutting:
-    - if both are present, the return type of the getter and the argument type on the setter must be identical
-
-    */
 })
