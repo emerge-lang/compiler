@@ -11,8 +11,8 @@ class MultipleAccessorsForVirtualMemberVariableDiagnostic(
     Severity.ERROR,
     run {
         val kindStr = when (kind) {
-            AccessorKind.READ -> "getters"
-            AccessorKind.WRITE -> "setters"
+            AccessorKind.Read -> "getters"
+            AccessorKind.Write -> "setters"
         }
         "Multiple $kindStr defined for virtual member variable `$memberVarName`"
     },

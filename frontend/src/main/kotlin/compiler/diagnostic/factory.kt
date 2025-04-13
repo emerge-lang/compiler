@@ -114,8 +114,8 @@ fun Diagnosis.accessorContractViolation(accessor: FunctionDeclaration, message: 
 
 fun Diagnosis.accessorCapturesSelf(accessor: BoundDeclaredFunction, receiverParam: BoundParameter) {
     val actionPhrase = when (accessor.attributes.firstAccessorAttribute!!.kind) {
-        AccessorKind.READ -> "retrieve data from"
-        AccessorKind.WRITE -> "write data to"
+        AccessorKind.Read -> "retrieve data from"
+        AccessorKind.Write -> "write data to"
     }
     add(AccessorContractViolationDiagnostic(
         accessor.declaration,
@@ -139,6 +139,10 @@ fun Diagnosis.multipleAccessorsOnBaseType(virtualMemberName: String, kind: Acces
 
 fun Diagnosis.multipleAccessorsOnPackage(virtualMemberName: String, kind: AccessorKind, accessors: List<BoundDeclaredFunction>) {
     add(MultipleAccessorsForVirtualMemberVariableDiagnostic(virtualMemberName, kind, accessors.map { it.declaration }))
+}
+
+fun Diagnosis.getterAndSetterWithDifferentType(virtualMemberName: String, getter: BoundMemberFunction, setter: BoundMemberFunction) {
+    add(GetterAndSetterHaveDifferentTypesDiagnostics(getter.declaration, setter.declaration))
 }
 
 fun Diagnosis.illegalAssignment(message: String, assignmentStatement: BoundAssignmentStatement) {

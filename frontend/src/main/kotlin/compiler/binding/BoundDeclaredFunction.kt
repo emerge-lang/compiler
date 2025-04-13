@@ -148,6 +148,7 @@ abstract class BoundDeclaredFunction(
     }
 
     private fun validateAccessorContractPhase2(diagnosis: Diagnosis) {
+        // TODO: refactor this into AccessorKind
         val kind = attributes.firstAccessorAttribute?.kind
             ?: return /* nothing to do if not declared an accessor */
 
@@ -162,7 +163,7 @@ abstract class BoundDeclaredFunction(
         }
 
         when (kind) {
-            AccessorKind.READ -> {
+            AccessorKind.Read -> {
                 if (parameters.parameters.size != 1) {
                     diagnosis.accessorContractViolation(
                         declaration,
@@ -189,7 +190,7 @@ abstract class BoundDeclaredFunction(
                     }
                 }
             }
-            AccessorKind.WRITE -> {
+            AccessorKind.Write -> {
                 if (parameters.parameters.size != 2) {
                     diagnosis.accessorContractViolation(
                         declaration,

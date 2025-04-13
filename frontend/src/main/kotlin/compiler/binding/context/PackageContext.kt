@@ -90,7 +90,7 @@ class PackageContext(
                         // then it wouldn't be possible to declare the same virtual member on distinct types
                         // however, if the same getter is defined for ambiguous/overlapping types, the
                         // overload-set ambiguity will trigger and cause a diagnostic
-                        kind in setOf(AccessorKind.WRITE)
+                        kind in setOf(AccessorKind.Write)
                     }
                     .filter { (_, accessors) -> accessors.size > 1 }
                     .forEach { (kind, accessors) ->

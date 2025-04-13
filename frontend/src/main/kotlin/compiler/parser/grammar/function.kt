@@ -190,8 +190,8 @@ val FunctionAttribute = eitherOf {
             Keyword.OPERATOR -> AstFunctionAttribute.Operator(nameToken)
             Keyword.INTRINSIC -> AstFunctionAttribute.Intrinsic(nameToken)
             Keyword.OVERRIDE -> AstFunctionAttribute.Override(nameToken)
-            Keyword.GET -> AstFunctionAttribute.Accessor(AccessorKind.READ, nameToken)
-            Keyword.SET -> AstFunctionAttribute.Accessor(AccessorKind.WRITE, nameToken)
+            Keyword.GET -> AstFunctionAttribute.Accessor(AccessorKind.Read, nameToken)
+            Keyword.SET -> AstFunctionAttribute.Accessor(AccessorKind.Write, nameToken)
             Keyword.EXTERNAL -> {
                 tokens.next() // skip parant_open
                 val ffiNameToken = tokens.next() as IdentifierToken

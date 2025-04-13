@@ -3,6 +3,7 @@ package compiler.compiler.negative
 import compiler.binding.AccessorKind
 import compiler.diagnostic.AccessorContractViolationDiagnostic
 import compiler.diagnostic.ConflictingFunctionModifiersDiagnostic
+import compiler.diagnostic.GetterAndSetterHaveDifferentTypesDiagnostics
 import compiler.diagnostic.MultipleAccessorsForVirtualMemberVariableDiagnostic
 import compiler.diagnostic.OverrideAccessorDeclarationMismatchDiagnostic
 import compiler.diagnostic.VirtualAndActualMemberVariableNameClashDiagnostic
@@ -395,7 +396,7 @@ class VirtualMemberVarsErrors : FreeSpec({
             """.trimIndent())
                 .shouldFind<MultipleAccessorsForVirtualMemberVariableDiagnostic> {
                     it.memberVarName shouldBe "bla"
-                    it.kind shouldBe AccessorKind.WRITE
+                    it.kind shouldBe AccessorKind.Write
                 }
         }
 
@@ -408,8 +409,23 @@ class VirtualMemberVarsErrors : FreeSpec({
             """.trimIndent())
                 .shouldFind<MultipleAccessorsForVirtualMemberVariableDiagnostic> {
                     it.memberVarName shouldBe "bla"
-                    it.kind shouldBe AccessorKind.WRITE
+                    it.kind shouldBe AccessorKind.Write
                 }
+        }
+
+        "getter and setter have different type" - {
+            "on base type level" {
+                validateModule("""
+                    interface I {
+                        get fn bla(self) -> S32
+                        set fn bla(self: mut _, value: UWord)
+                    }
+                """.trimIndent())
+                    .shouldFind<GetterAndSetterHaveDifferentTypesDiagnostics> {
+                        it.getter.name.value shouldBe "bla"
+                        it.setter.name.value shouldBe "bla"
+                    }
+            }
         }
     }
 
