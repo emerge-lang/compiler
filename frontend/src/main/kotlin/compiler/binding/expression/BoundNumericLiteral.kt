@@ -33,7 +33,6 @@ import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.integerLiteralOutOfRange
-import compiler.handleCyclicInvocation
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -76,13 +75,6 @@ open class BoundNumericLiteral(
         if (!type.baseType.isCoreNumericType) {
             return
         }
-
-        // assure completed
-        handleCyclicInvocation(
-            context = this,
-            action = { type.baseType.semanticAnalysisPhase1(diagnosis) },
-            onCycle = { }
-        )
 
         expectedNumericType = type.baseType
     }
