@@ -60,18 +60,6 @@ abstract class BoundDeclaredFunction(
     final override var returnType: BoundTypeReference? = null
         private set
 
-    final override val throwBehavior: SideEffectPrediction? get() {
-        if (attributes.isDeclaredNothrow) {
-            return SideEffectPrediction.NEVER
-        }
-
-        return handleCyclicInvocation(
-            context = this,
-            action = { body?.throwBehavior },
-            onCycle = { SideEffectPrediction.POSSIBLY },
-        )
-    }
-
     private val seanHelper = SeanHelper()
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {

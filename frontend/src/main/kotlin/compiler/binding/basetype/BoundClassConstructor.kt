@@ -24,7 +24,6 @@ import compiler.binding.IrAssignmentStatementTargetVariableImpl
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
-import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -275,13 +274,8 @@ class BoundClassConstructor(
 
     override val purity = attributes.purity
 
-    override val throwBehavior: SideEffectPrediction? get() {
-        return listOf(
-            SideEffectPrediction.POSSIBLY, // this is for the memory allocation that can always throw OOM
-            boundMemberVariableInitCodeFromExpression.throwBehavior,
-            additionalInitCode.throwBehavior,
-        ).reduceSequentialExecution()
-    }
+    // this is for the memory allocation that can always throw OOM
+    override val throwBehavior = SideEffectPrediction.POSSIBLY
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
