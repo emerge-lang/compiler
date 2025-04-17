@@ -128,7 +128,7 @@ fun Diagnosis.accessorCapturesSelf(accessor: BoundDeclaredFunction, receiverPara
 fun Diagnosis.accessorNotPure(accessor: BoundDeclaredFunction) {
     add(AccessorContractViolationDiagnostic(
         accessor.declaration,
-        "This accessor is declared ${accessor.purity.keyword.text}, so it can access global state. Accessors must not access global state. Declare the accessor ${BoundFunction.Purity.PURE.keyword.text}.",
+        "Accessors must not access global state, but this one is declared ${accessor.purity.keyword.text}. Declare the accessor ${BoundFunction.Purity.PURE.keyword.text}.",
         accessor.attributes.purityAttribute?.sourceLocation ?: accessor.declaredAt,
     ))
 }
