@@ -1,6 +1,7 @@
 package compiler.binding
 
 import compiler.ast.AssignmentStatement
+import compiler.ast.Expression
 import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -22,11 +23,11 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
-abstract class BoundAssignmentStatement(
+abstract class BoundAssignmentStatement<AstTarget : Expression>(
     override val context: ExecutionScopedCTContext,
-    override val declaration: AssignmentStatement,
+    override val declaration: AssignmentStatement<AstTarget>,
     val toAssignExpression: BoundExpression<*>
-) : BoundStatement<AssignmentStatement> {
+) : BoundStatement<AssignmentStatement<AstTarget>> {
     protected abstract val targetThrowBehavior: SideEffectPrediction?
     protected abstract val targetReturnBehavior: SideEffectPrediction?
 

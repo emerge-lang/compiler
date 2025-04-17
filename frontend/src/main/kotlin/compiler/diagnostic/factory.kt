@@ -10,6 +10,7 @@ import compiler.ast.Expression
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
+import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.AccessorKind
@@ -41,7 +42,6 @@ import compiler.binding.expression.BoundContinueExpression
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundInvocationExpression
-import compiler.binding.expression.BoundMemberAccessExpression
 import compiler.binding.expression.BoundNotNullExpression
 import compiler.binding.expression.BoundReturnExpression
 import compiler.binding.expression.BoundThrowExpression
@@ -149,7 +149,7 @@ fun Diagnosis.getterAndSetterWithDifferentType(virtualMemberName: String, getter
     add(GetterAndSetterHaveDifferentTypesDiagnostics(getter.declaration, setter.declaration))
 }
 
-fun Diagnosis.illegalAssignment(message: String, assignmentStatement: BoundAssignmentStatement) {
+fun Diagnosis.illegalAssignment(message: String, assignmentStatement: BoundAssignmentStatement<*>) {
     add(IllegalAssignmentDiagnostic(message, assignmentStatement))
 }
 
@@ -298,8 +298,8 @@ fun Diagnosis.unresolvableConstructor(nameToken: IdentifierToken, valueArguments
     add(UnresolvableConstructorDiagnostic(nameToken, valueArguments.map { it.type }, functionsWithNameAvailable))
 }
 
-fun Diagnosis.unresolvableMemberVariable(accessExpression: BoundMemberAccessExpression, hostType: BoundTypeReference) {
-    add(UnresolvedMemberVariableDiagnostic(accessExpression.declaration, hostType))
+fun Diagnosis.unresolvableMemberVariable(accessExpression: MemberAccessExpression, hostType: BoundTypeReference) {
+    add(UnresolvedMemberVariableDiagnostic(accessExpression, hostType))
 }
 
 fun Diagnosis.ambiguousImports(imports: Iterable<BoundImportDeclaration>) {
@@ -345,11 +345,11 @@ fun Diagnosis.notAllMixinsInitialized(uninitializedMixins: Collection<BoundMixin
     add(ObjectUsedBeforeMixinInitializationDiagnostic(uninitializedMixins.minBy { it.declaration.span.fromLineNumber }.declaration, usedAt))
 }
 
-fun Diagnosis.useOfUninitializedMember(access: BoundMemberAccessExpression) {
+fun Diagnosis.useOfUninitializedMember(member: BoundBaseTypeMemberVariable, access: MemberAccessExpression) {
     add(
         UseOfUninitializedClassMemberVariableDiagnostic(
-            access.member!!.declaration,
-            access.declaration.memberName.span,
+            member.declaration,
+            access.memberName.span,
         )
     )
 }

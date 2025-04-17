@@ -2,6 +2,7 @@ package compiler.binding
 
 import compiler.ast.AssignmentStatement
 import compiler.ast.VariableOwnership
+import compiler.ast.expression.IdentifierExpression
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.effect.VariableInitialization
@@ -27,10 +28,10 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
 
 class BoundVariableAssignmentStatement(
     context: ExecutionScopedCTContext,
-    declaration: AssignmentStatement,
+    declaration: AssignmentStatement<IdentifierExpression>,
     val variableName: IdentifierToken,
     toAssignExpression: BoundExpression<*>,
-) : BoundAssignmentStatement(context, declaration, toAssignExpression) {
+) : BoundAssignmentStatement<IdentifierExpression>(context, declaration, toAssignExpression) {
     override val targetThrowBehavior = SideEffectPrediction.NEVER
     override val targetReturnBehavior = SideEffectPrediction.NEVER
 

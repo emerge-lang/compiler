@@ -32,13 +32,13 @@ interface BoundExecutable<out AstNode : Executable> : BoundElement<AstNode> {
 
     /**
      * How this executable behaves at runtime with respect to throwing exceptions. Must not be `null` after
-     * [semanticAnalysisPhase3].
+     * [semanticAnalysisPhase2].
      */
     val throwBehavior: SideEffectPrediction?
 
     /**
      * How this executable behaves at runtime with respect to returning from the call/stack frame. Must not be `null`
-     * after [semanticAnalysisPhase3].
+     * after [semanticAnalysisPhase2].
      */
     val returnBehavior: SideEffectPrediction?
 

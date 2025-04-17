@@ -22,7 +22,7 @@ import compiler.binding.BoundAssignmentStatement
 
 class IllegalAssignmentDiagnostic(
     message: String,
-    val statement: BoundAssignmentStatement,
+    val statement: BoundAssignmentStatement<*>,
 ) : Diagnostic(
     Severity.ERROR,
     message,

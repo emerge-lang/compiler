@@ -1,7 +1,7 @@
 package compiler.binding.impurity
 
 import compiler.binding.BoundVariableAssignmentStatement
-import compiler.binding.expression.BoundExpression
+import compiler.lexer.Span
 
 interface ReassignmentBeyondBoundary : Impurity {
     data class Variable(val assignment: BoundVariableAssignmentStatement) : ReassignmentBeyondBoundary {
@@ -9,9 +9,8 @@ interface ReassignmentBeyondBoundary : Impurity {
         override val kind = Impurity.ActionKind.MODIFY
         override fun describe(): String = "assigning a new value to ${assignment.variableName.value}"
     }
-    data class Complex(val assignmentTarget: BoundExpression<*>) : ReassignmentBeyondBoundary {
-        override val span = assignmentTarget.declaration.span
+    data class MemberVariable(val memberVariableName: String, override val span: Span) : ReassignmentBeyondBoundary {
         override val kind = Impurity.ActionKind.MODIFY
-        override fun describe(): String = "assigning a new value to this target"
+        override fun describe(): String = "assigning a value to member variable `${memberVariableName}`"
     }
 }

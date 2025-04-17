@@ -79,7 +79,8 @@ class BoundInvocationExpression(
     private val seanHelper = SeanHelper()
 
     /**
-     * The result of the function dispatching. Is set (non null) after semantic analysis phase 2
+     * The result of the function dispatching. Is meaningful after [semanticAnalysisPhase2]; remains null after
+     * phase 2 if the invoked function could not be resolved
      */
     val functionToInvoke: BoundFunction? get() = chosenOverload?.candidate
     private var chosenOverload: OverloadCandidateEvaluation? = null

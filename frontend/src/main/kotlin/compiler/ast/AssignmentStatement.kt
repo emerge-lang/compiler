@@ -34,9 +34,9 @@ import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import io.github.tmarsteel.emerge.backend.SET_AT_INDEX_FN_NAME
 
-class AssignmentStatement(
+class AssignmentStatement<out Target : Expression>(
     val setKeyword: KeywordToken,
-    val targetExpression: Expression,
+    val targetExpression: Target,
     val assignmentOperatorToken: OperatorToken,
     val valueExpression: Expression
 ) : Statement {
@@ -47,9 +47,10 @@ class AssignmentStatement(
         when (targetExpression) {
             is IdentifierExpression -> {
                 val boundValue = valueExpression.bindTo(context)
+                @Suppress("UNCHECKED_CAST")
                 return BoundVariableAssignmentStatement(
                     boundValue.modifiedContext,
-                    this,
+                    this as AssignmentStatement<IdentifierExpression>,
                     targetExpression.identifier,
                     boundValue
                 )
@@ -57,10 +58,13 @@ class AssignmentStatement(
             is MemberAccessExpression -> {
                 val boundTarget = targetExpression.bindTo(context)
                 val boundValue = valueExpression.bindTo(boundTarget.modifiedContext)
+                @Suppress("UNCHECKED_CAST")
                 return BoundObjectMemberAssignmentStatement(
                     boundValue.modifiedContext,
-                    this,
+                    this as AssignmentStatement<MemberAccessExpression>,
                     boundTarget,
+                    assignmentOperatorToken.operator == Operator.SAFEDOT,
+                    targetExpression.memberName.value,
                     boundValue,
                 )
             }
@@ -79,8 +83,9 @@ class AssignmentStatement(
                     ),
                     generatedSpan,
                 )
+                @Suppress("UNCHECKED_CAST")
                 return BoundIndexAssignmentStatement(
-                    this,
+                    this as AssignmentStatement<AstIndexAccessExpression>,
                     hiddenInvocation.bindTo(context),
                 )
             }

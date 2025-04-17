@@ -20,7 +20,7 @@ package compiler.ast.expression
 
 import compiler.ast.Expression
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.binding.expression.BoundMemberAccessExpression
+import compiler.binding.expression.BoundMemberVariableReadExpression
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
@@ -41,8 +41,8 @@ class MemberAccessExpression(
 ) :Expression {
     override val span = memberName.span
 
-    override fun bindTo(context: ExecutionScopedCTContext): BoundMemberAccessExpression {
-        return BoundMemberAccessExpression(
+    override fun bindTo(context: ExecutionScopedCTContext): BoundMemberVariableReadExpression {
+        return BoundMemberVariableReadExpression(
             context,
             this,
             valueExpression.bindTo(context),
