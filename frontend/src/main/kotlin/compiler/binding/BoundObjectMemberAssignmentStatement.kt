@@ -185,6 +185,8 @@ class BoundObjectMemberAssignmentStatement(
                     }
                 }
             }
+
+            member.validateAccessFrom(declaration.span, diagnosis)
         }
 
         override fun toBackendIrStatement(): IrExecutable {

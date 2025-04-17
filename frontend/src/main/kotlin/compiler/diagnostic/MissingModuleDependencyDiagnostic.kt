@@ -11,7 +11,7 @@ class MissingModuleDependencyDiagnostic(
     val moduleOfAccess: CanonicalElementName.Package,
 ) : Diagnostic(
     Severity.ERROR,
-    "Module $moduleOfAccess cannot access ${element.toStringForErrorMessage()} because it doesn't declare a dependency on module $moduleOfAccessedElement. Declare that dependency (this should be done by your build tool, really).",
+    "Module $moduleOfAccess cannot access ${element.toStringForErrorMessage()} because it doesn't declare a dependency on module $moduleOfAccessedElement. Declare that dependency (in the bazel script).",
     accessAt,
 ) {
     override fun equals(other: Any?): Boolean {
