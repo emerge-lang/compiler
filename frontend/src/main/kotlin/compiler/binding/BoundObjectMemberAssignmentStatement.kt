@@ -58,20 +58,6 @@ class BoundObjectMemberAssignmentStatement(
 
     override fun assignmentTargetSemanticAnalysisPhase2(diagnosis: Diagnosis) {
         targetObjectExpression.semanticAnalysisPhase2(diagnosis)
-    }
-
-    override val assignmentTargetType get() = targetObjectExpression.type
-    override val assignedValueUsage: ValueUsage get() = CreateReferenceValueUsage(
-        assignmentTargetType,
-        declaration.targetExpression.memberName.span,
-        VariableOwnership.CAPTURED,
-    )
-
-    override fun setTargetNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
-        targetObjectExpression.setNothrow(boundary)
-    }
-
-    override fun additionalSemanticAnalysisPhase2(diagnosis: Diagnosis) {
         val baseType = targetObjectExpression.type ?: return
         if (baseType.isNullable && !isNullSafeAccess) {
             diagnosis.unsafeObjectTraversal(targetObjectExpression, declaration.targetExpression.accessOperatorToken)
@@ -87,6 +73,21 @@ class BoundObjectMemberAssignmentStatement(
         }
 
         strategy = DirectWriteStrategy(member)
+    }
+
+    override val assignmentTargetType get() = strategy.expectedType
+    override val assignedValueUsage: ValueUsage get() = CreateReferenceValueUsage(
+        assignmentTargetType,
+        declaration.targetExpression.memberName.span,
+        VariableOwnership.CAPTURED,
+    )
+
+    override fun setTargetNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
+        targetObjectExpression.setNothrow(boundary)
+    }
+
+    override fun additionalSemanticAnalysisPhase2(diagnosis: Diagnosis) {
+        strategy.semanticAnalysisPhase2(diagnosis)
     }
 
     private var initializationStateBefore: VariableInitialization.State? = null
