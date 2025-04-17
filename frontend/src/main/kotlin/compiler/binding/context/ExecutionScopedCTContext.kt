@@ -14,11 +14,11 @@ import compiler.binding.context.effect.EphemeralStateClass
 import compiler.binding.context.effect.SideEffect
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.mixinNotAllowed
 import compiler.util.TakeWhileAndNextIterator.Companion.takeWhileAndNext
 import compiler.util.takeWhileIsInstance
 import java.util.IdentityHashMap
+import java.util.SequencedSet
 
 /**
  * A [CTContext] that is also associated with an execution scope. All code that actually _does_
@@ -265,10 +265,10 @@ open class MutableExecutionScopedCTContext protected constructor(
         _variables[boundVariable.name] = boundVariable
     }
 
-    private val sideEffectsBySubjectAndClass: MutableMap<Any, MutableMap<EphemeralStateClass<*, *, *>, MutableList<SideEffect<*>>>> = IdentityHashMap()
+    private val sideEffectsBySubjectAndClass: MutableMap<Any, MutableMap<EphemeralStateClass<*, *, *>, SequencedSet<SideEffect<*>>>> = IdentityHashMap()
     fun trackSideEffect(effect: SideEffect<*>) {
         val byEffectClass = sideEffectsBySubjectAndClass.computeIfAbsent(effect.subject) { HashMap() }
-        val effectList = byEffectClass.computeIfAbsent(effect.stateClass) { ArrayList(2) }
+        val effectList = byEffectClass.computeIfAbsent(effect.stateClass) { LinkedHashSet() }
         effectList.add(effect)
     }
 
@@ -278,7 +278,7 @@ open class MutableExecutionScopedCTContext protected constructor(
 
         // trackSideEffect is responsible for the type safety!
         @Suppress("UNCHECKED_CAST")
-        selfEffects as List<SideEffect<Subject>>
+        selfEffects as Iterable<SideEffect<Subject>>
         @Suppress("UNCHECKED_CAST")
         stateClass as EphemeralStateClass<Subject, State, in SideEffect<Subject>>
 

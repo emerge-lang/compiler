@@ -103,16 +103,64 @@ object PartialObjectInitialization : EphemeralStateClass<BoundVariable, State, P
         class MarkObjectAsEntirelyUninitializedEffect(
             override val subject: BoundVariable,
             val classDef: BoundBaseType,
-        ) : Effect
+        ) : Effect {
+            override fun equals(other: Any?): Boolean {
+                if (other === this) return true
+                if (other !is MarkObjectAsEntirelyUninitializedEffect) return false
+
+                if (other.subject !== other.subject) return false
+                return true
+            }
+
+            override fun hashCode(): Int {
+                var result = javaClass.hashCode()
+                result = 31 * result + System.identityHashCode(subject)
+                return result
+            }
+        }
 
         class WriteToMemberVariableEffect(
             override val subject: BoundVariable,
             val member: BoundBaseTypeMemberVariable,
-        ) : Effect
+        ) : Effect {
+            override fun equals(other: Any?): Boolean {
+                if (other === this) return true
+                if (other !is WriteToMemberVariableEffect) return false
+
+                if (other.subject !== this.subject) return false
+                if (other.member !== this.member) return false
+
+                return true
+            }
+
+            override fun hashCode(): Int {
+                var result = javaClass.hashCode()
+                result = 31 * result + System.identityHashCode(subject)
+                result = 31 * result + System.identityHashCode(member)
+                return result
+            }
+        }
 
         class MixinInitialized(
             override val subject: BoundVariable,
             val mixin: BoundMixinStatement,
-        ) : Effect
+        ) : Effect {
+            override fun equals(other: Any?): Boolean {
+                if (other === this) return true
+                if (other !is MixinInitialized) return false
+
+                if (other.subject !== this.subject) return false
+                if (other.mixin !== this.mixin) return false
+
+                return true
+            }
+
+            override fun hashCode(): Int {
+                var result = javaClass.hashCode()
+                result = 31 * result + System.identityHashCode(subject)
+                result = 31 * result + System.identityHashCode(mixin)
+                return result
+            }
+        }
     }
 }
