@@ -56,13 +56,13 @@ class AssignmentStatement<out Target : Expression>(
                 )
             }
             is MemberAccessExpression -> {
-                val boundTarget = targetExpression.bindTo(context)
-                val boundValue = valueExpression.bindTo(boundTarget.modifiedContext)
+                val boundTargetObject = targetExpression.valueExpression.bindTo(context)
+                val boundValue = valueExpression.bindTo(boundTargetObject.modifiedContext)
                 @Suppress("UNCHECKED_CAST")
                 return BoundObjectMemberAssignmentStatement(
                     boundValue.modifiedContext,
                     this as AssignmentStatement<MemberAccessExpression>,
-                    boundTarget,
+                    boundTargetObject,
                     assignmentOperatorToken.operator == Operator.SAFEDOT,
                     targetExpression.memberName.value,
                     boundValue,
