@@ -2,6 +2,7 @@ package compiler.compiler.negative
 
 import compiler.binding.AccessorKind
 import compiler.diagnostic.AccessorContractViolationDiagnostic
+import compiler.diagnostic.AmbiguousMemberVariableAccessDiagnostic
 import compiler.diagnostic.ConflictingFunctionModifiersDiagnostic
 import compiler.diagnostic.GetterAndSetterHaveDifferentTypesDiagnostics
 import compiler.diagnostic.MultipleAccessorsForVirtualMemberVariableDiagnostic
@@ -443,6 +444,55 @@ class VirtualMemberVarsErrors : FreeSpec({
                         it.setter.parameters.parameters.firstOrNull().shouldNotBeNull().type.shouldNotBeNull().simpleName shouldBe "I"
                     }
             }
+        }
+    }
+
+    "use-site ambiguity" - {
+        "between multiple package-level getters" {
+            validateModule("""
+                // defining X and Y as disjoint types helps declare two identically-named getters in the same packag
+                interface X {}
+                interface Y {}
+                class C : X, Y {}
+                get fn p(self: X) -> Bool = false
+                get fn p(self: Y) -> Bool = true
+                fn test() {
+                    l = C().p
+                }
+            """.trimIndent())
+                .shouldFind< AmbiguousMemberVariableAccessDiagnostic> {
+                    it.memberVariableName shouldBe "p"
+                }
+        }
+
+        "between package-level getter and actual member variable" {
+            validateModule("""
+                class C {
+                    p: Bool = false
+                }
+                get fn p(self: C) -> Bool = true
+                fn test() {
+                    l = C().p
+                }
+            """.trimIndent())
+                .shouldFind< AmbiguousMemberVariableAccessDiagnostic> {
+                    it.memberVariableName shouldBe "p"
+                }
+        }
+
+        "between package-level getter and member-fn-getter" {
+            validateModule("""
+                class C {
+                    get fn p(self: C) -> Bool = false
+                }
+                get fn p(self: C) -> Bool = true
+                fn test() {
+                    l = C().p
+                }
+            """.trimIndent())
+                .shouldFind< AmbiguousMemberVariableAccessDiagnostic> {
+                    it.memberVariableName shouldBe "p"
+                }
         }
     }
 })
