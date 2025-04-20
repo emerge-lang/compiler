@@ -43,6 +43,7 @@ import compiler.diagnostic.Diagnosis.Companion.doWithTransformedFindings
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
+import compiler.diagnostic.ambiguousMemberVariableRead
 import compiler.diagnostic.superfluousSafeObjectTraversal
 import compiler.diagnostic.unsafeObjectTraversal
 import compiler.diagnostic.useOfUninitializedMember
@@ -139,6 +140,10 @@ class BoundMemberVariableReadExpression(
                 diagnosis.useOfUninitializedMember(physicalMember!!, declaration)
             }
         }
+
+        if (availableGetters.size > 1 || (availableGetters.isNotEmpty() && physicalMember != null)) {
+            diagnosis.ambiguousMemberVariableRead(this, physicalMember, availableGetters)
+        }
     }
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
@@ -173,14 +178,21 @@ class BoundMemberVariableReadExpression(
 
     override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         valueExpression.visitReadsBeyond(boundary, visitor)
+        if (physicalMember == null) {
+            getterInvocation.visitReadsBeyond(boundary, visitor)
+        }
     }
 
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         valueExpression.visitWritesBeyond(boundary, visitor)
+        if (physicalMember == null) {
+            getterInvocation.visitWritesBeyond(boundary, visitor)
+        }
     }
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
-        // nothing to do, the type of any object member is predetermined
+        // nothing to do, the type of any object member is predetermined;
+        // the evaluation result type also must not influence accessor selection
     }
 
     override val isEvaluationResultReferenceCounted get() = if (physicalMember != null) false else getterInvocation.isEvaluationResultReferenceCounted

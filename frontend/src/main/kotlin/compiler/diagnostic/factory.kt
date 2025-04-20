@@ -42,6 +42,7 @@ import compiler.binding.expression.BoundContinueExpression
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundInvocationExpression
+import compiler.binding.expression.BoundMemberVariableReadExpression
 import compiler.binding.expression.BoundNotNullExpression
 import compiler.binding.expression.BoundReturnExpression
 import compiler.binding.expression.BoundThrowExpression
@@ -147,6 +148,19 @@ fun Diagnosis.getterAndSetterWithDifferentType(virtualMemberName: String, getter
 
 fun Diagnosis.getterAndSetterWithDifferentType(virtualMemberName: String, getter: BoundDeclaredFunction, setter: BoundDeclaredFunction) {
     add(GetterAndSetterHaveDifferentTypesDiagnostics(getter.declaration, setter.declaration))
+}
+
+fun Diagnosis.ambiguousMemberVariableRead(
+    read: BoundMemberVariableReadExpression,
+    member: BoundBaseTypeMemberVariable?,
+    accessors: Collection<BoundFunction>,
+) {
+    add(AmbiguousMemberVariableAccessDiagnostic(
+        read.memberName,
+        member?.declaration,
+        accessors.map { it.declaredAt },
+        read.declaration.memberName.span,
+    ))
 }
 
 fun Diagnosis.illegalAssignment(message: String, assignmentStatement: BoundAssignmentStatement<*>) {
