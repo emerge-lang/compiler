@@ -23,9 +23,6 @@ import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.PurityViolationDiagnostic
 import compiler.diagnostic.ReturnTypeMismatchDiagnostic
-import compiler.diagnostic.accessorCapturesSelf
-import compiler.diagnostic.accessorContractViolation
-import compiler.diagnostic.accessorNotPure
 import compiler.diagnostic.typeDeductionError
 import compiler.diagnostic.uncertainTermination
 import compiler.diagnostic.varianceOnFunctionTypeParameter
@@ -131,88 +128,7 @@ abstract class BoundDeclaredFunction(
                 body?.setNothrow(NothrowViolationDiagnostic.SideEffectBoundary.Function(this))
             }
 
-            validateAccessorContractPhase2(diagnosis)
-        }
-    }
-
-    private fun validateAccessorContractPhase2(diagnosis: Diagnosis) {
-        // TODO: refactor this into AccessorKind
-        val kind = attributes.firstAccessorAttribute?.kind
-            ?: return /* nothing to do if not declared an accessor */
-
-        // common validations
-        parameters.declaredReceiver?.let { receiverParam ->
-            if (receiverParam.ownershipAtDeclarationTime != VariableOwnership.BORROWED) {
-                diagnosis.accessorCapturesSelf(this, receiverParam)
-            }
-        }
-        if (!BoundFunction.Purity.PURE.contains(purity)) {
-            diagnosis.accessorNotPure(this)
-        }
-
-        when (kind) {
-            AccessorKind.Read -> {
-                if (parameters.parameters.size != 1) {
-                    diagnosis.accessorContractViolation(
-                        declaration,
-                        "Getters must declare exactly one parameter, which has to be `${BoundParameterList.RECEIVER_PARAMETER_NAME}`",
-                        if (parameters.parameters.isEmpty()) declaredAt else parameters.parameters.drop(1).first().declaration.span,
-                    )
-                } else if (!declaresReceiver) {
-                    diagnosis.accessorContractViolation(
-                        declaration,
-                        "The only parameter to getters has to be `${BoundParameterList.RECEIVER_PARAMETER_NAME}`",
-                        parameters.parameters.single().declaration.span,
-                    )
-                }
-
-                parameters.declaredReceiver?.let { receiverParam ->
-                    receiverParam.typeAtDeclarationTime?.mutability?.let { receiverMutability ->
-                        if (receiverMutability != TypeMutability.READONLY) {
-                            diagnosis.accessorContractViolation(
-                                declaration,
-                                "Getters must act on ${TypeMutability.READONLY.keyword.text} objects, this one expects a ${receiverMutability.keyword.text} object",
-                                receiverParam.declaration.span,
-                            )
-                        }
-                    }
-                }
-            }
-            AccessorKind.Write -> {
-                if (parameters.parameters.size != 2) {
-                    diagnosis.accessorContractViolation(
-                        declaration,
-                        "Setters have to take exactly two parameters. First, the object to modify (`${BoundParameterList.RECEIVER_PARAMETER_NAME}`), and the new value for the member variable second",
-                        parameters.parameters.drop(2).firstOrNull()?.declaration?.span ?: declaredAt,
-                    )
-                } else if (!declaresReceiver) {
-                    diagnosis.accessorContractViolation(
-                        declaration,
-                        "Setters have to take a `${BoundParameterList.RECEIVER_PARAMETER_NAME}` parameter",
-                        parameters.parameters.firstOrNull()?.declaration?.span ?: declaredAt,
-                    )
-                }
-
-                parameters.declaredReceiver?.let { receiverParam ->
-                    receiverParam.typeAtDeclarationTime?.mutability?.let { receiverMutability ->
-                        if (receiverMutability != TypeMutability.MUTABLE) {
-                            diagnosis.accessorContractViolation(
-                                declaration,
-                                "Setters must act on ${TypeMutability.MUTABLE.keyword.text} objects, this one expects a ${receiverMutability.keyword.text} object",
-                                receiverParam.declaration.type?.span ?: receiverParam.declaration.span,
-                            )
-                        }
-                    }
-                }
-
-                if (returnType?.equals(context.swCtx.unit.baseReference) == false) {
-                    diagnosis.accessorContractViolation(
-                        declaration,
-                        "Setters must return `${context.swCtx.unit.canonicalName}`",
-                        declaration.parsedReturnType?.span ?: declaredAt,
-                    )
-                }
-            }
+            attributes.firstAccessorAttribute?.kind?.validateContract(this, diagnosis)
         }
     }
 
