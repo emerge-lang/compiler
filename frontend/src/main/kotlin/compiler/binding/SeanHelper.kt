@@ -27,7 +27,7 @@ class SeanHelper {
         phase1HadErrors = diagnosis.nErrors > nErrorsBefore
     }
 
-    fun phase2(diagnosis: Diagnosis, impl: () -> Unit) {
+    fun phase2(diagnosis: Diagnosis, impl: (PhaseContext) -> Unit) {
         requirePhase1Done()
 
         phase2DoneOn?.let { phase2Diag ->
@@ -35,10 +35,15 @@ class SeanHelper {
             return
         }
 
+        var phase2MarkedErroneousExplicitly = false
         val nErrorsBefore = diagnosis.nErrors
-        impl()
+        impl(object : PhaseContext {
+            override fun markErroneous() {
+                phase2MarkedErroneousExplicitly = true
+            }
+        })
         phase2DoneOn = diagnosis
-        phase2HadErrors = diagnosis.nErrors > nErrorsBefore
+        phase2HadErrors = phase2MarkedErroneousExplicitly || diagnosis.nErrors > nErrorsBefore
     }
 
     /**
@@ -137,5 +142,12 @@ class SeanHelper {
         }
 
         return "SeanHelper[1$phase1State 2$phase2State 3$phase3State]"
+    }
+
+    interface PhaseContext {
+        /**
+         * can be invoked within [phase2] to interact with the `runIfErrorsPreviously` parameter of [phase3].
+         */
+        fun markErroneous()
     }
 }

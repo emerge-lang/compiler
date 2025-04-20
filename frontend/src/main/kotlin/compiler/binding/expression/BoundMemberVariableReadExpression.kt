@@ -100,13 +100,14 @@ class BoundMemberVariableReadExpression(
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
-        seanHelper.phase2(diagnosis) {
+        seanHelper.phase2(diagnosis) { phaseCtx ->
             // partially uninitialized is okay as this class verifies that itself
             (valueExpression as? BoundIdentifierExpression)?.allowPartiallyUninitializedValue()
             valueExpression.semanticAnalysisPhase2(diagnosis)
 
             val valueType = valueExpression.type
             if (valueType == null) {
+                phaseCtx.markErroneous()
                 return@phase2
             }
 
@@ -178,10 +179,9 @@ class BoundMemberVariableReadExpression(
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
-        seanHelper.phase3(diagnosis) {
-            valueExpression.semanticAnalysisPhase3(diagnosis)
-
+        seanHelper.phase3(diagnosis, runIfErrorsPreviously = false) {
             if (physicalMember != null) {
+                valueExpression.semanticAnalysisPhase3(diagnosis)
                 physicalMember!!.validateAccessFrom(declaration.memberName.span, diagnosis)
             } else {
                 getterInvocation.semanticAnalysisPhase3(diagnosis)

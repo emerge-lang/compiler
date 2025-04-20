@@ -20,7 +20,7 @@ import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.beInstanceOf
 
-class VirtualMemberVarsErrors : FreeSpec({
+class VirtualMemberVariableErrors : FreeSpec({
     "marking a method both get and set produces a conflict" {
         validateModule("""
             class A {
