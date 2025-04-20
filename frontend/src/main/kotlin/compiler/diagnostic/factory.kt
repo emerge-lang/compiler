@@ -20,6 +20,7 @@ import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundMemberFunction
+import compiler.binding.BoundObjectMemberAssignmentStatement
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundParameter
 import compiler.binding.BoundVariable
@@ -153,13 +154,26 @@ fun Diagnosis.getterAndSetterWithDifferentType(virtualMemberName: String, getter
 fun Diagnosis.ambiguousMemberVariableRead(
     read: BoundMemberVariableReadExpression,
     member: BoundBaseTypeMemberVariable?,
-    accessors: Collection<BoundFunction>,
+    getters: Collection<BoundFunction>,
 ) {
     add(AmbiguousMemberVariableAccessDiagnostic(
         read.memberName,
         member?.declaration,
-        accessors.map { it.declaredAt },
+        getters.map { it.declaredAt },
         read.declaration.memberName.span,
+    ))
+}
+
+fun Diagnosis.ambiguousMemberVariableWrite(
+    write: BoundObjectMemberAssignmentStatement,
+    member: BoundBaseTypeMemberVariable?,
+    setters: Collection<BoundFunction>,
+) {
+    add(AmbiguousMemberVariableAccessDiagnostic(
+        write.memberName,
+        member?.declaration,
+        setters.map { it.declaredAt },
+        write.declaration.targetExpression.memberName.span,
     ))
 }
 

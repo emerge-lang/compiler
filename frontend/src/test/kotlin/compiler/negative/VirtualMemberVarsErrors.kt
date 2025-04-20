@@ -529,7 +529,7 @@ class VirtualMemberVarsErrors : FreeSpec({
                 interface I {}
                 fn foo(self: I, v: S32) {}
                 fn test(p: mut I) {
-                    p.foo = 3
+                    set p.foo = 3
                 }
             """.trimIndent())
                 .shouldFind<FunctionMissingModifierDiagnostic> {
@@ -544,7 +544,7 @@ class VirtualMemberVarsErrors : FreeSpec({
                     fn foo(self, v: S32)
                 }
                 fn test(p: mut I) {
-                    p.foo = 3
+                    set p.foo = 3
                 }
             """.trimIndent())
                 .shouldFind<FunctionMissingModifierDiagnostic> {
@@ -571,7 +571,7 @@ class VirtualMemberVarsErrors : FreeSpec({
                 .shouldFind< NotAllMemberVariablesInitializedDiagnostic>()
         }
 
-        "member setter".config(enabled = false) {
+        "member setter" {
             validateModule("""
                 class Test {
                     n: S32

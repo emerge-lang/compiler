@@ -26,8 +26,6 @@ import compiler.binding.AccessorKind
 import compiler.binding.BoundFunction
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
-import compiler.binding.SideEffectPrediction
-import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecution
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -87,12 +85,9 @@ class BoundMemberVariableReadExpression(
         return getterInvocation.type
     }
 
-    override val throwBehavior get() = valueExpression.throwBehavior.combineSequentialExecution(
-        if (physicalMember != null) SideEffectPrediction.NEVER else getterInvocation.throwBehavior
-    )
-    override val returnBehavior get() = valueExpression.returnBehavior.combineSequentialExecution(
-        if (physicalMember != null) SideEffectPrediction.NEVER else getterInvocation.returnBehavior
-    )
+    override val throwBehavior get() = if (physicalMember != null) valueExpression.throwBehavior else getterInvocation.throwBehavior
+    override val returnBehavior get() = if (physicalMember != null) valueExpression.returnBehavior else getterInvocation.returnBehavior
+    override val modifiedContext = getterInvocation.modifiedContext
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         seanHelper.phase1(diagnosis) {
