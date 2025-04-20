@@ -18,11 +18,11 @@
 
 package compiler.binding.expression
 
-import compiler.InternalCompilerError
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.TypeMutability
+import compiler.binding.BoundFunction
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecution
@@ -37,8 +37,12 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrImplicitEvaluationExpressionImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeReference
+import compiler.diagnostic.AmbiguousInvocationDiagnostic
 import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnosis.Companion.doWithTransformedFindings
+import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
+import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
 import compiler.diagnostic.superfluousSafeObjectTraversal
 import compiler.diagnostic.unsafeObjectTraversal
 import compiler.diagnostic.useOfUninitializedMember
@@ -55,27 +59,43 @@ class BoundMemberVariableReadExpression(
     val isNullSafeAccess: Boolean,
     val memberName: String
 ) : BoundExpression<MemberAccessExpression> {
+    private var physicalMember: BoundBaseTypeMemberVariable? = null
+    private val getterInvocation: BoundInvocationExpression = InvocationExpression(
+        declaration,
+        null,
+        emptyList(),
+        declaration.span,
+    ).bindTo(context)
+
     /**
      * The type of this expression. Is null before semantic analysis phase 2 is finished; remains null afterward if the
      * type could not be determined
      */
-    override val type: BoundTypeReference?
-        get() = if (this::strategy.isInitialized) strategy.evaluationResultType else null
+    override val type: BoundTypeReference? get() {
+        if (physicalMember != null) {
+            val valueType = valueExpression.type ?: return null
+            return physicalMember!!.type
+                ?.instantiateAllParameters(valueType.inherentTypeBindings)
+                ?.withMutabilityLimitedTo(valueExpression.type?.mutability)
+        }
 
-    /** set in [semanticAnalysisPhase2] */
-    private lateinit var strategy: Strategy
+        return getterInvocation.type
+    }
 
-    override val throwBehavior get() = valueExpression.throwBehavior.combineSequentialExecution(strategy.throwBehaviour)
-    override val returnBehavior get() = valueExpression.returnBehavior
+    override val throwBehavior get() = valueExpression.throwBehavior.combineSequentialExecution(
+        if (physicalMember != null) SideEffectPrediction.NEVER else getterInvocation.throwBehavior
+    )
+    override val returnBehavior get() = valueExpression.returnBehavior.combineSequentialExecution(
+        if (physicalMember != null) SideEffectPrediction.NEVER else getterInvocation.returnBehavior
+    )
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         valueExpression.semanticAnalysisPhase1(diagnosis)
         valueExpression.markEvaluationResultUsed()
+        getterInvocation.semanticAnalysisPhase1(diagnosis)
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
-        strategy = NoopStrategy
-
         // partially uninitialized is okay as this class verifies that itself
         (valueExpression as? BoundIdentifierExpression)?.allowPartiallyUninitializedValue()
         valueExpression.semanticAnalysisPhase2(diagnosis)
@@ -92,22 +112,33 @@ class BoundMemberVariableReadExpression(
             diagnosis.superfluousSafeObjectTraversal(valueExpression, declaration.accessOperatorToken)
         }
 
-        val member = valueType.findMemberVariable(memberName)
-        if (member != null) {
-            strategy = DirectReadStrategy(valueType, member)
-            strategy.semanticAnalysisPhase2(diagnosis)
-            return
-        }
+        val availableGetters = mutableSetOf<BoundFunction>()
+        val getterInvocationDiagnostics = mutableListOf<Diagnostic>()
+        physicalMember = valueType.findMemberVariable(memberName)
+        diagnosis.doWithTransformedFindings(getterInvocation::semanticAnalysisPhase2) { findings ->
+            findings.forEach { finding ->
+                if (finding is AmbiguousInvocationDiagnostic && finding.invocation === getterInvocation.declaration) {
+                    availableGetters.addAll(finding.candidates)
+                } else if (finding is UnresolvableFunctionOverloadDiagnostic && finding.functionNameReference.span == declaration.memberName.span) {
+                    availableGetters.clear()
+                } else {
+                    getterInvocationDiagnostics.add(finding)
+                }
+            }
 
-        val hiddenInvocation = InvocationExpression(
-            declaration,
-            null,
-            emptyList(),
-            declaration.span.deriveGenerated(),
-        ).bindTo(context)
-        // TODO: trigger unresolvableMemberVariable diagnostic if no setter found
-        strategy = AccessorReadStrategy(hiddenInvocation)
-        strategy.semanticAnalysisPhase2(diagnosis)
+            emptySequence()
+        }
+        getterInvocation.functionToInvoke?.let(availableGetters::add)
+
+        if (availableGetters.isEmpty() && physicalMember != null) {
+            val isInitialized = valueExpression.tryAsVariable()?.let {
+                context.getEphemeralState(PartialObjectInitialization, it).getMemberInitializationState(physicalMember!!) == VariableInitialization.State.INITIALIZED
+            } ?: true
+
+            if (!isInitialized) {
+                diagnosis.useOfUninitializedMember(physicalMember!!, declaration)
+            }
+        }
     }
 
     override fun setNothrow(boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
@@ -132,7 +163,12 @@ class BoundMemberVariableReadExpression(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         valueExpression.semanticAnalysisPhase3(diagnosis)
-        strategy.semanticAnalysisPhase3(diagnosis)
+
+        if (physicalMember != null) {
+            physicalMember!!.validateAccessFrom(declaration.memberName.span, diagnosis)
+        } else {
+            getterInvocation.semanticAnalysisPhase3(diagnosis)
+        }
     }
 
     override fun visitReadsBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
@@ -147,101 +183,26 @@ class BoundMemberVariableReadExpression(
         // nothing to do, the type of any object member is predetermined
     }
 
-    override val isEvaluationResultReferenceCounted get() = strategy.isEvaluationResultReferenceCounted
-    override val isEvaluationResultAnchored get() = valueExpression.isEvaluationResultAnchored && strategy.isEvaluationResultAnchored
+    override val isEvaluationResultReferenceCounted get() = if (physicalMember != null) false else getterInvocation.isEvaluationResultReferenceCounted
+    override val isEvaluationResultAnchored get() = if (physicalMember != null) physicalMember!!.isReAssignable == false else getterInvocation.isEvaluationResultAnchored
     override val isCompileTimeConstant get() = valueExpression.isCompileTimeConstant
 
     override fun toBackendIrExpression(): IrExpression {
-        return strategy.toBackendIrExpression()
-    }
-
-    private interface Strategy {
-        /** @see BoundExpression.throwBehavior */
-        val throwBehaviour: SideEffectPrediction?
-        /** @see BoundExpression.type */
-        val evaluationResultType: BoundTypeReference?
-        /** @see BoundExpression.isEvaluationResultAnchored */
-        val isEvaluationResultAnchored: Boolean
-        /** @see BoundExpression.isEvaluationResultReferenceCounted */
-        val isEvaluationResultReferenceCounted: Boolean
-        /** @see BoundExpression.semanticAnalysisPhase2 */
-        fun semanticAnalysisPhase2(diagnosis: Diagnosis) = Unit
-        /** @see BoundExpression.semanticAnalysisPhase3 */
-        fun semanticAnalysisPhase3(diagnosis: Diagnosis) = Unit
-        /** @see BoundExpression.toBackendIrExpression */
-        fun toBackendIrExpression(): IrExpression
-    }
-    inner class DirectReadStrategy(valueType: BoundTypeReference, val member: BoundBaseTypeMemberVariable) : Strategy {
-        override val throwBehaviour = SideEffectPrediction.NEVER
-        override val evaluationResultType: BoundTypeReference? = member.type
-            ?.instantiateAllParameters(valueType.inherentTypeBindings)
-            ?.withMutabilityLimitedTo(valueExpression.type?.mutability)
-        override val isEvaluationResultAnchored = member.isReAssignable == false
-        override val isEvaluationResultReferenceCounted = false
-
-        override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
-            this.evaluationResultType
-
-            val isInitialized = valueExpression.tryAsVariable()?.let {
-                context.getEphemeralState(PartialObjectInitialization, it).getMemberInitializationState(member) == VariableInitialization.State.INITIALIZED
-            } ?: true
-
-            if (!isInitialized) {
-                diagnosis.useOfUninitializedMember(member, declaration)
-            }
+        if (physicalMember == null) {
+            return getterInvocation.toBackendIrExpression()
         }
 
-        override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
-            member.validateAccessFrom(declaration.memberName.span, diagnosis)
-        }
+        val baseTemporary = IrCreateTemporaryValueImpl(valueExpression.toBackendIrExpression())
+        val memberTemporary = IrCreateTemporaryValueImpl(IrClassFieldAccessExpressionImpl(
+            IrTemporaryValueReferenceImpl(baseTemporary),
+            physicalMember!!.field.toBackendIr(),
+            type!!.toBackendIr(),
+        ))
 
-        override fun toBackendIrExpression(): IrExpression {
-            val baseTemporary = IrCreateTemporaryValueImpl(valueExpression.toBackendIrExpression())
-            val memberTemporary = IrCreateTemporaryValueImpl(IrClassFieldAccessExpressionImpl(
-                IrTemporaryValueReferenceImpl(baseTemporary),
-                member.field.toBackendIr(),
-                evaluationResultType!!.toBackendIr(),
-            ))
-
-            return IrImplicitEvaluationExpressionImpl(
-                IrCodeChunkImpl(listOf(baseTemporary, memberTemporary)),
-                IrTemporaryValueReferenceImpl(memberTemporary),
-            )
-        }
-    }
-
-    inner class AccessorReadStrategy(val hiddenInvocation: BoundInvocationExpression) : Strategy {
-        override val throwBehaviour: SideEffectPrediction? get()= hiddenInvocation.throwBehavior
-        override val evaluationResultType: BoundTypeReference? get()= hiddenInvocation.type
-        override val isEvaluationResultAnchored = hiddenInvocation.isEvaluationResultAnchored
-        override val isEvaluationResultReferenceCounted = hiddenInvocation.isEvaluationResultReferenceCounted
-
-        override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
-            hiddenInvocation.semanticAnalysisPhase1(diagnosis)
-            hiddenInvocation.semanticAnalysisPhase2(diagnosis)
-        }
-
-        override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
-            hiddenInvocation.semanticAnalysisPhase3(diagnosis)
-        }
-
-        override fun toBackendIrExpression(): IrExpression {
-            return hiddenInvocation.toBackendIrExpression()
-        }
-    }
-
-    /**
-     * to be used when other errors in the input code prevent determining the correct strategy to use;
-     * behaves as nutrally as possible, thereby trying not to trigger any more diagnostics
-     */
-    private object NoopStrategy : Strategy {
-        override val throwBehaviour = SideEffectPrediction.NEVER
-        override val evaluationResultType = null
-        override val isEvaluationResultAnchored = true
-        override val isEvaluationResultReferenceCounted = false
-        override fun toBackendIrExpression(): IrExpression {
-            throw InternalCompilerError("This should be unreachable!")
-        }
+        return IrImplicitEvaluationExpressionImpl(
+            IrCodeChunkImpl(listOf(baseTemporary, memberTemporary)),
+            IrTemporaryValueReferenceImpl(memberTemporary),
+        )
     }
 }
 
