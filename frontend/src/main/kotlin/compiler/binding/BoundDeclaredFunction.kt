@@ -198,7 +198,7 @@ abstract class BoundDeclaredFunction(
                         if (receiverMutability != TypeMutability.MUTABLE) {
                             diagnosis.accessorContractViolation(
                                 declaration,
-                                "Getters must act on ${TypeMutability.MUTABLE.keyword.text} objects, this one expects a ${receiverMutability.keyword.text} object",
+                                "Setters must act on ${TypeMutability.MUTABLE.keyword.text} objects, this one expects a ${receiverMutability.keyword.text} object",
                                 receiverParam.declaration.type?.span ?: receiverParam.declaration.span,
                             )
                         }

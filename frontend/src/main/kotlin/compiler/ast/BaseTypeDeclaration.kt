@@ -71,11 +71,11 @@ class BaseTypeDeclaration(
         val typeRootContext = MutableCTContext(fileContextWithTypeParams, typeVisibility)
         val boundSupertypes = supertypes.bindTo(typeRootContext, typeDefAccessor)
         val memberVariableInitializationContext = MutableExecutionScopedCTContext.functionRootIn(typeRootContext)
-        val selfTypeReference = TypeReference(
+        fun buildSelfTypeReference(location: Span) = TypeReference(
             simpleName = this.name.value,
             nullability = TypeReference.Nullability.NOT_NULLABLE,
             mutability = TypeMutability.READONLY,
-            declaringNameToken = this.name,
+            declaringNameToken = IdentifierToken(this.name.value, location),
             typeParameters?.map {
                 TypeArgument(TypeVariance.UNSPECIFIED, TypeReference(it.name))
             },
@@ -89,7 +89,11 @@ class BaseTypeDeclaration(
                     entry.bindTo(fileContextWithTypeParams, boundTypeParameters, typeDefAccessor)
                 }
                 is BaseTypeMemberFunctionDeclaration -> {
-                    entry.bindTo(typeRootContext, selfTypeReference, typeDefAccessor)
+                    entry.bindTo(
+                        typeRootContext,
+                        buildSelfTypeReference(entry.functionDeclaration.parameters.parameters.firstOrNull()?.declaredAt ?: entry.span),
+                        typeDefAccessor
+                    )
                 }
                 is BaseTypeDestructorDeclaration -> {
                     entry.bindTo(fileContextWithTypeParams, boundTypeParameters, typeDefAccessor)
