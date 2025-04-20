@@ -27,6 +27,7 @@ import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
+import compiler.binding.BoundParameter
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
@@ -89,6 +90,19 @@ class BoundInvocationExpression(
             seanHelper.requirePhase2NotDone()
             if (field != null && field !== value) {
                 throw InternalCompilerError("The ${::candidateFilter.name} can only be set once")
+            }
+            field = value
+        }
+
+    /**
+     * Can only be set **before** [semanticAnalysisPhase2], and can only ever be set once.
+     * Repeated sets to the same object (by identity) are tolerated
+     */
+    var disambiguationBehavior: DisambiguationBehavior? = null
+        set(value) {
+            seanHelper.requirePhase2NotDone()
+            if (field != null && field !== value) {
+                throw InternalCompilerError("The ${::disambiguationBehavior.name} can only be set once")
             }
             field = value
         }
@@ -273,7 +287,7 @@ class BoundInvocationExpression(
             return null
         }
 
-        val legalMatches = evaluations.filter { !it.hasErrors }
+        val legalMatches = evaluations.filter { it.isLegalCandidate }
         when (legalMatches.size) {
             0 -> {
                 val (applicableInvalidCandidates, inapplicableCandidates) = evaluations.partition { it.inapplicableReason == null }
@@ -340,6 +354,8 @@ class BoundInvocationExpression(
         check((receiver != null) xor (receiver?.type == null))
         val receiverType = receiver?.type
         val argumentsIncludingReceiver = listOfNotNull(receiver) + valueArguments
+        val localDisambiguationBehavior = disambiguationBehavior
+
         return this
             .asSequence()
             .filter { it.parameterCount == argumentsIncludingReceiver.size }
@@ -374,6 +390,7 @@ class BoundInvocationExpression(
                 check(rightSideTypes.size == argumentsIncludingReceiver.size)
 
                 val indicesOfErroneousParameters = ArrayList<Int>(argumentsIncludingReceiver.size)
+                val unificationBeforeParameters = unification
                 unification = argumentsIncludingReceiver
                     .zip(rightSideTypes)
                     .foldIndexed(unification) { parameterIndex, carryUnification, (argument, parameterType) ->
@@ -389,12 +406,24 @@ class BoundInvocationExpression(
                     is CandidateFilter.Result.Inapplicable -> inspectResult.reason
                 }
 
+                val allDisambiguatingArgumentsAreErrorFree = if (localDisambiguationBehavior == null) {
+                    indicesOfErroneousParameters.isEmpty()
+                } else {
+                    indicesOfErroneousParameters.none { erroneousParamIndex ->
+                        val param = candidateFn.parameters.parameters[erroneousParamIndex]
+                        localDisambiguationBehavior.shouldDisambiguateOnParameter(candidateFn, param, erroneousParamIndex.toUInt())
+                    }
+                }
+
                 OverloadCandidateEvaluation(
                     candidateFn,
                     unification,
                     returnTypeWithVariables?.instantiateFreeVariables(unification),
                     indicesOfErroneousParameters,
                     inapplicableReason,
+                    isLegalCandidate = unificationBeforeParameters.diagnostics.none { it.severity >= Diagnostic.Severity.ERROR }
+                        && inapplicableReason == null
+                        && allDisambiguatingArgumentsAreErrorFree
                 )
             }
             .toList()
@@ -552,6 +581,14 @@ class BoundInvocationExpression(
             class Inapplicable(val reason: InvocationCandidateNotApplicableDiagnostic) : Result
         }
     }
+
+    fun interface DisambiguationBehavior {
+        /**
+         * @return whether the parameter [parameter] of candidate [candidate] (which is at index [parameterIndex], 0 being a possible receiver),
+         * should contribute to disambiguation.
+         */
+        fun shouldDisambiguateOnParameter(candidate: BoundFunction, parameter: BoundParameter, parameterIndex: UInt): Boolean
+    }
 }
 
 private data class AvailableOverloads(
@@ -566,9 +603,8 @@ private data class OverloadCandidateEvaluation(
     val returnType: BoundTypeReference?,
     val indicesOfErroneousParameters: Collection<Int>,
     val inapplicableReason: InvocationCandidateNotApplicableDiagnostic?,
-) {
-    val hasErrors = inapplicableReason != null || unification.diagnostics.any { it.severity >= Diagnostic.Severity.ERROR }
-}
+    val isLegalCandidate: Boolean,
+)
 
 private fun Collection<OverloadCandidateEvaluation>.indicesOfDisjointlyTypedParameters(): Sequence<Int> {
     if (isEmpty()) {
