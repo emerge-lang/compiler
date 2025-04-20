@@ -1,5 +1,6 @@
 package compiler.binding
 
+import compiler.InternalCompilerError
 import compiler.ast.AssignmentStatement
 import compiler.ast.AstFunctionAttribute
 import compiler.ast.VariableOwnership
@@ -59,12 +60,29 @@ class BoundObjectMemberAssignmentStatement(
         declaration.span,
     ).bindTo(context)
 
+    private var phase1Done = false
+
+    /**
+     * Can only be set **before** [semanticAnalysisPhase1]
+     */
+    var considerSetters: Boolean = true
+        set(value) {
+            if (phase1Done) {
+                throw InternalCompilerError("${::considerSetters.name} must be set before ${::semanticAnalysisPhase1.name}")
+            }
+            field = value
+        }
+
     override val targetThrowBehavior get() = if (physicalMember != null) SideEffectPrediction.NEVER else setterInvocation.throwBehavior
     override val targetReturnBehavior get() = if (physicalMember != null) SideEffectPrediction.NEVER else setterInvocation.returnBehavior
 
     override fun additionalSemanticAnalysisPhase1(diagnosis: Diagnosis) {
+        phase1Done = true
+
         targetObjectExpression.semanticAnalysisPhase1(diagnosis)
-        setterInvocation.semanticAnalysisPhase1(diagnosis)
+        if (considerSetters) {
+            setterInvocation.semanticAnalysisPhase1(diagnosis)
+        }
     }
 
     override fun assignmentTargetSemanticAnalysisPhase2(diagnosis: Diagnosis) {
@@ -79,8 +97,8 @@ class BoundObjectMemberAssignmentStatement(
         physicalMember = baseType.findMemberVariable(memberName)
     }
 
-    override val assignmentTargetType get() = if (physicalMember != null) {
-        physicalMember!!.type
+    override val assignmentTargetType get() = if (physicalMember != null || !considerSetters) {
+        physicalMember?.type
     } else {
         setterInvocation.functionToInvoke?.parameterTypes?.getOrNull(1)
     }
@@ -96,28 +114,35 @@ class BoundObjectMemberAssignmentStatement(
     }
 
     override fun additionalSemanticAnalysisPhase2(diagnosis: Diagnosis) {
-        setterInvocation.candidateFilter = SetterFilter()
-        val availableSetters = mutableSetOf<BoundFunction>()
-        diagnosis.doWithTransformedFindings(setterInvocation::semanticAnalysisPhase2) { findings ->
-            findings.mapNotNull { finding ->
-                if (finding is AmbiguousInvocationDiagnostic && finding.invocation === setterInvocation.declaration) {
-                    availableSetters.addAll(finding.candidates)
-                    return@mapNotNull null
-                }
+        if (considerSetters) {
+            setterInvocation.candidateFilter = SetterFilter()
+            setterInvocation.disambiguationBehavior = SetterDisambiguationBehavior
+            val availableSetters = mutableSetOf<BoundFunction>()
+            diagnosis.doWithTransformedFindings(setterInvocation::semanticAnalysisPhase2) { findings ->
+                findings.mapNotNull { finding ->
+                    if (finding is AmbiguousInvocationDiagnostic && finding.invocation === setterInvocation.declaration) {
+                        availableSetters.addAll(finding.candidates)
+                        return@mapNotNull null
+                    }
 
-                if (finding is UnresolvableFunctionOverloadDiagnostic && finding.functionNameReference.span == declaration.targetExpression.memberName.span) {
-                    availableSetters.clear()
-                    return@mapNotNull null
-                }
+                    if (finding is UnresolvableFunctionOverloadDiagnostic && finding.functionNameReference.span == declaration.targetExpression.memberName.span) {
+                        availableSetters.clear()
+                        return@mapNotNull null
+                    }
 
-                return@mapNotNull if (physicalMember == null) {
-                    finding
-                } else {
-                    null
+                    return@mapNotNull if (physicalMember == null) {
+                        finding
+                    } else {
+                        null
+                    }
                 }
             }
+            setterInvocation.functionToInvoke?.let(availableSetters::add)
+
+            if (availableSetters.size > 1 || (availableSetters.isNotEmpty() && physicalMember != null)) {
+                diagnosis.ambiguousMemberVariableWrite(this, physicalMember, availableSetters)
+            }
         }
-        setterInvocation.functionToInvoke?.let(availableSetters::add)
 
         physicalMember?.let { member ->
             targetObjectExpression.tryAsVariable()?.let { memberOwnerVariable ->
@@ -145,10 +170,6 @@ class BoundObjectMemberAssignmentStatement(
 
             member.validateAccessFrom(declaration.span, diagnosis)
         }
-
-        if (availableSetters.size > 1 || (availableSetters.isNotEmpty() && physicalMember != null)) {
-            diagnosis.ambiguousMemberVariableWrite(this, physicalMember, availableSetters)
-        }
     }
 
     private var initializationStateBefore: VariableInitialization.State? = null
@@ -167,7 +188,7 @@ class BoundObjectMemberAssignmentStatement(
             }
         }
 
-        if (physicalMember == null) {
+        if (physicalMember == null && considerSetters) {
             setterInvocation.semanticAnalysisPhase3(diagnosis)
         }
     }

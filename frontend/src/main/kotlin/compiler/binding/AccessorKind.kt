@@ -2,6 +2,7 @@ package compiler.binding
 
 import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeMutability
+import compiler.binding.expression.BoundInvocationExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.accessorCapturesSelf
@@ -108,6 +109,17 @@ sealed interface AccessorKind {
                 }
             }
         }
+    }
+}
+
+object SetterDisambiguationBehavior : BoundInvocationExpression.DisambiguationBehavior {
+    override fun shouldDisambiguateOnParameter(
+        candidate: BoundFunction,
+        parameter: BoundParameter,
+        parameterIndex: UInt,
+    ): Boolean {
+        // only disambiguate on the receiver param, not on any other
+        return parameter === candidate.parameters.declaredReceiver
     }
 }
 

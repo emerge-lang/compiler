@@ -469,6 +469,23 @@ class VirtualMemberVariableErrors : FreeSpec({
                 }
         }
 
+        "between multiple package-level setters" {
+            validateModule("""
+                interface X {}
+                interface Y {}
+                class C : X, Y {}
+                set fn m(self: mut X, value: S32) {}
+                set fn m(self: mut Y, value: String) {}
+                fn test() {
+                    var l = C()
+                    set l.m = 3
+                }
+            """.trimIndent())
+                .shouldFind<AmbiguousMemberVariableAccessDiagnostic>() {
+                    it.memberVariableName shouldBe "m"
+                }
+        }
+
         "between package-level getter and actual member variable" {
             validateModule("""
                 class C {
@@ -484,6 +501,22 @@ class VirtualMemberVariableErrors : FreeSpec({
                 }
         }
 
+        "between package-level setter and actual member variable" {
+            validateModule("""
+                class C {
+                    var p: S32 = 0
+                }
+                set fn p(self: mut C, value: String) {}
+                fn test() {
+                    var l = C()
+                    set l.p = 3
+                }
+            """.trimIndent())
+                .shouldFind<AmbiguousMemberVariableAccessDiagnostic>() {
+                    it.memberVariableName shouldBe "p"
+                }
+        }
+
         "between package-level getter and member-fn-getter" {
             validateModule("""
                 class C {
@@ -492,6 +525,22 @@ class VirtualMemberVariableErrors : FreeSpec({
                 get fn p(self: C) -> Bool = true
                 fn test() {
                     l = C().p
+                }
+            """.trimIndent())
+                .shouldFind<AmbiguousMemberVariableAccessDiagnostic> {
+                    it.memberVariableName shouldBe "p"
+                }
+        }
+
+        "between package-level setter and member-fn-setter" {
+            validateModule("""
+                class C {
+                    set fn p(self: C, v: Bool) {}
+                }
+                set fn p(self: C, v: S32) {}
+                fn test() {
+                    var l = C()
+                    set l.p = 3
                 }
             """.trimIndent())
                 .shouldFind<AmbiguousMemberVariableAccessDiagnostic> {

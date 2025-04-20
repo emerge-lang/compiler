@@ -157,6 +157,7 @@ fun Diagnosis.ambiguousMemberVariableRead(
 ) {
     add(AmbiguousMemberVariableAccessDiagnostic(
         read.memberName,
+        AccessorKind.Read,
         member?.declaration,
         getters.map { it.declaredAt },
         read.declaration.memberName.span,
@@ -170,6 +171,7 @@ fun Diagnosis.ambiguousMemberVariableWrite(
 ) {
     add(AmbiguousMemberVariableAccessDiagnostic(
         write.memberName,
+        AccessorKind.Write,
         member?.declaration,
         setters.map { it.declaredAt },
         write.declaration.targetExpression.memberName.span,
