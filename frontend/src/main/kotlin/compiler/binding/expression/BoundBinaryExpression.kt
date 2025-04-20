@@ -25,7 +25,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnosis.Companion.doWithTransformedFindings
-import compiler.diagnostic.FunctionMissingModifierDiagnostic
+import compiler.diagnostic.FunctionMissingAttributeDiagnostic
 import compiler.diagnostic.OperatorNotDeclaredDiagnostic
 import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
 
@@ -57,7 +57,7 @@ class BoundBinaryExpression(
             }
         }
 
-        FunctionMissingModifierDiagnostic.requireOperatorModifier(
+        FunctionMissingAttributeDiagnostic.requireOperatorAttribute(
             hiddenInvocation,
             this,
             diagnosis,

@@ -25,7 +25,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnosis.Companion.doWithTransformedFindings
-import compiler.diagnostic.FunctionMissingModifierDiagnostic.Companion.requireOperatorModifier
+import compiler.diagnostic.FunctionMissingAttributeDiagnostic.Companion.requireOperatorAttribute
 import compiler.diagnostic.OperatorNotDeclaredDiagnostic
 import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
 
@@ -56,7 +56,7 @@ class BoundUnaryExpression(
             }
         }
 
-        requireOperatorModifier(
+        requireOperatorAttribute(
             hiddenInvocation,
             this,
             diagnosis,

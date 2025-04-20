@@ -1,6 +1,7 @@
 package compiler.binding
 
 import compiler.ast.AssignmentStatement
+import compiler.ast.AstFunctionAttribute
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
@@ -27,7 +28,7 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.diagnostic.AmbiguousInvocationDiagnostic
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnosis.Companion.doWithTransformedFindings
-import compiler.diagnostic.FunctionMissingModifierDiagnostic
+import compiler.diagnostic.FunctionMissingAttributeDiagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
 import compiler.diagnostic.ambiguousMemberVariableWrite
@@ -36,6 +37,7 @@ import compiler.diagnostic.superfluousSafeObjectTraversal
 import compiler.diagnostic.unsafeObjectTraversal
 import compiler.diagnostic.valueNotAssignable
 import compiler.lexer.Keyword
+import compiler.lexer.KeywordToken
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
@@ -197,10 +199,11 @@ class BoundObjectMemberAssignmentStatement(
             return if (candidate.attributes.firstAccessorAttribute?.kind == AccessorKind.Write) {
                 CandidateFunctionFilter.Result.Applicable
             } else {
-                CandidateFunctionFilter.Result.Inapplicable(FunctionMissingModifierDiagnostic(
+                CandidateFunctionFilter.Result.Inapplicable(FunctionMissingAttributeDiagnostic(
                     candidate,
-                    this@BoundObjectMemberAssignmentStatement.declaration,
-                    Keyword.SET.text,
+                    this@BoundObjectMemberAssignmentStatement.declaration.span,
+                    AstFunctionAttribute.Accessor(AccessorKind.Write, KeywordToken(Keyword.SET)),
+                    reason = null,
                 ))
             }
         }

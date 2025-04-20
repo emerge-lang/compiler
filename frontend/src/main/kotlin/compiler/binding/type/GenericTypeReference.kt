@@ -27,8 +27,8 @@ sealed class GenericTypeReference : BoundTypeReference {
     override val span get() = original.declaringNameToken?.span
     override val inherentTypeBindings = TypeUnification.EMPTY
 
-    override fun withMutability(modifier: TypeMutability?): GenericTypeReference {
-        return mapEffectiveBound { it.withMutability(modifier) }
+    override fun withMutability(mutability: TypeMutability?): GenericTypeReference {
+        return mapEffectiveBound { it.withMutability(mutability) }
     }
 
     override fun withMutabilityIntersectedWith(mutability: TypeMutability?): GenericTypeReference {

@@ -5,7 +5,6 @@ import compiler.ast.AstPackageName
 import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
 import compiler.ast.BaseTypeMemberVariableDeclaration
-import compiler.ast.Executable
 import compiler.ast.Expression
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
@@ -193,12 +192,8 @@ fun Diagnosis.inefficientAttributes(message: String, attributes: Collection<AstF
     add(ModifierInefficiencyDiagnostic(message, attributes))
 }
 
-fun Diagnosis.conflictingModifiers(attributes: Collection<AstFunctionAttribute>) {
-    add(ConflictingFunctionModifiersDiagnostic(attributes))
-}
-
-fun Diagnosis.functionIsMissingDeclaredAttribute(fn: BoundDeclaredFunction, missingAttribute: AstFunctionAttribute, reason: String) {
-    add(FunctionMissingDeclaredModifierDiagnostic(fn.declaration, missingAttribute, reason))
+fun Diagnosis.conflictingAttributes(attributes: Collection<AstFunctionAttribute>) {
+    add(ConflictingFunctionAttributesDiagnostic(attributes))
 }
 
 fun Diagnosis.toplevelFunctionWithOverrideAttribute(attr: AstFunctionAttribute.Override) {
@@ -365,8 +360,13 @@ fun Diagnosis.explicitInferTypeNotAllowed(type: TypeReference) {
     add(ExplicitInferTypeNotAllowedDiagnostic(type))
 }
 
-fun Diagnosis.functionIsMissingAttribute(function: BoundFunction, usageRequiringModifier: Executable, missingAttribute: String) {
-    add(FunctionMissingModifierDiagnostic(function, usageRequiringModifier, missingAttribute))
+fun Diagnosis.functionIsMissingAttribute(
+    function: BoundFunction,
+    usageRequiringModifierAt: Span,
+    missingAttribute: AstFunctionAttribute,
+    reason: String?,
+) {
+    add(FunctionMissingAttributeDiagnostic(function, usageRequiringModifierAt, missingAttribute, reason))
 }
 
 fun Diagnosis.externalMemberFunction(function: BoundDeclaredFunction) {

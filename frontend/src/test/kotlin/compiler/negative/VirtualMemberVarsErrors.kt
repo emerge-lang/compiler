@@ -1,10 +1,11 @@
 package compiler.compiler.negative
 
+import compiler.ast.AstFunctionAttribute
 import compiler.binding.AccessorKind
 import compiler.diagnostic.AccessorContractViolationDiagnostic
 import compiler.diagnostic.AmbiguousMemberVariableAccessDiagnostic
-import compiler.diagnostic.ConflictingFunctionModifiersDiagnostic
-import compiler.diagnostic.FunctionMissingModifierDiagnostic
+import compiler.diagnostic.ConflictingFunctionAttributesDiagnostic
+import compiler.diagnostic.FunctionMissingAttributeDiagnostic
 import compiler.diagnostic.GetterAndSetterHaveDifferentTypesDiagnostics
 import compiler.diagnostic.MultipleAccessorsForVirtualMemberVariableDiagnostic
 import compiler.diagnostic.NotAllMemberVariablesInitializedDiagnostic
@@ -17,6 +18,7 @@ import io.kotest.matchers.collections.haveSize
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.beInstanceOf
 
 class VirtualMemberVarsErrors : FreeSpec({
     "marking a method both get and set produces a conflict" {
@@ -25,7 +27,7 @@ class VirtualMemberVarsErrors : FreeSpec({
                 get set fn bla(self) -> S32 = 0
             }
         """.trimIndent())
-            .shouldFind<ConflictingFunctionModifiersDiagnostic> {
+            .shouldFind<ConflictingFunctionAttributesDiagnostic> {
                 it.attributes should haveSize(2)
                 it.attributes.forOne {
                     it.attributeName.keyword shouldBe Keyword.GET
@@ -492,7 +494,7 @@ class VirtualMemberVarsErrors : FreeSpec({
                     l = C().p
                 }
             """.trimIndent())
-                .shouldFind< AmbiguousMemberVariableAccessDiagnostic> {
+                .shouldFind<AmbiguousMemberVariableAccessDiagnostic> {
                     it.memberVariableName shouldBe "p"
                 }
         }
@@ -505,9 +507,10 @@ class VirtualMemberVarsErrors : FreeSpec({
                 fn foo(self: I) -> S32 = 0
                 fn test(p: I) = p.foo
             """.trimIndent())
-                .shouldFind<FunctionMissingModifierDiagnostic> {
+                .shouldFind<FunctionMissingAttributeDiagnostic> {
                     it.function.name shouldBe "foo"
-                    it.missingAttribute shouldBe "get"
+                    it.attribute should beInstanceOf<AstFunctionAttribute.Accessor>()
+                    (it.attribute as AstFunctionAttribute.Accessor).kind shouldBe AccessorKind.Read
                 }
         }
 
@@ -518,9 +521,10 @@ class VirtualMemberVarsErrors : FreeSpec({
                 }
                 fn test(p: I) = p.foo
             """.trimIndent())
-                .shouldFind<FunctionMissingModifierDiagnostic> {
+                .shouldFind<FunctionMissingAttributeDiagnostic> {
                     it.function.name shouldBe "foo"
-                    it.missingAttribute shouldBe "get"
+                    it.attribute should beInstanceOf<AstFunctionAttribute.Accessor>()
+                    (it.attribute as AstFunctionAttribute.Accessor).kind shouldBe AccessorKind.Read
                 }
         }
 
@@ -532,9 +536,10 @@ class VirtualMemberVarsErrors : FreeSpec({
                     set p.foo = 3
                 }
             """.trimIndent())
-                .shouldFind<FunctionMissingModifierDiagnostic> {
+                .shouldFind<FunctionMissingAttributeDiagnostic> {
                     it.function.name shouldBe "foo"
-                    it.missingAttribute shouldBe "set"
+                    it.attribute should beInstanceOf<AstFunctionAttribute.Accessor>()
+                    (it.attribute as AstFunctionAttribute.Accessor).kind shouldBe AccessorKind.Write
                 }
         }
 
@@ -547,9 +552,10 @@ class VirtualMemberVarsErrors : FreeSpec({
                     set p.foo = 3
                 }
             """.trimIndent())
-                .shouldFind<FunctionMissingModifierDiagnostic> {
+                .shouldFind<FunctionMissingAttributeDiagnostic> {
                     it.function.name shouldBe "foo"
-                    it.missingAttribute shouldBe "set"
+                    it.attribute should beInstanceOf<AstFunctionAttribute.Accessor>()
+                    (it.attribute as AstFunctionAttribute.Accessor).kind shouldBe AccessorKind.Write
                 }
         }
     }
@@ -568,7 +574,7 @@ class VirtualMemberVarsErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldFind< NotAllMemberVariablesInitializedDiagnostic>()
+                .shouldFind<NotAllMemberVariablesInitializedDiagnostic>()
         }
 
         "member setter" {
@@ -584,7 +590,7 @@ class VirtualMemberVarsErrors : FreeSpec({
                     }
                 }
             """.trimIndent())
-                .shouldFind< NotAllMemberVariablesInitializedDiagnostic>()
+                .shouldFind<NotAllMemberVariablesInitializedDiagnostic>()
         }
     }
 })

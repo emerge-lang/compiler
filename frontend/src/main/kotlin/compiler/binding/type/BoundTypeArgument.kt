@@ -150,8 +150,8 @@ class BoundTypeArgument(
         return BoundTypeArgument(this.context, astNode, variance, nestedInstantiated)
     }
 
-    override fun withMutability(modifier: TypeMutability?): BoundTypeReference {
-        if (type.mutability == modifier) {
+    override fun withMutability(mutability: TypeMutability?): BoundTypeReference {
+        if (type.mutability == mutability) {
             return this
         }
 
@@ -159,7 +159,7 @@ class BoundTypeArgument(
             context,
             astNode,
             variance,
-            type.withMutability(modifier),
+            type.withMutability(mutability),
         )
     }
 

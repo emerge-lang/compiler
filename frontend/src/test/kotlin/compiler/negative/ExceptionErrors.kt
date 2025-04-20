@@ -2,7 +2,7 @@ package compiler.compiler.negative
 
 import compiler.ast.AstFunctionAttribute
 import compiler.diagnostic.ConstructorDeclaredNothrowDiagnostic
-import compiler.diagnostic.FunctionMissingDeclaredModifierDiagnostic
+import compiler.diagnostic.FunctionMissingAttributeDiagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
@@ -16,7 +16,7 @@ class ExceptionErrors : FreeSpec({
             validateModule("""
                 external(C) fn test()
             """.trimIndent())
-                .shouldFind<FunctionMissingDeclaredModifierDiagnostic> {
+                .shouldFind<FunctionMissingAttributeDiagnostic> {
                     it.attribute should beInstanceOf<AstFunctionAttribute.Nothrow>()
                 }
         }

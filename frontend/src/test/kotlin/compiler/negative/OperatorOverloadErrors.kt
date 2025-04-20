@@ -1,9 +1,12 @@
 package compiler.compiler.negative
 
-import compiler.diagnostic.FunctionMissingModifierDiagnostic
+import compiler.ast.AstFunctionAttribute
+import compiler.diagnostic.FunctionMissingAttributeDiagnostic
 import compiler.diagnostic.OperatorNotDeclaredDiagnostic
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.beInstanceOf
 
 class OperatorOverloadErrors : FreeSpec({
     "unary minus not declared" {
@@ -31,9 +34,9 @@ class OperatorOverloadErrors : FreeSpec({
                 x = -false
             }
         """.trimIndent())
-            .shouldFind<FunctionMissingModifierDiagnostic> {
+            .shouldFind<FunctionMissingAttributeDiagnostic> {
                 it.function.name shouldBe "unaryMinus"
-                it.missingAttribute shouldBe "operator"
+                it.attribute should beInstanceOf<AstFunctionAttribute.Operator>()
             }
     }
 
@@ -49,9 +52,9 @@ class OperatorOverloadErrors : FreeSpec({
                 y = v[3]
             }
         """.trimIndent())
-            .shouldFind<FunctionMissingModifierDiagnostic> {
+            .shouldFind<FunctionMissingAttributeDiagnostic> {
                 it.function.name shouldBe "getAtIndex"
-                it.missingAttribute shouldBe "operator"
+                it.attribute should beInstanceOf< AstFunctionAttribute.Operator>()
             }
     }
 
@@ -67,9 +70,9 @@ class OperatorOverloadErrors : FreeSpec({
                 set v[3] = 5 
             }
         """.trimIndent())
-            .shouldFind<FunctionMissingModifierDiagnostic> {
+            .shouldFind<FunctionMissingAttributeDiagnostic> {
                 it.function.name shouldBe "setAtIndex"
-                it.missingAttribute shouldBe "operator"
+                it.attribute should beInstanceOf< AstFunctionAttribute.Operator>()
             }
     }
 })

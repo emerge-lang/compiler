@@ -44,9 +44,9 @@ class RootResolvedTypeReference private constructor(
         parameters,
     )
 
-    override fun withMutability(modifier: TypeMutability?): RootResolvedTypeReference {
-        val newMutability = if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else modifier
-        if (newMutability == mutability) {
+    override fun withMutability(mutability: TypeMutability?): RootResolvedTypeReference {
+        val newMutability = if (baseType.isCoreScalar) TypeMutability.IMMUTABLE else mutability
+        if (newMutability == this@RootResolvedTypeReference.mutability) {
             return this
         }
 

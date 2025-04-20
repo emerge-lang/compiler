@@ -4,7 +4,7 @@ import compiler.ast.Expression
 import compiler.ast.expression.AstIndexAccessExpression
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.FunctionMissingModifierDiagnostic.Companion.requireOperatorModifier
+import compiler.diagnostic.FunctionMissingAttributeDiagnostic.Companion.requireOperatorAttribute
 
 class BoundIndexAccessExpression(
     override val context: ExecutionScopedCTContext,
@@ -14,7 +14,7 @@ class BoundIndexAccessExpression(
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         hiddenInvocation.semanticAnalysisPhase2(diagnosis)
 
-        requireOperatorModifier(
+        requireOperatorAttribute(
             hiddenInvocation,
             this,
             diagnosis,

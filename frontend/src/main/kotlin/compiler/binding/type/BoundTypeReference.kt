@@ -50,7 +50,7 @@ sealed interface BoundTypeReference {
      * @return this type with the given [mutability], defaulting ([defaultMutabilityTo])
      * the mutability of type arguments to the given mutability.
      */
-    fun withMutability(modifier: TypeMutability?): BoundTypeReference
+    fun withMutability(mutability: TypeMutability?): BoundTypeReference
 
     /**
      * @return this type but [mutability] is the result of [TypeMutability.intersect] of the

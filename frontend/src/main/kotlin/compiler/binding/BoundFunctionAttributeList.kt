@@ -4,8 +4,8 @@ import compiler.ast.AstFunctionAttribute
 import compiler.ast.AstVisibility
 import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.conflictingModifiers
-import compiler.diagnostic.functionIsMissingDeclaredAttribute
+import compiler.diagnostic.conflictingAttributes
+import compiler.diagnostic.functionIsMissingAttribute
 import compiler.diagnostic.inefficientAttributes
 import compiler.diagnostic.unsupportedCallingConvention
 import compiler.lexer.Keyword
@@ -80,7 +80,7 @@ class BoundFunctionAttributeList(
             attributes.twoElementPermutationsUnordered()
                 .filter { (a, b) -> conflictsWith(a, b) }
                 .forEach { (a, b) ->
-                    diagnosis.conflictingModifiers(listOf(a, b))
+                    diagnosis.conflictingAttributes(listOf(a, b))
                 }
 
             attributes
@@ -90,11 +90,13 @@ class BoundFunctionAttributeList(
                     diagnosis.unsupportedCallingConvention(it, SUPPORTED_EXTERNAL_CALLING_CONVENTIONS)
                 }
 
-            if (attributes.any { it is AstFunctionAttribute.External } && attributes.none { it is AstFunctionAttribute.Nothrow }) {
+            val externalAttr = attributes.filterIsInstance<AstFunctionAttribute.External>().firstOrNull()
+            if (externalAttr != null && attributes.none { it is AstFunctionAttribute.Nothrow }) {
                 // this should never occur on ctors or dtors
                 val fn = getFunction() as BoundDeclaredFunction
-                diagnosis.functionIsMissingDeclaredAttribute(
+                diagnosis.functionIsMissingAttribute(
                     fn,
+                    externalAttr.sourceLocation,
                     AstFunctionAttribute.Nothrow(KeywordToken(Keyword.NOTHROW)),
                     "is declared external; external functions cannot throw exceptions."
                 )

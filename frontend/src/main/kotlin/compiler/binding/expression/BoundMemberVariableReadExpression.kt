@@ -18,6 +18,7 @@
 
 package compiler.binding.expression
 
+import compiler.ast.AstFunctionAttribute
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
@@ -40,7 +41,7 @@ import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.AmbiguousInvocationDiagnostic
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnosis.Companion.doWithTransformedFindings
-import compiler.diagnostic.FunctionMissingModifierDiagnostic
+import compiler.diagnostic.FunctionMissingAttributeDiagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
 import compiler.diagnostic.ambiguousMemberVariableRead
@@ -48,6 +49,7 @@ import compiler.diagnostic.superfluousSafeObjectTraversal
 import compiler.diagnostic.unsafeObjectTraversal
 import compiler.diagnostic.useOfUninitializedMember
 import compiler.lexer.Keyword
+import compiler.lexer.KeywordToken
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassFieldAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -233,10 +235,11 @@ class BoundMemberVariableReadExpression(
             return if (candidate.attributes.firstAccessorAttribute?.kind == AccessorKind.Read) {
                 CandidateFunctionFilter.Result.Applicable
             } else {
-                CandidateFunctionFilter.Result.Inapplicable(FunctionMissingModifierDiagnostic(
+                CandidateFunctionFilter.Result.Inapplicable(FunctionMissingAttributeDiagnostic(
                     candidate,
-                    this@BoundMemberVariableReadExpression.declaration,
-                    Keyword.GET.text,
+                    this@BoundMemberVariableReadExpression.declaration.span,
+                    AstFunctionAttribute.Accessor(AccessorKind.Read, KeywordToken(Keyword.GET)),
+                    reason = null,
                 ))
             }
         }
