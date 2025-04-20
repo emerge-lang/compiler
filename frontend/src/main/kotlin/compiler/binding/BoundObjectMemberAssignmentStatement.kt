@@ -14,7 +14,6 @@ import compiler.binding.context.effect.VariableInitialization
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
 import compiler.binding.expression.BoundInvocationExpression
-import compiler.binding.expression.CandidateFunctionFilter
 import compiler.binding.expression.CreateReferenceValueUsage
 import compiler.binding.expression.IrClassFieldAccessExpressionImpl
 import compiler.binding.expression.ValueUsage
@@ -194,12 +193,12 @@ class BoundObjectMemberAssignmentStatement(
         }
     }
 
-    private inner class SetterFilter : CandidateFunctionFilter {
-        override fun inspect(candidate: BoundFunction): CandidateFunctionFilter.Result {
+    private inner class SetterFilter : BoundInvocationExpression.CandidateFilter {
+        override fun inspect(candidate: BoundFunction): BoundInvocationExpression.CandidateFilter.Result {
             return if (candidate.attributes.firstAccessorAttribute?.kind == AccessorKind.Write) {
-                CandidateFunctionFilter.Result.Applicable
+                BoundInvocationExpression.CandidateFilter.Result.Applicable
             } else {
-                CandidateFunctionFilter.Result.Inapplicable(FunctionMissingAttributeDiagnostic(
+                BoundInvocationExpression.CandidateFilter.Result.Inapplicable(FunctionMissingAttributeDiagnostic(
                     candidate,
                     this@BoundObjectMemberAssignmentStatement.declaration.span,
                     AstFunctionAttribute.Accessor(AccessorKind.Write, KeywordToken(Keyword.SET)),

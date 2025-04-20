@@ -230,12 +230,12 @@ class BoundMemberVariableReadExpression(
         )
     }
 
-    private inner class GetterFilter : CandidateFunctionFilter {
-        override fun inspect(candidate: BoundFunction): CandidateFunctionFilter.Result {
+    private inner class GetterFilter : BoundInvocationExpression.CandidateFilter {
+        override fun inspect(candidate: BoundFunction): BoundInvocationExpression.CandidateFilter.Result {
             return if (candidate.attributes.firstAccessorAttribute?.kind == AccessorKind.Read) {
-                CandidateFunctionFilter.Result.Applicable
+                BoundInvocationExpression.CandidateFilter.Result.Applicable
             } else {
-                CandidateFunctionFilter.Result.Inapplicable(FunctionMissingAttributeDiagnostic(
+                BoundInvocationExpression.CandidateFilter.Result.Inapplicable(FunctionMissingAttributeDiagnostic(
                     candidate,
                     this@BoundMemberVariableReadExpression.declaration.span,
                     AstFunctionAttribute.Accessor(AccessorKind.Read, KeywordToken(Keyword.GET)),

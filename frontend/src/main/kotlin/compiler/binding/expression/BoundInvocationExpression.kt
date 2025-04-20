@@ -84,7 +84,7 @@ class BoundInvocationExpression(
      * Can only be set **before** [semanticAnalysisPhase2], and can only ever be set once.
      * Repeated sets to the same object (by identity) are tolerated.
      */
-    var candidateFilter: CandidateFunctionFilter? = null
+    var candidateFilter: CandidateFilter? = null
         set(value) {
             seanHelper.requirePhase2NotDone()
             if (field != null && field !== value) {
@@ -385,8 +385,8 @@ class BoundInvocationExpression(
                     }
 
                 val inapplicableReason = when (val inspectResult = candidateFilter?.inspect(candidateFn)) {
-                    null, CandidateFunctionFilter.Result.Applicable -> null
-                    is CandidateFunctionFilter.Result.Inapplicable -> inspectResult.reason
+                    null, CandidateFilter.Result.Applicable -> null
+                    is CandidateFilter.Result.Inapplicable -> inspectResult.reason
                 }
 
                 OverloadCandidateEvaluation(
@@ -536,6 +536,22 @@ class BoundInvocationExpression(
             assumeNothrow = functionToInvoke!!.attributes.isDeclaredNothrow,
         ).code
     }
+
+    /**
+     * Used to filter the available functions before selecting one to invoke. The [Result.Inapplicable.reason]s
+     * will be reported back to the user to provide a better understanding of the problem.
+     */
+    fun interface CandidateFilter {
+        /**
+         * Inspects the given candidate function and returns info on how to treat this candidate.
+         */
+        fun inspect(candidate: BoundFunction): Result
+
+        sealed interface Result {
+            object Applicable : Result
+            class Inapplicable(val reason: InvocationCandidateNotApplicableDiagnostic) : Result
+        }
+    }
 }
 
 private data class AvailableOverloads(
@@ -564,22 +580,6 @@ private fun Collection<OverloadCandidateEvaluation>.indicesOfDisjointlyTypedPara
             val parameterTypesAtIndex = this.map { it.candidate.parameters.parameters[parameterIndex] }
             parameterTypesAtIndex.nonDisjointPairs().none()
         }
-}
-
-/**
- * Used to filter the available functions before selecting one to invoke. The [Result.Inapplicable.reason]s
- * will be reported back to the user to provide a better understanding of the problem.
- */
-fun interface CandidateFunctionFilter {
-    /**
-     * Inspects the given candidate function and returns info on how to treat this candidate.
-     */
-    fun inspect(candidate: BoundFunction): Result
-
-    sealed interface Result {
-        object Applicable : Result
-        class Inapplicable(val reason: InvocationCandidateNotApplicableDiagnostic) : Result
-    }
 }
 
 internal class IrStaticDispatchFunctionInvocationImpl(
