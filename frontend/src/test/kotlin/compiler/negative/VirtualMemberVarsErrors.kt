@@ -7,6 +7,7 @@ import compiler.diagnostic.ConflictingFunctionModifiersDiagnostic
 import compiler.diagnostic.FunctionMissingModifierDiagnostic
 import compiler.diagnostic.GetterAndSetterHaveDifferentTypesDiagnostics
 import compiler.diagnostic.MultipleAccessorsForVirtualMemberVariableDiagnostic
+import compiler.diagnostic.NotAllMemberVariablesInitializedDiagnostic
 import compiler.diagnostic.OverrideAccessorDeclarationMismatchDiagnostic
 import compiler.diagnostic.VirtualAndActualMemberVariableNameClashDiagnostic
 import compiler.lexer.Keyword
@@ -550,6 +551,40 @@ class VirtualMemberVarsErrors : FreeSpec({
                     it.function.name shouldBe "foo"
                     it.missingAttribute shouldBe "set"
                 }
+        }
+    }
+
+    "accessors require a fully initialized object" - {
+        "member getter" {
+            validateModule("""
+                class Test {
+                    n: S32
+                
+                    get fn foo(self) -> Bool = false
+                
+                    constructor {
+                        localBool = self.foo
+                        set self.n = 3
+                    }
+                }
+            """.trimIndent())
+                .shouldFind< NotAllMemberVariablesInitializedDiagnostic>()
+        }
+
+        "member setter".config(enabled = false) {
+            validateModule("""
+                class Test {
+                    n: S32
+                
+                    set fn foo(self: mut _, v: Bool) {}
+                
+                    constructor {
+                        set self.foo = false
+                        set self.n = 3
+                    }
+                }
+            """.trimIndent())
+                .shouldFind< NotAllMemberVariablesInitializedDiagnostic>()
         }
     }
 })
