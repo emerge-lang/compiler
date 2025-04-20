@@ -22,8 +22,10 @@ import compiler.ast.VariableOwnership
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.TypeMutability
+import compiler.binding.AccessorKind
 import compiler.binding.BoundFunction
 import compiler.binding.IrCodeChunkImpl
+import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.combineSequentialExecution
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
@@ -40,13 +42,14 @@ import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.AmbiguousInvocationDiagnostic
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnosis.Companion.doWithTransformedFindings
-import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.FunctionMissingModifierDiagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
 import compiler.diagnostic.ambiguousMemberVariableRead
 import compiler.diagnostic.superfluousSafeObjectTraversal
 import compiler.diagnostic.unsafeObjectTraversal
 import compiler.diagnostic.useOfUninitializedMember
+import compiler.lexer.Keyword
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrClassFieldAccessExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
@@ -60,6 +63,7 @@ class BoundMemberVariableReadExpression(
     val isNullSafeAccess: Boolean,
     val memberName: String
 ) : BoundExpression<MemberAccessExpression> {
+    private val seanHelper = SeanHelper()
     private var physicalMember: BoundBaseTypeMemberVariable? = null
     private val getterInvocation: BoundInvocationExpression = InvocationExpression(
         declaration,
@@ -91,58 +95,68 @@ class BoundMemberVariableReadExpression(
     )
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-        valueExpression.semanticAnalysisPhase1(diagnosis)
-        valueExpression.markEvaluationResultUsed()
-        getterInvocation.semanticAnalysisPhase1(diagnosis)
+        seanHelper.phase1(diagnosis) {
+            valueExpression.semanticAnalysisPhase1(diagnosis)
+            valueExpression.markEvaluationResultUsed()
+            getterInvocation.semanticAnalysisPhase1(diagnosis)
+        }
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
-        // partially uninitialized is okay as this class verifies that itself
-        (valueExpression as? BoundIdentifierExpression)?.allowPartiallyUninitializedValue()
-        valueExpression.semanticAnalysisPhase2(diagnosis)
+        seanHelper.phase2(diagnosis) {
+            // partially uninitialized is okay as this class verifies that itself
+            (valueExpression as? BoundIdentifierExpression)?.allowPartiallyUninitializedValue()
+            valueExpression.semanticAnalysisPhase2(diagnosis)
 
-        val valueType = valueExpression.type
-        if (valueType == null) {
-            return
-        }
+            val valueType = valueExpression.type
+            if (valueType == null) {
+                return@phase2
+            }
 
-        if (valueType.isNullable && !isNullSafeAccess) {
-            diagnosis.unsafeObjectTraversal(valueExpression, declaration.accessOperatorToken)
-        }
-        else if (!valueType.isNullable && isNullSafeAccess) {
-            diagnosis.superfluousSafeObjectTraversal(valueExpression, declaration.accessOperatorToken)
-        }
+            if (valueType.isNullable && !isNullSafeAccess) {
+                diagnosis.unsafeObjectTraversal(valueExpression, declaration.accessOperatorToken)
+            }
+            else if (!valueType.isNullable && isNullSafeAccess) {
+                diagnosis.superfluousSafeObjectTraversal(valueExpression, declaration.accessOperatorToken)
+            }
 
-        val availableGetters = mutableSetOf<BoundFunction>()
-        val getterInvocationDiagnostics = mutableListOf<Diagnostic>()
-        physicalMember = valueType.findMemberVariable(memberName)
-        diagnosis.doWithTransformedFindings(getterInvocation::semanticAnalysisPhase2) { findings ->
-            findings.forEach { finding ->
-                if (finding is AmbiguousInvocationDiagnostic && finding.invocation === getterInvocation.declaration) {
-                    availableGetters.addAll(finding.candidates)
-                } else if (finding is UnresolvableFunctionOverloadDiagnostic && finding.functionNameReference.span == declaration.memberName.span) {
-                    availableGetters.clear()
-                } else {
-                    getterInvocationDiagnostics.add(finding)
+            getterInvocation.candidateFilter = GetterFilter()
+            val availableGetters = mutableSetOf<BoundFunction>()
+            physicalMember = valueType.findMemberVariable(memberName)
+            diagnosis.doWithTransformedFindings(getterInvocation::semanticAnalysisPhase2) { findings ->
+                findings.mapNotNull { finding ->
+                    if (finding is AmbiguousInvocationDiagnostic && finding.invocation === getterInvocation.declaration) {
+                        availableGetters.addAll(finding.candidates)
+                        return@mapNotNull null
+                    }
+
+                    if (finding is UnresolvableFunctionOverloadDiagnostic && finding.functionNameReference.span == declaration.memberName.span) {
+                        availableGetters.clear()
+                        return@mapNotNull null
+                    }
+
+                    return@mapNotNull if (physicalMember == null) {
+                        finding
+                    } else {
+                        null
+                    }
+                }
+            }
+            getterInvocation.functionToInvoke?.let(availableGetters::add)
+
+            if (availableGetters.isEmpty() && physicalMember != null) {
+                val isInitialized = valueExpression.tryAsVariable()?.let {
+                    context.getEphemeralState(PartialObjectInitialization, it).getMemberInitializationState(physicalMember!!) == VariableInitialization.State.INITIALIZED
+                } ?: true
+
+                if (!isInitialized) {
+                    diagnosis.useOfUninitializedMember(physicalMember!!, declaration)
                 }
             }
 
-            emptySequence()
-        }
-        getterInvocation.functionToInvoke?.let(availableGetters::add)
-
-        if (availableGetters.isEmpty() && physicalMember != null) {
-            val isInitialized = valueExpression.tryAsVariable()?.let {
-                context.getEphemeralState(PartialObjectInitialization, it).getMemberInitializationState(physicalMember!!) == VariableInitialization.State.INITIALIZED
-            } ?: true
-
-            if (!isInitialized) {
-                diagnosis.useOfUninitializedMember(physicalMember!!, declaration)
+            if (availableGetters.size > 1 || (availableGetters.isNotEmpty() && physicalMember != null)) {
+                diagnosis.ambiguousMemberVariableRead(this, physicalMember, availableGetters)
             }
-        }
-
-        if (availableGetters.size > 1 || (availableGetters.isNotEmpty() && physicalMember != null)) {
-            diagnosis.ambiguousMemberVariableRead(this, physicalMember, availableGetters)
         }
     }
 
@@ -167,12 +181,14 @@ class BoundMemberVariableReadExpression(
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
-        valueExpression.semanticAnalysisPhase3(diagnosis)
+        seanHelper.phase3(diagnosis) {
+            valueExpression.semanticAnalysisPhase3(diagnosis)
 
-        if (physicalMember != null) {
-            physicalMember!!.validateAccessFrom(declaration.memberName.span, diagnosis)
-        } else {
-            getterInvocation.semanticAnalysisPhase3(diagnosis)
+            if (physicalMember != null) {
+                physicalMember!!.validateAccessFrom(declaration.memberName.span, diagnosis)
+            } else {
+                getterInvocation.semanticAnalysisPhase3(diagnosis)
+            }
         }
     }
 
@@ -215,6 +231,20 @@ class BoundMemberVariableReadExpression(
             IrCodeChunkImpl(listOf(baseTemporary, memberTemporary)),
             IrTemporaryValueReferenceImpl(memberTemporary),
         )
+    }
+
+    private inner class GetterFilter : CandidateFunctionFilter {
+        override fun inspect(candidate: BoundFunction): CandidateFunctionFilter.Result {
+            return if (candidate.attributes.firstAccessorAttribute?.kind == AccessorKind.Read) {
+                CandidateFunctionFilter.Result.Applicable
+            } else {
+                CandidateFunctionFilter.Result.Inapplicable(FunctionMissingModifierDiagnostic(
+                    candidate,
+                    this@BoundMemberVariableReadExpression.declaration,
+                    Keyword.GET.text,
+                ))
+            }
+        }
     }
 }
 

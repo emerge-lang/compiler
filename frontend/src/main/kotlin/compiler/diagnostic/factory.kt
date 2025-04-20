@@ -235,8 +235,19 @@ fun Diagnosis.abstractInheritedFunctionNotImplemented(implementingType: BoundBas
     add(AbstractInheritedFunctionNotImplementedDiagnostic(implementingType, functionToImplement))
 }
 
-fun Diagnosis.noMatchingFunctionOverload(functionNameReference: IdentifierToken, receiverType: BoundTypeReference?, valueArguments: List<BoundExpression<*>>, functionDeclaredAtAll: Boolean) {
-    add(UnresolvableFunctionOverloadDiagnostic(functionNameReference, receiverType, valueArguments.map { it.type }, functionDeclaredAtAll))
+fun Diagnosis.noMatchingFunctionOverload(
+    functionNameReference: IdentifierToken,
+    receiverType: BoundTypeReference?,
+    valueArguments: List<BoundExpression<*>>,
+    functionDeclaredAtAll: Boolean,
+    inapplicableCandidates: List<InvocationCandidateNotApplicableDiagnostic>,
+) {
+    if (inapplicableCandidates.size == 1) {
+        add(inapplicableCandidates.single().asDiagnostic())
+        return
+    }
+
+    add(UnresolvableFunctionOverloadDiagnostic(functionNameReference, receiverType, valueArguments.map { it.type }, functionDeclaredAtAll, inapplicableCandidates))
 }
 
 fun Diagnosis.overloadSetHasNoDisjointParameter(overloadSet: BoundOverloadSet<*>) {

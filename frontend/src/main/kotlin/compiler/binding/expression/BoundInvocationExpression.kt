@@ -18,6 +18,7 @@
 
 package compiler.binding.expression
 
+import compiler.InternalCompilerError
 import compiler.ast.VariableDeclaration
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.type.TypeReference
@@ -44,6 +45,7 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.*
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.InvocationCandidateNotApplicableDiagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.ambiguousInvocation
 import compiler.diagnostic.noMatchingFunctionOverload
@@ -77,6 +79,19 @@ class BoundInvocationExpression(
 ) : BoundExpression<InvocationExpression>, BoundExecutable<InvocationExpression> {
 
     private val seanHelper = SeanHelper()
+
+    /**
+     * Can only be set **before** [semanticAnalysisPhase2], and can only ever be set once.
+     * Repeated sets to the same object (by identity) are tolerated.
+     */
+    var candidateFilter: CandidateFunctionFilter? = null
+        set(value) {
+            seanHelper.requirePhase2NotDone()
+            if (field != null && field !== value) {
+                throw InternalCompilerError("The ${::candidateFilter.name} can only be set once")
+            }
+            field = value
+        }
 
     /**
      * The result of the function dispatching. Is meaningful after [semanticAnalysisPhase2]; remains null after
@@ -227,7 +242,7 @@ class BoundInvocationExpression(
         val (allCandidates, constructorsConsidered, anyTopLevelFunctions) = overloadCandidates
 
         if (allCandidates.isEmpty()) {
-            diagnosis.noMatchingFunctionOverload(functionNameToken, receiverExpression?.type, valueArguments, false)
+            diagnosis.noMatchingFunctionOverload(functionNameToken, receiverExpression?.type, valueArguments, false, emptyList())
             return null
         }
 
@@ -251,6 +266,7 @@ class BoundInvocationExpression(
                     receiverExpression?.type,
                     valueArguments,
                     anyTopLevelFunctions,
+                    emptyList(),
                 )
             }
 
@@ -260,8 +276,9 @@ class BoundInvocationExpression(
         val legalMatches = evaluations.filter { !it.hasErrors }
         when (legalMatches.size) {
             0 -> {
-                if (evaluations.size == 1) {
-                    val singleEval = evaluations.single()
+                val (applicableInvalidCandidates, inapplicableCandidates) = evaluations.partition { it.inapplicableReason == null }
+                if (applicableInvalidCandidates.size == 1) {
+                    val singleEval = applicableInvalidCandidates.single()
                     // if there is only a single candidate, the errors found in validating are 100% applicable to be shown to the user
                     singleEval.unification.diagnostics
                         .also { diags ->
@@ -272,28 +289,34 @@ class BoundInvocationExpression(
                         .forEach(diagnosis::add)
 
                     return singleEval
+                }
+
+                val disjointParameterIndices = applicableInvalidCandidates.indicesOfDisjointlyTypedParameters().toSet()
+                val reducedEvaluations =
+                    applicableInvalidCandidates.filter { it.indicesOfErroneousParameters.none { it in disjointParameterIndices } }
+                if (reducedEvaluations.size == 1) {
+                    val singleEval = reducedEvaluations.single()
+                    singleEval.unification.diagnostics.forEach(diagnosis::add)
+                    return singleEval
                 } else {
-                    val disjointParameterIndices = evaluations.indicesOfDisjointlyTypedParameters().toSet()
-                    val reducedEvaluations =
-                        evaluations.filter { it.indicesOfErroneousParameters.none { it in disjointParameterIndices } }
-                    if (reducedEvaluations.size == 1) {
-                        val singleEval = reducedEvaluations.single()
-                        singleEval.unification.diagnostics.forEach(diagnosis::add)
-                        return singleEval
-                    } else {
-                        diagnosis.noMatchingFunctionOverload(
-                            functionNameToken,
-                            receiverExpression?.type,
-                            valueArguments,
-                            true
-                        )
-                        return evaluations.firstOrNull()
-                    }
+                    diagnosis.noMatchingFunctionOverload(
+                        functionNameToken,
+                        receiverExpression?.type,
+                        valueArguments,
+                        functionDeclaredAtAll = true,
+                        inapplicableCandidates.map { it.inapplicableReason!! }
+                    )
+                    return applicableInvalidCandidates.firstOrNull()
                 }
             }
             1 -> return legalMatches.single()
             else -> {
-                diagnosis.ambiguousInvocation(this, evaluations.map { it.candidate })
+                diagnosis.ambiguousInvocation(
+                    this,
+                    evaluations
+                        .filter { it.inapplicableReason == null }
+                        .map { it.candidate }
+                )
                 return legalMatches.firstOrNull()
             }
         }
@@ -361,11 +384,17 @@ class BoundInvocationExpression(
                         unificationAfterParameter
                     }
 
+                val inapplicableReason = when (val inspectResult = candidateFilter?.inspect(candidateFn)) {
+                    null, CandidateFunctionFilter.Result.Applicable -> null
+                    is CandidateFunctionFilter.Result.Inapplicable -> inspectResult.reason
+                }
+
                 OverloadCandidateEvaluation(
                     candidateFn,
                     unification,
                     returnTypeWithVariables?.instantiateFreeVariables(unification),
                     indicesOfErroneousParameters,
+                    inapplicableReason,
                 )
             }
             .toList()
@@ -520,8 +549,9 @@ private data class OverloadCandidateEvaluation(
     val unification: TypeUnification,
     val returnType: BoundTypeReference?,
     val indicesOfErroneousParameters: Collection<Int>,
+    val inapplicableReason: InvocationCandidateNotApplicableDiagnostic?,
 ) {
-    val hasErrors = unification.diagnostics.any { it.severity >= Diagnostic.Severity.ERROR }
+    val hasErrors = inapplicableReason != null || unification.diagnostics.any { it.severity >= Diagnostic.Severity.ERROR }
 }
 
 private fun Collection<OverloadCandidateEvaluation>.indicesOfDisjointlyTypedParameters(): Sequence<Int> {
@@ -534,6 +564,22 @@ private fun Collection<OverloadCandidateEvaluation>.indicesOfDisjointlyTypedPara
             val parameterTypesAtIndex = this.map { it.candidate.parameters.parameters[parameterIndex] }
             parameterTypesAtIndex.nonDisjointPairs().none()
         }
+}
+
+/**
+ * Used to filter the available functions before selecting one to invoke. The [Result.Inapplicable.reason]s
+ * will be reported back to the user to provide a better understanding of the problem.
+ */
+fun interface CandidateFunctionFilter {
+    /**
+     * Inspects the given candidate function and returns info on how to treat this candidate.
+     */
+    fun inspect(candidate: BoundFunction): Result
+
+    sealed interface Result {
+        object Applicable : Result
+        class Inapplicable(val reason: InvocationCandidateNotApplicableDiagnostic) : Result
+    }
 }
 
 internal class IrStaticDispatchFunctionInvocationImpl(

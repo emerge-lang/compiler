@@ -84,6 +84,8 @@ private class TransformingDiagnosis(
         localCollected.add(finding)
     }
 
+    override val nErrors get() = delegate.nErrors + (collected ?: emptyList()).count { it.severity >= Diagnostic.Severity.ERROR }.toULong()
+
     fun closeAndDiscard() {
         collected = null
     }

@@ -4,6 +4,7 @@ import compiler.binding.AccessorKind
 import compiler.diagnostic.AccessorContractViolationDiagnostic
 import compiler.diagnostic.AmbiguousMemberVariableAccessDiagnostic
 import compiler.diagnostic.ConflictingFunctionModifiersDiagnostic
+import compiler.diagnostic.FunctionMissingModifierDiagnostic
 import compiler.diagnostic.GetterAndSetterHaveDifferentTypesDiagnostics
 import compiler.diagnostic.MultipleAccessorsForVirtualMemberVariableDiagnostic
 import compiler.diagnostic.OverrideAccessorDeclarationMismatchDiagnostic
@@ -492,6 +493,62 @@ class VirtualMemberVarsErrors : FreeSpec({
             """.trimIndent())
                 .shouldFind< AmbiguousMemberVariableAccessDiagnostic> {
                     it.memberVariableName shouldBe "p"
+                }
+        }
+    }
+
+    "missing function attribute" - {
+        "on package level getter" {
+            validateModule("""
+                interface I {}
+                fn foo(self: I) -> S32 = 0
+                fn test(p: I) = p.foo
+            """.trimIndent())
+                .shouldFind<FunctionMissingModifierDiagnostic> {
+                    it.function.name shouldBe "foo"
+                    it.missingAttribute shouldBe "get"
+                }
+        }
+
+        "on member getter" {
+            validateModule("""
+                interface I {
+                    fn foo(self) -> S32
+                }
+                fn test(p: I) = p.foo
+            """.trimIndent())
+                .shouldFind<FunctionMissingModifierDiagnostic> {
+                    it.function.name shouldBe "foo"
+                    it.missingAttribute shouldBe "get"
+                }
+        }
+
+        "on package level setter" {
+            validateModule("""
+                interface I {}
+                fn foo(self: I, v: S32) {}
+                fn test(p: mut I) {
+                    p.foo = 3
+                }
+            """.trimIndent())
+                .shouldFind<FunctionMissingModifierDiagnostic> {
+                    it.function.name shouldBe "foo"
+                    it.missingAttribute shouldBe "set"
+                }
+        }
+
+        "on member setter" {
+            validateModule("""
+                interface I {
+                    fn foo(self, v: S32)
+                }
+                fn test(p: mut I) {
+                    p.foo = 3
+                }
+            """.trimIndent())
+                .shouldFind<FunctionMissingModifierDiagnostic> {
+                    it.function.name shouldBe "foo"
+                    it.missingAttribute shouldBe "set"
                 }
         }
     }
