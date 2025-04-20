@@ -231,16 +231,15 @@ class BoundIdentifierExpression(
                 }
             }
 
-            if (usageContext.requiresVariableLifetimeActive) {
-                val lifeStateBeforeUsage = context.getEphemeralState(VariableLifetime, variable)
-                lifeStateBeforeUsage.validateCapture(this@BoundIdentifierExpression, diagnosis)
 
-                if (thisUsageCapturesWithMutability != null) {
-                    val repetitionRelativeToVariable = context.getRepetitionBehaviorRelativeTo(variable.modifiedContext)
-                    if (repetitionRelativeToVariable.mayRepeat) {
-                        val stateAfterUsage = _modifiedContext.getEphemeralState(VariableLifetime, variable)
-                        stateAfterUsage.validateRepeatedCapture(lifeStateBeforeUsage, this@BoundIdentifierExpression, diagnosis)
-                    }
+            val lifeStateBeforeUsage = context.getEphemeralState(VariableLifetime, variable)
+            lifeStateBeforeUsage.validateCapture(this@BoundIdentifierExpression, diagnosis)
+
+            if (thisUsageCapturesWithMutability != null) {
+                val repetitionRelativeToVariable = context.getRepetitionBehaviorRelativeTo(variable.modifiedContext)
+                if (repetitionRelativeToVariable.mayRepeat) {
+                    val stateAfterUsage = _modifiedContext.getEphemeralState(VariableLifetime, variable)
+                    stateAfterUsage.validateRepeatedCapture(lifeStateBeforeUsage, this@BoundIdentifierExpression, diagnosis)
                 }
             }
 
@@ -315,10 +314,9 @@ class BoundIdentifierExpression(
 
     private enum class VariableUsageContext(
         val requiresInitialization: Boolean,
-        val requiresVariableLifetimeActive: Boolean,
     ) {
-        READ(true, true),
-        WRITE(false, false),
+        READ(true),
+        WRITE(false),
     }
 }
 
