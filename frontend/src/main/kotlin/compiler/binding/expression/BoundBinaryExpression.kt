@@ -24,7 +24,7 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.Diagnosis.Companion.doWithTransformedFindings
 import compiler.diagnostic.FunctionMissingModifierDiagnostic
 import compiler.diagnostic.OperatorNotDeclaredDiagnostic
 import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
@@ -44,16 +44,18 @@ class BoundBinaryExpression(
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
-        hiddenInvocation.semanticAnalysisPhase2(diagnosis.mapping { hiddenReporting ->
-            if (hiddenReporting !is UnresolvableFunctionOverloadDiagnostic || hiddenReporting.functionNameReference != hiddenInvocation.functionNameToken) {
-                return@mapping hiddenReporting
-            }
+        diagnosis.doWithTransformedFindings(hiddenInvocation::semanticAnalysisPhase2) { diags ->
+            diags.map { hiddenReporting ->
+                if (hiddenReporting !is UnresolvableFunctionOverloadDiagnostic || hiddenReporting.functionNameReference != hiddenInvocation.functionNameToken) {
+                    return@map hiddenReporting
+                }
 
-            OperatorNotDeclaredDiagnostic(
-                "Binary operator ${declaration.operator.name} (function ${hiddenInvocation.functionNameToken.value}) not declared for type ${hiddenReporting.receiverType ?: "<unknown>"}",
-                declaration,
-            )
-        })
+                OperatorNotDeclaredDiagnostic(
+                    "Binary operator ${declaration.operator.name} (function ${hiddenInvocation.functionNameToken.value}) not declared for type ${hiddenReporting.receiverType ?: "<unknown>"}",
+                    declaration,
+                )
+            }
+        }
 
         FunctionMissingModifierDiagnostic.requireOperatorModifier(
             hiddenInvocation,
