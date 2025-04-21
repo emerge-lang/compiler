@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.github.tmarsteel.emerge-lang</groupId>
         <artifactId>parent</artifactId>
-        <version>0.3.0</version>
+        <version>0.4.0</version>
     </parent>
 
     <name>Emerge Lang Utility Code</name>
