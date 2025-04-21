@@ -5,9 +5,9 @@ import emerge.core.StackTraceElement
 import emerge.platform.collectStackTrace
 
 export class ArithmeticError : Error {
-    private message: String = init
+    private _message: String = init
     
     constructor {
-        mixin ThrowableTrait(self.message)
+        mixin ThrowableTrait(self._message)
     }
 }

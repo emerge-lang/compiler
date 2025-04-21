@@ -6,20 +6,18 @@ import emerge.core.reflection.reflectType
 import emerge.platform.collectStackTrace
 
 export interface Throwable : Printable {
-    // TODO: make into virtual property
-    export nothrow fn getMessage(self) -> String?
+    export nothrow get fn message(self) -> String?
     
     // on the first invocation of this function, saves information on the stack trace
-    // to be later returned from getStackTrace
+    // to be later returned from stackTrace
     // called by the throw keyword, so that user-code doesn't need to
     // deal with the necessary read side-effect of collectStackTrace
     export read fn fillStackTrace(self: mut _)
     
     // @return the stack trace collected on the first call to [fillStackTrace], or `null` if
     // it was never called or didn't succeed
-    // TODO: make into virtual property
     // TODO: return type Iterable<...>
-    export nothrow fn getStackTrace(self) -> const ArrayList<StackTraceElement>?
+    export nothrow get fn stackTrace(self) -> const ArrayList<StackTraceElement>?
 }
 export interface Error : Throwable {}
 
@@ -27,27 +25,27 @@ export interface Error : Throwable {}
 // as a delegation implementation in Throwables.
 // implements Error so it can be used in both Error and Exception classes
 export class ThrowableTrait : Error, Printable {
-	message: String? = init
+	private _message: String? = init
 
-    private var stackTrace: const ArrayList<StackTraceElement>? = null
+    private var _stackTrace: const ArrayList<StackTraceElement>? = null
 
     export override read fn fillStackTrace(self: mut _) {
-        set self.stackTrace = self.stackTrace ?: collectStackTrace(2 as U32, false)
+        set self._stackTrace = self._stackTrace ?: collectStackTrace(2 as U32, false)
     }
 
-    export override nothrow fn getStackTrace(self) -> const ArrayList<StackTraceElement>? {
-        return self.stackTrace
+    export override nothrow get fn stackTrace(self) -> const ArrayList<StackTraceElement>? {
+        return self._stackTrace
     }
 
-    export override nothrow fn getMessage(self) = self.message
+    export override nothrow get fn message(self) = self._message
 
     export override fn printTo(self, borrow target: mut PrintStream) {
         target.put(self.reflectType().canonicalName)
         target.put(": ")
-        target.put(self.getMessage() ?: "<no message>")
+        target.put(self.message ?: "<no message>")
         target.putEndOfLine()
 
-        stackTrace = self.getStackTrace()
+        stackTrace = self.stackTrace
         if isNull(stackTrace) {
             target.put("  ! stack trace not set")
             return
