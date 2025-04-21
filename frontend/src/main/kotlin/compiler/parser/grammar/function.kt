@@ -19,14 +19,28 @@
 package compiler.parser.grammar
 
 import compiler.InternalCompilerError
-import compiler.ast.*
+import compiler.ast.AstCodeChunk
+import compiler.ast.AstFunctionAttribute
+import compiler.ast.AstVisibility
+import compiler.ast.FunctionDeclaration
+import compiler.ast.ParameterList
+import compiler.ast.TypeParameterBundle
+import compiler.ast.VariableDeclaration
+import compiler.ast.VariableOwnership
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
-import compiler.lexer.*
+import compiler.binding.AccessorKind
+import compiler.binding.BoundFunction
+import compiler.lexer.IdentifierToken
+import compiler.lexer.Keyword
+import compiler.lexer.KeywordToken
+import compiler.lexer.Operator
+import compiler.lexer.OperatorToken
+import compiler.lexer.Token
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
-import java.util.*
+import java.util.LinkedList
 import compiler.ast.Expression as AstExpression
 
 val Parameter = sequence("parameter declaration") {
@@ -152,6 +166,8 @@ val FunctionAttribute = eitherOf {
     keyword(Keyword.OPERATOR)
     keyword(Keyword.INTRINSIC)
     keyword(Keyword.OVERRIDE)
+    keyword(Keyword.GET)
+    keyword(Keyword.SET)
     sequence {
         keyword(Keyword.EXTERNAL)
         operator(Operator.PARANT_OPEN)
@@ -167,13 +183,15 @@ val FunctionAttribute = eitherOf {
         }
         val nameToken = next as KeywordToken
         when(nameToken.keyword) {
-            Keyword.MUTABLE -> AstFunctionAttribute.EffectCategory(AstFunctionAttribute.EffectCategory.Category.MODIFYING, nameToken)
-            Keyword.READONLY -> AstFunctionAttribute.EffectCategory(AstFunctionAttribute.EffectCategory.Category.READONLY, nameToken)
-            Keyword.PURE -> AstFunctionAttribute.EffectCategory(AstFunctionAttribute.EffectCategory.Category.PURE, nameToken)
+            Keyword.MUTABLE -> AstFunctionAttribute.EffectCategory(BoundFunction.Purity.MODIFYING, nameToken)
+            Keyword.READONLY -> AstFunctionAttribute.EffectCategory(BoundFunction.Purity.READONLY, nameToken)
+            Keyword.PURE -> AstFunctionAttribute.EffectCategory(BoundFunction.Purity.PURE, nameToken)
             Keyword.NOTHROW -> AstFunctionAttribute.Nothrow(nameToken)
             Keyword.OPERATOR -> AstFunctionAttribute.Operator(nameToken)
             Keyword.INTRINSIC -> AstFunctionAttribute.Intrinsic(nameToken)
             Keyword.OVERRIDE -> AstFunctionAttribute.Override(nameToken)
+            Keyword.GET -> AstFunctionAttribute.Accessor(AccessorKind.Read, nameToken)
+            Keyword.SET -> AstFunctionAttribute.Accessor(AccessorKind.Write, nameToken)
             Keyword.EXTERNAL -> {
                 tokens.next() // skip parant_open
                 val ffiNameToken = tokens.next() as IdentifierToken

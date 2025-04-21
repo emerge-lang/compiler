@@ -1,5 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm.codegen
 
+import io.github.tmarsteel.emerge.backend.GET_AT_INDEX_FN_NAME
+import io.github.tmarsteel.emerge.backend.SET_AT_INDEX_FN_NAME
 import io.github.tmarsteel.emerge.backend.api.CodeGenerationException
 import io.github.tmarsteel.emerge.backend.api.ir.IrAllocateObjectExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
@@ -957,7 +959,7 @@ private sealed interface ArrayDispatchOverride {
                 ArrayAccessType.REFERENCE_TYPE_DIRECT
             }
 
-            if (invocation.function.canonicalName.simpleName == "get" && invocation.function.parameters.size == 2) {
+            if (invocation.function.canonicalName.simpleName == GET_AT_INDEX_FN_NAME && invocation.function.parameters.size == 2) {
                 when (accessType) {
                     ArrayAccessType.VIRTUAL -> return InvokeVirtual(
                         EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT_FALLIBLE,
@@ -981,7 +983,7 @@ private sealed interface ArrayDispatchOverride {
                         EmergeReferenceArrayType.rawGetterWithFallibleBoundsCheck
                     )
                 }
-            } else if (invocation.function.canonicalName.simpleName == "set" && invocation.function.parameters.size == 3) {
+            } else if (invocation.function.canonicalName.simpleName == SET_AT_INDEX_FN_NAME && invocation.function.parameters.size == 3) {
                 when (accessType) {
                     ArrayAccessType.VIRTUAL -> return InvokeVirtual(
                         EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT_FALLIBLE,

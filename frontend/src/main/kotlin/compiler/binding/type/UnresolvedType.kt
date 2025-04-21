@@ -32,11 +32,11 @@ class UnresolvedType private constructor(
         parameters?.forEach { it.validate(forUsage.deriveIrrelevant(), diagnosis) }
     }
 
-    override fun withMutability(modifier: TypeMutability?): BoundTypeReference {
+    override fun withMutability(mutability: TypeMutability?): BoundTypeReference {
         return UnresolvedType(
-            standInType.withMutability(modifier),
+            standInType.withMutability(mutability),
             reference,
-            parameters?.map { it.defaultMutabilityTo(modifier) },
+            parameters?.map { it.defaultMutabilityTo(mutability) },
         )
     }
 

@@ -61,7 +61,7 @@ class TypeVariable private constructor(
         throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 
-    override fun withMutability(modifier: TypeMutability?): BoundTypeReference {
+    override fun withMutability(mutability: TypeMutability?): BoundTypeReference {
         throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 

@@ -23,7 +23,6 @@ import compiler.ast.BaseTypeDeclaration
 import compiler.ast.ImportDeclaration
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
-import compiler.binding.BoundFunction
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
@@ -68,7 +67,7 @@ open class MutableCTContext(
     protected val _variables: MutableMap<String, BoundVariable> = HashMap()
 
     /** Holds all the toplevel functions defined in this context */
-    protected val _functions: MutableSet<BoundFunction> = HashSet()
+    protected val _functions: MutableSet<BoundDeclaredFunction> = HashSet()
 
     /** Holds all the base types defined in this context */
     protected val _types: MutableSet<BoundBaseType> = HashSet()

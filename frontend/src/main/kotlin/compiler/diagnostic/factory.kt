@@ -4,18 +4,22 @@ import compiler.ast.AstFunctionAttribute
 import compiler.ast.AstPackageName
 import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
-import compiler.ast.Executable
+import compiler.ast.BaseTypeMemberVariableDeclaration
 import compiler.ast.Expression
 import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
+import compiler.ast.VariableOwnership
+import compiler.ast.expression.MemberAccessExpression
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
+import compiler.binding.AccessorKind
 import compiler.binding.BoundAssignmentStatement
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundMemberFunction
+import compiler.binding.BoundObjectMemberAssignmentStatement
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundParameter
 import compiler.binding.BoundVariable
@@ -38,7 +42,7 @@ import compiler.binding.expression.BoundContinueExpression
 import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.BoundIdentifierExpression
 import compiler.binding.expression.BoundInvocationExpression
-import compiler.binding.expression.BoundMemberAccessExpression
+import compiler.binding.expression.BoundMemberVariableReadExpression
 import compiler.binding.expression.BoundNotNullExpression
 import compiler.binding.expression.BoundReturnExpression
 import compiler.binding.expression.BoundThrowExpression
@@ -105,7 +109,76 @@ fun Diagnosis.unsupportedTypeUsageVariance(useSite: TypeUseSite, erroneousVarian
     add(UnsupportedTypeUsageVarianceDiagnostic(useSite, erroneousVariance))
 }
 
-fun Diagnosis.illegalAssignment(message: String, assignmentStatement: BoundAssignmentStatement) {
+fun Diagnosis.accessorContractViolation(accessor: FunctionDeclaration, message: String, span: Span) {
+    add(AccessorContractViolationDiagnostic(accessor, message, span))
+}
+
+fun Diagnosis.accessorCapturesSelf(accessor: BoundDeclaredFunction, receiverParam: BoundParameter) {
+    val actionPhrase = when (accessor.attributes.firstAccessorAttribute!!.kind) {
+        AccessorKind.Read -> "retrieve data from"
+        AccessorKind.Write -> "write data to"
+    }
+    add(AccessorContractViolationDiagnostic(
+        accessor.declaration,
+        "Accessors must not capture the object they $actionPhrase. Declare the `${receiverParam.name}` parameter as ${VariableOwnership.BORROWED.keyword.text}",
+        receiverParam.declaration.ownership?.second?.span
+            ?: receiverParam.declaration.span,
+    ))
+}
+
+fun Diagnosis.accessorNotPure(accessor: BoundDeclaredFunction) {
+    add(AccessorContractViolationDiagnostic(
+        accessor.declaration,
+        "Accessors must not access global state, but this one is declared ${accessor.purity.keyword.text}. Declare the accessor ${BoundFunction.Purity.PURE.keyword.text}.",
+        accessor.attributes.purityAttribute?.sourceLocation ?: accessor.declaredAt,
+    ))
+}
+
+fun Diagnosis.multipleAccessorsOnBaseType(virtualMemberName: String, kind: AccessorKind, accessors: List<BoundMemberFunction>) {
+    add(MultipleAccessorsForVirtualMemberVariableDiagnostic(virtualMemberName, kind, accessors.map { it.declaration }))
+}
+
+fun Diagnosis.multipleAccessorsOnPackage(virtualMemberName: String, kind: AccessorKind, accessors: List<BoundDeclaredFunction>) {
+    add(MultipleAccessorsForVirtualMemberVariableDiagnostic(virtualMemberName, kind, accessors.map { it.declaration }))
+}
+
+fun Diagnosis.getterAndSetterWithDifferentType(virtualMemberName: String, getter: BoundMemberFunction, setter: BoundMemberFunction) {
+    add(GetterAndSetterHaveDifferentTypesDiagnostics(getter.declaration, setter.declaration))
+}
+
+fun Diagnosis.getterAndSetterWithDifferentType(virtualMemberName: String, getter: BoundDeclaredFunction, setter: BoundDeclaredFunction) {
+    add(GetterAndSetterHaveDifferentTypesDiagnostics(getter.declaration, setter.declaration))
+}
+
+fun Diagnosis.ambiguousMemberVariableRead(
+    read: BoundMemberVariableReadExpression,
+    member: BoundBaseTypeMemberVariable?,
+    getters: Collection<BoundFunction>,
+) {
+    add(AmbiguousMemberVariableAccessDiagnostic(
+        read.memberName,
+        AccessorKind.Read,
+        member?.declaration,
+        getters.map { it.declaredAt },
+        read.declaration.memberName.span,
+    ))
+}
+
+fun Diagnosis.ambiguousMemberVariableWrite(
+    write: BoundObjectMemberAssignmentStatement,
+    member: BoundBaseTypeMemberVariable?,
+    setters: Collection<BoundFunction>,
+) {
+    add(AmbiguousMemberVariableAccessDiagnostic(
+        write.memberName,
+        AccessorKind.Write,
+        member?.declaration,
+        setters.map { it.declaredAt },
+        write.declaration.targetExpression.memberName.span,
+    ))
+}
+
+fun Diagnosis.illegalAssignment(message: String, assignmentStatement: BoundAssignmentStatement<*>) {
     add(IllegalAssignmentDiagnostic(message, assignmentStatement))
 }
 
@@ -121,12 +194,8 @@ fun Diagnosis.inefficientAttributes(message: String, attributes: Collection<AstF
     add(ModifierInefficiencyDiagnostic(message, attributes))
 }
 
-fun Diagnosis.conflictingModifiers(attributes: Collection<AstFunctionAttribute>) {
-    add(ConflictingFunctionModifiersDiagnostic(attributes))
-}
-
-fun Diagnosis.functionIsMissingDeclaredAttribute(fn: BoundDeclaredFunction, missingAttribute: AstFunctionAttribute, reason: String) {
-    add(FunctionMissingDeclaredModifierDiagnostic(fn.declaration, missingAttribute, reason))
+fun Diagnosis.conflictingAttributes(attributes: Collection<AstFunctionAttribute>) {
+    add(ConflictingFunctionAttributesDiagnostic(attributes))
 }
 
 fun Diagnosis.toplevelFunctionWithOverrideAttribute(attr: AstFunctionAttribute.Override) {
@@ -177,8 +246,19 @@ fun Diagnosis.abstractInheritedFunctionNotImplemented(implementingType: BoundBas
     add(AbstractInheritedFunctionNotImplementedDiagnostic(implementingType, functionToImplement))
 }
 
-fun Diagnosis.noMatchingFunctionOverload(functionNameReference: IdentifierToken, receiverType: BoundTypeReference?, valueArguments: List<BoundExpression<*>>, functionDeclaredAtAll: Boolean) {
-    add(UnresolvableFunctionOverloadDiagnostic(functionNameReference, receiverType, valueArguments.map { it.type }, functionDeclaredAtAll))
+fun Diagnosis.noMatchingFunctionOverload(
+    functionNameReference: IdentifierToken,
+    receiverType: BoundTypeReference?,
+    valueArguments: List<BoundExpression<*>>,
+    functionDeclaredAtAll: Boolean,
+    inapplicableCandidates: List<InvocationCandidateNotApplicableDiagnostic>,
+) {
+    if (inapplicableCandidates.size == 1) {
+        add(inapplicableCandidates.single().asDiagnostic())
+        return
+    }
+
+    add(UnresolvableFunctionOverloadDiagnostic(functionNameReference, receiverType, valueArguments.map { it.type }, functionDeclaredAtAll, inapplicableCandidates))
 }
 
 fun Diagnosis.overloadSetHasNoDisjointParameter(overloadSet: BoundOverloadSet<*>) {
@@ -254,8 +334,8 @@ fun Diagnosis.unresolvableConstructor(nameToken: IdentifierToken, valueArguments
     add(UnresolvableConstructorDiagnostic(nameToken, valueArguments.map { it.type }, functionsWithNameAvailable))
 }
 
-fun Diagnosis.unresolvableMemberVariable(accessExpression: BoundMemberAccessExpression, hostType: BoundTypeReference) {
-    add(UnresolvedMemberVariableDiagnostic(accessExpression.declaration, hostType))
+fun Diagnosis.unresolvableMemberVariable(accessExpression: MemberAccessExpression, hostType: BoundTypeReference) {
+    add(UnresolvedMemberVariableDiagnostic(accessExpression, hostType))
 }
 
 fun Diagnosis.ambiguousImports(imports: Iterable<BoundImportDeclaration>) {
@@ -282,8 +362,13 @@ fun Diagnosis.explicitInferTypeNotAllowed(type: TypeReference) {
     add(ExplicitInferTypeNotAllowedDiagnostic(type))
 }
 
-fun Diagnosis.functionIsMissingAttribute(function: BoundFunction, usageRequiringModifier: Executable, missingAttribute: String) {
-    add(FunctionMissingModifierDiagnostic(function, usageRequiringModifier, missingAttribute))
+fun Diagnosis.functionIsMissingAttribute(
+    function: BoundFunction,
+    usageRequiringModifierAt: Span,
+    missingAttribute: AstFunctionAttribute,
+    reason: String?,
+) {
+    add(FunctionMissingAttributeDiagnostic(function, usageRequiringModifierAt, missingAttribute, reason))
 }
 
 fun Diagnosis.externalMemberFunction(function: BoundDeclaredFunction) {
@@ -301,11 +386,11 @@ fun Diagnosis.notAllMixinsInitialized(uninitializedMixins: Collection<BoundMixin
     add(ObjectUsedBeforeMixinInitializationDiagnostic(uninitializedMixins.minBy { it.declaration.span.fromLineNumber }.declaration, usedAt))
 }
 
-fun Diagnosis.useOfUninitializedMember(access: BoundMemberAccessExpression) {
+fun Diagnosis.useOfUninitializedMember(member: BoundBaseTypeMemberVariable, access: MemberAccessExpression) {
     add(
         UseOfUninitializedClassMemberVariableDiagnostic(
-            access.member!!.declaration,
-            access.declaration.memberName.span,
+            member.declaration,
+            access.memberName.span,
         )
     )
 }
@@ -356,6 +441,10 @@ fun Diagnosis.overrideDropsNothrow(override: BoundMemberFunction, superFunction:
 
 fun Diagnosis.overrideRestrictsVisibility(override: BoundMemberFunction, superFunction: BoundMemberFunction) {
     add(OverrideRestrictsVisibilityDiagnostic(override, superFunction))
+}
+
+fun Diagnosis.overrideAccessorDeclarationMismatch(override: BoundMemberFunction, superFunction: BoundMemberFunction) {
+    add(OverrideAccessorDeclarationMismatchDiagnostic(override, superFunction))
 }
 
 fun Diagnosis.overridingParameterExtendsOwnership(override: BoundParameter, superParameter: BoundParameter) {
@@ -449,6 +538,10 @@ fun Diagnosis.multipleClassDestructors(additionalDtors: Collection<BaseTypeDestr
 
 fun Diagnosis.entryNotAllowedOnBaseType(baseType: BoundBaseType, entry: BoundBaseTypeEntry<*>) {
     add(EntryNotAllowedInBaseTypeDiagnostic(baseType.kind, entry))
+}
+
+fun Diagnosis.virtualAndActualMemberVariableNameClash(memberVar: BaseTypeMemberVariableDeclaration, clashingAccessors: List<BoundMemberFunction>) {
+    add(VirtualAndActualMemberVariableNameClashDiagnostic(memberVar, clashingAccessors))
 }
 
 fun Diagnosis.elementNotAccessible(element: DefinitionWithVisibility, visibility: BoundVisibility, accessAt: Span) {

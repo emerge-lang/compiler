@@ -20,7 +20,7 @@ package compiler.diagnostic
 
 import compiler.ast.AstFunctionAttribute
 
-class ConflictingFunctionModifiersDiagnostic(attributes: Collection<AstFunctionAttribute>) : MultiFunctionAttributeDiagnostic(
+class ConflictingFunctionAttributesDiagnostic(attributes: Collection<AstFunctionAttribute>) : MultiFunctionAttributeDiagnostic(
     Severity.ERROR,
     "These attributes conflict each other",
     attributes,

@@ -57,18 +57,6 @@ abstract class BoundDeclaredFunction(
     final override var returnType: BoundTypeReference? = null
         private set
 
-    final override val throwBehavior: SideEffectPrediction? get() {
-        if (attributes.isDeclaredNothrow) {
-            return SideEffectPrediction.NEVER
-        }
-
-        return handleCyclicInvocation(
-            context = this,
-            action = { body?.throwBehavior },
-            onCycle = { SideEffectPrediction.POSSIBLY },
-        )
-    }
-
     private val seanHelper = SeanHelper()
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
@@ -81,7 +69,7 @@ abstract class BoundDeclaredFunction(
             if (declaration.parsedReturnType != null) {
                 returnType = context.resolveType(declaration.parsedReturnType)
                 if (body !is Body.SingleExpression) {
-                    returnType = returnType?.defaultMutabilityTo(TypeMutability.IMMUTABLE)
+                    returnType = returnType?.defaultMutabilityTo(TypeMutability.READONLY)
                 }
             }
 
@@ -139,6 +127,8 @@ abstract class BoundDeclaredFunction(
             if (attributes.isDeclaredNothrow) {
                 body?.setNothrow(NothrowViolationDiagnostic.SideEffectBoundary.Function(this))
             }
+
+            attributes.firstAccessorAttribute?.kind?.validateContract(this, diagnosis)
         }
     }
 

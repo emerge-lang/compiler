@@ -3,14 +3,13 @@ package compiler.binding
 import compiler.ast.AstFunctionAttribute
 import compiler.ast.AstVisibility
 import compiler.binding.context.CTContext
-import compiler.lexer.Keyword
-import compiler.lexer.KeywordToken
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
-import compiler.diagnostic.conflictingModifiers
-import compiler.diagnostic.functionIsMissingDeclaredAttribute
+import compiler.diagnostic.conflictingAttributes
+import compiler.diagnostic.functionIsMissingAttribute
 import compiler.diagnostic.inefficientAttributes
 import compiler.diagnostic.unsupportedCallingConvention
+import compiler.lexer.Keyword
+import compiler.lexer.KeywordToken
 import compiler.util.twoElementPermutationsUnordered
 
 class BoundFunctionAttributeList(
@@ -31,6 +30,7 @@ class BoundFunctionAttributeList(
 
     val firstOverrideAttribute: AstFunctionAttribute.Override?
     val firstNothrowAttribute: AstFunctionAttribute?
+    val firstAccessorAttribute: AstFunctionAttribute.Accessor?
 
     val impliesNoBody: Boolean
     var isDeclaredOperator: Boolean
@@ -42,19 +42,20 @@ class BoundFunctionAttributeList(
         impliesNoBody = attributes.any { it.impliesNoBody }
         isDeclaredOperator = attributes.any { it is AstFunctionAttribute.Operator }
         firstModifyingAttribute = attributes.firstOrNull {
-            it is AstFunctionAttribute.EffectCategory && it.value == AstFunctionAttribute.EffectCategory.Category.MODIFYING
+            it is AstFunctionAttribute.EffectCategory && it.value == BoundFunction.Purity.MODIFYING
         }
         firstReadonlyAttribute = attributes.firstOrNull {
-            it is AstFunctionAttribute.EffectCategory && it.value == AstFunctionAttribute.EffectCategory.Category.READONLY
+            it is AstFunctionAttribute.EffectCategory && it.value == BoundFunction.Purity.READONLY
         }
         firstPureAttribute = attributes.firstOrNull {
-            it is AstFunctionAttribute.EffectCategory && it.value == AstFunctionAttribute.EffectCategory.Category.PURE
+            it is AstFunctionAttribute.EffectCategory && it.value == BoundFunction.Purity.PURE
         }
 
         externalAttribute = attrSequence.filterIsInstance<AstFunctionAttribute.External>().firstOrNull()
         firstOverrideAttribute = attrSequence.filterIsInstance<AstFunctionAttribute.Override>().firstOrNull()
         firstNothrowAttribute = attributes.find { it is AstFunctionAttribute.Nothrow }
             ?: attributes.find { it is AstFunctionAttribute.External }
+        firstAccessorAttribute = attrSequence.filterIsInstance<AstFunctionAttribute.Accessor>().firstOrNull()
     }
 
     private val seanHelper = SeanHelper()
@@ -79,7 +80,7 @@ class BoundFunctionAttributeList(
             attributes.twoElementPermutationsUnordered()
                 .filter { (a, b) -> conflictsWith(a, b) }
                 .forEach { (a, b) ->
-                    diagnosis.conflictingModifiers(listOf(a, b))
+                    diagnosis.conflictingAttributes(listOf(a, b))
                 }
 
             attributes
@@ -89,11 +90,13 @@ class BoundFunctionAttributeList(
                     diagnosis.unsupportedCallingConvention(it, SUPPORTED_EXTERNAL_CALLING_CONVENTIONS)
                 }
 
-            if (attributes.any { it is AstFunctionAttribute.External } && attributes.none { it is AstFunctionAttribute.Nothrow }) {
+            val externalAttr = attributes.filterIsInstance<AstFunctionAttribute.External>().firstOrNull()
+            if (externalAttr != null && attributes.none { it is AstFunctionAttribute.Nothrow }) {
                 // this should never occur on ctors or dtors
                 val fn = getFunction() as BoundDeclaredFunction
-                diagnosis.functionIsMissingDeclaredAttribute(
+                diagnosis.functionIsMissingAttribute(
                     fn,
+                    externalAttr.sourceLocation,
                     AstFunctionAttribute.Nothrow(KeywordToken(Keyword.NOTHROW)),
                     "is declared external; external functions cannot throw exceptions."
                 )
@@ -140,6 +143,12 @@ class BoundFunctionAttributeList(
             is AstFunctionAttribute.External -> {
                 if (b is AstFunctionAttribute.External) {
                     a.ffiName != b.ffiName
+                    // if a == b it's an inefficiency, reported through the general inefficiency mechanism
+                } else false
+            }
+            is AstFunctionAttribute.Accessor -> {
+                if (b is AstFunctionAttribute.Accessor) {
+                    a.kind != b.kind
                     // if a == b it's an inefficiency, reported through the general inefficiency mechanism
                 } else false
             }

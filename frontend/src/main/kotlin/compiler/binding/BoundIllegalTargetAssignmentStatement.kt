@@ -2,6 +2,7 @@ package compiler.binding
 
 import compiler.InternalCompilerError
 import compiler.ast.AssignmentStatement
+import compiler.ast.Expression
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundBinaryExpression
 import compiler.binding.expression.BoundExpression
@@ -11,20 +12,18 @@ import compiler.binding.expression.BoundLiteralExpression
 import compiler.binding.expression.BoundNotNullExpression
 import compiler.binding.expression.BoundUnaryExpression
 import compiler.binding.expression.IrrelevantValueUsage
-import compiler.binding.expression.ValueUsage
 import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.illegalAssignment
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 
 class BoundIllegalTargetAssignmentStatement(
     context: ExecutionScopedCTContext,
-    declaration: AssignmentStatement,
+    declaration: AssignmentStatement<Expression>,
     val targetExpression: BoundExpression<*>,
     toAssignExpression: BoundExpression<*>,
-) : BoundAssignmentStatement(context, declaration, toAssignExpression) {
+) : BoundAssignmentStatement<Expression>(context, declaration, toAssignExpression) {
     override val targetThrowBehavior get() = targetExpression.throwBehavior
     override val targetReturnBehavior get() = targetExpression.returnBehavior
 

@@ -1,6 +1,16 @@
 package io.github.tmarsteel.emerge.backend.llvm
 
-import io.github.tmarsteel.emerge.backend.api.ir.*
+import io.github.tmarsteel.emerge.backend.GET_AT_INDEX_FN_NAME
+import io.github.tmarsteel.emerge.backend.SET_AT_INDEX_FN_NAME
+import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
+import io.github.tmarsteel.emerge.backend.api.ir.IrFullyInheritedMemberFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
+import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
+import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
+import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
+import io.github.tmarsteel.emerge.backend.api.ir.IrSoftwareContext
+import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.llvm.dsl.LlvmFunctionType
 import io.github.tmarsteel.emerge.backend.llvm.intrinsics.EmergeArrayType
 import io.github.tmarsteel.emerge.common.EmergeConstants
@@ -48,10 +58,10 @@ internal fun IrSoftwareContext.assignVirtualFunctionHashes() {
         .memberFunctions
         .flatMap { it.overloads }
         .forEach { arrayMemberFn ->
-            if (arrayMemberFn.canonicalName.simpleName == "get" && arrayMemberFn.parameters.size == 2) {
+            if (arrayMemberFn.canonicalName.simpleName == GET_AT_INDEX_FN_NAME && arrayMemberFn.parameters.size == 2) {
                 arrayMemberFn.rootSignatureHash = EmergeArrayType.VIRTUAL_FUNCTION_HASH_GET_ELEMENT_FALLIBLE
             }
-            if (arrayMemberFn.canonicalName.simpleName == "set" && arrayMemberFn.parameters.size == 3) {
+            if (arrayMemberFn.canonicalName.simpleName == SET_AT_INDEX_FN_NAME && arrayMemberFn.parameters.size == 3) {
                 arrayMemberFn.rootSignatureHash = EmergeArrayType.VIRTUAL_FUNCTION_HASH_SET_ELEMENT_FALLIBLE
             }
             if (arrayMemberFn.canonicalName.simpleName == "getOrPanic" && arrayMemberFn.parameters.size == 2) {

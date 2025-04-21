@@ -3,15 +3,15 @@ package compiler.compiler.negative
 import compiler.ast.ASTSourceFile
 import compiler.binding.context.ModuleContext
 import compiler.binding.context.SoftwareContext
+import compiler.diagnostic.CollectingDiagnosis
+import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.Diagnostic
 import compiler.lexer.MemorySourceFile
 import compiler.lexer.SourceSet
 import compiler.lexer.Token
 import compiler.lexer.lex
 import compiler.parser.SourceFileRule
 import compiler.parser.grammar.rule.MatchingResult
-import compiler.diagnostic.CollectingDiagnosis
-import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrModule
 import io.github.tmarsteel.emerge.backend.noop.NoopBackend
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -86,7 +86,12 @@ class IntegrationTestModule(
          * """.trimMargin())
          * ```
          */
-        fun of(moduleName: String, code: String, uses: Set<CanonicalElementName.Package> = emptySet(), definedAt: StackTraceElement = Thread.currentThread().stackTrace[2]): IntegrationTestModule {
+        fun of(
+            moduleName: String,
+            code: String,
+            uses: Set<CanonicalElementName.Package> = emptySet(),
+            definedAt: StackTraceElement = Thread.currentThread().stackTrace[2]
+        ): IntegrationTestModule {
             val moduleDotName = CanonicalElementName.Package(moduleName.split('.'))
             val sourceFile = MemorySourceFile(definedAt.fileName!!, moduleDotName, code.assureEndsWith('\n'))
             val tokens = lex(sourceFile)

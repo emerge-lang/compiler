@@ -1,9 +1,12 @@
 package compiler.compiler.negative
 
-import compiler.diagnostic.FunctionMissingModifierDiagnostic
+import compiler.ast.AstFunctionAttribute
+import compiler.diagnostic.FunctionMissingAttributeDiagnostic
 import compiler.diagnostic.OperatorNotDeclaredDiagnostic
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.beInstanceOf
 
 class OperatorOverloadErrors : FreeSpec({
     "unary minus not declared" {
@@ -31,16 +34,16 @@ class OperatorOverloadErrors : FreeSpec({
                 x = -false
             }
         """.trimIndent())
-            .shouldFind<FunctionMissingModifierDiagnostic> {
+            .shouldFind<FunctionMissingAttributeDiagnostic> {
                 it.function.name shouldBe "unaryMinus"
-                it.missingAttribute shouldBe "operator"
+                it.attribute should beInstanceOf<AstFunctionAttribute.Operator>()
             }
     }
 
     "index access read requires operator modifier" {
         validateModule("""
             class Foo {
-                fn get(self, index: UWord) {
+                fn getAtIndex(self, index: UWord) {
                 }
             }
             
@@ -49,16 +52,16 @@ class OperatorOverloadErrors : FreeSpec({
                 y = v[3]
             }
         """.trimIndent())
-            .shouldFind<FunctionMissingModifierDiagnostic> {
-                it.function.name shouldBe "get"
-                it.missingAttribute shouldBe "operator"
+            .shouldFind<FunctionMissingAttributeDiagnostic> {
+                it.function.name shouldBe "getAtIndex"
+                it.attribute should beInstanceOf< AstFunctionAttribute.Operator>()
             }
     }
 
     "index access write requires operator modifier" {
         validateModule("""
             class Foo {
-                fn `set`(self, index: UWord, value: S32) {
+                fn setAtIndex(self, index: UWord, value: S32) {
                 }
             }
             
@@ -67,9 +70,9 @@ class OperatorOverloadErrors : FreeSpec({
                 set v[3] = 5 
             }
         """.trimIndent())
-            .shouldFind<FunctionMissingModifierDiagnostic> {
-                it.function.name shouldBe "set"
-                it.missingAttribute shouldBe "operator"
+            .shouldFind<FunctionMissingAttributeDiagnostic> {
+                it.function.name shouldBe "setAtIndex"
+                it.attribute should beInstanceOf< AstFunctionAttribute.Operator>()
             }
     }
 })

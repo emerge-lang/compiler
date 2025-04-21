@@ -24,7 +24,6 @@ import compiler.binding.IrAssignmentStatementTargetVariableImpl
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
-import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -144,7 +143,7 @@ class BoundClassConstructor(
             null,
             null,
             null,
-            IdentifierToken("self", generatedSourceLocation),
+            IdentifierToken(BoundParameterList.RECEIVER_PARAMETER_NAME, generatedSourceLocation),
             (returnType as RootResolvedTypeReference).original!!.withMutability(TypeMutability.EXCLUSIVE),
             null,
         )
@@ -194,6 +193,7 @@ class BoundClassConstructor(
                     ),
                     OperatorToken(Operator.EQUALS, generatedSourceLocation),
                     IdentifierExpression(IdentifierToken(parameter.name, generatedSourceLocation)),
+                    considerSettersOnMemberVariableAssignment = false,
                 )
             }
             .let(::AstCodeChunk)
@@ -216,6 +216,7 @@ class BoundClassConstructor(
                     ),
                     OperatorToken(Operator.EQUALS, generatedSourceLocation),
                     memberVariable.initializer.declaration,
+                    considerSettersOnMemberVariableAssignment = false,
                 )
             }
             .let(::AstCodeChunk)
@@ -275,13 +276,8 @@ class BoundClassConstructor(
 
     override val purity = attributes.purity
 
-    override val throwBehavior: SideEffectPrediction? get() {
-        return listOf(
-            SideEffectPrediction.POSSIBLY, // this is for the memory allocation that can always throw OOM
-            boundMemberVariableInitCodeFromExpression.throwBehavior,
-            additionalInitCode.throwBehavior,
-        ).reduceSequentialExecution()
-    }
+    // this is for the memory allocation that can always throw OOM
+    override val throwBehavior = SideEffectPrediction.POSSIBLY
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {

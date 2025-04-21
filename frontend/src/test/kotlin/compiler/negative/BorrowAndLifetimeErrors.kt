@@ -9,7 +9,7 @@ import io.kotest.matchers.shouldBe
 
 class BorrowAndLifetimeErrors : FreeSpec({
     "initializing a variable ends the lifetime" - {
-        "use by reading member" {
+        "use by reading a raw member" {
             validateModule("""
                 class Test {
                     m: S32 = 0
@@ -26,10 +26,44 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 }
         }
 
-        "use by writing member" {
+        "use by reading a virtual member" {
+            validateModule("""
+                class Test {
+                    get fn m(self) -> S32
+                }
+                fn test() -> S32 {
+                    v: exclusive _ = Test()
+                    v2 = v
+                    return v.m
+                }
+            """.trimIndent())
+                .shouldFind<VariableUsedAfterLifetimeDiagnostic> {
+                    it.variable.name.value shouldBe "v"
+                    it.lifetimeEndedMaybe shouldBe false
+                }
+        }
+
+        "use by writing a raw member" {
             validateModule("""
                 class Test {
                     var m: S32 = 0
+                }
+                fn test() {
+                    v: exclusive _ = Test()
+                    v2 = v
+                    set v.m = 1
+                }
+            """.trimIndent())
+                .shouldFind<VariableUsedAfterLifetimeDiagnostic> {
+                    it.variable.name.value shouldBe "v"
+                    it.lifetimeEndedMaybe shouldBe false
+                }
+        }
+
+        "use by writing a virtual member" {
+            validateModule("""
+                class Test {
+                    set fn m(self: mut _, v: S32)
                 }
                 fn test() {
                     v: exclusive _ = Test()

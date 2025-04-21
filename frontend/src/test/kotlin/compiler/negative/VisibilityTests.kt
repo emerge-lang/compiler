@@ -10,6 +10,7 @@ import compiler.diagnostic.HiddenTypeExposedDiagnostic
 import compiler.diagnostic.MissingModuleDependencyDiagnostic
 import compiler.diagnostic.OverrideRestrictsVisibilityDiagnostic
 import compiler.diagnostic.ShadowedVisibilityDiagnostic
+import io.github.tmarsteel.emerge.common.CanonicalElementName
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -99,10 +100,13 @@ class VisibilityTests : FreeSpec({
                         var v = Foo()
                         set v.x = 5
                     }
-                """.trimIndent()),
+                """.trimIndent(),
+                    uses = setOf(CanonicalElementName.Package(listOf("module_A")))),
             )
                 .shouldFind<ElementNotAccessibleDiagnostic> {
-                    it.element should beInstanceOf<BoundBaseTypeMemberVariable>()
+                    val element = it.element
+                    element.shouldBeInstanceOf<BoundBaseTypeMemberVariable>()
+                    element.name shouldBe "x"
                 }
         }
 

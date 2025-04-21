@@ -1,5 +1,7 @@
 package compiler.ast
 
+import compiler.binding.AccessorKind
+import compiler.binding.BoundFunction
 import compiler.lexer.IdentifierToken
 import compiler.lexer.KeywordToken
 
@@ -87,7 +89,7 @@ sealed class AstFunctionAttribute(
         }
     }
 
-    class EffectCategory(val value: Category, nameToken: KeywordToken) : AstFunctionAttribute(nameToken) {
+    class EffectCategory(val value: BoundFunction.Purity, nameToken: KeywordToken) : AstFunctionAttribute(nameToken) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is EffectCategory) return false
@@ -98,13 +100,26 @@ sealed class AstFunctionAttribute(
         }
 
         override fun hashCode(): Int {
-            return value.hashCode()
+            var result = javaClass.hashCode()
+            result = 31 * result + value.hashCode()
+            return result
+        }
+    }
+
+    class Accessor(val kind: AccessorKind, nameToken: KeywordToken) : AstFunctionAttribute(nameToken) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Accessor) return false
+
+            if (kind != other.kind) return false
+
+            return true
         }
 
-        enum class Category {
-            MODIFYING,
-            READONLY,
-            PURE
+        override fun hashCode(): Int {
+            var result = javaClass.hashCode()
+            result = 31 * result + kind.hashCode()
+            return result
         }
     }
 }

@@ -29,6 +29,7 @@ class UnresolvableFunctionOverloadDiagnostic(
     val receiverType: BoundTypeReference?,
     val parameterTypes: List<BoundTypeReference?>,
     val functionDeclaredAtAll: Boolean,
+    val inapplicableCandidates: List<InvocationCandidateNotApplicableDiagnostic>,
 ) : Diagnostic(
     Severity.ERROR,
     if (functionDeclaredAtAll) {
@@ -40,6 +41,21 @@ class UnresolvableFunctionOverloadDiagnostic(
     },
     functionNameReference.span,
 ) {
+    init {
+        check(inapplicableCandidates.isEmpty() || inapplicableCandidates.size > 1) {
+            "in this case, we should be having just that single inapplicable diagnostic"
+        }
+    }
+
+    override fun toString(): String {
+        var str = "$levelAndMessage\n${illustrateSourceLocations(setOf(span))}"
+        if (inapplicableCandidates.isNotEmpty()) {
+            str += "\nThese functions could be invoked, but are not applicable:"
+            str += illustrateHints(inapplicableCandidates.map { it.inapplicabilityHint })
+        }
+        return str
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is UnresolvableFunctionOverloadDiagnostic) return false

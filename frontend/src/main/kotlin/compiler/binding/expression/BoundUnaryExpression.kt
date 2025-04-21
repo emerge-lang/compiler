@@ -24,8 +24,8 @@ import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
-import compiler.diagnostic.FunctionMissingModifierDiagnostic.Companion.requireOperatorModifier
+import compiler.diagnostic.Diagnosis.Companion.doWithTransformedFindings
+import compiler.diagnostic.FunctionMissingAttributeDiagnostic.Companion.requireOperatorAttribute
 import compiler.diagnostic.OperatorNotDeclaredDiagnostic
 import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
 
@@ -43,18 +43,20 @@ class BoundUnaryExpression(
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
-        hiddenInvocation.semanticAnalysisPhase2(diagnosis.mapping { hiddenReporting ->
-            if (hiddenReporting !is UnresolvableFunctionOverloadDiagnostic || hiddenReporting.functionNameReference != hiddenInvocation.functionNameToken) {
-                return@mapping hiddenReporting
+        diagnosis.doWithTransformedFindings(hiddenInvocation::semanticAnalysisPhase2) { findings ->
+            findings.map { hiddenReporting ->
+                if (hiddenReporting !is UnresolvableFunctionOverloadDiagnostic || hiddenReporting.functionNameReference != hiddenInvocation.functionNameToken) {
+                    return@map hiddenReporting
+                }
+
+                OperatorNotDeclaredDiagnostic(
+                    "Unary operator ${declaration.operator.name} (function ${hiddenInvocation.functionNameToken.value}) not declared for type ${hiddenReporting.receiverType ?: "<unknown>"}",
+                    declaration,
+                )
             }
+        }
 
-            OperatorNotDeclaredDiagnostic(
-                "Unary operator ${declaration.operator.name} (function ${hiddenInvocation.functionNameToken.value}) not declared for type ${hiddenReporting.receiverType ?: "<unknown>"}",
-                declaration,
-            )
-        })
-
-        requireOperatorModifier(
+        requireOperatorAttribute(
             hiddenInvocation,
             this,
             diagnosis,

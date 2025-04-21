@@ -33,7 +33,6 @@ import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.integerLiteralOutOfRange
-import compiler.handleCyclicInvocation
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntegerLiteralExpression
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -77,13 +76,6 @@ open class BoundNumericLiteral(
             return
         }
 
-        // assure completed
-        handleCyclicInvocation(
-            context = this,
-            action = { type.baseType.semanticAnalysisPhase1(diagnosis) },
-            onCycle = { }
-        )
-
         expectedNumericType = type.baseType
     }
 
@@ -124,26 +116,32 @@ class BoundIntegerLiteral(
             else -> throw InternalCompilerError("How did the type $type end up here - apparently not an integer type")
         }
 
-        valueCoercedToRange = integer
-        if (integer !in typeRange) {
-            // exception: for base 2 and base 16, literals are okay if they fit the range bit-length-wise and are unsigned
-            if (baseInSource in setOf(2u, 16u) && integer >= BigInteger.ZERO && typeRange.start < BigInteger.ZERO) {
-                val nBitsInType = typeRange.endInclusive.bitLength() + 1 // compensate for the sign bit
-                if (integer.bitLength() <= nBitsInType) {
-                    // it still fits, apply twos complement negation to compute the correct value
-                    val allOnesOfTypeBitLength = typeRange.endInclusive.setBit(typeRange.endInclusive.bitLength())
-                    valueCoercedToRange = integer
-                        .xor(allOnesOfTypeBitLength)
-                        .add(BigInteger.ONE)
-                        .and(allOnesOfTypeBitLength) // emulate overflow
-                        .negate()
-                } else {
-                    diagnosis.integerLiteralOutOfRange(declaration, type.baseType, typeRange)
-                }
-            } else {
-                diagnosis.integerLiteralOutOfRange(declaration, type.baseType, typeRange)
-            }
+        if (integer in typeRange) {
+            valueCoercedToRange = integer
+            return
         }
+
+        // exception: for base 2 and base 16, literals are okay if they fit the range bit-length-wise and are unsigned
+        if (baseInSource !in setOf(2u, 16u) || integer < BigInteger.ZERO || typeRange.start >= BigInteger.ZERO) {
+            diagnosis.integerLiteralOutOfRange(declaration, type.baseType, typeRange)
+            valueCoercedToRange = integer // even though that's not correct
+            return
+        }
+
+        val nBitsInType = typeRange.endInclusive.bitLength() + 1 // compensate for the sign bit
+        if (integer.bitLength() > nBitsInType) {
+            diagnosis.integerLiteralOutOfRange(declaration, type.baseType, typeRange)
+            valueCoercedToRange = integer // even though that's not correct
+            return
+        }
+
+        // it still fits, apply twos complement negation to compute the correct value
+        val allOnesOfTypeBitLength = typeRange.endInclusive.setBit(typeRange.endInclusive.bitLength())
+        valueCoercedToRange = integer
+            .xor(allOnesOfTypeBitLength)
+            .add(BigInteger.ONE)
+            .and(allOnesOfTypeBitLength) // emulate overflow
+            .negate()
     }
 
     override fun toBackendIrExpression(): IrExpression {

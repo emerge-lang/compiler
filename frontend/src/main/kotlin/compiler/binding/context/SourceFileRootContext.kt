@@ -3,8 +3,8 @@ package compiler.binding.context
 import compiler.InternalCompilerError
 import compiler.ast.Statement
 import compiler.ast.type.TypeReference
+import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundExecutable
-import compiler.binding.BoundFunction
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
@@ -16,7 +16,6 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.mixinNotAllowed
 
 class SourceFileRootContext(
@@ -30,7 +29,7 @@ class SourceFileRootContext(
     override lateinit var sourceFile: SourceFile
 
     val variables: Collection<BoundVariable> = _variables.values
-    val functions: Collection<BoundFunction> = _functions
+    val functions: Collection<BoundDeclaredFunction> = _functions
     val types: Collection<BoundBaseType> = _types
 
     override fun addDeferredCode(code: Statement) {

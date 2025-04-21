@@ -26,6 +26,7 @@ import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
+import compiler.binding.BoundParameter
 import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
@@ -34,6 +35,7 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.expression.BoundInvocationExpression.CandidateFilter.Result
 import compiler.binding.impurity.ImpureInvocation
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
@@ -44,6 +46,7 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.*
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
+import compiler.diagnostic.InvocationCandidateNotApplicableDiagnostic
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.ambiguousInvocation
 import compiler.diagnostic.noMatchingFunctionOverload
@@ -74,12 +77,15 @@ class BoundInvocationExpression(
     val receiverExpression: BoundExpression<*>?,
     val functionNameToken: IdentifierToken,
     val valueArguments: List<BoundExpression<*>>,
+    val candidateFilter: CandidateFilter?,
+    val disambiguationBehavior: DisambiguationBehavior,
 ) : BoundExpression<InvocationExpression>, BoundExecutable<InvocationExpression> {
 
     private val seanHelper = SeanHelper()
 
     /**
-     * The result of the function dispatching. Is set (non null) after semantic analysis phase 2
+     * The result of the function dispatching. Is meaningful after [semanticAnalysisPhase2]; remains null after
+     * phase 2 if the invoked function could not be resolved
      */
     val functionToInvoke: BoundFunction? get() = chosenOverload?.candidate
     private var chosenOverload: OverloadCandidateEvaluation? = null
@@ -226,7 +232,7 @@ class BoundInvocationExpression(
         val (allCandidates, constructorsConsidered, anyTopLevelFunctions) = overloadCandidates
 
         if (allCandidates.isEmpty()) {
-            diagnosis.noMatchingFunctionOverload(functionNameToken, receiverExpression?.type, valueArguments, false)
+            diagnosis.noMatchingFunctionOverload(functionNameToken, receiverExpression?.type, valueArguments, false, emptyList())
             return null
         }
 
@@ -250,17 +256,19 @@ class BoundInvocationExpression(
                     receiverExpression?.type,
                     valueArguments,
                     anyTopLevelFunctions,
+                    emptyList(),
                 )
             }
 
             return null
         }
 
-        val legalMatches = evaluations.filter { !it.hasErrors }
+        val legalMatches = evaluations.filter { it.isLegalCandidate }
         when (legalMatches.size) {
             0 -> {
-                if (evaluations.size == 1) {
-                    val singleEval = evaluations.single()
+                val (applicableInvalidCandidates, inapplicableCandidates) = evaluations.partition { it.inapplicableReason == null }
+                if (applicableInvalidCandidates.size == 1) {
+                    val singleEval = applicableInvalidCandidates.single()
                     // if there is only a single candidate, the errors found in validating are 100% applicable to be shown to the user
                     singleEval.unification.diagnostics
                         .also { diags ->
@@ -271,28 +279,34 @@ class BoundInvocationExpression(
                         .forEach(diagnosis::add)
 
                     return singleEval
+                }
+
+                val disjointParameterIndices = applicableInvalidCandidates.indicesOfDisjointlyTypedParameters().toSet()
+                val reducedEvaluations =
+                    applicableInvalidCandidates.filter { it.indicesOfErroneousParameters.none { it in disjointParameterIndices } }
+                if (reducedEvaluations.size == 1) {
+                    val singleEval = reducedEvaluations.single()
+                    singleEval.unification.diagnostics.forEach(diagnosis::add)
+                    return singleEval
                 } else {
-                    val disjointParameterIndices = evaluations.indicesOfDisjointlyTypedParameters().toSet()
-                    val reducedEvaluations =
-                        evaluations.filter { it.indicesOfErroneousParameters.none { it in disjointParameterIndices } }
-                    if (reducedEvaluations.size == 1) {
-                        val singleEval = reducedEvaluations.single()
-                        singleEval.unification.diagnostics.forEach(diagnosis::add)
-                        return singleEval
-                    } else {
-                        diagnosis.noMatchingFunctionOverload(
-                            functionNameToken,
-                            receiverExpression?.type,
-                            valueArguments,
-                            true
-                        )
-                        return evaluations.firstOrNull()
-                    }
+                    diagnosis.noMatchingFunctionOverload(
+                        functionNameToken,
+                        receiverExpression?.type,
+                        valueArguments,
+                        functionDeclaredAtAll = true,
+                        inapplicableCandidates.map { it.inapplicableReason!! }
+                    )
+                    return applicableInvalidCandidates.firstOrNull()
                 }
             }
             1 -> return legalMatches.single()
             else -> {
-                diagnosis.ambiguousInvocation(this, evaluations.map { it.candidate })
+                diagnosis.ambiguousInvocation(
+                    this,
+                    evaluations
+                        .filter { it.inapplicableReason == null }
+                        .map { it.candidate }
+                )
                 return legalMatches.firstOrNull()
             }
         }
@@ -316,6 +330,7 @@ class BoundInvocationExpression(
         check((receiver != null) xor (receiver?.type == null))
         val receiverType = receiver?.type
         val argumentsIncludingReceiver = listOfNotNull(receiver) + valueArguments
+
         return this
             .asSequence()
             .filter { it.parameterCount == argumentsIncludingReceiver.size }
@@ -350,6 +365,7 @@ class BoundInvocationExpression(
                 check(rightSideTypes.size == argumentsIncludingReceiver.size)
 
                 val indicesOfErroneousParameters = ArrayList<Int>(argumentsIncludingReceiver.size)
+                val unificationBeforeParameters = unification
                 unification = argumentsIncludingReceiver
                     .zip(rightSideTypes)
                     .foldIndexed(unification) { parameterIndex, carryUnification, (argument, parameterType) ->
@@ -360,11 +376,29 @@ class BoundInvocationExpression(
                         unificationAfterParameter
                     }
 
+                val inapplicableReason = when (val inspectResult = candidateFilter?.inspect(candidateFn)) {
+                    null, CandidateFilter.Result.Applicable -> null
+                    is CandidateFilter.Result.Inapplicable -> inspectResult.reason
+                }
+
+                val allDisambiguatingArgumentsAreErrorFree = if (disambiguationBehavior == DisambiguationBehavior.AllParametersDisambiguate) {
+                    indicesOfErroneousParameters.isEmpty()
+                } else {
+                    indicesOfErroneousParameters.none { erroneousParamIndex ->
+                        val param = candidateFn.parameters.parameters[erroneousParamIndex]
+                        disambiguationBehavior.shouldDisambiguateOnParameter(candidateFn, param, erroneousParamIndex.toUInt())
+                    }
+                }
+
                 OverloadCandidateEvaluation(
                     candidateFn,
                     unification,
                     returnTypeWithVariables?.instantiateFreeVariables(unification),
                     indicesOfErroneousParameters,
+                    inapplicableReason,
+                    isLegalCandidate = unificationBeforeParameters.diagnostics.none { it.severity >= Diagnostic.Severity.ERROR }
+                        && inapplicableReason == null
+                        && allDisambiguatingArgumentsAreErrorFree
                 )
             }
             .toList()
@@ -506,6 +540,40 @@ class BoundInvocationExpression(
             assumeNothrow = functionToInvoke!!.attributes.isDeclaredNothrow,
         ).code
     }
+
+    /**
+     * Used to filter the available functions before selecting one to invoke. The [Result.Inapplicable.reason]s
+     * will be reported back to the user to provide a better understanding of the problem.
+     */
+    fun interface CandidateFilter {
+        /**
+         * Inspects the given candidate function and returns info on how to treat this candidate.
+         */
+        fun inspect(candidate: BoundFunction): Result
+
+        sealed interface Result {
+            object Applicable : Result
+            class Inapplicable(val reason: InvocationCandidateNotApplicableDiagnostic) : Result
+        }
+    }
+
+    fun interface DisambiguationBehavior {
+        /**
+         * @return whether the parameter [parameter] of candidate [candidate] (which is at index [parameterIndex], 0 being a possible receiver),
+         * should contribute to disambiguation.
+         */
+        fun shouldDisambiguateOnParameter(candidate: BoundFunction, parameter: BoundParameter, parameterIndex: UInt): Boolean
+
+        object AllParametersDisambiguate : DisambiguationBehavior {
+            override fun shouldDisambiguateOnParameter(
+                candidate: BoundFunction,
+                parameter: BoundParameter,
+                parameterIndex: UInt
+            ): Boolean {
+                return true
+            }
+        }
+    }
 }
 
 private data class AvailableOverloads(
@@ -519,9 +587,9 @@ private data class OverloadCandidateEvaluation(
     val unification: TypeUnification,
     val returnType: BoundTypeReference?,
     val indicesOfErroneousParameters: Collection<Int>,
-) {
-    val hasErrors = unification.diagnostics.any { it.severity >= Diagnostic.Severity.ERROR }
-}
+    val inapplicableReason: InvocationCandidateNotApplicableDiagnostic?,
+    val isLegalCandidate: Boolean,
+)
 
 private fun Collection<OverloadCandidateEvaluation>.indicesOfDisjointlyTypedParameters(): Sequence<Int> {
     if (isEmpty()) {

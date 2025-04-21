@@ -1,5 +1,7 @@
 package io.github.tmarsteel.emerge.backend.llvm.intrinsics
 
+import io.github.tmarsteel.emerge.backend.GET_AT_INDEX_FN_NAME
+import io.github.tmarsteel.emerge.backend.SET_AT_INDEX_FN_NAME
 import io.github.tmarsteel.emerge.backend.llvm.codegen.anyValueBase
 import io.github.tmarsteel.emerge.backend.llvm.codegen.sizeof
 import io.github.tmarsteel.emerge.backend.llvm.dsl.BasicBlockBuilder
@@ -1020,7 +1022,7 @@ internal val arraySize = KotlinLlvmFunction.define<LlvmContext, _>(
  * because that depends on the element size.
  */
 internal val arrayAbstractFallibleGet = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
-    "emerge.core.Array::get",
+    "emerge.core.Array::${GET_AT_INDEX_FN_NAME}",
     EmergeFallibleCallResult.ofEmergeReference,
 ) {
     param(pointerTo(EmergeArrayBaseType))
@@ -1051,7 +1053,7 @@ internal val arrayAbstractPanicGet = KotlinLlvmFunction.define<EmergeLlvmContext
  * because that depends on the element size.
  */
 internal val arrayAbstractFallibleSet = KotlinLlvmFunction.define<EmergeLlvmContext, _>(
-    "emerge.core.Array::set",
+    "emerge.core.Array::${SET_AT_INDEX_FN_NAME}",
     EmergeFallibleCallResult.OfVoid,
 ) {
     param(pointerTo(EmergeArrayBaseType))

@@ -8,6 +8,7 @@ import compiler.lexer.IdentifierToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.Span
+import io.github.tmarsteel.emerge.backend.GET_AT_INDEX_FN_NAME
 
 class AstIndexAccessExpression(
     val valueExpression: Expression,
@@ -22,7 +23,7 @@ class AstIndexAccessExpression(
             MemberAccessExpression(
                 valueExpression,
                 OperatorToken(Operator.DOT, span),
-                IdentifierToken("get", span),
+                IdentifierToken(GET_AT_INDEX_FN_NAME, span),
             ),
             null,
             listOf(indexExpression),

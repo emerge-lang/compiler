@@ -24,6 +24,7 @@ import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
 import compiler.ast.type.TypeReference
+import compiler.binding.AccessorKind
 import compiler.binding.BoundElement
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
@@ -36,15 +37,17 @@ import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.isAssignableTo
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.UnconventionalTypeNameDiagnostic
 import compiler.diagnostic.duplicateBaseTypeMembers
 import compiler.diagnostic.entryNotAllowedOnBaseType
+import compiler.diagnostic.getterAndSetterWithDifferentType
 import compiler.diagnostic.memberFunctionImplementedOnInterface
+import compiler.diagnostic.multipleAccessorsOnBaseType
 import compiler.diagnostic.multipleClassConstructors
 import compiler.diagnostic.multipleClassDestructors
 import compiler.diagnostic.unconventionalTypeName
 import compiler.diagnostic.unusedMixin
+import compiler.diagnostic.virtualAndActualMemberVariableNameClash
 import compiler.lexer.Keyword
 import compiler.lexer.KeywordToken
 import compiler.lexer.Span
@@ -236,6 +239,20 @@ class BoundBaseType(
                     overloadSet.semanticAnalysisPhase1(diagnosis)
                 }
             }
+
+            allMemberFunctions
+                .asSequence()
+                .filter { it.attributes.firstAccessorAttribute != null }
+                .groupBy { it.name }
+                .entries
+                .map { (name, accessorFns) -> Pair(accessorFns, memberVariables.find { it.name == name }) }
+                .filter { (_, memberVar) -> memberVar != null }
+                .forEach { (accessorFns, memberVar) ->
+                    diagnosis.virtualAndActualMemberVariableNameClash(
+                        memberVar!!.declaration,
+                        accessorFns,
+                    )
+                }
         }
     }
 
@@ -258,6 +275,32 @@ class BoundBaseType(
             allMemberFunctionOverloadSetsByName.values.forEach { overloadSets ->
                 overloadSets.forEach { overloadSet ->
                     overloadSet.semanticAnalysisPhase2(diagnosis)
+                }
+            }
+
+            allMemberFunctionOverloadSetsByName.forEach { memberFnName, overloadSets ->
+                val byKind = overloadSets.asSequence()
+                    .flatMap { it.overloads }
+                    .filter { it.attributes.firstAccessorAttribute != null }
+                    .groupBy { it.attributes.firstAccessorAttribute!!.kind }
+
+                byKind
+                    .filter { (kind, _ ) ->
+                        // getters need not be checked: by necessity of their contract, they will form an overload set,
+                        // and if there is more than one fn in that set, it is an ambiguity that is reported elsewhere
+                        kind in setOf(AccessorKind.Write)
+                    }
+                    .filter { (_, accessors) -> accessors.size > 1 }
+                    .forEach { (kind, accessors) ->
+                        diagnosis.multipleAccessorsOnBaseType(memberFnName, kind, accessors)
+                    }
+
+                val getter = byKind[AccessorKind.Read]?.firstOrNull()
+                val getterType = getter?.let(AccessorKind.Read::extractMemberType)
+                val setter = byKind[AccessorKind.Write]?.firstOrNull()
+                val setterType = setter?.let(AccessorKind.Write::extractMemberType)
+                if (getterType != null && setterType != null && getterType != setterType) {
+                    diagnosis.getterAndSetterWithDifferentType(memberFnName, getter, setter)
                 }
             }
         }
