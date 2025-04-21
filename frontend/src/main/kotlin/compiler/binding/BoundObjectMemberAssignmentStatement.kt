@@ -33,6 +33,7 @@ import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
 import compiler.diagnostic.ambiguousMemberVariableWrite
 import compiler.diagnostic.illegalAssignment
 import compiler.diagnostic.superfluousSafeObjectTraversal
+import compiler.diagnostic.unresolvableMemberVariable
 import compiler.diagnostic.unsafeObjectTraversal
 import compiler.diagnostic.valueNotAssignable
 import compiler.lexer.Keyword
@@ -124,6 +125,10 @@ class BoundObjectMemberAssignmentStatement(
 
             if (availableSetters.size > 1 || (availableSetters.isNotEmpty() && physicalMember != null)) {
                 diagnosis.ambiguousMemberVariableWrite(this, physicalMember, availableSetters)
+            }
+
+            if (availableSetters.isEmpty() && physicalMember == null) {
+                diagnosis.unresolvableMemberVariable(declaration.targetExpression, targetObjectExpression.type ?: context.swCtx.unresolvableReplacementType)
             }
         }
 

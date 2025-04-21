@@ -10,6 +10,7 @@ import compiler.diagnostic.GetterAndSetterHaveDifferentTypesDiagnostics
 import compiler.diagnostic.MultipleAccessorsForVirtualMemberVariableDiagnostic
 import compiler.diagnostic.NotAllMemberVariablesInitializedDiagnostic
 import compiler.diagnostic.OverrideAccessorDeclarationMismatchDiagnostic
+import compiler.diagnostic.UnresolvedMemberVariableDiagnostic
 import compiler.diagnostic.VirtualAndActualMemberVariableNameClashDiagnostic
 import compiler.lexer.Keyword
 import io.kotest.core.spec.style.FreeSpec
@@ -640,6 +641,33 @@ class VirtualMemberVariableErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldFind<NotAllMemberVariablesInitializedDiagnostic>()
+        }
+    }
+
+    "unresolvable" - {
+        "getter" {
+            validateModule("""
+                class C {}
+                fn test() {
+                    var l = C().p
+                }
+            """.trimIndent())
+                .shouldFind<UnresolvedMemberVariableDiagnostic> {
+                    it.accessExpression.memberName.value shouldBe "p"
+                }
+        }
+
+        "setter" {
+            validateModule("""
+                class C {}
+                fn test() {
+                    var l = C()
+                    set l.p = 3
+                }
+            """.trimIndent())
+                .shouldFind<UnresolvedMemberVariableDiagnostic> {
+                    it.accessExpression.memberName.value shouldBe "p"
+                }
         }
     }
 })

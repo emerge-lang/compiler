@@ -46,6 +46,7 @@ import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.UnresolvableFunctionOverloadDiagnostic
 import compiler.diagnostic.ambiguousMemberVariableRead
 import compiler.diagnostic.superfluousSafeObjectTraversal
+import compiler.diagnostic.unresolvableMemberVariable
 import compiler.diagnostic.unsafeObjectTraversal
 import compiler.diagnostic.useOfUninitializedMember
 import compiler.lexer.Keyword
@@ -153,6 +154,10 @@ class BoundMemberVariableReadExpression(
 
             if (availableGetters.size > 1 || (availableGetters.isNotEmpty() && physicalMember != null)) {
                 diagnosis.ambiguousMemberVariableRead(this, physicalMember, availableGetters)
+            }
+
+            if (availableGetters.isEmpty() && physicalMember == null) {
+                diagnosis.unresolvableMemberVariable(declaration, valueExpression.type ?: context.swCtx.unresolvableReplacementType)
             }
         }
     }
