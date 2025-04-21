@@ -70,7 +70,7 @@ class BoundMemberVariableReadExpression(
         null,
         emptyList(),
         declaration.span,
-    ).bindTo(context)
+    ).bindTo(context, GetterFilter())
 
     /**
      * The type of this expression. Is null before semantic analysis phase 2 is finished; remains null afterward if the
@@ -118,7 +118,6 @@ class BoundMemberVariableReadExpression(
                 diagnosis.superfluousSafeObjectTraversal(valueExpression, declaration.accessOperatorToken)
             }
 
-            getterInvocation.candidateFilter = GetterFilter()
             val availableGetters = mutableSetOf<BoundFunction>()
             physicalMember = valueType.findMemberVariable(memberName)
             diagnosis.doWithTransformedFindings(getterInvocation::semanticAnalysisPhase2) { findings ->

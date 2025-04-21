@@ -58,7 +58,7 @@ class BoundObjectMemberAssignmentStatement(
         null,
         listOf(declaration.valueExpression),
         declaration.span,
-    ).bindTo(context)
+    ).bindTo(context, SetterFilter(), SetterDisambiguationBehavior)
 
     private var phase1Done = false
 
@@ -115,8 +115,6 @@ class BoundObjectMemberAssignmentStatement(
 
     override fun additionalSemanticAnalysisPhase2(diagnosis: Diagnosis) {
         if (considerSetters) {
-            setterInvocation.candidateFilter = SetterFilter()
-            setterInvocation.disambiguationBehavior = SetterDisambiguationBehavior
             val availableSetters = mutableSetOf<BoundFunction>()
             diagnosis.doWithTransformedFindings(setterInvocation::semanticAnalysisPhase2) { findings ->
                 findings.mapNotNull { finding ->

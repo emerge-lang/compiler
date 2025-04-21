@@ -18,7 +18,6 @@
 
 package compiler.binding.expression
 
-import compiler.InternalCompilerError
 import compiler.ast.VariableDeclaration
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.type.TypeReference
@@ -36,6 +35,7 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.expression.BoundInvocationExpression.CandidateFilter.Result
 import compiler.binding.impurity.ImpureInvocation
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
@@ -77,35 +77,11 @@ class BoundInvocationExpression(
     val receiverExpression: BoundExpression<*>?,
     val functionNameToken: IdentifierToken,
     val valueArguments: List<BoundExpression<*>>,
+    val candidateFilter: CandidateFilter?,
+    val disambiguationBehavior: DisambiguationBehavior,
 ) : BoundExpression<InvocationExpression>, BoundExecutable<InvocationExpression> {
 
     private val seanHelper = SeanHelper()
-
-    /**
-     * Can only be set **before** [semanticAnalysisPhase2], and can only ever be set once.
-     * Repeated sets to the same object (by identity) are tolerated.
-     */
-    var candidateFilter: CandidateFilter? = null
-        set(value) {
-            seanHelper.requirePhase2NotDone()
-            if (field != null && field !== value) {
-                throw InternalCompilerError("The ${::candidateFilter.name} can only be set once")
-            }
-            field = value
-        }
-
-    /**
-     * Can only be set **before** [semanticAnalysisPhase2], and can only ever be set once.
-     * Repeated sets to the same object (by identity) are tolerated
-     */
-    var disambiguationBehavior: DisambiguationBehavior? = null
-        set(value) {
-            seanHelper.requirePhase2NotDone()
-            if (field != null && field !== value) {
-                throw InternalCompilerError("The ${::disambiguationBehavior.name} can only be set once")
-            }
-            field = value
-        }
 
     /**
      * The result of the function dispatching. Is meaningful after [semanticAnalysisPhase2]; remains null after
@@ -354,7 +330,6 @@ class BoundInvocationExpression(
         check((receiver != null) xor (receiver?.type == null))
         val receiverType = receiver?.type
         val argumentsIncludingReceiver = listOfNotNull(receiver) + valueArguments
-        val localDisambiguationBehavior = disambiguationBehavior
 
         return this
             .asSequence()
@@ -406,12 +381,12 @@ class BoundInvocationExpression(
                     is CandidateFilter.Result.Inapplicable -> inspectResult.reason
                 }
 
-                val allDisambiguatingArgumentsAreErrorFree = if (localDisambiguationBehavior == null) {
+                val allDisambiguatingArgumentsAreErrorFree = if (disambiguationBehavior == DisambiguationBehavior.AllParametersDisambiguate) {
                     indicesOfErroneousParameters.isEmpty()
                 } else {
                     indicesOfErroneousParameters.none { erroneousParamIndex ->
                         val param = candidateFn.parameters.parameters[erroneousParamIndex]
-                        localDisambiguationBehavior.shouldDisambiguateOnParameter(candidateFn, param, erroneousParamIndex.toUInt())
+                        disambiguationBehavior.shouldDisambiguateOnParameter(candidateFn, param, erroneousParamIndex.toUInt())
                     }
                 }
 
@@ -588,6 +563,16 @@ class BoundInvocationExpression(
          * should contribute to disambiguation.
          */
         fun shouldDisambiguateOnParameter(candidate: BoundFunction, parameter: BoundParameter, parameterIndex: UInt): Boolean
+
+        object AllParametersDisambiguate : DisambiguationBehavior {
+            override fun shouldDisambiguateOnParameter(
+                candidate: BoundFunction,
+                parameter: BoundParameter,
+                parameterIndex: UInt
+            ): Boolean {
+                return true
+            }
+        }
     }
 }
 

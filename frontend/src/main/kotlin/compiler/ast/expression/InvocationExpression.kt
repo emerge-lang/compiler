@@ -37,7 +37,13 @@ class InvocationExpression(
     val argumentExpressions: List<Expression>,
     override val span: Span,
 ) :Expression {
-    override fun bindTo(context: ExecutionScopedCTContext): BoundInvocationExpression {
+    override fun bindTo(context: ExecutionScopedCTContext): BoundInvocationExpression = bindTo(context, null, BoundInvocationExpression.DisambiguationBehavior.AllParametersDisambiguate)
+
+    fun bindTo(
+        context: ExecutionScopedCTContext,
+        candidateFilter: BoundInvocationExpression.CandidateFilter?,
+        disambiguationBehavior: BoundInvocationExpression.DisambiguationBehavior = BoundInvocationExpression.DisambiguationBehavior.AllParametersDisambiguate,
+    ): BoundInvocationExpression {
         // bind all the parameters
         val boundArguments = argumentExpressions.chain(context).toList()
         val contextAfterArguments = boundArguments.lastOrNull()?.modifiedContext ?: context
@@ -49,6 +55,8 @@ class InvocationExpression(
                 targetExpression.valueExpression.bindTo(context),
                 targetExpression.memberName,
                 boundArguments,
+                candidateFilter,
+                disambiguationBehavior,
             )
         }
         else if (targetExpression is IdentifierExpression) {
@@ -58,6 +66,8 @@ class InvocationExpression(
                 null,
                 targetExpression.identifier,
                 boundArguments,
+                candidateFilter,
+                disambiguationBehavior,
             )
         }
         else throw InternalCompilerError("What the heck is going on?? The parser should never have allowed this!")

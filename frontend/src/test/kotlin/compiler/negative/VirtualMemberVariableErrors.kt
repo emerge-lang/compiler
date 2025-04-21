@@ -520,7 +520,7 @@ class VirtualMemberVariableErrors : FreeSpec({
         "between package-level getter and member-fn-getter" {
             validateModule("""
                 class C {
-                    get fn p(self: C) -> Bool = false
+                    get fn p(self: mut _) -> Bool = false
                 }
                 get fn p(self: C) -> Bool = true
                 fn test() {
@@ -535,9 +535,9 @@ class VirtualMemberVariableErrors : FreeSpec({
         "between package-level setter and member-fn-setter" {
             validateModule("""
                 class C {
-                    set fn p(self: C, v: Bool) {}
+                    set fn p(self: mut _, v: Bool) {}
                 }
-                set fn p(self: C, v: S32) {}
+                set fn p(self: mut C, v: S32) {}
                 fn test() {
                     var l = C()
                     set l.p = 3
