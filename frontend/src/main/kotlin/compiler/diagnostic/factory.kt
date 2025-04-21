@@ -10,6 +10,7 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.MemberAccessExpression
+import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.AccessorKind
@@ -416,6 +417,22 @@ fun Diagnosis.lifetimeEndingCaptureInLoop(variable: BoundVariable, read: BoundId
 
 fun Diagnosis.borrowedVariableCaptured(variable: BoundVariable, capture: BoundIdentifierExpression) {
     add(BorrowedVariableCapturedDiagnostic(variable.declaration, capture.declaration.span))
+}
+
+fun Diagnosis.simultaneousIncompatibleBorrows(
+    variable: BoundVariable,
+    firstBorrowStartedAt: Span,
+    firstBorrowMutability: TypeMutability,
+    secondBorrowStartedAt: Span,
+    secondBorrowMutability: TypeMutability,
+) {
+    add(SimultaneousIncompatibleBorrowsDiagnostic(
+        variable.declaration,
+        firstBorrowStartedAt,
+        firstBorrowMutability,
+        secondBorrowStartedAt,
+        secondBorrowMutability,
+    ))
 }
 
 /**

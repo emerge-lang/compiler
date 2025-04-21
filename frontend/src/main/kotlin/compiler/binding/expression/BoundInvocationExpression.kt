@@ -19,6 +19,7 @@
 package compiler.binding.expression
 
 import compiler.ast.VariableDeclaration
+import compiler.ast.VariableOwnership
 import compiler.ast.expression.InvocationExpression
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
@@ -35,6 +36,7 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
+import compiler.binding.context.effect.VariableLifetime
 import compiler.binding.expression.BoundInvocationExpression.CandidateFilter.Result
 import compiler.binding.impurity.ImpureInvocation
 import compiler.binding.impurity.ImpurityVisitor
@@ -111,6 +113,9 @@ class BoundInvocationExpression(
         return behaviors.reduceSequentialExecution()
     }
 
+    private val _modifiedContext = MutableExecutionScopedCTContext.deriveFrom(context)
+    override val modifiedContext: ExecutionScopedCTContext = _modifiedContext
+
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) =
         seanHelper.phase1(diagnosis) {
             receiverExpression?.semanticAnalysisPhase1(diagnosis)
@@ -184,6 +189,10 @@ class BoundInvocationExpression(
                         parameter.declaration.span,
                         parameter.ownershipAtDeclarationTime,
                     ))
+                    if (parameter.ownershipAtDeclarationTime == VariableOwnership.BORROWED && argument is BoundIdentifierExpression && argument.referral is BoundIdentifierExpression.ReferringVariable) {
+                        val variable = (argument.referral as BoundIdentifierExpression.ReferringVariable).variable
+                        _modifiedContext.trackSideEffect(VariableLifetime.Effect.BorrowEnded(variable))
+                    }
                 }
         }
     }

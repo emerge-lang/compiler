@@ -212,9 +212,10 @@ class BoundIdentifierExpression(
                 }
             }
 
+            val usageMutability = usage?.usedAsType?.mutability ?: TypeMutability.READONLY
             val thisUsageCapturesWithMutability: TypeMutability? = when (usage?.usageOwnership) {
                 VariableOwnership.BORROWED, null -> null
-                VariableOwnership.CAPTURED -> usage!!.usedAsType?.mutability ?: TypeMutability.READONLY
+                VariableOwnership.CAPTURED -> usageMutability
             }
 
             thisUsageCapturesWithMutability?.let { capturedWithMutability ->
@@ -233,14 +234,17 @@ class BoundIdentifierExpression(
 
 
             val lifeStateBeforeUsage = context.getEphemeralState(VariableLifetime, variable)
-            lifeStateBeforeUsage.validateCapture(this@BoundIdentifierExpression, diagnosis)
 
             if (thisUsageCapturesWithMutability != null) {
+                lifeStateBeforeUsage.validateCapture(this@BoundIdentifierExpression, diagnosis)
                 val repetitionRelativeToVariable = context.getRepetitionBehaviorRelativeTo(variable.modifiedContext)
                 if (repetitionRelativeToVariable.mayRepeat) {
                     val stateAfterUsage = _modifiedContext.getEphemeralState(VariableLifetime, variable)
                     stateAfterUsage.validateRepeatedCapture(lifeStateBeforeUsage, this@BoundIdentifierExpression, diagnosis)
                 }
+            } else if (usage?.usageOwnership == VariableOwnership.BORROWED) {
+                lifeStateBeforeUsage.validateNewBorrowStart(usageMutability, this@BoundIdentifierExpression, variable, diagnosis)
+                _modifiedContext.trackSideEffect(VariableLifetime.Effect.BorrowStarted(variable, usageMutability, declaration.span))
             }
 
             if (variable.kind.allowsVisibility) {
