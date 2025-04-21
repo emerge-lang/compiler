@@ -1,6 +1,5 @@
 package compiler.binding
 
-import compiler.InternalCompilerError
 import compiler.ast.AssignmentStatement
 import compiler.ast.AstFunctionAttribute
 import compiler.ast.VariableOwnership
@@ -50,6 +49,7 @@ class BoundObjectMemberAssignmentStatement(
     val targetObjectExpression: BoundExpression<*>,
     val isNullSafeAccess: Boolean,
     val memberName: String,
+    val considerSetters: Boolean,
     toAssignExpression: BoundExpression<*>,
 ) : BoundAssignmentStatement<MemberAccessExpression>(context, declaration, toAssignExpression) {
     private var physicalMember: BoundBaseTypeMemberVariable? = null
@@ -60,25 +60,10 @@ class BoundObjectMemberAssignmentStatement(
         declaration.span,
     ).bindTo(context, SetterFilter(), SetterDisambiguationBehavior)
 
-    private var phase1Done = false
-
-    /**
-     * Can only be set **before** [semanticAnalysisPhase1]
-     */
-    var considerSetters: Boolean = true
-        set(value) {
-            if (phase1Done) {
-                throw InternalCompilerError("${::considerSetters.name} must be set before ${::semanticAnalysisPhase1.name}")
-            }
-            field = value
-        }
-
     override val targetThrowBehavior get() = if (physicalMember != null) SideEffectPrediction.NEVER else setterInvocation.throwBehavior
     override val targetReturnBehavior get() = if (physicalMember != null) SideEffectPrediction.NEVER else setterInvocation.returnBehavior
 
     override fun additionalSemanticAnalysisPhase1(diagnosis: Diagnosis) {
-        phase1Done = true
-
         targetObjectExpression.semanticAnalysisPhase1(diagnosis)
         if (considerSetters) {
             setterInvocation.semanticAnalysisPhase1(diagnosis)

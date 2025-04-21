@@ -38,7 +38,8 @@ class AssignmentStatement<out Target : Expression>(
     val setKeyword: KeywordToken,
     val targetExpression: Target,
     val assignmentOperatorToken: OperatorToken,
-    val valueExpression: Expression
+    val valueExpression: Expression,
+    val considerSettersOnMemberVariableAssignment: Boolean = true,
 ) : Statement {
 
     override val span = setKeyword.span
@@ -65,6 +66,7 @@ class AssignmentStatement<out Target : Expression>(
                     boundTargetObject,
                     assignmentOperatorToken.operator == Operator.SAFEDOT,
                     targetExpression.memberName.value,
+                    considerSettersOnMemberVariableAssignment,
                     boundValue,
                 )
             }

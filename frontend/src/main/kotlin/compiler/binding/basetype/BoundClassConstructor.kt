@@ -16,7 +16,6 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
-import compiler.binding.BoundObjectMemberAssignmentStatement
 import compiler.binding.BoundParameterList
 import compiler.binding.BoundVariable
 import compiler.binding.IrAssignmentStatementImpl
@@ -194,15 +193,11 @@ class BoundClassConstructor(
                     ),
                     OperatorToken(Operator.EQUALS, generatedSourceLocation),
                     IdentifierExpression(IdentifierToken(parameter.name, generatedSourceLocation)),
+                    considerSettersOnMemberVariableAssignment = false,
                 )
             }
             .let(::AstCodeChunk)
             .bindTo(parameters.modifiedContext)
-            .also {
-                it.statements.forEach { memberInitStmt ->
-                    (memberInitStmt as BoundObjectMemberAssignmentStatement).considerSetters = false
-                }
-            }
     }
 
     private val contextAfterInitFromCtorParams = MutableExecutionScopedCTContext.deriveFrom(contextWithSelfVar)
@@ -221,15 +216,11 @@ class BoundClassConstructor(
                     ),
                     OperatorToken(Operator.EQUALS, generatedSourceLocation),
                     memberVariable.initializer.declaration,
+                    considerSettersOnMemberVariableAssignment = false,
                 )
             }
             .let(::AstCodeChunk)
             .bindTo(contextAfterInitFromCtorParams)
-            .also {
-                it.statements.forEach { memberInitStmt ->
-                    (memberInitStmt as BoundObjectMemberAssignmentStatement).considerSetters = false
-                }
-            }
     }
 
     private val additionalInitCode: BoundCodeChunk by lazy {
