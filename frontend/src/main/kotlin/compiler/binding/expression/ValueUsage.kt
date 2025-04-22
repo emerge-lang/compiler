@@ -18,6 +18,8 @@ interface ValueUsage {
      */
     val usedAsType: BoundTypeReference?
 
+    val usedWithMutability: TypeMutability get() = usedAsType?.mutability ?: TypeMutability.READONLY
+
     /**
      * ownership semantics of how the value is used. E.g. assigning to an object member definitely is
      * [VariableOwnership.CAPTURED].

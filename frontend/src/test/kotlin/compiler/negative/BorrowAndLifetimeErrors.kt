@@ -239,11 +239,10 @@ class BorrowAndLifetimeErrors : FreeSpec({
                 }
         }
 
-        "capture by passing assigning to a variable" {
+        "capture by assigning to a variable" {
             validateModule("""
                 class Test {}
                 fn test(borrow p2: Test) {
-                    var v = Test()
                     v = p2
                 }
             """.trimIndent())
@@ -268,6 +267,38 @@ class BorrowAndLifetimeErrors : FreeSpec({
             }
         """.trimIndent())
             .shouldHaveNoDiagnostics()
+    }
+
+    "derived value usage is irrelevant" - {
+        "capturing value derived from borrowed var" {
+            validateModule("""
+                class A {}
+                class C {
+                    a: A = A()
+                }
+                fn test(borrow c: C) {
+                    captureA(c.a)
+                }
+                fn captureA(a: A) {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
+
+        "simulateneous borrows of derived values" {
+            validateModule("""
+                class A {}
+                class C {
+                    mA: mut A = A()
+                    cA: const A = A()
+                }
+                fn test() {
+                    c: exclusive C = C()
+                    trigger(c.mA, c.cA)
+                }
+                fn trigger(borrow p1: mut A, borrow p2: const A) {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
+        }
     }
 
     "read capture doesn't end a lifetime" {

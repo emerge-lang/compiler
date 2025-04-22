@@ -407,16 +407,16 @@ fun Diagnosis.explicitOwnershipNotAllowed(variable: BoundVariable) {
     add(ExplicitOwnershipNotAllowedDiagnostic(variable.declaration.ownership!!.second))
 }
 
-fun Diagnosis.variableUsedAfterLifetime(variable: BoundVariable, read: BoundIdentifierExpression, deadState: VariableLifetime.State.Dead) {
-    add(VariableUsedAfterLifetimeDiagnostic(variable.declaration, read.declaration.span, deadState.lifetimeEndedAt, deadState.maybe))
+fun Diagnosis.variableUsedAfterLifetime(read: BoundIdentifierExpression.ReferringVariable, deadState: VariableLifetime.State.Dead) {
+    add(VariableUsedAfterLifetimeDiagnostic(read.variable.declaration, read.span, deadState.lifetimeEndedAt, deadState.maybe))
 }
 
-fun Diagnosis.lifetimeEndingCaptureInLoop(variable: BoundVariable, read: BoundIdentifierExpression) {
-    add(LifetimeEndingCaptureInLoopDiagnostic(variable.declaration, read.declaration.span))
+fun Diagnosis.lifetimeEndingCaptureInLoop(read: BoundIdentifierExpression.ReferringVariable) {
+    add(LifetimeEndingCaptureInLoopDiagnostic(read.variable.declaration, read.span))
 }
 
-fun Diagnosis.borrowedVariableCaptured(variable: BoundVariable, capture: BoundIdentifierExpression) {
-    add(BorrowedVariableCapturedDiagnostic(variable.declaration, capture.declaration.span))
+fun Diagnosis.borrowedVariableCaptured(variable: BoundVariable, captureAt: Span) {
+    add(BorrowedVariableCapturedDiagnostic(variable.declaration, captureAt))
 }
 
 fun Diagnosis.simultaneousIncompatibleBorrows(

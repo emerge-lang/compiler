@@ -191,7 +191,7 @@ class BoundInvocationExpression(
                     ))
                     if (parameter.ownershipAtDeclarationTime == VariableOwnership.BORROWED && argument is BoundIdentifierExpression && argument.referral is BoundIdentifierExpression.ReferringVariable) {
                         val variable = (argument.referral as BoundIdentifierExpression.ReferringVariable).variable
-                        _modifiedContext.trackSideEffect(VariableLifetime.Effect.BorrowEnded(variable))
+                        _modifiedContext.trackSideEffect(VariableLifetime.Effect.EndAllBorrows(variable))
                     }
                 }
         }
