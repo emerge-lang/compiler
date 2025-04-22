@@ -139,7 +139,12 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
             override fun handleUsage(subject: BoundIdentifierExpression.ReferringVariable, usage: ValueUsage, repetition: ExecutionScopedCTContext.Repetition, diagnosis: Diagnosis): Effect? {
                 return when (usage.usageOwnership) {
                     VariableOwnership.BORROWED -> Effect.BorrowStarted(subject.variable, usage.usedWithMutability, subject.span)
-                    VariableOwnership.CAPTURED -> Effect.ValueCaptured(subject.variable, usage.usedWithMutability, subject.span)
+                    VariableOwnership.CAPTURED -> {
+                        if (repetition.mayRepeat) {
+                            diagnosis.lifetimeEndingCaptureInLoop(subject)
+                        }
+                        Effect.ValueCaptured(subject.variable, usage.usedWithMutability, subject.span)
+                    }
                 }
             }
         }
