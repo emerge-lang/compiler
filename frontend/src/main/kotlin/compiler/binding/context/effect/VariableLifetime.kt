@@ -106,32 +106,13 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
         fun maybe(): State = this
         fun validateCapture(read: BoundIdentifierExpression, diagnosis: Diagnosis) = Unit
         fun validateRepeatedCapture(stateBeforeCapture: State, read: BoundIdentifierExpression, diagnosis: Diagnosis) = Unit
-        fun validateNewBorrowStart(withMutability: TypeMutability, borrowedBy: BoundIdentifierExpression, subject: BoundVariable, diagnosis: Diagnosis): Boolean
+        fun validateNewBorrowStart(withMutability: TypeMutability, borrowedBy: BoundIdentifierExpression, subject: BoundVariable, diagnosis: Diagnosis) = Unit
 
         /**
          * No lifetime tracking is done, it lives for the entirety of its scope
          */
-        data object Untracked : State {
-            override fun validateNewBorrowStart(
-                withMutability: TypeMutability,
-                borrowedBy: BoundIdentifierExpression,
-                subject: BoundVariable,
-                diagnosis: Diagnosis
-            ): Boolean {
-                return true
-            }
-        }
-
-        data object AliveExclusive : State {
-            override fun validateNewBorrowStart(
-                withMutability: TypeMutability,
-                borrowedBy: BoundIdentifierExpression,
-                subject: BoundVariable,
-                diagnosis: Diagnosis,
-            ): Boolean {
-                return true
-            }
-        }
+        data object Untracked : State
+        data object AliveExclusive : State
 
         data class AliveExclusiveWithActiveBorrow(
             val withMutability: TypeMutability,
@@ -160,13 +141,12 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
                 borrowedBy: BoundIdentifierExpression,
                 subject: BoundVariable,
                 diagnosis: Diagnosis
-            ): Boolean {
+            ) {
                 if (withMutability.isAssignableTo(this.withMutability) || this.withMutability.isAssignableTo(withMutability)) {
-                    return true
+                    return
                 }
 
                 diagnosis.simultaneousIncompatibleBorrows(subject, borrowStartedAt, this.withMutability, borrowedBy.declaration.span, withMutability)
-                return false
             }
         }
 
@@ -194,9 +174,8 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
                 borrowedBy: BoundIdentifierExpression,
                 subject: BoundVariable,
                 diagnosis: Diagnosis
-            ): Boolean {
+            ) {
                 diagnosis.variableUsedAfterLifetime(variable, borrowedBy, this)
-                return false
             }
         }
     }
