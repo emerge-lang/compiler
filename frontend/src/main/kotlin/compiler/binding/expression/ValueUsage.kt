@@ -180,6 +180,22 @@ data class DeriveFromAndThenValueUsage(
 }
 
 /**
+ * The value is used without any reference to it ever being created _anywhere_. This is the case e.g. for
+ * object traversal: the object being traversed is used, and needs to be available/alive, but isn't borrowed or
+ * captured in any way.
+ */
+data class TransientValueUsage(
+    override val span: Span
+) : ValueUsage {
+    // currently, this is identical to IrrelevantValueUsage; though, a difference might be needed in some cases
+    // to distinguish between the two different use cases of the two objects
+    override val usedAsType: BoundTypeReference? = null
+    override val usageOwnership = VariableOwnership.BORROWED
+    override fun mapType(mapper: (BoundTypeReference) -> BoundTypeReference): ValueUsage = this
+    override fun describeForDiagnostic(descriptionOfUsedValue: String) = "transient usage of $descriptionOfUsedValue"
+}
+
+/**
  * Used in situations where the usage of a value cannot be determined. This object should behave in a way so that
  * it doesn't trigger any Diagnostics.
  */

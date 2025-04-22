@@ -16,6 +16,7 @@ import compiler.binding.expression.BoundExpression.Companion.tryAsVariable
 import compiler.binding.expression.BoundInvocationExpression
 import compiler.binding.expression.CreateReferenceValueUsage
 import compiler.binding.expression.IrClassFieldAccessExpressionImpl
+import compiler.binding.expression.TransientValueUsage
 import compiler.binding.expression.ValueUsage
 import compiler.binding.impurity.Impurity
 import compiler.binding.impurity.ImpurityVisitor
@@ -81,6 +82,9 @@ class BoundObjectMemberAssignmentStatement(
         }
 
         physicalMember = baseType.findMemberVariable(memberName)
+        if (physicalMember != null) {
+            targetObjectExpression.setEvaluationResultUsage(TransientValueUsage(declaration.span))
+        }
     }
 
     override val assignmentTargetType get() = if (physicalMember != null || !considerSetters) {
