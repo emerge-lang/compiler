@@ -4,6 +4,9 @@ import compiler.InternalCompilerError
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
+import compiler.binding.BoundMemberFunction
+import compiler.binding.BoundOverloadSet
+import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
@@ -58,6 +61,14 @@ sealed class GenericTypeReference : BoundTypeReference {
             is NullableTypeReference -> hasSameBaseTypeAs(other.nested)
             else -> false
         }
+    }
+
+    override fun findMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> {
+        return effectiveBound.findMemberFunction(name)
+    }
+
+    override fun findMemberVariable(name: String): BoundBaseTypeMemberVariable? {
+        return effectiveBound.findMemberVariable(name)
     }
 
     override fun unify(assigneeType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification {
