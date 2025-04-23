@@ -165,7 +165,7 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
                     VariableOwnership.BORROWED -> if (usage.usedWithMutability.isAssignableTo(this.withMutability) || this.withMutability.isAssignableTo(usage.usedWithMutability)) {
                         Effect.BorrowStarted(subject.variable, usage.usedWithMutability, subject.span)
                     } else {
-                        diagnosis.simultaneousIncompatibleBorrows(subject.variable, borrowStartedAt, this.withMutability, subject.span, withMutability)
+                        diagnosis.simultaneousIncompatibleBorrows(subject.variable, borrowStartedAt, this.withMutability, subject.span, usage.usedWithMutability)
                         null
                     }
                 }
