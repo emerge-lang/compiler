@@ -21,7 +21,7 @@ package compiler.parser.grammar
 import compiler.InternalCompilerError
 import compiler.ast.TypeArgumentBundle
 import compiler.ast.TypeParameterBundle
-import compiler.ast.type.TypeArgument
+import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
@@ -43,14 +43,21 @@ val TypeMutability = eitherOf("type mutability") {
     keyword(Keyword.EXCLUSIVE)
 }
 
-private val TypeArgument = sequence {
-    ref(Variance)
-    ref(Type)
+private val TypeArgument = eitherOf("type argument") {
+    operator(Operator.TIMES)
+    sequence {
+        ref(Variance)
+        ref(Type)
+    }
 }
     .astTransformation { tokens ->
-        val variance = tokens.next() as TypeVariance
+        val next = tokens.next()
+        if (next is OperatorToken) {
+            return@astTransformation AstTypeArgument.Wildcard(next)
+        }
+        val variance = next as TypeVariance
         val type = tokens.next() as TypeReference
-        TypeArgument(variance, type)
+        AstTypeArgument.Reference(variance, type)
     }
 
 val BracedTypeArguments: Rule<TypeArgumentBundle> = sequence {
@@ -68,9 +75,9 @@ val BracedTypeArguments: Rule<TypeArgumentBundle> = sequence {
         // skip <
         tokens.next()
 
-        val arguments = ArrayList<TypeArgument>()
+        val arguments = ArrayList<AstTypeArgument>()
         while (tokens.hasNext()) {
-            arguments.add(tokens.next() as TypeArgument)
+            arguments.add(tokens.next() as AstTypeArgument)
             // skip , or >
             tokens.next()
         }
@@ -172,7 +179,7 @@ val Type: Rule<TypeReference> = sequence("type") {
         }
 
         var next = tokens.next()
-        val arguments: List<TypeArgument>?
+        val arguments: List<AstTypeArgument>?
         if (next is TypeArgumentBundle) {
             arguments = next.arguments
             next = tokens.next()

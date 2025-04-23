@@ -18,7 +18,6 @@
 
 package compiler.compiler.ast.type
 
-import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
@@ -157,7 +156,7 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
                     TypeReference(
                         simpleName = "Array",
                         mutability = outerMutability,
-                        arguments = listOf(TypeArgument(TypeVariance.UNSPECIFIED, TypeReference("Any")))
+                        arguments = listOf(AstTypeArgument(TypeVariance.UNSPECIFIED, TypeReference("Any")))
                     )
                 ) as RootResolvedTypeReference
 

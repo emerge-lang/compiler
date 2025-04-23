@@ -6,7 +6,7 @@ import compiler.lexer.IdentifierToken
 
 /**
  * Type parameterization on the declaring side.
- * @see TypeArgument
+ * @see AstTypeArgument
  */
 data class TypeParameter(
     val variance: TypeVariance,

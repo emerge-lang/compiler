@@ -2,7 +2,7 @@ package compiler.binding.expression
 
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.ArrayLiteralExpression
-import compiler.ast.type.TypeArgument
+import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.IrCodeChunkImpl
@@ -80,7 +80,7 @@ class BoundArrayLiteralExpression(
             arrayType,
             listOf(BoundTypeArgument(
                 context,
-                TypeArgument(TypeVariance.UNSPECIFIED, TypeReference("_")),
+                AstTypeArgument.Reference(TypeVariance.UNSPECIFIED, TypeReference("_")),
                 TypeVariance.UNSPECIFIED,
                 elementType,
             ))

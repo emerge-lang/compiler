@@ -20,7 +20,7 @@ package compiler.ast
 
 import compiler.InternalCompilerError
 import compiler.ast.AstSupertypeList.Companion.bindTo
-import compiler.ast.type.TypeArgument
+import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
@@ -77,7 +77,7 @@ class BaseTypeDeclaration(
             mutability = TypeMutability.READONLY,
             declaringNameToken = IdentifierToken(this.name.value, location),
             typeParameters?.map {
-                TypeArgument(TypeVariance.UNSPECIFIED, TypeReference(it.name))
+                AstTypeArgument.Reference(TypeVariance.UNSPECIFIED, TypeReference(it.name))
             },
         )
 

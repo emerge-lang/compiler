@@ -26,7 +26,7 @@ data class TypeReference(
     val nullability: Nullability = Nullability.UNSPECIFIED,
     val mutability: TypeMutability? = null,
     val declaringNameToken: IdentifierToken? = null,
-    val arguments: List<TypeArgument>? = null,
+    val arguments: List<AstTypeArgument>? = null,
     val span: Span? = declaringNameToken?.span,
 ) {
     constructor(simpleName: IdentifierToken) : this(simpleName.value, declaringNameToken = simpleName)

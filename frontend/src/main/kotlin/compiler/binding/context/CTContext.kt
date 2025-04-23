@@ -18,7 +18,7 @@
 
 package compiler.binding.context
 
-import compiler.ast.type.TypeArgument
+import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
@@ -82,7 +82,7 @@ interface CTContext {
 
     val allTypeParameters: Sequence<BoundTypeParameter>
 
-    fun resolveType(ref: TypeArgument): BoundTypeArgument {
+    fun resolveType(ref: AstTypeArgument): BoundTypeArgument {
         return BoundTypeArgument(this, ref, ref.variance, resolveType(ref.type))
     }
 

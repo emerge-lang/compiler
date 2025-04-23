@@ -9,7 +9,7 @@ import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.MemberAccessExpression
-import compiler.ast.type.TypeArgument
+import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
@@ -118,7 +118,7 @@ class BoundClassConstructor(
                 TypeMutability.EXCLUSIVE,
                 classDef.declaration.name,
                 classDef.typeParameters?.map {
-                    TypeArgument(
+                    AstTypeArgument.Reference(
                         TypeVariance.UNSPECIFIED,
                         TypeReference(it.astNode.name),
                     )
