@@ -18,7 +18,6 @@
 
 package compiler.binding.expression
 
-import compiler.ast.VariableOwnership
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
@@ -39,7 +38,6 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
-import compiler.diagnostic.borrowedVariableCaptured
 import compiler.diagnostic.notAllMemberVariablesInitialized
 import compiler.diagnostic.notAllMixinsInitialized
 import compiler.diagnostic.undefinedIdentifier
@@ -212,35 +210,11 @@ class BoundIdentifierExpression(
                 }
             }
 
-            val thisUsageCapturesWithMutability: TypeMutability? = when (usage?.usageOwnership) {
-                VariableOwnership.BORROWED, null -> null
-                VariableOwnership.CAPTURED -> usage!!.usedAsType?.mutability ?: TypeMutability.READONLY
-            }
-
-            thisUsageCapturesWithMutability?.let { capturedWithMutability ->
-                if (variable.ownershipAtDeclarationTime == VariableOwnership.BORROWED) {
-                    diagnosis.borrowedVariableCaptured(variable, this@BoundIdentifierExpression)
-                } else {
-                    _modifiedContext.trackSideEffect(
-                        VariableLifetime.Effect.ValueCaptured(
-                            variable,
-                            capturedWithMutability,
-                            declaration.span,
-                        )
-                    )
-                }
-            }
-
-
-            val lifeStateBeforeUsage = context.getEphemeralState(VariableLifetime, variable)
-            lifeStateBeforeUsage.validateCapture(this@BoundIdentifierExpression, diagnosis)
-
-            if (thisUsageCapturesWithMutability != null) {
+            if (usage != null) {
+                val lifeStateBeforeUsage = context.getEphemeralState(VariableLifetime, variable)
                 val repetitionRelativeToVariable = context.getRepetitionBehaviorRelativeTo(variable.modifiedContext)
-                if (repetitionRelativeToVariable.mayRepeat) {
-                    val stateAfterUsage = _modifiedContext.getEphemeralState(VariableLifetime, variable)
-                    stateAfterUsage.validateRepeatedCapture(lifeStateBeforeUsage, this@BoundIdentifierExpression, diagnosis)
-                }
+                val effect = lifeStateBeforeUsage.handleUsage(this, usage!!, repetitionRelativeToVariable, diagnosis)
+                effect?.let(_modifiedContext::trackSideEffect)
             }
 
             if (variable.kind.allowsVisibility) {

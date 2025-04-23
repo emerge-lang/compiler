@@ -18,6 +18,8 @@ interface ValueUsage {
      */
     val usedAsType: BoundTypeReference?
 
+    val usedWithMutability: TypeMutability get() = usedAsType?.mutability ?: TypeMutability.READONLY
+
     /**
      * ownership semantics of how the value is used. E.g. assigning to an object member definitely is
      * [VariableOwnership.CAPTURED].
@@ -175,6 +177,22 @@ data class DeriveFromAndThenValueUsage(
     override fun describeForDiagnostic(descriptionOfUsedValue: String): String {
         return andThenUsage.describeForDiagnostic("a value derived from $descriptionOfUsedValue")
     }
+}
+
+/**
+ * The value is used without any reference to it ever being created _anywhere_. This is the case e.g. for
+ * object traversal: the object being traversed is used, and needs to be available/alive, but isn't borrowed or
+ * captured in any way.
+ */
+data class TransientValueUsage(
+    override val span: Span
+) : ValueUsage {
+    // currently, this is identical to IrrelevantValueUsage; though, a difference might be needed in some cases
+    // to distinguish between the two different use cases of the two objects
+    override val usedAsType: BoundTypeReference? = null
+    override val usageOwnership = VariableOwnership.BORROWED
+    override fun mapType(mapper: (BoundTypeReference) -> BoundTypeReference): ValueUsage = this
+    override fun describeForDiagnostic(descriptionOfUsedValue: String) = "transient usage of $descriptionOfUsedValue"
 }
 
 /**
