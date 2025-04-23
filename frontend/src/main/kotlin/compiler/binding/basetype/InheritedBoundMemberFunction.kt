@@ -8,8 +8,8 @@ import compiler.binding.BoundParameterList
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
-import compiler.lexer.IdentifierToken
 import compiler.diagnostic.Diagnosis
+import compiler.lexer.IdentifierToken
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrFullyInheritedMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrInheritedMemberFunction
@@ -55,6 +55,9 @@ class InheritedBoundMemberFunction(
     }
 
     private val narrowedReceiverParameter: VariableDeclaration = run {
+        check(ownerBaseType.typeParameters.isNullOrEmpty()) {
+            "Not supported yet"
+        }
         val inheritedReceiverParameter = supertypeMemberFn.parameters.declaredReceiver!!
         // it is important that this location comes from the subtype
         // this is necessary so the access checks pass on module-private or less visible subtypes
