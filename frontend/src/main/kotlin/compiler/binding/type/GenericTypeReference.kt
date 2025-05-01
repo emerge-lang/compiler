@@ -27,6 +27,7 @@ sealed class GenericTypeReference : BoundTypeReference {
     override val simpleName get() = parameter.name
     override val isNullable get() = effectiveBound.isNullable
     override val mutability get() = effectiveBound.mutability
+    override val baseTypeOfLowerBound get()= effectiveBound.baseTypeOfLowerBound
     override val span get() = original.declaringNameToken?.span
     override val inherentTypeBindings = TypeUnification.EMPTY
 

@@ -13,6 +13,7 @@ class NullableTypeReference private constructor(
 ): BoundTypeReference {
     override val simpleName get() = nested.simpleName
     override val mutability get() = nested.mutability
+    override val baseTypeOfLowerBound get() = nested.baseTypeOfLowerBound
     override val span get() = nested.span
     override val isNullable = true
 
