@@ -9,17 +9,19 @@ import compiler.lexer.Token
  */
 sealed interface AstTypeArgument {
     val span: Span?
+    val astVariance: AstTypeVariance?
+    val variance: TypeVariance get()= astVariance?.value ?: TypeVariance.UNSPECIFIED
 
     data class Reference(
-        val variance: TypeVariance,
+        override val astVariance: AstTypeVariance?,
         val type: TypeReference,
     ) : AstTypeArgument {
         override val span: Span? = type.span
 
         override fun toString(): String {
             var str = ""
-            if (variance != TypeVariance.UNSPECIFIED) {
-                str += variance.name.lowercase()
+            if (astVariance != null) {
+                str += astVariance.token.keyword.text
                 str += " "
             }
 
@@ -27,7 +29,19 @@ sealed interface AstTypeArgument {
         }
     }
 
-    class Wildcard(val token: Token) : AstTypeArgument {
+    data class Wildcard(
+        override val astVariance: AstTypeVariance?,
+        val token: Token
+    ) : AstTypeArgument {
         override val span = token.span
+
+        override fun toString(): String {
+            var str = ""
+            if (astVariance != null) {
+                str += astVariance.token.keyword.text
+                str += " "
+            }
+            return "$str*"
+        }
     }
 }

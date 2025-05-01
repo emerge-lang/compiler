@@ -83,7 +83,7 @@ interface CTContext {
     val allTypeParameters: Sequence<BoundTypeParameter>
 
     fun resolveType(ref: AstTypeArgument): BoundTypeArgument {
-        return BoundTypeArgument(this, ref, ref.variance, resolveType(ref.type))
+        return BoundTypeArgument(this, ref, ref.astVariance, resolveType(ref.type))
     }
 
     fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean = false): BoundTypeReference

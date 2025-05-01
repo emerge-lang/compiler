@@ -8,7 +8,6 @@ import compiler.ast.VariableOwnership
 import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
-import compiler.ast.type.TypeVariance
 import compiler.binding.BoundCodeChunk
 import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
@@ -69,7 +68,7 @@ class BoundClassDestructor(
                 classDef.declaration.name,
                 classDef.typeParameters?.map {
                     AstTypeArgument.Reference(
-                        TypeVariance.UNSPECIFIED,
+                        null,
                         TypeReference(it.astNode.name),
                     )
                 },

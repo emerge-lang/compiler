@@ -24,7 +24,6 @@ import compiler.ast.type.AstTypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
-import compiler.ast.type.TypeVariance
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundBaseType
@@ -77,7 +76,7 @@ class BaseTypeDeclaration(
             mutability = TypeMutability.READONLY,
             declaringNameToken = IdentifierToken(this.name.value, location),
             typeParameters?.map {
-                AstTypeArgument.Reference(TypeVariance.UNSPECIFIED, TypeReference(it.name))
+                AstTypeArgument.Reference(null, TypeReference(it.name))
             },
         )
 
