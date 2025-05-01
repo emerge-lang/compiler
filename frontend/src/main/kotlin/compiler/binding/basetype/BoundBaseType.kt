@@ -64,7 +64,7 @@ import java.util.IdentityHashMap
 
 class BoundBaseType(
     private val fileContext: CTContext,
-    private val typeRootContext: CTContext,
+    val typeRootContext: CTContext,
     val kind: Kind,
     override val visibility: BoundVisibility,
     val typeParameters: List<BoundTypeParameter>?,
