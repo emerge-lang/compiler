@@ -207,6 +207,14 @@ sealed interface BoundTypeReference {
     val inherentTypeBindings: TypeUnification
 
     fun toBackendIr(): IrType
+
+    companion object {
+        /**
+         * in contexts that support it (e.g. variable declarations), referencing a type with this name
+         * will not actually try to resolve that type, but rather lead to that type being inferred.
+         */
+        const val NAME_REQUESTING_TYPE_INFERENCE = "_"
+    }
 }
 
 fun List<BoundParameter>.nonDisjointPairs(): Sequence<Pair<BoundParameter, BoundParameter>> {

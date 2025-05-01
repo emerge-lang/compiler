@@ -20,8 +20,8 @@ package compiler.ast
 
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundParameterList
-import compiler.binding.BoundVariable
 import compiler.binding.context.ExecutionScopedCTContext
+import compiler.binding.type.BoundTypeReference
 
 data class ParameterList (
     val parameters: List<VariableDeclaration> = emptyList()
@@ -36,7 +36,7 @@ data class ParameterList (
             if (index == 0 && parameter.name.value == BoundParameterList.RECEIVER_PARAMETER_NAME ) {
                 val actualType = when {
                     parameter.type == null -> impliedReceiverType
-                    impliedReceiverType != null && parameter.type.simpleName == BoundVariable.DECLARATION_TYPE_NAME_INFER -> {
+                    impliedReceiverType != null && parameter.type.simpleName == BoundTypeReference.NAME_REQUESTING_TYPE_INFERENCE -> {
                         parameter.type.copy(
                             simpleName = impliedReceiverType.simpleName,
                             arguments = parameter.type.arguments ?: impliedReceiverType.arguments
