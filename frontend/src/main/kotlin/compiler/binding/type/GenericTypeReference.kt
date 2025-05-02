@@ -178,7 +178,7 @@ sealed class GenericTypeReference : BoundTypeReference {
         effectiveBound.toBackendIr(),
     )
 
-    override fun toString() = parameter.name
+    override fun toString() = "${mutability.keyword.text} ${parameter.name}"
 
     companion object {
         operator fun invoke(original: TypeReference, parameter: BoundTypeParameter): BoundTypeReference {
