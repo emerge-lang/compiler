@@ -84,7 +84,7 @@ sealed class GenericTypeReference : BoundTypeReference {
             is RootResolvedTypeReference -> carry.plusReporting(ValueNotAssignableDiagnostic(
                 this,
                 assigneeType,
-                "$assigneeType cannot be proven to be a subtype of $simpleName",
+                "$assigneeType cannot be proven to be a subtype of $this",
                 assignmentLocation,
             ))
             is TypeVariable -> assigneeType.flippedUnify(this, assignmentLocation, carry)
@@ -102,7 +102,7 @@ sealed class GenericTypeReference : BoundTypeReference {
                     return carry.plusReporting(ValueNotAssignableDiagnostic(
                         this,
                         assigneeType,
-                        "${assigneeType.simpleName} cannot be proven to be a subtype of $simpleName",
+                        "$assigneeType cannot be proven to be a subtype of $this",
                         assignmentLocation,
                     ))
                 }
@@ -158,11 +158,11 @@ sealed class GenericTypeReference : BoundTypeReference {
 
     private fun isSubtypeOf(other: GenericTypeReference): Boolean {
         if (this.parameter == other.parameter) {
-            return true
+            return this.mutability.isAssignableTo(other.mutability)
         }
 
         val bound = this.effectiveBound
-        if (bound !is GenericTypeReference){
+        if (bound !is GenericTypeReference) {
             return false
         }
 

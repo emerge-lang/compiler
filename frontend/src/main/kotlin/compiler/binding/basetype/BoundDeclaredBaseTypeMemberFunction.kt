@@ -161,21 +161,21 @@ class BoundDeclaredBaseTypeMemberFunction(
                 }
             }
 
-            overrides?.forEach { superFn ->
-                if (!superFn.purity.contains(this.purity)) {
-                    diagnosis.overrideAddsSideEffects(this, superFn)
+            overrides?.forEach { inheritedFn ->
+                if (!inheritedFn.purity.contains(this.purity)) {
+                    diagnosis.overrideAddsSideEffects(this, inheritedFn)
                 }
-                if (superFn.attributes.isDeclaredNothrow && !this.attributes.isDeclaredNothrow) {
-                    diagnosis.overrideDropsNothrow(this, superFn)
+                if (inheritedFn.attributes.isDeclaredNothrow && !this.attributes.isDeclaredNothrow) {
+                    diagnosis.overrideDropsNothrow(this, inheritedFn)
                 }
-                if (superFn.visibility.isPossiblyBroaderThan(visibility) && declaredOnType.visibility.isPossiblyBroaderThan(visibility)) {
-                    diagnosis.overrideRestrictsVisibility(this, superFn)
+                if (inheritedFn.visibility.isPossiblyBroaderThan(visibility) && declaredOnType.visibility.isPossiblyBroaderThan(visibility)) {
+                    diagnosis.overrideRestrictsVisibility(this, inheritedFn)
                 }
-                if (superFn.attributes.firstAccessorAttribute != attributes.firstAccessorAttribute) {
-                    diagnosis.overrideAccessorDeclarationMismatch(this, superFn)
+                if (inheritedFn.attributes.firstAccessorAttribute != attributes.firstAccessorAttribute) {
+                    diagnosis.overrideAccessorDeclarationMismatch(this, inheritedFn)
                 }
 
-                for ((inheritedFnParam, overrideFnParam, paramOnSupertypeFn) in zip(superFn.parameters.parameters, this.parameters.parameters, superFn.supertypeMemberFn.parameters.parameters)) {
+                for ((inheritedFnParam, overrideFnParam, paramOnSupertypeFn) in zip(inheritedFn.parameters.parameters, this.parameters.parameters, inheritedFn.supertypeMemberFn.parameters.parameters)) {
                     if (!overrideFnParam.ownershipAtDeclarationTime.canOverride(inheritedFnParam.ownershipAtDeclarationTime)) {
                         diagnosis.overridingParameterExtendsOwnership(overrideFnParam, paramOnSupertypeFn)
                     }

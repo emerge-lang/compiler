@@ -1,7 +1,6 @@
 package compiler.diagnostic
 
 import compiler.binding.BoundParameter
-import ownershipSpan
 
 class NarrowingParameterTypeOverrideDiagnostic(
     val override: BoundParameter,
@@ -10,13 +9,13 @@ class NarrowingParameterTypeOverrideDiagnostic(
 ) : Diagnostic(
     Severity.ERROR,
     "Cannot narrow type of overridden parameter ${override.name}; ${assignabilityError.reason}",
-    override.declaration.span,
+    assignabilityError.span,
 ) {
     override fun toString(): String {
         var str = "${levelAndMessage}\n"
         str += illustrateHints(
-            SourceHint(superParameter.ownershipSpan, "overridden function establishes the type ${assignabilityError.sourceType}"),
-            SourceHint(override.ownershipSpan, "overriding function requires are more specific type"),
+            SourceHint(superParameter.declaration.type?.span ?: superParameter.declaration.span, "overridden function establishes the type ${assignabilityError.sourceType}"),
+            SourceHint(assignabilityError.targetType.span ?: override.declaration.span, "overriding function requires are more specific type"),
         )
         return str
     }

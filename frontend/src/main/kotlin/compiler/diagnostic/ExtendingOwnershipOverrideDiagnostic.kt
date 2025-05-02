@@ -1,7 +1,7 @@
 package compiler.diagnostic
 
 import compiler.binding.BoundParameter
-import ownershipSpan
+import compiler.lexer.Span
 
 class ExtendingOwnershipOverrideDiagnostic(
     val override: BoundParameter,
@@ -36,3 +36,6 @@ class ExtendingOwnershipOverrideDiagnostic(
         return result
     }
 }
+
+private val BoundParameter.ownershipSpan: Span
+    get() = declaration.ownership?.second?.span ?: declaration.span

@@ -55,7 +55,7 @@ class RootResolvedTypeReference private constructor(
             original,
             newMutability,
             baseType,
-            arguments?.map { it.defaultMutabilityTo(newMutability) },
+            arguments,
         )
     }
 
@@ -65,7 +65,7 @@ class RootResolvedTypeReference private constructor(
             original,
             combinedMutability,
             baseType,
-            arguments?.map { it.defaultMutabilityTo(combinedMutability) },
+            arguments,
         )
     }
 
@@ -75,7 +75,7 @@ class RootResolvedTypeReference private constructor(
             original,
             limitedMutability,
             baseType,
-            arguments?.map { it.withMutabilityLimitedTo(limitToMutability) },
+            arguments,
         )
     }
 
@@ -95,7 +95,7 @@ class RootResolvedTypeReference private constructor(
             original,
             mutability,
             baseType,
-            arguments?.map { it.defaultMutabilityTo(mutability) },
+            arguments,
         )
     }
 
