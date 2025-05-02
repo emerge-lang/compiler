@@ -3,19 +3,20 @@ package compiler.diagnostic
 import compiler.binding.BoundParameter
 import ownershipSpan
 
-class ExtendingOwnershipOverrideDiagnostic(
+class NarrowingParameterTypeOverrideDiagnostic(
     val override: BoundParameter,
     val superParameter: BoundParameter,
+    val assignabilityError: ValueNotAssignableDiagnostic,
 ) : Diagnostic(
     Severity.ERROR,
-    "Cannot extend ownership of parameter ${override.name}",
+    "Cannot narrow type of overridden parameter ${override.name}; ${assignabilityError.reason}",
     override.declaration.span,
 ) {
     override fun toString(): String {
         var str = "${levelAndMessage}\n"
         str += illustrateHints(
-            SourceHint(superParameter.ownershipSpan, "overridden function borrows the parameter"),
-            SourceHint(override.ownershipSpan, "override cannot capture it"),
+            SourceHint(superParameter.ownershipSpan, "overridden function establishes the type ${assignabilityError.sourceType}"),
+            SourceHint(override.ownershipSpan, "overriding function requires are more specific type"),
         )
         return str
     }

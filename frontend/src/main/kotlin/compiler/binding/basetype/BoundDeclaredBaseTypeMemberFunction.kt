@@ -20,12 +20,14 @@ import compiler.diagnostic.overrideAddsSideEffects
 import compiler.diagnostic.overrideDropsNothrow
 import compiler.diagnostic.overrideRestrictsVisibility
 import compiler.diagnostic.overridingParameterExtendsOwnership
+import compiler.diagnostic.overridingParameterNarrowsType
 import compiler.diagnostic.staticFunctionDeclaredOverride
 import compiler.diagnostic.undeclaredOverride
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.common.CanonicalElementName
+import io.github.tmarsteel.emerge.common.zip
 import java.util.Collections
 import java.util.IdentityHashMap
 
@@ -173,11 +175,17 @@ class BoundDeclaredBaseTypeMemberFunction(
                     diagnosis.overrideAccessorDeclarationMismatch(this, superFn)
                 }
 
-                superFn.parameters.parameters.zip(this.parameters.parameters)
-                    .filterNot { (superFnParam, overrideFnParam) -> overrideFnParam.ownershipAtDeclarationTime.canOverride(superFnParam.ownershipAtDeclarationTime) }
-                    .forEach { (superFnParam, overrideFnParam) ->
-                        diagnosis.overridingParameterExtendsOwnership(overrideFnParam, superFnParam)
+                for ((inheritedFnParam, overrideFnParam, paramOnSupertypeFn) in zip(superFn.parameters.parameters, this.parameters.parameters, superFn.supertypeMemberFn.parameters.parameters)) {
+                    if (!overrideFnParam.ownershipAtDeclarationTime.canOverride(inheritedFnParam.ownershipAtDeclarationTime)) {
+                        diagnosis.overridingParameterExtendsOwnership(overrideFnParam, paramOnSupertypeFn)
                     }
+
+                    val superType = inheritedFnParam.typeAtDeclarationTime ?: continue
+                    val overrideType = overrideFnParam.typeAtDeclarationTime ?: continue
+                    superType.evaluateAssignabilityTo(overrideType, overrideFnParam.declaration.span)?.let { narrowingError ->
+                        diagnosis.overridingParameterNarrowsType(overrideFnParam, paramOnSupertypeFn, narrowingError)
+                    }
+                }
             }
         }
     }
