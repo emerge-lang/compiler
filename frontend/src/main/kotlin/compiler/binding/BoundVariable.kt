@@ -344,7 +344,7 @@ class BoundVariable(
     }
 
     override fun toString(): String {
-        return "${ownershipAtDeclarationTime.keyword.text} $name: $typeAtDeclarationTime; ${declaration.declaredAt.sourceFile.name} line ${declaration.declaredAt.fromLineNumber}"
+        return "${ownershipAtDeclarationTime.keyword.text} $name: ${typeAtDeclarationTime ?: "?"}; ${declaration.declaredAt.sourceFile.name} line ${declaration.declaredAt.fromLineNumber}"
     }
 
     enum class Kind(
