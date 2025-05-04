@@ -201,9 +201,13 @@ sealed class GenericTypeReference : BoundTypeReference {
 
     override fun toString(): String {
         var str = ""
-        original.mutability?.let {
-            str += "$it "
+
+        if (original.mutability != null) {
+            str += "${original.mutability} "
+        } else if (mutability != parameter.bound.mutability) {
+            str += "$mutability "
         }
+
         str += simpleName
         return str
     }
