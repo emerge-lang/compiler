@@ -9,8 +9,8 @@ import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.compiler.ast.type.getTestType
-import compiler.lexer.Span
 import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.common.EmergeConstants
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.Matcher
@@ -35,6 +35,7 @@ class VarianceErrors : FreeSpec({
     fun varExact(t: BoundBaseType) = BoundTypeArgument(ctCtx, mockk(), UNSPECIFIED, t.baseReference)
 
     fun arrayOf(element: BoundTypeArgument): BoundTypeReference = RootResolvedTypeReference(
+        ctCtx,
         TypeReference("Array"),
         swCtx.getPackage(EmergeConstants.CORE_MODULE_NAME)!!.resolveBaseType("Array")!!,
         listOf(element),

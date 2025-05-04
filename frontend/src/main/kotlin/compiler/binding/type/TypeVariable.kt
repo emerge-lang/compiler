@@ -143,16 +143,28 @@ class TypeVariable private constructor(
         return other == this
     }
 
+    override fun asAstReference(): TypeReference {
+        return TypeReference(
+            parameter.name,
+            TypeReference.Nullability.of(this),
+            this.mutability,
+            null,
+            null,
+            span,
+        )
+    }
+
     override fun toBackendIr(): IrType {
         throw InternalCompilerError("Attempting to create BackendIr from unresolved type variable $this at ${this.span}")
     }
 
     override fun toString(): String {
-        var str = ""
+        var str = "Var("
         if (mutability != parameter.bound.mutability) {
             str += mutability.keyword.text + " "
         }
         str += simpleName
+        str += ")"
         return str
     }
 

@@ -81,6 +81,7 @@ class BoundBaseType(
     val simpleName: String = declaration.name.value
     val baseReference: RootResolvedTypeReference
         get() = RootResolvedTypeReference(
+            context,
             TypeReference(this.simpleName),
             this,
             if (typeParameters.isNullOrEmpty()) null else throw InternalCompilerError("cannot use baseReference on types with parameters")

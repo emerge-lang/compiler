@@ -90,6 +90,7 @@ private fun mockNumericBaseType(nBits: Int, prefix: Char): BoundBaseType {
         every { semanticAnalysisPhase1(any()) } just Runs
         every { semanticAnalysisPhase2(any()) } just Runs
         every { semanticAnalysisPhase3(any()) } just Runs
+        every { context } returns mockk()
         every { isCoreScalar } returns true
         every { isCoreNumericType } returns true
         every { simpleName } returns prefix.toString() + nBits.toString()

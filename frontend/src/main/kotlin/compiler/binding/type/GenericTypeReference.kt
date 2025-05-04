@@ -26,7 +26,13 @@ sealed class GenericTypeReference : BoundTypeReference {
 
     override val simpleName get() = parameter.name
     override val isNullable get() = effectiveBound.isNullable
-    override val mutability get() = effectiveBound.mutability
+    override val mutability: TypeMutability get() {
+        val givenMutability = original.mutability
+        if (givenMutability == null || !givenMutability.isAssignableTo(effectiveBound.mutability)) {
+            return effectiveBound.mutability
+        }
+        return givenMutability
+    }
     override val baseTypeOfLowerBound get()= effectiveBound.baseTypeOfLowerBound
     override val span get() = original.declaringNameToken?.span
     override val inherentTypeBindings = TypeUnification.EMPTY
@@ -77,7 +83,7 @@ sealed class GenericTypeReference : BoundTypeReference {
             is NullableTypeReference -> {
                 // TODO: try the assignment ignoring the nullability problem. If it works, report the nullability problem
                 // otherwise, report the bigger/harder to fix problem first. This requires code in TypeUnification
-                // that can determin success/failure of a sub-unification
+                // that can determine success/failure of a sub-unification
                 carry.plusReporting(ValueNotAssignableDiagnostic(this, assigneeType, "Cannot assign a possibly null value to a non-nullable reference", assignmentLocation))
             }
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
@@ -156,6 +162,8 @@ sealed class GenericTypeReference : BoundTypeReference {
         return this
     }
 
+    override fun asAstReference(): TypeReference = original
+
     private fun isSubtypeOf(other: GenericTypeReference): Boolean {
         if (this.parameter == other.parameter) {
             return this.mutability.isAssignableTo(other.mutability)
@@ -169,7 +177,7 @@ sealed class GenericTypeReference : BoundTypeReference {
         return bound.isSubtypeOf(other)
     }
 
-    fun mapEffectiveBound(mapper: (BoundTypeReference) -> BoundTypeReference): GenericTypeReference {
+    private fun mapEffectiveBound(mapper: (BoundTypeReference) -> BoundTypeReference): GenericTypeReference {
         return MappedEffectiveBoundGenericTypeReference(this, mapper)
     }
 
@@ -178,7 +186,14 @@ sealed class GenericTypeReference : BoundTypeReference {
         effectiveBound.toBackendIr(),
     )
 
-    override fun toString() = "${mutability.keyword.text} ${parameter.name}"
+    override fun toString(): String {
+        var str = ""
+        original.mutability?.let {
+            str += "$it "
+        }
+        str += simpleName
+        return str
+    }
 
     companion object {
         operator fun invoke(original: TypeReference, parameter: BoundTypeParameter): BoundTypeReference {

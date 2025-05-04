@@ -7,6 +7,7 @@ import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
+import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.hiddenTypeExposed
@@ -23,6 +24,7 @@ import io.github.tmarsteel.emerge.common.EmergeConstants
  * A [TypeReference] where the root type is resolved
  */
 class RootResolvedTypeReference private constructor(
+    private val context: CTContext,
     val original: TypeReference?,
     private val explicitMutability: TypeMutability?,
     val baseType: BoundBaseType,
@@ -38,7 +40,8 @@ class RootResolvedTypeReference private constructor(
         TypeUnification.fromExplicit(baseType.typeParameters ?: emptyList(), arguments, span ?: Span.UNKNOWN)
     }
 
-    constructor(original: TypeReference, baseType: BoundBaseType, parameters: List<BoundTypeArgument>?) : this(
+    constructor(context: CTContext, original: TypeReference, baseType: BoundBaseType, parameters: List<BoundTypeArgument>?) : this(
+        context,
         original,
         original.mutability,
         baseType,
@@ -52,6 +55,7 @@ class RootResolvedTypeReference private constructor(
         }
 
         return RootResolvedTypeReference(
+            context,
             original,
             newMutability,
             baseType,
@@ -62,6 +66,7 @@ class RootResolvedTypeReference private constructor(
     override fun withMutabilityIntersectedWith(mutability: TypeMutability?): RootResolvedTypeReference {
         val combinedMutability = mutability?.let { this.mutability.intersect(it) } ?: this.mutability
         return RootResolvedTypeReference(
+            context,
             original,
             combinedMutability,
             baseType,
@@ -72,6 +77,7 @@ class RootResolvedTypeReference private constructor(
     override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeReference {
         val limitedMutability = mutability.limitedTo(limitToMutability)
         return RootResolvedTypeReference(
+            context,
             original,
             limitedMutability,
             baseType,
@@ -92,6 +98,7 @@ class RootResolvedTypeReference private constructor(
         }
 
         return RootResolvedTypeReference(
+            context,
             original,
             mutability,
             baseType,
@@ -137,13 +144,21 @@ class RootResolvedTypeReference private constructor(
                     return withMutability(this.mutability.intersect(other.mutability))
                 }
                 // end of special cases until generic supertypes are implemented
-                val commonSupertype = BoundBaseType.closestCommonSupertypeOf(this.baseType, other.baseType)
-                check(commonSupertype.typeParameters.isNullOrEmpty()) { "Generic supertypes are not implemented, yet." }
+                val commonSuperBaseType = BoundBaseType.closestCommonSupertypeOf(this.baseType, other.baseType)
+                val transformedArguments = if (commonSuperBaseType.typeParameters.isNullOrEmpty()) null else {
+                    check(commonSuperBaseType == this.baseType && commonSuperBaseType == other.baseType) { "Generic supertypes are not implemented, yet." }
+                    commonSuperBaseType.typeParameters.mapIndexed { typeParameterIndex, typeParameter ->
+                        val lhs = this.arguments?.getOrNull(typeParameterIndex) ?: typeParameter.createPlaceholderTypeArgument(this.context)
+                        val rhs = other.arguments?.getOrNull(typeParameterIndex) ?: typeParameter.createPlaceholderTypeArgument(other.context)
+                        lhs.intersect(rhs, typeParameter.bound)
+                    }
+                }
                 RootResolvedTypeReference(
-                    null,
-                    this.mutability.intersect(other.mutability),
-                    commonSupertype,
-                    null,
+                    context = context,
+                    original = null,
+                    explicitMutability = this.mutability.intersect(other.mutability),
+                    baseType = commonSuperBaseType,
+                    arguments = transformedArguments,
                 )
             }
             is GenericTypeReference -> other.closestCommonSupertypeWith(this)
@@ -162,6 +177,7 @@ class RootResolvedTypeReference private constructor(
 
     override fun withTypeVariables(variables: List<BoundTypeParameter>): RootResolvedTypeReference {
         return RootResolvedTypeReference(
+            context,
             original,
             explicitMutability,
             baseType,
@@ -220,6 +236,7 @@ class RootResolvedTypeReference private constructor(
 
     override fun instantiateFreeVariables(context: TypeUnification): RootResolvedTypeReference {
         return RootResolvedTypeReference(
+            this.context,
             original,
             explicitMutability,
             baseType,
@@ -229,10 +246,22 @@ class RootResolvedTypeReference private constructor(
 
     override fun instantiateAllParameters(context: TypeUnification): RootResolvedTypeReference {
         return RootResolvedTypeReference(
+            this.context,
             original,
             explicitMutability,
             baseType,
             arguments?.map { it.instantiateAllParameters(context) },
+        )
+    }
+
+    override fun asAstReference(): TypeReference {
+        return original ?: TypeReference(
+            simpleName,
+            TypeReference.Nullability.of(this),
+            mutability,
+            null,
+            arguments?.map { it.astNode },
+            span,
         )
     }
 
@@ -256,6 +285,7 @@ class RootResolvedTypeReference private constructor(
 
         str
     }
+    override fun toString(): String = _string
 
     override fun toBackendIr(): IrType {
         val raw = IrSimpleTypeImpl(baseType.toBackendIr(), this.mutability.toBackendIr(), false)
@@ -270,8 +300,6 @@ class RootResolvedTypeReference private constructor(
             }
         )
     }
-
-    override fun toString(): String = _string
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

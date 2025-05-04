@@ -212,6 +212,8 @@ sealed interface BoundTypeReference {
      */
     val inherentTypeBindings: TypeUnification
 
+    fun asAstReference(): TypeReference
+
     fun toBackendIr(): IrType
 
     companion object {

@@ -76,6 +76,7 @@ class BoundArrayLiteralExpression(
         }
 
         type = RootResolvedTypeReference(
+            context,
             TypeReference(arrayType.simpleName),
             arrayType,
             listOf(BoundTypeArgument(

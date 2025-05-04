@@ -120,6 +120,10 @@ class UnresolvedType private constructor(
         return standInType.hasSameBaseTypeAs(other)
     }
 
+    override fun asAstReference(): TypeReference {
+        return standInType.asAstReference()
+    }
+
     override fun toString() = simpleName
 
     override fun toBackendIr(): IrType {

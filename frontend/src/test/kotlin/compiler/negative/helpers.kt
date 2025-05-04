@@ -100,12 +100,16 @@ class IntegrationTestModule(
     }
 }
 
-fun emptySoftwareContext(validate: Boolean = true): SoftwareContext {
+fun emptySoftwareContext(validate: Boolean = true, noStd: Boolean = false): SoftwareContext {
     val swCtxt = SoftwareContext()
-    defaultModulesParsed.forEach { (module, sources) ->
-        val moduleCtx = swCtxt.registerModule(module.name, module.uses)
-        sources.forEach(moduleCtx::addSourceFile)
-    }
+    defaultModulesParsed
+        .filter {
+            return@filter !(noStd && it.first.name == EmergeConstants.STD_MODULE_NAME)
+        }
+        .forEach { (module, sources) ->
+            val moduleCtx = swCtxt.registerModule(module.name, module.uses)
+            sources.forEach(moduleCtx::addSourceFile)
+        }
 
     if (validate) {
         swCtxt.doSemanticAnalysis(FailOnErrorDiagnosis)
@@ -131,8 +135,8 @@ fun SoftwareContext.registerModule(module: IntegrationTestModule): ModuleContext
     return moduleCtx
 }
 
-fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext, Collection<Diagnostic>> {
-    val swCtxt = emptySoftwareContext(false)
+fun validateModules(vararg modules: IntegrationTestModule, noStd: Boolean = false): Pair<SoftwareContext, Collection<Diagnostic>> {
+    val swCtxt = emptySoftwareContext(false, noStd)
 
     modules.forEach {
         swCtxt.registerModule(it)
@@ -157,10 +161,11 @@ fun validateModules(vararg modules: IntegrationTestModule): Pair<SoftwareContext
  */
 fun validateModule(
     code: String,
+    noStd: Boolean = false,
     invokedFrom: StackTraceElement = Thread.currentThread().stackTrace[2],
 ): Pair<SoftwareContext, Collection<Diagnostic>> {
     val module = IntegrationTestModule(CanonicalElementName.Package(listOf("testmodule")), emptySet(), lexCode(code.assureEndsWith('\n'), true, invokedFrom))
-    return validateModules(module)
+    return validateModules(module, noStd = noStd)
 }
 
 // TODO: most test cases expect EXACTLY one diagnostic, extra diagnostics are out-of-spec. This one lets extra reportings pass :(
