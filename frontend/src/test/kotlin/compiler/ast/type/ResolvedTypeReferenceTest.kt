@@ -18,14 +18,8 @@
 
 package compiler.compiler.ast.type
 
-import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
-import compiler.ast.type.TypeReference
-import compiler.ast.type.TypeVariance
-import compiler.binding.type.RootResolvedTypeReference
-import compiler.compiler.negative.emptySoftwareContext
 import compiler.compiler.negative.validateModule
-import io.github.tmarsteel.emerge.common.EmergeConstants
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
 
@@ -143,31 +137,6 @@ class ResolvedTypeReferenceTest : FreeSpec() { init {
             "const B and const C is const A" {
                 immutableC.closestCommonSupertypeWith(immutableB) shouldBe immutableA
                 immutableB.closestCommonSupertypeWith(immutableC) shouldBe immutableA
-            }
-        }
-    }
-
-    "generics" - {
-        val swCtx = emptySoftwareContext()
-        val context = swCtx.getPackage(EmergeConstants.CORE_MODULE_NAME)!!.moduleContext.sourceFiles.first().context
-
-        "mutability projection" - {
-            for (outerMutability in TypeMutability.entries) {
-                val type = context.resolveType(
-                    TypeReference(
-                        simpleName = "Array",
-                        mutability = outerMutability,
-                        arguments = listOf(TypeArgument(TypeVariance.UNSPECIFIED, TypeReference("Any")))
-                    )
-                ) as RootResolvedTypeReference
-
-                "projects onto type parameters with $outerMutability" {
-                    val expectedMutability = when (outerMutability) {
-                        TypeMutability.EXCLUSIVE -> TypeMutability.READONLY
-                        else -> outerMutability
-                    }
-                    type.arguments!!.single().type.mutability shouldBe expectedMutability
-                }
             }
         }
     }

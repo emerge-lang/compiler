@@ -117,7 +117,20 @@ sealed class GenericTypeReference : BoundTypeReference {
     }
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): GenericTypeReference {
-        return mapEffectiveBound { it.defaultMutabilityTo(mutability) }
+        /*
+        the mutability of a parameter-type is never known exactly in the generic code,
+        hence there is no point in defaulting the mutability. E.g. this code:
+
+        class SomeBox<T> {
+            var value: T = init
+        }
+
+        in this case, the `var` allows the `value` member var to be reassigned. But that doesn't mean
+        that the type of the member variable should me `mut T`. For `SomeBox<const Any>` that would even be
+        nonsensical. This method being a noop correctly implements this special case.
+
+        */
+        return this
     }
 
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
