@@ -468,6 +468,10 @@ fun Diagnosis.overridingParameterExtendsOwnership(override: BoundParameter, supe
     add(ExtendingOwnershipOverrideDiagnostic(override, superParameter))
 }
 
+fun Diagnosis.overridingParameterNarrowsType(override: BoundParameter, superParameter: BoundParameter, assignabilityDiagnostic: ValueNotAssignableDiagnostic) {
+    add(NarrowingParameterTypeOverrideDiagnostic(override, superParameter, assignabilityDiagnostic))
+}
+
 fun Diagnosis.nothrowViolatingInvocation(invocation: BoundInvocationExpression, boundary: NothrowViolationDiagnostic.SideEffectBoundary) {
     add(NothrowViolationDiagnostic.ThrowingInvocation(invocation, boundary))
 }

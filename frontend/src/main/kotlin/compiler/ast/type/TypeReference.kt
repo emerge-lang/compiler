@@ -18,6 +18,7 @@
 
 package compiler.ast.type
 
+import compiler.binding.type.BoundTypeReference
 import compiler.lexer.IdentifierToken
 import compiler.lexer.Span
 
@@ -32,14 +33,11 @@ data class TypeReference(
     constructor(simpleName: IdentifierToken) : this(simpleName.value, declaringNameToken = simpleName)
 
     fun withMutability(mutability: TypeMutability): TypeReference {
-        return TypeReference(
-            simpleName,
-            nullability,
-            mutability,
-            declaringNameToken,
-            arguments,
-            span,
-        )
+        return copy(mutability = mutability)
+    }
+
+    fun withNullability(nullability: Nullability): TypeReference {
+        return copy(nullability = nullability)
     }
 
     private lateinit var _string: String
@@ -105,5 +103,9 @@ data class TypeReference(
         NULLABLE,
         NOT_NULLABLE,
         ;
+
+        companion object {
+            fun of(type: BoundTypeReference): Nullability = if (type.isNullable) NULLABLE else NOT_NULLABLE
+        }
     }
 }

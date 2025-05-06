@@ -17,6 +17,7 @@ import compiler.diagnostic.IncompatibleReturnTypeOnOverrideDiagnostic
 import compiler.diagnostic.MissingFunctionBodyDiagnostic
 import compiler.diagnostic.MultipleClassConstructorsDiagnostic
 import compiler.diagnostic.MultipleClassDestructorsDiagnostic
+import compiler.diagnostic.NarrowingParameterTypeOverrideDiagnostic
 import compiler.diagnostic.NotAllMemberVariablesInitializedDiagnostic
 import compiler.diagnostic.OverloadSetHasNoDisjointParameterDiagnostic
 import compiler.diagnostic.OverrideAddsSideEffectsDiagnostic
@@ -705,6 +706,76 @@ class ClassErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldFind<SuperFunctionForOverrideNotFoundDiagnostic>()
+        }
+
+        "narrowing the type of the receiver parameter" - {
+            "narrowing to subtype on the basetype is ok" {
+                validateModule("""
+                    interface I {
+                        fn foo(self)
+                    }
+                    class C : I {
+                        override fn foo(self: C) {}
+                    }
+                """.trimIndent())
+                    .shouldHaveNoDiagnostics()
+            }
+
+            "narrowing further than the subtype is not ok" {
+                validateModule("""
+                    interface I {
+                        fn foo(self)
+                    }
+                    interface Sub : I {
+                        override fn foo(self: C)
+                    }
+                    class C : Sub {
+                        override fn foo(self) {}
+                    }
+                """.trimIndent())
+                    .shouldFind<NarrowingParameterTypeOverrideDiagnostic>()
+            }
+
+            "narrowing mutability of the receiver is not ok" {
+                validateModule("""
+                    interface I {
+                        fn foo(self)
+                    }
+                    
+                    class C : I {
+                        override fn foo(self: mut C) {}
+                    }
+                """.trimIndent())
+                    .shouldFind<NarrowingParameterTypeOverrideDiagnostic>()
+            }
+
+            "narrowing by mutability on type parameters is not ok" {
+                validateModule("""
+                    interface A {
+                        fn foo(self)
+                    }
+                    interface B {}
+                    class C<T : read B> : A {
+                        override fn foo(self: C<mut B>) {}
+                    }
+                """.trimIndent())
+                    .shouldFind<NarrowingParameterTypeOverrideDiagnostic>()
+            }
+
+            "narrowing by basetype of type parameters is not ok" {
+                validateModule("""
+                    interface A {}
+                    interface B : A {}
+                    
+                    interface I {
+                        fn foo(self)
+                    }
+                    class C<T : A> : I {
+                        override fn foo(self: C<B>) {}
+                    }
+                """.trimIndent())
+                    .shouldFind<NarrowingParameterTypeOverrideDiagnostic>()
+            }
         }
 
         "return type not compatible" {

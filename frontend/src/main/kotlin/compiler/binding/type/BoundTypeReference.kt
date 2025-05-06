@@ -24,6 +24,7 @@ import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundParameter
 import compiler.binding.SemanticallyAnalyzable
+import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
@@ -39,6 +40,11 @@ sealed interface BoundTypeReference {
 
     val mutability: TypeMutability
     val span: Span?
+
+    /**
+     * The [BoundBaseType] this type is referring to, as concrete as possible.
+     */
+    val baseTypeOfLowerBound: BoundBaseType
 
     /**
      * @return this type, with the given mutability if it doesn't explicitly have one. Also applied to type arguments,
@@ -206,7 +212,17 @@ sealed interface BoundTypeReference {
      */
     val inherentTypeBindings: TypeUnification
 
+    fun asAstReference(): TypeReference
+
     fun toBackendIr(): IrType
+
+    companion object {
+        /**
+         * in contexts that support it (e.g. variable declarations), referencing a type with this name
+         * will not actually try to resolve that type, but rather lead to that type being inferred.
+         */
+        const val NAME_REQUESTING_TYPE_INFERENCE = "_"
+    }
 }
 
 fun List<BoundParameter>.nonDisjointPairs(): Sequence<Pair<BoundParameter, BoundParameter>> {

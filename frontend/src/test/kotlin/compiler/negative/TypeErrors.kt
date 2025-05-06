@@ -251,8 +251,8 @@ class TypeErrors : FreeSpec({
                 y: Array<String> = x
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.sourceType.toString() shouldBe "const Any"
-                    it.targetType.toString() shouldBe "const String"
+                    it.sourceType.toString() shouldBe "read Any"
+                    it.targetType.toString() shouldBe "read String"
                 }
         }
 
@@ -264,7 +264,7 @@ class TypeErrors : FreeSpec({
                 """.trimIndent())
                     .shouldFind<ValueNotAssignableDiagnostic> {
                         it.sourceType.toString() shouldBe "const S32"
-                        it.targetType.toString() shouldBe "const String"
+                        it.targetType.toString() shouldBe "read String"
                     }
             }
 
@@ -275,7 +275,7 @@ class TypeErrors : FreeSpec({
                 """.trimIndent())
                     .shouldFind<ValueNotAssignableDiagnostic> {
                         it.sourceType.toString() shouldBe "const S32"
-                        it.targetType.toString() shouldBe "const String"
+                        it.targetType.toString() shouldBe "read String"
                     }
             }
         }
@@ -287,7 +287,7 @@ class TypeErrors : FreeSpec({
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic> {
                     it.sourceType.toString() shouldBe "const S32"
-                    it.targetType.toString() shouldBe "const String"
+                    it.targetType.toString() shouldBe "read String"
                 }
         }
 

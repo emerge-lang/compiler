@@ -20,12 +20,14 @@ import compiler.diagnostic.overrideAddsSideEffects
 import compiler.diagnostic.overrideDropsNothrow
 import compiler.diagnostic.overrideRestrictsVisibility
 import compiler.diagnostic.overridingParameterExtendsOwnership
+import compiler.diagnostic.overridingParameterNarrowsType
 import compiler.diagnostic.staticFunctionDeclaredOverride
 import compiler.diagnostic.undeclaredOverride
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrCodeChunk
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.common.CanonicalElementName
+import io.github.tmarsteel.emerge.common.zip
 import java.util.Collections
 import java.util.IdentityHashMap
 
@@ -159,25 +161,31 @@ class BoundDeclaredBaseTypeMemberFunction(
                 }
             }
 
-            overrides?.forEach { superFn ->
-                if (!superFn.purity.contains(this.purity)) {
-                    diagnosis.overrideAddsSideEffects(this, superFn)
+            overrides?.forEach { inheritedFn ->
+                if (!inheritedFn.purity.contains(this.purity)) {
+                    diagnosis.overrideAddsSideEffects(this, inheritedFn)
                 }
-                if (superFn.attributes.isDeclaredNothrow && !this.attributes.isDeclaredNothrow) {
-                    diagnosis.overrideDropsNothrow(this, superFn)
+                if (inheritedFn.attributes.isDeclaredNothrow && !this.attributes.isDeclaredNothrow) {
+                    diagnosis.overrideDropsNothrow(this, inheritedFn)
                 }
-                if (superFn.visibility.isPossiblyBroaderThan(visibility) && declaredOnType.visibility.isPossiblyBroaderThan(visibility)) {
-                    diagnosis.overrideRestrictsVisibility(this, superFn)
+                if (inheritedFn.visibility.isPossiblyBroaderThan(visibility) && declaredOnType.visibility.isPossiblyBroaderThan(visibility)) {
+                    diagnosis.overrideRestrictsVisibility(this, inheritedFn)
                 }
-                if (superFn.attributes.firstAccessorAttribute != attributes.firstAccessorAttribute) {
-                    diagnosis.overrideAccessorDeclarationMismatch(this, superFn)
+                if (inheritedFn.attributes.firstAccessorAttribute != attributes.firstAccessorAttribute) {
+                    diagnosis.overrideAccessorDeclarationMismatch(this, inheritedFn)
                 }
 
-                superFn.parameters.parameters.zip(this.parameters.parameters)
-                    .filterNot { (superFnParam, overrideFnParam) -> overrideFnParam.ownershipAtDeclarationTime.canOverride(superFnParam.ownershipAtDeclarationTime) }
-                    .forEach { (superFnParam, overrideFnParam) ->
-                        diagnosis.overridingParameterExtendsOwnership(overrideFnParam, superFnParam)
+                for ((inheritedFnParam, overrideFnParam, paramOnSupertypeFn) in zip(inheritedFn.parameters.parameters, this.parameters.parameters, inheritedFn.supertypeMemberFn.parameters.parameters)) {
+                    if (!overrideFnParam.ownershipAtDeclarationTime.canOverride(inheritedFnParam.ownershipAtDeclarationTime)) {
+                        diagnosis.overridingParameterExtendsOwnership(overrideFnParam, paramOnSupertypeFn)
                     }
+
+                    val superType = inheritedFnParam.typeAtDeclarationTime ?: continue
+                    val overrideType = overrideFnParam.typeAtDeclarationTime ?: continue
+                    superType.evaluateAssignabilityTo(overrideType, overrideFnParam.declaration.span)?.let { narrowingError ->
+                        diagnosis.overridingParameterNarrowsType(overrideFnParam, paramOnSupertypeFn, narrowingError)
+                    }
+                }
             }
         }
     }

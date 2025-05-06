@@ -26,6 +26,7 @@ class BoundTypeArgument(
     }
     override val isNullable get()= type.isNullable
     override val mutability get() = type.mutability
+    override val baseTypeOfLowerBound get()= type.baseTypeOfLowerBound
     override val simpleName get() = toString()
     override val span get() = astNode.span
 
@@ -207,6 +208,33 @@ class BoundTypeArgument(
         }
     }
 
+    /**
+     * Like [closestCommonSupertypeWith], but also respects semantics specific to [BoundTypeArgument]. To be
+     * used in [BoundTypeReference.closestCommonSupertypeWith] for parametric types.
+     */
+    fun intersect(other: BoundTypeArgument, bound: BoundTypeReference): BoundTypeArgument {
+        if (this.variance == other.variance) {
+            val commonType = this.closestCommonSupertypeWith(other)
+            return BoundTypeArgument(
+                this.context,
+                TypeArgument(this.variance, commonType.asAstReference()),
+                this.variance,
+                commonType,
+            )
+        }
+
+        val resultType = bound
+            .withCombinedNullability(TypeReference.Nullability.of(this))
+            .withCombinedNullability(TypeReference.Nullability.of(other))
+
+        return BoundTypeArgument(
+            this.context,
+            TypeArgument(TypeVariance.OUT, resultType.asAstReference()),
+            TypeVariance.OUT,
+            resultType,
+        )
+    }
+
     override fun findMemberVariable(name: String): BoundBaseTypeMemberVariable? {
         return type.findMemberVariable(name)
     }
@@ -217,6 +245,10 @@ class BoundTypeArgument(
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
         return type.hasSameBaseTypeAs(other)
+    }
+
+    override fun asAstReference(): TypeReference {
+        return type.asAstReference()
     }
 
     override fun toBackendIr(): IrType = type.toBackendIr()

@@ -1,6 +1,7 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
+import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
@@ -9,10 +10,9 @@ import compiler.binding.DefinitionWithVisibility
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
 import compiler.binding.context.MutableCTContext
-import compiler.lexer.Span
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.typeParameterNameConflict
+import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 
@@ -57,6 +57,19 @@ data class BoundTypeParameter(
     }
 
     override fun toStringForErrorMessage() = "type parameter $name"
+
+    /**
+     * Creates a [BoundTypeArgument] that is a valid argument for this parameter; to be used in places
+     * where an argument is needed but user code didn't specify one
+     */
+    fun createPlaceholderTypeArgument(context: CTContext): BoundTypeArgument {
+        return BoundTypeArgument(
+            context,
+            TypeArgument(TypeVariance.UNSPECIFIED, bound.asAstReference()),
+            TypeVariance.UNSPECIFIED,
+            bound,
+        )
+    }
 
     private val _backendIr by lazy { IrTypeParameterImpl(name, variance, bound) }
     fun toBackendIr(): IrBaseType.Parameter = _backendIr

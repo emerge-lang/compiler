@@ -64,7 +64,7 @@ import java.util.IdentityHashMap
 
 class BoundBaseType(
     private val fileContext: CTContext,
-    private val typeRootContext: CTContext,
+    val typeRootContext: CTContext,
     val kind: Kind,
     override val visibility: BoundVisibility,
     val typeParameters: List<BoundTypeParameter>?,
@@ -81,6 +81,7 @@ class BoundBaseType(
     val simpleName: String = declaration.name.value
     val baseReference: RootResolvedTypeReference
         get() = RootResolvedTypeReference(
+            context,
             TypeReference(this.simpleName),
             this,
             if (typeParameters.isNullOrEmpty()) null else throw InternalCompilerError("cannot use baseReference on types with parameters")

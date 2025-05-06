@@ -69,7 +69,7 @@ class BoundVariable(
 
     val isReAssignable: Boolean = declaration.isReAssignable
     private val implicitMutability: TypeMutability = if (isReAssignable) TypeMutability.MUTABLE else kind.implicitMutabilityWhenNotReAssignable
-    private val shouldInferBaseType: Boolean = declaration.type == null || declaration.type.simpleName == DECLARATION_TYPE_NAME_INFER
+    private val shouldInferBaseType: Boolean = declaration.type == null || declaration.type.simpleName == BoundTypeReference.NAME_REQUESTING_TYPE_INFERENCE
 
     /**
      * The type as _declared_ or inferred _from the declaration only_; there is some level of dependent typing
@@ -343,6 +343,10 @@ class BoundVariable(
         ))
     }
 
+    override fun toString(): String {
+        return "${ownershipAtDeclarationTime.keyword.text} $name: ${typeAtDeclarationTime ?: "?"}; ${declaration.declaredAt.sourceFile.name} line ${declaration.declaredAt.fromLineNumber}"
+    }
+
     enum class Kind(
         val implicitMutabilityWhenNotReAssignable: TypeMutability,
         val allowsExplicitBaseTypeInfer: Boolean,
@@ -429,13 +433,6 @@ class BoundVariable(
                 PARAMETER -> TypeUseSite.InUsage(location, effectiveExposedBy)
             }
         }
-    }
-
-    companion object {
-        /**
-         * If the type of a variable is declared with this name, the base type will be inferred from the initializer.
-         */
-        const val DECLARATION_TYPE_NAME_INFER = "_"
     }
 }
 

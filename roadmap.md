@@ -25,10 +25,12 @@ This file describes the Items that are next on the TODO list. **This list is NOT
          sequence from the hashes can be chosen, not just prefixes.
        * TEST, TEST, TEST. Unit test the shit out of the algorithm. More to proof the concept, less to
          test the implementation.
-   5. deal with the wrapper mutability problem: do types need to be generic on mutability?
-   6. algebraic data types
+   5. algebraic data types
       1. union type: `TypeA | TypeB | TypeC`
       2. conjunction type: `TypeA & TypeB & TypeC`
+   6. solve the wrapper mutability problem. Wrappers *must* be parametric on mutability, but since parametric types
+      already carry a mutability, wrapper mutability can likely piggy-back onto that. It needs union types or multiple
+      type parameter bounds.
 4. general iterable types
    * implement generic supertypes - yey, another logic monstrosity
    * Like Java Iterable<T>, D ranges, ... ?

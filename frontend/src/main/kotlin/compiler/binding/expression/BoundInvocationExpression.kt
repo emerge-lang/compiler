@@ -501,7 +501,7 @@ class BoundInvocationExpression(
         arguments: List<IrTemporaryValueReference>,
         landingpad: IrInvocationExpression.Landingpad?,
     ): IrExpression {
-        val isCallOnInterfaceType = (receiverExpression?.type as? RootResolvedTypeReference)?.baseType?.kind == BoundBaseType.Kind.INTERFACE
+        val isCallOnInterfaceType = receiverExpression?.type?.baseTypeOfLowerBound?.kind == BoundBaseType.Kind.INTERFACE
         val fn = functionToInvoke!!
         val returnType = type!!.toBackendIr()
         val irResolvedTypeArgs = chosenOverload!!.unification.bindings.entries

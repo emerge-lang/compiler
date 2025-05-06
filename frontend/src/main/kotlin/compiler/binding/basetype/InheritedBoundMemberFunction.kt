@@ -2,14 +2,16 @@ package compiler.binding.basetype
 
 import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
+import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
+import compiler.ast.type.TypeVariance
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundParameterList
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.type.BoundTypeReference
-import compiler.lexer.IdentifierToken
 import compiler.diagnostic.Diagnosis
+import compiler.lexer.IdentifierToken
 import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrFullyInheritedMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrInheritedMemberFunction
@@ -31,8 +33,8 @@ class InheritedBoundMemberFunction(
     override val context = ownerBaseType.context
     private val functionContext = object : ExecutionScopedCTContext by rawSuperFnContext {
         override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
-            if (ref.simpleName == ownerBaseType.simpleName) {
-                return ownerBaseType.context.resolveType(ref, fromOwnFileOnly)
+            if (ref === narrowedReceiverParameter.type) {
+                return ownerBaseType.typeRootContext.resolveType(ref, fromOwnFileOnly)
             }
 
             return rawSuperFnContext.resolveType(ref, fromOwnFileOnly)
@@ -47,11 +49,8 @@ class InheritedBoundMemberFunction(
     // this is intentional - as long as not overridden, this info is truthful & accurate
     override val declaredOnType get()= supertypeMemberFn.declaredOnType
 
-    override val receiverType: BoundTypeReference get() {
-        check(ownerBaseType.typeParameters.isNullOrEmpty()) {
-            "Not supported yet"
-        }
-        return ownerBaseType.baseReference
+    override val receiverType: BoundTypeReference? get() {
+        return parameters.declaredReceiver?.typeAtDeclarationTime
     }
 
     private val narrowedReceiverParameter: VariableDeclaration = run {
@@ -65,7 +64,14 @@ class InheritedBoundMemberFunction(
             null,
             inheritedReceiverParameter.declaration.ownership,
             inheritedReceiverParameter.declaration.name,
-            TypeReference(ownerBaseType.simpleName, declaringNameToken = IdentifierToken(ownerBaseType.simpleName, sourceLocation), mutability = inheritedReceiverParameter.typeAtDeclarationTime?.mutability),
+            TypeReference(
+                ownerBaseType.simpleName,
+                declaringNameToken = IdentifierToken(ownerBaseType.simpleName, sourceLocation),
+                mutability = inheritedReceiverParameter.typeAtDeclarationTime?.mutability,
+                arguments = ownerBaseType.typeParameters?.map { typeParam ->
+                    TypeArgument(TypeVariance.UNSPECIFIED, TypeReference(IdentifierToken(typeParam.astNode.name.value, typeParam.astNode.name.span.deriveGenerated())))
+                }
+            ),
             null,
         )
     }

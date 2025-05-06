@@ -26,7 +26,14 @@ sealed class GenericTypeReference : BoundTypeReference {
 
     override val simpleName get() = parameter.name
     override val isNullable get() = effectiveBound.isNullable
-    override val mutability get() = effectiveBound.mutability
+    override val mutability: TypeMutability get() {
+        val givenMutability = original.mutability
+        if (givenMutability == null || !givenMutability.isAssignableTo(effectiveBound.mutability)) {
+            return effectiveBound.mutability
+        }
+        return givenMutability
+    }
+    override val baseTypeOfLowerBound get()= effectiveBound.baseTypeOfLowerBound
     override val span get() = original.declaringNameToken?.span
     override val inherentTypeBindings = TypeUnification.EMPTY
 
@@ -76,14 +83,14 @@ sealed class GenericTypeReference : BoundTypeReference {
             is NullableTypeReference -> {
                 // TODO: try the assignment ignoring the nullability problem. If it works, report the nullability problem
                 // otherwise, report the bigger/harder to fix problem first. This requires code in TypeUnification
-                // that can determin success/failure of a sub-unification
+                // that can determine success/failure of a sub-unification
                 carry.plusReporting(ValueNotAssignableDiagnostic(this, assigneeType, "Cannot assign a possibly null value to a non-nullable reference", assignmentLocation))
             }
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
             is RootResolvedTypeReference -> carry.plusReporting(ValueNotAssignableDiagnostic(
                 this,
                 assigneeType,
-                "$assigneeType cannot be proven to be a subtype of $simpleName",
+                "$assigneeType cannot be proven to be a subtype of $this",
                 assignmentLocation,
             ))
             is TypeVariable -> assigneeType.flippedUnify(this, assignmentLocation, carry)
@@ -101,7 +108,7 @@ sealed class GenericTypeReference : BoundTypeReference {
                     return carry.plusReporting(ValueNotAssignableDiagnostic(
                         this,
                         assigneeType,
-                        "${assigneeType.simpleName} cannot be proven to be a subtype of $simpleName",
+                        "$assigneeType cannot be proven to be a subtype of $this",
                         assignmentLocation,
                     ))
                 }
@@ -110,7 +117,20 @@ sealed class GenericTypeReference : BoundTypeReference {
     }
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): GenericTypeReference {
-        return mapEffectiveBound { it.defaultMutabilityTo(mutability) }
+        /*
+        the mutability of a parameter-type is never known exactly in the generic code,
+        hence there is no point in defaulting the mutability. E.g. this code:
+
+        class SomeBox<T> {
+            var value: T = init
+        }
+
+        in this case, the `var` allows the `value` member var to be reassigned. But that doesn't mean
+        that the type of the member variable should me `mut T`. For `SomeBox<const Any>` that would even be
+        nonsensical. This method being a noop correctly implements this special case.
+
+        */
+        return this
     }
 
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
@@ -155,20 +175,22 @@ sealed class GenericTypeReference : BoundTypeReference {
         return this
     }
 
+    override fun asAstReference(): TypeReference = original
+
     private fun isSubtypeOf(other: GenericTypeReference): Boolean {
         if (this.parameter == other.parameter) {
-            return true
+            return this.mutability.isAssignableTo(other.mutability)
         }
 
         val bound = this.effectiveBound
-        if (bound !is GenericTypeReference){
+        if (bound !is GenericTypeReference) {
             return false
         }
 
         return bound.isSubtypeOf(other)
     }
 
-    fun mapEffectiveBound(mapper: (BoundTypeReference) -> BoundTypeReference): GenericTypeReference {
+    private fun mapEffectiveBound(mapper: (BoundTypeReference) -> BoundTypeReference): GenericTypeReference {
         return MappedEffectiveBoundGenericTypeReference(this, mapper)
     }
 
@@ -177,7 +199,18 @@ sealed class GenericTypeReference : BoundTypeReference {
         effectiveBound.toBackendIr(),
     )
 
-    override fun toString() = parameter.name
+    override fun toString(): String {
+        var str = ""
+
+        if (original.mutability != null) {
+            str += "${original.mutability} "
+        } else if (mutability != parameter.bound.mutability) {
+            str += "$mutability "
+        }
+
+        str += simpleName
+        return str
+    }
 
     companion object {
         operator fun invoke(original: TypeReference, parameter: BoundTypeParameter): BoundTypeReference {

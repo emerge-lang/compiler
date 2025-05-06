@@ -76,11 +76,12 @@ class BoundArrayLiteralExpression(
         }
 
         type = RootResolvedTypeReference(
+            context,
             TypeReference(arrayType.simpleName),
             arrayType,
             listOf(BoundTypeArgument(
                 context,
-                TypeArgument(TypeVariance.UNSPECIFIED, TypeReference("_")),
+                TypeArgument(TypeVariance.UNSPECIFIED, TypeReference(BoundTypeReference.NAME_REQUESTING_TYPE_INFERENCE)),
                 TypeVariance.UNSPECIFIED,
                 elementType,
             ))

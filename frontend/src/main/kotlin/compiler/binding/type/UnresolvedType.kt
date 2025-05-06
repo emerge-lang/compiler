@@ -23,6 +23,7 @@ class UnresolvedType private constructor(
     override val simpleName = "<ERROR>"
     override val isNullable get() = standInType.isNullable
     override val mutability get() = standInType.mutability
+    override val baseTypeOfLowerBound get() = standInType.baseTypeOfLowerBound
     override val span = reference.declaringNameToken?.span
     override val inherentTypeBindings = TypeUnification.EMPTY
 
@@ -117,6 +118,10 @@ class UnresolvedType private constructor(
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
         return standInType.hasSameBaseTypeAs(other)
+    }
+
+    override fun asAstReference(): TypeReference {
+        return standInType.asAstReference()
     }
 
     override fun toString() = simpleName
