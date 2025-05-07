@@ -9,6 +9,8 @@ enum class TypeVariance(val backendIr: IrTypeVariance) {
     OUT(IrTypeVariance.OUT),
     ;
 
+    fun union(other: TypeVariance): TypeVariance = if (this == other) this else UNSPECIFIED
+
     override fun toString() = when(this) {
         UNSPECIFIED -> "<${name.lowercase()}>"
         else -> name.lowercase()

@@ -1,6 +1,9 @@
 package compiler.binding.type
 
+import compiler.InternalCompilerError
 import compiler.ast.type.AstUnionType
+import compiler.ast.type.NamedTypeReference
+import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.basetype.BoundBaseType
@@ -11,10 +14,10 @@ import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundUnionTypeReference(
-    val astNode: AstUnionType,
+    val astNode: AstUnionType?,
     val components: List<BoundTypeReference>,
 ) : BoundTypeReference {
-    override val span = astNode.span
+    override val span = astNode?.span
     override val isNullable get()= components.all { it.isNullable }
     override val mutability get()= components.asSequence().map { it.mutability }.reduce(TypeMutability::union)
     override val simpleName get()= components.joinToString(separator = " ${Operator.UNION.text} ", transform = { it.simpleName ?: it.toString() })
@@ -120,7 +123,12 @@ class BoundUnionTypeReference(
     }
 
     override fun asAstReference(): TypeReference {
-        return astNode
+        if (astNode != null) {
+            return astNode
+        }
+
+        val astComponents = components.map { it.asAstReference() as NamedTypeReference }
+        return AstUnionType(astComponents, Span.range(*astComponents.map { it.span }.toTypedArray()) ?: Span.UNKNOWN)
     }
 
     private inline fun mapComponents(crossinline componentTransform: (BoundTypeReference) -> BoundTypeReference): BoundUnionTypeReference {
@@ -143,5 +151,57 @@ class BoundUnionTypeReference(
 
     override fun toBackendIr(): IrType {
         TODO("Not yet implemented")
+    }
+
+    companion object {
+        /**
+         * @return the type that represents the union of `this` and [other]. In the general case,
+         * this is an instance of [BoundUnionTypeReference] holding `this` and [other]. However, this
+         * method should try to simplify. The simplification will make error messages much easier to
+         * digest (and probably helps debugging). E.g.:
+         *
+         * | input union           | simplification |
+         * |-----------------------|----------------|
+         * |`mut T & read Any`     | `mut T`        |
+         * |`mut T & const T`      | `exclusive T`  |
+         * |`read T & const Any`   | `mut T`        |
+         *
+         * TODO: implement simplification, at least for the easy example cases
+         */
+        fun BoundTypeReference.union(other: BoundTypeReference): BoundTypeReference {
+            if (this is BoundUnionTypeReference) {
+                if (other is BoundUnionTypeReference) {
+                    return BoundUnionTypeReference(null, this.components + other.components)
+                }
+            } else if (other is BoundUnionTypeReference) {
+                return other.union(this)
+            }
+
+            when (this) {
+                is BoundUnionTypeReference -> {
+                    throw InternalCompilerError("This case should never happen, is prevented by the guard code above")
+                }
+                is BoundTypeArgument -> {
+                    val unionVariance = when(other) {
+                        is BoundTypeArgument -> variance.union(other.variance)
+                        else -> variance
+                    }
+                    val unionType = type.union(other)
+                    return BoundTypeArgument(
+                        context,
+                        TypeArgument(unionVariance, unionType.asAstReference()),
+                        unionVariance,
+                        unionType,
+                    )
+                }
+                is GenericTypeReference,
+                is RootResolvedTypeReference,
+                is NullableTypeReference,
+                is TypeVariable,
+                is UnresolvedType, -> {
+                    return BoundUnionTypeReference(null, listOf(this, other))
+                }
+            }
+        }
     }
 }

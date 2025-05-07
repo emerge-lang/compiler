@@ -1,6 +1,7 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
@@ -20,7 +21,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.independentToString
 sealed class GenericTypeReference : BoundTypeReference {
     abstract val context: CTContext
 
-    abstract val original: TypeReference
+    abstract val original: NamedTypeReference
     abstract val parameter: BoundTypeParameter
     abstract val effectiveBound: BoundTypeReference
 
@@ -183,7 +184,7 @@ sealed class GenericTypeReference : BoundTypeReference {
         return this
     }
 
-    override fun asAstReference(): TypeReference = original
+    override fun asAstReference(): NamedTypeReference = original
 
     private fun isSubtypeOf(other: GenericTypeReference): Boolean {
         if (this.parameter == other.parameter) {
@@ -221,7 +222,7 @@ sealed class GenericTypeReference : BoundTypeReference {
     }
 
     companion object {
-        operator fun invoke(original: TypeReference, parameter: BoundTypeParameter): BoundTypeReference {
+        operator fun invoke(original: NamedTypeReference, parameter: BoundTypeParameter): BoundTypeReference {
             return NakedGenericTypeReference(original, parameter)
                 .withMutability(original.mutability)
                 .withCombinedNullability(original.nullability)
@@ -230,7 +231,7 @@ sealed class GenericTypeReference : BoundTypeReference {
 }
 
 private class NakedGenericTypeReference(
-    override val original: TypeReference,
+    override val original: NamedTypeReference,
     override val parameter: BoundTypeParameter,
 ) : GenericTypeReference() {
     override val context = parameter.context
