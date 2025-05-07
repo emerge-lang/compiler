@@ -19,7 +19,6 @@
 package compiler.ast
 
 import compiler.InternalCompilerError
-import compiler.ast.AstSupertypeList.Companion.bindTo
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
@@ -34,7 +33,6 @@ import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.basetype.BoundClassDestructor
 import compiler.binding.basetype.BoundDeclaredBaseTypeMemberFunction
-import compiler.binding.basetype.BoundSupertypeDeclaration
 import compiler.binding.basetype.BoundSupertypeList
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
@@ -51,7 +49,7 @@ class BaseTypeDeclaration(
     val declarationKeyword: KeywordToken,
     val visibility: AstVisibility?,
     val name: IdentifierToken,
-    val supertypes: AstSupertypeList?,
+    val supertype: TypeReference?,
     val entryDeclarations: List<BaseTypeEntryDeclaration>,
     val typeParameters: List<TypeParameter>?,
 ) : AstFileLevelDeclaration {
@@ -70,7 +68,7 @@ class BaseTypeDeclaration(
         val typeVisibility = visibility?.bindTo(fileContext) ?: BoundVisibility.default(fileContext)
         val (boundTypeParameters, fileContextWithTypeParams) = typeParameters?.chain(fileContext) ?: Pair(null, fileContext)
         val typeRootContext = MutableCTContext(fileContextWithTypeParams, typeVisibility)
-        val boundSupertypes = supertypes.bindTo(typeRootContext, typeDefAccessor)
+        val boundSupertypeList = BoundSupertypeList.bindSingleSupertype(supertype, typeRootContext, typeDefAccessor)
         val memberVariableInitializationContext = MutableExecutionScopedCTContext.functionRootIn(typeRootContext)
         fun buildSelfTypeReference(location: Span) = NamedTypeReference(
             simpleName = this.name.value,
@@ -108,27 +106,11 @@ class BaseTypeDeclaration(
             kind,
             typeVisibility,
             boundTypeParameters,
-            boundSupertypes,
+            boundSupertypeList,
             this,
             boundEntries,
         )
         return boundTypeDef
-    }
-}
-
-data class AstSupertypeList(
-    val typeRefs: List<TypeReference>,
-) {
-    companion object {
-        fun AstSupertypeList?.bindTo(
-            typeRootContext: CTContext,
-            getTypeDef: () -> BoundBaseType,
-        ): BoundSupertypeList {
-            val effectiveTypeRefs = (this?.typeRefs ?: emptyList())
-            val boundSupertypes = effectiveTypeRefs.map { BoundSupertypeDeclaration(typeRootContext, getTypeDef, it) }
-
-            return BoundSupertypeList(typeRootContext, boundSupertypes, getTypeDef)
-        }
     }
 }
 

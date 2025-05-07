@@ -24,7 +24,7 @@ export interface Error : Throwable {}
 // implements boilerplate code for all Throwables; intended to be used
 // as a delegation implementation in Throwables.
 // implements Error so it can be used in both Error and Exception classes
-export class ThrowableTrait : Error, Printable {
+export class ThrowableTrait : Error & Printable {
 	private _message: String? = init
 
     private var _stackTrace: const ArrayList<StackTraceElement>? = null

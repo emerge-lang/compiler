@@ -1,6 +1,7 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.context.CTContext
@@ -11,10 +12,10 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class UnresolvedType private constructor(
     val standInType: BoundTypeReference,
-    private val reference: TypeReference,
+    private val reference: NamedTypeReference,
     val parameters: List<BoundTypeArgument>?,
 ) : BoundTypeReference {
-    constructor(context: CTContext, reference: TypeReference, parameters: List<BoundTypeArgument>?) : this(
+    constructor(context: CTContext, reference: NamedTypeReference, parameters: List<BoundTypeArgument>?) : this(
         context.swCtx.unresolvableReplacementType,
         reference,
         parameters,
@@ -77,6 +78,7 @@ class UnresolvedType private constructor(
         return when(assigneeType) {
             is RootResolvedTypeReference,
             is GenericTypeReference,
+            is BoundUnionTypeReference,
             is BoundTypeArgument -> standInType.unify(assigneeType, assignmentLocation, carry)
             is UnresolvedType -> standInType.unify(assigneeType.standInType, assignmentLocation, carry)
             is TypeVariable -> assigneeType.flippedUnify(this.standInType, assignmentLocation, carry)

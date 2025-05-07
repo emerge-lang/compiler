@@ -216,7 +216,7 @@ fun Diagnosis.illegalSupertype(ref: TypeReference, reason: String) {
     add(IllegalSupertypeDiagnostic(ref, reason))
 }
 
-fun Diagnosis.duplicateSupertype(ref: TypeReference) {
+fun Diagnosis.duplicateSupertype(ref: NamedTypeReference) {
     add(DuplicateSupertypeDiagnostic(ref))
 }
 

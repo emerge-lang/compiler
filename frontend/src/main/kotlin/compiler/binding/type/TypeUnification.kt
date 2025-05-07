@@ -1,7 +1,6 @@
 package compiler.binding.type
 
 import compiler.ast.type.TypeVariance
-import compiler.lexer.Span
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
@@ -9,6 +8,7 @@ import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
 import compiler.diagnostic.TypeArgumentVarianceMismatchDiagnostic
 import compiler.diagnostic.TypeArgumentVarianceSuperfluousDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.lexer.Span
 
 /* TODO: optimization potential
  * Have a custom collection class that optimized the get-a-copy-plus-one-element use-case
@@ -22,7 +22,8 @@ interface TypeUnification {
     val diagnostics: Set<Diagnostic>
 
     fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: Span): TypeUnification
-    fun plusReporting(diagnostic: Diagnostic): TypeUnification
+    fun plusReporting(diagnostic: Diagnostic): TypeUnification = plusDiagnostics(setOf(diagnostic))
+    fun plusDiagnostics(diagnostics: Set<Diagnostic>): TypeUnification
 
     fun doTreatingNonUnifiableAsOutOfBounds(parameter: BoundTypeParameter, argument: BoundTypeArgument, action: (TypeUnification) -> TypeUnification): TypeUnification {
         return DecoratingTypeUnification.doWithDecorated(ValueNotAssignableAsArgumentOutOfBounds(this, parameter, argument), action)
@@ -113,8 +114,8 @@ private class DefaultTypeUnification private constructor(
     override val bindings: Map<TypeVariable, BoundTypeReference>,
     override val diagnostics: Set<Diagnostic>,
 ) : TypeUnification {
-    override fun plusReporting(diagnostic: Diagnostic): TypeUnification {
-        return DefaultTypeUnification(bindings, diagnostics + setOf(diagnostic))
+    override fun plusDiagnostics(diagnostics: Set<Diagnostic>): TypeUnification {
+        return DefaultTypeUnification(bindings, this.diagnostics + diagnostics)
     }
 
     override fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: Span): TypeUnification {
@@ -183,12 +184,16 @@ private class ValueNotAssignableAsArgumentOutOfBounds(
     override val bindings get() = undecorated.bindings
     override val diagnostics get() = undecorated.diagnostics
 
-    override fun plusReporting(diagnostic: Diagnostic): TypeUnification {
-        val diagnostic = if (diagnostic !is ValueNotAssignableDiagnostic) diagnostic else {
-            TypeArgumentOutOfBoundsDiagnostic(parameter.astNode, argument, diagnostic.reason)
-        }
+    override fun plusDiagnostics(diagnostics: Set<Diagnostic>): TypeUnification {
+        val mappedDiagnostics = diagnostics
+            .map { diagnostic ->
+                if (diagnostic !is ValueNotAssignableDiagnostic) diagnostic else {
+                    TypeArgumentOutOfBoundsDiagnostic(parameter.astNode, argument, diagnostic.reason)
+                }
+            }
+            .toSet()
 
-        return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plusReporting(diagnostic), parameter, argument)
+        return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plusDiagnostics(mappedDiagnostics), parameter, argument)
     }
 
     override fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: Span): ValueNotAssignableAsArgumentOutOfBounds {

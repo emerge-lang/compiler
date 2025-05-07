@@ -128,7 +128,6 @@ class RootResolvedTypeReference private constructor(
 
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
         return when (other) {
-            is UnresolvedType -> other.closestCommonSupertypeWith(this)
             is NullableTypeReference -> NullableTypeReference(closestCommonSupertypeWith(other.nested))
             is RootResolvedTypeReference -> {
                 // TODO: these three special cases can be removed once generic supertypes are implemented
@@ -162,7 +161,9 @@ class RootResolvedTypeReference private constructor(
                     arguments = transformedArguments,
                 )
             }
-            is GenericTypeReference -> other.closestCommonSupertypeWith(this)
+            is GenericTypeReference,
+            is UnresolvedType,
+            is BoundUnionTypeReference,
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
         }
@@ -232,6 +233,14 @@ class RootResolvedTypeReference private constructor(
             is NullableTypeReference -> return carry.plusReporting(
                 ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
             )
+            is BoundUnionTypeReference -> {
+                return assigneeType.flippedUnify(
+                    this,
+                    assignmentLocation,
+                    carry,
+                    reason = { "none of $assigneeType is a subtype of $this" },
+                )
+            }
         }
     }
 

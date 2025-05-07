@@ -113,6 +113,14 @@ sealed class GenericTypeReference : BoundTypeReference {
                     ))
                 }
             }
+            is BoundUnionTypeReference -> {
+                return assigneeType.flippedUnify(
+                    this,
+                    assignmentLocation,
+                    carry,
+                    reason = { "$assigneeType cannot be proven to be a subtype of $this" },
+                )
+            }
         }
     }
 

@@ -2,6 +2,7 @@ package compiler.binding.context
 
 import compiler.InternalCompilerError
 import compiler.ast.Statement
+import compiler.ast.type.AstUnionType
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
@@ -77,7 +78,10 @@ class SourceFileRootContext(
             override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BoundBaseType? = null
             override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference = UnresolvedType(
                 this,
-                ref,
+                when (ref) {
+                    is NamedTypeReference -> ref
+                    is AstUnionType -> ref.components.first()
+                },
                 (ref as? NamedTypeReference)?.arguments?.map { BoundTypeArgument(this, it, it.variance, this.resolveType(it.type)) },
             )
             override fun getToplevelFunctionOverloadSetsBySimpleName(name: String): Collection<BoundOverloadSet<*>> = emptySet()

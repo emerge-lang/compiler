@@ -1,15 +1,17 @@
 package compiler.binding.basetype
 
+import compiler.ast.type.AstUnionType
+import compiler.ast.type.NamedTypeReference
+import compiler.ast.type.TypeReference
 import compiler.binding.BoundMemberFunction
 import compiler.binding.SeanHelper
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
 import compiler.binding.type.RootResolvedTypeReference
-import compiler.handleCyclicInvocation
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.cyclicInheritance
 import compiler.diagnostic.duplicateSupertype
+import compiler.handleCyclicInvocation
 
 class BoundSupertypeList(
     val context: CTContext,
@@ -103,6 +105,27 @@ class BoundSupertypeList(
         return seanHelper.phase3(diagnosis) {
             clauses.forEach { it.semanticAnalysisPhase3(diagnosis) }
             inheritedMemberFunctions.forEach { it.semanticAnalysisPhase3(diagnosis) }
+        }
+    }
+
+    companion object {
+        fun bindSingleSupertype(
+            supertype: TypeReference?,
+            typeRootContext: CTContext,
+            typeDefAccessor: () -> BoundBaseType,
+        ): BoundSupertypeList {
+            val astSupertypes = when (supertype) {
+                is NamedTypeReference -> listOf(supertype)
+                is AstUnionType -> supertype.components
+                null -> emptyList()
+            }
+            return BoundSupertypeList(
+                typeRootContext,
+                astSupertypes.map {
+                    BoundSupertypeDeclaration(typeRootContext, typeDefAccessor, it)
+                },
+                typeDefAccessor,
+            )
         }
     }
 }

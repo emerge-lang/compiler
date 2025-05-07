@@ -247,5 +247,5 @@ val Type: Rule<TypeReference> = sequence("type") {
                 .rangeTo(postfix.intersectionOperator.span)
         }
 
-        AstUnionType(intersections.map { it.reference }, combinedSpan)
+        AstUnionType(listOf(baseRef) + intersections.map { it.reference }, combinedSpan)
     }
