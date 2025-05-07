@@ -67,6 +67,10 @@ fun Diagnosis.unknownType(erroneousRef: NamedTypeReference) {
     add(UnknownTypeDiagnostic(erroneousRef))
 }
 
+fun Diagnosis.needlesslyVerboseUnionType(supertype: BoundTypeReference, superfluousSubtype: BoundTypeReference) {
+    add(NeedlesslyVerboseUnionTypeDiagnostic(supertype.asAstReference(), superfluousSubtype.asAstReference()))
+}
+
 fun Diagnosis.valueNotAssignable(targetType: BoundTypeReference, sourceType: BoundTypeReference, reason: String, assignmentLocation: Span) {
     add(ValueNotAssignableDiagnostic(targetType, sourceType, reason, assignmentLocation))
 }

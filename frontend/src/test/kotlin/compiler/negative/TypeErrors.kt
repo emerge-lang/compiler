@@ -2,6 +2,7 @@ package compiler.compiler.negative
 
 import compiler.binding.type.GenericTypeReference
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
+import compiler.diagnostic.NeedlesslyVerboseUnionTypeDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
 import compiler.diagnostic.TypeArgumentVarianceMismatchDiagnostic
@@ -299,6 +300,44 @@ class TypeErrors : FreeSpec({
                     it.sourceType.toString() shouldBe "const String"
                     it.targetType.toString() shouldBe "const S32"
                 }
+        }
+    }
+
+    "union types" - {
+        "superfluous components" {
+            validateModule("""
+                interface I {}
+                interface S : I {}
+                
+                fn trigger(p: I & S) {}
+            """.trimIndent())
+                .shouldFind<NeedlesslyVerboseUnionTypeDiagnostic> {
+                    it.supertype.toString() shouldBe "I"
+                    it.superfluousSubtype.toString() shouldBe "S"
+                }
+
+            validateModule("""
+                fn trigger(p: S32 & read Any) {}
+            """.trimIndent())
+                .shouldFind<NeedlesslyVerboseUnionTypeDiagnostic> {
+                    it.supertype.toString() shouldBe "read Any"
+                    it.superfluousSubtype.toString() shouldBe "S32"
+                }
+
+            validateModule("""
+                fn trigger(p: read Any & S32) {}
+            """.trimIndent())
+                .shouldFind<NeedlesslyVerboseUnionTypeDiagnostic> {
+                    it.supertype.toString() shouldBe "read Any"
+                    it.superfluousSubtype.toString() shouldBe "S32"
+                }
+
+            validateModule("""
+                interface I {}
+                
+                fn NOTtrigger(p: read I & mut Any) {}
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
         }
     }
 

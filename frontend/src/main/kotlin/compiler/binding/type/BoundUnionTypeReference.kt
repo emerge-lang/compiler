@@ -9,8 +9,10 @@ import compiler.ast.type.TypeReference
 import compiler.binding.basetype.BoundBaseType
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.diagnostic.needlesslyVerboseUnionType
 import compiler.lexer.Operator
 import compiler.lexer.Span
+import compiler.util.twoElementPermutationsUnordered
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundUnionTypeReference(
@@ -57,7 +59,16 @@ class BoundUnionTypeReference(
     }
 
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
-        TODO("Not yet implemented")
+        components.forEach { it.validate(forUsage, diagnosis) }
+        if (astNode != null) {
+            for ((a, b) in components.twoElementPermutationsUnordered()) {
+                if (a.isAssignableTo(b)) {
+                    diagnosis.needlesslyVerboseUnionType(b, a)
+                } else if (b.isAssignableTo(a)) {
+                    diagnosis.needlesslyVerboseUnionType(a, b)
+                }
+            }
+        }
     }
 
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
