@@ -65,6 +65,8 @@ enum class TypeMutability(
      * |`EXCLUSIVE`|`READONLY` |`READONLY` |
      * |`EXCLUSIVE`|`IMMUTABLE`|`IMMUTABLE`|
      * |`EXCLUSIVE`|`EXCLUSIVE`|`EXCLUSIVE`|
+     *
+     * @return the mutability that expresses all abilities & guarantees that are common to both `this` and [other]
      */
     fun intersect(other: TypeMutability?): TypeMutability = when {
         other == null || other == this -> this
@@ -117,18 +119,18 @@ enum class TypeMutability(
      * @return mutability that allows for everything/guarantees for everything that any of `this` and [other] do:
      */
     fun union(other: TypeMutability): TypeMutability = when(this) {
-        MUTABLE -> when (other) {
+        MUTABLE -> when(other) {
             MUTABLE -> MUTABLE
             READONLY -> MUTABLE
             IMMUTABLE -> EXCLUSIVE
             EXCLUSIVE -> EXCLUSIVE
         }
-        READONLY -> when (other) {
+        READONLY -> when(other) {
             READONLY -> READONLY
             IMMUTABLE -> READONLY
             else -> other.union(this)
         }
-        IMMUTABLE -> when (other) {
+        IMMUTABLE -> when(other) {
             IMMUTABLE -> IMMUTABLE
             else -> other.union(this)
         }

@@ -21,7 +21,7 @@ package compiler.binding.context
 import compiler.InternalCompilerError
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.ImportDeclaration
-import compiler.ast.type.TypeReference
+import compiler.ast.type.NamedTypeReference
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
@@ -117,7 +117,7 @@ open class MutableCTContext(
         return fromImport ?: parentContext.resolveBaseType(simpleName, fromOwnFileOnly)
     }
 
-    private fun resolveTypeExceptNullability(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
+    private fun resolveTypeExceptNullability(ref: NamedTypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
         resolveTypeParameter(ref.simpleName)?.let { parameter ->
             return GenericTypeReference(ref, parameter)
         }
@@ -128,7 +128,7 @@ open class MutableCTContext(
             ?: UnresolvedType(this, ref, resolvedArguments)
     }
 
-    override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
+    override fun resolveType(ref: NamedTypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
         val resolved = resolveTypeExceptNullability(ref, fromOwnFileOnly)
         return resolved.withCombinedNullability(ref.nullability)
     }

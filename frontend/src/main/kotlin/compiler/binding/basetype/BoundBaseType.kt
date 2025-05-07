@@ -23,7 +23,7 @@ import compiler.ast.AstCodeChunk
 import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
-import compiler.ast.type.TypeReference
+import compiler.ast.type.NamedTypeReference
 import compiler.binding.AccessorKind
 import compiler.binding.BoundElement
 import compiler.binding.BoundMemberFunction
@@ -82,7 +82,7 @@ class BoundBaseType(
     val baseReference: RootResolvedTypeReference
         get() = RootResolvedTypeReference(
             context,
-            TypeReference(this.simpleName),
+            NamedTypeReference(this.simpleName),
             this,
             if (typeParameters.isNullOrEmpty()) null else throw InternalCompilerError("cannot use baseReference on types with parameters")
         )

@@ -24,7 +24,7 @@ class UnresolvedType private constructor(
     override val isNullable get() = standInType.isNullable
     override val mutability get() = standInType.mutability
     override val baseTypeOfLowerBound get() = standInType.baseTypeOfLowerBound
-    override val span = reference.declaringNameToken?.span
+    override val span = reference.span
     override val inherentTypeBindings = TypeUnification.EMPTY
 
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {

@@ -27,6 +27,7 @@ import compiler.ast.ParameterList
 import compiler.ast.TypeParameterBundle
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.AccessorKind
@@ -274,7 +275,7 @@ val StandaloneFunctionDeclaration = sequence("function declaration") {
                 name,
                 typeParameters,
                 parameterList,
-                type ?: TypeReference("Unit", nullability = TypeReference.Nullability.UNSPECIFIED),
+                type ?: NamedTypeReference("Unit", nullability = TypeReference.Nullability.UNSPECIFIED),
                 FunctionDeclaration.Body.Full(code),
             )
         }

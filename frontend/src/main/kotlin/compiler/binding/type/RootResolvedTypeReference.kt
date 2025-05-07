@@ -1,6 +1,7 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundMemberFunction
@@ -25,7 +26,7 @@ import io.github.tmarsteel.emerge.common.EmergeConstants
  */
 class RootResolvedTypeReference private constructor(
     private val context: CTContext,
-    val original: TypeReference?,
+    val original: NamedTypeReference?,
     private val explicitMutability: TypeMutability?,
     val baseType: BoundBaseType,
     val arguments: List<BoundTypeArgument>?,
@@ -40,7 +41,7 @@ class RootResolvedTypeReference private constructor(
         TypeUnification.fromExplicit(baseType.typeParameters ?: emptyList(), arguments, span ?: Span.UNKNOWN)
     }
 
-    constructor(context: CTContext, original: TypeReference, baseType: BoundBaseType, parameters: List<BoundTypeArgument>?) : this(
+    constructor(context: CTContext, original: NamedTypeReference, baseType: BoundBaseType, parameters: List<BoundTypeArgument>?) : this(
         context,
         original,
         original.mutability,
@@ -255,7 +256,7 @@ class RootResolvedTypeReference private constructor(
     }
 
     override fun asAstReference(): TypeReference {
-        return original ?: TypeReference(
+        return original ?: NamedTypeReference(
             simpleName,
             TypeReference.Nullability.of(this),
             mutability,

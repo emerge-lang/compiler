@@ -19,8 +19,8 @@
 package compiler.binding.expression
 
 import compiler.ast.expression.IdentifierExpression
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
-import compiler.ast.type.TypeReference
 import compiler.binding.BoundVariable
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.SideEffectPrediction
@@ -77,7 +77,7 @@ class BoundIdentifierExpression(
             referral = ReferringVariable(variable)
         } else {
             val type: BoundTypeReference? = context.resolveType(
-                TypeReference(declaration.identifier)
+                NamedTypeReference(declaration.identifier)
             ).takeUnless { it is UnresolvedType }
 
             if (type == null) {

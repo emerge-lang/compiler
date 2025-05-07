@@ -2,7 +2,7 @@ package compiler.binding.context
 
 import compiler.InternalCompilerError
 import compiler.ast.Statement
-import compiler.ast.type.TypeReference
+import compiler.ast.type.NamedTypeReference
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundImportDeclaration
@@ -74,7 +74,7 @@ class SourceFileRootContext(
             override fun containsWithinBoundary(variable: BoundVariable, boundary: CTContext): Boolean = false
             override fun resolveTypeParameter(simpleName: String): BoundTypeParameter? = null
             override fun resolveBaseType(simpleName: String, fromOwnFileOnly: Boolean): BoundBaseType? = null
-            override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference = UnresolvedType(
+            override fun resolveType(ref: NamedTypeReference, fromOwnFileOnly: Boolean): BoundTypeReference = UnresolvedType(
                 this,
                 ref,
                 ref.arguments?.map { BoundTypeArgument(this, it, it.variance, this.resolveType(it.type)) },

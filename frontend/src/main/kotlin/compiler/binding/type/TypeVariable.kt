@@ -1,6 +1,7 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.diagnostic.Diagnosis
@@ -144,7 +145,7 @@ class TypeVariable private constructor(
     }
 
     override fun asAstReference(): TypeReference {
-        return TypeReference(
+        return NamedTypeReference(
             parameter.name,
             TypeReference.Nullability.of(this),
             this.mutability,

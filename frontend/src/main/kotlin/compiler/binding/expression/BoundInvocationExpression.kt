@@ -21,7 +21,7 @@ package compiler.binding.expression
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.InvocationExpression
-import compiler.ast.type.TypeReference
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
@@ -717,7 +717,7 @@ internal fun buildGenericInvocationLikeIr(
                         landingpadContext.findInternalVariableName("t"),
                         invocationLocation
                     ),
-                    TypeReference(IdentifierToken("Throwable", invocationLocation)),
+                    NamedTypeReference(IdentifierToken(context.swCtx.throwable.simpleName, invocationLocation)),
                     null,
                 ).bindTo(landingpadContext)
                 throwableVar.semanticAnalysisPhase1(Diagnosis.failOnError())

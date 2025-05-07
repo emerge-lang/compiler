@@ -2,8 +2,8 @@ package compiler.binding.basetype
 
 import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
-import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundParameterList
@@ -32,7 +32,7 @@ class InheritedBoundMemberFunction(
         ?: MutableExecutionScopedCTContext.functionRootIn(supertypeMemberFn.context)
     override val context = ownerBaseType.context
     private val functionContext = object : ExecutionScopedCTContext by rawSuperFnContext {
-        override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
+        override fun resolveType(ref: NamedTypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
             if (ref === narrowedReceiverParameter.type) {
                 return ownerBaseType.typeRootContext.resolveType(ref, fromOwnFileOnly)
             }
@@ -64,12 +64,12 @@ class InheritedBoundMemberFunction(
             null,
             inheritedReceiverParameter.declaration.ownership,
             inheritedReceiverParameter.declaration.name,
-            TypeReference(
+            NamedTypeReference(
                 ownerBaseType.simpleName,
                 declaringNameToken = IdentifierToken(ownerBaseType.simpleName, sourceLocation),
                 mutability = inheritedReceiverParameter.typeAtDeclarationTime?.mutability,
                 arguments = ownerBaseType.typeParameters?.map { typeParam ->
-                    TypeArgument(TypeVariance.UNSPECIFIED, TypeReference(IdentifierToken(typeParam.astNode.name.value, typeParam.astNode.name.span.deriveGenerated())))
+                    TypeArgument(TypeVariance.UNSPECIFIED, NamedTypeReference(IdentifierToken(typeParam.astNode.name.value, typeParam.astNode.name.span.deriveGenerated())))
                 }
             ),
             null,

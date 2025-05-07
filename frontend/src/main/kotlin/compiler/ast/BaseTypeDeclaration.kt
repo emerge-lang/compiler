@@ -20,6 +20,7 @@ package compiler.ast
 
 import compiler.InternalCompilerError
 import compiler.ast.AstSupertypeList.Companion.bindTo
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeParameter
@@ -71,13 +72,13 @@ class BaseTypeDeclaration(
         val typeRootContext = MutableCTContext(fileContextWithTypeParams, typeVisibility)
         val boundSupertypes = supertypes.bindTo(typeRootContext, typeDefAccessor)
         val memberVariableInitializationContext = MutableExecutionScopedCTContext.functionRootIn(typeRootContext)
-        fun buildSelfTypeReference(location: Span) = TypeReference(
+        fun buildSelfTypeReference(location: Span) = NamedTypeReference(
             simpleName = this.name.value,
             nullability = TypeReference.Nullability.NOT_NULLABLE,
             mutability = TypeMutability.READONLY,
             declaringNameToken = IdentifierToken(this.name.value, location),
             typeParameters?.map {
-                TypeArgument(TypeVariance.UNSPECIFIED, TypeReference(it.name))
+                TypeArgument(TypeVariance.UNSPECIFIED, NamedTypeReference(it.name))
             },
         )
 
@@ -194,7 +195,7 @@ class BaseTypeMemberFunctionDeclaration(
 
     fun bindTo(
         typeRootContext: CTContext,
-        selfType: TypeReference,
+        selfType: NamedTypeReference,
         getTypeDef: () -> BoundBaseType,
     ): BoundDeclaredBaseTypeMemberFunction {
         return functionDeclaration.bindToAsMember(

@@ -10,6 +10,7 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.MemberAccessExpression
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
@@ -62,7 +63,7 @@ fun Diagnosis.consecutive(message: String, span: Span = Span.UNKNOWN) {
     add(ConsecutiveFaultDiagnostic(message, span))
 }
 
-fun Diagnosis.unknownType(erroneousRef: TypeReference) {
+fun Diagnosis.unknownType(erroneousRef: NamedTypeReference) {
     add(UnknownTypeDiagnostic(erroneousRef))
 }
 
@@ -355,7 +356,7 @@ fun Diagnosis.typeDeductionError(message: String, location: Span) {
     add(TypeDeductionErrorDiagnostic(message, location))
 }
 
-fun Diagnosis.explicitInferTypeWithArguments(type: TypeReference) {
+fun Diagnosis.explicitInferTypeWithArguments(type: NamedTypeReference) {
     add(ExplicitInferTypeWithArgumentsDiagnostic(type))
 }
 

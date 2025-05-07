@@ -34,7 +34,7 @@ sealed class GenericTypeReference : BoundTypeReference {
         return givenMutability
     }
     override val baseTypeOfLowerBound get()= effectiveBound.baseTypeOfLowerBound
-    override val span get() = original.declaringNameToken?.span
+    override val span get() = original.span
     override val inherentTypeBindings = TypeUnification.EMPTY
 
     override fun withMutability(mutability: TypeMutability?): GenericTypeReference {

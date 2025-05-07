@@ -9,7 +9,6 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.illegalSupertype
 
 /**
@@ -56,7 +55,6 @@ class BoundSupertypeDeclaration(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
-
             if (!astNode.arguments.isNullOrEmpty()) {
                 diagnosis.illegalSupertype(astNode, "inheriting from generic types is currently not supported")
             }

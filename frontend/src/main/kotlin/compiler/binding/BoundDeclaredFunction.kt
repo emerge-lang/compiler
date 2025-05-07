@@ -111,7 +111,7 @@ abstract class BoundDeclaredFunction(
             }
             returnType?.let {
                 val returnTypeUseSite = TypeUseSite.OutUsage(
-                    declaration.parsedReturnType?.declaringNameToken?.span
+                    declaration.parsedReturnType?.span
                         ?: this.declaredAt,
                     this,
                 )
