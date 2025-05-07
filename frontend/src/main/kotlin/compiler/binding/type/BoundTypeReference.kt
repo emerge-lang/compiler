@@ -36,6 +36,8 @@ import java.util.IdentityHashMap
 
 sealed interface BoundTypeReference {
     val isNullable: Boolean
+
+    /** todo: refactor into .toSimpleString(): String */
     val simpleName: String?
 
     val mutability: TypeMutability
@@ -97,8 +99,8 @@ sealed interface BoundTypeReference {
     /**
      * Finds the "greatest common denominator" of this type and the [other] type.
      * This method is associative:
-     * * `a.closestCommonAncestorWith(b) == b.closestCommonAncestorWith(a)`
-     * * `a.closestCommonAncestorWith(b).closestCommonAncestorWith(c) == b.closestCommonAncestorWith(c).closestCommonAncestorWith(a)`
+     * * `a.closestCommonSupertypeWith(b) == b.closestCommonSupertypeWith(a)`
+     * * `a.closestCommonSupertypeWith(b).closestCommonSupertypeWith(c) == b.closestCommonSupertypeWith(c).closestCommonSupertypeWith(a)`
      */
     fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference
 

@@ -4,6 +4,7 @@ import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
+import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundParameterList
@@ -32,7 +33,7 @@ class InheritedBoundMemberFunction(
         ?: MutableExecutionScopedCTContext.functionRootIn(supertypeMemberFn.context)
     override val context = ownerBaseType.context
     private val functionContext = object : ExecutionScopedCTContext by rawSuperFnContext {
-        override fun resolveType(ref: NamedTypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
+        override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
             if (ref === narrowedReceiverParameter.type) {
                 return ownerBaseType.typeRootContext.resolveType(ref, fromOwnFileOnly)
             }

@@ -28,7 +28,7 @@ import kotlin.contracts.contract
 /**
  * todo: rename to AstType
  */
-interface TypeReference {
+sealed interface TypeReference {
     val span: Span?
     val nullability: Nullability
     val mutability: TypeMutability?
@@ -231,6 +231,6 @@ class AstUnionType(
     }
 
     override fun toString() = components.joinToString(
-        separator = " ${Operator.INTERSECTION.text} ",
+        separator = " ${Operator.UNION.text} ",
     )
 }

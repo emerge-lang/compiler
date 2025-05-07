@@ -18,8 +18,8 @@
 
 package compiler.binding.context
 
-import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
+import compiler.ast.type.TypeReference
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
@@ -86,7 +86,7 @@ interface CTContext {
         return BoundTypeArgument(this, ref, ref.variance, resolveType(ref.type))
     }
 
-    fun resolveType(ref: NamedTypeReference, fromOwnFileOnly: Boolean = false): BoundTypeReference
+    fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean = false): BoundTypeReference
 
     /**
      * @return first: the variable accessible under the given name

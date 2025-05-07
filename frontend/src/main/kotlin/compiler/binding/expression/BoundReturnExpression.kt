@@ -33,6 +33,7 @@ import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.BoundUnionTypeReference
 import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.NullableTypeReference
 import compiler.binding.type.RootResolvedTypeReference
@@ -165,5 +166,6 @@ private val BoundTypeReference.isNothing: Boolean get() = !isNullable && when (t
     is GenericTypeReference -> this.effectiveBound.isNothing
     is NullableTypeReference -> false
     is UnresolvedType -> false
+    is BoundUnionTypeReference -> components.any { it.isNothing }
     is TypeVariable -> throw InternalCompilerError("type inference not completed")
 }

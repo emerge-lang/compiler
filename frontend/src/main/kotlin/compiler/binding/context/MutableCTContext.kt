@@ -21,7 +21,9 @@ package compiler.binding.context
 import compiler.InternalCompilerError
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.ImportDeclaration
+import compiler.ast.type.AstUnionType
 import compiler.ast.type.NamedTypeReference
+import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundImportDeclaration
 import compiler.binding.BoundOverloadSet
@@ -30,6 +32,7 @@ import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.BoundUnionTypeReference
 import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.UnresolvedType
@@ -117,7 +120,7 @@ open class MutableCTContext(
         return fromImport ?: parentContext.resolveBaseType(simpleName, fromOwnFileOnly)
     }
 
-    private fun resolveTypeExceptNullability(ref: NamedTypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
+    private fun resolveNamedTypeExceptNullability(ref: NamedTypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
         resolveTypeParameter(ref.simpleName)?.let { parameter ->
             return GenericTypeReference(ref, parameter)
         }
@@ -128,9 +131,11 @@ open class MutableCTContext(
             ?: UnresolvedType(this, ref, resolvedArguments)
     }
 
-    override fun resolveType(ref: NamedTypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
-        val resolved = resolveTypeExceptNullability(ref, fromOwnFileOnly)
-        return resolved.withCombinedNullability(ref.nullability)
+    override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
+        return when (ref) {
+            is AstUnionType -> BoundUnionTypeReference(ref, ref.components.map { this.resolveType(it, fromOwnFileOnly) })
+            is NamedTypeReference -> resolveNamedTypeExceptNullability(ref, fromOwnFileOnly).withCombinedNullability(ref.nullability)
+        }
     }
 
     override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? {
