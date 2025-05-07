@@ -209,7 +209,7 @@ class FunctionErrors : FreeSpec({
                     interface Irrelevant {
                         fn bar(self)
                     }
-                    class C : A, B, Irrelevant {
+                    class C : A & B & Irrelevant {
                         override fn bar(self) {}
                     }
                 """.trimIndent())

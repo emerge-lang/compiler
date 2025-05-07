@@ -1,5 +1,6 @@
 package compiler.compiler.negative
 
+import compiler.ast.type.NamedTypeReference
 import compiler.binding.impurity.ImpureInvocation
 import compiler.binding.impurity.ReadingVariableBeyondBoundary
 import compiler.binding.impurity.ReassignmentBeyondBoundary
@@ -609,7 +610,7 @@ class ClassErrors : FreeSpec({
                 class B : A {}
             """.trimIndent())
                 .shouldFind<IllegalSupertypeDiagnostic> {
-                    it.supertype.simpleName shouldBe "A"
+                    it.supertype.shouldBeInstanceOf<NamedTypeReference>().simpleName shouldBe "A"
                 }
         }
 
@@ -618,14 +619,14 @@ class ClassErrors : FreeSpec({
                 class A<T> : T {}
             """.trimIndent())
                 .shouldFind<IllegalSupertypeDiagnostic> {
-                    it.supertype.simpleName shouldBe "T"
+                    it.supertype.shouldBeInstanceOf< NamedTypeReference>().simpleName shouldBe "T"
                 }
         }
 
         "duplicate inheritance from same base type" {
             validateModule("""
                 interface A {}
-                class B : A, A {}
+                class B : A & A {}
             """.trimIndent())
                 .shouldFind<DuplicateSupertypeDiagnostic> {
                     it.supertype.simpleName shouldBe "A"

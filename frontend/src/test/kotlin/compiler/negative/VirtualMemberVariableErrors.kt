@@ -1,6 +1,7 @@
 package compiler.compiler.negative
 
 import compiler.ast.AstFunctionAttribute
+import compiler.ast.type.NamedTypeReference
 import compiler.binding.AccessorKind
 import compiler.diagnostic.AccessorContractViolationDiagnostic
 import compiler.diagnostic.AmbiguousMemberVariableAccessDiagnostic
@@ -20,6 +21,7 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.beInstanceOf
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class VirtualMemberVariableErrors : FreeSpec({
     "marking a method both get and set produces a conflict" {
@@ -446,7 +448,7 @@ class VirtualMemberVariableErrors : FreeSpec({
                     .shouldFind<GetterAndSetterHaveDifferentTypesDiagnostics> {
                         it.getter.name.value shouldBe "bla"
                         it.setter.name.value shouldBe "bla"
-                        it.setter.parameters.parameters.firstOrNull().shouldNotBeNull().type.shouldNotBeNull().simpleName shouldBe "I"
+                        it.setter.parameters.parameters.firstOrNull().shouldNotBeNull().type.shouldNotBeNull().shouldBeInstanceOf<NamedTypeReference>().simpleName shouldBe "I"
                     }
             }
         }
@@ -458,7 +460,7 @@ class VirtualMemberVariableErrors : FreeSpec({
                 // defining X and Y as disjoint types helps declare two identically-named getters in the same packag
                 interface X {}
                 interface Y {}
-                class C : X, Y {}
+                class C : X & Y {}
                 get fn p(self: X) -> Bool = false
                 get fn p(self: Y) -> Bool = true
                 fn test() {
@@ -474,7 +476,7 @@ class VirtualMemberVariableErrors : FreeSpec({
             validateModule("""
                 interface X {}
                 interface Y {}
-                class C : X, Y {}
+                class C : X & Y {}
                 set fn m(self: mut X, value: S32) {}
                 set fn m(self: mut Y, value: String) {}
                 fn test() {
