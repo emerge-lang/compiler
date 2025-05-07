@@ -221,7 +221,7 @@ val NamedType: Rule<TypeReference> = sequence("named type") {
     }
 
 val UnionTypePostifx = sequence("union-postfix") {
-    operator(Operator.INTERSECTION)
+    operator(Operator.UNION)
     ref(NamedType)
 }
     .astTransformation { tokens ->
