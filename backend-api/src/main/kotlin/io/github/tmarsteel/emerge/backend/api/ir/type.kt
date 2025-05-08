@@ -50,3 +50,7 @@ interface IrGenericTypeReference : IrType {
     override val isNullable get() = effectiveBound.isNullable
     override fun asNullable(): IrGenericTypeReference
 }
+
+interface IrIntersectionType : IrType {
+    val components: List<IrType>
+}
