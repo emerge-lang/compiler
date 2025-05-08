@@ -114,7 +114,7 @@ class BoundVariableAssignmentStatement(
                 if (initializationStateBefore == VariableInitialization.State.MAYBE_INITIALIZED) {
                     // forces a null-check on the reference drop, preventing a null-pointer dereference when a maybe-initialized
                     // variable of a non-null type is being assigned to
-                    previousType = previousType.nullable()
+                    previousType = previousType.asNullable()
                 }
                 val previousTemporary = IrCreateTemporaryValueImpl(
                     IrVariableAccessExpressionImpl(targetVariable!!.backendIrDeclaration),

@@ -10,18 +10,11 @@ import compiler.binding.expression.BoundExpression
 import compiler.binding.expression.ValueUsage
 import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.IrGenericTypeReferenceImpl
-import compiler.binding.type.IrParameterizedTypeImpl
-import compiler.binding.type.IrSimpleTypeImpl
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import io.github.tmarsteel.emerge.backend.api.ir.IrAssignmentStatement
 import io.github.tmarsteel.emerge.backend.api.ir.IrExpression
-import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
-import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
-import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTemporaryValueReference
-import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 abstract class BoundAssignmentStatement<AstTarget : Expression>(
     override val context: ExecutionScopedCTContext,
@@ -112,12 +105,6 @@ abstract class BoundAssignmentStatement<AstTarget : Expression>(
 
     override fun visitWritesBeyond(boundary: CTContext, visitor: ImpurityVisitor) {
         toAssignExpression.visitWritesBeyond(boundary, visitor)
-    }
-
-    protected fun IrType.nullable(): IrType = if (isNullable) this else when (this) {
-        is IrSimpleType -> IrSimpleTypeImpl(this.baseType, mutability,true)
-        is IrGenericTypeReference -> IrGenericTypeReferenceImpl(this.parameter, effectiveBound.nullable())
-        is IrParameterizedType -> IrParameterizedTypeImpl(this.simpleType.nullable() as IrSimpleType, arguments)
     }
 }
 

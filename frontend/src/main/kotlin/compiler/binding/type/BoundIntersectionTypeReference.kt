@@ -13,7 +13,9 @@ import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.simplifiableIntersectionType
 import compiler.lexer.Operator
 import compiler.lexer.Span
+import io.github.tmarsteel.emerge.backend.api.ir.IrIntersectionType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 
 class BoundIntersectionTypeReference(
     val context: CTContext,
@@ -179,8 +181,20 @@ class BoundIntersectionTypeReference(
         )
     }
 
+    private val _backendIr by lazy {
+        val simplified = this.simplify()
+        if (simplified !== this) {
+            return@lazy simplified.toBackendIr()
+        }
+
+        IrIntersectionTypeImpl(
+            components.map { it.toBackendIr() },
+            this.isNullable,
+            this.mutability.toBackendIr(),
+        )
+    }
     override fun toBackendIr(): IrType {
-        TODO("Not yet implemented")
+        return _backendIr
     }
 
     override fun toString(): String {
@@ -354,5 +368,22 @@ class BoundIntersectionTypeReference(
 
             return newComponents
         }
+    }
+}
+
+private class IrIntersectionTypeImpl(
+    override val components: List<IrType>,
+    override val isNullable: Boolean,
+    override val mutability: IrTypeMutability,
+) : IrIntersectionType {
+    override fun asNullable(): IrType {
+        if (isNullable) {
+            return this
+        }
+        return IrIntersectionTypeImpl(
+            components.map { it.asNullable() },
+            true,
+            mutability,
+        )
     }
 }

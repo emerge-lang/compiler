@@ -79,8 +79,8 @@ class BoundBaseType(
         CanonicalElementName.BaseType(context.sourceFile.packageName, declaration.name.value)
     }
     val simpleName: String = declaration.name.value
-    val baseReference: RootResolvedTypeReference by lazy {
-        RootResolvedTypeReference(
+    val baseReference: RootResolvedTypeReference get() {
+        return RootResolvedTypeReference(
             context,
             NamedTypeReference(this.simpleName),
             this,
