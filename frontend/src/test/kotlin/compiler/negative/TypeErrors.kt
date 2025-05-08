@@ -313,7 +313,7 @@ class TypeErrors : FreeSpec({
             """.trimIndent())
                 .shouldFind<SimplifyableUnionTypeDiagnostic> {
                     it.complicatedType.toString() shouldBe "I & S"
-                    it.simplerVersion.toString() shouldBe "S"
+                    it.simplerVersion.toString() shouldBe "read testmodule.S"
                 }
 
             validateModule("""
@@ -321,7 +321,7 @@ class TypeErrors : FreeSpec({
             """.trimIndent())
                 .shouldFind<SimplifyableUnionTypeDiagnostic> {
                     it.complicatedType.toString() shouldBe "S32 & read Any"
-                    it.simplerVersion.toString() shouldBe "S32"
+                    it.simplerVersion.toString() shouldBe "const S32"
                 }
 
             validateModule("""
@@ -329,15 +329,18 @@ class TypeErrors : FreeSpec({
             """.trimIndent())
                 .shouldFind<SimplifyableUnionTypeDiagnostic> {
                     it.complicatedType.toString() shouldBe "read Any & S32"
-                    it.simplerVersion.toString() shouldBe "S32"
+                    it.simplerVersion.toString() shouldBe "const S32"
                 }
 
             validateModule("""
                 interface I {}
                 
-                fn NOTtrigger(p: read I & mut Any) {}
+                fn trigger(p: read I & mut Any) {}
             """.trimIndent())
-                .shouldHaveNoDiagnostics()
+                .shouldFind< SimplifyableUnionTypeDiagnostic> {
+                    it.complicatedType.toString() shouldBe "read I & mut Any"
+                    it.simplerVersion.toString() shouldBe "mut testmodule.I"
+                }
         }
     }
 

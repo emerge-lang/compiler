@@ -1,10 +1,11 @@
 package compiler.diagnostic
 
 import compiler.ast.type.AstUnionType
+import compiler.binding.type.BoundTypeReference
 
 class SimplifyableUnionTypeDiagnostic(
     val complicatedType: AstUnionType,
-    val simplerVersion: AstUnionType,
+    val simplerVersion: BoundTypeReference,
 ) : Diagnostic(
     Severity.WARNING,
     "This union type can be simplified",

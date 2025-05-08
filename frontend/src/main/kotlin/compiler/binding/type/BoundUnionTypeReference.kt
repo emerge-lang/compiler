@@ -39,7 +39,7 @@ class BoundUnionTypeReference(
             }
     }
 
-    override fun defaultMutabilityTo(mutability: TypeMutability?): BoundUnionTypeReference {
+    override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference {
         return mapComponents { it.defaultMutabilityTo(mutability) }
     }
 
@@ -62,9 +62,9 @@ class BoundUnionTypeReference(
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
         components.forEach { it.validate(forUsage, diagnosis) }
         if (astNode != null) {
-            val simplerComponents = simplifyComponents(components, context)
-            if (simplerComponents != null) {
-                diagnosis.simplifyableUnionType(astNode, BoundUnionTypeReference(context, null, simplerComponents).asAstReference())
+            val simplified = simplify()
+            if (simplified !== this) {
+                diagnosis.simplifyableUnionType(astNode, simplified)
             }
         }
     }
@@ -140,30 +140,42 @@ class BoundUnionTypeReference(
      * @return [BoundUnionTypeReference] that represent the same type as `this`, but using fewer [components] if
      * possible. May return `this`.
      */
-    fun simplify(): BoundUnionTypeReference {
+    fun simplify(): BoundTypeReference {
         val newComponents = simplifyComponents(components, context) ?: return this
+        newComponents.singleOrNull()?.let { return it }
         return BoundUnionTypeReference(context, null, newComponents.toList())
     }
 
-    private inline fun mapComponents(crossinline componentTransform: (BoundTypeReference) -> BoundTypeReference): BoundUnionTypeReference {
-        val newComponents = ArrayList<BoundTypeReference>(components.size)
+    private inline fun mapComponents(simplify: Boolean = false, crossinline componentTransform: (BoundTypeReference) -> BoundTypeReference): BoundTypeReference {
+        val mappedComponents = ArrayList<BoundTypeReference>(components.size)
         var anyChanged = false
         for (component in components) {
             val newComponent = componentTransform(component)
-            newComponents.add(newComponent)
+            mappedComponents.add(newComponent)
             if (newComponent === component || newComponent == component) {
                 anyChanged = true
             }
         }
         if (!anyChanged) {
-            newComponents.clear()
+            mappedComponents.clear()
             return this
         }
 
+        if (!simplify) {
+            return BoundUnionTypeReference(
+                context,
+                astNode,
+                mappedComponents,
+            )
+        }
+
+        val simplifiedMappedComponents = simplifyComponents(mappedComponents, context) ?: mappedComponents
+        simplifiedMappedComponents.singleOrNull()?.let { return it }
+
         return BoundUnionTypeReference(
             context,
-            astNode,
-            simplifyComponents(newComponents, context) ?: newComponents,
+            null,
+            simplifiedMappedComponents,
         )
     }
 
@@ -240,7 +252,11 @@ class BoundUnionTypeReference(
             }
         }
 
-        private fun simplifyComponents(components: List<BoundTypeReference>, context: CTContext): List<BoundTypeReference>? {
+        /**
+         * First step of simplifying a union type: remove any mentions of verbatim Any,
+         * and only have nullable components iff all components are nullable.
+         */
+        private fun simplifyCollapseAnysAndNullability(components: List<BoundTypeReference>, context: CTContext): List<BoundTypeReference>? {
             val selfIsNullable = components.all { it.isNullable }
             val (anys, nonAnys) = components.partition {
                 val nonNullable = if (it is NullableTypeReference) it.nested else it
@@ -272,6 +288,71 @@ class BoundUnionTypeReference(
             }
 
             return newComponents.toList()
+        }
+
+        /**
+         * performs a single pass of removing components that are a supertype of any other component
+         * @return whether the list was modified. If true, further calls to this method may be able to simplify
+         * further.
+         */
+        private fun simplifyElideSupertypesSinglePass(components: MutableList<BoundTypeReference>): Boolean {
+            val selfMutability = components.asSequence().map { it.mutability }.reduce(TypeMutability::union)
+
+            var anySupertypesRemoved = false
+            var pivotIndex = 0
+            pivots@while (pivotIndex < components.size) {
+                val pivotType = components[pivotIndex]
+                val pivotTypeWithSelfMutability = pivotType.withMutability(selfMutability)
+
+                var checkIndex = pivotIndex + 1
+                checks@while (checkIndex < components.size) {
+                    val checkType = components[checkIndex]
+                    val checkTypeWithSelfMutability = checkType.withMutability(selfMutability)
+                    if (checkTypeWithSelfMutability.isAssignableTo(pivotTypeWithSelfMutability)) {
+                        // pivot is a supertype of checkType, so its superfluous
+                        // make sure to retain the mutability of the compound type
+                        if (checkType.mutability != checkTypeWithSelfMutability.mutability) {
+                            components[checkIndex] = checkTypeWithSelfMutability
+                        }
+                        components.removeAt(pivotIndex)
+                        pivotIndex = checkIndex - 1
+                        anySupertypesRemoved = true
+                        continue@pivots
+                    } else if (pivotTypeWithSelfMutability.isAssignableTo(checkTypeWithSelfMutability)) {
+                        // checkType is a supertype of pivot, so its superfluous
+                        // make sure to retain the mutability of the compound type
+                        if (pivotType.mutability != pivotTypeWithSelfMutability.mutability) {
+                            components[pivotIndex] = pivotTypeWithSelfMutability
+                        }
+                        components.removeAt(checkIndex)
+                        anySupertypesRemoved = true
+                        continue@checks // DON'T increment checkIndex, the removal has the same effect
+                    }
+
+                    checkIndex++
+                }
+
+                pivotIndex++
+            }
+
+            return anySupertypesRemoved
+        }
+
+        private fun simplifyComponents(components: List<BoundTypeReference>, context: CTContext): List<BoundTypeReference>? {
+            val afterStep1 = simplifyCollapseAnysAndNullability(components, context)
+
+            val newComponents = (afterStep1 ?: components).toMutableList()
+            var simplifiedBySupertypeElision = false
+            do {
+                val simplifiedThisPass = simplifyElideSupertypesSinglePass(newComponents)
+                simplifiedBySupertypeElision = simplifiedBySupertypeElision || simplifiedThisPass
+            } while (simplifiedThisPass)
+
+            if (afterStep1 == null && !simplifiedBySupertypeElision) {
+                return null
+            }
+
+            return newComponents
         }
     }
 }

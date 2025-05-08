@@ -68,7 +68,7 @@ fun Diagnosis.unknownType(erroneousRef: NamedTypeReference) {
     add(UnknownTypeDiagnostic(erroneousRef))
 }
 
-fun Diagnosis.simplifyableUnionType(verbose: AstUnionType, simpler: AstUnionType) {
+fun Diagnosis.simplifyableUnionType(verbose: AstUnionType, simpler: BoundTypeReference) {
     add(SimplifyableUnionTypeDiagnostic(verbose, simpler))
 }
 
