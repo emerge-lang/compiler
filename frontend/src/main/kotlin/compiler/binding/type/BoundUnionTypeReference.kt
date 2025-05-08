@@ -70,7 +70,7 @@ class BoundUnionTypeReference(
     }
 
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
-        return mapComponents { it.closestCommonSupertypeWith(other) }
+        return mapComponents(simplify = true) { it.closestCommonSupertypeWith(other) }
     }
 
     override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeReference {
