@@ -7,6 +7,7 @@ import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.basetype.BoundBaseType
+import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.needlesslyVerboseUnionType
@@ -16,6 +17,7 @@ import compiler.util.twoElementPermutationsUnordered
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundUnionTypeReference(
+    val context: CTContext,
     val astNode: AstUnionType?,
     val components: List<BoundTypeReference>,
 ) : BoundTypeReference {
@@ -72,10 +74,6 @@ class BoundUnionTypeReference(
     }
 
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
-        if (other !is BoundUnionTypeReference) {
-            return components.fold(other) { carry, component -> carry.closestCommonSupertypeWith(component) }
-        }
-
         return mapComponents { it.closestCommonSupertypeWith(other) }
     }
 
@@ -101,7 +99,7 @@ class BoundUnionTypeReference(
             is UnresolvedType -> return unify(assigneeType.standInType, assignmentLocation, carry)
             else -> {
                 return components.fold(carry) { innerCarry, component ->
-                    component.unify(assigneeType, assignmentLocation, carry)
+                    component.unify(assigneeType, assignmentLocation, innerCarry)
                 }
             }
         }
@@ -142,6 +140,15 @@ class BoundUnionTypeReference(
         return AstUnionType(astComponents, Span.range(*astComponents.map { it.span }.toTypedArray()) ?: Span.UNKNOWN)
     }
 
+    /**
+     * @return [BoundUnionTypeReference] that represent the same type as `this`, but using fewer [components] if
+     * possible. May return `this`.
+     */
+    fun simplify(): BoundUnionTypeReference {
+        val newComponents = simplifyComponents(components, context) ?: return this
+        return BoundUnionTypeReference(context, null, newComponents.toList())
+    }
+
     private inline fun mapComponents(crossinline componentTransform: (BoundTypeReference) -> BoundTypeReference): BoundUnionTypeReference {
         val newComponents = ArrayList<BoundTypeReference>(components.size)
         var anyChanged = false
@@ -157,11 +164,33 @@ class BoundUnionTypeReference(
             return this
         }
 
-        return BoundUnionTypeReference(astNode, newComponents)
+        return BoundUnionTypeReference(
+            context,
+            astNode,
+            simplifyComponents(newComponents, context) ?: newComponents,
+        )
     }
 
     override fun toBackendIr(): IrType {
         TODO("Not yet implemented")
+    }
+
+    override fun toString(): String {
+        return components.joinToString(
+            separator = " ${Operator.UNION.text} ",
+        )
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is BoundUnionTypeReference) return false
+
+        if (this.components != other.components) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return components.hashCode()
     }
 
     companion object {
@@ -176,16 +205,14 @@ class BoundUnionTypeReference(
          * |`mut T & read Any`     | `mut T`        |
          * |`mut T & const T`      | `exclusive T`  |
          * |`read T & const Any`   | `mut T`        |
-         *
-         * TODO: implement simplification, at least for the easy example cases
          */
-        fun BoundTypeReference.union(other: BoundTypeReference): BoundTypeReference {
+        fun BoundTypeReference.union(other: BoundTypeReference, context: CTContext): BoundTypeReference {
             if (this is BoundUnionTypeReference) {
                 if (other is BoundUnionTypeReference) {
-                    return BoundUnionTypeReference(null, this.components + other.components)
+                    return BoundUnionTypeReference(context, null, this.components + other.components).simplify()
                 }
             } else if (other is BoundUnionTypeReference) {
-                return other.union(this)
+                return other.union(this, context)
             }
 
             when (this) {
@@ -197,7 +224,9 @@ class BoundUnionTypeReference(
                         is BoundTypeArgument -> variance.union(other.variance)
                         else -> variance
                     }
-                    val unionType = type.union(other)
+                    val unionType = type.union(other, context).let {
+                        (it as? BoundUnionTypeReference)?.simplify() ?: it
+                    }
                     return BoundTypeArgument(
                         context,
                         TypeArgument(unionVariance, unionType.asAstReference()),
@@ -210,9 +239,43 @@ class BoundUnionTypeReference(
                 is NullableTypeReference,
                 is TypeVariable,
                 is UnresolvedType, -> {
-                    return BoundUnionTypeReference(null, listOf(this, other))
+                    return BoundUnionTypeReference(context, null, listOf(this, other)).simplify()
                 }
             }
+        }
+
+        private fun simplifyComponents(components: List<BoundTypeReference>, context: CTContext): List<BoundTypeReference>? {
+            val selfIsNullable = components.all { it.isNullable }
+            val (anys, nonAnys) = components.partition {
+                val nonNullable = if (it is NullableTypeReference) it.nested else it
+                nonNullable is RootResolvedTypeReference && nonNullable.baseType == context.swCtx.any
+            }
+            val someComponentsHaveSuperfluousNullability = nonAnys.any { it.isNullable != selfIsNullable }
+            val canSimplify = anys.isNotEmpty() || someComponentsHaveSuperfluousNullability
+            if (!canSimplify) {
+                return null
+            }
+
+            var newComponents = nonAnys.asSequence()
+
+            val anyMutability = anys.asSequence()
+                .map { it.mutability }
+                .fold(TypeMutability.READONLY, TypeMutability::union)
+
+            if (anyMutability != TypeMutability.READONLY) {
+                newComponents = newComponents.map {
+                    if (it.mutability == anyMutability) it else it.withMutability(it.mutability.union(anyMutability))
+                }
+            }
+
+            if (someComponentsHaveSuperfluousNullability) {
+                val selfNullability = if (selfIsNullable) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.NOT_NULLABLE
+                newComponents = newComponents.map {
+                    it.withCombinedNullability(selfNullability)
+                }
+            }
+
+            return newComponents.toList()
         }
     }
 }

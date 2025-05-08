@@ -79,13 +79,14 @@ class BoundBaseType(
         CanonicalElementName.BaseType(context.sourceFile.packageName, declaration.name.value)
     }
     val simpleName: String = declaration.name.value
-    val baseReference: RootResolvedTypeReference
-        get() = RootResolvedTypeReference(
+    val baseReference: RootResolvedTypeReference by lazy {
+        RootResolvedTypeReference(
             context,
             NamedTypeReference(this.simpleName),
             this,
             if (typeParameters.isNullOrEmpty()) null else throw InternalCompilerError("cannot use baseReference on types with parameters")
         )
+    }
 
     private val _memberVariables: MutableList<BoundBaseTypeMemberVariable> = entries.filterIsInstance<BoundBaseTypeMemberVariable>().toMutableList()
     val memberVariables: List<BoundBaseTypeMemberVariable> = _memberVariables

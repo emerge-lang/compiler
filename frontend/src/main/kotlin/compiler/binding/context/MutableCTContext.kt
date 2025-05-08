@@ -133,7 +133,7 @@ open class MutableCTContext(
 
     override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
         return when (ref) {
-            is AstUnionType -> BoundUnionTypeReference(ref, ref.components.map { this.resolveType(it, fromOwnFileOnly) })
+            is AstUnionType -> BoundUnionTypeReference(this, ref, ref.components.map { this.resolveType(it, fromOwnFileOnly) })
             is NamedTypeReference -> resolveNamedTypeExceptNullability(ref, fromOwnFileOnly).withCombinedNullability(ref.nullability)
         }
     }
