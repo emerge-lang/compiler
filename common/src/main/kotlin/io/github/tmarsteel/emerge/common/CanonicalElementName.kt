@@ -22,7 +22,7 @@ sealed interface CanonicalElementName {
 
     abstract override fun toString(): String
 
-    class Package(val components: List<String>) : CanonicalElementName {
+    class Package(val components: List<String>) : CanonicalElementName, Comparable<Package> {
         init {
             require(components.isNotEmpty())
             require(components.none { '.' in it })
@@ -64,12 +64,26 @@ sealed interface CanonicalElementName {
         override fun hashCode(): Int {
             return components.hashCode()
         }
+
+        override fun compareTo(other: Package): Int {
+            this.components.asSequence()
+                .zip(other.components.asSequence())
+                .map { (selfComponent, otherComponent) ->
+                    selfComponent.compareTo(otherComponent)
+                }
+                .filter { it != 0 }
+                .firstOrNull()
+                ?.let { return it }
+
+            // at this point, the common prefix is identical
+            return this.components.size.compareTo(other.components.size)
+        }
     }
 
     class BaseType(
         val packageName: Package,
         val simpleName: String
-    ) : CanonicalElementName {
+    ) : CanonicalElementName, Comparable<BaseType> {
         override fun toString() = "${packageName}.${simpleName}"
 
         override fun equals(other: Any?): Boolean {
@@ -86,6 +100,15 @@ sealed interface CanonicalElementName {
             var result = packageName.hashCode()
             result = 31 * result + simpleName.hashCode()
             return result
+        }
+
+        override fun compareTo(other: BaseType): Int {
+            val byPackage = this.packageName.compareTo(other.packageName)
+            if (byPackage != 0) {
+                return byPackage
+            }
+
+            return simpleName.compareTo(other.simpleName)
         }
     }
 
