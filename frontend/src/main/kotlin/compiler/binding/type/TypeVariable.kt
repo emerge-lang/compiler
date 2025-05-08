@@ -103,7 +103,7 @@ class TypeVariable private constructor(
         return when (assigneeType) {
             is RootResolvedTypeReference,
             is GenericTypeReference,
-            is BoundUnionTypeReference,
+            is BoundIntersectionTypeReference,
             is BoundTypeArgument, -> {
                 val newCarry = carry.plus(this, assigneeType, assignmentLocation)
                 val selfBinding = newCarry.bindings[this] ?: return newCarry

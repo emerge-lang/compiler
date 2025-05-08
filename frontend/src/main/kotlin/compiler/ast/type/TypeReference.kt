@@ -176,7 +176,7 @@ data class NamedTypeReference(
     }
 }
 
-class AstUnionType(
+class AstIntersectionType(
     val components: List<NamedTypeReference>,
     override val span: Span,
 ) : TypeReference {
@@ -195,11 +195,11 @@ class AstUnionType(
     override val mutability: TypeMutability? by lazy {
         components.asSequence()
             .map { it.mutability ?: TypeMutability.READONLY }
-            .reduce(TypeMutability::union)
+            .reduce(TypeMutability::intersect)
     }
 
-    override fun withMutability(mutability: TypeMutability): AstUnionType {
-        return AstUnionType(
+    override fun withMutability(mutability: TypeMutability): AstIntersectionType {
+        return AstIntersectionType(
             components.map { it.withMutability(mutability) },
             span,
         )
@@ -210,7 +210,7 @@ class AstUnionType(
             return this
         }
 
-        return AstUnionType(
+        return AstIntersectionType(
             components.map { it.withNullability(nullability) },
             span,
         )
@@ -218,7 +218,7 @@ class AstUnionType(
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is AstUnionType) return false
+        if (other !is AstIntersectionType) return false
 
         return components == other.components
     }
@@ -231,6 +231,6 @@ class AstUnionType(
     }
 
     override fun toString() = components.joinToString(
-        separator = " ${Operator.UNION.text} ",
+        separator = " ${Operator.INTERSECTION.text} ",
     )
 }

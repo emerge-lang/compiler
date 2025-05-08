@@ -2,7 +2,7 @@ package compiler.binding.context
 
 import compiler.InternalCompilerError
 import compiler.ast.Statement
-import compiler.ast.type.AstUnionType
+import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
@@ -80,7 +80,7 @@ class SourceFileRootContext(
                 this,
                 when (ref) {
                     is NamedTypeReference -> ref
-                    is AstUnionType -> ref.components.first()
+                    is AstIntersectionType -> ref.components.first()
                 },
                 (ref as? NamedTypeReference)?.arguments?.map { BoundTypeArgument(this, it, it.variance, this.resolveType(it.type)) },
             )

@@ -1,7 +1,7 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
-import compiler.ast.type.AstUnionType
+import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
@@ -10,20 +10,20 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
-import compiler.diagnostic.simplifyableUnionType
+import compiler.diagnostic.simplifiableIntersectionType
 import compiler.lexer.Operator
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
-class BoundUnionTypeReference(
+class BoundIntersectionTypeReference(
     val context: CTContext,
-    val astNode: AstUnionType?,
+    val astNode: AstIntersectionType?,
     val components: List<BoundTypeReference>,
 ) : BoundTypeReference {
     override val span = astNode?.span
     override val isNullable get()= components.all { it.isNullable }
-    override val mutability get()= components.asSequence().map { it.mutability }.reduce(TypeMutability::union)
-    override val simpleName get()= components.joinToString(separator = " ${Operator.UNION.text} ", transform = { it.simpleName ?: it.toString() })
+    override val mutability get()= components.asSequence().map { it.mutability }.reduce(TypeMutability::intersect)
+    override val simpleName get()= components.joinToString(separator = " ${Operator.INTERSECTION.text} ", transform = { it.simpleName ?: it.toString() })
 
     override val baseTypeOfLowerBound by lazy {
         BoundBaseType.closestCommonSupertypeOf(components.map { it.baseTypeOfLowerBound })
@@ -64,7 +64,7 @@ class BoundUnionTypeReference(
         if (astNode != null) {
             val simplified = simplify()
             if (simplified !== this) {
-                diagnosis.simplifyableUnionType(astNode, simplified)
+                diagnosis.simplifiableIntersectionType(astNode, simplified)
             }
         }
     }
@@ -127,23 +127,23 @@ class BoundUnionTypeReference(
         return components.any { it.hasSameBaseTypeAs(other) }
     }
 
-    override fun asAstReference(): AstUnionType {
+    override fun asAstReference(): AstIntersectionType {
         if (astNode != null) {
             return astNode
         }
 
         val astComponents = components.map { it.asAstReference() as NamedTypeReference }
-        return AstUnionType(astComponents, Span.range(*astComponents.map { it.span }.toTypedArray()) ?: Span.UNKNOWN)
+        return AstIntersectionType(astComponents, Span.range(*astComponents.map { it.span }.toTypedArray()) ?: Span.UNKNOWN)
     }
 
     /**
-     * @return [BoundUnionTypeReference] that represent the same type as `this`, but using fewer [components] if
+     * @return [BoundIntersectionTypeReference] that represent the same type as `this`, but using fewer [components] if
      * possible. May return `this`.
      */
     fun simplify(): BoundTypeReference {
         val newComponents = simplifyComponents(components, context) ?: return this
         newComponents.singleOrNull()?.let { return it }
-        return BoundUnionTypeReference(context, null, newComponents.toList())
+        return BoundIntersectionTypeReference(context, null, newComponents.toList())
     }
 
     private inline fun mapComponents(simplify: Boolean = false, crossinline componentTransform: (BoundTypeReference) -> BoundTypeReference): BoundTypeReference {
@@ -162,7 +162,7 @@ class BoundUnionTypeReference(
         }
 
         if (!simplify) {
-            return BoundUnionTypeReference(
+            return BoundIntersectionTypeReference(
                 context,
                 astNode,
                 mappedComponents,
@@ -172,7 +172,7 @@ class BoundUnionTypeReference(
         val simplifiedMappedComponents = simplifyComponents(mappedComponents, context) ?: mappedComponents
         simplifiedMappedComponents.singleOrNull()?.let { return it }
 
-        return BoundUnionTypeReference(
+        return BoundIntersectionTypeReference(
             context,
             null,
             simplifiedMappedComponents,
@@ -185,13 +185,13 @@ class BoundUnionTypeReference(
 
     override fun toString(): String {
         return components.joinToString(
-            separator = " ${Operator.UNION.text} ",
+            separator = " ${Operator.INTERSECTION.text} ",
         )
     }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is BoundUnionTypeReference) return false
+        if (other !is BoundIntersectionTypeReference) return false
 
         if (this.components != other.components) return false
         return true
@@ -204,42 +204,42 @@ class BoundUnionTypeReference(
     companion object {
         /**
          * @return the type that represents the union of `this` and [other]. In the general case,
-         * this is an instance of [BoundUnionTypeReference] holding `this` and [other]. However, this
+         * this is an instance of [BoundIntersectionTypeReference] holding `this` and [other]. However, this
          * method should try to simplify. The simplification will make error messages much easier to
          * digest (and probably helps debugging). E.g.:
          *
-         * | input union           | simplification |
+         * | input type            | simplification |
          * |-----------------------|----------------|
          * |`mut T & read Any`     | `mut T`        |
          * |`mut T & const T`      | `exclusive T`  |
          * |`read T & const Any`   | `mut T`        |
          */
-        fun BoundTypeReference.union(other: BoundTypeReference, context: CTContext): BoundTypeReference {
-            if (this is BoundUnionTypeReference) {
-                if (other is BoundUnionTypeReference) {
-                    return BoundUnionTypeReference(context, null, this.components + other.components).simplify()
+        fun BoundTypeReference.intersect(other: BoundTypeReference, context: CTContext): BoundTypeReference {
+            if (this is BoundIntersectionTypeReference) {
+                if (other is BoundIntersectionTypeReference) {
+                    return BoundIntersectionTypeReference(context, null, this.components + other.components).simplify()
                 }
-            } else if (other is BoundUnionTypeReference) {
-                return other.union(this, context)
+            } else if (other is BoundIntersectionTypeReference) {
+                return other.intersect(this, context)
             }
 
             when (this) {
-                is BoundUnionTypeReference -> {
+                is BoundIntersectionTypeReference -> {
                     throw InternalCompilerError("This case should never happen, is prevented by the guard code above")
                 }
                 is BoundTypeArgument -> {
-                    val unionVariance = when(other) {
-                        is BoundTypeArgument -> variance.union(other.variance)
+                    val compoundVariance = when(other) {
+                        is BoundTypeArgument -> variance.intersect(other.variance)
                         else -> variance
                     }
-                    val unionType = type.union(other, context).let {
-                        (it as? BoundUnionTypeReference)?.simplify() ?: it
+                    val intersectionType = type.intersect(other, context).let {
+                        (it as? BoundIntersectionTypeReference)?.simplify() ?: it
                     }
                     return BoundTypeArgument(
                         context,
-                        TypeArgument(unionVariance, unionType.asAstReference()),
-                        unionVariance,
-                        unionType,
+                        TypeArgument(compoundVariance, intersectionType.asAstReference()),
+                        compoundVariance,
+                        intersectionType,
                     )
                 }
                 is GenericTypeReference,
@@ -247,7 +247,7 @@ class BoundUnionTypeReference(
                 is NullableTypeReference,
                 is TypeVariable,
                 is UnresolvedType, -> {
-                    return BoundUnionTypeReference(context, null, listOf(this, other)).simplify()
+                    return BoundIntersectionTypeReference(context, null, listOf(this, other)).simplify()
                 }
             }
         }
@@ -272,11 +272,11 @@ class BoundUnionTypeReference(
 
             val anyMutability = anys.asSequence()
                 .map { it.mutability }
-                .fold(TypeMutability.READONLY, TypeMutability::union)
+                .fold(TypeMutability.READONLY, TypeMutability::intersect)
 
             if (anyMutability != TypeMutability.READONLY) {
                 newComponents = newComponents.map {
-                    if (it.mutability == anyMutability) it else it.withMutability(it.mutability.union(anyMutability))
+                    if (it.mutability == anyMutability) it else it.withMutability(it.mutability.intersect(anyMutability))
                 }
             }
 
@@ -296,7 +296,7 @@ class BoundUnionTypeReference(
          * further.
          */
         private fun simplifyElideSupertypesSinglePass(components: MutableList<BoundTypeReference>): Boolean {
-            val selfMutability = components.asSequence().map { it.mutability }.reduce(TypeMutability::union)
+            val selfMutability = components.asSequence().map { it.mutability }.reduce(TypeMutability::intersect)
 
             var anySupertypesRemoved = false
             var pivotIndex = 0

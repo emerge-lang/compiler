@@ -113,7 +113,7 @@ class BoundTypeArgument(
             is GenericTypeReference -> {
                 return type.unify(assigneeType, assignmentLocation, carry)
             }
-            is BoundUnionTypeReference -> TODO()
+            is BoundIntersectionTypeReference -> TODO()
             is UnresolvedType -> {
                 return unify(assigneeType.standInType, assignmentLocation, carry)
             }

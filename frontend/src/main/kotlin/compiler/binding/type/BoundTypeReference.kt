@@ -61,7 +61,7 @@ sealed interface BoundTypeReference {
     fun withMutability(mutability: TypeMutability?): BoundTypeReference
 
     /**
-     * @return this type but [mutability] is the result of [TypeMutability.intersect] of the
+     * @return this type but [mutability] is the result of [TypeMutability.union] of the
      * existing mutability and the given one. Type parameters will be defaulted ([defaultMutabilityTo])
      * to the resulting mutability.
      */

@@ -1,6 +1,6 @@
 package compiler.binding.basetype
 
-import compiler.ast.type.AstUnionType
+import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundMemberFunction
@@ -116,7 +116,7 @@ class BoundSupertypeList(
         ): BoundSupertypeList {
             val astSupertypes = when (supertype) {
                 is NamedTypeReference -> listOf(supertype)
-                is AstUnionType -> supertype.components
+                is AstIntersectionType -> supertype.components
                 null -> emptyList()
             }
             return BoundSupertypeList(

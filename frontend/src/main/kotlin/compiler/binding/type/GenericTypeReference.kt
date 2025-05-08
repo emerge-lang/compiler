@@ -114,7 +114,7 @@ sealed class GenericTypeReference : BoundTypeReference {
                     ))
                 }
             }
-            is BoundUnionTypeReference -> {
+            is BoundIntersectionTypeReference -> {
                 return assigneeType.flippedUnify(
                     this,
                     assignmentLocation,

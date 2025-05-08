@@ -2,7 +2,7 @@ package compiler.compiler.negative
 
 import compiler.binding.type.GenericTypeReference
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
-import compiler.diagnostic.SimplifyableUnionTypeDiagnostic
+import compiler.diagnostic.SimplifiableIntersectionTypeDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
 import compiler.diagnostic.TypeArgumentVarianceMismatchDiagnostic
@@ -311,7 +311,7 @@ class TypeErrors : FreeSpec({
                 
                 fn trigger(p: I & S) {}
             """.trimIndent())
-                .shouldFind<SimplifyableUnionTypeDiagnostic> {
+                .shouldFind<SimplifiableIntersectionTypeDiagnostic> {
                     it.complicatedType.toString() shouldBe "I & S"
                     it.simplerVersion.toString() shouldBe "read testmodule.S"
                 }
@@ -319,7 +319,7 @@ class TypeErrors : FreeSpec({
             validateModule("""
                 fn trigger(p: S32 & read Any) {}
             """.trimIndent())
-                .shouldFind<SimplifyableUnionTypeDiagnostic> {
+                .shouldFind<SimplifiableIntersectionTypeDiagnostic> {
                     it.complicatedType.toString() shouldBe "S32 & read Any"
                     it.simplerVersion.toString() shouldBe "const S32"
                 }
@@ -327,7 +327,7 @@ class TypeErrors : FreeSpec({
             validateModule("""
                 fn trigger(p: read Any & S32) {}
             """.trimIndent())
-                .shouldFind<SimplifyableUnionTypeDiagnostic> {
+                .shouldFind<SimplifiableIntersectionTypeDiagnostic> {
                     it.complicatedType.toString() shouldBe "read Any & S32"
                     it.simplerVersion.toString() shouldBe "const S32"
                 }
@@ -337,7 +337,7 @@ class TypeErrors : FreeSpec({
                 
                 fn trigger(p: read I & mut Any) {}
             """.trimIndent())
-                .shouldFind< SimplifyableUnionTypeDiagnostic> {
+                .shouldFind< SimplifiableIntersectionTypeDiagnostic> {
                     it.complicatedType.toString() shouldBe "read I & mut Any"
                     it.simplerVersion.toString() shouldBe "mut testmodule.I"
                 }

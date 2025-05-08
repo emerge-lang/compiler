@@ -172,7 +172,7 @@ class BoundMemberVariableReadExpression(
         usageContextSet = true
 
         val valueUsedAsType = valueExpression.type
-            ?.withMutability(TypeMutability.READONLY.union(valueUsage.usedAsType?.mutability ?: TypeMutability.READONLY))
+            ?.withMutability(TypeMutability.READONLY.intersect(valueUsage.usedAsType?.mutability ?: TypeMutability.READONLY))
         // captured = false here because: the host object isn't being referenced; and the result value is already captured
         // by nature of being stored in an object member, so need to further validate that
         valueExpression.setEvaluationResultUsage(ValueUsage.deriveFromAndThen(

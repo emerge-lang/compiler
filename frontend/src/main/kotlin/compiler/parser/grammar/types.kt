@@ -21,7 +21,7 @@ package compiler.parser.grammar
 import compiler.InternalCompilerError
 import compiler.ast.TypeArgumentBundle
 import compiler.ast.TypeParameterBundle
-import compiler.ast.type.AstUnionType
+import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeParameter
@@ -220,8 +220,8 @@ val NamedType: Rule<TypeReference> = sequence("named type") {
         )
     }
 
-val UnionTypePostifx = sequence("union-postfix") {
-    operator(Operator.UNION)
+val IntersectionTypePostifx = sequence("intersection-postfix") {
+    operator(Operator.INTERSECTION)
     ref(NamedType)
 }
     .astTransformation { tokens ->
@@ -231,7 +231,7 @@ val UnionTypePostifx = sequence("union-postfix") {
 val Type: Rule<TypeReference> = sequence("type") {
     ref(NamedType)
     repeating {
-        ref(UnionTypePostifx)
+        ref(IntersectionTypePostifx)
     }
 }
     .astTransformation { tokens ->
@@ -247,5 +247,5 @@ val Type: Rule<TypeReference> = sequence("type") {
                 .rangeTo(postfix.intersectionOperator.span)
         }
 
-        AstUnionType(listOf(baseRef) + intersections.map { it.reference }, combinedSpan)
+        AstIntersectionType(listOf(baseRef) + intersections.map { it.reference }, combinedSpan)
     }

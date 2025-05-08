@@ -65,7 +65,7 @@ class RootResolvedTypeReference private constructor(
     }
 
     override fun withMutabilityIntersectedWith(mutability: TypeMutability?): RootResolvedTypeReference {
-        val combinedMutability = mutability?.let { this.mutability.intersect(it) } ?: this.mutability
+        val combinedMutability = mutability?.let { this.mutability.union(it) } ?: this.mutability
         return RootResolvedTypeReference(
             context,
             original,
@@ -141,7 +141,7 @@ class RootResolvedTypeReference private constructor(
                     return this
                 }
                 if (this.equalsExceptMutability(other)) {
-                    return withMutability(this.mutability.intersect(other.mutability))
+                    return withMutability(this.mutability.union(other.mutability))
                 }
                 // end of special cases until generic supertypes are implemented
                 val commonSuperBaseType = BoundBaseType.closestCommonSupertypeOf(this.baseType, other.baseType)
@@ -156,14 +156,14 @@ class RootResolvedTypeReference private constructor(
                 RootResolvedTypeReference(
                     context = context,
                     original = null,
-                    explicitMutability = this.mutability.intersect(other.mutability),
+                    explicitMutability = this.mutability.union(other.mutability),
                     baseType = commonSuperBaseType,
                     arguments = transformedArguments,
                 )
             }
             is GenericTypeReference,
             is UnresolvedType,
-            is BoundUnionTypeReference,
+            is BoundIntersectionTypeReference,
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
         }
@@ -233,7 +233,7 @@ class RootResolvedTypeReference private constructor(
             is NullableTypeReference -> return carry.plusReporting(
                 ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
             )
-            is BoundUnionTypeReference -> {
+            is BoundIntersectionTypeReference -> {
                 return assigneeType.flippedUnify(
                     this,
                     assignmentLocation,

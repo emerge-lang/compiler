@@ -42,7 +42,7 @@ object VariableLifetime : EphemeralStateClass<BoundVariable, VariableLifetime.St
                     false,
                 )
                 is State.AliveExclusiveWithActiveBorrow -> State.AliveExclusiveWithActiveBorrow(
-                    state.withMutability.intersect(effect.withMutability),
+                    state.withMutability.union(effect.withMutability),
                     state.borrowStartedAt,
                     false,
                 )

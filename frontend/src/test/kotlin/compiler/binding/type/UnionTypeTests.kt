@@ -1,6 +1,6 @@
 package compiler.compiler.binding.type
 
-import compiler.binding.type.BoundUnionTypeReference
+import compiler.binding.type.BoundIntersectionTypeReference
 import compiler.compiler.negative.validateModule
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.shouldBe
@@ -18,19 +18,19 @@ class UnionTypeTests : FreeSpec({
 
         "read T & mut Any simplifies to mut T" {
             val type = swCtx.parseType("read T & mut Any")
-            val simplified = type.shouldBeInstanceOf<BoundUnionTypeReference>().simplify()
+            val simplified = type.shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
             simplified.toString() shouldBe "mut testmodule.T"
         }
 
         "mut T? & read Any? simplifies to mut T?" {
             val type = swCtx.parseType("mut T? & read Any?")
-            val simplified = type.shouldBeInstanceOf<BoundUnionTypeReference>().simplify()
+            val simplified = type.shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
             simplified.toString() shouldBe "mut testmodule.T?"
         }
 
         "read T? & mut Any simplifies to mut T" {
             val type = swCtx.parseType("read T? & mut Any")
-            val simplified = type.shouldBeInstanceOf<BoundUnionTypeReference>().simplify()
+            val simplified = type.shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
             simplified.toString() shouldBe "mut testmodule.T"
         }
     }

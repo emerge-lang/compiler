@@ -78,7 +78,7 @@ class UnresolvedType private constructor(
         return when(assigneeType) {
             is RootResolvedTypeReference,
             is GenericTypeReference,
-            is BoundUnionTypeReference,
+            is BoundIntersectionTypeReference,
             is BoundTypeArgument -> standInType.unify(assigneeType, assignmentLocation, carry)
             is UnresolvedType -> standInType.unify(assigneeType.standInType, assignmentLocation, carry)
             is TypeVariable -> assigneeType.flippedUnify(this.standInType, assignmentLocation, carry)
