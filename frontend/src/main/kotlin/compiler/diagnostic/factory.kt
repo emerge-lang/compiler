@@ -10,6 +10,7 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.MemberAccessExpression
+import compiler.ast.type.AstUnionType
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
@@ -67,8 +68,8 @@ fun Diagnosis.unknownType(erroneousRef: NamedTypeReference) {
     add(UnknownTypeDiagnostic(erroneousRef))
 }
 
-fun Diagnosis.needlesslyVerboseUnionType(supertype: BoundTypeReference, superfluousSubtype: BoundTypeReference) {
-    add(NeedlesslyVerboseUnionTypeDiagnostic(supertype.asAstReference(), superfluousSubtype.asAstReference()))
+fun Diagnosis.simplifyableUnionType(verbose: AstUnionType, simpler: AstUnionType) {
+    add(SimplifyableUnionTypeDiagnostic(verbose, simpler))
 }
 
 fun Diagnosis.valueNotAssignable(targetType: BoundTypeReference, sourceType: BoundTypeReference, reason: String, assignmentLocation: Span) {

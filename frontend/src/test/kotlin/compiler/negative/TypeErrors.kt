@@ -2,7 +2,7 @@ package compiler.compiler.negative
 
 import compiler.binding.type.GenericTypeReference
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
-import compiler.diagnostic.NeedlesslyVerboseUnionTypeDiagnostic
+import compiler.diagnostic.SimplifyableUnionTypeDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
 import compiler.diagnostic.TypeArgumentVarianceMismatchDiagnostic
@@ -311,25 +311,25 @@ class TypeErrors : FreeSpec({
                 
                 fn trigger(p: I & S) {}
             """.trimIndent())
-                .shouldFind<NeedlesslyVerboseUnionTypeDiagnostic> {
-                    it.supertype.toString() shouldBe "I"
-                    it.superfluousSubtype.toString() shouldBe "S"
+                .shouldFind<SimplifyableUnionTypeDiagnostic> {
+                    it.complicatedType.toString() shouldBe "I & S"
+                    it.simplerVersion.toString() shouldBe "S"
                 }
 
             validateModule("""
                 fn trigger(p: S32 & read Any) {}
             """.trimIndent())
-                .shouldFind<NeedlesslyVerboseUnionTypeDiagnostic> {
-                    it.supertype.toString() shouldBe "read Any"
-                    it.superfluousSubtype.toString() shouldBe "S32"
+                .shouldFind<SimplifyableUnionTypeDiagnostic> {
+                    it.complicatedType.toString() shouldBe "S32 & read Any"
+                    it.simplerVersion.toString() shouldBe "S32"
                 }
 
             validateModule("""
                 fn trigger(p: read Any & S32) {}
             """.trimIndent())
-                .shouldFind<NeedlesslyVerboseUnionTypeDiagnostic> {
-                    it.supertype.toString() shouldBe "read Any"
-                    it.superfluousSubtype.toString() shouldBe "S32"
+                .shouldFind<SimplifyableUnionTypeDiagnostic> {
+                    it.complicatedType.toString() shouldBe "read Any & S32"
+                    it.simplerVersion.toString() shouldBe "S32"
                 }
 
             validateModule("""

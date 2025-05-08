@@ -10,10 +10,9 @@ import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
-import compiler.diagnostic.needlesslyVerboseUnionType
+import compiler.diagnostic.simplifyableUnionType
 import compiler.lexer.Operator
 import compiler.lexer.Span
-import compiler.util.twoElementPermutationsUnordered
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 
 class BoundUnionTypeReference(
@@ -63,12 +62,9 @@ class BoundUnionTypeReference(
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
         components.forEach { it.validate(forUsage, diagnosis) }
         if (astNode != null) {
-            for ((a, b) in components.twoElementPermutationsUnordered()) {
-                if (a.isAssignableTo(b)) {
-                    diagnosis.needlesslyVerboseUnionType(b, a)
-                } else if (b.isAssignableTo(a)) {
-                    diagnosis.needlesslyVerboseUnionType(a, b)
-                }
+            val simplerComponents = simplifyComponents(components, context)
+            if (simplerComponents != null) {
+                diagnosis.simplifyableUnionType(astNode, BoundUnionTypeReference(context, null, simplerComponents).asAstReference())
             }
         }
     }
@@ -131,7 +127,7 @@ class BoundUnionTypeReference(
         return components.any { it.hasSameBaseTypeAs(other) }
     }
 
-    override fun asAstReference(): TypeReference {
+    override fun asAstReference(): AstUnionType {
         if (astNode != null) {
             return astNode
         }
