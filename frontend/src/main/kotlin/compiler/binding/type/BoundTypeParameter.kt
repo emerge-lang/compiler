@@ -25,7 +25,8 @@ data class BoundTypeParameter(
     override val visibility: BoundVisibility = context.visibility
 
     /**
-     * Available after [semanticAnalysisPhase1].
+     * Available after [semanticAnalysisPhase1]. If the bound references another [compiler.binding.type.BoundTypeParameter]
+     * from the same function, that will be a [GenericTypeReference] that eventually resolves to that [compiler.binding.type.BoundTypeParameter].
      */
     lateinit var bound: BoundTypeReference
         private set

@@ -153,9 +153,6 @@ class TypeVariable private constructor(
         throw InternalCompilerError("Attempting to create BackendIr from unresolved type variable $this at ${this.span}")
     }
 
-    fun isFor(parameter: BoundTypeParameter): Boolean = this.asGeneric.parameter == parameter
-    val parameterName: String get() = asGeneric.parameter.name
-
     fun toStringForUnification(): String {
         return asGeneric.toString()
     }

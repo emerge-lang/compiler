@@ -47,12 +47,12 @@ interface TypeUnification {
          *
          *     val foo: X<Int, Boolean>
          *
-         * Then you would call `fromExplicit(<params of base type X>, <int ant boolean type args>, ...)`
+         * Then you would call `fromExplicit(<params of base type X>, listOf(<int type arg, boolean type arg>), ...)`
          * and the return value would be `[E = Int, T = Boolean] Errors: 0`
          *
          * @param argumentsLocation Location of where the type arguments are being supplied. Used as a fallback
          * for [Diagnostic]s if there are no type arguments and [allowZeroTypeArguments] is false
-         * @param allowZeroTypeArguments Whether 0 type arguments is valid even if [typeParameters] is non-empty.
+         * @param allowMissingTypeArguments Whether 0 type arguments is valid even if [typeParameters] is non-empty.
          * This is the case for function invocations, but type references always need to specify all type args.
          */
         fun fromExplicit(
