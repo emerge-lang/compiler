@@ -30,6 +30,9 @@ class BoundIntersectionTypeReference(
     override val isNullable get()= components.all { it.isNullable }
     override val mutability get()= components.asSequence().map { it.mutability }.reduce(TypeMutability::intersect)
     override val simpleName get()= components.joinToString(separator = " ${Operator.INTERSECTION.text} ", transform = { it.simpleName ?: it.toString() })
+    override val isNothing by lazy {
+        components.any { it.isNothing } || simplifyIsEffectivelyBottomType(components)
+    }
 
     override val baseTypeOfLowerBound by lazy {
         BoundBaseType.closestCommonSupertypeOf(components.map { it.baseTypeOfLowerBound })

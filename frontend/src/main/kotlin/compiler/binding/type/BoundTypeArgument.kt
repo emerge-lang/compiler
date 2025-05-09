@@ -24,11 +24,12 @@ class BoundTypeArgument(
     init {
         check(type !is BoundTypeArgument)
     }
-    override val isNullable get()= type.isNullable
+    override val isNullable get() = type.isNullable
     override val mutability get() = type.mutability
     override val baseTypeOfLowerBound get()= type.baseTypeOfLowerBound
     override val simpleName get() = toString()
     override val span get() = astNode.span
+    override val isNothing get() = type.isNothing
 
     override val inherentTypeBindings: TypeUnification
         get() = TypeUnification.EMPTY

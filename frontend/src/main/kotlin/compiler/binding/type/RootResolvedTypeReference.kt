@@ -36,6 +36,7 @@ class RootResolvedTypeReference private constructor(
     override val simpleName = original?.simpleName ?: baseType.simpleName
     override val span = original?.span ?: original?.declaringNameToken?.span
     override val baseTypeOfLowerBound = baseType
+    override val isNothing get()= baseType == context.swCtx.nothing
 
     override val inherentTypeBindings by lazy {
         TypeUnification.fromExplicit(baseType.typeParameters ?: emptyList(), arguments, span ?: Span.UNKNOWN)

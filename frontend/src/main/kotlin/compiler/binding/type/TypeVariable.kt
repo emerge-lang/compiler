@@ -53,6 +53,7 @@ class TypeVariable private constructor(
     override val isNullable get() = parameter.bound.isNullable
     override val baseTypeOfLowerBound get()= parameter.bound.baseTypeOfLowerBound
     override val inherentTypeBindings = TypeUnification.EMPTY
+    override val isNothing get()= parameter.bound.isNothing
 
     val effectiveBound: BoundTypeReference get() {
         return parameter.bound

@@ -44,6 +44,11 @@ sealed interface BoundTypeReference {
     val span: Span?
 
     /**
+     * Whether this type is a subtype of `read Nothing`
+     */
+    val isNothing: Boolean
+
+    /**
      * The [BoundBaseType] this type is referring to, as concrete as possible.
      */
     val baseTypeOfLowerBound: BoundBaseType

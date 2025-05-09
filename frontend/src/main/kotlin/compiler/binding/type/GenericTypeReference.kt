@@ -37,6 +37,7 @@ sealed class GenericTypeReference : BoundTypeReference {
     override val baseTypeOfLowerBound get()= effectiveBound.baseTypeOfLowerBound
     override val span get() = original.span
     override val inherentTypeBindings = TypeUnification.EMPTY
+    override val isNothing get() = effectiveBound.isNothing
 
     override fun withMutability(mutability: TypeMutability?): GenericTypeReference {
         return mapEffectiveBound { it.withMutability(mutability) }
