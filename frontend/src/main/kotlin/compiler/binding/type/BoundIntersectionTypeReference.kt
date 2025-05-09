@@ -6,7 +6,10 @@ import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.binding.BoundMemberFunction
+import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseType
+import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
@@ -110,7 +113,7 @@ class BoundIntersectionTypeReference(
         reason: () -> String,
     ): TypeUnification {
         return components.asSequence()
-            .map { unify(it, assignmentLocation, carry) }
+            .map { it.unify(targetType, assignmentLocation, carry) }
             .filter { it.getErrorsNotIn(carry).none() }
             .firstOrNull()
             ?: carry.plusReporting(ValueNotAssignableDiagnostic(
@@ -125,8 +128,20 @@ class BoundIntersectionTypeReference(
         return mapComponents { it.instantiateAllParameters(context) }
     }
 
+    override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
+        return mapComponents { it.instantiateFreeVariables(context) }
+    }
+
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
         return components.any { it.hasSameBaseTypeAs(other) }
+    }
+
+    override fun findMemberVariable(name: String): BoundBaseTypeMemberVariable? {
+        return null // TODO: how to handle collisions between the type components?
+    }
+
+    override fun findMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> {
+        return components.flatMap { it.findMemberFunction(name) }
     }
 
     override fun asAstReference(): AstIntersectionType {
@@ -353,6 +368,7 @@ class BoundIntersectionTypeReference(
         }
 
         private fun simplifyComponents(components: List<BoundTypeReference>, context: CTContext): List<BoundTypeReference>? {
+            // TODO: when the compound contains two distinct class-types, it is effectively "Nothing"
             val afterStep1 = simplifyCollapseAnysAndNullability(components, context)
 
             val newComponents = (afterStep1 ?: components).toMutableList()
