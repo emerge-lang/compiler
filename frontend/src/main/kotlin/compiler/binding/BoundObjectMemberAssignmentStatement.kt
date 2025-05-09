@@ -54,7 +54,7 @@ class BoundObjectMemberAssignmentStatement(
     val considerSetters: Boolean,
     toAssignExpression: BoundExpression<*>,
 ) : BoundAssignmentStatement<MemberAccessExpression>(context, declaration, toAssignExpression) {
-    private var physicalMember: BoundBaseTypeMemberVariable? = null
+    private var physicalMembers: Set<BoundBaseTypeMemberVariable> = emptySet()
     private var setterInvocation: BoundInvocationExpression = InvocationExpression(
         declaration.targetExpression,
         null,
@@ -62,8 +62,8 @@ class BoundObjectMemberAssignmentStatement(
         declaration.span,
     ).bindTo(context, SetterFilter(), SetterDisambiguationBehavior)
 
-    override val targetThrowBehavior get() = if (physicalMember != null) SideEffectPrediction.NEVER else setterInvocation.throwBehavior
-    override val targetReturnBehavior get() = if (physicalMember != null) SideEffectPrediction.NEVER else setterInvocation.returnBehavior
+    override val targetThrowBehavior get() = if (physicalMembers.isNotEmpty()) SideEffectPrediction.NEVER else setterInvocation.throwBehavior
+    override val targetReturnBehavior get() = if (physicalMembers.isNotEmpty()) SideEffectPrediction.NEVER else setterInvocation.returnBehavior
 
     override fun additionalSemanticAnalysisPhase1(diagnosis: Diagnosis) {
         targetObjectExpression.semanticAnalysisPhase1(diagnosis)
@@ -81,14 +81,14 @@ class BoundObjectMemberAssignmentStatement(
             diagnosis.superfluousSafeObjectTraversal(targetObjectExpression, declaration.targetExpression.accessOperatorToken)
         }
 
-        physicalMember = baseType.findMemberVariable(memberName)
-        if (physicalMember != null) {
+        physicalMembers = baseType.findMemberVariable(memberName)
+        if (physicalMembers.isNotEmpty()) {
             targetObjectExpression.setEvaluationResultUsage(TransientValueUsage(declaration.span))
         }
     }
 
-    override val assignmentTargetType get() = if (physicalMember != null || !considerSetters) {
-        physicalMember?.type
+    override val assignmentTargetType get() = if (physicalMembers.isNotEmpty() || !considerSetters) {
+        physicalMembers.firstOrNull()?.type
     } else {
         setterInvocation.functionToInvoke?.parameterTypes?.getOrNull(1)
     }
@@ -118,7 +118,7 @@ class BoundObjectMemberAssignmentStatement(
                         return@mapNotNull null
                     }
 
-                    return@mapNotNull if (physicalMember == null) {
+                    return@mapNotNull if (physicalMembers.isEmpty()) {
                         finding
                     } else {
                         null
@@ -127,16 +127,16 @@ class BoundObjectMemberAssignmentStatement(
             }
             setterInvocation.functionToInvoke?.let(availableSetters::add)
 
-            if (availableSetters.size > 1 || (availableSetters.isNotEmpty() && physicalMember != null)) {
-                diagnosis.ambiguousMemberVariableWrite(this, physicalMember, availableSetters)
+            if (availableSetters.size + physicalMembers.size > 1) {
+                diagnosis.ambiguousMemberVariableWrite(this, physicalMembers, availableSetters)
             }
 
-            if (availableSetters.isEmpty() && physicalMember == null) {
+            if (availableSetters.size + physicalMembers.size == 0) {
                 diagnosis.unresolvableMemberVariable(declaration.targetExpression, targetObjectExpression.type ?: context.swCtx.unresolvableReplacementType)
             }
         }
 
-        physicalMember?.let { member ->
+        physicalMembers.singleOrNull()?.let { member ->
             targetObjectExpression.tryAsVariable()?.let { memberOwnerVariable ->
                 val repetitionRelativeToMemberHolder = context.getRepetitionBehaviorRelativeTo(memberOwnerVariable.modifiedContext)
 
@@ -180,7 +180,7 @@ class BoundObjectMemberAssignmentStatement(
             }
         }
 
-        if (physicalMember == null && considerSetters) {
+        if (physicalMembers.isEmpty() && considerSetters) {
             setterInvocation.semanticAnalysisPhase3(diagnosis)
         }
     }
@@ -222,7 +222,7 @@ class BoundObjectMemberAssignmentStatement(
     }
 
     override fun toBackendIrStatement(): IrExecutable {
-        val member = physicalMember ?: return setterInvocation.toBackendIrStatement()
+        val member = physicalMembers.firstOrNull() ?: return setterInvocation.toBackendIrStatement()
 
         val baseTemporary = IrCreateTemporaryValueImpl(targetObjectExpression.toBackendIrExpression())
 

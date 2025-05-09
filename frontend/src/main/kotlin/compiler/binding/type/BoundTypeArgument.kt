@@ -237,7 +237,7 @@ class BoundTypeArgument(
         )
     }
 
-    override fun findMemberVariable(name: String): BoundBaseTypeMemberVariable? {
+    override fun findMemberVariable(name: String): Set<BoundBaseTypeMemberVariable> {
         return type.findMemberVariable(name)
     }
 

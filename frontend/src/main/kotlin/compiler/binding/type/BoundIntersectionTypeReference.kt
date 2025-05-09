@@ -140,8 +140,10 @@ class BoundIntersectionTypeReference(
         return components.any { it.hasSameBaseTypeAs(other) }
     }
 
-    override fun findMemberVariable(name: String): BoundBaseTypeMemberVariable? {
-        return null // TODO: how to handle collisions between the type components?
+    override fun findMemberVariable(name: String): Set<BoundBaseTypeMemberVariable> {
+        return components
+            .flatMap { it.findMemberVariable(name) }
+            .toSet()
     }
 
     override fun findMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> {

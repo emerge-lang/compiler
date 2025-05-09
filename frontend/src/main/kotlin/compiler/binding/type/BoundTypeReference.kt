@@ -112,7 +112,7 @@ sealed interface BoundTypeReference {
     /**
      * @return a possible directly declared member variable of the type. Does not look for extension variables.
      */
-    fun findMemberVariable(name: String): BoundBaseTypeMemberVariable? = null
+    fun findMemberVariable(name: String): Set<BoundBaseTypeMemberVariable> = emptySet()
 
     fun findMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> = emptySet()
 

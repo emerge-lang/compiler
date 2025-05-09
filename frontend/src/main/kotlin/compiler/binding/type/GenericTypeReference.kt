@@ -76,7 +76,7 @@ sealed class GenericTypeReference : BoundTypeReference {
         return effectiveBound.findMemberFunction(name)
     }
 
-    override fun findMemberVariable(name: String): BoundBaseTypeMemberVariable? {
+    override fun findMemberVariable(name: String): Set<BoundBaseTypeMemberVariable> {
         return effectiveBound.findMemberVariable(name)
     }
 

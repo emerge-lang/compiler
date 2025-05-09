@@ -1,7 +1,11 @@
 package compiler.compiler.binding.type
 
+import compiler.binding.AccessorKind
 import compiler.binding.type.BoundIntersectionTypeReference
+import compiler.compiler.negative.shouldFind
 import compiler.compiler.negative.validateModule
+import compiler.diagnostic.AmbiguousInvocationDiagnostic
+import compiler.diagnostic.AmbiguousMemberVariableAccessDiagnostic
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -74,6 +78,59 @@ class IntersectionTypeTests : FreeSpec({
             swCtx.parseType("A & B & C") should beAssignableTo(swCtx.parseType("A & B"))
             swCtx.parseType("A & B & C") should beAssignableTo(swCtx.parseType("A & C"))
             swCtx.parseType("A & B & C") should beAssignableTo(swCtx.parseType("B & C"))
+        }
+    }
+
+    "member ambiguity" - {
+        "functions" {
+            validateModule("""
+                interface A {
+                    fn foo(self)
+                }
+                interface B {
+                    fn foo(self)
+                }
+                fn test(p: A & B) {
+                    p.foo()
+                }
+            """.trimIndent())
+                .shouldFind< AmbiguousInvocationDiagnostic>()
+        }
+
+        "members" - {
+            "read" {
+                validateModule("""
+                    class A {
+                        x: S32 = 0
+                    }
+                    class B {
+                        x: S32 = 0
+                    }
+                    fn trigger(p: A & B) -> S32 = p.x
+                """.trimIndent())
+                    .shouldFind<AmbiguousMemberVariableAccessDiagnostic> {
+                        it.accessKind shouldBe AccessorKind.Read
+                        it.memberVariableName shouldBe "x"
+                    }
+            }
+
+            "write" {
+                validateModule("""
+                    class A {
+                        x: S32 = 0
+                    }
+                    class B {
+                        x: S32 = 0
+                    }
+                    fn trigger(p: mut A & mut B) {
+                        set p.x = 2
+                    }
+                """.trimIndent())
+                    .shouldFind<AmbiguousMemberVariableAccessDiagnostic> {
+                        it.accessKind shouldBe AccessorKind.Write
+                        it.memberVariableName shouldBe "x"
+                    }
+            }
         }
     }
 })

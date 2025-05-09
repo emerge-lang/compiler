@@ -65,7 +65,8 @@ class BoundMemberVariableReadExpression(
     val memberName: String
 ) : BoundExpression<MemberAccessExpression> {
     private val seanHelper = SeanHelper()
-    private var physicalMember: BoundBaseTypeMemberVariable? = null
+    private var physicalMembers: Set<BoundBaseTypeMemberVariable> = emptySet()
+    private val physicalMember: BoundBaseTypeMemberVariable? get() = physicalMembers.firstOrNull()
     private val getterInvocation: BoundInvocationExpression = InvocationExpression(
         declaration,
         null,
@@ -120,7 +121,7 @@ class BoundMemberVariableReadExpression(
             }
 
             val availableGetters = mutableSetOf<BoundFunction>()
-            physicalMember = valueType.findMemberVariable(memberName)
+            physicalMembers = valueType.findMemberVariable(memberName)
             diagnosis.doWithTransformedFindings(getterInvocation::semanticAnalysisPhase2) { findings ->
                 findings.mapNotNull { finding ->
                     if (finding is AmbiguousInvocationDiagnostic && finding.invocation === getterInvocation.declaration) {
@@ -133,7 +134,7 @@ class BoundMemberVariableReadExpression(
                         return@mapNotNull null
                     }
 
-                    return@mapNotNull if (physicalMember == null) {
+                    return@mapNotNull if (physicalMembers.isEmpty()) {
                         finding
                     } else {
                         null
@@ -152,11 +153,11 @@ class BoundMemberVariableReadExpression(
                 }
             }
 
-            if (availableGetters.size > 1 || (availableGetters.isNotEmpty() && physicalMember != null)) {
-                diagnosis.ambiguousMemberVariableRead(this, physicalMember, availableGetters)
+            if (availableGetters.size + physicalMembers.size > 1) {
+                diagnosis.ambiguousMemberVariableRead(this, physicalMembers, availableGetters)
             }
 
-            if (availableGetters.isEmpty() && physicalMember == null) {
+            if (availableGetters.size + physicalMembers.size == 0) {
                 diagnosis.unresolvableMemberVariable(declaration, valueExpression.type ?: context.swCtx.unresolvableReplacementType)
             }
         }

@@ -159,13 +159,13 @@ fun Diagnosis.getterAndSetterWithDifferentType(virtualMemberName: String, getter
 
 fun Diagnosis.ambiguousMemberVariableRead(
     read: BoundMemberVariableReadExpression,
-    member: BoundBaseTypeMemberVariable?,
+    members: Collection<BoundBaseTypeMemberVariable>,
     getters: Collection<BoundFunction>,
 ) {
     add(AmbiguousMemberVariableAccessDiagnostic(
         read.memberName,
         AccessorKind.Read,
-        member?.declaration,
+        members.map { it. declaration },
         getters.map { it.declaredAt },
         read.declaration.memberName.span,
     ))
@@ -173,13 +173,13 @@ fun Diagnosis.ambiguousMemberVariableRead(
 
 fun Diagnosis.ambiguousMemberVariableWrite(
     write: BoundObjectMemberAssignmentStatement,
-    member: BoundBaseTypeMemberVariable?,
+    members: Collection<BoundBaseTypeMemberVariable>,
     setters: Collection<BoundFunction>,
 ) {
     add(AmbiguousMemberVariableAccessDiagnostic(
         write.memberName,
         AccessorKind.Write,
-        member?.declaration,
+        members.map { it.declaration },
         setters.map { it.declaredAt },
         write.declaration.targetExpression.memberName.span,
     ))

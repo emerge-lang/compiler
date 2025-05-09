@@ -170,7 +170,7 @@ class RootResolvedTypeReference private constructor(
         }
     }
 
-    override fun findMemberVariable(name: String): BoundBaseTypeMemberVariable? = baseType.resolveMemberVariable(name)
+    override fun findMemberVariable(name: String): Set<BoundBaseTypeMemberVariable> = setOfNotNull(baseType.resolveMemberVariable(name))
 
     val memberFunctions: Collection<BoundOverloadSet<BoundMemberFunction>> get() = baseType.memberFunctions
 
