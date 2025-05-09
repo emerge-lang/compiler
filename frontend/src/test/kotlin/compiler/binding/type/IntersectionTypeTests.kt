@@ -14,6 +14,9 @@ class IntersectionTypeTests : FreeSpec({
             interface A {}
             interface B {}
             interface C {}
+            
+            class ConcreteA {}
+            class ConcreteB {}
         """.trimIndent())
         .first
 
@@ -34,6 +37,30 @@ class IntersectionTypeTests : FreeSpec({
             val type = swCtx.parseType("read T? & mut Any")
             val simplified = type.shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
             simplified.toString() shouldBe "mut testmodule.T"
+        }
+
+        "intersection of two class types is nothing" - {
+            "simple case" {
+                val type = swCtx.parseType("ConcreteA & T & ConcreteB")
+                val simplified = type.shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
+                simplified.toString() shouldBe "read Nothing"
+            }
+
+            "retains compound mutability" {
+                val type = swCtx.parseType("mut ConcreteA & T & ConcreteB")
+                val simplified = type.shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
+                simplified.toString() shouldBe "mut Nothing"
+
+                val type2 = swCtx.parseType("mut ConcreteA & T & const ConcreteB")
+                val simplified2 = type2.shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
+                simplified2.toString() shouldBe "exclusive Nothing"
+            }
+
+            "retains compound Nullability" {
+                val type = swCtx.parseType("ConcreteA? & ConcreteB?")
+                val simplified = type.shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
+                simplified.toString() shouldBe "read Nothing?"
+            }
         }
     }
 

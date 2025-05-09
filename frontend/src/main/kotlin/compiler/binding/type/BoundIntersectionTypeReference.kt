@@ -16,6 +16,7 @@ import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.diagnostic.simplifiableIntersectionType
 import compiler.lexer.Operator
 import compiler.lexer.Span
+import compiler.util.twoElementPermutationsUnordered
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntersectionType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
@@ -281,6 +282,14 @@ class BoundIntersectionTypeReference(
             }
         }
 
+        private fun simplifyIsEffectivelyBottomType(components: List<BoundTypeReference>): Boolean {
+            return components
+                .filterNot { it.baseTypeOfLowerBound.kind.allowsSubtypes }
+                .twoElementPermutationsUnordered()
+                .filter { (a, b) -> !a.hasSameBaseTypeAs(b) }
+                .any()
+        }
+
         /**
          * First step of simplifying a union type: remove any mentions of verbatim Any,
          * and only have nullable components iff all components are nullable.
@@ -368,7 +377,16 @@ class BoundIntersectionTypeReference(
         }
 
         private fun simplifyComponents(components: List<BoundTypeReference>, context: CTContext): List<BoundTypeReference>? {
-            // TODO: when the compound contains two distinct class-types, it is effectively "Nothing"
+            if (simplifyIsEffectivelyBottomType(components)) {
+                val selfMutability = components.asSequence().map { it.mutability }.reduce(TypeMutability::intersect)
+                val selfNullability = components.all { it.isNullable }
+                return listOf(
+                    context.swCtx.bottomTypeRef
+                        .withCombinedNullability(if (selfNullability) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.NOT_NULLABLE)
+                        .withMutability(selfMutability)
+                )
+            }
+
             val afterStep1 = simplifyCollapseAnysAndNullability(components, context)
 
             val newComponents = (afterStep1 ?: components).toMutableList()
