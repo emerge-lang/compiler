@@ -8,8 +8,12 @@ class SimplifiableIntersectionTypeDiagnostic(
     val simplerVersion: BoundTypeReference,
 ) : Diagnostic(
     Severity.WARNING,
-    "This intersection-type can be simplified",
+    if (simplerVersion.isNothing) "It is impossible to construct a value that satisfies this type" else "This intersection-type can be simplified",
     complicatedType.span,
 ) {
-    override fun toString() = "$levelAndMessage\n  simpler alternative: $simplerVersion\nin $span"
+    override fun toString() = if (simplerVersion.isNothing) {
+        super.toString()
+    } else {
+        "$levelAndMessage  simpler alternative: $simplerVersion\n\nin $span"
+    }
 }
