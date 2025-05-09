@@ -32,7 +32,6 @@ import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
-import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -501,14 +500,14 @@ class BoundInvocationExpression(
         arguments: List<IrTemporaryValueReference>,
         landingpad: IrInvocationExpression.Landingpad?,
     ): IrExpression {
-        val isCallOnInterfaceType = receiverExpression?.type?.baseTypeOfLowerBound?.kind == BoundBaseType.Kind.INTERFACE
+        val isCallOnAbstractType = receiverExpression?.type?.baseTypeOfLowerBound?.kind?.allowsSubtypes == true
         val fn = functionToInvoke!!
         val returnType = type!!.toBackendIr()
         val irResolvedTypeArgs = chosenOverload!!.unification.bindings.entries
             .associate { (typeVar, binding) -> typeVar.parameter.name to binding.toBackendIr() }
 
         // TODO: doesn't this lead to static dispatch when calling methods on generic types??
-        if (fn is BoundMemberFunction && fn.isVirtual && isCallOnInterfaceType) {
+        if (fn is BoundMemberFunction && fn.isVirtual && isCallOnAbstractType) {
             check(receiverExceptReferringType != null)
             return IrDynamicDispatchFunctionInvocationImpl(
                 arguments.first(),

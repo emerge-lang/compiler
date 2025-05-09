@@ -64,7 +64,7 @@ class BoundSupertypeDeclaration(
                 return@phase3
             }
 
-            if (localResolvedReference.baseType.kind != BoundBaseType.Kind.INTERFACE) {
+            if (!localResolvedReference.baseType.kind.allowsSubtypes) {
                 diagnosis.illegalSupertype(astNode, "can only inherit from interfaces")
             }
         }

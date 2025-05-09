@@ -446,18 +446,21 @@ class BoundBaseType(
         val hasCtorsAndDtors: Boolean,
         val allowsMemberVariables: Boolean,
         val allowMemberFunctionImplementations: Boolean,
+        val allowsSubtypes: Boolean,
     ) {
         CLASS(
             "classes",
             hasCtorsAndDtors = true,
             allowsMemberVariables = true,
             allowMemberFunctionImplementations = true,
+            allowsSubtypes = false,
         ),
         INTERFACE(
             "interfaces",
             hasCtorsAndDtors = false,
             allowsMemberVariables = false,
             allowMemberFunctionImplementations = false,
+            allowsSubtypes = true,
         ),
         ;
 
