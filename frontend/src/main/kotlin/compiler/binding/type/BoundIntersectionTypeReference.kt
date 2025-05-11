@@ -305,7 +305,9 @@ class BoundIntersectionTypeReference(
                 val nonNullable = if (it is NullableTypeReference) it.nested else it
                 nonNullable is RootResolvedTypeReference && nonNullable.baseType == context.swCtx.any
             }
-            val someComponentsHaveSuperfluousNullability = nonAnys.any { it.isNullable != selfIsNullable }
+            val someComponentsHaveSuperfluousNullability = nonAnys.any {
+                it.isNullable != selfIsNullable && it !is TypeVariable && it !is GenericTypeReference
+            }
             val canSimplify = anys.isNotEmpty() || someComponentsHaveSuperfluousNullability
             if (!canSimplify) {
                 return null
