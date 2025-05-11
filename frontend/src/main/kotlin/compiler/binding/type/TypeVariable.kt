@@ -59,11 +59,6 @@ class TypeVariable private constructor(
     override val inherentTypeBindings = TypeUnification.EMPTY
     override val isNothing get()= parameter.bound.isNothing
 
-    val effectiveBound: BoundTypeReference get() {
-        return parameter.bound
-            .withMutabilityIntersectedWith(mutability)
-    }
-
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference {
         throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
@@ -117,7 +112,7 @@ class TypeVariable private constructor(
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
             is NullableTypeReference -> {
-                if (effectiveBound.isNullable) {
+                if (parameter.bound.isNullable) {
                     return carry.plus(this, assigneeType, assignmentLocation)
                 } else {
                     val carry2 = carry.plusReporting(ValueNotAssignableDiagnostic(
@@ -139,7 +134,7 @@ class TypeVariable private constructor(
     }
 
     override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
-        return context.constraints[this] ?: effectiveBound
+        return context.constraints[this] ?: parameter.bound
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {

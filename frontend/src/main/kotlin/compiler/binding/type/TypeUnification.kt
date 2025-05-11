@@ -120,7 +120,7 @@ private class DefaultTypeUnification private constructor(
     }
 
     override fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: Span): TypeUnification {
-        val previousConstraint = constraints[variable] ?: variable.effectiveBound
+        val previousConstraint = constraints[variable] ?: variable.parameter.bound
         if (previousConstraint is BoundTypeArgument) {
             // type has been fixed explicitly -> no rebinding
             return this
