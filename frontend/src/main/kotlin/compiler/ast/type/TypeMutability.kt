@@ -18,6 +18,9 @@
 
 package compiler.ast.type
 
+import compiler.ast.type.TypeMutability.EXCLUSIVE
+import compiler.ast.type.TypeMutability.IMMUTABLE
+import compiler.ast.type.TypeMutability.MUTABLE
 import compiler.lexer.Keyword
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 
@@ -136,7 +139,7 @@ enum class TypeMutability(
         }
         READONLY -> when(other) {
             READONLY -> READONLY
-            IMMUTABLE -> READONLY
+            IMMUTABLE -> IMMUTABLE
             else -> other.intersect(this)
         }
         IMMUTABLE -> when(other) {
