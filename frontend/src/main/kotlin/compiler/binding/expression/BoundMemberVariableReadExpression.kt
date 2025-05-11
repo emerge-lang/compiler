@@ -172,8 +172,15 @@ class BoundMemberVariableReadExpression(
         check(!usageContextSet)
         usageContextSet = true
 
+        if (physicalMember != null && physicalMember!!.type?.mutability in setOf(null, TypeMutability.READONLY, TypeMutability.IMMUTABLE)) {
+            // using the derived value doesn't have an impact on the holder object because the invariants are guaranteed
+            // by the member variable type alone, and don't depend on the type of the reference to the holder object
+            valueExpression.setEvaluationResultUsage(TransientValueUsage(valueExpression.declaration.span))
+            return
+        }
+
         val valueUsedAsType = valueExpression.type
-            ?.withMutability(TypeMutability.READONLY.intersect(valueUsage.usedAsType?.mutability ?: TypeMutability.READONLY))
+            ?.withMutability(valueUsage.usedAsType?.mutability ?: TypeMutability.READONLY)
         // captured = false here because: the host object isn't being referenced; and the result value is already captured
         // by nature of being stored in an object member, so need to further validate that
         valueExpression.setEvaluationResultUsage(ValueUsage.deriveFromAndThen(

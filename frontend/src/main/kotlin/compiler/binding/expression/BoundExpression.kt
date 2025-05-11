@@ -67,8 +67,8 @@ interface BoundExpression<out AstNode : Expression> : BoundStatement<AstNode> {
     fun markEvaluationResultUsed() {}
 
     /**
-     * Must be called before [BoundExecutable.semanticAnalysisPhase3]. If this method is called, [markEvaluationResultUsed]
-     * must have been called earlier.
+     * Must be called after [semanticAnalysisPhase2] and before [semanticAnalysisPhase3]. If this method is called,
+     * [markEvaluationResultUsed] must have been called earlier.
      *
      * This information is used to enforce purity. This method **MUST NOT** trigger [compiler.diagnostic.ValueNotAssignableDiagnostic]s
      * resulting from a mismatch between this expressions [type] and [ValueUsage.usedAsType]; this is the job of the enclosing
