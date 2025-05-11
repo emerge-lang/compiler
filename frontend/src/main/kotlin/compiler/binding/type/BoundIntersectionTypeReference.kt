@@ -260,7 +260,10 @@ class BoundIntersectionTypeReference(
 
             when (this) {
                 is BoundIntersectionTypeReference -> {
-                    throw InternalCompilerError("This case should never happen, is prevented by the guard code above")
+                    check(other !is BoundIntersectionTypeReference) {
+                        "This case should never happen, is prevented by the guard code above"
+                    }
+                    return BoundIntersectionTypeReference(context, null, this.components + other).simplify()
                 }
                 is BoundTypeArgument -> {
                     val compoundVariance = when(other) {
@@ -318,6 +321,14 @@ class BoundIntersectionTypeReference(
             val anyMutability = anys.asSequence()
                 .map { it.mutability }
                 .fold(TypeMutability.READONLY, TypeMutability::intersect)
+
+            if (nonAnys.isEmpty()) {
+                return listOf(
+                    context.swCtx.any.baseReference
+                        .withMutability(anyMutability)
+                        .withCombinedNullability(if (selfIsNullable) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.NOT_NULLABLE)
+                )
+            }
 
             if (anyMutability != TypeMutability.READONLY) {
                 newComponents = newComponents.map {
