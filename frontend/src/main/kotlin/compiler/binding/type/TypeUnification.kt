@@ -1,6 +1,7 @@
 package compiler.binding.type
 
 import compiler.ast.type.TypeVariance
+import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
@@ -18,7 +19,7 @@ import compiler.lexer.Span
  */
 
 interface TypeUnification {
-    val bindings: Map<TypeVariable, BoundTypeReference>
+    val constraints: Map<TypeVariable, BoundTypeReference>
     val diagnostics: Set<Diagnostic>
 
     fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: Span): TypeUnification
@@ -111,45 +112,48 @@ interface TypeUnification {
 }
 
 private class DefaultTypeUnification private constructor(
-    override val bindings: Map<TypeVariable, BoundTypeReference>,
+    override val constraints: Map<TypeVariable, BoundTypeReference>,
     override val diagnostics: Set<Diagnostic>,
 ) : TypeUnification {
     override fun plusDiagnostics(diagnostics: Set<Diagnostic>): TypeUnification {
-        return DefaultTypeUnification(bindings, this.diagnostics + diagnostics)
+        return DefaultTypeUnification(constraints, this.diagnostics + diagnostics)
     }
 
     override fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: Span): TypeUnification {
-        val previousBinding = bindings[variable]
-        if (previousBinding is BoundTypeArgument) {
+        val previousConstraint = constraints[variable] ?: variable.effectiveBound
+        if (previousConstraint is BoundTypeArgument) {
             // type has been fixed explicitly -> no rebinding
             return this
         }
 
-        val newBinding = when {
-            binding is BoundTypeArgument -> binding
-            else -> previousBinding?.closestCommonSupertypeWith(binding) ?: binding
-        }
+        val newConstraint = previousConstraint.intersect(binding)
+        val assignabilityError = binding.evaluateAssignabilityTo(previousConstraint, assignmentLocation)
 
-        // TODO: use effectiveBound
-        return variable.parameter.bound.unify(
-            newBinding,
-            assignmentLocation,
-            DefaultTypeUnification(bindings.plus(variable to newBinding), diagnostics),
+        return DefaultTypeUnification(
+            constraints.plus(variable to newConstraint),
+            diagnostics + setOfNotNull(assignabilityError)
         )
     }
 
     override fun doWithIgnoringReportings(action: (TypeUnification) -> TypeUnification): TypeUnification {
         val result = action(this)
         return DefaultTypeUnification(
-            result.bindings,
+            result.constraints,
             this.diagnostics,
         )
     }
 
     override fun toString(): String {
-        val bindingsStr = bindings.entries.joinToString(
+        val bindingsStr = constraints.entries.joinToString(
             prefix = "[",
-            transform = { (key, value) -> "$key = $value" },
+            transform = { (key, value) ->
+                var keyStr = ""
+                if (key.mutability != key.parameter.bound.mutability) {
+                    keyStr += key.mutability.keyword.text + " "
+                }
+                keyStr += key.parameter.name
+                "$keyStr = $value"
+            },
             separator = ", ",
             postfix = "]",
         )
@@ -181,7 +185,7 @@ private class ValueNotAssignableAsArgumentOutOfBounds(
     private val parameter: BoundTypeParameter,
     private val argument: BoundTypeArgument,
 ) : DecoratingTypeUnification<ValueNotAssignableAsArgumentOutOfBounds>() {
-    override val bindings get() = undecorated.bindings
+    override val constraints get() = undecorated.constraints
     override val diagnostics get() = undecorated.diagnostics
 
     override fun plusDiagnostics(diagnostics: Set<Diagnostic>): TypeUnification {

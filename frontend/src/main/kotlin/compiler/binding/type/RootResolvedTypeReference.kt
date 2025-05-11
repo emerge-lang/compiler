@@ -123,6 +123,7 @@ class RootResolvedTypeReference private constructor(
         return when (other) {
             is RootResolvedTypeReference -> this.baseType == other.baseType
             is NullableTypeReference -> hasSameBaseTypeAs(other.nested)
+            is BoundTypeArgument -> hasSameBaseTypeAs(other.type)
             else -> false
         }
     }

@@ -195,7 +195,7 @@ class TypeErrors : FreeSpec({
                 x: A<S32> = A(2, false)
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.sourceType.toString() shouldBe "const Any"
+                    it.sourceType.toString() shouldBe "const Bool"
                     it.targetType.toString() shouldBe "const S32"
                 }
         }

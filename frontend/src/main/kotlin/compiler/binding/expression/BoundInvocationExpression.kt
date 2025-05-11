@@ -503,7 +503,7 @@ class BoundInvocationExpression(
         val isCallOnAbstractType = receiverExpression?.type?.baseTypeOfLowerBound?.kind?.allowsSubtypes == true
         val fn = functionToInvoke!!
         val returnType = type!!.toBackendIr()
-        val irResolvedTypeArgs = chosenOverload!!.unification.bindings.entries
+        val irResolvedTypeArgs = chosenOverload!!.unification.constraints.entries
             .associate { (typeVar, binding) -> typeVar.parameter.name to binding.toBackendIr() }
 
         // TODO: doesn't this lead to static dispatch when calling methods on generic types??

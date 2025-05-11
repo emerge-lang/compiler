@@ -111,7 +111,7 @@ class TypeVariable private constructor(
             is BoundIntersectionTypeReference,
             is BoundTypeArgument, -> {
                 val newCarry = carry.plus(this, assigneeType, assignmentLocation)
-                val selfBinding = newCarry.bindings[this] ?: return newCarry
+                val selfBinding = newCarry.constraints[this] ?: return newCarry
                 selfBinding.unify(assigneeType, assignmentLocation, newCarry)
             }
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
@@ -134,12 +134,12 @@ class TypeVariable private constructor(
 
     fun flippedUnify(targetType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification {
         val newCarry = carry.plus(this, targetType, assignmentLocation)
-        val selfBinding = carry.bindings[this] ?: return newCarry
+        val selfBinding = carry.constraints[this] ?: return newCarry
         return targetType.unify(selfBinding, assignmentLocation, newCarry)
     }
 
     override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
-        return context.bindings[this] ?: effectiveBound
+        return context.constraints[this] ?: effectiveBound
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {

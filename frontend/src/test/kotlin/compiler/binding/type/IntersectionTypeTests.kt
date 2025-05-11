@@ -3,6 +3,7 @@ package compiler.compiler.binding.type
 import compiler.binding.AccessorKind
 import compiler.binding.type.BoundIntersectionTypeReference
 import compiler.compiler.negative.shouldFind
+import compiler.compiler.negative.shouldHaveNoDiagnostics
 import compiler.compiler.negative.validateModule
 import compiler.diagnostic.AmbiguousInvocationDiagnostic
 import compiler.diagnostic.AmbiguousMemberVariableAccessDiagnostic
@@ -132,5 +133,21 @@ class IntersectionTypeTests : FreeSpec({
                     }
             }
         }
+    }
+
+    "playground" {
+        validateModule("""
+            class Nested {}
+            interface Wrapper {}
+            intrinsic fn wrapperCtor<_M, _Nested : Nested & _M, _Wrapper : Wrapper & _M>(n: _Nested) -> _Wrapper
+            
+            fn test() {
+                mN: mut Nested = Nested()
+                mW: mut Wrapper = wrapperCtor(mN)
+                trigger(mW)
+            }
+            fn trigger(p: exclusive Wrapper) {} 
+        """.trimIndent())
+            .shouldHaveNoDiagnostics()
     }
 })
