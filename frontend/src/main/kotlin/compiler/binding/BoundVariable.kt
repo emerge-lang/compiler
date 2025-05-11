@@ -89,9 +89,10 @@ class BoundVariable(
      */
     private var resolvedDeclaredType: BoundTypeReference? = null
     private val expectedInitializerEvaluationType: BoundTypeReference
-        get() = (this.resolvedDeclaredType ?: context.swCtx.any.baseReference)
-            .withCombinedNullability(declaration.type?.nullability ?: TypeReference.Nullability.NULLABLE)
-            .withMutability(declaration.type?.mutability ?: implicitMutability)
+        get() = this.resolvedDeclaredType
+            ?: context.swCtx.any.baseReference
+                .withCombinedNullability(declaration.type?.nullability ?: TypeReference.Nullability.NULLABLE)
+                .withMutability(declaration.type?.mutability ?: implicitMutability)
 
     /**
      * publicly mutable so that it can be changed depending on context. However, the value must be set before
