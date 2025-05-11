@@ -25,7 +25,7 @@ import io.github.tmarsteel.emerge.common.EmergeConstants
  * A [TypeReference] where the root type is resolved
  */
 class RootResolvedTypeReference private constructor(
-    private val context: CTContext,
+    override val context: CTContext,
     val original: NamedTypeReference?,
     private val explicitMutability: TypeMutability?,
     val baseType: BoundBaseType,

@@ -16,7 +16,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 
 class BoundTypeArgument(
-    val context: CTContext,
+    override val context: CTContext,
     val astNode: TypeArgument,
     val variance: TypeVariance,
     val type: BoundTypeReference,

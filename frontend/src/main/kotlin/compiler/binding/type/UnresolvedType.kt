@@ -14,11 +14,13 @@ class UnresolvedType private constructor(
     val standInType: BoundTypeReference,
     private val reference: NamedTypeReference,
     val parameters: List<BoundTypeArgument>?,
+    override val context: CTContext = standInType.context,
 ) : BoundTypeReference {
     constructor(context: CTContext, reference: NamedTypeReference, parameters: List<BoundTypeArgument>?) : this(
         context.swCtx.unresolvableReplacementType,
         reference,
         parameters,
+        context,
     )
 
     override val simpleName = "<ERROR>"

@@ -4,6 +4,7 @@ import compiler.InternalCompilerError
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.lexer.Span
@@ -34,16 +35,19 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
  * can infer that `someX` in the lambda is of type `Int`.
  */
 class TypeVariable private constructor(
+    override val context: CTContext,
     val parameter: BoundTypeParameter,
     override val mutability: TypeMutability,
     override val span: Span?,
 ) : BoundTypeReference {
     constructor(ref: GenericTypeReference) : this(
+        ref.context,
         ref.parameter,
         ref.mutability,
         ref.span,
     )
     constructor(parameter: BoundTypeParameter) : this(
+        parameter.context,
         parameter,
         parameter.bound.mutability,
         parameter.astNode.name.span,

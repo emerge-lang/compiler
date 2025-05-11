@@ -8,7 +8,6 @@ import compiler.ast.type.TypeVariance
 import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
-import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.lexer.Span
@@ -19,8 +18,6 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.independentToString
 
 sealed class GenericTypeReference : BoundTypeReference {
-    abstract val context: CTContext
-
     abstract val original: NamedTypeReference
     abstract val parameter: BoundTypeParameter
     abstract val effectiveBound: BoundTypeReference

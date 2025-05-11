@@ -1,6 +1,5 @@
 package compiler.binding.type
 
-import compiler.InternalCompilerError
 import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
@@ -22,7 +21,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 
 class BoundIntersectionTypeReference(
-    val context: CTContext,
+    override val context: CTContext,
     val astNode: AstIntersectionType?,
     val components: List<BoundTypeReference>,
 ) : BoundTypeReference {
@@ -249,13 +248,13 @@ class BoundIntersectionTypeReference(
          * |`mut T & const T`      | `exclusive T`  |
          * |`read T & const Any`   | `mut T`        |
          */
-        fun BoundTypeReference.intersect(other: BoundTypeReference, context: CTContext): BoundTypeReference {
+        fun BoundTypeReference.intersect(other: BoundTypeReference): BoundTypeReference {
             if (this is BoundIntersectionTypeReference) {
                 if (other is BoundIntersectionTypeReference) {
                     return BoundIntersectionTypeReference(context, null, this.components + other.components).simplify()
                 }
             } else if (other is BoundIntersectionTypeReference) {
-                return other.intersect(this, context)
+                return other.intersect(this)
             }
 
             when (this) {
@@ -270,7 +269,7 @@ class BoundIntersectionTypeReference(
                         is BoundTypeArgument -> variance.intersect(other.variance)
                         else -> variance
                     }
-                    val intersectionType = type.intersect(other, context).let {
+                    val intersectionType = type.intersect(other).let {
                         (it as? BoundIntersectionTypeReference)?.simplify() ?: it
                     }
                     return BoundTypeArgument(

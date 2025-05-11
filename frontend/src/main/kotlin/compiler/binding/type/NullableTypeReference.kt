@@ -11,6 +11,7 @@ import compiler.lexer.Span
 class NullableTypeReference private constructor(
     internal val nested: BoundTypeReference
 ): BoundTypeReference {
+    override val context = nested.context
     override val simpleName get() = nested.simpleName
     override val mutability get() = nested.mutability
     override val baseTypeOfLowerBound get() = nested.baseTypeOfLowerBound
