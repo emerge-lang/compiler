@@ -76,6 +76,7 @@ class NullableTypeReference private constructor(
             } else {
                 unify(assigneeType.effectiveBound, assignmentLocation, carry)
             }
+            is TypeVariable -> assigneeType.flippedUnify(this, assignmentLocation, carry)
             else -> nested.unify(assigneeType, assignmentLocation, carry)
         }
     }
