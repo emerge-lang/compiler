@@ -105,7 +105,10 @@ class NullableTypeReference private constructor(
 
     override fun toBackendIr() = nested.toBackendIr().asNullable()
 
-    override fun toString(): String = "$nested?"
+    override fun toString(): String = when (nested) {
+        is BoundIntersectionTypeReference -> nested.toString(nullableComponents = true)
+        else -> "$nested?"
+    }
 
     private fun rewrap(newNested: BoundTypeReference): BoundTypeReference {
         if (newNested === nested) {

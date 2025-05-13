@@ -2,6 +2,7 @@ package compiler.compiler.binding.type
 
 import compiler.binding.AccessorKind
 import compiler.binding.type.BoundIntersectionTypeReference
+import compiler.binding.type.NullableTypeReference
 import compiler.compiler.negative.shouldFind
 import compiler.compiler.negative.shouldHaveNoDiagnostics
 import compiler.compiler.negative.validateModule
@@ -34,8 +35,11 @@ class IntersectionTypeTests : FreeSpec({
 
         "mut T? & read Any? simplifies to mut T?" {
             val type = swCtx.parseType("mut T? & read Any?")
-            val simplified = type.shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
-            simplified.toString() shouldBe "mut testmodule.T?"
+            val simplified = type
+                .shouldBeInstanceOf<NullableTypeReference>()
+                .nested
+                .shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
+            simplified.toString() shouldBe "mut testmodule.T"
         }
 
         "read T? & mut Any simplifies to mut T" {
@@ -63,8 +67,11 @@ class IntersectionTypeTests : FreeSpec({
 
             "retains compound Nullability" {
                 val type = swCtx.parseType("ConcreteA? & ConcreteB?")
-                val simplified = type.shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
-                simplified.toString() shouldBe "read Nothing?"
+                val simplified = type
+                    .shouldBeInstanceOf<NullableTypeReference>()
+                    .nested
+                    .shouldBeInstanceOf<BoundIntersectionTypeReference>().simplify()
+                simplified.toString() shouldBe "read Nothing"
             }
         }
     }

@@ -20,14 +20,24 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrIntersectionType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 
-class BoundIntersectionTypeReference(
+class BoundIntersectionTypeReference private constructor(
     override val context: CTContext,
     val astNode: AstIntersectionType?,
     val components: List<BoundTypeReference>,
 ) : BoundTypeReference {
+    init {
+        check(components.none { it.isNullable }) {
+            """
+                if only some components are nullable the intersection type is still not nullable.
+                if all components are nullable, the canonical object structure is NullableTypeReference(IntersectionTypeReference),
+                which leaves all the components to the intersection as non-nullable
+            """.trimIndent()
+        }
+    }
+
     override val span = astNode?.span
-    override val isNullable get()= components.all { it.isNullable }
-    override val mutability get()= components.asSequence().map { it.mutability }.reduce(TypeMutability::intersect)
+    override val isNullable get()= false
+    override val mutability get()= mutabilityOfComponents(components)
     override val simpleName get()= components.joinToString(separator = " ${Operator.INTERSECTION.text} ", transform = { it.simpleName ?: it.toString() })
     override val isNothing by lazy {
         components.any { it.isNothing } || simplifyIsEffectivelyBottomType(components)
@@ -64,7 +74,11 @@ class BoundIntersectionTypeReference(
     }
 
     override fun withCombinedNullability(nullability: TypeReference.Nullability): BoundTypeReference {
-        return mapComponents { it.withCombinedNullability(nullability) }
+        return when (nullability) {
+            TypeReference.Nullability.UNSPECIFIED,
+            TypeReference.Nullability.NOT_NULLABLE -> this
+            TypeReference.Nullability.NULLABLE -> NullableTypeReference(this)
+        }
     }
 
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
@@ -165,7 +179,7 @@ class BoundIntersectionTypeReference(
     fun simplify(): BoundTypeReference {
         val newComponents = simplifyComponents(components, context) ?: return this
         newComponents.singleOrNull()?.let { return it }
-        return BoundIntersectionTypeReference(context, null, newComponents.toList())
+        return ofComponents(context, null, newComponents)
     }
 
     private inline fun mapComponents(simplify: Boolean = false, crossinline componentTransform: (BoundTypeReference) -> BoundTypeReference): BoundTypeReference {
@@ -194,6 +208,8 @@ class BoundIntersectionTypeReference(
         val simplifiedMappedComponents = simplifyComponents(mappedComponents, context) ?: mappedComponents
         simplifiedMappedComponents.singleOrNull()?.let { return it }
 
+
+
         return BoundIntersectionTypeReference(
             context,
             null,
@@ -217,8 +233,11 @@ class BoundIntersectionTypeReference(
         return _backendIr
     }
 
-    override fun toString(): String {
+    override fun toString() = toString(false)
+
+    fun toString(nullableComponents: Boolean): String {
         return components.joinToString(
+            transform = { it: BoundTypeReference -> NullableTypeReference(it).toString() }.takeIf { nullableComponents },
             separator = " ${Operator.INTERSECTION.text} ",
         )
     }
@@ -236,6 +255,24 @@ class BoundIntersectionTypeReference(
     }
 
     companion object {
+        fun ofComponents(
+            context: CTContext,
+            ref: AstIntersectionType?,
+            components: List<BoundTypeReference>,
+            simplify: Boolean = false,
+        ): BoundTypeReference {
+            components.singleOrNull()?.let { return it }
+            val isNullable = nullabilityOfComponents(components)
+            var nonNullableIntersection: BoundTypeReference = BoundIntersectionTypeReference(context, ref, components.map { it.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)})
+            if (simplify) {
+                nonNullableIntersection = (nonNullableIntersection as BoundIntersectionTypeReference).simplify()
+            }
+            return if (isNullable) NullableTypeReference(nonNullableIntersection) else nonNullableIntersection
+        }
+
+        private fun nullabilityOfComponents(components: Iterable<BoundTypeReference>): Boolean = components.all { it.isNullable }
+        private fun mutabilityOfComponents(components: Iterable<BoundTypeReference>): TypeMutability = components.asSequence().map { it.mutability }.reduce(TypeMutability::intersect)
+
         /**
          * @return the type that represents the union of `this` and [other]. In the general case,
          * this is an instance of [BoundIntersectionTypeReference] holding `this` and [other]. However, this
@@ -284,7 +321,7 @@ class BoundIntersectionTypeReference(
                 is NullableTypeReference,
                 is TypeVariable,
                 is UnresolvedType, -> {
-                    return BoundIntersectionTypeReference(context, null, listOf(this, other)).simplify()
+                    return ofComponents(context, null, listOf(this, other), true)
                 }
             }
         }
@@ -300,18 +337,14 @@ class BoundIntersectionTypeReference(
         /**
          * First step of simplifying a union type: remove any mentions of verbatim Any,
          * and only have nullable components iff all components are nullable.
+         * @return first: new components, second: whether the result is nullable
          */
-        private fun simplifyCollapseAnysAndNullability(components: List<BoundTypeReference>, context: CTContext): List<BoundTypeReference>? {
-            val selfIsNullable = components.all { it.isNullable }
+        private fun simplifyCollapseAnys(components: List<BoundTypeReference>, context: CTContext): List<BoundTypeReference>? {
             val (anys, nonAnys) = components.partition {
                 val nonNullable = if (it is NullableTypeReference) it.nested else it
                 nonNullable is RootResolvedTypeReference && nonNullable.baseType == context.swCtx.any
             }
-            val someComponentsHaveSuperfluousNullability = nonAnys.any {
-                it.isNullable != selfIsNullable && it !is TypeVariable && it !is GenericTypeReference
-            }
-            val canSimplify = anys.isNotEmpty() || someComponentsHaveSuperfluousNullability
-            if (!canSimplify) {
+            if (anys.isEmpty()) {
                 return null
             }
 
@@ -325,20 +358,13 @@ class BoundIntersectionTypeReference(
                 return listOf(
                     context.swCtx.any.baseReference
                         .withMutability(anyMutability)
-                        .withCombinedNullability(if (selfIsNullable) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.NOT_NULLABLE)
+                        .withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
                 )
             }
 
             if (anyMutability != TypeMutability.READONLY) {
                 newComponents = newComponents.map {
                     if (it.mutability == anyMutability) it else it.withMutability(it.mutability.intersect(anyMutability))
-                }
-            }
-
-            if (someComponentsHaveSuperfluousNullability) {
-                val selfNullability = if (selfIsNullable) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.NOT_NULLABLE
-                newComponents = newComponents.map {
-                    it.withCombinedNullability(selfNullability)
                 }
             }
 
@@ -396,15 +422,14 @@ class BoundIntersectionTypeReference(
         private fun simplifyComponents(components: List<BoundTypeReference>, context: CTContext): List<BoundTypeReference>? {
             if (simplifyIsEffectivelyBottomType(components)) {
                 val selfMutability = components.asSequence().map { it.mutability }.reduce(TypeMutability::intersect)
-                val selfNullability = components.all { it.isNullable }
                 return listOf(
                     context.swCtx.bottomTypeRef
-                        .withCombinedNullability(if (selfNullability) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.NOT_NULLABLE)
+                        .withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
                         .withMutability(selfMutability)
                 )
             }
 
-            val afterStep1 = simplifyCollapseAnysAndNullability(components, context)
+            val afterStep1 = simplifyCollapseAnys(components, context)
 
             val newComponents = (afterStep1 ?: components).toMutableList()
             var simplifiedBySupertypeElision = false

@@ -133,7 +133,7 @@ open class MutableCTContext(
 
     override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
         return when (ref) {
-            is AstIntersectionType -> BoundIntersectionTypeReference(this, ref, ref.components.map { this.resolveType(it, fromOwnFileOnly) })
+            is AstIntersectionType -> BoundIntersectionTypeReference.ofComponents(this, ref, ref.components.map { this.resolveType(it, fromOwnFileOnly) })
             is NamedTypeReference -> resolveNamedTypeExceptNullability(ref, fromOwnFileOnly).withCombinedNullability(ref.nullability)
         }
     }
