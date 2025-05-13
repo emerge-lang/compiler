@@ -170,16 +170,18 @@ sealed class GenericTypeReference : BoundTypeReference {
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
         // TODO: this linear search is super inefficient, optimize
-        val binding = context.constraints.entries.find { it.key.parameter == this.parameter }
+        val binding = context.constraints.entries.find { it.key.isFor(this.parameter) }
         return binding?.value ?: this
     }
 
     override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeReference {
-        if (this.parameter in variables) {
-            return TypeVariable(this)
+        val withTypeVariableBound = mapEffectiveBound { it.withTypeVariables(variables) }
+
+        if (this.parameter !in variables) {
+            return withTypeVariableBound
         }
 
-        return this
+        return TypeVariable(withTypeVariableBound)
     }
 
     override fun asAstReference(): NamedTypeReference = original

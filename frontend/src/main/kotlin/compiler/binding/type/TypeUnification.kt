@@ -120,7 +120,7 @@ private class DefaultTypeUnification private constructor(
     }
 
     override fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: Span): TypeUnification {
-        val previousConstraint = constraints[variable] ?: variable.parameter.bound
+        val previousConstraint = constraints[variable] ?: variable.parameterBoundWithTypeVariables
         if (previousConstraint is BoundTypeArgument) {
             // type has been fixed explicitly -> no rebinding
             return this
@@ -146,14 +146,7 @@ private class DefaultTypeUnification private constructor(
     override fun toString(): String {
         val bindingsStr = constraints.entries.joinToString(
             prefix = "[",
-            transform = { (key, value) ->
-                var keyStr = ""
-                if (key.mutability != key.parameter.bound.mutability) {
-                    keyStr += key.mutability.keyword.text + " "
-                }
-                keyStr += key.parameter.name
-                "$keyStr = $value"
-            },
+            transform = { (key, value) -> "${key.toStringForUnification()} = $value" },
             separator = ", ",
             postfix = "]",
         )

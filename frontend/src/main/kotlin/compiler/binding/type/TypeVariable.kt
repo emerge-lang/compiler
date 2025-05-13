@@ -36,28 +36,31 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
  */
 class TypeVariable private constructor(
     override val context: CTContext,
-    val parameter: BoundTypeParameter,
+    private val parameter: BoundTypeParameter,
+    val parameterBoundWithTypeVariables: BoundTypeReference,
     override val mutability: TypeMutability,
     override val span: Span?,
 ) : BoundTypeReference {
     constructor(ref: GenericTypeReference) : this(
         ref.context,
         ref.parameter,
+        ref.effectiveBound,
         ref.mutability,
         ref.span,
     )
     constructor(parameter: BoundTypeParameter) : this(
         parameter.context,
         parameter,
+        parameter.bound,
         parameter.bound.mutability,
         parameter.astNode.name.span,
     )
 
     override val simpleName get() = parameter.name
-    override val isNullable get() = parameter.bound.isNullable
-    override val baseTypeOfLowerBound get()= parameter.bound.baseTypeOfLowerBound
+    override val isNullable get() = parameterBoundWithTypeVariables.isNullable
+    override val baseTypeOfLowerBound get()= parameterBoundWithTypeVariables.baseTypeOfLowerBound
     override val inherentTypeBindings = TypeUnification.EMPTY
-    override val isNothing get()= parameter.bound.isNothing
+    override val isNothing get()= parameterBoundWithTypeVariables.isNothing
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference {
         throw InternalCompilerError("not implemented as it was assumed that this can never happen")
@@ -112,7 +115,7 @@ class TypeVariable private constructor(
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
             is NullableTypeReference -> {
-                if (parameter.bound.isNullable) {
+                if (parameterBoundWithTypeVariables.isNullable) {
                     return carry.plus(this, assigneeType, assignmentLocation)
                 } else {
                     val carry2 = carry.plusReporting(ValueNotAssignableDiagnostic(
@@ -134,7 +137,7 @@ class TypeVariable private constructor(
     }
 
     override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
-        return context.constraints[this] ?: parameter.bound
+        return context.constraints[this] ?: parameterBoundWithTypeVariables.instantiateFreeVariables(context)
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
@@ -160,15 +163,20 @@ class TypeVariable private constructor(
         throw InternalCompilerError("Attempting to create BackendIr from unresolved type variable $this at ${this.span}")
     }
 
-    override fun toString(): String {
-        var str = "Var("
-        if (mutability != parameter.bound.mutability) {
+    fun isFor(parameter: BoundTypeParameter): Boolean = this.parameter == parameter
+    val parameterName: String get() = parameter.name
+
+    fun toStringForUnification(): String {
+        var str = ""
+        if (mutability != parameterBoundWithTypeVariables.mutability) {
             str += mutability.keyword.text + " "
         }
         str += simpleName
-        str += ")"
+
         return str
     }
+
+    override fun toString(): String = "Var(${toStringForUnification()})"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
