@@ -4,6 +4,7 @@ import compiler.binding.AccessorKind
 import compiler.binding.type.BoundIntersectionTypeReference
 import compiler.binding.type.NullableTypeReference
 import compiler.compiler.negative.shouldFind
+import compiler.compiler.negative.shouldHaveNoDiagnostics
 import compiler.compiler.negative.validateModule
 import compiler.diagnostic.AmbiguousInvocationDiagnostic
 import compiler.diagnostic.AmbiguousMemberVariableAccessDiagnostic
@@ -14,15 +15,15 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 
 class IntersectionTypeTests : FreeSpec({
     val swCtx = validateModule("""
-            interface T {}
-            
-            interface A {}
-            interface B {}
-            interface C {}
-            
-            class ConcreteA {}
-            class ConcreteB {}
-        """.trimIndent())
+        interface T {}
+        
+        interface A {}
+        interface B {}
+        interface C {}
+        
+        class ConcreteA {}
+        class ConcreteB {}
+    """.trimIndent())
         .first
 
     "simplification" - {
@@ -101,7 +102,21 @@ class IntersectionTypeTests : FreeSpec({
                     p.foo()
                 }
             """.trimIndent())
-                .shouldFind< AmbiguousInvocationDiagnostic>()
+                .shouldFind<AmbiguousInvocationDiagnostic>()
+
+            // disambiguating shouldn't complain about an unnecessary cast
+            validateModule("""
+                interface A {
+                    fn foo(self)
+                }
+                interface B {
+                    fn foo(self)
+                }
+                fn test(p: A & B) {
+                    (p as A).foo()
+                }
+            """.trimIndent())
+                .shouldHaveNoDiagnostics()
         }
 
         "members" - {
