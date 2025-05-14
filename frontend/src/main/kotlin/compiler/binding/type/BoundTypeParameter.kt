@@ -42,7 +42,7 @@ data class BoundTypeParameter(
             ?.let { preExistingType ->
                 diagnosis.typeParameterNameConflict(preExistingType, this)
             }
-        bound = astNode.bound?.let(context::resolveType) ?: context.swCtx.typeParameterDefaultBound
+        bound = astNode.bound?.let(context::resolveType) ?: context.swCtx.topTypeRef
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {

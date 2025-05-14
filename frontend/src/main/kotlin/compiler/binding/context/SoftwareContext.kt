@@ -168,16 +168,15 @@ class SoftwareContext {
         nothing.baseReference.withMutability(TypeMutability.EXCLUSIVE)
     }
 
-    /** the type to use when a type cannot be determined, see [UnresolvedType] */
-    val unresolvableReplacementType: BoundTypeReference by lazy {
+    /**
+     * the absolute top type (the type that is a supertype of all possible types), `read Any?`.
+     */
+    val topTypeRef by lazy {
         any.baseReference
             .withMutability(TypeMutability.READONLY)
             .withCombinedNullability(TypeReference.Nullability.NULLABLE)
     }
 
-    val typeParameterDefaultBound: BoundTypeReference by lazy {
-        any.baseReference
-            .withMutability(TypeMutability.READONLY)
-            .withCombinedNullability(TypeReference.Nullability.NULLABLE)
-    }
+    /** the type to use when a type cannot be determined, see [UnresolvedType] */
+    val unresolvableReplacementType: BoundTypeReference get() = topTypeRef
 }
