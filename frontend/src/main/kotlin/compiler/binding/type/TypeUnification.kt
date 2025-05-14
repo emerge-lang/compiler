@@ -1,7 +1,6 @@
 package compiler.binding.type
 
 import compiler.ast.type.TypeVariance
-import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
@@ -19,10 +18,10 @@ import compiler.lexer.Span
  */
 
 interface TypeUnification {
-    val constraints: Map<TypeVariable, BoundTypeReference>
+    val bindings: Map<BoundTypeParameter, BoundTypeReference>
     val diagnostics: Set<Diagnostic>
 
-    fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: Span): TypeUnification
+    fun plus(parameter: BoundTypeParameter, binding: BoundTypeReference, assignmentLocation: Span): TypeUnification
     fun plusReporting(diagnostic: Diagnostic): TypeUnification = plusDiagnostics(setOf(diagnostic))
     fun plusDiagnostics(diagnostics: Set<Diagnostic>): TypeUnification
 
@@ -89,7 +88,7 @@ interface TypeUnification {
                     parameter.bound.unify(argument, argument.span ?: Span.UNKNOWN, subUnification)
                 }
                 val hadErrors = nextUnification.getErrorsNotIn(unification).any()
-                unification = nextUnification.plus(TypeVariable(parameter), if (!hadErrors) argument else parameter.bound, argument.span ?: Span.UNKNOWN)
+                unification = nextUnification.plus(parameter, if (!hadErrors) argument else parameter.bound, argument.span ?: Span.UNKNOWN)
             }
 
             for (i in arguments.size..typeParameters.lastIndex) {
@@ -112,41 +111,46 @@ interface TypeUnification {
 }
 
 private class DefaultTypeUnification private constructor(
-    override val constraints: Map<TypeVariable, BoundTypeReference>,
+    override val bindings: Map<BoundTypeParameter, BoundTypeReference>,
     override val diagnostics: Set<Diagnostic>,
 ) : TypeUnification {
     override fun plusDiagnostics(diagnostics: Set<Diagnostic>): TypeUnification {
-        return DefaultTypeUnification(constraints, this.diagnostics + diagnostics)
+        return DefaultTypeUnification(bindings, this.diagnostics + diagnostics)
     }
 
-    override fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: Span): TypeUnification {
-        val previousConstraint = constraints[variable] ?: variable.parameterBoundWithTypeVariables
-        if (previousConstraint is BoundTypeArgument) {
+    override fun plus(parameter: BoundTypeParameter, binding: BoundTypeReference, assignmentLocation: Span): TypeUnification {
+        val previousBinding = bindings[parameter]
+        if (previousBinding is BoundTypeArgument) {
             // type has been fixed explicitly -> no rebinding
             return this
         }
 
-        val newConstraint = previousConstraint.intersect(binding)
-        val assignabilityError = binding.evaluateAssignabilityTo(previousConstraint, assignmentLocation)
+        val previousBindingOrBound = bindings[parameter] ?: parameter.bound
+        val error = binding.evaluateAssignabilityTo(previousBindingOrBound, assignmentLocation)
+        if (error != null) {
+            return DefaultTypeUnification(bindings, diagnostics + setOf(error))
+        }
 
+        // the new binding is valid
+        val newBinding = previousBinding?.closestCommonSupertypeWith(binding) ?: binding
         return DefaultTypeUnification(
-            constraints.plus(variable to newConstraint),
-            diagnostics + setOfNotNull(assignabilityError)
+            bindings.plus(parameter to newBinding),
+            diagnostics,
         )
     }
 
     override fun doWithIgnoringReportings(action: (TypeUnification) -> TypeUnification): TypeUnification {
         val result = action(this)
         return DefaultTypeUnification(
-            result.constraints,
+            result.bindings,
             this.diagnostics,
         )
     }
 
     override fun toString(): String {
-        val bindingsStr = constraints.entries.joinToString(
+        val bindingsStr = bindings.entries.joinToString(
             prefix = "[",
-            transform = { (key, value) -> "${key.toStringForUnification()} = $value" },
+            transform = { (key, value) -> "$key = $value" },
             separator = ", ",
             postfix = "]",
         )
@@ -163,7 +167,7 @@ private class DefaultTypeUnification private constructor(
 private abstract class DecoratingTypeUnification<Self : DecoratingTypeUnification<Self>> : TypeUnification {
     abstract val undecorated: TypeUnification
 
-    abstract override fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: Span): Self
+    abstract override fun plus(parameter: BoundTypeParameter, binding: BoundTypeReference, assignmentLocation: Span): Self
 
     companion object {
         inline fun <reified T : DecoratingTypeUnification<*>> doWithDecorated(modified: T, action: (TypeUnification) -> TypeUnification): TypeUnification {
@@ -178,7 +182,7 @@ private class ValueNotAssignableAsArgumentOutOfBounds(
     private val parameter: BoundTypeParameter,
     private val argument: BoundTypeArgument,
 ) : DecoratingTypeUnification<ValueNotAssignableAsArgumentOutOfBounds>() {
-    override val constraints get() = undecorated.constraints
+    override val bindings get() = undecorated.bindings
     override val diagnostics get() = undecorated.diagnostics
 
     override fun plusDiagnostics(diagnostics: Set<Diagnostic>): TypeUnification {
@@ -193,8 +197,8 @@ private class ValueNotAssignableAsArgumentOutOfBounds(
         return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plusDiagnostics(mappedDiagnostics), parameter, argument)
     }
 
-    override fun plus(variable: TypeVariable, binding: BoundTypeReference, assignmentLocation: Span): ValueNotAssignableAsArgumentOutOfBounds {
-        return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plus(variable, binding, assignmentLocation), parameter, argument)
+    override fun plus(parameter: BoundTypeParameter, binding: BoundTypeReference, assignmentLocation: Span): ValueNotAssignableAsArgumentOutOfBounds {
+        return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plus(parameter, binding, assignmentLocation), parameter, argument)
     }
 
     override fun doWithIgnoringReportings(action: (TypeUnification) -> TypeUnification): TypeUnification {

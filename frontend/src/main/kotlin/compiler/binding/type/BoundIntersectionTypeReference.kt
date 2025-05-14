@@ -51,7 +51,7 @@ class BoundIntersectionTypeReference private constructor(
         components.asSequence()
             .fold(TypeUnification.EMPTY) { carry, component ->
                 val carry1 = carry.plusDiagnostics(component.inherentTypeBindings.diagnostics)
-                component.inherentTypeBindings.constraints.entries.fold(carry1) { innerCarry, nextBinding ->
+                component.inherentTypeBindings.bindings.entries.fold(carry1) { innerCarry, nextBinding ->
                     innerCarry.plus(nextBinding.key, nextBinding.value, component.span ?: Span.UNKNOWN)
                 }
             }

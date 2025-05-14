@@ -361,9 +361,9 @@ class BoundInvocationExpression(
                 var unification = TypeUnification.fromExplicit(candidateFn.declaredTypeParameters, typeArguments, returnTypeArgsLocation, allowMissingTypeArguments = true)
                 if (returnTypeWithVariables != null) {
                     if (expectedEvaluationResultType != null) {
-                        unification = unification.doWithIgnoringReportings { obliviousUnification ->
+                        /*unification = unification.doWithIgnoringReportings { obliviousUnification ->
                             expectedEvaluationResultType!!.unify(returnTypeWithVariables, Span.UNKNOWN, obliviousUnification)
-                        }
+                        }*/
                     }
                 }
 
@@ -503,8 +503,8 @@ class BoundInvocationExpression(
         val isCallOnAbstractType = receiverExpression?.type?.baseTypeOfLowerBound?.kind?.allowsSubtypes == true
         val fn = functionToInvoke!!
         val returnType = type!!.toBackendIr()
-        val irResolvedTypeArgs = chosenOverload!!.unification.constraints.entries
-            .associate { (typeVar, binding) -> typeVar.parameterName to binding.toBackendIr() }
+        val irResolvedTypeArgs = chosenOverload!!.unification.bindings.entries
+            .associate { (parameter, binding) -> parameter.name to binding.toBackendIr() }
 
         // TODO: doesn't this lead to static dispatch when calling methods on generic types??
         if (fn is BoundMemberFunction && fn.isVirtual && isCallOnAbstractType) {

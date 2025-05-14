@@ -44,7 +44,7 @@ sealed class GenericTypeReference : BoundTypeReference {
         return mapEffectiveBound { it.withMutabilityIntersectedWith(mutability) }
     }
 
-    override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeReference {
+    override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): GenericTypeReference {
         return mapEffectiveBound { it.withMutabilityLimitedTo(limitToMutability) }
     }
 
@@ -170,8 +170,11 @@ sealed class GenericTypeReference : BoundTypeReference {
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
         // TODO: this linear search is super inefficient, optimize
-        val binding = context.constraints.entries.find { it.key.isFor(this.parameter) }
-        return binding?.value ?: this
+        val binding = context.bindings.entries.find { it.key == this.parameter }
+        return binding?.value
+            ?.withMutability(this.mutability)
+            ?.withCombinedNullability(original.nullability)
+            ?: this
     }
 
     override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeReference {

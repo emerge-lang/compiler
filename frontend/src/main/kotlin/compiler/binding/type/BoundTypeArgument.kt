@@ -114,7 +114,9 @@ class BoundTypeArgument(
             is GenericTypeReference -> {
                 return type.unify(assigneeType, assignmentLocation, carry)
             }
-            is BoundIntersectionTypeReference -> TODO()
+            is BoundIntersectionTypeReference -> return assigneeType.flippedUnify(this, assignmentLocation, carry) {
+                "$assigneeType is not a subtype of $this"
+            }
             is UnresolvedType -> {
                 return unify(assigneeType.standInType, assignmentLocation, carry)
             }
