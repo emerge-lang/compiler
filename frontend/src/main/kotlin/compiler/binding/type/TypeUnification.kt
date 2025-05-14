@@ -125,6 +125,8 @@ private class DefaultTypeUnification private constructor(
             return this
         }
 
+        // TODO: replace type variables in the bound
+        // TODO: unify, not just evaluate assignability
         val previousBindingOrBound = bindings[parameter] ?: parameter.bound
         val error = binding.evaluateAssignabilityTo(previousBindingOrBound, assignmentLocation)
         if (error != null) {
