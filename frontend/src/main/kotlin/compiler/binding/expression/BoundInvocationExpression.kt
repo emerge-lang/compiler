@@ -358,14 +358,6 @@ class BoundInvocationExpression(
                     ?.reduce(Span::rangeTo)
                     ?: declaration.span
                 val returnTypeWithVariables = candidateFn.returnType?.withTypeVariables(candidateFn.allTypeParameters)
-                var unification = TypeUnification.fromExplicit(candidateFn.declaredTypeParameters, typeArguments, returnTypeArgsLocation, allowMissingTypeArguments = true)
-                if (returnTypeWithVariables != null) {
-                    if (expectedEvaluationResultType != null) {
-                        /*unification = unification.doWithIgnoringReportings { obliviousUnification ->
-                            expectedEvaluationResultType!!.unify(returnTypeWithVariables, Span.UNKNOWN, obliviousUnification)
-                        }*/
-                    }
-                }
 
                 @Suppress("UNCHECKED_CAST") // the check is right above
                 val rightSideTypes = (candidateFn.parameterTypes as List<BoundTypeReference>)
@@ -373,10 +365,10 @@ class BoundInvocationExpression(
                 check(rightSideTypes.size == argumentsIncludingReceiver.size)
 
                 val indicesOfErroneousParameters = ArrayList<Int>(argumentsIncludingReceiver.size)
-                val unificationBeforeParameters = unification
-                unification = argumentsIncludingReceiver
+                val unificationBeforeParameters = TypeUnification.fromExplicit(candidateFn.declaredTypeParameters, typeArguments, returnTypeArgsLocation, allowMissingTypeArguments = true)
+                val unification = argumentsIncludingReceiver
                     .zip(rightSideTypes)
-                    .foldIndexed(unification) { parameterIndex, carryUnification, (argument, parameterType) ->
+                    .foldIndexed(unificationBeforeParameters) { parameterIndex, carryUnification, (argument, parameterType) ->
                         val unificationAfterParameter = parameterType.unify(argument.type!!, argument.declaration.span, carryUnification)
                         if (unificationAfterParameter.getErrorsNotIn(carryUnification).any()) {
                             indicesOfErroneousParameters.add(parameterIndex)
@@ -385,8 +377,8 @@ class BoundInvocationExpression(
                     }
 
                 val inapplicableReason = when (val inspectResult = candidateFilter?.inspect(candidateFn)) {
-                    null, CandidateFilter.Result.Applicable -> null
-                    is CandidateFilter.Result.Inapplicable -> inspectResult.reason
+                    null, Result.Applicable -> null
+                    is Result.Inapplicable -> inspectResult.reason
                 }
 
                 val allDisambiguatingArgumentsAreErrorFree = if (disambiguationBehavior == DisambiguationBehavior.AllParametersDisambiguate) {
