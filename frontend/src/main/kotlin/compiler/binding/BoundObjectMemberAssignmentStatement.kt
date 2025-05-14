@@ -25,6 +25,7 @@ import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrDropStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
+import compiler.binding.type.BoundTypeReference
 import compiler.diagnostic.AmbiguousInvocationDiagnostic
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnosis.Companion.doWithTransformedFindings
@@ -87,10 +88,17 @@ class BoundObjectMemberAssignmentStatement(
         }
     }
 
-    override val assignmentTargetType get() = if (physicalMembers.isNotEmpty() || !considerSetters) {
-        physicalMembers.firstOrNull()?.type
-    } else {
-        setterInvocation.functionToInvoke?.parameterTypes?.getOrNull(1)
+    override val assignmentTargetType: BoundTypeReference? get() {
+        val contextualType = if (physicalMembers.isNotEmpty() || !considerSetters) {
+            physicalMembers.firstOrNull()?.type
+        } else {
+            setterInvocation.functionToInvoke?.parameterTypes?.getOrNull(1)
+        }
+
+        val targetObjectTypeBindings = targetObjectExpression.type?.inherentTypeBindings
+            ?: return null
+
+        return contextualType?.instantiateAllParameters(targetObjectTypeBindings)
     }
 
     override val assignedValueUsage: ValueUsage get() = CreateReferenceValueUsage(
