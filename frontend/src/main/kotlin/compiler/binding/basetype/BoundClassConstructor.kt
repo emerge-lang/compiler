@@ -9,6 +9,7 @@ import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.MemberAccessExpression
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
@@ -112,7 +113,7 @@ class BoundClassConstructor(
 
     override val returnType by lazy {
         constructorFunctionRootContext.resolveType(
-            TypeReference(
+            NamedTypeReference(
                 classDef.simpleName,
                 TypeReference.Nullability.NOT_NULLABLE,
                 TypeMutability.EXCLUSIVE,
@@ -120,7 +121,7 @@ class BoundClassConstructor(
                 classDef.typeParameters?.map {
                     TypeArgument(
                         TypeVariance.UNSPECIFIED,
-                        TypeReference(it.astNode.name),
+                        NamedTypeReference(it.astNode.name),
                     )
                 },
             ),
@@ -169,7 +170,7 @@ class BoundClassConstructor(
                     ),
                     member.declaration.name,
                     member.declaration.variableDeclaration.type?.withMutability(member.type?.mutability ?: TypeMutability.IMMUTABLE)
-                        ?: TypeReference("Any"),
+                        ?: NamedTypeReference("Any"),
                     null,
                 )
             }

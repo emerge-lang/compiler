@@ -97,23 +97,12 @@ val BaseTypeEntry = eitherOf {
 val SupertypeSpecification = sequence {
     operator(COLON)
     ref(Type)
-    repeating {
-        operator(COMMA)
-        ref(Type)
-    }
 }
     .astTransformation { tokens ->
         // skip colon
         tokens.next()
 
-        val supertypes = mutableListOf<TypeReference>(tokens.next() as TypeReference)
-        while (tokens.hasNext()) {
-            // skip comma
-            tokens.next()
-            supertypes.add(tokens.next() as TypeReference)
-        }
-
-        AstSupertypeList(supertypes)
+        tokens.next() as TypeReference
     }
 
 val BaseTypeDefinition = sequence("base type definition") {
@@ -159,12 +148,12 @@ val BaseTypeDefinition = sequence("base type definition") {
             typeParameters = null
         }
 
-        val supertypes: AstSupertypeList?
-        if (next is AstSupertypeList) {
-            supertypes = next
+        val supertype: TypeReference?
+        if (next is TypeReference) {
+            supertype = next
             next = tokens.next()
         } else {
-            supertypes = null
+            supertype = null
         }
 
         val entries = ArrayList<BaseTypeEntryDeclaration>()
@@ -179,7 +168,7 @@ val BaseTypeDefinition = sequence("base type definition") {
             declarationKeyword,
             visibility,
             name,
-            supertypes,
+            supertype,
             entries,
             typeParameters,
         )

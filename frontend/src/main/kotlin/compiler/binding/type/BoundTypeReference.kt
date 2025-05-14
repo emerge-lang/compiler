@@ -26,6 +26,7 @@ import compiler.binding.BoundParameter
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
+import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
@@ -35,11 +36,21 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import java.util.IdentityHashMap
 
 sealed interface BoundTypeReference {
+    /** the context in which this reference exists / was bound */
+    val context: CTContext
+
     val isNullable: Boolean
+
+    /** todo: refactor into .toSimpleString(): String */
     val simpleName: String?
 
     val mutability: TypeMutability
     val span: Span?
+
+    /**
+     * Whether this type is a subtype of `read Nothing`
+     */
+    val isNothing: Boolean
 
     /**
      * The [BoundBaseType] this type is referring to, as concrete as possible.
@@ -59,7 +70,7 @@ sealed interface BoundTypeReference {
     fun withMutability(mutability: TypeMutability?): BoundTypeReference
 
     /**
-     * @return this type but [mutability] is the result of [TypeMutability.intersect] of the
+     * @return this type but [mutability] is the result of [TypeMutability.union] of the
      * existing mutability and the given one. Type parameters will be defaulted ([defaultMutabilityTo])
      * to the resulting mutability.
      */
@@ -97,15 +108,15 @@ sealed interface BoundTypeReference {
     /**
      * Finds the "greatest common denominator" of this type and the [other] type.
      * This method is associative:
-     * * `a.closestCommonAncestorWith(b) == b.closestCommonAncestorWith(a)`
-     * * `a.closestCommonAncestorWith(b).closestCommonAncestorWith(c) == b.closestCommonAncestorWith(c).closestCommonAncestorWith(a)`
+     * * `a.closestCommonSupertypeWith(b) == b.closestCommonSupertypeWith(a)`
+     * * `a.closestCommonSupertypeWith(b).closestCommonSupertypeWith(c) == b.closestCommonSupertypeWith(c).closestCommonSupertypeWith(a)`
      */
     fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference
 
     /**
      * @return a possible directly declared member variable of the type. Does not look for extension variables.
      */
-    fun findMemberVariable(name: String): BoundBaseTypeMemberVariable? = null
+    fun findMemberVariable(name: String): Set<BoundBaseTypeMemberVariable> = emptySet()
 
     fun findMemberFunction(name: String): Collection<BoundOverloadSet<BoundMemberFunction>> = emptySet()
 

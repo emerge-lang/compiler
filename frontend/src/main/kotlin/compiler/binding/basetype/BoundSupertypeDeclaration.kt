@@ -1,6 +1,6 @@
 package compiler.binding.basetype
 
-import compiler.ast.type.TypeReference
+import compiler.ast.type.NamedTypeReference
 import compiler.binding.SeanHelper
 import compiler.binding.SemanticallyAnalyzable
 import compiler.binding.context.CTContext
@@ -9,7 +9,6 @@ import compiler.binding.type.RootResolvedTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
-import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.illegalSupertype
 
 /**
@@ -19,7 +18,7 @@ class BoundSupertypeDeclaration(
     val subtypeContext: CTContext,
     /** @return the subtype */
     private val getTypeDef: () -> BoundBaseType,
-    val astNode: TypeReference,
+    val astNode: NamedTypeReference,
 ) : SemanticallyAnalyzable {
     private val seanHelper = SeanHelper()
     private lateinit var unfilteredResolved: BoundTypeReference
@@ -56,7 +55,6 @@ class BoundSupertypeDeclaration(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
-
             if (!astNode.arguments.isNullOrEmpty()) {
                 diagnosis.illegalSupertype(astNode, "inheriting from generic types is currently not supported")
             }
@@ -66,7 +64,7 @@ class BoundSupertypeDeclaration(
                 return@phase3
             }
 
-            if (localResolvedReference.baseType.kind != BoundBaseType.Kind.INTERFACE) {
+            if (!localResolvedReference.baseType.kind.allowsSubtypes) {
                 diagnosis.illegalSupertype(astNode, "can only inherit from interfaces")
             }
         }

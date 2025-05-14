@@ -18,10 +18,10 @@
 
 package compiler.diagnostic
 
-import compiler.ast.type.TypeReference
+import compiler.ast.type.NamedTypeReference
 import compiler.lexer.Span
 
-class UnknownTypeDiagnostic(val erroneousReference: TypeReference) : Diagnostic(
+class UnknownTypeDiagnostic(val erroneousReference: NamedTypeReference) : Diagnostic(
     Severity.ERROR,
     "Cannot resolve type ${erroneousReference.simpleName}",
     if (erroneousReference.declaringNameToken == null) Span.UNKNOWN else erroneousReference.declaringNameToken.span

@@ -3,8 +3,8 @@ package compiler.ast.expression
 import compiler.ast.AstCodeChunk
 import compiler.ast.Statement
 import compiler.ast.VariableDeclaration
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
-import compiler.ast.type.TypeReference
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
 import compiler.binding.expression.BoundCatchBlockExpression
@@ -25,8 +25,8 @@ class AstCatchBlockExpression(
             varToken = null,
             ownership = null,
             name = throwableVariableNameToken,
-            type = TypeReference(
-                "Throwable", // this is okay; Throwable is in emerge.core, which is a default import, and thus cannot be overridden
+            type = NamedTypeReference(
+                context.swCtx.throwable.simpleName, // this is okay; Throwable is in emerge.core, which is a default import, and thus cannot be overridden
                 mutability = TypeMutability.MUTABLE,
                 declaringNameToken = throwableVariableNameToken,
             ),

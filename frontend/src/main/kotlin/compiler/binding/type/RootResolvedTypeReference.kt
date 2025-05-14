@@ -1,6 +1,7 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundMemberFunction
@@ -24,8 +25,8 @@ import io.github.tmarsteel.emerge.common.EmergeConstants
  * A [TypeReference] where the root type is resolved
  */
 class RootResolvedTypeReference private constructor(
-    private val context: CTContext,
-    val original: TypeReference?,
+    override val context: CTContext,
+    val original: NamedTypeReference?,
     private val explicitMutability: TypeMutability?,
     val baseType: BoundBaseType,
     val arguments: List<BoundTypeArgument>?,
@@ -35,12 +36,13 @@ class RootResolvedTypeReference private constructor(
     override val simpleName = original?.simpleName ?: baseType.simpleName
     override val span = original?.span ?: original?.declaringNameToken?.span
     override val baseTypeOfLowerBound = baseType
+    override val isNothing get()= baseType == context.swCtx.nothing
 
     override val inherentTypeBindings by lazy {
         TypeUnification.fromExplicit(baseType.typeParameters ?: emptyList(), arguments, span ?: Span.UNKNOWN)
     }
 
-    constructor(context: CTContext, original: TypeReference, baseType: BoundBaseType, parameters: List<BoundTypeArgument>?) : this(
+    constructor(context: CTContext, original: NamedTypeReference, baseType: BoundBaseType, parameters: List<BoundTypeArgument>?) : this(
         context,
         original,
         original.mutability,
@@ -64,7 +66,7 @@ class RootResolvedTypeReference private constructor(
     }
 
     override fun withMutabilityIntersectedWith(mutability: TypeMutability?): RootResolvedTypeReference {
-        val combinedMutability = mutability?.let { this.mutability.intersect(it) } ?: this.mutability
+        val combinedMutability = mutability?.let { this.mutability.union(it) } ?: this.mutability
         return RootResolvedTypeReference(
             context,
             original,
@@ -121,13 +123,13 @@ class RootResolvedTypeReference private constructor(
         return when (other) {
             is RootResolvedTypeReference -> this.baseType == other.baseType
             is NullableTypeReference -> hasSameBaseTypeAs(other.nested)
+            is BoundTypeArgument -> hasSameBaseTypeAs(other.type)
             else -> false
         }
     }
 
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
         return when (other) {
-            is UnresolvedType -> other.closestCommonSupertypeWith(this)
             is NullableTypeReference -> NullableTypeReference(closestCommonSupertypeWith(other.nested))
             is RootResolvedTypeReference -> {
                 // TODO: these three special cases can be removed once generic supertypes are implemented
@@ -141,7 +143,7 @@ class RootResolvedTypeReference private constructor(
                     return this
                 }
                 if (this.equalsExceptMutability(other)) {
-                    return withMutability(this.mutability.intersect(other.mutability))
+                    return withMutability(this.mutability.union(other.mutability))
                 }
                 // end of special cases until generic supertypes are implemented
                 val commonSuperBaseType = BoundBaseType.closestCommonSupertypeOf(this.baseType, other.baseType)
@@ -156,18 +158,20 @@ class RootResolvedTypeReference private constructor(
                 RootResolvedTypeReference(
                     context = context,
                     original = null,
-                    explicitMutability = this.mutability.intersect(other.mutability),
+                    explicitMutability = this.mutability.union(other.mutability),
                     baseType = commonSuperBaseType,
                     arguments = transformedArguments,
                 )
             }
-            is GenericTypeReference -> other.closestCommonSupertypeWith(this)
+            is GenericTypeReference,
+            is UnresolvedType,
+            is BoundIntersectionTypeReference,
             is BoundTypeArgument -> other.closestCommonSupertypeWith(this)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
         }
     }
 
-    override fun findMemberVariable(name: String): BoundBaseTypeMemberVariable? = baseType.resolveMemberVariable(name)
+    override fun findMemberVariable(name: String): Set<BoundBaseTypeMemberVariable> = setOfNotNull(baseType.resolveMemberVariable(name))
 
     val memberFunctions: Collection<BoundOverloadSet<BoundMemberFunction>> get() = baseType.memberFunctions
 
@@ -231,6 +235,14 @@ class RootResolvedTypeReference private constructor(
             is NullableTypeReference -> return carry.plusReporting(
                 ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
             )
+            is BoundIntersectionTypeReference -> {
+                return assigneeType.flippedUnify(
+                    this,
+                    assignmentLocation,
+                    carry,
+                    reason = { "none of $assigneeType is a subtype of $this" },
+                )
+            }
         }
     }
 
@@ -255,7 +267,7 @@ class RootResolvedTypeReference private constructor(
     }
 
     override fun asAstReference(): TypeReference {
-        return original ?: TypeReference(
+        return original ?: NamedTypeReference(
             simpleName,
             TypeReference.Nullability.of(this),
             mutability,

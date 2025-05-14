@@ -11,11 +11,13 @@ import compiler.lexer.Span
 class NullableTypeReference private constructor(
     internal val nested: BoundTypeReference
 ): BoundTypeReference {
+    override val context = nested.context
     override val simpleName get() = nested.simpleName
     override val mutability get() = nested.mutability
     override val baseTypeOfLowerBound get() = nested.baseTypeOfLowerBound
     override val span get() = nested.span
     override val isNullable = true
+    override val isNothing = false
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference {
         return rewrap(nested.defaultMutabilityTo(mutability))
@@ -49,7 +51,7 @@ class NullableTypeReference private constructor(
         return rewrap(nested.closestCommonSupertypeWith(other))
     }
 
-    override fun findMemberVariable(name: String): BoundBaseTypeMemberVariable? {
+    override fun findMemberVariable(name: String): Set<BoundBaseTypeMemberVariable> {
         return nested.findMemberVariable(name)
     }
 
@@ -74,6 +76,7 @@ class NullableTypeReference private constructor(
             } else {
                 unify(assigneeType.effectiveBound, assignmentLocation, carry)
             }
+            is TypeVariable -> assigneeType.flippedUnify(this, assignmentLocation, carry)
             else -> nested.unify(assigneeType, assignmentLocation, carry)
         }
     }
@@ -102,7 +105,10 @@ class NullableTypeReference private constructor(
 
     override fun toBackendIr() = nested.toBackendIr().asNullable()
 
-    override fun toString(): String = "$nested?"
+    override fun toString(): String = when (nested) {
+        is BoundIntersectionTypeReference -> nested.toString(nullableComponents = true)
+        else -> "$nested?"
+    }
 
     private fun rewrap(newNested: BoundTypeReference): BoundTypeReference {
         if (newNested === nested) {

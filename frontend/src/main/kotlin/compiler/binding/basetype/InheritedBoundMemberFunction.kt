@@ -2,6 +2,7 @@ package compiler.binding.basetype
 
 import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
@@ -64,12 +65,12 @@ class InheritedBoundMemberFunction(
             null,
             inheritedReceiverParameter.declaration.ownership,
             inheritedReceiverParameter.declaration.name,
-            TypeReference(
+            NamedTypeReference(
                 ownerBaseType.simpleName,
                 declaringNameToken = IdentifierToken(ownerBaseType.simpleName, sourceLocation),
                 mutability = inheritedReceiverParameter.typeAtDeclarationTime?.mutability,
                 arguments = ownerBaseType.typeParameters?.map { typeParam ->
-                    TypeArgument(TypeVariance.UNSPECIFIED, TypeReference(IdentifierToken(typeParam.astNode.name.value, typeParam.astNode.name.span.deriveGenerated())))
+                    TypeArgument(TypeVariance.UNSPECIFIED, NamedTypeReference(IdentifierToken(typeParam.astNode.name.value, typeParam.astNode.name.span.deriveGenerated())))
                 }
             ),
             null,

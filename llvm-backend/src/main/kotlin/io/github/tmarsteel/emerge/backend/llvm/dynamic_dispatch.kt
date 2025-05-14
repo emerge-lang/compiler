@@ -6,6 +6,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrBaseType
 import io.github.tmarsteel.emerge.backend.api.ir.IrFullyInheritedMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
+import io.github.tmarsteel.emerge.backend.api.ir.IrIntersectionType
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
@@ -94,6 +95,10 @@ private fun IrType.toStringForSignature(): String = when(this) {
             postfix = ">"
         )
     is IrSimpleType -> baseType.toStringForSignature()
+    is IrIntersectionType -> components.joinToString(
+        transform = { it.toStringForSignature() },
+        separator = "&",
+    )
 }
 
 private fun String.lengthEncode(): String = length.toString(36).lowercase() + "$" + this

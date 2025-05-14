@@ -21,7 +21,7 @@ package compiler.binding.expression
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.InvocationExpression
-import compiler.ast.type.TypeReference
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundExecutable
 import compiler.binding.BoundFunction
@@ -32,7 +32,6 @@ import compiler.binding.IrCodeChunkImpl
 import compiler.binding.SeanHelper
 import compiler.binding.SideEffectPrediction
 import compiler.binding.SideEffectPrediction.Companion.reduceSequentialExecution
-import compiler.binding.basetype.BoundBaseType
 import compiler.binding.context.CTContext
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.context.MutableExecutionScopedCTContext
@@ -359,14 +358,6 @@ class BoundInvocationExpression(
                     ?.reduce(Span::rangeTo)
                     ?: declaration.span
                 val returnTypeWithVariables = candidateFn.returnType?.withTypeVariables(candidateFn.allTypeParameters)
-                var unification = TypeUnification.fromExplicit(candidateFn.declaredTypeParameters, typeArguments, returnTypeArgsLocation, allowMissingTypeArguments = true)
-                if (returnTypeWithVariables != null) {
-                    if (expectedEvaluationResultType != null) {
-                        unification = unification.doWithIgnoringReportings { obliviousUnification ->
-                            expectedEvaluationResultType!!.unify(returnTypeWithVariables, Span.UNKNOWN, obliviousUnification)
-                        }
-                    }
-                }
 
                 @Suppress("UNCHECKED_CAST") // the check is right above
                 val rightSideTypes = (candidateFn.parameterTypes as List<BoundTypeReference>)
@@ -374,10 +365,10 @@ class BoundInvocationExpression(
                 check(rightSideTypes.size == argumentsIncludingReceiver.size)
 
                 val indicesOfErroneousParameters = ArrayList<Int>(argumentsIncludingReceiver.size)
-                val unificationBeforeParameters = unification
-                unification = argumentsIncludingReceiver
+                val unificationBeforeParameters = TypeUnification.fromExplicit(candidateFn.declaredTypeParameters, typeArguments, returnTypeArgsLocation, allowMissingTypeArguments = true)
+                val unification = argumentsIncludingReceiver
                     .zip(rightSideTypes)
-                    .foldIndexed(unification) { parameterIndex, carryUnification, (argument, parameterType) ->
+                    .foldIndexed(unificationBeforeParameters) { parameterIndex, carryUnification, (argument, parameterType) ->
                         val unificationAfterParameter = parameterType.unify(argument.type!!, argument.declaration.span, carryUnification)
                         if (unificationAfterParameter.getErrorsNotIn(carryUnification).any()) {
                             indicesOfErroneousParameters.add(parameterIndex)
@@ -386,8 +377,8 @@ class BoundInvocationExpression(
                     }
 
                 val inapplicableReason = when (val inspectResult = candidateFilter?.inspect(candidateFn)) {
-                    null, CandidateFilter.Result.Applicable -> null
-                    is CandidateFilter.Result.Inapplicable -> inspectResult.reason
+                    null, Result.Applicable -> null
+                    is Result.Inapplicable -> inspectResult.reason
                 }
 
                 val allDisambiguatingArgumentsAreErrorFree = if (disambiguationBehavior == DisambiguationBehavior.AllParametersDisambiguate) {
@@ -501,14 +492,14 @@ class BoundInvocationExpression(
         arguments: List<IrTemporaryValueReference>,
         landingpad: IrInvocationExpression.Landingpad?,
     ): IrExpression {
-        val isCallOnInterfaceType = receiverExpression?.type?.baseTypeOfLowerBound?.kind == BoundBaseType.Kind.INTERFACE
+        val isCallOnAbstractType = receiverExpression?.type?.baseTypeOfLowerBound?.kind?.allowsSubtypes == true
         val fn = functionToInvoke!!
         val returnType = type!!.toBackendIr()
         val irResolvedTypeArgs = chosenOverload!!.unification.bindings.entries
-            .associate { (typeVar, binding) -> typeVar.parameter.name to binding.toBackendIr() }
+            .associate { (parameter, binding) -> parameter.name to binding.toBackendIr() }
 
         // TODO: doesn't this lead to static dispatch when calling methods on generic types??
-        if (fn is BoundMemberFunction && fn.isVirtual && isCallOnInterfaceType) {
+        if (fn is BoundMemberFunction && fn.isVirtual && isCallOnAbstractType) {
             check(receiverExceptReferringType != null)
             return IrDynamicDispatchFunctionInvocationImpl(
                 arguments.first(),
@@ -717,7 +708,7 @@ internal fun buildGenericInvocationLikeIr(
                         landingpadContext.findInternalVariableName("t"),
                         invocationLocation
                     ),
-                    TypeReference(IdentifierToken("Throwable", invocationLocation)),
+                    NamedTypeReference(IdentifierToken(context.swCtx.throwable.simpleName, invocationLocation)),
                     null,
                 ).bindTo(landingpadContext)
                 throwableVar.semanticAnalysisPhase1(Diagnosis.failOnError())

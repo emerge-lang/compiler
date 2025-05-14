@@ -6,6 +6,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrBaseTypeFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrConstructor
 import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
+import io.github.tmarsteel.emerge.backend.api.ir.IrIntersectionType
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
 import io.github.tmarsteel.emerge.backend.api.ir.IrSimpleType
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
@@ -282,6 +283,15 @@ object Mangler {
                                 appendType(context, argument.type, argument.variance)
                             }
                         append('>')
+                    }
+                    is IrIntersectionType -> {
+                        val componentIt = type.components.iterator()
+                        while (componentIt.hasNext()) {
+                            appendType(context, componentIt.next(), argumentVariance)
+                            if (componentIt.hasNext()) {
+                                append('&')
+                            }
+                        }
                     }
                 }
             }

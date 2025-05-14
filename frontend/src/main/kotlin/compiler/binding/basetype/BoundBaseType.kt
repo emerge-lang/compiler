@@ -23,7 +23,7 @@ import compiler.ast.AstCodeChunk
 import compiler.ast.BaseTypeConstructorDeclaration
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.BaseTypeDestructorDeclaration
-import compiler.ast.type.TypeReference
+import compiler.ast.type.NamedTypeReference
 import compiler.binding.AccessorKind
 import compiler.binding.BoundElement
 import compiler.binding.BoundMemberFunction
@@ -79,13 +79,14 @@ class BoundBaseType(
         CanonicalElementName.BaseType(context.sourceFile.packageName, declaration.name.value)
     }
     val simpleName: String = declaration.name.value
-    val baseReference: RootResolvedTypeReference
-        get() = RootResolvedTypeReference(
+    val baseReference: RootResolvedTypeReference get() {
+        return RootResolvedTypeReference(
             context,
-            TypeReference(this.simpleName),
+            NamedTypeReference(this.simpleName),
             this,
             if (typeParameters.isNullOrEmpty()) null else throw InternalCompilerError("cannot use baseReference on types with parameters")
         )
+    }
 
     private val _memberVariables: MutableList<BoundBaseTypeMemberVariable> = entries.filterIsInstance<BoundBaseTypeMemberVariable>().toMutableList()
     val memberVariables: List<BoundBaseTypeMemberVariable> = _memberVariables
@@ -445,18 +446,21 @@ class BoundBaseType(
         val hasCtorsAndDtors: Boolean,
         val allowsMemberVariables: Boolean,
         val allowMemberFunctionImplementations: Boolean,
+        val allowsSubtypes: Boolean,
     ) {
         CLASS(
             "classes",
             hasCtorsAndDtors = true,
             allowsMemberVariables = true,
             allowMemberFunctionImplementations = true,
+            allowsSubtypes = false,
         ),
         INTERFACE(
             "interfaces",
             hasCtorsAndDtors = false,
             allowsMemberVariables = false,
             allowMemberFunctionImplementations = false,
+            allowsSubtypes = true,
         ),
         ;
 

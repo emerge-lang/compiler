@@ -10,6 +10,8 @@ import compiler.ast.FunctionDeclaration
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.MemberAccessExpression
+import compiler.ast.type.AstIntersectionType
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
@@ -62,8 +64,12 @@ fun Diagnosis.consecutive(message: String, span: Span = Span.UNKNOWN) {
     add(ConsecutiveFaultDiagnostic(message, span))
 }
 
-fun Diagnosis.unknownType(erroneousRef: TypeReference) {
+fun Diagnosis.unknownType(erroneousRef: NamedTypeReference) {
     add(UnknownTypeDiagnostic(erroneousRef))
+}
+
+fun Diagnosis.simplifiableIntersectionType(verbose: AstIntersectionType, simpler: BoundTypeReference) {
+    add(SimplifiableIntersectionTypeDiagnostic(verbose, simpler))
 }
 
 fun Diagnosis.valueNotAssignable(targetType: BoundTypeReference, sourceType: BoundTypeReference, reason: String, assignmentLocation: Span) {
@@ -153,13 +159,13 @@ fun Diagnosis.getterAndSetterWithDifferentType(virtualMemberName: String, getter
 
 fun Diagnosis.ambiguousMemberVariableRead(
     read: BoundMemberVariableReadExpression,
-    member: BoundBaseTypeMemberVariable?,
+    members: Collection<BoundBaseTypeMemberVariable>,
     getters: Collection<BoundFunction>,
 ) {
     add(AmbiguousMemberVariableAccessDiagnostic(
         read.memberName,
         AccessorKind.Read,
-        member?.declaration,
+        members.map { it. declaration },
         getters.map { it.declaredAt },
         read.declaration.memberName.span,
     ))
@@ -167,13 +173,13 @@ fun Diagnosis.ambiguousMemberVariableRead(
 
 fun Diagnosis.ambiguousMemberVariableWrite(
     write: BoundObjectMemberAssignmentStatement,
-    member: BoundBaseTypeMemberVariable?,
+    members: Collection<BoundBaseTypeMemberVariable>,
     setters: Collection<BoundFunction>,
 ) {
     add(AmbiguousMemberVariableAccessDiagnostic(
         write.memberName,
         AccessorKind.Write,
-        member?.declaration,
+        members.map { it.declaration },
         setters.map { it.declaredAt },
         write.declaration.targetExpression.memberName.span,
     ))
@@ -215,7 +221,7 @@ fun Diagnosis.illegalSupertype(ref: TypeReference, reason: String) {
     add(IllegalSupertypeDiagnostic(ref, reason))
 }
 
-fun Diagnosis.duplicateSupertype(ref: TypeReference) {
+fun Diagnosis.duplicateSupertype(ref: NamedTypeReference) {
     add(DuplicateSupertypeDiagnostic(ref))
 }
 
@@ -355,7 +361,7 @@ fun Diagnosis.typeDeductionError(message: String, location: Span) {
     add(TypeDeductionErrorDiagnostic(message, location))
 }
 
-fun Diagnosis.explicitInferTypeWithArguments(type: TypeReference) {
+fun Diagnosis.explicitInferTypeWithArguments(type: NamedTypeReference) {
     add(ExplicitInferTypeWithArgumentsDiagnostic(type))
 }
 

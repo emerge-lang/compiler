@@ -21,6 +21,7 @@ package compiler.binding
 import compiler.InternalCompilerError
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
@@ -52,6 +53,7 @@ import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrExecutable
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrVariableDeclaration
+import kotlin.properties.Delegates.notNull
 
 /**
  * Describes the presence/availability of a (class member) variable or (class member) value in a context.
@@ -69,7 +71,8 @@ class BoundVariable(
 
     val isReAssignable: Boolean = declaration.isReAssignable
     private val implicitMutability: TypeMutability = if (isReAssignable) TypeMutability.MUTABLE else kind.implicitMutabilityWhenNotReAssignable
-    private val shouldInferBaseType: Boolean = declaration.type == null || declaration.type.simpleName == BoundTypeReference.NAME_REQUESTING_TYPE_INFERENCE
+    /** initialized during [semanticAnalysisPhase1] */
+    private var shouldInferBaseType: Boolean by notNull()
 
     /**
      * The type as _declared_ or inferred _from the declaration only_; there is some level of dependent typing
@@ -86,9 +89,10 @@ class BoundVariable(
      */
     private var resolvedDeclaredType: BoundTypeReference? = null
     private val expectedInitializerEvaluationType: BoundTypeReference
-        get() = (this.resolvedDeclaredType ?: context.swCtx.any.baseReference)
-            .withCombinedNullability(declaration.type?.nullability ?: TypeReference.Nullability.NULLABLE)
-            .withMutability(declaration.type?.mutability ?: implicitMutability)
+        get() = this.resolvedDeclaredType
+            ?: context.swCtx.any.baseReference
+                .withCombinedNullability(declaration.type?.nullability ?: TypeReference.Nullability.NULLABLE)
+                .withMutability(declaration.type?.mutability ?: implicitMutability)
 
     /**
      * publicly mutable so that it can be changed depending on context. However, the value must be set before
@@ -114,10 +118,23 @@ class BoundVariable(
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
-
             visibility.semanticAnalysisPhase1(diagnosis)
             if (!kind.allowsVisibility && declaration.visibility != null) {
                 diagnosis.visibilityNotAllowedOnVariable(this)
+            }
+
+            shouldInferBaseType = when (declaration.type) {
+                null -> true
+                is NamedTypeReference -> when (declaration.type.simpleName) {
+                    BoundTypeReference.NAME_REQUESTING_TYPE_INFERENCE -> {
+                        if (declaration.type.arguments?.isNotEmpty() == true) {
+                            diagnosis.explicitInferTypeWithArguments(declaration.type)
+                        }
+                        true
+                    }
+                    else -> false
+                }
+                else -> false
             }
 
             context.resolveVariable(this.name)
@@ -158,10 +175,6 @@ class BoundVariable(
                 initializerExpression.semanticAnalysisPhase1(diagnosis)
                 initializerExpression.setExpectedEvaluationResultType(expectedInitializerEvaluationType, diagnosis)
                 initializerExpression.markEvaluationResultUsed()
-            }
-
-            if (shouldInferBaseType && declaration.type?.arguments?.isNotEmpty() == true) {
-                diagnosis.explicitInferTypeWithArguments(declaration.type)
             }
 
             if (declaration.type != null && shouldInferBaseType && !kind.allowsExplicitBaseTypeInfer) {

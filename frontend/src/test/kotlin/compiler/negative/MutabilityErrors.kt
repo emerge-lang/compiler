@@ -55,7 +55,7 @@ class MutabilityErrors : FreeSpec({
                     someVal: S32 = init
                 }
                 class B<T> {
-                    genericVal: T = init
+                    var genericVal: T = init
                 }
                 fn test() {
                     myB: mut B<const A> = B::<const A>(A(3))

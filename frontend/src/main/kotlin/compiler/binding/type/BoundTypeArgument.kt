@@ -16,7 +16,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeVariance
 
 class BoundTypeArgument(
-    val context: CTContext,
+    override val context: CTContext,
     val astNode: TypeArgument,
     val variance: TypeVariance,
     val type: BoundTypeReference,
@@ -24,11 +24,12 @@ class BoundTypeArgument(
     init {
         check(type !is BoundTypeArgument)
     }
-    override val isNullable get()= type.isNullable
+    override val isNullable get() = type.isNullable
     override val mutability get() = type.mutability
     override val baseTypeOfLowerBound get()= type.baseTypeOfLowerBound
     override val simpleName get() = toString()
     override val span get() = astNode.span
+    override val isNothing get() = type.isNothing
 
     override val inherentTypeBindings: TypeUnification
         get() = TypeUnification.EMPTY
@@ -112,6 +113,9 @@ class BoundTypeArgument(
             }
             is GenericTypeReference -> {
                 return type.unify(assigneeType, assignmentLocation, carry)
+            }
+            is BoundIntersectionTypeReference -> return assigneeType.flippedUnify(this, assignmentLocation, carry) {
+                "$assigneeType is not a subtype of $this"
             }
             is UnresolvedType -> {
                 return unify(assigneeType.standInType, assignmentLocation, carry)
@@ -235,7 +239,7 @@ class BoundTypeArgument(
         )
     }
 
-    override fun findMemberVariable(name: String): BoundBaseTypeMemberVariable? {
+    override fun findMemberVariable(name: String): Set<BoundBaseTypeMemberVariable> {
         return type.findMemberVariable(name)
     }
 

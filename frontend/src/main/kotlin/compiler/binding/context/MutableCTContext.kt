@@ -21,6 +21,8 @@ package compiler.binding.context
 import compiler.InternalCompilerError
 import compiler.ast.BaseTypeDeclaration
 import compiler.ast.ImportDeclaration
+import compiler.ast.type.AstIntersectionType
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
 import compiler.binding.BoundImportDeclaration
@@ -28,6 +30,7 @@ import compiler.binding.BoundOverloadSet
 import compiler.binding.BoundVariable
 import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundBaseType
+import compiler.binding.type.BoundIntersectionTypeReference
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.GenericTypeReference
@@ -117,7 +120,7 @@ open class MutableCTContext(
         return fromImport ?: parentContext.resolveBaseType(simpleName, fromOwnFileOnly)
     }
 
-    private fun resolveTypeExceptNullability(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
+    private fun resolveNamedTypeExceptNullability(ref: NamedTypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
         resolveTypeParameter(ref.simpleName)?.let { parameter ->
             return GenericTypeReference(ref, parameter)
         }
@@ -129,8 +132,10 @@ open class MutableCTContext(
     }
 
     override fun resolveType(ref: TypeReference, fromOwnFileOnly: Boolean): BoundTypeReference {
-        val resolved = resolveTypeExceptNullability(ref, fromOwnFileOnly)
-        return resolved.withCombinedNullability(ref.nullability)
+        return when (ref) {
+            is AstIntersectionType -> BoundIntersectionTypeReference.ofComponents(this, ref, ref.components.map { this.resolveType(it, fromOwnFileOnly) })
+            is NamedTypeReference -> resolveNamedTypeExceptNullability(ref, fromOwnFileOnly).withCombinedNullability(ref.nullability)
+        }
     }
 
     override fun resolveVariable(name: String, fromOwnFileOnly: Boolean): BoundVariable? {

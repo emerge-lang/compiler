@@ -18,7 +18,6 @@
 
 package compiler.binding.expression
 
-import compiler.InternalCompilerError
 import compiler.ast.ReturnExpression
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.InvocationExpression
@@ -31,13 +30,8 @@ import compiler.binding.impurity.ImpurityVisitor
 import compiler.binding.misc_ir.IrCreateStrongReferenceStatementImpl
 import compiler.binding.misc_ir.IrCreateTemporaryValueImpl
 import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
-import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeReference
-import compiler.binding.type.GenericTypeReference
-import compiler.binding.type.NullableTypeReference
 import compiler.binding.type.RootResolvedTypeReference
-import compiler.binding.type.TypeVariable
-import compiler.binding.type.UnresolvedType
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.NothrowViolationDiagnostic
 import compiler.diagnostic.ReturnTypeMismatchDiagnostic
@@ -158,12 +152,3 @@ class BoundReturnExpression(
 }
 
 internal class IrReturnStatementImpl(override val value: IrTemporaryValueReference) : IrReturnStatement
-
-private val BoundTypeReference.isNothing: Boolean get() = !isNullable && when (this) {
-    is RootResolvedTypeReference -> this.baseType == this.baseType.context.swCtx.nothing
-    is BoundTypeArgument -> this.type.isNothing
-    is GenericTypeReference -> this.effectiveBound.isNothing
-    is NullableTypeReference -> false
-    is UnresolvedType -> false
-    is TypeVariable -> throw InternalCompilerError("type inference not completed")
-}

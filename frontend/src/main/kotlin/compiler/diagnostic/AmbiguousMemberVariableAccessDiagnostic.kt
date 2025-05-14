@@ -7,13 +7,13 @@ import compiler.lexer.Span
 class AmbiguousMemberVariableAccessDiagnostic(
     val memberVariableName: String,
     val accessKind: AccessorKind,
-    val actualMemberVariable: BaseTypeMemberVariableDeclaration?,
+    val actualMemberVariables: Collection<BaseTypeMemberVariableDeclaration>,
     val possibleAccessorsDeclaredAt: Collection<Span>,
     referenceAt: Span,
 ) : Diagnostic(
     Severity.ERROR,
     run {
-        val virtualStr = if (actualMemberVariable == null) "virtual " else ""
+        val virtualStr = if (actualMemberVariables.isEmpty()) "virtual " else ""
         "This reference to ${virtualStr}member variable `${memberVariableName}` is ambiguous."
     },
     referenceAt,
@@ -25,6 +25,6 @@ class AmbiguousMemberVariableAccessDiagnostic(
                 AccessorKind.Read -> "\nThese options can all be used to obtain a value for `$memberVariableName`:\n"
                 AccessorKind.Write -> "\nThese options can all be used to set the value of `$memberVariableName`:\n"
             } +
-            illustrateSourceLocations(listOfNotNull(actualMemberVariable?.span) + possibleAccessorsDeclaredAt)
+            illustrateSourceLocations(actualMemberVariables.map { it.span } + possibleAccessorsDeclaredAt)
     }
 }

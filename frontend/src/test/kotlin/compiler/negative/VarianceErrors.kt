@@ -1,6 +1,6 @@
 package compiler.compiler.negative
 
-import compiler.ast.type.TypeReference
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeVariance.IN
 import compiler.ast.type.TypeVariance.OUT
 import compiler.ast.type.TypeVariance.UNSPECIFIED
@@ -36,7 +36,7 @@ class VarianceErrors : FreeSpec({
 
     fun arrayOf(element: BoundTypeArgument): BoundTypeReference = RootResolvedTypeReference(
         ctCtx,
-        TypeReference("Array"),
+        NamedTypeReference(swCtx.array.simpleName),
         swCtx.getPackage(EmergeConstants.CORE_MODULE_NAME)!!.resolveBaseType("Array")!!,
         listOf(element),
     )

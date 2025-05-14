@@ -1,8 +1,10 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
+import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.lexer.Span
@@ -17,10 +19,10 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
  *     }
  *
  * When validating the `forEach` function definition (including the body), `T` is a [GenericTypeReference],
- * meaning that the concrete type of T can never be known and we can treat all mentions of `T` like mentions
- * of `T`s bound.
+ * meaning that the concrete type of T can never be known. When `T` is consumed, it acts as if `T` was equal to
+ * its bound. When a value of type `T` is expected, only values of type `T` are accepted.
  *
- * When validating an invocation of `forEach`, the `T` of `forEach` becomes a type variable, because it can be
+ * When validating an invocation of `forEach`, the `T` of `forEach` becomes a [TypeVariable], because it can be
  * reasoned about from the types of the parameters (if you pass a `List<Int>` to `forEach`, the action has to accept
  * an `Int`, too).
  *
@@ -33,45 +35,36 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
  * can infer that `someX` in the lambda is of type `Int`.
  */
 class TypeVariable private constructor(
-    val parameter: BoundTypeParameter,
-    override val mutability: TypeMutability,
-    override val span: Span?,
-) : BoundTypeReference {
+    override val context: CTContext,
+    private val asGeneric: GenericTypeReference,
+) : BoundTypeReference by asGeneric {
     constructor(ref: GenericTypeReference) : this(
-        ref.parameter,
-        ref.mutability,
-        ref.span,
+        ref.context,
+        ref,
     )
-    constructor(parameter: BoundTypeParameter) : this(
+    constructor(parameter: BoundTypeParameter) : this(parameter.context, GenericTypeReference(
+        NamedTypeReference(parameter.astNode.name),
         parameter,
-        parameter.bound.mutability,
-        parameter.astNode.name.span,
-    )
+    ) as GenericTypeReference)
 
-    override val simpleName get() = parameter.name
-    override val isNullable get() = parameter.bound.isNullable
-    override val baseTypeOfLowerBound get()= parameter.bound.baseTypeOfLowerBound
+    internal val parameter: BoundTypeParameter get()= asGeneric.parameter
+
     override val inherentTypeBindings = TypeUnification.EMPTY
 
-    val effectiveBound: BoundTypeReference get() {
-        return parameter.bound
-            .withMutabilityIntersectedWith(mutability)
-    }
-
-    override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference {
-        throw InternalCompilerError("not implemented as it was assumed that this can never happen")
+    override fun defaultMutabilityTo(mutability: TypeMutability?): TypeVariable {
+        return rewrap(asGeneric.defaultMutabilityTo(mutability))
     }
 
     override fun withMutability(mutability: TypeMutability?): BoundTypeReference {
-        throw InternalCompilerError("not implemented as it was assumed that this can never happen")
+        return rewrap(asGeneric.withMutability(mutability))
     }
 
     override fun withMutabilityIntersectedWith(mutability: TypeMutability?): BoundTypeReference {
-        throw InternalCompilerError("not implemented as it was assumed that this can never happen")
+        return rewrap(asGeneric.withMutabilityIntersectedWith(mutability))
     }
 
     override fun withMutabilityLimitedTo(limitToMutability: TypeMutability?): BoundTypeReference {
-        throw InternalCompilerError("not implemented as it was assumed that this can never happen")
+        return rewrap(asGeneric.withMutabilityLimitedTo(limitToMutability))
     }
 
     override fun withCombinedNullability(nullability: TypeReference.Nullability): BoundTypeReference {
@@ -94,6 +87,14 @@ class TypeVariable private constructor(
         return this
     }
 
+    private fun rewrap(newNested: GenericTypeReference): TypeVariable {
+        if (newNested == asGeneric) {
+            return this
+        }
+
+        return TypeVariable(newNested)
+    }
+
     override fun unify(
         assigneeType: BoundTypeReference,
         assignmentLocation: Span,
@@ -102,16 +103,17 @@ class TypeVariable private constructor(
         return when (assigneeType) {
             is RootResolvedTypeReference,
             is GenericTypeReference,
-            is BoundTypeArgument -> {
-                val newCarry = carry.plus(this, assigneeType, assignmentLocation)
-                val selfBinding = newCarry.bindings[this] ?: return newCarry
+            is BoundIntersectionTypeReference,
+            is BoundTypeArgument, -> {
+                val newCarry = carry.plus(this.parameter, assigneeType, assignmentLocation)
+                val selfBinding = newCarry.bindings[this.parameter] ?: return newCarry
                 selfBinding.unify(assigneeType, assignmentLocation, newCarry)
             }
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
             is NullableTypeReference -> {
-                if (effectiveBound.isNullable) {
-                    return carry.plus(this, assigneeType, assignmentLocation)
+                if (isNullable) {
+                    return carry.plus(this.parameter, assigneeType, assignmentLocation)
                 } else {
                     val carry2 = carry.plusReporting(ValueNotAssignableDiagnostic(
                         this,
@@ -126,13 +128,13 @@ class TypeVariable private constructor(
     }
 
     fun flippedUnify(targetType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification {
-        val newCarry = carry.plus(this, targetType, assignmentLocation)
-        val selfBinding = carry.bindings[this] ?: return newCarry
+        val newCarry = carry.plus(this.parameter, targetType, assignmentLocation)
+        val selfBinding = carry.bindings[this.parameter] ?: return newCarry
         return targetType.unify(selfBinding, assignmentLocation, newCarry)
     }
 
     override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
-        return context.bindings[this] ?: effectiveBound
+        return context.bindings[this.parameter] ?: asGeneric.effectiveBound.instantiateFreeVariables(context)
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
@@ -144,40 +146,32 @@ class TypeVariable private constructor(
     }
 
     override fun asAstReference(): TypeReference {
-        return TypeReference(
-            parameter.name,
-            TypeReference.Nullability.of(this),
-            this.mutability,
-            null,
-            null,
-            span,
-        )
+        return asGeneric.asAstReference()
     }
 
     override fun toBackendIr(): IrType {
         throw InternalCompilerError("Attempting to create BackendIr from unresolved type variable $this at ${this.span}")
     }
 
-    override fun toString(): String {
-        var str = "Var("
-        if (mutability != parameter.bound.mutability) {
-            str += mutability.keyword.text + " "
-        }
-        str += simpleName
-        str += ")"
-        return str
+    fun isFor(parameter: BoundTypeParameter): Boolean = this.asGeneric.parameter == parameter
+    val parameterName: String get() = asGeneric.parameter.name
+
+    fun toStringForUnification(): String {
+        return asGeneric.toString()
     }
+
+    override fun toString(): String = "Var(${toStringForUnification()})"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is TypeVariable) return false
 
-        if (parameter != other.parameter) return false
+        if (asGeneric != other.asGeneric) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return parameter.hashCode()
+        return asGeneric.hashCode()
     }
 }

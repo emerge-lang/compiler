@@ -2,6 +2,7 @@ package compiler.compiler.negative
 
 import compiler.binding.type.GenericTypeReference
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
+import compiler.diagnostic.SimplifiableIntersectionTypeDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
 import compiler.diagnostic.TypeArgumentVarianceMismatchDiagnostic
@@ -194,7 +195,7 @@ class TypeErrors : FreeSpec({
                 x: A<S32> = A(2, false)
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.sourceType.toString() shouldBe "const Any"
+                    it.sourceType.toString() shouldBe "const Bool"
                     it.targetType.toString() shouldBe "const S32"
                 }
         }
@@ -298,6 +299,47 @@ class TypeErrors : FreeSpec({
                 .shouldFind<ValueNotAssignableDiagnostic> {
                     it.sourceType.toString() shouldBe "const String"
                     it.targetType.toString() shouldBe "const S32"
+                }
+        }
+    }
+
+    "union types" - {
+        "superfluous components" {
+            validateModule("""
+                interface I {}
+                interface S : I {}
+                
+                fn trigger(p: I & S) {}
+            """.trimIndent())
+                .shouldFind<SimplifiableIntersectionTypeDiagnostic> {
+                    it.complicatedType.toString() shouldBe "I & S"
+                    it.simplerVersion.toString() shouldBe "read testmodule.S"
+                }
+
+            validateModule("""
+                fn trigger(p: S32 & read Any) {}
+            """.trimIndent())
+                .shouldFind<SimplifiableIntersectionTypeDiagnostic> {
+                    it.complicatedType.toString() shouldBe "S32 & read Any"
+                    it.simplerVersion.toString() shouldBe "const S32"
+                }
+
+            validateModule("""
+                fn trigger(p: read Any & S32) {}
+            """.trimIndent())
+                .shouldFind<SimplifiableIntersectionTypeDiagnostic> {
+                    it.complicatedType.toString() shouldBe "read Any & S32"
+                    it.simplerVersion.toString() shouldBe "const S32"
+                }
+
+            validateModule("""
+                interface I {}
+                
+                fn trigger(p: read I & mut Any) {}
+            """.trimIndent())
+                .shouldFind< SimplifiableIntersectionTypeDiagnostic> {
+                    it.complicatedType.toString() shouldBe "read I & mut Any"
+                    it.simplerVersion.toString() shouldBe "mut testmodule.I"
                 }
         }
     }

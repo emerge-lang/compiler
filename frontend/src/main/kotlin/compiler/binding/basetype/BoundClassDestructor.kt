@@ -5,6 +5,7 @@ import compiler.ast.BaseTypeDestructorDeclaration
 import compiler.ast.ParameterList
 import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
 import compiler.ast.type.TypeReference
@@ -62,7 +63,7 @@ class BoundClassDestructor(
     override val declaresReceiver = true
     override val receiverType by lazy {
         destructorFunctionRootContext.resolveType(
-            TypeReference(
+            NamedTypeReference(
                 classDef.simpleName,
                 TypeReference.Nullability.NOT_NULLABLE,
                 TypeMutability.EXCLUSIVE,
@@ -70,7 +71,7 @@ class BoundClassDestructor(
                 classDef.typeParameters?.map {
                     TypeArgument(
                         TypeVariance.UNSPECIFIED,
-                        TypeReference(it.astNode.name),
+                        NamedTypeReference(it.astNode.name),
                     )
                 },
             ),

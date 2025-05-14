@@ -1,10 +1,10 @@
 package compiler.diagnostic
 
-import compiler.ast.type.TypeReference
+import compiler.ast.type.NamedTypeReference
 import compiler.lexer.Span
 
 class DuplicateSupertypeDiagnostic(
-    val supertype: TypeReference,
+    val supertype: NamedTypeReference,
 ) : Diagnostic(
     Severity.ERROR,
     "Can inherit from ${supertype.simpleName} only once",

@@ -18,10 +18,10 @@
 
 package compiler.ast
 
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundParameterList
 import compiler.binding.context.ExecutionScopedCTContext
-import compiler.binding.type.BoundTypeReference
 
 data class ParameterList (
     val parameters: List<VariableDeclaration> = emptyList()
@@ -29,22 +29,18 @@ data class ParameterList (
     /** The types; null values indicate non-specified parameters */
     val types: List<TypeReference?> = parameters.map { it.type }
 
-    fun bindTo(context: ExecutionScopedCTContext, impliedReceiverType: TypeReference? = null) = BoundParameterList(
+    fun bindTo(context: ExecutionScopedCTContext, impliedReceiverType: NamedTypeReference? = null) = BoundParameterList(
         context,
         this,
         parameters.mapIndexed { index, parameter ->
             if (index == 0 && parameter.name.value == BoundParameterList.RECEIVER_PARAMETER_NAME ) {
                 val actualType = when {
-                    parameter.type == null -> impliedReceiverType
-                    impliedReceiverType != null && parameter.type.simpleName == BoundTypeReference.NAME_REQUESTING_TYPE_INFERENCE -> {
-                        parameter.type.copy(
-                            simpleName = impliedReceiverType.simpleName,
-                            arguments = parameter.type.arguments ?: impliedReceiverType.arguments
-                        )
-                    }
-                    else -> parameter.type
+                    parameter.type != null && impliedReceiverType != null -> parameter.type.fillInInferrableType(impliedReceiverType)
+                    else -> parameter.type ?: impliedReceiverType
                 }
-                return@mapIndexed parameter.copy(type = actualType).bindToAsParameter(context)
+
+                val retypedParam = if (actualType === parameter.type) parameter else parameter.copy(type = actualType)
+                return@mapIndexed retypedParam.bindToAsParameter(context)
             }
 
             return@mapIndexed parameter.bindToAsParameter(context)

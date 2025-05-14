@@ -65,8 +65,8 @@ class BaseTypeTest : FreeSpec() { init {
             interface C : A {}
             interface D : B {}
             interface E : B {}
-            interface F : A, Z {}
-            interface G : A, Z {}
+            interface F : A & Z {}
+            interface G : A & Z {}
         """.trimIndent())
             .first
         val typeA = swCtx.getTestType("A")

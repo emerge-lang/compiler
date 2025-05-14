@@ -1,8 +1,8 @@
 package compiler.compiler.binding.type
 
 import compiler.binding.type.RootResolvedTypeReference
-import compiler.compiler.negative.shouldHaveNoDiagnostics
 import compiler.compiler.negative.shouldFind
+import compiler.compiler.negative.shouldHaveNoDiagnostics
 import compiler.compiler.negative.validateModule
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
@@ -32,8 +32,7 @@ class UnificationTest : FreeSpec({
         }
 
         "expected-return-type-declared type argument" {
-            validateModule(
-                """
+            validateModule("""
                 class A<T> {
                     prop: T = init
                 }
@@ -41,7 +40,7 @@ class UnificationTest : FreeSpec({
             """.trimIndent()
             )
                 .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.sourceType.toString() shouldBe "const Any"
+                    it.sourceType.toString() shouldBe "const Bool"
                     it.targetType.toString() shouldBe "const S32"
                 }
         }

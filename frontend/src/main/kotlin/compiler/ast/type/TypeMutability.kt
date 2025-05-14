@@ -18,9 +18,18 @@
 
 package compiler.ast.type
 
+import compiler.ast.type.TypeMutability.EXCLUSIVE
+import compiler.ast.type.TypeMutability.IMMUTABLE
+import compiler.ast.type.TypeMutability.MUTABLE
 import compiler.lexer.Keyword
 import io.github.tmarsteel.emerge.backend.api.ir.IrTypeMutability
 
+/**
+ * Models the mutability aspect of a type. The logic in this class works as if the enum instances were types
+ * themselves, e.g.: [MUTABLE] is the set of all mutable objects, [IMMUTABLE] is the set of all immutable objects.
+ * Hence, `MUTABLE.union(IMMUTABLE)` is the union-set of all mutable objects and all immutable objects; or, more simply,
+ * the set of all [EXCLUSIVE] objects.
+ */
 enum class TypeMutability(
     val keyword: Keyword,
     val isMutable: Boolean,
@@ -65,8 +74,12 @@ enum class TypeMutability(
      * |`EXCLUSIVE`|`READONLY` |`READONLY` |
      * |`EXCLUSIVE`|`IMMUTABLE`|`IMMUTABLE`|
      * |`EXCLUSIVE`|`EXCLUSIVE`|`EXCLUSIVE`|
+     *
+     * @return The [TypeMutability] that applies to the union of the sets of objects being described
+     * by `this` and [other]. In other words: returns the mutability that expresses all abilities & guarantees that are
+     * common to both `this` and [other].
      */
-    fun intersect(other: TypeMutability?): TypeMutability = when {
+    fun union(other: TypeMutability?): TypeMutability = when {
         other == null || other == this -> this
         this == EXCLUSIVE -> other
         other == EXCLUSIVE -> this
@@ -114,23 +127,24 @@ enum class TypeMutability(
      * |`IMMUTABLE`|`MUTABLE`  |`EXCLUSIVE`|
      * |`IMMUTABLE`|`READONLY` |`IMMUTABLE`|
      * |`IMMUTABLE`|`IMMUTABLE`|`IMMUTABLE`|
-     * @return mutability that allows for everything/guarantees for everything that any of `this` and [other] do:
+     * @return the [TypeMutability] that describes the intersection-set of `this` and [other]. In other words,
+     * returns the mutability that describes the guarantees and constraints from both `this` and [other].
      */
-    fun union(other: TypeMutability): TypeMutability = when(this) {
-        MUTABLE -> when (other) {
+    fun intersect(other: TypeMutability): TypeMutability = when(this) {
+        MUTABLE -> when(other) {
             MUTABLE -> MUTABLE
             READONLY -> MUTABLE
             IMMUTABLE -> EXCLUSIVE
             EXCLUSIVE -> EXCLUSIVE
         }
-        READONLY -> when (other) {
+        READONLY -> when(other) {
             READONLY -> READONLY
-            IMMUTABLE -> READONLY
-            else -> other.union(this)
-        }
-        IMMUTABLE -> when (other) {
             IMMUTABLE -> IMMUTABLE
-            else -> other.union(this)
+            else -> other.intersect(this)
+        }
+        IMMUTABLE -> when(other) {
+            IMMUTABLE -> IMMUTABLE
+            else -> other.intersect(this)
         }
         EXCLUSIVE -> EXCLUSIVE
     }

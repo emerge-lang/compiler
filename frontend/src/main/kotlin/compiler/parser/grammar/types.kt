@@ -21,6 +21,8 @@ package compiler.parser.grammar
 import compiler.InternalCompilerError
 import compiler.ast.TypeArgumentBundle
 import compiler.ast.TypeParameterBundle
+import compiler.ast.type.AstIntersectionType
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
@@ -31,6 +33,7 @@ import compiler.lexer.KeywordToken
 import compiler.lexer.Operator
 import compiler.lexer.OperatorToken
 import compiler.lexer.Span
+import compiler.parser.AstIntersectionTypePostfix
 import compiler.parser.grammar.dsl.astTransformation
 import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
@@ -139,7 +142,7 @@ val BracedTypeParameters = sequence("braced type parameters") {
         TypeParameterBundle(parameters)
     }
 
-val Type: Rule<TypeReference> = sequence("type") {
+val NamedType: Rule<TypeReference> = sequence("named type") {
     optional {
         ref(TypeMutability)
     }
@@ -207,7 +210,7 @@ val Type: Rule<TypeReference> = sequence("type") {
             else -> throw InternalCompilerError("Invalid type mutability token: $typeMutabilityKeyword")
         }
 
-        TypeReference(
+        NamedTypeReference(
             nameToken.value,
             nullability,
             typeMutability,
@@ -217,3 +220,32 @@ val Type: Rule<TypeReference> = sequence("type") {
         )
     }
 
+val IntersectionTypePostifx = sequence("intersection-postfix") {
+    operator(Operator.INTERSECTION)
+    ref(NamedType)
+}
+    .astTransformation { tokens ->
+        AstIntersectionTypePostfix(tokens.next() as OperatorToken, tokens.next() as NamedTypeReference)
+    }
+
+val Type: Rule<TypeReference> = sequence("type") {
+    ref(NamedType)
+    repeating {
+        ref(IntersectionTypePostifx)
+    }
+}
+    .astTransformation { tokens ->
+        val baseRef = tokens.next() as NamedTypeReference
+        val intersections = tokens.remainingToList() as List<AstIntersectionTypePostfix>
+        if (intersections.isEmpty()) {
+            return@astTransformation baseRef
+        }
+
+        var combinedSpan = intersections.fold(baseRef.span ?: Span.UNKNOWN) { carrySpan, postfix ->
+            carrySpan
+                .rangeTo(postfix.reference.span)
+                .rangeTo(postfix.intersectionOperator.span)
+        }
+
+        AstIntersectionType(listOf(baseRef) + intersections.map { it.reference }, combinedSpan)
+    }

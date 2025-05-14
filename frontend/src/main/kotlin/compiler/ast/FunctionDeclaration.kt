@@ -18,10 +18,10 @@
 
 package compiler.ast
 
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.binding.BoundDeclaredFunction
-import compiler.binding.BoundFunction
 import compiler.binding.BoundFunctionAttributeList
 import compiler.binding.BoundTopLevelFunction
 import compiler.binding.basetype.BoundBaseType
@@ -65,7 +65,7 @@ data class FunctionDeclaration(
 
     fun bindToAsMember(
         context: CTContext,
-        impliedReceiverType: TypeReference,
+        impliedReceiverType: NamedTypeReference,
         getTypeDef: () -> BoundBaseType
     ): BoundDeclaredBaseTypeMemberFunction {
         lateinit var boundFn: BoundDeclaredBaseTypeMemberFunction

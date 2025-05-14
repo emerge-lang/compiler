@@ -1,9 +1,9 @@
 package compiler.binding.type
 
 import compiler.InternalCompilerError
+import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeParameter
-import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundVisibility
 import compiler.binding.DefinitionWithVisibility
@@ -37,12 +37,12 @@ data class BoundTypeParameter(
     }
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
-        context.resolveType(TypeReference(name))
+        context.resolveType(NamedTypeReference(name))
             .takeUnless { it is UnresolvedType }
             ?.let { preExistingType ->
                 diagnosis.typeParameterNameConflict(preExistingType, this)
             }
-        bound = astNode.bound?.let(context::resolveType) ?: context.swCtx.typeParameterDefaultBound
+        bound = astNode.bound?.let(context::resolveType) ?: context.swCtx.topTypeRef
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {

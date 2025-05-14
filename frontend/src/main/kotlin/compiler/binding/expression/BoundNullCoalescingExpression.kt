@@ -63,7 +63,7 @@ class BoundNullCoalescingExpression(
     }
 
     override fun setExpectedEvaluationResultType(type: BoundTypeReference, diagnosis: Diagnosis) {
-        nullableExpression.setExpectedEvaluationResultType(type, diagnosis)
+        nullableExpression.setExpectedEvaluationResultType(type.withCombinedNullability(TypeReference.Nullability.NULLABLE), diagnosis)
         alternativeExpression.setExpectedEvaluationResultType(type, diagnosis)
     }
 

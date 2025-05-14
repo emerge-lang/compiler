@@ -10,6 +10,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrGenericTypeReference
 import io.github.tmarsteel.emerge.backend.api.ir.IrGlobalVariable
 import io.github.tmarsteel.emerge.backend.api.ir.IrInterface
+import io.github.tmarsteel.emerge.backend.api.ir.IrIntersectionType
 import io.github.tmarsteel.emerge.backend.api.ir.IrIntrinsicType
 import io.github.tmarsteel.emerge.backend.api.ir.IrMemberFunction
 import io.github.tmarsteel.emerge.backend.api.ir.IrParameterizedType
@@ -582,6 +583,7 @@ class EmergeLlvmContext(
             is IrSimpleType -> type.baseType
             is IrParameterizedType -> type.simpleType.baseType
             is IrGenericTypeReference -> return getReferenceSiteType(type.effectiveBound)
+            is IrIntersectionType -> return pointerTo(getAllocationSiteType(type))
         }
 
         baseType.autoboxer?.let { return it.getReferenceSiteType(this, type, forceBoxed) }
@@ -647,6 +649,7 @@ class EmergeLlvmContext(
 
                 // there are no other possibilities AFAICT right now
             }
+            is IrIntersectionType -> return EmergeHeapAllocatedValueBaseType
         }
     }
 

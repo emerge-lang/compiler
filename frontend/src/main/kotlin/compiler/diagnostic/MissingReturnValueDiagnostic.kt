@@ -8,7 +8,7 @@ data class MissingReturnValueDiagnostic(
     val expectedType: BoundTypeReference,
 ) : Diagnostic(
     Severity.ERROR,
-    "Expecting a return value of type ${expectedType.simpleName}",
+    "Expecting a return value of type $expectedType",
     valueLessReturn.span,
 ) {
     override fun toString() = super.toString()

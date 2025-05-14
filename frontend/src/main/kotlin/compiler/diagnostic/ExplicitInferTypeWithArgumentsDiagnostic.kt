@@ -1,10 +1,10 @@
 package compiler.diagnostic
 
-import compiler.ast.type.TypeReference
+import compiler.ast.type.NamedTypeReference
 import compiler.lexer.Span
 
 data class ExplicitInferTypeWithArgumentsDiagnostic(
-    val reference: TypeReference,
+    val reference: NamedTypeReference,
 ) : Diagnostic(
     Severity.ERROR,
     "Type arguments cannot be specified for types that should be inferred.",

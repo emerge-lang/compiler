@@ -20,7 +20,7 @@ class ParametricSupertypes : FreeSpec({
             for ((typeA, typeB) in types.twoElementPermutationsUnordered()) {
                 val aArgMut = typeA.arguments!!.single().mutability
                 val bArgMut = typeB.arguments!!.single().mutability
-                val expectedArgMutability = aArgMut.intersect(bArgMut)
+                val expectedArgMutability = aArgMut.union(bArgMut)
                 val expectedType = swCtx.parseType("exclusive Array<${expectedArgMutability.keyword.text} SomeT>")
 
                 "${aArgMut.keyword.text} x ${bArgMut.keyword.text} -> ${expectedArgMutability.keyword.text}" {
