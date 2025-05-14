@@ -69,7 +69,7 @@ class UnresolvedType private constructor(
         )
     }
 
-    override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeReference {
+    override fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeReference {
         return UnresolvedType(
             standInType.withTypeVariables(variables),
             reference,

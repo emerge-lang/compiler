@@ -49,7 +49,7 @@ class BoundTypeArgument(
         type.validate(forUsage.deriveIrrelevant(), diagnosis)
     }
 
-    override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeArgument {
+    override fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeArgument {
         return BoundTypeArgument(context, astNode, variance, type.withTypeVariables(variables))
     }
 

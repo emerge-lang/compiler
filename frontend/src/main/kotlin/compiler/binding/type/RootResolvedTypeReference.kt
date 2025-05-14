@@ -179,7 +179,7 @@ class RootResolvedTypeReference private constructor(
         return baseType.resolveMemberFunction(name)
     }
 
-    override fun withTypeVariables(variables: List<BoundTypeParameter>): RootResolvedTypeReference {
+    override fun withTypeVariables(variables: Collection<BoundTypeParameter>): RootResolvedTypeReference {
         return RootResolvedTypeReference(
             context,
             original,

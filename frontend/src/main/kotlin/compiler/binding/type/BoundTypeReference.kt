@@ -125,7 +125,7 @@ sealed interface BoundTypeReference {
      * are wrapped in a [TypeVariable] instance. This makes the resulting type subject to inferring generic types
      * in a call to [unify].
      */
-    fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeReference
+    fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeReference
 
     /**
      * Used to derive information about generic types in concrete situations, so e.g.:

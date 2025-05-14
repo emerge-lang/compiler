@@ -180,7 +180,7 @@ sealed class GenericTypeReference : BoundTypeReference {
         return instantiated.withCombinedNullability(original.nullability)
     }
 
-    override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeReference {
+    override fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeReference {
         val withTypeVariableBound = mapEffectiveBound { it.withTypeVariables(variables) }
 
         if (this.parameter !in variables) {

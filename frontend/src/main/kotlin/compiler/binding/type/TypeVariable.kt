@@ -83,7 +83,7 @@ class TypeVariable private constructor(
         throw InternalCompilerError("not implemented as it was assumed that this can never happen")
     }
 
-    override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeReference {
+    override fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeReference {
         return this
     }
 

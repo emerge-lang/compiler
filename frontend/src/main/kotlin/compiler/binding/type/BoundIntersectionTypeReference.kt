@@ -95,7 +95,7 @@ class BoundIntersectionTypeReference private constructor(
         return mapComponents(simplify = true) { it.closestCommonSupertypeWith(other) }
     }
 
-    override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeReference {
+    override fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeReference {
         return mapComponents { it.withTypeVariables(variables) }
     }
 

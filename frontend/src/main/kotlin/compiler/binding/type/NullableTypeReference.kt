@@ -59,7 +59,7 @@ class NullableTypeReference private constructor(
         return nested.findMemberFunction(name)
     }
 
-    override fun withTypeVariables(variables: List<BoundTypeParameter>): BoundTypeReference {
+    override fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeReference {
         return rewrap(nested.withTypeVariables(variables))
     }
 
