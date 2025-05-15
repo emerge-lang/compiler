@@ -7,6 +7,7 @@ import compiler.binding.impurity.ReassignmentBeyondBoundary
 import compiler.diagnostic.AbstractInheritedFunctionNotImplementedDiagnostic
 import compiler.diagnostic.ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic
 import compiler.diagnostic.ConstructorDeclaredModifyingDiagnostic
+import compiler.diagnostic.DecoratingMemberVariableWithoutConstructorInitializationDiagnostic
 import compiler.diagnostic.DuplicateBaseTypeMemberDiagnostic
 import compiler.diagnostic.DuplicateMemberVariableAttributeDiagnostic
 import compiler.diagnostic.DuplicateSupertypeDiagnostic
@@ -163,6 +164,17 @@ class ClassErrors : FreeSpec({
                     }
             }
 
+            "decorates on non-constructor-initialized member" {
+                validateModule("""
+                    class A {}
+                    class Test {
+                        decorates n: A = A()
+                    }
+                """.trimIndent())
+                    .shouldFind<DecoratingMemberVariableWithoutConstructorInitializationDiagnostic> {
+                        it.memberVariable.name.value shouldBe "n"
+                    }
+            }
         }
     }
 

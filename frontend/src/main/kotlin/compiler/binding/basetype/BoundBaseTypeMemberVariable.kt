@@ -27,9 +27,11 @@ import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.decoratingMemberVariableWithoutConstructorInitialization
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
 import io.github.tmarsteel.emerge.backend.api.ir.IrType
+import io.github.tmarsteel.emerge.common.EmergeConstants
 
 class BoundBaseTypeMemberVariable(
     val context: ExecutionScopedCTContext,
@@ -40,9 +42,10 @@ class BoundBaseTypeMemberVariable(
     val name = declaration.name.value
     override val declaredAt = declaration.span
     val isReAssignable = declaration.variableDeclaration.isReAssignable
+    val isDecorated: Boolean = attributes.firstDecoratesAttribute != null
 
     val isConstructorParameterInitialized = if (declaration.variableDeclaration.initializerExpression is IdentifierExpression) {
-        declaration.variableDeclaration.initializerExpression.identifier.value == "init"
+        declaration.variableDeclaration.initializerExpression.identifier.value == EmergeConstants.MAGIC_IDENTIFIER_CONSTRUCTOR_INITIALIZED_MEMBER_VARIABLE
     } else {
         false
     }
@@ -74,6 +77,9 @@ class BoundBaseTypeMemberVariable(
         boundEffectiveVariableDeclaration.semanticAnalysisPhase1(diagnosis)
         visibility.validateOnElement(this, diagnosis)
         attributes.validate(diagnosis)
+        if (isDecorated && !isConstructorParameterInitialized) {
+            diagnosis.decoratingMemberVariableWithoutConstructorInitialization(this)
+        }
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
