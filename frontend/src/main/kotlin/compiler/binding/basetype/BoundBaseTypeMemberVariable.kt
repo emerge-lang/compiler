@@ -34,6 +34,7 @@ import io.github.tmarsteel.emerge.backend.api.ir.IrType
 class BoundBaseTypeMemberVariable(
     val context: ExecutionScopedCTContext,
     val declaration: BaseTypeMemberVariableDeclaration,
+    val attributes: BoundBaseTypeMemberVariableAttributes,
     private val getTypeDef: () -> BoundBaseType,
 ) : BoundBaseTypeEntry<BaseTypeMemberDeclaration>, DefinitionWithVisibility {
     val name = declaration.name.value
@@ -72,6 +73,7 @@ class BoundBaseTypeMemberVariable(
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         boundEffectiveVariableDeclaration.semanticAnalysisPhase1(diagnosis)
         visibility.validateOnElement(this, diagnosis)
+        attributes.validate(diagnosis)
     }
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {

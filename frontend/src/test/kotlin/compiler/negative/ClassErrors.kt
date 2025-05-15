@@ -8,6 +8,7 @@ import compiler.diagnostic.AbstractInheritedFunctionNotImplementedDiagnostic
 import compiler.diagnostic.ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic
 import compiler.diagnostic.ConstructorDeclaredModifyingDiagnostic
 import compiler.diagnostic.DuplicateBaseTypeMemberDiagnostic
+import compiler.diagnostic.DuplicateMemberVariableAttributeDiagnostic
 import compiler.diagnostic.DuplicateSupertypeDiagnostic
 import compiler.diagnostic.ExplicitOwnershipNotAllowedDiagnostic
 import compiler.diagnostic.ExternalMemberFunctionDiagnostic
@@ -33,6 +34,7 @@ import compiler.diagnostic.UndefinedIdentifierDiagnostic
 import compiler.diagnostic.UnknownTypeDiagnostic
 import compiler.diagnostic.UseOfUninitializedClassMemberVariableDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.lexer.Keyword
 import io.kotest.core.spec.style.FreeSpec
 import io.kotest.inspectors.forAll
 import io.kotest.matchers.collections.haveSize
@@ -144,6 +146,23 @@ class ClassErrors : FreeSpec({
                 }
             """.trimIndent())
                 .shouldFind<ExplicitOwnershipNotAllowedDiagnostic>()
+        }
+
+        "decorated members" - {
+            "duplicate decorates keyword" {
+                validateModule("""
+                    interface A {}
+                    class Test {
+                        decorates decorates n: A = init
+                    }
+                """.trimIndent())
+                    .shouldFind<DuplicateMemberVariableAttributeDiagnostic> {
+                        it.duplicates.forAll {
+                            it.keyword shouldBe Keyword.DECORATES
+                        }
+                    }
+            }
+
         }
     }
 

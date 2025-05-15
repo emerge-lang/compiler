@@ -92,36 +92,6 @@ abstract class TransactionalSequence<out ItemType, FallbackPointType : Position>
     }
 
     /**
-     * Marks the current position with [mark]. Then runs the code in the given function. If that code returns
-     * gracefully, passes on the return value to the caller. If it throws an exception, rolls back the state to the
-     * state marked before and rethrows the exception.
-     * Transactions can be nested.
-     * @return The result of the given function
-     */
-    fun <T> transact(txCode: TransactionReceiver.() -> T): T
-    {
-        mark()
-        try
-        {
-            val retVal = txReceiver.txCode()
-            commit()
-            return retVal
-        }
-        catch (ex: Throwable)
-        {
-            rollback()
-            throw ex
-        }
-    }
-
-    /**
-     * Invokes the given consumer on all items left in the sequence.
-     */
-    open fun forEachRemaining(consumer: (ItemType) -> Any?): Unit {
-        while (hasNext()) consumer(next()!!)
-    }
-
-    /**
      * Invokes the given consumer on all items left in the sequence. The index always starts at 0.
      */
     open fun forEachRemainingIndexed(consumer: (Int, ItemType) -> Any?): Unit {
@@ -134,10 +104,19 @@ abstract class TransactionalSequence<out ItemType, FallbackPointType : Position>
     /** Returns the remaining tokens in a list */
     open fun remainingToList(): List<ItemType> = items.subList(currentPosition.sourceIndex, items.lastIndex + 1)
 
-    inner class TransactionReceiver {
-        fun next(): ItemType? = this@TransactionalSequence.next()
+    inline fun <reified T> takeWhileIsInstanceOf(): List<T> {
+        @Suppress("UNCHECKED_CAST")
+        return takeWhile { it is T } as List<T>
     }
-    private val txReceiver = TransactionReceiver()
+
+    fun takeWhile(predicate: (ItemType) -> Boolean): List<ItemType> {
+        val items = mutableListOf<ItemType>()
+        while (hasNext() && predicate(peek()!!)) {
+            items.add(next()!!)
+        }
+
+        return items
+    }
 }
 
 class SimpleTransactionalSequence<T>(items: List<T>) : TransactionalSequence<T, Position>(items)

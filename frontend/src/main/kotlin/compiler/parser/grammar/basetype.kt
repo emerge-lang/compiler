@@ -31,11 +31,18 @@ import compiler.parser.grammar.dsl.eitherOf
 import compiler.parser.grammar.dsl.sequence
 
 val BaseTypeMemberVariableDeclaration = sequence("member variable declaration") {
+    repeating {
+        eitherOf {
+            keyword(DECORATES)
+        }
+    }
     ref(VariableDeclaration)
     operator(NEWLINE)
 }
     .astTransformation { tokens ->
+        val attributes = tokens.takeWhileIsInstanceOf<KeywordToken>()
         BaseTypeMemberVariableDeclaration(
+            attributes,
             tokens.next() as VariableDeclaration,
         )
     }

@@ -30,6 +30,7 @@ import compiler.binding.BoundVisibility
 import compiler.binding.basetype.BoundBaseType
 import compiler.binding.basetype.BoundBaseTypeEntry
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
+import compiler.binding.basetype.BoundBaseTypeMemberVariableAttributes
 import compiler.binding.basetype.BoundClassConstructor
 import compiler.binding.basetype.BoundClassDestructor
 import compiler.binding.basetype.BoundDeclaredBaseTypeMemberFunction
@@ -123,6 +124,7 @@ sealed class BaseTypeMemberDeclaration : BaseTypeEntryDeclaration {
 }
 
 class BaseTypeMemberVariableDeclaration(
+    val attributes: List<KeywordToken>,
     val variableDeclaration: VariableDeclaration,
 ) : BaseTypeMemberDeclaration() {
     override val span = variableDeclaration.declaredAt
@@ -132,6 +134,7 @@ class BaseTypeMemberVariableDeclaration(
         return BoundBaseTypeMemberVariable(
             context,
             this,
+            BoundBaseTypeMemberVariableAttributes(attributes),
             getTypeDef,
         )
     }

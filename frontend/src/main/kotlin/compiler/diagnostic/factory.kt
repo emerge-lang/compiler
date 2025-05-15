@@ -55,6 +55,7 @@ import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.lexer.IdentifierToken
+import compiler.lexer.KeywordToken
 import compiler.lexer.OperatorToken
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.common.CanonicalElementName
@@ -203,6 +204,14 @@ fun Diagnosis.inefficientAttributes(message: String, attributes: Collection<AstF
 
 fun Diagnosis.conflictingAttributes(attributes: Collection<AstFunctionAttribute>) {
     add(ConflictingFunctionAttributesDiagnostic(attributes))
+}
+
+fun Diagnosis.invalidMemberVariableAttribute(attribute: KeywordToken, reason: String) {
+    add(InvalidBaseTypeMemberVariableAttributeDiagnostic(reason, attribute.span))
+}
+
+fun Diagnosis.duplicateMemberVariableAttributes(firstMention: KeywordToken, duplicates: List<KeywordToken>) {
+    add(DuplicateMemberVariableAttributeDiagnostic(duplicates))
 }
 
 fun Diagnosis.toplevelFunctionWithOverrideAttribute(attr: AstFunctionAttribute.Override) {
