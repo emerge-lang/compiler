@@ -1,5 +1,6 @@
 package compiler.binding.type
 
+import compiler.InternalCompilerError
 import compiler.ast.type.TypeVariance
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
@@ -40,6 +41,10 @@ interface TypeUnification {
     companion object {
         val EMPTY: TypeUnification = DefaultTypeUnification.EMPTY
 
+        fun forInferenceOf(parameters: Collection<BoundTypeParameter>): TypeUnification {
+            return DefaultTypeUnification.forInferenceOf(parameters)
+        }
+
         /**
          * For a type reference or function call, builds a [TypeUnification] that contains the explicit type arguments. E.g.:
          *
@@ -50,22 +55,25 @@ interface TypeUnification {
          * Then you would call `fromExplicit(<params of base type X>, listOf(<int type arg, boolean type arg>), ...)`
          * and the return value would be `[E = Int, T = Boolean] Errors: 0`
          *
+         * @param allTypeParameters all type parameters in play for the inference, see [compiler.binding.BoundFunction.allTypeParameters]
+         * @param declaredTypeParameters the type parameters declared at the specific inference location, see [compiler.binding.BoundFunction.declaredTypeParameters]
          * @param argumentsLocation Location of where the type arguments are being supplied. Used as a fallback
          * for [Diagnostic]s if there are no type arguments and [allowZeroTypeArguments] is false
-         * @param allowMissingTypeArguments Whether 0 type arguments is valid even if [typeParameters] is non-empty.
+         * @param allowMissingTypeArguments Whether 0 type arguments is valid even if [declaredTypeParameters] is non-empty.
          * This is the case for function invocations, but type references always need to specify all type args.
          */
         fun fromExplicit(
-            typeParameters: List<BoundTypeParameter>,
+            allTypeParameters: Collection<BoundTypeParameter>,
+            declaredTypeParameters: List<BoundTypeParameter>,
             arguments: List<BoundTypeArgument>?,
             argumentsLocation: Span,
             allowMissingTypeArguments: Boolean = false,
         ): TypeUnification {
-            var unification = EMPTY
+            var unification = forInferenceOf(allTypeParameters)
 
             if (arguments == null) {
-                if (typeParameters.isNotEmpty() && !allowMissingTypeArguments) {
-                    for (typeParam in typeParameters) {
+                if (declaredTypeParameters.isNotEmpty() && !allowMissingTypeArguments) {
+                    for (typeParam in declaredTypeParameters) {
                         unification = unification.plusReporting(MissingTypeArgumentDiagnostic(typeParam.astNode, argumentsLocation))
                     }
                 }
@@ -73,8 +81,8 @@ interface TypeUnification {
                 return unification
             }
 
-            for (i in 0..typeParameters.lastIndex.coerceAtMost(arguments.lastIndex)) {
-                val parameter = typeParameters[i]
+            for (i in 0..declaredTypeParameters.lastIndex.coerceAtMost(arguments.lastIndex)) {
+                val parameter = declaredTypeParameters[i]
                 val argument = arguments[i]
                 if (argument.variance != TypeVariance.UNSPECIFIED && parameter.variance != TypeVariance.UNSPECIFIED) {
                     if (argument.variance != parameter.variance) {
@@ -91,16 +99,16 @@ interface TypeUnification {
                 unification = nextUnification.plus(parameter, if (!hadErrors) argument else parameter.bound, argument.span ?: Span.UNKNOWN)
             }
 
-            for (i in arguments.size..typeParameters.lastIndex) {
+            for (i in arguments.size..declaredTypeParameters.lastIndex) {
                 unification = unification.plusReporting(
-                    MissingTypeArgumentDiagnostic(typeParameters[i].astNode, arguments.lastOrNull()?.span ?: argumentsLocation)
+                    MissingTypeArgumentDiagnostic(declaredTypeParameters[i].astNode, arguments.lastOrNull()?.span ?: argumentsLocation)
                 )
             }
-            if (arguments.size > typeParameters.size) {
+            if (arguments.size > declaredTypeParameters.size) {
                 unification = unification.plusReporting(
                     SuperfluousTypeArgumentsDiagnostic(
-                        typeParameters.size,
-                        arguments[typeParameters.size].astNode,
+                        declaredTypeParameters.size,
+                        arguments[declaredTypeParameters.size].astNode,
                     )
                 )
             }
@@ -111,11 +119,17 @@ interface TypeUnification {
 }
 
 private class DefaultTypeUnification private constructor(
+    /**
+     * keys: all the [BoundTypeParameter]s that are being inferred,
+     * values: the [BoundTypeParameter.bound]s, transformed with [BoundTypeReference.withTypeVariables] given the other
+     *         type variables.
+     */
+    private val variablesWithVariableBounds: Map<BoundTypeParameter, BoundTypeReference>,
     override val bindings: Map<BoundTypeParameter, BoundTypeReference>,
     override val diagnostics: Set<Diagnostic>,
 ) : TypeUnification {
     override fun plusDiagnostics(diagnostics: Set<Diagnostic>): TypeUnification {
-        return DefaultTypeUnification(bindings, this.diagnostics + diagnostics)
+        return DefaultTypeUnification(variablesWithVariableBounds, bindings, this.diagnostics + diagnostics)
     }
 
     override fun plus(parameter: BoundTypeParameter, binding: BoundTypeReference, assignmentLocation: Span): TypeUnification {
@@ -125,17 +139,19 @@ private class DefaultTypeUnification private constructor(
             return this
         }
 
-        // TODO: replace type variables in the bound
         // TODO: unify, not just evaluate assignability
-        val previousBindingOrBound = bindings[parameter] ?: parameter.bound
-        val error = binding.evaluateAssignabilityTo(previousBindingOrBound, assignmentLocation)
-        if (error != null) {
-            return DefaultTypeUnification(bindings, diagnostics + setOf(error))
+        val previousBindingOrBound = bindings[parameter]
+            ?: variablesWithVariableBounds[parameter]
+            ?: throw InternalCompilerError("Type parameter ${parameter.name} is not set up for inference")
+        val afterUnification = previousBindingOrBound.unify(binding, assignmentLocation, this)
+        if (afterUnification.getErrorsNotIn(this).any()) {
+            return afterUnification
         }
 
         // the new binding is valid
         val newBinding = previousBinding?.closestCommonSupertypeWith(binding) ?: binding
         return DefaultTypeUnification(
+            variablesWithVariableBounds,
             bindings.plus(parameter to newBinding),
             diagnostics,
         )
@@ -144,6 +160,7 @@ private class DefaultTypeUnification private constructor(
     override fun doWithIgnoringReportings(action: (TypeUnification) -> TypeUnification): TypeUnification {
         val result = action(this)
         return DefaultTypeUnification(
+            variablesWithVariableBounds,
             result.bindings,
             this.diagnostics,
         )
@@ -162,7 +179,15 @@ private class DefaultTypeUnification private constructor(
     }
 
     companion object {
-        val EMPTY = DefaultTypeUnification(emptyMap(), emptySet())
+        val EMPTY = DefaultTypeUnification(emptyMap(), emptyMap(), emptySet())
+
+        fun forInferenceOf(parameters: Collection<BoundTypeParameter>): DefaultTypeUnification {
+            return DefaultTypeUnification(
+                parameters.associateWith { it.bound.withTypeVariables(parameters) },
+                emptyMap(),
+                emptySet(),
+            )
+        }
     }
 }
 

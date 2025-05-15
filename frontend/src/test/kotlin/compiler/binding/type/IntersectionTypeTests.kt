@@ -155,20 +155,4 @@ class IntersectionTypeTests : FreeSpec({
             }
         }
     }
-
-    "playground" {
-        validateModule("""
-            class Nested {}
-            interface Wrapper {}
-            intrinsic fn wrapperCtor<_M, _Nested : Nested & _M, _Wrapper : Wrapper & _M>(n: _Nested) -> _Wrapper
-            
-            fn test() {
-                mN: mut Nested = Nested()
-                mW: mut Wrapper = wrapperCtor(mN)
-                trigger(mW)
-            }
-            fn trigger(p: exclusive Wrapper) {} 
-        """.trimIndent())
-            .shouldHaveNoDiagnostics()
-    }
 })

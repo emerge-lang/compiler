@@ -365,7 +365,13 @@ class BoundInvocationExpression(
                 check(rightSideTypes.size == argumentsIncludingReceiver.size)
 
                 val indicesOfErroneousParameters = ArrayList<Int>(argumentsIncludingReceiver.size)
-                val unificationBeforeParameters = TypeUnification.fromExplicit(candidateFn.declaredTypeParameters, typeArguments, returnTypeArgsLocation, allowMissingTypeArguments = true)
+                val unificationBeforeParameters = TypeUnification.fromExplicit(
+                    candidateFn.allTypeParameters,
+                    candidateFn.declaredTypeParameters,
+                    typeArguments,
+                    returnTypeArgsLocation,
+                    allowMissingTypeArguments = true
+                )
                 val unification = argumentsIncludingReceiver
                     .zip(rightSideTypes)
                     .foldIndexed(unificationBeforeParameters) { parameterIndex, carryUnification, (argument, parameterType) ->
