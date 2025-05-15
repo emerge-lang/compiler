@@ -139,21 +139,18 @@ private class DefaultTypeUnification private constructor(
             return this
         }
 
-        // TODO: unify, not just evaluate assignability
-        val previousBindingOrBound = bindings[parameter]
-            ?: variablesWithVariableBounds[parameter]
-            ?: throw InternalCompilerError("Type parameter ${parameter.name} is not set up for inference")
-        val afterUnification = previousBindingOrBound.unify(binding, assignmentLocation, this)
-        if (afterUnification.getErrorsNotIn(this).any()) {
-            return afterUnification
+        val bound = variablesWithVariableBounds[parameter] ?: throw InternalCompilerError("Type parameter ${parameter.name} is not set up for inference")
+        val unificationWithBound = bound.unify(binding, assignmentLocation, this)
+        if (unificationWithBound.getErrorsNotIn(this).any()) {
+            return unificationWithBound
         }
 
         // the new binding is valid
         val newBinding = previousBinding?.closestCommonSupertypeWith(binding) ?: binding
         return DefaultTypeUnification(
             variablesWithVariableBounds,
-            bindings.plus(parameter to newBinding),
-            diagnostics,
+            unificationWithBound.bindings.plus(parameter to newBinding),
+            unificationWithBound.diagnostics,
         )
     }
 
