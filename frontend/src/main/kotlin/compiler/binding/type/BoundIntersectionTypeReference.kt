@@ -130,7 +130,7 @@ class BoundIntersectionTypeReference private constructor(
         reason: () -> String,
     ): TypeUnification {
         return components.asSequence()
-            .map { it.unify(targetType, assignmentLocation, carry) }
+            .map { targetType.unify(it, assignmentLocation, carry) }
             .filter { it.getErrorsNotIn(carry).none() }
             .firstOrNull()
             ?: carry.plusReporting(ValueNotAssignableDiagnostic(
