@@ -188,7 +188,7 @@ class BoundIntersectionTypeReference private constructor(
         for (component in components) {
             val newComponent = componentTransform(component)
             mappedComponents.add(newComponent)
-            if (newComponent === component || newComponent == component) {
+            if (newComponent !== component && newComponent != component) {
                 anyChanged = true
             }
         }
