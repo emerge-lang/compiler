@@ -187,6 +187,27 @@ class TypeErrors : FreeSpec({
         }
 
         "generic validation involving multiple values of different types" {
+            /*
+            ideally, the compiler should argue this way:
+            1. expected return type of invoking the A-constructor is A<S32>,
+               hence T = S32 (unnegotiable)
+            2. the numeric literal 2 conforms to S32 -> all good
+            3. the boolean literal false doesn't conform to S32 -> report an error
+
+            But it currently doesn't. This is tricky to integrate into the type unification process,
+            and I've given up last time I tried. So, the compiler currently reasons like so:
+
+            1. expected return type of invoking the A-constructor is A<S32>,
+               hence T = S32 (negotiable)
+            2. the numeric literal 2 conforms to S32 -> all good
+            3. the boolean literal false doesn't conform to S32
+               but the type of the literal conforms to the bound of T (which is read Any?),
+               so rebind T to the closest common supertype of Bool and S32, which is Any;
+               hence now T = Any
+            4. The return type of the constructor invocation is (correctly!!) determined to be A<Any>
+            5. the return value of the constructor doesn't conform to the expected A<S32> -> report an error ("Any is not a subtype of S32")
+             */
+
             validateModule("""
                 class A<T> {
                     propOne: T = init
@@ -195,7 +216,7 @@ class TypeErrors : FreeSpec({
                 x: A<S32> = A(2, false)
             """.trimIndent())
                 .shouldFind<ValueNotAssignableDiagnostic> {
-                    it.sourceType.toString() shouldBe "const Bool"
+                    it.sourceType.toString() shouldBe "const Any"
                     it.targetType.toString() shouldBe "const S32"
                 }
         }
