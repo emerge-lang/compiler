@@ -56,8 +56,12 @@ data class VariableDeclaration(
         return bindTo(context, context, BoundVariable.Kind.LOCAL_VARIABLE)
     }
 
-    fun bindToAsMemberVariable(context: ExecutionScopedCTContext): BoundVariable {
-        return bindTo(context, context, BoundVariable.Kind.MEMBER_VARIABLE)
+    fun bindToAsMemberVariable(context: ExecutionScopedCTContext, isDecorated: Boolean): BoundVariable {
+        return bindTo(
+            context,
+            context,
+            if (isDecorated) BoundVariable.Kind.DECORATED_MEMBER_VARIABLE else BoundVariable.Kind.MEMBER_VARIABLE,
+        )
     }
 
     private fun bindTo(context: ExecutionScopedCTContext, initializerContext: ExecutionScopedCTContext, kind: BoundVariable.Kind): BoundVariable {

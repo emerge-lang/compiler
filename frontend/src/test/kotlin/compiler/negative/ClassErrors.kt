@@ -207,6 +207,16 @@ class ClassErrors : FreeSpec({
                     """.trimIndent())
                         .shouldFind<DecoratingMemberVariableWithNonReadTypeDiagnostic>()
                 }
+
+                "mutability not mentioned explicitly is okay (inferred to read, not const)" {
+                    validateModule("""
+                        interface N {}
+                        class W {
+                            decorates n: N = init
+                        }
+                    """.trimIndent())
+                        .shouldHaveNoDiagnostics()
+                }
             }
         }
     }

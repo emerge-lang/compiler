@@ -55,7 +55,7 @@ class BoundBaseTypeMemberVariable(
     private val effectiveVariableDeclaration = if (!isConstructorParameterInitialized) declaration.variableDeclaration else {
         declaration.variableDeclaration.copy(initializerExpression = null)
     }
-    private val boundEffectiveVariableDeclaration = effectiveVariableDeclaration.bindToAsMemberVariable(context)
+    private val boundEffectiveVariableDeclaration = effectiveVariableDeclaration.bindToAsMemberVariable(context, isDecorated)
 
     override val visibility = boundEffectiveVariableDeclaration.visibility
 
