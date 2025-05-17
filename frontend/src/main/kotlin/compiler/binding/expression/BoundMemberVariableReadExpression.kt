@@ -79,14 +79,18 @@ class BoundMemberVariableReadExpression(
      * type could not be determined
      */
     override val type: BoundTypeReference? get() {
-        if (physicalMember != null) {
-            val valueType = valueExpression.type ?: return null
-            return physicalMember!!.type
-                ?.instantiateAllParameters(valueType.inherentTypeBindings)
-                ?.withMutabilityLimitedTo(valueExpression.type?.mutability)
+        if (physicalMember == null) {
+            return getterInvocation.type
         }
+        val valueType = valueExpression.type ?: return null
+        val rawMemberType = physicalMember!!.type ?: return null
+        val instantiatedType = rawMemberType.instantiateAllParameters(valueType.inherentTypeBindings)
 
-        return getterInvocation.type
+        return if (physicalMember!!.isDecorated) {
+            instantiatedType.withMutability(valueExpression.type?.mutability?.limitedTo(TypeMutability.MUTABLE))
+        } else {
+            instantiatedType.withMutabilityLimitedTo(valueExpression.type?.mutability)
+        }
     }
 
     override val throwBehavior get() = if (physicalMember != null) valueExpression.throwBehavior else getterInvocation.throwBehavior
