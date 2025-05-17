@@ -218,6 +218,13 @@ fun Diagnosis.decoratingMemberVariableWithoutConstructorInitialization(memberVar
     add(DecoratingMemberVariableWithoutConstructorInitializationDiagnostic(memberVar.declaration, memberVar.attributes.firstDecoratesAttribute!!))
 }
 
+fun Diagnosis.decoratingMemberVariableWithNonReadType(memberVar: BoundBaseTypeMemberVariable, actualMutability: TypeMutability) {
+    add(DecoratingMemberVariableWithNonReadTypeDiagnostic(
+        memberVar.declaration,
+        actualMutability,
+    ))
+}
+
 fun Diagnosis.toplevelFunctionWithOverrideAttribute(attr: AstFunctionAttribute.Override) {
     add(ToplevelFunctionWithOverrideAttributeDiagnostic(attr.attributeName))
 }

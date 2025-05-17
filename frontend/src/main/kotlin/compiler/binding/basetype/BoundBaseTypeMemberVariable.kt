@@ -21,12 +21,14 @@ package compiler.binding.basetype
 import compiler.ast.BaseTypeMemberDeclaration
 import compiler.ast.BaseTypeMemberVariableDeclaration
 import compiler.ast.expression.IdentifierExpression
+import compiler.ast.type.TypeMutability
 import compiler.binding.DefinitionWithVisibility
 import compiler.binding.context.ExecutionScopedCTContext
 import compiler.binding.expression.BoundExpression
 import compiler.binding.type.BoundTypeReference
 import compiler.binding.type.TypeUseSite
 import compiler.diagnostic.Diagnosis
+import compiler.diagnostic.decoratingMemberVariableWithNonReadType
 import compiler.diagnostic.decoratingMemberVariableWithoutConstructorInitialization
 import compiler.lexer.Span
 import io.github.tmarsteel.emerge.backend.api.ir.IrClass
@@ -90,6 +92,13 @@ class BoundBaseTypeMemberVariable(
             TypeUseSite.OutUsage(declaration.variableDeclaration.type?.span ?: declaration.span, this)
         }
         type?.validate(typeUseSite, diagnosis)
+        if (isDecorated) {
+            type?.mutability?.let { typeMutability ->
+                if (typeMutability != TypeMutability.READONLY) {
+                    diagnosis.decoratingMemberVariableWithNonReadType(this, typeMutability)
+                }
+            }
+        }
     }
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {

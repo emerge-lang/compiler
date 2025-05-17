@@ -7,6 +7,7 @@ import compiler.binding.impurity.ReassignmentBeyondBoundary
 import compiler.diagnostic.AbstractInheritedFunctionNotImplementedDiagnostic
 import compiler.diagnostic.ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic
 import compiler.diagnostic.ConstructorDeclaredModifyingDiagnostic
+import compiler.diagnostic.DecoratingMemberVariableWithNonReadTypeDiagnostic
 import compiler.diagnostic.DecoratingMemberVariableWithoutConstructorInitializationDiagnostic
 import compiler.diagnostic.DuplicateBaseTypeMemberDiagnostic
 import compiler.diagnostic.DuplicateMemberVariableAttributeDiagnostic
@@ -174,6 +175,38 @@ class ClassErrors : FreeSpec({
                     .shouldFind<DecoratingMemberVariableWithoutConstructorInitializationDiagnostic> {
                         it.memberVariable.name.value shouldBe "n"
                     }
+            }
+
+            "decorates combined with non-read type" - {
+                "with mut" {
+                    validateModule("""
+                        class A {}
+                        class Test {
+                            decorates n: mut A = init
+                        }
+                    """.trimIndent())
+                        .shouldFind<DecoratingMemberVariableWithNonReadTypeDiagnostic>()
+                }
+
+                "with const" {
+                    validateModule("""
+                        class A {}
+                        class Test {
+                            decorates n: mut A = init
+                        }
+                    """.trimIndent())
+                        .shouldFind<DecoratingMemberVariableWithNonReadTypeDiagnostic>()
+                }
+
+                "with exclusive" {
+                    validateModule("""
+                        class A {}
+                        class Test {
+                            decorates n: exclusive A = init
+                        }
+                    """.trimIndent())
+                        .shouldFind<DecoratingMemberVariableWithNonReadTypeDiagnostic>()
+                }
             }
         }
     }
