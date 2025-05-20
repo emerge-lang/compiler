@@ -4,6 +4,7 @@ import compiler.compiler.negative.shouldFind
 import compiler.compiler.negative.validateModule
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.shouldBe
 
 class DecoratorMutabilityTests : FreeSpec({
     "can infer mutability of decorator object" - {
@@ -23,8 +24,8 @@ class DecoratorMutabilityTests : FreeSpec({
                 """.trimIndent())
                     .shouldFind<ValueNotAssignableDiagnostic> {
                         // this checks that the mut Wrapper type was inferred correctly
-                        it.sourceType.toString() == "mut testmodule.Wrapper"
-                        it.targetType.toString() == "exclusive testmodule.Wrapper"
+                        it.sourceType.toString() shouldBe "mut testmodule.Wrapper"
+                        it.targetType.toString() shouldBe "exclusive testmodule.Wrapper"
                     }
             }
 
@@ -43,9 +44,13 @@ class DecoratorMutabilityTests : FreeSpec({
                 """.trimIndent())
                     .shouldFind<ValueNotAssignableDiagnostic> {
                         // this checks that the const Wrapper type was inferred correctly
-                        it.sourceType.toString() == "const testmodule.Wrapper"
-                        it.targetType.toString() == "exclusive testmodule.Wrapper"
+                        it.sourceType.toString() shouldBe "const testmodule.Wrapper"
+                        it.targetType.toString() shouldBe "exclusive testmodule.Wrapper"
                     }
+            }
+
+            "can't force wrapper to mut with read nested object" {
+
             }
         }
 
@@ -65,8 +70,8 @@ class DecoratorMutabilityTests : FreeSpec({
                 """.trimIndent())
                     .shouldFind<ValueNotAssignableDiagnostic> {
                         // this checks that the mut Wrapper type was inferred correctly
-                        it.sourceType.toString() == "mut testmodule.Wrapper"
-                        it.targetType.toString() == "exclusive testmodule.Wrapper"
+                        it.sourceType.toString() shouldBe "mut testmodule.Wrapper"
+                        it.targetType.toString() shouldBe "exclusive testmodule.Wrapper"
                     }
             }
 
@@ -85,8 +90,8 @@ class DecoratorMutabilityTests : FreeSpec({
                 """.trimIndent())
                     .shouldFind<ValueNotAssignableDiagnostic> {
                         // this checks that the const Wrapper type was inferred correctly
-                        it.sourceType.toString() == "const testmodule.Wrapper"
-                        it.targetType.toString() == "exclusive testmodule.Wrapper"
+                        it.sourceType.toString() shouldBe "const testmodule.Wrapper"
+                        it.targetType.toString() shouldBe "exclusive testmodule.Wrapper"
                     }
             }
 
@@ -106,8 +111,8 @@ class DecoratorMutabilityTests : FreeSpec({
                 """.trimIndent())
                     .shouldFind<ValueNotAssignableDiagnostic> {
                         // this checks that the const Wrapper type was inferred correctly
-                        it.sourceType.toString() == "read testmodule.Wrapper"
-                        it.targetType.toString() == "exclusive testmodule.Wrapper"
+                        it.sourceType.toString() shouldBe "read testmodule.Wrapper"
+                        it.targetType.toString() shouldBe "exclusive testmodule.Wrapper"
                     }
             }
         }
