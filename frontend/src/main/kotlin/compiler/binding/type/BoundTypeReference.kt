@@ -128,14 +128,17 @@ sealed interface BoundTypeReference {
     fun withTypeVariables(variables: Collection<BoundTypeParameter>): BoundTypeReference
 
     /**
+     * Asserts that `assigneeType` is identical to or a subtype of `this`. Fills [TypeUnification.bindings]
+     * with necessary values for type variables and fills [TypeUnification.diagnostics] with details about why
+     * the assertion doesn't hold.
+     *
      * Used to derive information about generic types in concrete situations, so e.g.:
      *
      *     class S<T> {
      *       prop: T
      *     }
      *
-     *     val myS: S<Int> = S(2)
-     *     val foo = myS.prop // here, unify is used to derive that `foo` is an `Int` now
+     *     val myS: S<out Any> = S::<S32>(2) // here, unify is used to determine that S<32> is assignable to S<out Any>
      *
      * This is achieved by the mechanism of unification that is copied from prolog (or logic programming in general):
      *

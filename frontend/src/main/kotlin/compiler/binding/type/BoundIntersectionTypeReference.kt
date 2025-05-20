@@ -116,8 +116,31 @@ class BoundIntersectionTypeReference private constructor(
             is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
             is UnresolvedType -> return unify(assigneeType.standInType, assignmentLocation, carry)
             else -> {
-                return components.fold(carry) { innerCarry, component ->
+                /*
+                one would think that this is just a case of unifying each component with the assignee. But there's more
+                to it:
+                Say this is an intersection of some type T and an unbound type variable _V, and assigneeType is also a variant
+                of T. In that case, the naive approach would also unify _V with T. That's not necessarily incorrect,
+                but it forces the binding for _V into a needlessly narrow corner, possibly preventing the unification
+                from succeeding.
+                Hence: this code sees types not as a set of possible values, but a set of promises a value makes to
+                its users (effectively the inverse of the traditional concept of a type). And then, before unifying with
+                the variable parts of the compound type, the promises already covered by the non-variable parts of the
+                intersection are subtracted from the assigneeType. In a way, this improves the S/N ratio of the assigneeType
+                before it is unified with the type variables.
+                 */
+                val (varComponents, nonVarComponents) = components.partition { it is TypeVariable }
+                val carry2 = nonVarComponents.fold(carry) { innerCarry, component ->
                     component.unify(assigneeType, assignmentLocation, innerCarry)
+                }
+                val fullyCoveringComponent = nonVarComponents.firstOrNull { it.hasSameBaseTypeAs(assigneeType) }
+                val newAssignee = if (fullyCoveringComponent == null) assigneeType else {
+                    context.swCtx.any.baseReference
+                        .withMutability(assigneeType.mutability.intersect(fullyCoveringComponent.mutability))
+                        .withCombinedNullability(if (!fullyCoveringComponent.isNullable && assigneeType.isNullable) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.UNSPECIFIED)
+                }
+                return varComponents.fold(carry2) { innerCarry, component ->
+                    component.unify(newAssignee, assignmentLocation, innerCarry)
                 }
             }
         }
@@ -142,11 +165,11 @@ class BoundIntersectionTypeReference private constructor(
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
-        return mapComponents { it.instantiateAllParameters(context) }
+        return mapComponents(simplify = true) { it.instantiateAllParameters(context) }
     }
 
     override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
-        return mapComponents { it.instantiateFreeVariables(context) }
+        return mapComponents(simplify = true) { it.instantiateFreeVariables(context) }
     }
 
     override fun hasSameBaseTypeAs(other: BoundTypeReference): Boolean {
