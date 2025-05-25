@@ -55,6 +55,10 @@ class BoundTypeArgument(
 
     override fun unify(assigneeType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification {
         if (assigneeType !is BoundTypeArgument && this.variance == TypeVariance.OUT) {
+            if (assigneeType.isNothing && !assigneeType.isNullable) {
+                return carry
+            }
+
             return carry.plusReporting(ValueNotAssignableDiagnostic(this, assigneeType, "Cannot assign to a reference of an out-variant type", assignmentLocation))
         }
 

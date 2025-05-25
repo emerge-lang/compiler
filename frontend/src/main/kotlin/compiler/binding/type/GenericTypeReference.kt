@@ -86,12 +86,14 @@ sealed class GenericTypeReference : BoundTypeReference {
                 carry.plusReporting(ValueNotAssignableDiagnostic(this, assigneeType, "Cannot assign a possibly null value to a non-nullable reference", assignmentLocation))
             }
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
-            is RootResolvedTypeReference -> carry.plusReporting(ValueNotAssignableDiagnostic(
-                this,
-                assigneeType,
-                "$assigneeType cannot be proven to be a subtype of $this",
-                assignmentLocation,
-            ))
+            is RootResolvedTypeReference -> {
+                if (assigneeType.isNothing) carry else carry.plusReporting(ValueNotAssignableDiagnostic(
+                    this,
+                    assigneeType,
+                    "$assigneeType cannot be proven to be a subtype of $this",
+                    assignmentLocation,
+                ))
+            }
             is TypeVariable -> assigneeType.flippedUnify(this, assignmentLocation, carry)
             is BoundTypeArgument -> when (assigneeType.variance) {
                 TypeVariance.OUT,
