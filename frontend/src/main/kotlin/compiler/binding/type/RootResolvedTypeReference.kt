@@ -153,7 +153,7 @@ class RootResolvedTypeReference private constructor(
                     commonSuperBaseType.typeParameters.mapIndexed { typeParameterIndex, typeParameter ->
                         val lhs = this.arguments?.getOrNull(typeParameterIndex) ?: typeParameter.createPlaceholderTypeArgument(this.context)
                         val rhs = other.arguments?.getOrNull(typeParameterIndex) ?: typeParameter.createPlaceholderTypeArgument(other.context)
-                        lhs.intersect(rhs, typeParameter.bound)
+                        lhs.intersect(rhs)
                     }
                 }
                 RootResolvedTypeReference(

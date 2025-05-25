@@ -8,6 +8,7 @@ import compiler.binding.BoundMemberFunction
 import compiler.binding.BoundOverloadSet
 import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
+import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.lexer.Span
@@ -220,25 +221,30 @@ class BoundTypeArgument(
      * Like [closestCommonSupertypeWith], but also respects semantics specific to [BoundTypeArgument]. To be
      * used in [BoundTypeReference.closestCommonSupertypeWith] for parametric types.
      */
-    fun intersect(other: BoundTypeArgument, bound: BoundTypeReference): BoundTypeArgument {
-        if (this.variance == other.variance) {
-            val commonType = this.closestCommonSupertypeWith(other)
-            return BoundTypeArgument(
-                this.context,
-                TypeArgument(this.variance, commonType.asAstReference()),
-                this.variance,
-                commonType,
-            )
+    fun intersect(other: BoundTypeArgument): BoundTypeArgument {
+        if (this == other) {
+            return this
         }
 
-        val resultType = bound
-            .withCombinedNullability(TypeReference.Nullability.of(this))
-            .withCombinedNullability(TypeReference.Nullability.of(other))
+        val resultVariance = when {
+            this.variance == TypeVariance.OUT || other.variance == TypeVariance.OUT -> TypeVariance.OUT
+            this.variance == TypeVariance.IN || other.variance == TypeVariance.IN -> TypeVariance.IN
+            else -> {
+                check(this.variance == other.variance && this.variance == TypeVariance.UNSPECIFIED)
+                TypeVariance.OUT
+            }
+        }
+
+        val resultType = when (resultVariance) {
+            TypeVariance.IN -> this.type.intersect(other.type)
+            TypeVariance.OUT -> this.type.closestCommonSupertypeWith(other.type)
+            TypeVariance.UNSPECIFIED -> error("should never happen, intellij realizes this but not kotlinc")
+        }
 
         return BoundTypeArgument(
             this.context,
-            TypeArgument(TypeVariance.OUT, resultType.asAstReference()),
-            TypeVariance.OUT,
+            TypeArgument(resultVariance, resultType.asAstReference()),
+            resultVariance,
             resultType,
         )
     }
