@@ -113,7 +113,7 @@ class TypeVariable private constructor(
                 if (isNullable) {
                     return carry.plusSupertypeConstraint(this.parameter, assigneeType, assignmentLocation)
                 } else {
-                    val carry2 = carry.plusReporting(ValueNotAssignableDiagnostic(
+                    val carry2 = carry.plusDiagnostic(ValueNotAssignableDiagnostic(
                         this,
                         assigneeType,
                         "Cannot assign a possibly null value to a non-nullable reference",

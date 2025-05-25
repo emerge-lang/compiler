@@ -60,7 +60,7 @@ class BoundTypeArgument(
                 return carry
             }
 
-            return carry.plusReporting(ValueNotAssignableDiagnostic(this, assigneeType, "Cannot assign to a reference of an out-variant type", assignmentLocation))
+            return carry.plusDiagnostic(ValueNotAssignableDiagnostic(this, assigneeType, "Cannot assign to a reference of an out-variant type", assignmentLocation))
         }
 
         when (assigneeType) {
@@ -73,7 +73,7 @@ class BoundTypeArgument(
                     val carry2 = type.unify(assigneeType.type, assignmentLocation, carry)
 
                     if (assigneeType.variance != TypeVariance.UNSPECIFIED) {
-                        return carry2.plusReporting(ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign an in-variant value to an exact-variant reference", assignmentLocation))
+                        return carry2.plusDiagnostic(ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign an in-variant value to an exact-variant reference", assignmentLocation))
                     }
 
                     // target needs to use the type in both IN and OUT fashion -> source must match exactly
@@ -87,7 +87,7 @@ class BoundTypeArgument(
                     }
 
                     check(assigneeType.variance == TypeVariance.IN)
-                    return carry.plusReporting(
+                    return carry.plusDiagnostic(
                         ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign in-variant value to out-variant reference", assignmentLocation)
                     )
                 }
@@ -98,7 +98,7 @@ class BoundTypeArgument(
                     return assigneeType.type.unify(this.type, assignmentLocation, carry)
                 }
 
-                return carry.plusReporting(
+                return carry.plusDiagnostic(
                     ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign out-variant value to in-variant reference", assignmentLocation)
                 )
             }

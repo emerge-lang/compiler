@@ -195,14 +195,14 @@ class RootResolvedTypeReference private constructor(
             is RootResolvedTypeReference -> {
                 // this must be a subtype of other
                 if (!(assigneeType.baseType isSubtypeOf this.baseType)) {
-                    return carry.plusReporting(
+                    return carry.plusDiagnostic(
                         ValueNotAssignableDiagnostic(this, assigneeType, "${assigneeType.baseType.simpleName} is not a subtype of ${this.baseType.simpleName}", assignmentLocation)
                     )
                 }
 
                 // the modifiers must be compatible
                 if (!(assigneeType.mutability isAssignableTo this.mutability)) {
-                    return carry.plusReporting(
+                    return carry.plusDiagnostic(
                         ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a ${assigneeType.mutability} value to a ${this.mutability} reference", assignmentLocation)
                     )
                 }
@@ -233,7 +233,7 @@ class RootResolvedTypeReference private constructor(
                 return unify(assigneeType.type, assignmentLocation, carry)
             }
             is TypeVariable -> return assigneeType.flippedUnify(this, assignmentLocation, carry)
-            is NullableTypeReference -> return carry.plusReporting(
+            is NullableTypeReference -> return carry.plusDiagnostic(
                 ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
             )
             is BoundIntersectionTypeReference -> {

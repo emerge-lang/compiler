@@ -83,11 +83,11 @@ sealed class GenericTypeReference : BoundTypeReference {
                 // TODO: try the assignment ignoring the nullability problem. If it works, report the nullability problem
                 // otherwise, report the bigger/harder to fix problem first. This requires code in TypeUnification
                 // that can determine success/failure of a sub-unification
-                carry.plusReporting(ValueNotAssignableDiagnostic(this, assigneeType, "Cannot assign a possibly null value to a non-nullable reference", assignmentLocation))
+                carry.plusDiagnostic(ValueNotAssignableDiagnostic(this, assigneeType, "Cannot assign a possibly null value to a non-nullable reference", assignmentLocation))
             }
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
             is RootResolvedTypeReference -> {
-                if (assigneeType.isNothing) carry else carry.plusReporting(ValueNotAssignableDiagnostic(
+                if (assigneeType.isNothing) carry else carry.plusDiagnostic(ValueNotAssignableDiagnostic(
                     this,
                     assigneeType,
                     "$assigneeType cannot be proven to be a subtype of $this",
@@ -106,7 +106,7 @@ sealed class GenericTypeReference : BoundTypeReference {
                 if (assigneeType.isSubtypeOf(this)) {
                     return carry
                 } else {
-                    return carry.plusReporting(ValueNotAssignableDiagnostic(
+                    return carry.plusDiagnostic(ValueNotAssignableDiagnostic(
                         this,
                         assigneeType,
                         "$assigneeType cannot be proven to be a subtype of $this",

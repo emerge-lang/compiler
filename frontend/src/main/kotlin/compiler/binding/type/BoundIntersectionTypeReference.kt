@@ -103,7 +103,7 @@ class BoundIntersectionTypeReference private constructor(
         when (assigneeType) {
             is NullableTypeReference -> {
                 if (!this.isNullable) {
-                    return carry.plusReporting(
+                    return carry.plusDiagnostic(
                         ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign a possibly null value to a non-null reference", assignmentLocation)
                     )
                 }
@@ -152,7 +152,7 @@ class BoundIntersectionTypeReference private constructor(
             .map { targetType.unify(it, assignmentLocation, carry) }
             .filter { it.getErrorsNotIn(carry).none() }
             .firstOrNull()
-            ?: carry.plusReporting(ValueNotAssignableDiagnostic(
+            ?: carry.plusDiagnostic(ValueNotAssignableDiagnostic(
                 targetType,
                 this,
                 reason(),
