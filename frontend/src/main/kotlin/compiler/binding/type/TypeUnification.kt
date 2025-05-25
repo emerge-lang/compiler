@@ -247,7 +247,10 @@ private class DefaultTypeUnification private constructor(
     override fun getFinalValueFor(parameter: BoundTypeParameter): BoundTypeReference {
         val state = variableStates[parameter] ?: return parameter.bound.instantiateAllParameters(this)
 
-        return state.lowerBound
+        val raw = state.lowerBound.takeUnless { it.isNothing }
+            ?: state.upperBound
+
+        return raw.instantiateFreeVariables(this)
     }
 
     override val bindings: Iterable<Pair<BoundTypeParameter, BoundTypeReference>> = object : Iterable<Pair<BoundTypeParameter, BoundTypeReference>> {
