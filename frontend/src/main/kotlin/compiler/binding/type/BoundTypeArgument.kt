@@ -30,7 +30,7 @@ class BoundTypeArgument(
     override val baseTypeOfLowerBound get()= type.baseTypeOfLowerBound
     override val simpleName get() = toString()
     override val span get() = astNode.span
-    override val isNothing get() = type.isNothing
+    override val isNonNullableNothing get() = type.isNonNullableNothing
 
     override val inherentTypeBindings: TypeUnification
         get() = TypeUnification.EMPTY
@@ -56,7 +56,7 @@ class BoundTypeArgument(
 
     override fun unify(assigneeType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification {
         if (assigneeType !is BoundTypeArgument && this.variance == TypeVariance.OUT) {
-            if (assigneeType.isNothing && !assigneeType.isNullable) {
+            if (assigneeType.isNonNullableNothing) {
                 return carry
             }
 

@@ -48,7 +48,7 @@ class TypeUnification private constructor(
         }
 
         val newUpperBound = stateBefore.upperBound.intersect(upperBound)
-        if (newUpperBound.isNothing) {
+        if (newUpperBound.isNonNullableNothing) {
             // incompatible constraints. The question is: is the incompatibility from other constraints, or the default upper bound?
             val unificationWithDefaultBound = stateBefore.staticUpperBound.unify(upperBound, assignmentLocation, this)
             return if (unificationWithDefaultBound.getErrorsNotIn(this).any()) {
@@ -147,7 +147,7 @@ class TypeUnification private constructor(
     fun getFinalValueFor(parameter: BoundTypeParameter): BoundTypeReference {
         val state = variableStates[parameter] ?: return parameter.bound.instantiateAllParameters(this)
 
-        val raw = state.lowerBound.takeUnless { it.isNothing }
+        val raw = state.lowerBound.takeUnless { it.isNonNullableNothing }
             ?: state.upperBound
 
         return raw.instantiateFreeVariables(this)
@@ -167,7 +167,7 @@ class TypeUnification private constructor(
                 if (state.isExact) return@flatMap sequenceOf("${param.name} = ${state.lowerBound}")
                 sequenceOf("${param.name} : ${state.upperBound}") + (
                     sequenceOf(state.lowerBound)
-                        .filterNot { it.isNothing }
+                        .filterNot { it.isNonNullableNothing }
                         .map { "$it : ${param.name}" }
                 )
             }

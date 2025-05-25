@@ -34,7 +34,7 @@ sealed class GenericTypeReference : BoundTypeReference {
     override val baseTypeOfLowerBound get()= effectiveBound.baseTypeOfLowerBound
     override val span get() = original.span
     override val inherentTypeBindings = TypeUnification.EMPTY
-    override val isNothing get() = effectiveBound.isNothing
+    override val isNonNullableNothing get() = effectiveBound.isNonNullableNothing
 
     override fun withMutability(mutability: TypeMutability?): GenericTypeReference {
         return mapEffectiveBound { it.withMutability(mutability) }
@@ -87,7 +87,7 @@ sealed class GenericTypeReference : BoundTypeReference {
             }
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
             is RootResolvedTypeReference -> {
-                if (assigneeType.isNothing) carry else carry.plusDiagnostic(ValueNotAssignableDiagnostic(
+                if (assigneeType.isNonNullableNothing) carry else carry.plusDiagnostic(ValueNotAssignableDiagnostic(
                     this,
                     assigneeType,
                     "$assigneeType cannot be proven to be a subtype of $this",

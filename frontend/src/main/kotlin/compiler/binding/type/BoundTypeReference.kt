@@ -49,9 +49,8 @@ sealed interface BoundTypeReference {
 
     /**
      * Whether this type is a subtype of `read Nothing`
-     * TODO: should this be changed to be isNotNullableNothing ??
      */
-    val isNothing: Boolean
+    val isNonNullableNothing: Boolean
 
     /**
      * The [BoundBaseType] this type is referring to, as concrete as possible.

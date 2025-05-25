@@ -74,7 +74,7 @@ interface BoundFunction : SemanticallyAnalyzable, DefinitionWithVisibility {
     val throwBehavior: SideEffectPrediction?
         get() = when {
             attributes.isDeclaredNothrow -> SideEffectPrediction.NEVER
-            returnType != null && returnType!!.isNothing && !returnType!!.isNullable -> SideEffectPrediction.GUARANTEED
+            returnType != null && returnType!!.isNonNullableNothing -> SideEffectPrediction.GUARANTEED
             else -> SideEffectPrediction.POSSIBLY
         }
 

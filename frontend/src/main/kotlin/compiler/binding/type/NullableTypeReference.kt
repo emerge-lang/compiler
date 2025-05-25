@@ -17,7 +17,7 @@ class NullableTypeReference private constructor(
     override val baseTypeOfLowerBound get() = nested.baseTypeOfLowerBound
     override val span get() = nested.span
     override val isNullable = true
-    override val isNothing = false
+    override val isNonNullableNothing = false
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference {
         return rewrap(nested.defaultMutabilityTo(mutability))

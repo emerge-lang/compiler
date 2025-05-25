@@ -40,8 +40,8 @@ class BoundIntersectionTypeReference private constructor(
     override val isNullable get()= false
     override val mutability get()= mutabilityOfComponents(components)
     override val simpleName get()= components.joinToString(separator = " ${Operator.INTERSECTION.text} ", transform = { it.simpleName ?: it.toString() })
-    override val isNothing by lazy {
-        components.any { it.isNothing } || simplifyIsEffectivelyBottomType(components)
+    override val isNonNullableNothing by lazy {
+        components.any { it.isNonNullableNothing } || simplifyIsEffectivelyBottomType(components)
     }
 
     override val baseTypeOfLowerBound by lazy {
