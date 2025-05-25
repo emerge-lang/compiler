@@ -48,7 +48,7 @@ class NullableTypeReference private constructor(
     }
 
     override fun closestCommonSupertypeWith(other: BoundTypeReference): BoundTypeReference {
-        return rewrap(nested.closestCommonSupertypeWith(other))
+        return rewrap(nested.closestCommonSupertypeWith(if (other is NullableTypeReference) other.nested else other))
     }
 
     override fun findMemberVariable(name: String): Set<BoundBaseTypeMemberVariable> {
