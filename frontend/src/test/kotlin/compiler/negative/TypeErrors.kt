@@ -7,6 +7,7 @@ import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
 import compiler.diagnostic.TypeArgumentVarianceMismatchDiagnostic
 import compiler.diagnostic.TypeArgumentVarianceSuperfluousDiagnostic
+import compiler.diagnostic.UnsatisfiableTypeVariableConstraintsDiagnostic
 import compiler.diagnostic.UnsupportedTypeUsageVarianceDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import io.kotest.core.spec.style.FreeSpec
@@ -263,6 +264,71 @@ class TypeErrors : FreeSpec({
                 fn test(p: C<S32, S32>) {}
             """.trimIndent())
                 .shouldFind<SuperfluousTypeArgumentsDiagnostic>()
+        }
+
+        "unsatisfiable compound constraints" - {
+            "failing on supertype constraint" {
+                validateModule("""
+                    class A {}
+                    class B {}
+                    interface X<T> {}
+                    
+                    fn foo<E, F : X<E>>(p1: F, p2: F) {}
+                    
+                    fn trigger<P1 : X<A>, P2: X<B>>(p1: P1, p2: P2) {
+                        foo(p1, p2)
+                    }
+                """.trimIndent())
+                    .shouldFind<UnsatisfiableTypeVariableConstraintsDiagnostic> {
+                        it.parameter.name.value shouldBe "E"
+                    }
+            }
+
+            "failing on subtype constraint, lower bound not satisfiable" {
+                validateModule("""
+                    class A {}
+                    class B {}
+                    interface X<T> {}                    
+                   
+                    fn foo<E>(p1: X<in E>, p2: X<in E>) {}
+                    
+                    fn trigger(p1: X<A>, p2: X<B>) {
+                        foo(p1, p2)
+                    }
+                """.trimIndent())
+                    .shouldFind<UnsatisfiableTypeVariableConstraintsDiagnostic> {
+                        it.parameter.name.value shouldBe "E"
+                    }
+            }
+
+            "failing on subtype constraint, upper bounds incompatible with lower bound" {
+                validateModule("""
+                    class A {}
+                    class B {}
+                    
+                    interface X<T> {}
+                    
+                    fn foo<E>(p0: X<out E>, p1: X<in E>) {}
+                    
+                    fn trigger(p0: X<A>, p1: X<B>) {
+                        foo(p0, p1)
+                    }
+                """.trimIndent())
+                    .shouldFind<UnsatisfiableTypeVariableConstraintsDiagnostic> {
+                        it.parameter.name.value shouldBe "E"
+                    }
+            }
+
+            "failing on exact constraint, not compatible with default upper bound" {
+                validateModule("""
+                    class A {}
+                    class B {}
+                    interface X<T : A> {}
+                    
+                    fn trigger(p: X<B>) {}
+                """.trimIndent())
+                    .shouldFind<TypeArgumentOutOfBoundsDiagnostic>()
+            }
         }
     }
 

@@ -172,10 +172,7 @@ sealed class GenericTypeReference : BoundTypeReference {
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {
         // TODO: this linear search is super inefficient, optimize
-        val binding = context.bindings.entries.find { it.key == this.parameter }
-            ?: return this
-
-        var instantiated = binding.value
+        var instantiated = context.getFinalValueFor(this.parameter)
         if (original.mutability != null) {
             instantiated = instantiated.withMutabilityIntersectedWith(this.mutability)
         }

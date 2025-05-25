@@ -105,15 +105,13 @@ class TypeVariable private constructor(
             is GenericTypeReference,
             is BoundIntersectionTypeReference,
             is BoundTypeArgument, -> {
-                val newCarry = carry.plus(this.parameter, assigneeType, assignmentLocation)
-                val selfBinding = newCarry.bindings[this.parameter] ?: return newCarry
-                selfBinding.unify(assigneeType, assignmentLocation, newCarry)
+                return carry.plusSupertypeConstraint(this.parameter, assigneeType, assignmentLocation)
             }
             is UnresolvedType -> unify(assigneeType.standInType, assignmentLocation, carry)
             is TypeVariable -> throw InternalCompilerError("not implemented as it was assumed that this can never happen")
             is NullableTypeReference -> {
                 if (isNullable) {
-                    return carry.plus(this.parameter, assigneeType, assignmentLocation)
+                    return carry.plusSupertypeConstraint(this.parameter, assigneeType, assignmentLocation)
                 } else {
                     val carry2 = carry.plusReporting(ValueNotAssignableDiagnostic(
                         this,
@@ -128,13 +126,11 @@ class TypeVariable private constructor(
     }
 
     fun flippedUnify(targetType: BoundTypeReference, assignmentLocation: Span, carry: TypeUnification): TypeUnification {
-        val newCarry = carry.plus(this.parameter, targetType, assignmentLocation)
-        val selfBinding = carry.bindings[this.parameter] ?: return newCarry
-        return targetType.unify(selfBinding, assignmentLocation, newCarry)
+        return carry.plusSubtypeConstraint(this.parameter, targetType, assignmentLocation)
     }
 
     override fun instantiateFreeVariables(context: TypeUnification): BoundTypeReference {
-        return context.bindings[this.parameter] ?: asGeneric.effectiveBound.instantiateFreeVariables(context)
+        return context.getFinalValueFor(this.parameter)
     }
 
     override fun instantiateAllParameters(context: TypeUnification): BoundTypeReference {

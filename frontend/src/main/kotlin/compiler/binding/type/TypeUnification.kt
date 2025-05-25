@@ -1,36 +1,56 @@
 package compiler.binding.type
 
-import compiler.InternalCompilerError
 import compiler.ast.type.TypeVariance
+import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
 import compiler.diagnostic.TypeArgumentOutOfBoundsDiagnostic
 import compiler.diagnostic.TypeArgumentVarianceMismatchDiagnostic
 import compiler.diagnostic.TypeArgumentVarianceSuperfluousDiagnostic
+import compiler.diagnostic.UnsatisfiableTypeVariableConstraintsDiagnostic
 import compiler.diagnostic.ValueNotAssignableDiagnostic
 import compiler.lexer.Span
 
 /* TODO: optimization potential
- * Have a custom collection class that optimized the get-a-copy-plus-one-element use-case
+ * Have a custom collection class that optimizes the get-a-copy-plus-one-element use-case
  * Set-properties are probably not needed because we can track changes there explicitly
  * and answer the question "Did this unification produce any errors?" without the set-contains
  * operation done now
  */
 
 interface TypeUnification {
-    val bindings: Map<BoundTypeParameter, BoundTypeReference>
     val diagnostics: Set<Diagnostic>
 
-    fun plus(parameter: BoundTypeParameter, binding: BoundTypeReference, assignmentLocation: Span): TypeUnification
+    //fun plus(parameter: BoundTypeParameter, binding: BoundTypeReference, assignmentLocation: Span): TypeUnification
+    /**
+     * @return `this`, plus the constraint that `value(parameter).isAssignableTo(upperBound)`.
+     */
+    fun plusSubtypeConstraint(parameter: BoundTypeParameter, upperBound: BoundTypeReference, assignmentLocation: Span): TypeUnification
+
+    /**
+     * @return `this`, plus the constraint that `lowerBound.isAssignableTo(value(parameter))`.
+     */
+    fun plusSupertypeConstraint(parameter: BoundTypeParameter, lowerBound: BoundTypeReference, assignmentLocation: Span): TypeUnification
+
+    /**
+     * @return `this`, plus the constraint that [parameter] should be bound to exactly [binding]. Use for explicit type
+     * arguments only.
+     */
+    fun plusExactBinding(parameter: BoundTypeParameter, binding: BoundTypeArgument, assignmentLocation: Span): TypeUnification
+
+    fun mergedWith(other: TypeUnification): TypeUnification
+
+    fun getFinalValueFor(parameter: BoundTypeParameter): BoundTypeReference
+
     fun plusReporting(diagnostic: Diagnostic): TypeUnification = plusDiagnostics(setOf(diagnostic))
-    fun plusDiagnostics(diagnostics: Set<Diagnostic>): TypeUnification
+    fun plusDiagnostics(diagnostics: Iterable<Diagnostic>): TypeUnification
+
+    val bindings: Iterable<Pair<BoundTypeParameter, BoundTypeReference>>
 
     fun doTreatingNonUnifiableAsOutOfBounds(parameter: BoundTypeParameter, argument: BoundTypeArgument, action: (TypeUnification) -> TypeUnification): TypeUnification {
         return DecoratingTypeUnification.doWithDecorated(ValueNotAssignableAsArgumentOutOfBounds(this, parameter, argument), action)
     }
-
-    fun doWithIgnoringReportings(action: (TypeUnification) -> TypeUnification): TypeUnification
 
     fun getErrorsNotIn(previous: TypeUnification): Sequence<Diagnostic> {
         return diagnostics.asSequence()
@@ -92,11 +112,7 @@ interface TypeUnification {
                     }
                 }
 
-                val nextUnification = unification.doTreatingNonUnifiableAsOutOfBounds(parameter, argument) { subUnification ->
-                    parameter.bound.unify(argument, argument.span ?: Span.UNKNOWN, subUnification)
-                }
-                val hadErrors = nextUnification.getErrorsNotIn(unification).any()
-                unification = nextUnification.plus(parameter, if (!hadErrors) argument else parameter.bound, argument.span ?: Span.UNKNOWN)
+                unification = unification.plusExactBinding(parameter, argument, argument.span ?: Span.UNKNOWN)
             }
 
             for (i in arguments.size..declaredTypeParameters.lastIndex) {
@@ -116,72 +132,161 @@ interface TypeUnification {
             return unification
         }
     }
+
+    data class VariableState(
+        val staticUpperBound: BoundTypeReference,
+        val upperBound: BoundTypeReference,
+        /**
+         * TODO: this can become a union type as soon as that is implemented, and the ::closestCommonSupertype approximation can be yeeted
+         */
+        val lowerBound: BoundTypeReference,
+        val isExact: Boolean,
+    )
 }
 
 private class DefaultTypeUnification private constructor(
-    /**
-     * keys: all the [BoundTypeParameter]s that are being inferred,
-     * values: the [BoundTypeParameter.bound]s, transformed with [BoundTypeReference.withTypeVariables] given the other
-     *         type variables.
-     */
-    private val variablesWithVariableBounds: Map<BoundTypeParameter, BoundTypeReference>,
-    override val bindings: Map<BoundTypeParameter, BoundTypeReference>,
+    private val variableStates: Map<BoundTypeParameter, TypeUnification.VariableState>,
     override val diagnostics: Set<Diagnostic>,
 ) : TypeUnification {
-    override fun plusDiagnostics(diagnostics: Set<Diagnostic>): TypeUnification {
-        return DefaultTypeUnification(variablesWithVariableBounds, bindings, this.diagnostics + diagnostics)
+    override fun plusDiagnostics(diagnostics: Iterable<Diagnostic>): TypeUnification {
+        return DefaultTypeUnification(variableStates, this.diagnostics + diagnostics)
     }
 
-    override fun plus(parameter: BoundTypeParameter, binding: BoundTypeReference, assignmentLocation: Span): TypeUnification {
-        val previousBinding = bindings[parameter]
-        if (previousBinding is BoundTypeArgument) {
-            // type has been fixed explicitly -> no rebinding
-            return this
+    override fun plusSubtypeConstraint(
+        parameter: BoundTypeParameter,
+        upperBound: BoundTypeReference,
+        assignmentLocation: Span
+    ): TypeUnification {
+        val stateBefore = variableStates[parameter] ?: throw TypeVariableNotUnderInferenceException(parameter)
+        if (stateBefore.isExact) {
+            return upperBound.unify(stateBefore.upperBound, assignmentLocation, this)
         }
 
-        val bound = variablesWithVariableBounds[parameter] ?: throw InternalCompilerError("Type parameter ${parameter.name} is not set up for inference")
-        val unificationWithBound = bound.unify(binding, assignmentLocation, this)
-        if (unificationWithBound.getErrorsNotIn(this).any()) {
-            return unificationWithBound
+        val newUpperBound = stateBefore.upperBound.intersect(upperBound)
+        if (newUpperBound.isNothing) {
+            // incompatible constraints. The question is: is the incompatibility from other constraints, or the default upper bound?
+            val unificationWithDefaultBound = stateBefore.staticUpperBound.unify(upperBound, assignmentLocation, this)
+            return if (unificationWithDefaultBound.getErrorsNotIn(this).any()) {
+                unificationWithDefaultBound
+            } else {
+                this.plusDiagnostics(setOf(UnsatisfiableTypeVariableConstraintsDiagnostic.forSubtypeConstraint(parameter, stateBefore, upperBound, assignmentLocation)))
+            }
         }
 
-        // the new binding is valid
-        val newBinding = previousBinding?.closestCommonSupertypeWith(binding) ?: binding
+        val unificationWithLowerBound = newUpperBound.unify(stateBefore.lowerBound, assignmentLocation, this) as DefaultTypeUnification // TODO: get rid of this downcast
+        if (unificationWithLowerBound.getErrorsNotIn(this).any()) {
+            return this.plusDiagnostics(setOf(UnsatisfiableTypeVariableConstraintsDiagnostic.forSubtypeConstraint(parameter, stateBefore, upperBound, assignmentLocation)))
+        }
+
         return DefaultTypeUnification(
-            variablesWithVariableBounds,
-            unificationWithBound.bindings.plus(parameter to newBinding),
-            unificationWithBound.diagnostics,
+            unificationWithLowerBound.variableStates + mapOf(parameter to stateBefore.copy(upperBound = newUpperBound)),
+            diagnostics,
         )
     }
 
-    override fun doWithIgnoringReportings(action: (TypeUnification) -> TypeUnification): TypeUnification {
-        val result = action(this)
+    override fun plusSupertypeConstraint(
+        parameter: BoundTypeParameter,
+        lowerBound: BoundTypeReference,
+        assignmentLocation: Span
+    ): TypeUnification {
+        val stateBefore = variableStates[parameter] ?: throw TypeVariableNotUnderInferenceException(parameter)
+        if (stateBefore.isExact) {
+            return stateBefore.lowerBound.unify(lowerBound, assignmentLocation, this)
+        }
+        val newLowerBound = stateBefore.lowerBound.closestCommonSupertypeWith(lowerBound)
+        val unificationWithUpperBound = stateBefore.upperBound.unify(newLowerBound, assignmentLocation, this) as DefaultTypeUnification // TODO: get rid of this downcast
+        if (unificationWithUpperBound.getErrorsNotIn(this).any()) {
+            // incompatible constraints. The question is: is the incompatibility from other constraints, or the default upper bound?
+            val unificationWithDefaultBound = stateBefore.staticUpperBound.unify(lowerBound, assignmentLocation, this)
+            if (unificationWithDefaultBound.getErrorsNotIn(this).any()) {
+                return unificationWithDefaultBound
+            }
+
+            return this.plusDiagnostics(setOf(UnsatisfiableTypeVariableConstraintsDiagnostic.forSupertypeConstraint(parameter, stateBefore, lowerBound, assignmentLocation)))
+        }
+
         return DefaultTypeUnification(
-            variablesWithVariableBounds,
-            result.bindings,
-            this.diagnostics,
+            unificationWithUpperBound.variableStates + mapOf(parameter to stateBefore.copy(lowerBound = newLowerBound)),
+            diagnostics,
         )
+    }
+
+    override fun plusExactBinding(
+        parameter: BoundTypeParameter,
+        binding: BoundTypeArgument,
+        assignmentLocation: Span
+    ): TypeUnification {
+        val stateBefore = variableStates[parameter] ?: throw TypeVariableNotUnderInferenceException(parameter)
+        val unificationWithUpperBound = stateBefore.upperBound.unify(binding, assignmentLocation, this)
+        val errorWithUpperBound = unificationWithUpperBound.getErrorsNotIn(this).filterIsInstance<ValueNotAssignableDiagnostic>().firstOrNull()
+        if (errorWithUpperBound != null) {
+            return this.plusDiagnostics(setOf(TypeArgumentOutOfBoundsDiagnostic(parameter.astNode, binding, errorWithUpperBound.reason)))
+        }
+
+        val unificationWithLowerBound = binding.unify(stateBefore.lowerBound, assignmentLocation, this) as DefaultTypeUnification // TODO: get rid of this downcast
+        val lowerBoundErrors = unificationWithLowerBound.getErrorsNotIn(this)
+        if (lowerBoundErrors.any()) {
+            return this.plusDiagnostics(lowerBoundErrors.asIterable())
+        }
+
+        return DefaultTypeUnification(
+            unificationWithLowerBound.variableStates + mapOf(parameter to stateBefore.copy(upperBound = binding, lowerBound = binding, isExact = true)),
+            diagnostics,
+        )
+    }
+
+    override fun mergedWith(other: TypeUnification): TypeUnification {
+        check(other is DefaultTypeUnification) // TODO: remove this assumption
+        check(other.variableStates.keys.none { it in this.variableStates }) // TODO: remove this assumption
+        return DefaultTypeUnification(
+            this.variableStates + other.variableStates,
+            this.diagnostics + other.diagnostics,
+        )
+    }
+
+    override fun getFinalValueFor(parameter: BoundTypeParameter): BoundTypeReference {
+        val state = variableStates[parameter] ?: return parameter.bound.instantiateAllParameters(this)
+
+        return state.lowerBound
+    }
+
+    override val bindings: Iterable<Pair<BoundTypeParameter, BoundTypeReference>> = object : Iterable<Pair<BoundTypeParameter, BoundTypeReference>> {
+        override fun iterator(): Iterator<Pair<BoundTypeParameter, BoundTypeReference>> {
+            return variableStates.keys
+                .map { param -> param to getFinalValueFor(param) }
+                .iterator()
+        }
     }
 
     override fun toString(): String {
-        val bindingsStr = bindings.entries.joinToString(
-            prefix = "[",
-            transform = { (key, value) -> "$key = $value" },
-            separator = ", ",
-            postfix = "]",
-        )
+        val bindingsStr = variableStates.entries.asSequence()
+            .flatMap { (param, state) ->
+                if (state.isExact) return@flatMap sequenceOf("${param.name} = ${state.lowerBound}")
+                sequenceOf("${param.name} : ${state.upperBound}") + (
+                    sequenceOf(state.lowerBound)
+                        .filterNot { it.isNothing }
+                        .map { "$it : ${param.name}" }
+                )
+            }
+            .joinToString(
+                prefix = "[",
+                separator = ", ",
+                postfix = "]",
+            )
         val nErrors = diagnostics.count { it.severity >= Diagnostic.Severity.ERROR }
 
         return "$bindingsStr Errors:$nErrors"
     }
 
     companion object {
-        val EMPTY = DefaultTypeUnification(emptyMap(), emptyMap(), emptySet())
+        val EMPTY = DefaultTypeUnification(emptyMap(), emptySet())
 
         fun forInferenceOf(parameters: Collection<BoundTypeParameter>): DefaultTypeUnification {
             return DefaultTypeUnification(
-                parameters.associateWith { it.bound.withTypeVariables(parameters) },
-                emptyMap(),
+                parameters.associateWith {
+                    val upperBound = it.bound.withTypeVariables(parameters)
+                    TypeUnification.VariableState(upperBound, upperBound, it.context.swCtx.bottomTypeRef, false)
+                },
                 emptySet(),
             )
         }
@@ -191,7 +296,23 @@ private class DefaultTypeUnification private constructor(
 private abstract class DecoratingTypeUnification<Self : DecoratingTypeUnification<Self>> : TypeUnification {
     abstract val undecorated: TypeUnification
 
-    abstract override fun plus(parameter: BoundTypeParameter, binding: BoundTypeReference, assignmentLocation: Span): Self
+    abstract override fun plusSubtypeConstraint(
+        parameter: BoundTypeParameter,
+        upperBound: BoundTypeReference,
+        assignmentLocation: Span
+    ): Self
+
+    abstract override fun plusSupertypeConstraint(
+        parameter: BoundTypeParameter,
+        lowerBound: BoundTypeReference,
+        assignmentLocation: Span
+    ): Self
+
+    abstract override fun plusExactBinding(
+        parameter: BoundTypeParameter,
+        binding: BoundTypeArgument,
+        assignmentLocation: Span
+    ): Self
 
     companion object {
         inline fun <reified T : DecoratingTypeUnification<*>> doWithDecorated(modified: T, action: (TypeUnification) -> TypeUnification): TypeUnification {
@@ -206,10 +327,9 @@ private class ValueNotAssignableAsArgumentOutOfBounds(
     private val parameter: BoundTypeParameter,
     private val argument: BoundTypeArgument,
 ) : DecoratingTypeUnification<ValueNotAssignableAsArgumentOutOfBounds>() {
-    override val bindings get() = undecorated.bindings
     override val diagnostics get() = undecorated.diagnostics
 
-    override fun plusDiagnostics(diagnostics: Set<Diagnostic>): TypeUnification {
+    override fun plusDiagnostics(diagnostics: Iterable<Diagnostic>): TypeUnification {
         val mappedDiagnostics = diagnostics
             .map { diagnostic ->
                 if (diagnostic !is ValueNotAssignableDiagnostic) diagnostic else {
@@ -221,15 +341,39 @@ private class ValueNotAssignableAsArgumentOutOfBounds(
         return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plusDiagnostics(mappedDiagnostics), parameter, argument)
     }
 
-    override fun plus(parameter: BoundTypeParameter, binding: BoundTypeReference, assignmentLocation: Span): ValueNotAssignableAsArgumentOutOfBounds {
-        return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plus(parameter, binding, assignmentLocation), parameter, argument)
+    override fun plusSubtypeConstraint(
+        parameter: BoundTypeParameter,
+        upperBound: BoundTypeReference,
+        assignmentLocation: Span
+    ): ValueNotAssignableAsArgumentOutOfBounds {
+        return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plusSubtypeConstraint(parameter, upperBound, assignmentLocation), parameter, argument)
     }
 
-    override fun doWithIgnoringReportings(action: (TypeUnification) -> TypeUnification): TypeUnification {
-        return ValueNotAssignableAsArgumentOutOfBounds(
-            doWithIgnoringReportings(action),
-            parameter,
-            argument,
-        )
+    override fun plusSupertypeConstraint(
+        parameter: BoundTypeParameter,
+        lowerBound: BoundTypeReference,
+        assignmentLocation: Span
+    ): ValueNotAssignableAsArgumentOutOfBounds {
+        return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plusSupertypeConstraint(parameter, lowerBound, assignmentLocation), parameter, argument)
     }
+
+    override fun plusExactBinding(
+        parameter: BoundTypeParameter,
+        binding: BoundTypeArgument,
+        assignmentLocation: Span
+    ): ValueNotAssignableAsArgumentOutOfBounds {
+        return ValueNotAssignableAsArgumentOutOfBounds(undecorated.plusExactBinding(parameter, binding, assignmentLocation), parameter, argument)
+    }
+
+    override fun mergedWith(other: TypeUnification): TypeUnification {
+        return ValueNotAssignableAsArgumentOutOfBounds(undecorated.mergedWith(other), parameter, argument)
+    }
+
+    override fun getFinalValueFor(parameter: BoundTypeParameter): BoundTypeReference {
+        return undecorated.getFinalValueFor(parameter)
+    }
+
+    override val bindings get()= undecorated.bindings
 }
+
+class TypeVariableNotUnderInferenceException(val parameter: BoundTypeParameter) : RuntimeException("Cannot work with type variable ${parameter.name} because of missing inference context")

@@ -63,36 +63,22 @@ class BoundTypeArgument(
             return carry.plusReporting(ValueNotAssignableDiagnostic(this, assigneeType, "Cannot assign to a reference of an out-variant type", assignmentLocation))
         }
 
-        if (this.type is TypeVariable) {
-            return this.type.unify(assigneeType, assignmentLocation, carry)
-        }
-
         when (assigneeType) {
             is RootResolvedTypeReference,
             is NullableTypeReference -> {
                 return type.unify(assigneeType, assignmentLocation, carry)
             }
             is BoundTypeArgument -> {
-                if (type is TypeVariable || assigneeType.type is TypeVariable) {
-                    return type.unify(assigneeType.type, assignmentLocation, carry)
-                }
-
                 if (this.variance == TypeVariance.UNSPECIFIED) {
                     val carry2 = type.unify(assigneeType.type, assignmentLocation, carry)
-
-                    val assigneeActualTypeNotNullable = assigneeType.type.withCombinedNullability(TypeReference.Nullability.NOT_NULLABLE)
-
-                    // target needs to use the type in both IN and OUT fashion -> source must match exactly
-                    if (assigneeActualTypeNotNullable !is GenericTypeReference && !assigneeActualTypeNotNullable.hasSameBaseTypeAs(this.type)) {
-                        return carry2.plusReporting(ValueNotAssignableDiagnostic(this, assigneeType, "the exact type ${this.type} is required", assignmentLocation))
-                    }
 
                     if (assigneeType.variance != TypeVariance.UNSPECIFIED) {
                         return carry2.plusReporting(ValueNotAssignableDiagnostic(this, assigneeType, "cannot assign an in-variant value to an exact-variant reference", assignmentLocation))
                     }
 
-                    // checks for mutability and nullability
-                    return this.type.unify(assigneeType.type, assignmentLocation, carry2)
+                    // target needs to use the type in both IN and OUT fashion -> source must match exactly
+                    val carry3 = this.type.unify(assigneeType.type, assignmentLocation, carry2)
+                    return assigneeType.type.unify(this.type, assignmentLocation, carry3)
                 }
 
                 if (this.variance == TypeVariance.OUT) {
