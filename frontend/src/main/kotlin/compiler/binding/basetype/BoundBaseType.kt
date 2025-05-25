@@ -433,6 +433,7 @@ class BoundBaseType(
     /** @return Whether this type is the same as or a subtype of the given type. */
     infix fun isSubtypeOf(other: BoundBaseType): Boolean {
         if (other === this) return true
+        if (other === other.context.swCtx.any) return true
         if (other === context.swCtx.nothing) return false
         if (this === context.swCtx.nothing) return true
 
