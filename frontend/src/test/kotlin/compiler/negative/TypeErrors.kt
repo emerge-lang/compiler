@@ -1,6 +1,7 @@
 package compiler.compiler.negative
 
 import compiler.binding.type.GenericTypeReference
+import compiler.diagnostic.IllegalIntersectionTypeDiagnostic
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
 import compiler.diagnostic.SimplifiableIntersectionTypeDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
@@ -390,7 +391,7 @@ class TypeErrors : FreeSpec({
         }
     }
 
-    "union types" - {
+    "intersection types" - {
         "superfluous components" {
             validateModule("""
                 interface I {}
@@ -428,6 +429,15 @@ class TypeErrors : FreeSpec({
                     it.complicatedType.toString() shouldBe "read I & mut Any"
                     it.simplerVersion.toString() shouldBe "mut testmodule.I"
                 }
+        }
+
+        "conflicting components - same base type twice with different params" {
+            validateModule("""
+                interface X<T> {}
+                
+                fn trigger(p: X<Any> & X<S32>) {}
+            """.trimIndent())
+                .shouldFind<IllegalIntersectionTypeDiagnostic>()
         }
     }
 

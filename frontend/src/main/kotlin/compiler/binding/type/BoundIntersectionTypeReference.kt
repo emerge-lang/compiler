@@ -12,6 +12,7 @@ import compiler.binding.basetype.BoundBaseTypeMemberVariable
 import compiler.binding.context.CTContext
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.ValueNotAssignableDiagnostic
+import compiler.diagnostic.illegalIntersectionType
 import compiler.diagnostic.simplifiableIntersectionType
 import compiler.lexer.Operator
 import compiler.lexer.Span
@@ -50,7 +51,13 @@ class BoundIntersectionTypeReference private constructor(
     override val inherentTypeBindings: TypeUnification by lazy {
         components.asSequence()
             .map { it.inherentTypeBindings }
-            .fold(TypeUnification.EMPTY, TypeUnification::mergedWith)
+            .fold(TypeUnification.EMPTY) { carry, bindings ->
+                carry.mergedWith(bindings) { param, firstCome, _, diagnosis ->
+                    val sourceType = components.first { c -> c.inherentTypeBindings.bindings.any { (cParam, _) -> param == cParam} }
+                    diagnosis.illegalIntersectionType(this, "A single base type can only occur once in an intersection type, ${sourceType.baseTypeOfLowerBound} is mentioned more than once.")
+                    firstCome
+                }
+            }
     }
 
     override fun defaultMutabilityTo(mutability: TypeMutability?): BoundTypeReference {
@@ -79,6 +86,7 @@ class BoundIntersectionTypeReference private constructor(
 
     override fun validate(forUsage: TypeUseSite, diagnosis: Diagnosis) {
         components.forEach { it.validate(forUsage, diagnosis) }
+        inherentTypeBindings.diagnostics.forEach(diagnosis::add)
         if (astNode != null) {
             val simplified = simplify()
             if (simplified !== this) {

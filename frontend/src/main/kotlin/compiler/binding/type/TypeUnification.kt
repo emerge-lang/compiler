@@ -2,6 +2,8 @@ package compiler.binding.type
 
 import compiler.ast.type.TypeVariance
 import compiler.binding.type.BoundIntersectionTypeReference.Companion.intersect
+import compiler.diagnostic.CollectingDiagnosis
+import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.Diagnostic
 import compiler.diagnostic.MissingTypeArgumentDiagnostic
 import compiler.diagnostic.SuperfluousTypeArgumentsDiagnostic
@@ -124,11 +126,21 @@ class TypeUnification private constructor(
         )
     }
 
-    fun mergedWith(other: TypeUnification): TypeUnification {
-        check(other.variableStates.keys.none { it in this.variableStates }) // TODO: remove this assumption
+    fun mergedWith(other: TypeUnification, dupeHandler: (BoundTypeParameter, VariableState, VariableState, Diagnosis) -> VariableState): TypeUnification {
+        val diagnosis = CollectingDiagnosis()
+        val resultStates = this.variableStates.toMutableMap()
+        for ((param, otherState) in other.variableStates) {
+            resultStates.merge(param, otherState) { selfState, _ ->
+                if (selfState == otherState) {
+                    selfState
+                } else {
+                    dupeHandler(param, selfState, otherState, diagnosis)
+                }
+            }
+        }
         return TypeUnification(
-            this.variableStates + other.variableStates,
-            this.diagnostics + other.diagnostics,
+            resultStates,
+            this.diagnostics + other.diagnostics + diagnosis.findings,
         )
     }
 

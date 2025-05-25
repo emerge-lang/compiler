@@ -50,6 +50,7 @@ import compiler.binding.expression.BoundNotNullExpression
 import compiler.binding.expression.BoundReturnExpression
 import compiler.binding.expression.BoundThrowExpression
 import compiler.binding.impurity.Impurity
+import compiler.binding.type.BoundIntersectionTypeReference
 import compiler.binding.type.BoundTypeArgument
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
@@ -71,6 +72,10 @@ fun Diagnosis.unknownType(erroneousRef: NamedTypeReference) {
 
 fun Diagnosis.simplifiableIntersectionType(verbose: AstIntersectionType, simpler: BoundTypeReference) {
     add(SimplifiableIntersectionTypeDiagnostic(verbose, simpler))
+}
+
+fun Diagnosis.illegalIntersectionType(ref: BoundIntersectionTypeReference, reason: String) {
+    add(IllegalIntersectionTypeDiagnostic(reason, ref.span ?: compiler.lexer.Span.UNKNOWN))
 }
 
 fun Diagnosis.valueNotAssignable(targetType: BoundTypeReference, sourceType: BoundTypeReference, reason: String, assignmentLocation: Span) {
