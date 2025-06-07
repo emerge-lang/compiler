@@ -9,9 +9,11 @@ import compiler.ast.VariableDeclaration
 import compiler.ast.VariableOwnership
 import compiler.ast.expression.IdentifierExpression
 import compiler.ast.expression.MemberAccessExpression
+import compiler.ast.type.AstIntersectionType
 import compiler.ast.type.NamedTypeReference
 import compiler.ast.type.TypeArgument
 import compiler.ast.type.TypeMutability
+import compiler.ast.type.TypeParameter
 import compiler.ast.type.TypeReference
 import compiler.ast.type.TypeVariance
 import compiler.binding.BoundCodeChunk
@@ -38,8 +40,8 @@ import compiler.binding.misc_ir.IrTemporaryValueReferenceImpl
 import compiler.binding.misc_ir.IrUpdateSourceLocationStatementImpl
 import compiler.binding.type.BoundTypeParameter
 import compiler.binding.type.BoundTypeReference
+import compiler.binding.type.GenericTypeReference
 import compiler.binding.type.IrSimpleTypeImpl
-import compiler.binding.type.RootResolvedTypeReference
 import compiler.diagnostic.ClassMemberVariableNotInitializedDuringObjectConstructionDiagnostic
 import compiler.diagnostic.Diagnosis
 import compiler.diagnostic.PurityViolationDiagnostic
@@ -75,7 +77,7 @@ import io.github.tmarsteel.emerge.common.CanonicalElementName
  * 4. execute user-defined code additionally defined in a `constructor { ... }` block in the class definition
  */
 class BoundClassConstructor(
-    private val fileContextWithTypeParameters: CTContext,
+    fileContextWithTypeParametersDeclaredOnBaseType: CTContext,
     override val declaredTypeParameters: List<BoundTypeParameter>,
     val boundMemberVariables: List<BoundBaseTypeMemberVariable>,
     getClassDef: () -> BoundBaseType,
@@ -87,6 +89,38 @@ class BoundClassConstructor(
         CanonicalElementName.Function(classDef.canonicalName, "\$constructor")
     }
 
+    private val fileContextWithAllTypeParameters: CTContext
+    private val typeParameterForDecoratorMutability: BoundTypeParameter?
+    private val additionalTypeParametersForDecoratedMembers = mutableMapOf<BoundBaseTypeMemberVariable, BoundTypeParameter>()
+    init {
+        val decoratedCtorInitializedMembers = boundMemberVariables.filter { it.isDecorated && it.isConstructorParameterInitialized }
+        if (decoratedCtorInitializedMembers.isNotEmpty()) {
+            typeParameterForDecoratorMutability = TypeParameter(
+                TypeVariance.UNSPECIFIED,
+                IdentifierToken(fileContextWithTypeParametersDeclaredOnBaseType.findInternalVariableName("M"), generatedSourceLocation),
+                null,
+            ).bindTo(fileContextWithTypeParametersDeclaredOnBaseType)
+            var contextCarry = typeParameterForDecoratorMutability.modifiedContext
+            val refToTypeParameterForDecoratorMutability = NamedTypeReference(IdentifierToken(typeParameterForDecoratorMutability.name, generatedSourceLocation))
+            decoratedCtorInitializedMembers
+                .filter { it.type == null || it.type !is GenericTypeReference }
+                .forEach { member ->
+                    val memberParamType = (member.type?.asAstReference() ?: NamedTypeReference("Any")).intersect(refToTypeParameterForDecoratorMutability, generatedSourceLocation)
+                    val boundTypeParam = TypeParameter(
+                        TypeVariance.UNSPECIFIED,
+                        IdentifierToken(contextCarry.findInternalTypeParameterName(member.name),  generatedSourceLocation),
+                        memberParamType,
+                    ).bindTo(contextCarry)
+                    contextCarry = boundTypeParam.modifiedContext
+                    additionalTypeParametersForDecoratedMembers[member] = boundTypeParam
+                }
+            fileContextWithAllTypeParameters = contextCarry
+        } else {
+            typeParameterForDecoratorMutability = null
+            fileContextWithAllTypeParameters = fileContextWithTypeParametersDeclaredOnBaseType
+        }
+    }
+
     /*
     The contexts in a constructor:
     fileContext
@@ -94,15 +128,15 @@ class BoundClassConstructor(
         - contextWithSelfVar
             - contextWithParameters
      */
-    private val constructorFunctionRootContext = ConstructorFunctionRootContext(fileContextWithTypeParameters)
-    override val context = fileContextWithTypeParameters
+    private val constructorFunctionRootContext = ConstructorFunctionRootContext(fileContextWithAllTypeParameters)
+    override val context = fileContextWithAllTypeParameters
 
     override val declaredAt get() = declaration.span
     override val receiverType = null
     override val declaresReceiver = false
     override val name get() = classDef.simpleName
-    override val attributes = BoundFunctionAttributeList(fileContextWithTypeParameters, { this }, declaration.attributes)
-    override val allTypeParameters: List<BoundTypeParameter> = declaredTypeParameters
+    override val attributes = BoundFunctionAttributeList(fileContextWithAllTypeParameters, { this }, declaration.attributes)
+    override val allTypeParameters: List<BoundTypeParameter> = declaredTypeParameters + listOfNotNull(typeParameterForDecoratorMutability) + additionalTypeParametersForDecoratedMembers.values
 
     /**
      * it is crucial that this collection sticks to the insertion order for the semantics of which mixin will implement
@@ -112,21 +146,32 @@ class BoundClassConstructor(
     /** the mixins, in the order declared in the constructor */
     val mixins: Set<BoundMixinStatement> = _mixins
 
-    override val returnType by lazy {
-        constructorFunctionRootContext.resolveType(
-            NamedTypeReference(
-                classDef.simpleName,
-                TypeReference.Nullability.NOT_NULLABLE,
-                TypeMutability.EXCLUSIVE,
-                classDef.declaration.name,
-                classDef.typeParameters?.map {
-                    TypeArgument(
-                        TypeVariance.UNSPECIFIED,
-                        NamedTypeReference(it.astNode.name),
-                    )
-                },
-            ),
+    private val exclusiveSelfBaseTypeRef by lazy {
+        NamedTypeReference(
+            classDef.simpleName,
+            TypeReference.Nullability.NOT_NULLABLE,
+            TypeMutability.EXCLUSIVE,
+            classDef.declaration.name,
+            classDef.typeParameters?.map {
+                TypeArgument(
+                    TypeVariance.UNSPECIFIED,
+                    NamedTypeReference(it.astNode.name),
+                )
+            },
         )
+    }
+    override val returnType by lazy {
+        constructorFunctionRootContext.resolveType(if (typeParameterForDecoratorMutability != null) {
+            AstIntersectionType(
+                listOf(
+                    exclusiveSelfBaseTypeRef.withMutability(TypeMutability.READONLY),
+                    NamedTypeReference(IdentifierToken(typeParameterForDecoratorMutability.name, generatedSourceLocation)),
+                ),
+                generatedSourceLocation,
+            )
+        } else {
+            exclusiveSelfBaseTypeRef
+        })
     }
 
     /*
@@ -146,7 +191,7 @@ class BoundClassConstructor(
             null,
             null,
             IdentifierToken(BoundParameterList.RECEIVER_PARAMETER_NAME, generatedSourceLocation),
-            (returnType as RootResolvedTypeReference).original!!.withMutability(TypeMutability.EXCLUSIVE),
+            exclusiveSelfBaseTypeRef,
             null,
         )
         val varInstance = varAst.bindToAsParameter(contextWithSelfVar)
@@ -161,6 +206,10 @@ class BoundClassConstructor(
             .filter { it.isConstructorParameterInitialized }
             .map { member ->
                 val location = member.declaration.span.deriveGenerated()
+                val type = additionalTypeParametersForDecoratedMembers[member]
+                    ?.let { typeParam -> NamedTypeReference(IdentifierToken(typeParam.name, location)) }
+                    ?: member.declaration.variableDeclaration.type?.withMutability(member.type?.mutability ?: TypeMutability.IMMUTABLE)
+                    ?: NamedTypeReference("Any")
                 VariableDeclaration(
                     location,
                     null,
@@ -170,8 +219,7 @@ class BoundClassConstructor(
                         KeywordToken(Keyword.CAPTURE, span = location),
                     ),
                     member.declaration.name,
-                    member.declaration.variableDeclaration.type?.withMutability(member.type?.mutability ?: TypeMutability.IMMUTABLE)
-                        ?: NamedTypeReference("Any"),
+                    type,
                     null,
                 )
             }
@@ -234,7 +282,7 @@ class BoundClassConstructor(
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
         return seanHelper.phase1(diagnosis) {
             // this has to be done first to make sure the type parameters are registered in the ctor function context
-            declaredTypeParameters.forEach { it.semanticAnalysisPhase1(diagnosis) }
+            allTypeParameters.forEach { it.semanticAnalysisPhase1(diagnosis) }
 
             attributes.semanticAnalysisPhase1(diagnosis)
             selfVariableForInitCode.semanticAnalysisPhase1(diagnosis)
@@ -247,7 +295,7 @@ class BoundClassConstructor(
 
     override fun semanticAnalysisPhase2(diagnosis: Diagnosis) {
         return seanHelper.phase2(diagnosis) {
-            declaredTypeParameters.forEach { it.semanticAnalysisPhase2(diagnosis) }
+            allTypeParameters.forEach { it.semanticAnalysisPhase2(diagnosis) }
 
             selfVariableForInitCode.semanticAnalysisPhase2(diagnosis)
             contextWithSelfVar.trackSideEffect(PartialObjectInitialization.Effect.MarkObjectAsEntirelyUninitializedEffect(selfVariableForInitCode, classDef))
@@ -283,7 +331,7 @@ class BoundClassConstructor(
 
     override fun semanticAnalysisPhase3(diagnosis: Diagnosis) {
         return seanHelper.phase3(diagnosis) {
-            declaredTypeParameters.forEach { it.semanticAnalysisPhase2(diagnosis) }
+            allTypeParameters.forEach { it.semanticAnalysisPhase3(diagnosis) }
 
             attributes.semanticAnalysisPhase3(diagnosis)
             selfVariableForInitCode.semanticAnalysisPhase3(diagnosis)

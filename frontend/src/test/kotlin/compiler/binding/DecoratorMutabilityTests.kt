@@ -48,10 +48,6 @@ class DecoratorMutabilityTests : FreeSpec({
                         it.targetType.toString() shouldBe "exclusive testmodule.Wrapper"
                     }
             }
-
-            "can't force wrapper to mut with read nested object" {
-
-            }
         }
 
         "for two nested parameters" - {

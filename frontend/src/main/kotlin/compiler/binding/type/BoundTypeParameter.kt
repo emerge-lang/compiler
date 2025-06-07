@@ -31,10 +31,8 @@ data class BoundTypeParameter(
     lateinit var bound: BoundTypeReference
         private set
 
-    private val _modifiedContext = MutableCTContext(context)
-    val modifiedContext: CTContext = _modifiedContext
-    init {
-        _modifiedContext.addTypeParameter(this)
+    val modifiedContext: CTContext = MutableCTContext(context).also {
+        it.addTypeParameter(this)
     }
 
     override fun semanticAnalysisPhase1(diagnosis: Diagnosis) {
