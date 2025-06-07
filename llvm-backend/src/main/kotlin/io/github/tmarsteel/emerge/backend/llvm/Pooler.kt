@@ -19,11 +19,7 @@ internal class Pooler<T : Any> {
     fun mustBeInSamePool(elements: Collection<T>) {
         if (elements.size == 1) {
             val element = elements.single()
-            if (element in poolsByElement) {
-                return
-            }
-            singletons.add(element)
-            return
+            assureInSomePool(element)
         }
 
         singletons.removeAll(elements)
@@ -45,6 +41,17 @@ internal class Pooler<T : Any> {
         mergedPool.forEach {
             poolsByElement[it] = mergedPool
         }
+    }
+
+    /**
+     * assures that [pools] has one pool `P` such that `pool.contains(element)`.
+     */
+    fun assureInSomePool(element: T) {
+        if (element in poolsByElement) {
+            return
+        }
+
+        singletons.add(element)
     }
 
     private fun addBrandNewPool(pool: Collection<T>) {

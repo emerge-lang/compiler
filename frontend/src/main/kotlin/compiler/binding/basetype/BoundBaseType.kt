@@ -560,6 +560,8 @@ private class IrInterfaceImpl(
     override fun hashCode(): Int {
         return canonicalName.hashCode()
     }
+
+    override fun toString() = "IrInterface[$canonicalName]"
 }
 
 private class IrClassImpl(
