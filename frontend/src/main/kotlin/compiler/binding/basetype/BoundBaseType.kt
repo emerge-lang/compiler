@@ -167,7 +167,7 @@ class BoundBaseType(
                         KeywordToken(Keyword.CONSTRUCTOR, span = declaration.declaredAt),
                         AstCodeChunk(emptyList())
                     )
-                    constructor = defaultCtorAst.bindTo(typeRootContext, typeParameters) { this }
+                    constructor = defaultCtorAst.bindTo(typeRootContext, typeParameters, _memberVariables) { this }
                     constructor!!.semanticAnalysisPhase1(diagnosis)
                 } else {
                     constructor = declaredConstructors.first()

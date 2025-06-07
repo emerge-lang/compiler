@@ -70,13 +70,14 @@ import io.github.tmarsteel.emerge.common.CanonicalElementName
 /**
  * The constructor of a class that, once compiled, does the basic bootstrapping:
  * 1. accept values for the constructor-initialized member variables
- * 2. allocate the appropriate amount of memory
+ * 2. allocate memory for the new object
  * 3. initialize all member variables as appropriate / as defined in their initializer expressions
  * 4. execute user-defined code additionally defined in a `constructor { ... }` block in the class definition
  */
 class BoundClassConstructor(
     private val fileContextWithTypeParameters: CTContext,
     override val declaredTypeParameters: List<BoundTypeParameter>,
+    val boundMemberVariables: List<BoundBaseTypeMemberVariable>,
     getClassDef: () -> BoundBaseType,
     val declaration: BaseTypeConstructorDeclaration,
 ) : BoundFunction, BoundBaseTypeEntry<BaseTypeConstructorDeclaration> {
@@ -101,7 +102,7 @@ class BoundClassConstructor(
     override val declaresReceiver = false
     override val name get() = classDef.simpleName
     override val attributes = BoundFunctionAttributeList(fileContextWithTypeParameters, { this }, declaration.attributes)
-    override val allTypeParameters = declaredTypeParameters
+    override val allTypeParameters: List<BoundTypeParameter> = declaredTypeParameters
 
     /**
      * it is crucial that this collection sticks to the insertion order for the semantics of which mixin will implement

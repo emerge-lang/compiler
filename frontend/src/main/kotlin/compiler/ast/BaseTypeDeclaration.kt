@@ -81,25 +81,38 @@ class BaseTypeDeclaration(
             },
         )
 
-        // the entries must retain their order, for semantic and linting reasons
-        val boundEntries = entryDeclarations
-            .map<BaseTypeEntryDeclaration, BoundBaseTypeEntry<*>> { entry -> when (entry) {
-                is BaseTypeMemberVariableDeclaration -> entry.bindTo(memberVariableInitializationContext, typeDefAccessor)
-                is BaseTypeConstructorDeclaration -> {
-                    entry.bindTo(fileContextWithTypeParams, boundTypeParameters, typeDefAccessor)
+        // the entries must retain their order, for semantic and linting reasons;
+        // however, binding the member variables first enables the constructor code to be simpler
+        val boundEntriesByAstNode = LinkedHashMap<BaseTypeEntryDeclaration, BoundBaseTypeEntry<*>>()
+        entryDeclarations
+            .asSequence()
+            .filterIsInstance<BaseTypeMemberVariableDeclaration>()
+            .associateWithTo(boundEntriesByAstNode) { it.bindTo(memberVariableInitializationContext, typeDefAccessor) }
+
+        entryDeclarations
+            .asSequence()
+            .filter { it !in boundEntriesByAstNode }
+            .associateWithTo(boundEntriesByAstNode) { entry ->
+                when (entry) {
+                    is BaseTypeConstructorDeclaration -> {
+                        val boundMemberVars = boundEntriesByAstNode.values.asSequence()
+                            .filterIsInstance<BoundBaseTypeMemberVariable>()
+                            .toList()
+                        entry.bindTo(fileContextWithTypeParams, boundTypeParameters, boundMemberVars, typeDefAccessor)
+                    }
+                    is BaseTypeMemberFunctionDeclaration -> {
+                        entry.bindTo(
+                            typeRootContext,
+                            buildSelfTypeReference(entry.functionDeclaration.parameters.parameters.firstOrNull()?.declaredAt ?: entry.span),
+                            typeDefAccessor
+                        )
+                    }
+                    is BaseTypeDestructorDeclaration -> {
+                        entry.bindTo(fileContextWithTypeParams, boundTypeParameters, typeDefAccessor)
+                    }
+                    is BaseTypeMemberVariableDeclaration -> error("unreachable, member vars are done above")
                 }
-                is BaseTypeMemberFunctionDeclaration -> {
-                    entry.bindTo(
-                        typeRootContext,
-                        buildSelfTypeReference(entry.functionDeclaration.parameters.parameters.firstOrNull()?.declaredAt ?: entry.span),
-                        typeDefAccessor
-                    )
-                }
-                is BaseTypeDestructorDeclaration -> {
-                    entry.bindTo(fileContextWithTypeParams, boundTypeParameters, typeDefAccessor)
-                }
-            } }
-            .toMutableList()
+            }
 
         boundTypeDef = BoundBaseType(
             fileContext,
@@ -109,7 +122,7 @@ class BaseTypeDeclaration(
             boundTypeParameters,
             boundSupertypeList,
             this,
-            boundEntries,
+            boundEntriesByAstNode.values.toList(),
         )
         return boundTypeDef
     }
@@ -147,8 +160,13 @@ class BaseTypeConstructorDeclaration(
 ) : BaseTypeEntryDeclaration {
     override val span = constructorKeyword.span
 
-    fun bindTo(fileContextWithTypeParameters: CTContext, typeParameters: List<BoundTypeParameter>?, getClassDef: () -> BoundBaseType) : BoundClassConstructor {
-        return BoundClassConstructor(fileContextWithTypeParameters, typeParameters ?: emptyList(), getClassDef, this)
+    fun bindTo(
+        fileContextWithTypeParameters: CTContext,
+        typeParameters: List<BoundTypeParameter>?,
+        boundMemberVariables: List<BoundBaseTypeMemberVariable>,
+        getClassDef: () -> BoundBaseType
+    ) : BoundClassConstructor {
+        return BoundClassConstructor(fileContextWithTypeParameters, typeParameters ?: emptyList(), boundMemberVariables, getClassDef, this)
     }
 }
 
