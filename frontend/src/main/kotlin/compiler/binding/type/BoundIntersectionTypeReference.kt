@@ -137,13 +137,22 @@ class BoundIntersectionTypeReference private constructor(
                 val carry2 = nonVarComponents.fold(carry) { innerCarry, component ->
                     component.unify(assigneeType, assignmentLocation, innerCarry)
                 }
-                val fullyCoveringComponent = nonVarComponents.firstOrNull { it.hasSameBaseTypeAs(assigneeType) }
+                var fullyCoveringComponent: BoundTypeReference? = null
+                var carry3: TypeUnification = carry2
+                for (nonVarComponent in nonVarComponents) {
+                    val carry3candidate = nonVarComponent.unify(assigneeType, assignmentLocation, carry2)
+                    if (carry3candidate.getErrorsNotIn(carry2).none()) {
+                        fullyCoveringComponent = nonVarComponent
+                        carry3 = carry3candidate
+                        break
+                    }
+                }
                 val newAssignee = if (fullyCoveringComponent == null) assigneeType else {
                     context.swCtx.any.baseReference
                         .withMutability(assigneeType.mutability.intersect(fullyCoveringComponent.mutability))
                         .withCombinedNullability(if (!fullyCoveringComponent.isNullable && assigneeType.isNullable) TypeReference.Nullability.NULLABLE else TypeReference.Nullability.UNSPECIFIED)
                 }
-                return varComponents.fold(carry2) { innerCarry, component ->
+                return varComponents.fold(carry3) { innerCarry, component ->
                     component.unify(newAssignee, assignmentLocation, innerCarry)
                 }
             }
