@@ -13,7 +13,7 @@ class DecoratorMutabilityTests : FreeSpec({
                 validateModule("""
                     class Nested {}
                     interface Wrapper {}
-                    intrinsic fn wrapperCtor<_M, _Nested : Nested & _M, _Wrapper : Wrapper & _M>(n: _Nested) -> _Wrapper
+                    intrinsic fn wrapperCtor<_M, _Nested : Nested & _M>(n: _Nested) -> Wrapper & _M
                     
                     fn test() {
                         mutNested: mut Nested = Nested()
@@ -33,7 +33,7 @@ class DecoratorMutabilityTests : FreeSpec({
                 validateModule("""
                     class Nested {}
                     interface Wrapper {}
-                    intrinsic fn wrapperCtor<_M, _Nested : Nested & _M, _Wrapper : Wrapper & _M>(n: _Nested) -> _Wrapper
+                    intrinsic fn wrapperCtor<_M, _Nested : Nested & _M>(n: _Nested) -> Wrapper & _M
                     
                     fn test() {
                         constNested: const Nested = Nested()
@@ -59,7 +59,7 @@ class DecoratorMutabilityTests : FreeSpec({
                 validateModule("""
                     class Nested {}
                     interface Wrapper {}
-                    intrinsic fn wrapperCtor<_M, _Nested : Nested & _M, _Wrapper : Wrapper & _M>(n1: _Nested, n2: _Nested) -> _Wrapper
+                    intrinsic fn wrapperCtor<_M, _Nested : Nested & _M>(n1: _Nested, n2: _Nested) -> Wrapper & _M
                     
                     fn test() {
                         mutNested: mut Nested = Nested()
@@ -79,7 +79,7 @@ class DecoratorMutabilityTests : FreeSpec({
                 validateModule("""
                     class Nested {}
                     interface Wrapper {}
-                    intrinsic fn wrapperCtor<_M, _Nested : Nested & _M, _Wrapper : Wrapper & _M>(n1: _Nested, n2: _Nested) -> _Wrapper
+                    intrinsic fn wrapperCtor<_M, _Nested : Nested & _M>(n1: _Nested, n2: _Nested) -> Wrapper & _M
                     
                     fn test() {
                         constNested: const Nested = Nested()
@@ -99,7 +99,7 @@ class DecoratorMutabilityTests : FreeSpec({
                 validateModule("""
                     class Nested {}
                     interface Wrapper {}
-                    intrinsic fn wrapperCtor<_M, _Nested : Nested & _M, _Wrapper : Wrapper & _M>(n1: _Nested, n2: _Nested) -> _Wrapper
+                    intrinsic fn wrapperCtor<_M, _Nested : Nested & _M>(n1: _Nested, n2: _Nested) -> Wrapper & _M
                     
                     fn test() {
                         constNested: const Nested = Nested()
