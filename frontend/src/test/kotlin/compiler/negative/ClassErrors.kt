@@ -218,6 +218,40 @@ class ClassErrors : FreeSpec({
                         .shouldHaveNoDiagnostics()
                 }
             }
+
+            "cannot use decorated member as mut nor const in constructor" {
+                validateModule("""
+                    interface N {}
+                    class W {
+                        decorates n: N = init
+                        
+                        constructor {
+                            useMut(self.n)
+                        }
+                    }
+                    intrinsic fn useMut(borrow n: mut N)
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic> {
+                        it.sourceType.toString() shouldBe "read testmodule.N"
+                        it.targetType.toString() shouldBe "mut testmodule.N"
+                    }
+
+                validateModule("""
+                    interface N {}
+                    class W {
+                        decorates n: N = init
+                        
+                        constructor {
+                            useConst(self.n)
+                        }
+                    }
+                    intrinsic fn useConst(borrow n: const N)
+                """.trimIndent())
+                    .shouldFind<ValueNotAssignableDiagnostic> {
+                        it.sourceType.toString() shouldBe "read testmodule.N"
+                        it.targetType.toString() shouldBe "const testmodule.N"
+                    }
+            }
         }
     }
 
